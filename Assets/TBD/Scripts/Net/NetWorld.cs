@@ -202,7 +202,8 @@ namespace TBD.Net
         public const int ZombiesPerPermil = 10;
         public int ActiveZoneNode = -1;             // nodo con zona materializada (-1 = ninguna; el MVP admite una)
         public int ActiveZoneTaken;                 // densidad (por mil) que salió de la mancha al materializar
-        public long ActiveZoneSinceTick = -1;                // las alertas críticas nuevas bajan a x1 (D-N11)
+        public long ActiveZoneSinceTick = -1;
+        public int ActiveZoneCell = -1;             // celda de la mancha de la que salió la horda (y a la que vuelve)                // las alertas críticas nuevas bajan a x1 (D-N11)
         public List<Alert> Alerts = new List<Alert>();
         readonly List<NetCommand> _queue = new List<NetCommand>();
 
@@ -302,7 +303,17 @@ namespace TBD.Net
         {
             if (ActiveZoneNode >= 0 || node < 0 || node >= Graph.Nodes.Count) return;
             var n = Graph.Nodes[node];
-            int i = n.YMeters * HordeField.W + n.XMeters;
+            // la celda que se materializa es la más densa de las 3×3 alrededor del nodo (la misma que da el estado del nodo:
+            // HordeDensity = máximo alrededor); empate: la de índice menor
+            int i = -1, best = -1;
+            for (int y = n.YMeters - 1; y <= n.YMeters + 1; y++)
+                for (int x = n.XMeters - 1; x <= n.XMeters + 1; x++)
+                {
+                    if (x < 0 || y < 0 || x >= HordeField.W || y >= HordeField.H) continue;
+                    int c = y * HordeField.W + x;
+                    if (Field.D[c] > best) { best = Field.D[c]; i = c; }
+                }
+            ActiveZoneCell = i;
             ActiveZoneNode = node;
             ActiveZoneTaken = Field.D[i];
             ActiveZoneSinceTick = Tick;
@@ -314,9 +325,9 @@ namespace TBD.Net
         void Dematerialize(int node, int returnPermil)
         {
             if (node != ActiveZoneNode) return;
-            var n = Graph.Nodes[node];
-            int i = n.YMeters * HordeField.W + n.XMeters;
+            int i = ActiveZoneCell;
             Field.D[i] += Math.Max(0, returnPermil);
+            ActiveZoneCell = -1;
             Field.Frozen = -1;
             ActiveZoneNode = -1;
             ActiveZoneTaken = 0;
@@ -465,7 +476,7 @@ namespace TBD.Net
         public ulong Hash()
         {
             ulong h = Mix((ulong)Tick) + Field.Hash() + Mix(0xC0FFEEUL ^ ((ulong)(uint)Speed << 1) ^ (Paused ? 1UL : 0UL));
-            h += Mix(0x2041EUL ^ ((ulong)(uint)(ActiveZoneNode + 1) << 8) ^ ((ulong)(uint)ActiveZoneTaken << 24) ^ ((ulong)(ActiveZoneSinceTick + 1) << 40));
+            h += Mix(0x2041EUL ^ ((ulong)(uint)(ActiveZoneCell + 1) << 48) ^ ((ulong)(uint)(ActiveZoneNode + 1) << 8) ^ ((ulong)(uint)ActiveZoneTaken << 24) ^ ((ulong)(ActiveZoneSinceTick + 1) << 40));
             foreach (var s in Services)
             {
                 var t = s.Train;
