@@ -12,6 +12,15 @@ namespace TBD.Sim.Tests
         {
             // Sonda de ritmo (TBD_PROBE=1): cuántas estaciones están asediadas cada 3 h durante dos días.
             if (Environment.GetEnvironmentVariable("TBD_PROBE") == "1") { var dw = NetScenario.Mvp(); for (int h=6;h<=48;h+=3){ while(dw.Tick<NetConst.Hours(h)){dw.ApplyCommands();dw.Step();} int sg=0, th=0; foreach(var n in dw.Graph.Nodes){ if(n.State==NodeState.Asediada) sg++; else if(n.State==NodeState.Amenazada) th++; } Console.WriteLine($"PROBE {NetConst.Clock(dw.Tick)} d{dw.Tick/NetConst.DayTicks+1}: asediadas {sg}, amenazadas {th}"); } }
+            // ---- QA Q2: el hash de la zona ve diferencias de 1 mm y de velocidad
+            {
+                var z1 = TBD.Sim.Zombie.Create(7, new Unity.Mathematics.float2(50f, 60f), 0f);
+                var z2 = z1; z2.Pos.x += 0.001f;
+                var z3 = z1; z3.Vel.x = 0.0001f;
+                var z4 = z1; z4.SettledCell = 5;
+                check(TBD.Sim.HashMath.OfZombie(z1) != TBD.Sim.HashMath.OfZombie(z2) && TBD.Sim.HashMath.OfZombie(z1) != TBD.Sim.HashMath.OfZombie(z3) && TBD.Sim.HashMath.OfZombie(z1) != TBD.Sim.HashMath.OfZombie(z4),
+                    "el hash de un zombi cambia con 1 mm de posición, con la velocidad y con la celda de pila (QA Q2)");
+            }
             Console.WriteLine("[10] Mundo S0 del hito 2: mancha, horarios, carga, tiempo y determinismo");
 
             // ---- la mancha conserva la masa y se mueve
@@ -101,6 +110,17 @@ namespace TBD.Sim.Tests
             }
             check(sawCut, "una mancha densa sobre la vía la corta");
             check(sawStop, "el tren 2 da aviso (detenido o con la horda cerca)");
+
+            // ---- terreno compartido (relieve de sustitución): continuo, determinista y con sentido geográfico
+            var relief = new PlaceholderRelief(RailNetSamples.Mvp());
+            var rg = RailNetSamples.Mvp();
+            double H(string name) { foreach (var n in rg.Nodes) if (n.Name == name) return relief.HeightM(n.XMeters, n.YMeters); return double.NaN; }
+            check(relief.HeightM(33.3, 52.1) == new PlaceholderRelief(RailNetSamples.Mvp()).HeightM(33.3, 52.1), "el relieve es determinista");
+            check(H("Teruel") > H("Sagunto") + 300 && H("Valencia") < 200, $"interior alto y costa baja (Teruel {H("Teruel"):0} m, Sagunto {H("Sagunto"):0} m, Valencia {H("Valencia"):0} m)");
+            check(relief.HeightM(78, 70) < 0, "al este de la costa hay mar");
+            double maxStep = 0;                                         // la zona (128 m) muestrea la misma función: sin saltos
+            for (int i = 0; i < 256; i++) maxStep = Math.Max(maxStep, Math.Abs(relief.HeightM(53 + (i + 1) * 0.5 / 3500.0 * 1000 / 1000, 73) - relief.HeightM(53 + i * 0.5 / 3500.0, 73)));
+            check(maxStep < 5, $"a escala de zona el terreno es continuo (salto máximo {maxStep:0.00} m cada 0,5 m)");
 
             // ---- determinismo: dos mundos con las mismas órdenes, mismo hash en cada tick
             var w1 = NetScenario.Mvp();

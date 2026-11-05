@@ -183,7 +183,7 @@ namespace TBD.Sim
         }
     }
 
-    [BurstCompile(FloatMode = FloatMode.Deterministic, FloatPrecision = FloatPrecision.Standard)]
+    [BurstCompile(FloatMode = FloatMode.Deterministic, FloatPrecision = FloatPrecision.Standard, CompileSynchronously = true)]
     public partial struct ZombieStepJob : IJobEntity
     {
         [ReadOnly] public NativeArray<Solid> Solids;
@@ -269,9 +269,13 @@ namespace TBD.Sim
 
             var solids = SystemAPI.GetBuffer<Solid>(root);
             sum += HashMath.Mix((ulong)solids.Length + 0x7777UL);
+            for (int i = 0; i < solids.Length; i++) sum += HashMath.OfSolid(i, solids[i]);   // QA Q2: contenido, no solo cuántos
 
             var train = SystemAPI.GetSingleton<TrainState>();
-            sum += HashMath.Mix((ulong)(uint)(int)math.round(train.X * 256f) + 0x1234567UL);
+            sum += HashMath.OfFloat(train.X, 21) + HashMath.OfFloat(train.Speed, 22) + HashMath.Mix((ulong)(uint)train.Dir + 0x1234567UL);
+            var info = SystemAPI.GetSingleton<ZoneInfo>();
+            sum += HashMath.Mix((info.GateOpen ? 1UL : 2UL) ^ ((ulong)(uint)info.GoalCell << 8) ^ 0xFEEDUL);
+            sum += HashMath.Mix(((ulong)clock.NextSimId << 1) ^ 0xBEEF00UL);
 
             SystemAPI.SetSingleton(new SimHash { Value = sum + clock.Tick, Tick = clock.Tick });
         }

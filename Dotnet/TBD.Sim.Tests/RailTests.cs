@@ -57,9 +57,19 @@ namespace TBD.Sim.Tests
 
             // ---- alertas
             var trains = new List<RailTrain> { t2 };
-            g.FindEdge(Id("Valencia"), Id("Sagunto")).HordeAtMm = 25_000_000L;      // horda en el km 25, por delante del tren
-            var alerts = AlertEngine.Evaluate(g, trains);
-            check(alerts.Count >= 1 && alerts[0].Kind == AlertKind.HordaCercaDelTren && alerts[0].EtaTicks > 0, "una horda por delante genera un aviso con tiempo: " + (alerts.Count > 0 ? alerts[0].Text : "ninguno"));
+            g.FindEdge(Id("Valencia"), Id("Sagunto")).HordeAtMm = 25_000_000L;      // horda en el km 25: a más de 3 km, no se detecta (D-N11)
+            var far = AlertEngine.Evaluate(g, trains);
+            check(far.Count == 0, "una horda a más de 3 km del tren no se detecta todavía (D-N11)");
+            g.FindEdge(Id("Valencia"), Id("Sagunto")).HordeAtMm = t2.OffsetMm + 2_500_000L;   // a 2,5 km por delante
+            var alerts = AlertEngine.Evaluate(g, trains, 9000);
+            check(alerts.Count >= 1 && alerts[0].Kind == AlertKind.HordaCercaDelTren && alerts[0].EtaTicks > 0 && alerts[0].Text.Contains("min (") , "una horda por delante genera un aviso en tiempo de juego con hora: " + (alerts.Count > 0 ? alerts[0].Text : "ninguno"));
+            // D-N11: con el tren parado y la horda común a 2 km/h, detectarla a 3 km da entre 60 y 120 s reales de aviso a x1
+            var parado = new RailTrain { Id = 99, Name = "P", SpeedMmPerTick = 0 };
+            parado.SetRoute(new List<int> { Id("Valencia"), Id("Sagunto") });
+            g.FindEdge(Id("Valencia"), Id("Sagunto")).HordeAtMm = 3_000_000L;
+            var ap = AlertEngine.Evaluate(g, new List<RailTrain> { parado });
+            double realSecs = ap.Count > 0 ? ap[0].EtaTicks / 30.0 : -1;
+            check(realSecs >= 60 && realSecs <= 120, $"aviso a x1 entre 60 y 120 s reales con la horda detectada a 3 km ({realSecs:0} s)");
 
             // tren detenido con horda: prioridad máxima y por encima de una vía cortada y de un nodo asediado
             g.FindEdge(Id("Segorbe"), Id("Teruel")).State = EdgeState.Cortada;

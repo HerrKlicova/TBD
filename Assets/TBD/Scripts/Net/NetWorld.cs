@@ -188,6 +188,7 @@ namespace TBD.Net
         public long Tick;
         public int Speed = 1;                       // 1, 2 o 4 ticks por paso de 1/30 s
         public bool Paused;
+        public bool AutoSlow = true;                // las alertas críticas nuevas bajan a x1 (D-N11)
         public List<Alert> Alerts = new List<Alert>();
         readonly List<NetCommand> _queue = new List<NetCommand>();
 
@@ -248,6 +249,7 @@ namespace TBD.Net
         // ---------------------------------------------------------------- un tick
         public void Step()
         {
+            ApplyCommands();                 // en cada tick, no al ritmo de los fotogramas (QA Q5)
             if (Paused) return;
             for (int s = 0; s < Services.Count; s++) StepService(Services[s]);
             if (Tick % NetConst.FieldEvery == 0)
@@ -261,7 +263,15 @@ namespace TBD.Net
                 UpdateFromField();
             }
             Tick++;
-            if (Tick % NetConst.FieldEvery == 0) Alerts = AlertEngine.Evaluate(Graph, Trains());
+            if (Tick % NetConst.FieldEvery == 0)
+            {
+                var prev = Alerts;
+                Alerts = AlertEngine.Evaluate(Graph, Trains(), Tick);
+                // D-N11: una alerta crítica nueva baja el tiempo a x1 (se puede desactivar). Sale del estado: es determinista.
+                if (AutoSlow && Speed > 1)
+                    foreach (var al in Alerts)
+                        if (al.Priority == 0 && !prev.Exists(p => p.Id == al.Id)) { Speed = 1; break; }
+            }
         }
 
         List<RailTrain> Trains()
@@ -377,7 +387,7 @@ namespace TBD.Net
         // ---------------------------------------------------------------- hash (prueba de desincronización)
         public ulong Hash()
         {
-            ulong h = Mix((ulong)Tick) + Field.Hash();
+            ulong h = Mix((ulong)Tick) + Field.Hash() + Mix(0xC0FFEEUL ^ ((ulong)(uint)Speed << 1) ^ (Paused ? 1UL : 0UL));
             foreach (var s in Services)
             {
                 var t = s.Train;

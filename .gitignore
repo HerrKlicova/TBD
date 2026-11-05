@@ -149,3 +149,6 @@ crashlytics-build.properties
 # Salida de compilación de las pruebas fuera de Unity
 /Dotnet/**/bin/
 /Dotnet/**/obj/
+
+# QA Q4: el proyecto de pruebas fuera de Unity sí va al repositorio (los .csproj de Unity se regeneran y siguen ignorados)
+!Dotnet/**/*.csproj

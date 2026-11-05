@@ -1,0 +1,558 @@
+using System.Collections.Generic;
+using System.IO;
+using TBD.Net;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
+
+namespace TBD.View
+{
+    /// <summary>
+    /// Hito 3 «Unión», parte 1: mapa de operaciones en 3D sobre el terreno compartido (TBD.Net.IElevationSource), con la red, la
+    /// mancha de horda, los trenes y el estado de los nodos encima. Cámara libre (girar, inclinar, zoom continuo de cientos de km
+    /// a unos cientos de metros). Va a resolución completa, sin pixelar (GDD §7). Escena: Assets/Scenes/Union.unity.
+    /// Unidades de Unity del mapa: 1 = 1 km. Relieve con exageración vertical.
+    /// </summary>
+    public sealed class OperationsMap3D : MonoBehaviour
+    {
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        static void Boot()
+        {
+            if (SceneManager.GetActiveScene().name != "Union") return;
+            if (FindFirstObjectByType<OperationsMap3D>() != null) return;
+            new GameObject("TBD_OperationsMap3D").AddComponent<OperationsMap3D>();
+        }
+
+        public const float MinX = 14f, MaxX = 80f, MinY = 6f, MaxY = 86f;   // extensión del mapa en unidades de mapa
+        public const float Exag = 6f;                                        // exageración vertical (PROTOTIPO)
+        const int GridX = 199, GridY = 241;                                  // vértices del terreno grueso (≈ 1,2 km por punto)
+        const int TexW = 396, TexH = 480;                                    // textura de color del terreno (y la mancha encima)
+
+        NetWorld _a, _b;
+        IElevationSource _relief;
+        float _acc;
+        bool _check = true, _desync;
+        Camera _cam;
+        Light _sun;
+        Mesh _mesh;
+        Material _terrainMat, _lineMat;
+        Texture2D _tex;
+        Color32[] _baseColors, _px;
+        readonly List<LineRenderer> _rails = new List<LineRenderer>();
+        readonly List<Transform> _nodes = new List<Transform>();
+        readonly List<Transform> _trains = new List<Transform>();
+        long _lastFieldTick = -1;
+
+        // detalle del terreno alrededor del foco (misma función de elevación, más fina): enlaza el mapa con la zona
+        const int DetailN = 161;                 // vértices por lado
+        const float DetailSizeKm = 12f;          // 12 x 12 km, unos 75 m entre puntos
+        GameObject _detail;
+        Mesh _detailMesh;
+        Texture2D _detailTex;
+        Vector3 _detailCenter = new Vector3(-9999, 0, -9999);
+        Vector3[] _coarseVerts, _coarseWork;
+        GUIStyle _label, _small, _title;
+        Texture2D _panelTex;
+        GUIStyle _panel;
+
+        // cámara libre
+        Vector3 _focus;
+        float _dist = 230f, _targetDist = 230f, _yaw = 0f, _pitch = 50f;
+
+        // ---------------------------------------------------------------- conversión mapa ↔ mundo
+        public static Vector3 MapToWorldFlat(double mx, double my)
+        {
+            return new Vector3((float)((mx - MinX) * MapGeo.KmPerUnit), 0f, (float)((MaxY - my) * MapGeo.KmPerUnit));
+        }
+
+        public Vector3 MapToWorld(double mx, double my, float lift = 0f)
+        {
+            var p = MapToWorldFlat(mx, my);
+            double h = _relief.HeightM(mx, my);
+            p.y = (float)(System.Math.Max(0, h) / 1000.0 * Exag) + lift;
+            return p;
+        }
+
+        void Start()
+        {
+            Application.targetFrameRate = 60;
+            _a = NetScenario.Mvp();
+            _b = NetScenario.Mvp();
+            _relief = new PlaceholderRelief(_a.Graph);
+            SetupCamera();
+            BuildTerrain();
+            BuildNetwork();
+            var sag = _a.Graph.Nodes.Find(n => n.Name == "Sagunto");
+            _focus = MapToWorldFlat(sag.XMeters - 6, sag.YMeters - 14);
+        }
+
+        void SetupCamera()
+        {
+            _cam = Camera.main;
+            if (_cam == null)
+            {
+                _cam = new GameObject("Camera").AddComponent<Camera>();
+                _cam.tag = "MainCamera";
+            }
+            _cam.clearFlags = CameraClearFlags.SolidColor;
+            _cam.backgroundColor = new Color(0.05f, 0.06f, 0.08f);
+            _cam.nearClipPlane = 0.05f;
+            _cam.farClipPlane = 3000f;
+            _cam.fieldOfView = 40f;
+            _sun = FindFirstObjectByType<Light>();
+            if (_sun == null) _sun = new GameObject("Sol").AddComponent<Light>();
+            _sun.type = LightType.Directional;
+            _sun.transform.rotation = Quaternion.Euler(42f, 140f, 0f);
+            _sun.intensity = 1.25f;
+            _sun.shadows = LightShadows.Soft;
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.32f, 0.33f, 0.38f);
+        }
+
+        // ---------------------------------------------------------------- terreno
+        static Color32 Hypso(double h)
+        {
+            if (h < 0) return Color32.Lerp(new Color32(30, 58, 92, 255), new Color32(14, 30, 58, 255), (float)System.Math.Min(1, -h / 400));
+            Color32[] stops = { new Color32(116, 128, 78, 255), new Color32(146, 142, 88, 255), new Color32(168, 146, 98, 255), new Color32(150, 118, 86, 255), new Color32(128, 110, 98, 255), new Color32(196, 190, 182, 255) };
+            double[] at = { 0, 200, 500, 900, 1300, 1700 };
+            for (int i = 1; i < at.Length; i++)
+                if (h < at[i]) return Color32.Lerp(stops[i - 1], stops[i], (float)((h - at[i - 1]) / (at[i] - at[i - 1])));
+            return stops[stops.Length - 1];
+        }
+
+        void BuildTerrain()
+        {
+            var verts = new Vector3[GridX * GridY];
+            var uvs = new Vector2[GridX * GridY];
+            for (int j = 0; j < GridY; j++)
+                for (int i = 0; i < GridX; i++)
+                {
+                    double mx = MinX + (MaxX - MinX) * i / (GridX - 1.0);
+                    double my = MinY + (MaxY - MinY) * j / (GridY - 1.0);
+                    var p = MapToWorldFlat(mx, my);
+                    double h = _relief.HeightM(mx, my);
+                    p.y = (float)(h < 0 ? h / 1000.0 * 2.0 : h / 1000.0 * Exag);
+                    verts[j * GridX + i] = p;
+                    uvs[j * GridX + i] = new Vector2(i / (GridX - 1f), 1f - j / (GridY - 1f));
+                }
+            var tris = new int[(GridX - 1) * (GridY - 1) * 6];
+            int k = 0;
+            for (int j = 0; j < GridY - 1; j++)
+                for (int i = 0; i < GridX - 1; i++)
+                {
+                    int v = j * GridX + i;
+                    tris[k++] = v; tris[k++] = v + 1; tris[k++] = v + GridX;
+                    tris[k++] = v + 1; tris[k++] = v + GridX + 1; tris[k++] = v + GridX;
+                }
+            _coarseVerts = verts;
+            _coarseWork = (Vector3[])verts.Clone();
+            _mesh = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32, vertices = _coarseWork, uv = uvs, triangles = tris };
+            _mesh.RecalculateNormals();
+            _mesh.RecalculateBounds();
+
+            _tex = new Texture2D(TexW, TexH, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, anisoLevel = 4 };
+            _baseColors = new Color32[TexW * TexH];
+            _px = new Color32[TexW * TexH];
+            for (int y = 0; y < TexH; y++)
+                for (int x = 0; x < TexW; x++)
+                {
+                    double mx = MinX + (MaxX - MinX) * x / (TexW - 1.0);
+                    double my = MaxY - (MaxY - MinY) * y / (TexH - 1.0);
+                    _baseColors[y * TexW + x] = Hypso(_relief.HeightM(mx, my));
+                }
+
+            var go = new GameObject("Terreno (relieve de sustitución)");
+            go.AddComponent<MeshFilter>().sharedMesh = _mesh;
+            var mr = go.AddComponent<MeshRenderer>();
+            _terrainMat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            _terrainMat.SetTexture("_BaseMap", _tex);
+            _terrainMat.SetFloat("_Smoothness", 0.05f);
+            mr.sharedMaterial = _terrainMat;
+            UpdateTexture();
+        }
+
+        void UpdateTexture()
+        {
+            var f = _a.Field;
+            for (int y = 0; y < TexH; y++)
+                for (int x = 0; x < TexW; x++)
+                {
+                    float mx = MinX + (MaxX - MinX) * x / (TexW - 1f);
+                    float my = MaxY - (MaxY - MinY) * y / (TexH - 1f);
+                    // densidad interpolada para que la mancha tenga bordes suaves a resolución completa
+                    float u = mx - 0.5f, v = my - 0.5f;
+                    int x0 = Mathf.FloorToInt(u), y0 = Mathf.FloorToInt(v);
+                    float fx = u - x0, fy = v - y0;
+                    float d = Mathf.Lerp(Mathf.Lerp(f.At(x0, y0), f.At(x0 + 1, y0), fx), Mathf.Lerp(f.At(x0, y0 + 1), f.At(x0 + 1, y0 + 1), fx), fy) / 1000f;
+                    var c = _baseColors[y * TexW + x];
+                    float a = Mathf.Clamp01((d - 0.08f) * 1.6f) * 0.85f;
+                    _px[y * TexW + x] = a > 0 ? Color32.Lerp(c, new Color32(150, 22, 26, 255), a) : c;
+                }
+            _tex.SetPixels32(_px);
+            _tex.Apply(true);
+        }
+
+        // ---------------------------------------------------------------- red, nodos y trenes
+        void BuildNetwork()
+        {
+            _lineMat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            var g = _a.Graph;
+            foreach (var e in g.Edges)
+            {
+                var a = g.Nodes[e.A]; var b = g.Nodes[e.B];
+                var lr = new GameObject("Vía " + a.Name + "–" + b.Name).AddComponent<LineRenderer>();
+                int n = Mathf.Max(8, Mathf.CeilToInt(Vector2.Distance(new Vector2(a.XMeters, a.YMeters), new Vector2(b.XMeters, b.YMeters)) * 6));
+                lr.positionCount = n + 1;
+                for (int i = 0; i <= n; i++)
+                {
+                    double t = i / (double)n;
+                    lr.SetPosition(i, MapToWorld(MapGeo.Lerp(a.XMeters, b.XMeters, t), MapGeo.Lerp(a.YMeters, b.YMeters, t), 0.02f));
+                }
+                lr.widthMultiplier = 0.6f;
+                lr.sharedMaterial = new Material(_lineMat);          // un material por vía: el Unlit de URP no usa el color de vértice
+                lr.numCapVertices = 2;
+                _rails.Add(lr);
+            }
+            foreach (var n in g.Nodes)
+            {
+                var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                go.name = n.Name;
+                Destroy(go.GetComponent<Collider>());
+                go.transform.position = MapToWorld(n.XMeters, n.YMeters, 0.3f);
+                go.transform.localScale = new Vector3(1.6f, 0.3f, 1.6f);
+                go.GetComponent<Renderer>().sharedMaterial = new Material(_lineMat);
+                _nodes.Add(go.transform);
+            }
+            foreach (var s in _a.Services)
+            {
+                var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                go.name = "Tren " + s.Train.Name;
+                Destroy(go.GetComponent<Collider>());
+                go.transform.localScale = new Vector3(0.9f, 0.5f, 2.4f);
+                var m = new Material(_lineMat);
+                m.SetColor("_BaseColor", new Color(1f, 0.93f, 0.6f));
+                go.GetComponent<Renderer>().sharedMaterial = m;
+                _trains.Add(go.transform);
+            }
+        }
+
+        static Color StateColor(NodeState s)
+        {
+            switch (s)
+            {
+                case NodeState.Segura: return new Color(0.38f, 0.75f, 0.38f);
+                case NodeState.Amenazada: return new Color(0.9f, 0.78f, 0.25f);
+                case NodeState.Asediada: return new Color(0.92f, 0.45f, 0.16f);
+                default: return new Color(0.45f, 0.08f, 0.1f);
+            }
+        }
+
+        void UpdateNetwork()
+        {
+            var g = _a.Graph;
+            // tamaño constante en pantalla: los marcadores y las vías se escalan con la distancia de la cámara
+            float k = Mathf.Clamp(_dist / 230f, 0.0015f, 2f);
+            foreach (var r in _rails) r.widthMultiplier = 0.6f * k;
+            for (int i = 0; i < _nodes.Count; i++) _nodes[i].localScale = new Vector3(1.6f, 0.3f, 1.6f) * k;
+            foreach (var t in _trains) t.localScale = new Vector3(0.9f, 0.5f, 2.4f) * Mathf.Max(k, 0.004f);
+            for (int i = 0; i < g.Edges.Count; i++)
+            {
+                var e = g.Edges[i];
+                Color c = e.State == EdgeState.Cortada ? new Color(0.85f, 0.15f, 0.12f) : e.State == EdgeState.Danada ? new Color(0.9f, 0.55f, 0.15f) : new Color(0.93f, 0.9f, 0.82f);
+                _rails[i].sharedMaterial.SetColor("_BaseColor", c);
+            }
+            for (int i = 0; i < g.Nodes.Count; i++) _nodes[i].GetComponent<Renderer>().sharedMaterial.SetColor("_BaseColor", StateColor(g.Nodes[i].State));
+            for (int i = 0; i < _a.Services.Count; i++)
+            {
+                var s = _a.Services[i];
+                var t = s.Train;
+                var e = s.AtStop ? null : t.CurrentEdge(g);
+                Vector3 p, dir = Vector3.forward;
+                if (e == null)
+                {
+                    var n = g.Nodes[s.AtStop || t.Route.Count == 0 ? s.Stops[s.StopIndex].Node : t.Route[t.Route.Count - 1]];
+                    float kk = Mathf.Clamp(_dist / 230f, 0.004f, 2f);
+                    p = MapToWorld(n.XMeters, n.YMeters, 0.6f * kk) + new Vector3(1.2f * (i - 1) * kk, 0, 0);
+                }
+                else
+                {
+                    var from = g.Nodes[t.Route[t.Leg]];
+                    var to = g.Nodes[t.Route[t.Leg + 1]];
+                    double kt = e.LengthMm > 0 ? (double)t.OffsetMm / e.LengthMm : 0;
+                    double mx = MapGeo.Lerp(from.XMeters, to.XMeters, kt), my = MapGeo.Lerp(from.YMeters, to.YMeters, kt);
+                    p = MapToWorld(mx, my, 0.35f * Mathf.Clamp(_dist / 230f, 0.004f, 2f));
+                    dir = MapToWorldFlat(to.XMeters, to.YMeters) - MapToWorldFlat(from.XMeters, from.YMeters);
+                }
+                _trains[i].position = p;
+                if (dir.sqrMagnitude > 1e-4f) _trains[i].rotation = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z));
+            }
+        }
+
+        // ---------------------------------------------------------------- bucle
+        void Push(NetCmdType type, int arg, long delay)
+        {
+            var c = new NetCommand { Tick = _a.Tick + delay, Type = type, Arg = arg };
+            _a.Push(c);
+            _b.Push(c);
+        }
+
+        void Update()
+        {
+            HandleInput();
+            _acc += Mathf.Min(Time.unscaledDeltaTime, 0.25f);
+            const float step = 1f / NetConst.TickRate;
+            while (_acc >= step)
+            {
+                _acc -= step;
+                _a.ApplyCommands();
+                _b.ApplyCommands();
+                for (int i = 0; i < _a.Speed; i++)
+                {
+                    _a.Step();
+                    if (_check) _b.Step();
+                    if (_check && !_desync && _a.Hash() != _b.Hash()) { _desync = true; Debug.LogError($"[TBD] Unión: desincronización en el tick {_a.Tick}"); }
+                }
+            }
+            long fieldTick = _a.Tick / NetConst.FieldEvery;
+            if (fieldTick != _lastFieldTick) { _lastFieldTick = fieldTick; UpdateTexture(); }
+            UpdateNetwork();
+            UpdateCamera();
+            UpdateDetail();
+        }
+
+        // ---------------------------------------------------------------- detalle de cerca
+        void UpdateDetail()
+        {
+            bool want = _dist < 14f;
+            if (!want)
+            {
+                if (_detail != null && _detail.activeSelf) { _detail.SetActive(false); RestoreCoarse(); }
+                return;
+            }
+            var c = new Vector3(_focus.x, 0, _focus.z);
+            if (_detail != null && _detail.activeSelf && (c - _detailCenter).magnitude < DetailSizeKm * 0.25f) return;
+            BuildDetail(c);
+        }
+
+        /// <summary>Altura que tiene el terreno grueso (interpolado en su triángulo) en un punto del mundo.</summary>
+        float CoarseHeightAt(float wx, float wz)
+        {
+            float fi = wx / ((MaxX - MinX) * (float)MapGeo.KmPerUnit) * (GridX - 1);
+            float fj = (1f - wz / ((MaxY - MinY) * (float)MapGeo.KmPerUnit)) * (GridY - 1);
+            int i0 = Mathf.Clamp(Mathf.FloorToInt(fi), 0, GridX - 2), j0 = Mathf.Clamp(Mathf.FloorToInt(fj), 0, GridY - 2);
+            float u = Mathf.Clamp01(fi - i0), v = Mathf.Clamp01(fj - j0);
+            float a = _coarseVerts[j0 * GridX + i0].y, b = _coarseVerts[j0 * GridX + i0 + 1].y;
+            float c = _coarseVerts[(j0 + 1) * GridX + i0].y, d = _coarseVerts[(j0 + 1) * GridX + i0 + 1].y;
+            // misma diagonal que los triángulos del terreno grueso (v, v+1, v+GridX) y (v+1, v+GridX+1, v+GridX)
+            return u + v <= 1f ? a + (b - a) * u + (c - a) * v : d + (c - d) * (1f - u) + (b - d) * (1f - v);
+        }
+
+        void RestoreCoarse()
+        {
+            System.Array.Copy(_coarseVerts, _coarseWork, _coarseVerts.Length);
+            _mesh.vertices = _coarseWork;
+            _detailCenter = new Vector3(-9999, 0, -9999);
+        }
+
+        void BuildDetail(Vector3 center)
+        {
+            _detailCenter = center;
+            float half = DetailSizeKm * 0.5f;
+            var verts = new Vector3[DetailN * DetailN];
+            var uvs = new Vector2[DetailN * DetailN];
+            const int TW = 256;
+            var cols = new Color32[TW * TW];
+            for (int j = 0; j < DetailN; j++)
+                for (int i = 0; i < DetailN; i++)
+                {
+                    float wx = center.x - half + DetailSizeKm * i / (DetailN - 1f);
+                    float wz = center.z - half + DetailSizeKm * j / (DetailN - 1f);
+                    double mx = MinX + wx / MapGeo.KmPerUnit, my = MaxY - wz / MapGeo.KmPerUnit;
+                    double h = _relief.HeightM(mx, my);
+                    float fine = (float)(h < 0 ? h / 1000.0 * 2.0 : h / 1000.0 * Exag);
+                    // en el 20 % exterior del parche se funde con la altura del terreno grueso: sin escalón en el borde
+                    float edge = Mathf.Min(Mathf.Min(i, DetailN - 1 - i), Mathf.Min(j, DetailN - 1 - j)) / (float)(DetailN - 1);
+                    float w = Mathf.SmoothStep(0f, 1f, edge / 0.2f);
+                    verts[j * DetailN + i] = new Vector3(wx, Mathf.Lerp(CoarseHeightAt(wx, wz), fine, w) + 0.004f, wz);
+                    uvs[j * DetailN + i] = new Vector2(i / (DetailN - 1f), j / (DetailN - 1f));
+                }
+            for (int y = 0; y < TW; y++)
+                for (int x = 0; x < TW; x++)
+                {
+                    float wx = center.x - half + DetailSizeKm * x / (TW - 1f);
+                    float wz = center.z - half + DetailSizeKm * y / (TW - 1f);
+                    cols[y * TW + x] = Hypso(_relief.HeightM(MinX + wx / MapGeo.KmPerUnit, MaxY - wz / MapGeo.KmPerUnit));
+                }
+            if (_detail == null)
+            {
+                var tris = new int[(DetailN - 1) * (DetailN - 1) * 6];
+                int k = 0;
+                for (int j = 0; j < DetailN - 1; j++)
+                    for (int i = 0; i < DetailN - 1; i++)
+                    {
+                        int v = j * DetailN + i;
+                        tris[k++] = v; tris[k++] = v + DetailN; tris[k++] = v + 1;
+                        tris[k++] = v + 1; tris[k++] = v + DetailN; tris[k++] = v + DetailN + 1;
+                    }
+                _detailMesh = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
+                _detailMesh.vertices = verts; _detailMesh.uv = uvs; _detailMesh.triangles = tris;
+                _detail = new GameObject("Terreno de detalle");
+                _detail.AddComponent<MeshFilter>().sharedMesh = _detailMesh;
+                _detailTex = new Texture2D(TW, TW, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Clamp, anisoLevel = 4 };
+                var m = new Material(_terrainMat);
+                m.SetTexture("_BaseMap", _detailTex);
+                _detail.AddComponent<MeshRenderer>().sharedMaterial = m;
+            }
+            else
+            {
+                _detailMesh.vertices = verts;
+                _detailMesh.uv = uvs;
+            }
+            _detailMesh.RecalculateNormals();
+            _detailMesh.RecalculateBounds();
+            _detailTex.SetPixels32(cols);
+            _detailTex.Apply(true);
+            _detail.SetActive(true);
+
+            // el terreno grueso se hunde bajo el parche de detalle (con un margen) para que no asome por encima
+            System.Array.Copy(_coarseVerts, _coarseWork, _coarseVerts.Length);
+            float inner = half - 2.5f;
+            for (int v = 0; v < _coarseWork.Length; v++)
+            {
+                var p = _coarseWork[v];
+                if (Mathf.Abs(p.x - center.x) < inner && Mathf.Abs(p.z - center.z) < inner) _coarseWork[v].y -= 0.5f;
+            }
+            _mesh.vertices = _coarseWork;
+        }
+
+        void HandleInput()
+        {
+            var kb = Keyboard.current;
+            var mouse = Mouse.current;
+            if (kb == null) return;
+            if (kb.spaceKey.wasPressedThisFrame) Push(_a.Paused ? NetCmdType.Resume : NetCmdType.Pause, 0, 0);
+            if (kb.digit1Key.wasPressedThisFrame) Push(NetCmdType.SetSpeed, 1, 0);
+            if (kb.digit2Key.wasPressedThisFrame) Push(NetCmdType.SetSpeed, 2, 0);
+            if (kb.digit3Key.wasPressedThisFrame) Push(NetCmdType.SetSpeed, 4, 0);
+            if (kb.jKey.wasPressedThisFrame) JumpToAlert();
+            if (kb.f3Key.wasPressedThisFrame) { _check = false; _desync = false; }
+            if (kb.f9Key.wasPressedThisFrame) Capture();
+
+            float dt = Time.unscaledDeltaTime;
+            float pan = _dist * 0.9f * dt;
+            Vector3 fwd = Quaternion.Euler(0, _yaw, 0) * Vector3.forward, right = Quaternion.Euler(0, _yaw, 0) * Vector3.right;
+            if (kb.wKey.isPressed || kb.upArrowKey.isPressed) _focus += fwd * pan;
+            if (kb.sKey.isPressed || kb.downArrowKey.isPressed) _focus -= fwd * pan;
+            if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) _focus += right * pan;
+            if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) _focus -= right * pan;
+            if (kb.qKey.isPressed) _yaw += 70f * dt;
+            if (kb.eKey.isPressed) _yaw -= 70f * dt;
+            if (kb.rKey.isPressed) _pitch = Mathf.Clamp(_pitch + 40f * dt, 15f, 89f);
+            if (kb.fKey.isPressed) _pitch = Mathf.Clamp(_pitch - 40f * dt, 15f, 89f);
+            if (mouse != null)
+            {
+                float wheel = mouse.scroll.ReadValue().y;
+                if (Mathf.Abs(wheel) > 0.01f) _targetDist = Mathf.Clamp(_targetDist * Mathf.Pow(0.85f, Mathf.Sign(wheel)), 0.3f, 600f);
+                if (mouse.rightButton.isPressed)
+                {
+                    var d = mouse.delta.ReadValue();
+                    _yaw += d.x * 0.25f;
+                    _pitch = Mathf.Clamp(_pitch - d.y * 0.2f, 15f, 89f);
+                }
+            }
+        }
+
+        /// <summary>Una tecla te lleva a la alerta más urgente (GDD §7).</summary>
+        public void JumpToAlert()
+        {
+            if (_a.Alerts.Count == 0) return;
+            var al = _a.Alerts[0];
+            var g = _a.Graph;
+            Vector3 target;
+            if (al.Kind == AlertKind.NodoAsediado) target = MapToWorldFlat(g.Nodes[al.Subject].XMeters, g.Nodes[al.Subject].YMeters);
+            else if (al.Kind == AlertKind.ViaCortada) { var e = g.Edges[al.Subject]; target = (MapToWorldFlat(g.Nodes[e.A].XMeters, g.Nodes[e.A].YMeters) + MapToWorldFlat(g.Nodes[e.B].XMeters, g.Nodes[e.B].YMeters)) * 0.5f; }
+            else
+            {
+                int idx = _a.Services.FindIndex(s => s.Train.Id == al.Subject);
+                target = idx >= 0 ? _trains[idx].position : _focus;
+            }
+            _focus = new Vector3(target.x, 0, target.z);
+            _targetDist = Mathf.Min(_targetDist, 40f);
+        }
+
+        void UpdateCamera()
+        {
+            _dist = Mathf.Lerp(_dist, _targetDist, 1f - Mathf.Exp(-8f * Time.unscaledDeltaTime));
+            _focus.x = Mathf.Clamp(_focus.x, 0, (MaxX - MinX) * (float)MapGeo.KmPerUnit);
+            _focus.z = Mathf.Clamp(_focus.z, 0, (MaxY - MinY) * (float)MapGeo.KmPerUnit);
+            double fmx = MinX + _focus.x / MapGeo.KmPerUnit, fmy = MaxY - _focus.z / MapGeo.KmPerUnit;
+            float ground = (float)(System.Math.Max(0, _relief.HeightM(fmx, fmy)) / 1000.0 * Exag);
+            var target = new Vector3(_focus.x, ground, _focus.z);
+            var rot = Quaternion.Euler(_pitch, _yaw, 0);
+            _cam.transform.position = target - rot * Vector3.forward * _dist;
+            _cam.transform.rotation = rot;
+            _cam.nearClipPlane = Mathf.Max(0.01f, _dist * 0.01f);
+            _cam.farClipPlane = Mathf.Max(50f, _dist * 12f);
+        }
+
+        // ---------------------------------------------------------------- interfaz
+        void EnsureStyles()
+        {
+            if (_label != null) return;
+            _panelTex = new Texture2D(1, 1);
+            _panelTex.SetPixel(0, 0, new Color(0.04f, 0.045f, 0.06f, 0.78f));
+            _panelTex.Apply();
+            _panel = new GUIStyle { normal = { background = _panelTex } };
+            _label = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(12, Screen.height / 52), richText = true };
+            _label.normal.textColor = new Color(0.94f, 0.92f, 0.86f);
+            _small = new GUIStyle(_label) { fontSize = Mathf.Max(10, Screen.height / 64) };
+            _title = new GUIStyle(_label) { fontSize = Mathf.Max(14, Screen.height / 42), fontStyle = FontStyle.Bold };
+        }
+
+        void OnGUI()
+        {
+            EnsureStyles();
+            var g = _a.Graph;
+            foreach (var n in g.Nodes)
+            {
+                var sp = _cam.WorldToScreenPoint(MapToWorld(n.XMeters, n.YMeters, 0.8f));
+                if (sp.z <= 0) continue;
+                GUI.Label(new Rect(sp.x + 8, Screen.height - sp.y - 10, 220, 30), n.Name, _small);
+            }
+            for (int i = 0; i < _trains.Count; i++)
+            {
+                var sp = _cam.WorldToScreenPoint(_trains[i].position + Vector3.up * 0.8f);
+                if (sp.z <= 0) continue;
+                GUI.Label(new Rect(sp.x - 30, Screen.height - sp.y - 26, 160, 30), "<b><color=#FFF0A0>" + _a.Services[i].Train.Name + "</color></b>", _small);
+            }
+
+            float pw = Mathf.Min(460, Screen.width * 0.38f);
+            float h = _small.fontSize * 14f;
+            GUI.Box(new Rect(8, 8, pw, h), GUIContent.none, _panel);
+            float y = 14;
+            string speed = _a.Paused ? "<color=#E8C040>PAUSA</color>" : "x" + _a.Speed;
+            GUI.Label(new Rect(16, y, pw, 40), $"Día {_a.Tick / NetConst.DayTicks + 1} · {NetConst.Clock(_a.Tick)} · {speed}", _title); y += _title.fontSize * 1.6f;
+            string sync = _check ? (_desync ? "<color=#E04030>DESINCRONIZACIÓN</color>" : "<color=#70C070>Desincronización: correcta</color>") : "<color=#999999>prueba apagada</color>";
+            GUI.Label(new Rect(16, y, pw, 30), sync + "  ·  <color=#B0A890>relieve de sustitución (no son datos reales)</color>", _small); y += _small.fontSize * 1.7f;
+            string scaleTxt = _dist >= 10 ? $"{_dist:0} km" : $"{_dist * 1000:0} m";
+            GUI.Label(new Rect(16, y, pw, 30), $"Distancia de cámara: {scaleTxt}", _small); y += _small.fontSize * 1.7f;
+            int shown = 0;
+            foreach (var al in _a.Alerts)
+            {
+                if (shown++ >= 4) break;
+                string col = al.Priority == 0 ? "#F05040" : al.Priority == 1 ? "#F0A040" : al.Priority == 2 ? "#E0D070" : "#A0A0A0";
+                GUI.Label(new Rect(20, y, pw - 20, 30), $"<color={col}>●</color> {al.Text}", _small); y += _small.fontSize * 1.5f;
+            }
+            if (_a.Alerts.Count == 0) { GUI.Label(new Rect(20, y, pw, 30), "<color=#808080>sin alertas</color>", _small); }
+            GUI.Label(new Rect(16, Screen.height - _small.fontSize * 2.4f, Screen.width, 30),
+                "WASD mover · Q E girar · R F inclinar · rueda zoom · botón derecho girar · J ir a la alerta · Espacio pausa · 1/2/3 velocidad · F9 captura", _small);
+        }
+
+        void Capture()
+        {
+            string dir = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Captures"));
+            Directory.CreateDirectory(dir);
+            ScreenCapture.CaptureScreenshot(Path.Combine(dir, $"union_{System.DateTime.Now:yyyyMMdd_HHmmss}.png"));
+        }
+    }
+}

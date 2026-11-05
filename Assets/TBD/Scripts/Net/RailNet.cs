@@ -26,7 +26,7 @@ namespace TBD.Net
         public long KmStartMm;                // punto kilométrico de A (para los avisos: «km 112»)
         public EdgeState State;
         public long HordeAtMm = -1;           // posición de la horda más cercana medida desde A; -1 = ninguna
-        public long HordeSpeedMmPerTick = 40; // aproximación de la horda hacia el tren (≈ 1,2 m/s a 30 Hz)
+        public long HordeSpeedMmPerTick = 1333; // horda común a 2 km/h de juego con 2,4 s por tick (decisión D-N11 de Lucía); los rápidos, 6 km/h
     }
 
     public sealed class RailGraph
@@ -176,10 +176,27 @@ namespace TBD.Net
 
     public static class AlertEngine
     {
-        public const int TicksPerSecond = 30;
+        public const int GameMsPerTick = 2400;     // igual que NetConst.GameMsPerTick (1 tick = 2,4 s de juego)
 
-        /// <summary>Alertas priorizadas («Tren 7 detenido en el km 112, horda a 90 s»). Orden: prioridad, luego tiempo, luego id.</summary>
-        public static List<Alert> Evaluate(RailGraph g, List<RailTrain> trains)
+        /// <summary>Minutos de JUEGO hasta el impacto (QA Q3: antes eran segundos reales a x1, que a x4 duraban la cuarta parte).</summary>
+        public static long EtaMinutes(long etaTicks) { return etaTicks * GameMsPerTick / 60000; }
+
+        public const long DetectMm = 3_000_000;    // detección de la horda a unos 3 km (D-N11): unos 75 s reales de aviso a x1
+
+        static string ClockAt(long tick)
+        {
+            long secs = (tick % 36000) * GameMsPerTick / 1000;
+            return (secs / 3600).ToString("00") + ":" + (secs / 60 % 60).ToString("00");
+        }
+
+        static string When(long eta, long nowTick)
+        {
+            string s = EtaMinutes(eta) + " min";
+            return nowTick >= 0 ? s + " (" + ClockAt(nowTick + eta) + ")" : s;
+        }
+
+        /// <summary>Alertas priorizadas («Tren 7 detenido en el km 112, horda a 25 min»), con tiempos en minutos de juego. Orden: prioridad, luego tiempo, luego id.</summary>
+        public static List<Alert> Evaluate(RailGraph g, List<RailTrain> trains, long nowTick = -1)
         {
             var list = new List<Alert>();
             foreach (var t in trains)
@@ -194,20 +211,20 @@ namespace TBD.Net
                     bool hordeAhead = forward ? e.HordeAtMm >= posA : e.HordeAtMm <= posA;
                     long closing = hordeAhead ? t.SpeedMmPerTick + e.HordeSpeedMmPerTick : e.HordeSpeedMmPerTick - t.SpeedMmPerTick;
                     if (t.State != RailTrainState.EnMarcha) closing = e.HordeSpeedMmPerTick;     // parado: solo se acerca la horda
-                    if (closing > 0) eta = gap / closing;
+                    if (closing > 0 && gap <= DetectMm) eta = gap / closing;           // fuera de los 3 km no se detecta
                 }
                 string km = (t.KmMm(g) / 1_000_000L).ToString();
                 if (t.State == RailTrainState.Detenido)
                 {
-                    string extra = eta >= 0 ? ", horda a " + (eta / TicksPerSecond) + " s" : "";
-                    list.Add(new Alert { Id = Make(AlertKind.TrenDetenido, t.Id), Kind = AlertKind.TrenDetenido, Priority = (eta >= 0 && eta / TicksPerSecond <= 120) ? 0 : 1, EtaTicks = eta, Subject = t.Id,
+                    string extra = eta >= 0 ? ", horda en " + When(eta, nowTick) : "";
+                    list.Add(new Alert { Id = Make(AlertKind.TrenDetenido, t.Id), Kind = AlertKind.TrenDetenido, Priority = (eta >= 0 && EtaMinutes(eta) <= 60) ? 0 : 1, EtaTicks = eta, Subject = t.Id,
                         Text = "Tren " + t.Name + " detenido en el km " + km + extra });
                 }
                 else if (eta >= 0)
                 {
-                    long secs = eta / TicksPerSecond;
-                    list.Add(new Alert { Id = Make(AlertKind.HordaCercaDelTren, t.Id), Kind = AlertKind.HordaCercaDelTren, Priority = secs <= 30 ? 0 : (secs <= 120 ? 1 : 2),
-                        EtaTicks = eta, Subject = t.Id, Text = "Horda a " + secs + " s del tren " + t.Name + " (km " + km + ")" });
+                    long mins = EtaMinutes(eta);
+                    list.Add(new Alert { Id = Make(AlertKind.HordaCercaDelTren, t.Id), Kind = AlertKind.HordaCercaDelTren, Priority = mins <= 30 ? 0 : (mins <= 60 ? 1 : 2),
+                        EtaTicks = eta, Subject = t.Id, Text = "Horda en " + When(eta, nowTick) + " junto al tren " + t.Name + " (km " + km + ")" });
                 }
             }
             foreach (var n in g.Nodes)

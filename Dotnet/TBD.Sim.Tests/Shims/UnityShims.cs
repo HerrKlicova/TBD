@@ -15,6 +15,7 @@ namespace Unity.Burst
     {
         public FloatMode FloatMode { get; set; }
         public FloatPrecision FloatPrecision { get; set; }
+        public bool CompileSynchronously { get; set; }
         public BurstCompileAttribute() { }
     }
 }
@@ -124,6 +125,7 @@ namespace Unity.Mathematics
         public static float floor(float v) => (float)Math.Floor(v);
         public static float2 floor(float2 v) => new float2(floor(v.x), floor(v.y));
         public static float round(float v) => (float)Math.Round(v, MidpointRounding.ToEven);
+        public static uint asuint(float v) => (uint)BitConverter.SingleToInt32Bits(v);
         public static float lerp(float a, float b, float t) => a + (b - a) * t;
         public static float2 lerp(float2 a, float2 b, float t) => new float2(lerp(a.x, b.x, t), lerp(a.y, b.y, t));
         public static float dot(float2 a, float2 b) => a.x * b.x + a.y * b.y;

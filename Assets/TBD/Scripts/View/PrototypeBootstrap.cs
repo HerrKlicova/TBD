@@ -58,6 +58,7 @@ namespace TBD.View
         float _acc;
         bool _paused;
         bool _checkEnabled = true;
+        bool _checkStale;                // B quedó atrás (F3 se apagó): la prueba ya no se puede reactivar
         bool _desync;
         uint _desyncTick;
         EntityQuery _zombieQuery;
@@ -205,7 +206,7 @@ namespace TBD.View
             if (kb.commaKey.wasPressedThisFrame) _paletteMix = Mathf.Max(0f, _paletteMix - 0.25f);
             if (kb.periodKey.wasPressedThisFrame) _paletteMix = Mathf.Min(1f, _paletteMix + 0.25f);
             if (kb.pKey.wasPressedThisFrame) _paused = !_paused;
-            if (kb.f3Key.wasPressedThisFrame) { _checkEnabled = !_checkEnabled; _desync = false; }
+            if (kb.f3Key.wasPressedThisFrame) ToggleCheck();
             if (kb.f9Key.wasPressedThisFrame) SaveScreenshot();
             if (kb.f10Key.wasPressedThisFrame) ToggleRecording();
 
@@ -249,6 +250,20 @@ namespace TBD.View
         }
 
         /// <summary>Descarga visual de trazadoras desde el tren (efecto de presentación, sin efecto en la simulación).</summary>
+        void ToggleCheck()
+        {
+            _checkEnabled = !_checkEnabled;
+            _desync = false;
+            // QA Q1: con F3 apagado el mundo B no avanza; al volver a encenderlo ya no es comparable con A (copiarlo exige el
+            // guardado, hito 6). Se avisa y la prueba se queda apagada en vez de mostrar una desincronización falsa.
+            if (_checkEnabled && _worldB.EntityManager.GetComponentData<SimClock>(_rootB).Tick != _worldA.EntityManager.GetComponentData<SimClock>(_rootA).Tick)
+            {
+                _checkEnabled = false;
+                _checkStale = true;
+                Debug.LogWarning("[TBD] El mundo B se quedó atrás mientras F3 estaba apagado: la prueba de desincronización solo vale desde el arranque (falta el guardado, hito 6).");
+            }
+        }
+
         void FireVolley()
         {
             Vector3 from = _trainParts[0].position + new Vector3(0f, 1.6f, 0f);
@@ -492,7 +507,7 @@ namespace TBD.View
                 var train = em.GetComponentData<TrainState>(_rootA);
                 sb.AppendLine($"tick {clock.Tick}   ·   hash {hash.Value:X16}   ·   puerta {(info.GateOpen ? "ABIERTA" : "cerrada")}   ·   tren {(train.Speed > 0 ? "en marcha" : "parado")}");
             }
-            string check = !_checkEnabled ? "desactivada (F3)"
+            string check = _checkStale ? "apagada: B se quedó atrás (se reactiva al reiniciar)" : !_checkEnabled ? "desactivada (F3)"
                 : _desync ? $"¡DESINCRONIZADA en el tick {_desyncTick}!" : "correcta (dos mundos, mismo hash)";
             sb.AppendLine($"Desincronización: {check}");
             sb.AppendLine($"Pixelado 1/{_factor}   ·   paleta {_paletteMix * 100:0}%   ·   gradación {GradeNames[_gradeIndex]}" + (_recording ? "   <color=#ff5a5a>● GRABANDO</color>" : ""));

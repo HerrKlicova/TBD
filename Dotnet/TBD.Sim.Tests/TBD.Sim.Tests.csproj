@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Compila fuera de Unity la lógica pura de la simulación (SimTypes.cs y SimCore.cs) con shims mínimos de Unity.
+       No usa paquetes NuGet. Ejecutar con: dotnet run -c Release (opcion project) Dotnet/TBD.Sim.Tests -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>TBD.Sim.Tests</RootNamespace>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Shims\UnityShims.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="RailTests.cs" />
+    <Compile Include="NetWorldTests.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Net\NetWorld.cs" Link="Net\NetWorld.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Net\Relief.cs" Link="Net\Relief.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Net\RailNet.cs" Link="Net\RailNet.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Sim\SimTypes.cs" Link="Sim\SimTypes.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Sim\SimCore.cs" Link="Sim\SimCore.cs" />
+  </ItemGroup>
+
+</Project>

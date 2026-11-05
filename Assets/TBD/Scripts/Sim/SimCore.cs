@@ -14,7 +14,7 @@ namespace TBD.Sim
     /// infranqueables: la horda intenta cruzarlos y se amontona (GDD §5.7). Solo produce una dirección deseada por celda
     /// (gradiente del coste); los agentes la interpolan bilinealmente y se mueven en continuo.
     /// </summary>
-    [BurstCompile(FloatMode = FloatMode.Deterministic, FloatPrecision = FloatPrecision.Standard)]
+    [BurstCompile(FloatMode = FloatMode.Deterministic, FloatPrecision = FloatPrecision.Standard, CompileSynchronously = true)]
     public struct FlowJob : IJob
     {
         [ReadOnly] public NativeArray<float> Ground;
@@ -434,16 +434,29 @@ namespace TBD.Sim
             return h;
         }
 
+        // QA Q2: el hash usa los BITS de cada campo (math.asuint), no posiciones redondeadas: ve una diferencia de 1 mm o de un
+        // solo bit de coma flotante, que es justo lo que delata una desincronización entre máquinas.
+        static ulong F(ulong h, float v, int salt) { return Mix(h ^ ((ulong)math.asuint(v) << (salt & 31)) ^ ((ulong)(uint)salt << 40)); }
+
         public static ulong OfZombie(in Zombie z)
         {
             ulong v = Mix(z.SimId + 0x9E3779B97F4A7C15UL);
-            v = Mix(v ^ (uint)(int)math.round(z.Pos.x * 256f));
-            v = Mix(v ^ ((ulong)(uint)(int)math.round(z.Pos.y * 256f) << 1));
-            v = Mix(v ^ ((ulong)(uint)(int)math.round(z.Pos.z * 256f) << 2));
-            v = Mix(v ^ ((ulong)(uint)(int)math.round(z.Heading * 256f) << 3));
-            v = Mix(v ^ ((ulong)z.State << 4));
+            v = F(v, z.Pos.x, 1); v = F(v, z.Pos.y, 2); v = F(v, z.Pos.z, 3);
+            v = F(v, z.Vel.x, 4); v = F(v, z.Vel.y, 5); v = F(v, z.Vel.z, 6);
+            v = F(v, z.Heading, 7); v = F(v, z.Speed, 8);
+            v = Mix(v ^ ((ulong)z.State << 48) ^ (ulong)(uint)z.SettledCell);
             return v;
         }
+
+        public static ulong OfSolid(int i, in Solid s)
+        {
+            ulong v = Mix((ulong)(uint)i * 0x100000001B3UL + 0x5151UL);
+            v = F(v, s.A.x, 11); v = F(v, s.A.y, 12); v = F(v, s.B.x, 13); v = F(v, s.B.y, 14);
+            v = F(v, s.HalfThick, 15); v = F(v, s.Height, 16);
+            return Mix(v ^ ((ulong)s.Kind << 8) ^ ((ulong)s.Open << 16) ^ ((ulong)s.Id << 24));
+        }
+
+        public static ulong OfFloat(float value, int salt) { return F(Mix((ulong)(uint)salt), value, salt); }
 
         public static ulong OfPileCell(int i, int value)
         {
