@@ -64,3 +64,20 @@ Después se copia a la tarjeta de mr.mak y se manda a Eugenio.
 - Que Burst sea ≥ 1.8.25 y que `FloatMode.Deterministic` funcione.
 - Rendimiento con 10.000 zombis (medir el coste del modo determinista, GDD §17.4) y el coste de la prueba de desincronización.
 - Que el shader `Hidden/TBD/PaletteQuantize` se incluya al hacer una compilación (hoy se busca con `Shader.Find`; basta en el Editor).
+
+## Pruebas fuera de Unity (hechas el 5-nov-2026)
+La lógica pura de la simulación (`SimTypes.cs` y `SimCore.cs`) se compila y prueba **fuera de Unity** con dotnet y shims mínimos de
+Unity.Mathematics y Unity.Collections (`Dotnet/TBD.Sim.Tests`, sin paquetes NuGet):
+
+```
+dotnet run -c Release --project Dotnet/TBD.Sim.Tests
+```
+
+32 pruebas pasan: colisión cápsula, campo de flujo (determinista, coherente), marcha continua, rasterizado parcial, caída desde el tejado,
+amontonamiento contra el muro y desborde (sin atravesarlo), determinismo e independencia del orden de proceso, y coste
+(10.000 zombis: ~1,4 ms por tick en C# sin Burst). **No prueban** Burst ni `FloatMode.Deterministic`, ni los sistemas de Entities
+(`SimSystems.cs`), ni la presentación.
+
+Errores de lógica que estas pruebas encontraron y corrigieron: parpadeo entre caer y andar en el borde de una pila (la caída se decide ahora
+por el desnivel estático), zombis que deslizaban por el muro sin apilarse (ahora cuenta empujar de frente), y oscilación de la pila entre
+llena y vacía en cada tick cuando todos los apilados salían a la vez (ahora solo salen los de las capas altas).

@@ -24,6 +24,8 @@ namespace TBD.Sim
         public const float StepUp = 0.6f;               // desnivel máximo que se sube andando
         public const float DropThreshold = 1.0f;        // desnivel a partir del cual se cae
         public const float Gravity = 20f;               // m/s^2
+        public const float ClimbSpeed = 6f;             // velocidad vertical máxima al subir por una pila o un escalón (m/s)
+        public const float SlideSpeed = 9f;             // velocidad vertical máxima al bajar deslizando por una pila (m/s)
         public const float TurnRate = 8f;               // rad/s al girar hacia la marcha
         public const float Accel = 0.25f;               // mezcla de velocidad por tick hacia la deseada
         public const int FlowEveryTicks = 15;           // el campo de flujo se recalcula cada 15 ticks

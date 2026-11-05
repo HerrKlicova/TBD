@@ -145,3 +145,7 @@ crashlytics-build.properties
 
 # Capturas y grabaciones del prototipo (se suben los hitos a mr.mak, no los fotogramas)
 /Captures/
+
+# Salida de compilación de las pruebas fuera de Unity
+/Dotnet/**/bin/
+/Dotnet/**/obj/

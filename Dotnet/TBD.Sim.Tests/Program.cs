@@ -1,0 +1,379 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using TBD.Sim;
+using Unity.Collections;
+using Unity.Entities;
+using Unity.Mathematics;
+
+namespace TBD.Sim.Tests
+{
+    /// <summary>Mundo mínimo para ejecutar la lógica pura de la simulación fuera de Unity.</summary>
+    class MiniWorld
+    {
+        public readonly int N = SimConst.GridW * SimConst.GridH;
+        public List<Solid> SolidList;
+        public NativeArray<Solid> Solids;
+        public NativeArray<float> Ground;
+        public NativeArray<int> Dist, Pile, Delta, Snapshot;
+        public NativeArray<float2> Vec;
+        public Zombie[] Z;
+        public uint Tick;
+
+        public MiniWorld(List<Solid> solids, float goalX, float goalY)
+        {
+            SolidList = solids;
+            Ground = new NativeArray<float>(N, Allocator.Temp);
+            Dist = new NativeArray<int>(N, Allocator.Temp);
+            Pile = new NativeArray<int>(N, Allocator.Temp);
+            Delta = new NativeArray<int>(N, Allocator.Temp);
+            Snapshot = new NativeArray<int>(N, Allocator.Temp);
+            Vec = new NativeArray<float2>(N, Allocator.Temp);
+            Z = new Zombie[0];
+            Rebuild(goalX, goalY);
+        }
+
+        public void Rebuild(float goalX, float goalY)
+        {
+            Solids = new NativeArray<Solid>(SolidList.ToArray());
+            var solidsBuf = new DynamicBuffer<Solid>(SolidList);
+            var groundList = new List<CellGround>();
+            var groundBuf = new DynamicBuffer<CellGround>(groundList);
+            groundBuf.ResizeUninitialized(N);
+            Level.RasterRegion(solidsBuf, groundBuf, 0, 0, SimConst.GridW - 1, SimConst.GridH - 1);
+            for (int i = 0; i < N; i++) Ground[i] = groundList[i].Value;
+            int2 gc = Level.CellOf(new float2(goalX, goalY));
+            new FlowJob { Ground = Ground, Dist = Dist, Vec = Vec, Goal = gc.y * SimConst.GridW + gc.x }.Execute();
+        }
+
+        public void Spawn(int count, float x0, float x1, float z0, float z1, float height, uint seed)
+        {
+            var list = new List<Zombie>(Z);
+            uint s = seed | 1u;
+            float Next() { s ^= s << 13; s ^= s >> 17; s ^= s << 5; return (s & 0xFFFFFF) / (float)0x1000000; }
+            for (int i = 0; i < count; i++)
+                list.Add(Zombie.Create((uint)(list.Count + 1), new float2(x0 + Next() * (x1 - x0), z0 + Next() * (z1 - z0)), height));
+            Z = list.ToArray();
+        }
+
+        public void Tick1(int[] order = null)
+        {
+            Snapshot.CopyFrom(Pile);
+            if (order == null)
+                for (int i = 0; i < Z.Length; i++) ZombieLogic.Step(ref Z[i], Solids, Snapshot, Vec, Delta);
+            else
+                foreach (int i in order) ZombieLogic.Step(ref Z[i], Solids, Snapshot, Vec, Delta);
+            new PileApplyJob { Pile = Pile, Delta = Delta }.Execute();
+            Tick++;
+        }
+
+        public ulong Hash()
+        {
+            ulong sum = 0;
+            for (int i = 0; i < Z.Length; i++) sum += HashMath.OfZombie(Z[i]);
+            for (int i = 0; i < N; i++) sum += HashMath.OfPileCell(i, Pile[i]);
+            return sum + Tick;
+        }
+
+        public int Count(byte state)
+        {
+            int c = 0;
+            foreach (var z in Z) if (z.State == state) c++;
+            return c;
+        }
+
+        public int MaxPile()
+        {
+            int m = 0;
+            for (int i = 0; i < N; i++) m = Math.Max(m, Pile[i]);
+            return m;
+        }
+    }
+
+    static class Program
+    {
+        static int _pass, _fail;
+
+        static void Check(bool ok, string msg)
+        {
+            if (ok) { _pass++; Console.WriteLine("  ok     " + msg); }
+            else { _fail++; Console.WriteLine("  FALLO  " + msg); }
+        }
+
+        static int Main()
+        {
+            Console.WriteLine("Pruebas de la lógica pura de la simulación (fuera de Unity, con shims mínimos)\n");
+            TestSolidMath();
+            TestFlow();
+            TestOpenFieldWalk();
+            TestRaster();
+            TestRoofFall();
+            TestOneZombieAtWall();
+            TestWallPileSpill();
+            TestDeterminism();
+            TestPerf();
+            Console.WriteLine($"\nResumen: {_pass} correctas, {_fail} fallos");
+            return _fail == 0 ? 0 : 1;
+        }
+
+        // ------------------------------------------------------------------ sólidos
+        static void TestSolidMath()
+        {
+            Console.WriteLine("[1] Sólidos y colisión cápsula");
+            var wall = new Solid { A = new float2(10f, 10f), B = new float2(20f, 10f), HalfThick = 1f, Height = 2.5f, Kind = 0 };
+            Check(SolidMath.Contains(wall, new float2(15f, 10.9f)), "un punto dentro del grosor está en la huella");
+            Check(!SolidMath.Contains(wall, new float2(15f, 11.2f)), "un punto fuera del grosor no está en la huella");
+            float2 n; float d;
+            bool hit = SolidMath.Push(wall, new float2(15f, 11.1f), 0.25f, out n, out d);
+            Check(hit && Math.Abs(n.y - 1f) < 1e-4f && Math.Abs(d - 0.15f) < 1e-3f, $"un círculo que roza el muro se empuja por la normal (n.y={n.y:0.00}, profundidad={d:0.000})");
+            Check(!SolidMath.Push(wall, new float2(15f, 12f), 0.25f, out n, out d), "un círculo lejano no colisiona");
+            var box = new Solid { A = new float2(40f, 30f), B = new float2(51f, 51f), Height = 4f, Kind = 1 };
+            Check(SolidMath.Push(box, new float2(39.9f, 40f), 0.25f, out n, out d) && n.x < -0.9f, "una caja empuja hacia fuera por el lado más cercano");
+            var open = wall; open.Open = 1;
+            Check(!SolidMath.Contains(open, new float2(15f, 10f)) && !SolidMath.Push(open, new float2(15f, 10f), 0.25f, out n, out d), "una puerta abierta no es sólida");
+        }
+
+        // ------------------------------------------------------------------ campo de flujo
+        static void TestFlow()
+        {
+            Console.WriteLine("[2] Campo de flujo");
+            var w = new MiniWorld(new List<Solid>(), 100f, 64f);
+            var v = w.Vec[Idx(50f, 64f)];
+            Check(v.x > 0.95f && Math.Abs(v.y) < 0.1f, $"en campo abierto apunta hacia la meta (vec={v.x:0.00},{v.y:0.00})");
+            var vg = w.Vec[Idx(100f, 64f)];
+            Check(vg.x == 0f && vg.y == 0f, "en la celda meta la dirección es cero");
+            var vd = w.Vec[Idx(80f, 90f)];
+            Check(vd.x > 0.3f && vd.y < -0.3f, $"una celda en diagonal apunta en diagonal (vec={vd.x:0.00},{vd.y:0.00})");
+
+            // coherencia: avanzar siguiendo el vector siempre reduce el coste
+            bool monotone = true;
+            for (int k = 0; k < 200 && monotone; k++)
+            {
+                float x = 5f + (k * 37 % 90), y = 5f + (k * 53 % 110);
+                var c = Level.CellOf(new float2(x, y));
+                int d0 = w.Dist[c.y * SimConst.GridW + c.x];
+                var vec = w.Vec[c.y * SimConst.GridW + c.x];
+                var c2 = Level.CellOf(new float2(x + vec.x * 1.1f, y + vec.y * 1.1f));
+                int d1 = w.Dist[c2.y * SimConst.GridW + c2.x];
+                if (d0 > 0 && d1 >= d0) monotone = false;
+            }
+            Check(monotone, "seguir la dirección siempre reduce el coste hasta la meta");
+
+            // determinismo
+            var w2 = new MiniWorld(new List<Solid>(), 100f, 64f);
+            bool same = true;
+            for (int i = 0; i < w.N; i++) if (w.Vec[i].x != w2.Vec[i].x || w.Vec[i].y != w2.Vec[i].y || w.Dist[i] != w2.Dist[i]) { same = false; break; }
+            Check(same, "dos cálculos iguales dan exactamente el mismo campo");
+
+            // un muro alto encarece el cruce
+            var solids = new List<Solid> { new Solid { A = new float2(70f, 30f), B = new float2(70f, 100f), HalfThick = 1f, Height = 2.5f, Kind = 0 } };
+            var ww = new MiniWorld(solids, 100f, 64f);
+            int west = ww.Dist[Idx(66f, 64f) ], east = ww.Dist[Idx(74f, 64f)];
+            Check(west - east > 80, $"cruzar un muro de 2 m de grosor cuesta mucho más (oeste {west}, este {east})");
+        }
+
+        static int Idx(float x, float y)
+        {
+            var c = Level.CellOf(new float2(x, y));
+            return c.y * SimConst.GridW + c.x;
+        }
+
+        // ------------------------------------------------------------------ marcha en campo abierto
+        static void TestOpenFieldWalk()
+        {
+            Console.WriteLine("[3] Marcha continua en campo abierto");
+            var w = new MiniWorld(new List<Solid>(), 100f, 64f);
+            w.Spawn(1, 40f, 40f, 64f, 64f, 0f, 7u);
+            float x0 = w.Z[0].Pos.x;
+            float maxStep = 0f;
+            for (int t = 0; t < 600; t++)
+            {
+                var before = w.Z[0].Pos;
+                w.Tick1();
+                var after = w.Z[0].Pos;
+                maxStep = Math.Max(maxStep, math.length(new float2(after.x - before.x, after.z - before.z)));
+            }
+            var z = w.Z[0];
+            Check(z.Pos.x - x0 > 15f, $"el zombi avanza hacia la meta (de x={x0:0.0} a x={z.Pos.x:0.0})");
+            Check(maxStep < 0.12f, $"el paso por tick es continuo y pequeño (máximo {maxStep:0.000} m; una celda mide {SimConst.CellSize} m)");
+            // no se mueve solo por centros de celda: la posición no cae siempre en centros
+            int onCenters = 0, samples = 0;
+            var w2 = new MiniWorld(new List<Solid>(), 100f, 64f);
+            w2.Spawn(1, 40f, 40f, 64.13f, 64.13f, 0f, 9u);
+            for (int t = 0; t < 200; t++)
+            {
+                w2.Tick1();
+                var p = w2.Z[0].Pos;
+                float fx = p.x / SimConst.CellSize - (float)Math.Floor(p.x / SimConst.CellSize);
+                float fz = p.z / SimConst.CellSize - (float)Math.Floor(p.z / SimConst.CellSize);
+                samples++;
+                if (Math.Abs(fx - 0.5f) < 0.02f && Math.Abs(fz - 0.5f) < 0.02f) onCenters++;
+            }
+            Check(onCenters < samples / 10, $"las posiciones no se quedan en los centros de celda ({onCenters} de {samples})");
+        }
+
+        // ------------------------------------------------------------------ rasterizado parcial
+        static void TestRaster()
+        {
+            Console.WriteLine("[4] Rasterizado de sólidos y construcción");
+            var solids = Level.CreateSolids();
+            var w = new MiniWorld(solids, 76f, 64.5f);
+            Check(w.Ground[Idx(71f, 50f)] == Level.WallH, "el muro oeste está en la rejilla con su altura");
+            Check(w.Ground[Idx(71f, 64.5f)] == Level.WallH, "la puerta cerrada cuenta como muro");
+            Check(w.Ground[Idx(45f, 40f)] == Level.RoofH, "el edificio está en la rejilla");
+            Check(w.Ground[Idx(10f, 10f)] == 0f, "el campo abierto tiene altura cero");
+
+            // construir un muro nuevo y recalcular solo su región
+            var groundList = new List<CellGround>();
+            var gb = new DynamicBuffer<CellGround>(groundList);
+            gb.ResizeUninitialized(w.N);
+            for (int i = 0; i < w.N; i++) groundList[i] = new CellGround { Value = w.Ground[i] };
+            var sb = new DynamicBuffer<Solid>(w.SolidList);
+            var nw = new Solid { A = new float2(20f, 20f), B = new float2(30f, 25f), HalfThick = 0.5f, Height = 2.5f, Kind = 0 };
+            sb.Add(nw);
+            Level.RasterSolid(sb, gb, nw);
+            // comparar con un rasterizado completo
+            var full = new List<CellGround>();
+            var fb = new DynamicBuffer<CellGround>(full);
+            fb.ResizeUninitialized(w.N);
+            Level.RasterRegion(sb, fb, 0, 0, SimConst.GridW - 1, SimConst.GridH - 1);
+            int diff = 0;
+            for (int i = 0; i < w.N; i++) if (groundList[i].Value != full[i].Value) diff++;
+            Check(diff == 0, $"rasterizar solo la región del muro nuevo da lo mismo que rasterizar todo ({diff} celdas distintas)");
+            int touched = 0;
+            for (int i = 0; i < w.N; i++) if (groundList[i].Value != w.Ground[i]) touched++;
+            Check(touched > 0 && touched < 400, $"el muro nuevo solo cambia {touched} celdas de {w.N}");
+        }
+
+        // ------------------------------------------------------------------ caída desde el tejado
+        static void TestRoofFall()
+        {
+            Console.WriteLine("[5] Caída desde el tejado");
+            var w = new MiniWorld(Level.CreateSolids(), 76f, 64.5f);
+            w.Spawn(40, 42f, 49f, 32f, 49f, Level.RoofH, 3u);
+            bool sawFall = false;
+            for (int t = 0; t < 900; t++)
+            {
+                w.Tick1();
+                if (w.Count(ZState.Fall) > 0) sawFall = true;
+            }
+            int onRoof = 0, falling = w.Count(ZState.Fall);
+            foreach (var z in w.Z) if (z.Pos.y > Level.RoofH - 0.5f && SolidMath.Contains(w.SolidList[6], new float2(z.Pos.x, z.Pos.z))) onRoof++;
+            Check(sawFall, "los zombis del tejado entran en caída libre al salir del borde");
+            Check(onRoof == 0, $"al cabo de 30 s ninguno sigue sobre el tejado (quedan {onRoof})");
+            float maxY = 0f; foreach (var z in w.Z) maxY = Math.Max(maxY, z.Pos.y);
+            Check(falling == 0 || maxY < 4.5f, $"los que han caído aterrizan (cayendo ahora: {falling}, altura máxima {maxY:0.0} m)");
+        }
+
+        // ------------------------------------------------------------------ diagnóstico: un zombi contra el muro
+        static void TestOneZombieAtWall()
+        {
+            Console.WriteLine("[5b] Diagnóstico: un zombi contra el muro oeste (informativo)");
+            var w = new MiniWorld(Level.CreateSolids(), 76f, 64.5f);
+            w.Spawn(1, 66f, 66f, 60f, 60f, 0f, 5u);
+            for (int t = 1; t <= 400; t++)
+            {
+                w.Tick1();
+                if (t % 40 == 0)
+                {
+                    var z = w.Z[0];
+                    var f = Unity.Mathematics.math.lerp(new float2(0, 0), w.Vec[Idx(z.Pos.x, z.Pos.z)], 1f);
+                    Console.WriteLine($"         t={t,3} pos=({z.Pos.x:0.00},{z.Pos.y:0.00},{z.Pos.z:0.00}) vel=({z.Vel.x:0.00},{z.Vel.z:0.00}) estado={z.State} flujo=({f.x:0.00},{f.y:0.00}) pilaCelda={w.Pile[Idx(z.Pos.x, z.Pos.z)]}");
+                }
+            }
+        }
+
+        // ------------------------------------------------------------------ amontonamiento y desborde del muro
+        static void TestWallPileSpill()
+        {
+            Console.WriteLine("[6] Amontonamiento contra el muro y desborde");
+            var w = new MiniWorld(Level.CreateSolids(), 76f, 64.5f);
+            w.Spawn(1500, 52f, 66f, 54f, 76f, 0f, 11u);
+            int violations = 0;
+            int settledAt300 = 0, maxPileAt900 = 0;
+            for (int t = 1; t <= 2700; t++)
+            {
+                w.Tick1();
+                if (t % 5 == 0)
+                    foreach (var z in w.Z)
+                    {
+                        if (z.State == ZState.Fall) continue;
+                        for (int i = 0; i < 5; i++)                         // los cinco muros del fuerte (sin puerta ni edificio)
+                        {
+                            var s = w.SolidList[i];
+                            if (SolidMath.Contains(s, new float2(z.Pos.x, z.Pos.z)) && z.Pos.y < s.Height - SimConst.StepUp - 0.05f) violations++;   // subir un escalón de 0,6 m está permitido
+                        }
+                    }
+                if (t % 300 == 0)
+                {
+                    int near = 0, nearWalk = 0, nearSet = 0; float zmin = 999f, zmax = -999f;
+                    foreach (var z in w.Z)
+                        if (z.Pos.x > 67f && z.Pos.x < 70.4f) { near++; if (z.State == ZState.Settled) nearSet++; else nearWalk++; zmin = Math.Min(zmin, z.Pos.z); zmax = Math.Max(zmax, z.Pos.z); }
+                    Console.WriteLine($"         t={t,4}: junto al muro {near} (apilados {nearSet}, andando {nearWalk}) z[{zmin:0.0},{zmax:0.0}] pila máx {w.MaxPile()} ({Math.Min(w.MaxPile(), SimConst.MaxPile) * SimConst.Thick:0.0} m) apilados {w.Count(ZState.Settled)} cayendo {w.Count(ZState.Fall)}");
+                }
+                if (t == 300) settledAt300 = w.Count(ZState.Settled);
+                if (t == 900) maxPileAt900 = w.MaxPile();
+            }
+            int inside = 0;
+            foreach (var z in w.Z) if (z.Pos.x > 73f && z.Pos.x < 99f && z.Pos.z > 46f && z.Pos.z < 83f) inside++;
+            Console.WriteLine($"         t=300: apilados {settledAt300} · t=900: pila máxima {maxPileAt900} · t=2700: dentro del fuerte {inside}, apilados {w.Count(ZState.Settled)}, cayendo {w.Count(ZState.Fall)}, pila máxima {w.MaxPile()}");
+            int shown = 0;
+            foreach (var z in w.Z)
+                if (z.State == ZState.Fall && shown++ < 6)
+                    Console.WriteLine($"         cayendo: x={z.Pos.x:0.0} y={z.Pos.y:0.00} z={z.Pos.z:0.0} vy={z.Vel.y:0.0} vx={z.Vel.x:0.0} vz={z.Vel.z:0.0}");
+            Check(violations == 0, $"ningún zombi atraviesa el muro (violaciones: {violations})");
+            Check(settledAt300 > 20, $"a los 10 s hay zombis apilados contra el muro ({settledAt300})");
+            Check(maxPileAt900 >= 4, $"la pila crece contra el muro (máximo {maxPileAt900} por celda a los 30 s)");
+            Check(inside > 0, $"la horda se derrama por encima del muro cuando la pila lo alcanza (dentro: {inside})");
+            Check(w.Count(ZState.Fall) < w.Z.Length / 10, $"no hay zombis atascados alternando entre caer y andar (cayendo: {w.Count(ZState.Fall)} de {w.Z.Length})");
+        }
+
+        // ------------------------------------------------------------------ determinismo
+        static void TestDeterminism()
+        {
+            Console.WriteLine("[7] Determinismo e independencia del orden");
+            MiniWorld Make()
+            {
+                var w = new MiniWorld(Level.CreateSolids(), 76f, 64.5f);
+                w.Spawn(400, 52f, 66f, 54f, 76f, 0f, 21u);
+                w.Spawn(60, 42f, 49f, 32f, 49f, Level.RoofH, 22u);
+                return w;
+            }
+            var a = Make(); var b = Make(); var c = Make();
+            int n = a.Z.Length;
+            var rev = new int[n]; for (int i = 0; i < n; i++) rev[i] = n - 1 - i;
+            var rnd = new int[n]; for (int i = 0; i < n; i++) rnd[i] = i;
+            uint s = 12345u; for (int i = n - 1; i > 0; i--) { s ^= s << 13; s ^= s >> 17; s ^= s << 5; int j = (int)(s % (uint)(i + 1)); (rnd[i], rnd[j]) = (rnd[j], rnd[i]); }
+            bool sameRuns = true, sameOrder = true;
+            int firstDiff = -1;
+            for (int t = 0; t < 900; t++)
+            {
+                a.Tick1(); b.Tick1(); c.Tick1(t % 2 == 0 ? rev : rnd);
+                if (a.Hash() != b.Hash()) sameRuns = false;
+                if (a.Hash() != c.Hash()) { sameOrder = false; if (firstDiff < 0) firstDiff = t; }
+            }
+            Check(sameRuns, "dos ejecuciones iguales dan el mismo hash en cada tick");
+            Check(sameOrder, "procesar los zombis en otro orden da el mismo hash (doble búfer y deltas conmutativos)" + (firstDiff >= 0 ? $" — primera diferencia en el tick {firstDiff}" : ""));
+        }
+
+        // ------------------------------------------------------------------ coste
+        static void TestPerf()
+        {
+            Console.WriteLine("[8] Coste (C# en Release, sin Burst: solo orientativo)");
+            var w = new MiniWorld(Level.CreateSolids(), 76f, 64.5f);
+            w.Spawn(10000, 4f, 60f, 8f, 120f, 0f, 31u);
+            for (int t = 0; t < 10; t++) w.Tick1();
+            var sw = Stopwatch.StartNew();
+            const int ticks = 60;
+            for (int t = 0; t < ticks; t++) w.Tick1();
+            sw.Stop();
+            double ms = sw.Elapsed.TotalMilliseconds / ticks;
+            Console.WriteLine($"         10.000 zombis y 7 sólidos: {ms:0.00} ms por tick (presupuesto a 30 Hz: 33 ms)");
+            var sw2 = Stopwatch.StartNew();
+            w.Rebuild(76f, 64.5f);
+            sw2.Stop();
+            Console.WriteLine($"         recalcular el campo de flujo completo (65.536 celdas): {sw2.Elapsed.TotalMilliseconds:0.0} ms");
+            Check(ms < 33.0, $"un tick de 10.000 zombis cabe en el presupuesto incluso sin Burst ({ms:0.00} ms)");
+        }
+    }
+}

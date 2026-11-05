@@ -10,6 +10,16 @@ using UnityEngine.Rendering;
 
 namespace TBD.View
 {
+    /// <summary>
+    /// Color por instancia del zombi, enlazado a la propiedad _BaseColor del material de URP Lit (SRP Batcher / Entities Graphics).
+    /// Se define aquí porque la documentación de Entities Graphics 1.5 no lista componentes URPMaterialProperty*.
+    /// </summary>
+    [MaterialProperty("_BaseColor")]
+    public struct ZombieBaseColor : IComponentData
+    {
+        public float4 Value;
+    }
+
     /// <summary>Malla y material de los zombis (los fija PrototypeBootstrap antes de que haya entidades).</summary>
     public static class RenderAssets
     {
@@ -59,9 +69,10 @@ namespace TBD.View
             {
                 var e = ents[i];
                 RenderMeshUtility.AddComponents(e, em, desc, RenderAssets.Array, mmi);
-                em.AddComponentData(e, LocalTransform.FromPositionRotation(new float3(zs[i].Pos.x, zs[i].Pos.y + 0.9f, zs[i].Pos.z), quaternion.RotateY(zs[i].Heading)));
+                var lt = LocalTransform.FromPositionRotation(new float3(zs[i].Pos.x, zs[i].Pos.y + 0.9f, zs[i].Pos.z), quaternion.RotateY(zs[i].Heading));
+                if (em.HasComponent<LocalTransform>(e)) em.SetComponentData(e, lt); else em.AddComponentData(e, lt);
                 em.AddComponentData(e, scale);
-                em.AddComponentData(e, new URPMaterialPropertyBaseColor { Value = ColorFor(zs[i].SimId) });
+                em.AddComponentData(e, new ZombieBaseColor { Value = ColorFor(zs[i].SimId) });
             }
             ents.Dispose();
             zs.Dispose();
