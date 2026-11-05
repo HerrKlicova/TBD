@@ -55,7 +55,11 @@ con lo que ves en el Editor, manda el Editor: corrige esta skill.
 - **No decidas una caída por la altura de una masa de agentes** (la pila): provoca parpadeo entre caer y andar. Se decide por el desnivel estático del terreno.
 - La rejilla solo guarda datos agregados; los agentes y los muros son continuos (GDD §9c). Consulta el suelo con los sólidos (índice espacial de cubetas), no con la rejilla.
 - Los sólidos se consultan con el índice espacial (`SolidIndex`); al añadir o quitar un sólido hay que reconstruirlo (`SolidIndex.Rebuild`).
-- `Allocator.Temp` solo en el hilo principal y dentro del mismo `OnUpdate`; en jobs usa `TempJob` o contenedores del job.
+- `Allocator.Temp` solo en el hilo principal. **No lo pases nunca a un job, aunque lo lances con `.Run()` en el mismo `OnUpdate`**: falla en ejecución («Temp memory containers cannot be used when scheduling a job»; visto en Unity 6000.3, commit `87f3a5f`). Usa `TempJob` y libéralo después del job.
+
+## Skills de terceros en este repositorio
+- `save-systems`, `procedural-gen` y `performance-optimization` vienen de awesome-gamedev-agent-skills (Apache-2.0, sin su cargador automático). Cada una lleva arriba sus «Notas para TBD (DOTS)». Si chocan con esta skill, manda esta. Lo principal: ni `System.Random` ni pooling de MonoBehaviour en la simulación.
+- Plugin oficial de Unity (`unity@unity-agent-plugin` 0.1.9-beta, instalado en este proyecto): no trae nada de DOTS. Sus skills de URP, Shader Graph y UI sí sirven.
 
 ## Antes de dar por buena una tarea de simulación
 1. `dotnet run -c Release --project Dotnet/TBD.Sim.Tests` en verde (hoy 49 comprobaciones).
