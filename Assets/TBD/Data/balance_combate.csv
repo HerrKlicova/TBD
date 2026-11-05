@@ -1,0 +1,13 @@
+clave;valor;escala;nota
+disparos_por_u;2000;1;1 u de munición = 2.000 disparos equivalentes (Hugo)
+fusil_cadencia_ticks;15;1;ticks entre disparos (30 Hz): 2 por segundo (Hugo D-N28: cadencia doble, acierto mitad)
+ametralladora_cadencia_ticks;2;1;15 por segundo
+fusil_alcance_m;60;1;
+ametralladora_alcance_m;70;1;
+soldado_vida;100;1;
+zombi_danio_tick;2;1;por cada zombi pegado a un soldado
+cuerpo_a_cuerpo_mm;900;1;distancia a la que un zombi hace daño
+acierto_bocajarro_permil;210;1000;probabilidad de abatir a 0 m
+acierto_pendiente_permil_m;3;1000;lo que baja por cada metro de distancia
+acierto_minimo_permil;30;1000;suelo de la probabilidad
+ametralladora_factor_permil;600;1000;la ametralladora acierta el 60 % de lo que acierta un fusil

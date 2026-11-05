@@ -7,6 +7,8 @@ namespace TBD.Sim.Tests
     /// <summary>Balance v1 de Hugo: los CSV se leen bien (todo entero) y las fórmulas dan EXACTAMENTE los casos P1-P6 de casos_prueba.csv.</summary>
     static class BalanceTests
     {
+        public static string DataDirPublic() { return DataDir(); }
+
         static string DataDir()
         {
             var d = new DirectoryInfo(AppContext.BaseDirectory);
@@ -71,6 +73,24 @@ namespace TBD.Sim.Tests
             check(b.Eff == 560 && b.SpentMil == 4285 && b.Alive == 0, $"P1b: eff {b.Eff}, gasto {b.SpentMil}, vivos {b.Alive} (esperado 560 · 4285 · 0)");
             var c1 = BalanceMath.Combat(2400, 4000, 0, false, fortBonusMil: bonus);
             check(c1.Eff == 400 && c1.SpentMil == 4000 && c1.Alive == 800 && c1.CasualtiesMil == 9600, $"P1c: eff {c1.Eff}, vivos {c1.Alive}, bajas {c1.CasualtiesMil} (esperado 400 · 800 · 9600)");
+
+            // ---- P1d-P1f: asalto a pie limitado por cadencia (D-N27). Esperados leídos de casos_prueba.csv
+            {
+                var casosA = new CsvTable(File.ReadAllText(Path.Combine(dir, "casos_prueba.csv")));
+                long cap = eco.PositiveValue("combate_abatidos_tirador_contacto"), bxc = eco.Value("combate_bajas_por_z_contacto");
+                int n = 0;
+                foreach (var row in casosA.Rows)
+                {
+                    if (row[0] != "P1d" && row[0] != "P1e" && row[0] != "P1f") continue;
+                    var inp = Fields(row[casosA.Col("entradas")]);
+                    var exp = Fields(row[casosA.Col("esperado")]);
+                    var r = BalanceMath.Assault(inp["z"], inp["tiradores"], cap, bxc);
+                    check(r.Killed == exp["abatidos"] && r.Contact == exp["llegan_contacto"] && r.CasualtiesMil == exp["bajas_mil"],
+                        $"{row[0]}: abatidos {r.Killed}, en contacto {r.Contact}, bajas {r.CasualtiesMil} (esperado {exp["abatidos"]} · {exp["llegan_contacto"]} · {exp["bajas_mil"]})");
+                    n++;
+                }
+                check(n == 3, $"casos_prueba.csv trae P1d, P1e y P1f ({n})");
+            }
 
             // ---- P2: presupuesto de la Colmena. Los esperados se LEEN de casos_prueba.csv: cuando Hugo recalibra (D-N25), basta
             // con copiar sus CSV; la prueba sigue comprobando que el código y su modelo dan lo mismo.

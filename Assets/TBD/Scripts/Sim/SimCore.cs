@@ -432,16 +432,17 @@ namespace TBD.Sim
     public static class SoldierLogic
     {
         /// <summary>Un tick de disparos. Devuelve cuántos zombis se abatieron. «order» = índices de soldados ordenados por SimId.</summary>
-        public static int Fire(NativeArray<Soldier> soldiers, NativeArray<int> order, NativeArray<Zombie> zombies, ref ZoneAmmo ammo, uint tick)
+        public static int Fire(NativeArray<Soldier> soldiers, NativeArray<int> order, NativeArray<Zombie> zombies, ref ZoneAmmo ammo, uint tick, in CombatParams cp, NativeArray<int> pileDelta, bool trainStopped = false)
         {
             int kills = 0;
             for (int o = 0; o < order.Length; o++)
             {
                 int si = order[o];
                 var s = soldiers[si];
-                if (s.State != SoldierState.Deployed) continue;
+                bool canFire = s.State == SoldierState.Deployed || (s.State == SoldierState.Embarked && trainStopped);   // D-N27: a bordo, solo con el tren parado
+                if (!canFire) continue;
                 if (s.Cooldown > 0) { s.Cooldown--; soldiers[si] = s; continue; }
-                float range = s.Kind == SoldierKind.MachineGun ? CombatConst.MgRange : CombatConst.RifleRange;
+                float range = s.Kind == SoldierKind.MachineGun ? cp.MgRange : cp.RifleRange;
                 int best = -1;
                 float bestD2 = range * range;
                 uint bestId = uint.MaxValue;
@@ -456,14 +457,16 @@ namespace TBD.Sim
                 if (best < 0 || ammo.ShotsLeft <= 0) { soldiers[si] = s; continue; }     // sin objetivo no se dispara (Hugo)
                 ammo.ShotsLeft--;
                 ammo.ShotsFired++;
-                s.Cooldown = s.Kind == SoldierKind.MachineGun ? CombatConst.MgCooldown : CombatConst.RifleCooldown;
+                s.Cooldown = s.Kind == SoldierKind.MachineGun ? cp.MgCooldown : cp.RifleCooldown;
                 var tz = zombies[best];
                 float2 dv = tz.Pos.xz - s.Pos.xz;
                 s.Heading = math.atan2(dv.x, dv.y);
                 uint roll = math.hash(new uint2(s.SimId * 0x9E3779B1u ^ 0x5EEDu, tick)) % 1000u;
-                if (roll < (uint)CombatConst.HitPermil(s.Kind, math.sqrt(bestD2)))
+                if (roll < (uint)cp.HitPermil(s.Kind, math.sqrt(bestD2)))
                 {
+                    if (tz.State == ZState.Settled && tz.SettledCell >= 0 && pileDelta.Length > 0) pileDelta[tz.SettledCell] -= 1;   // deja la pila
                     tz.State = ZState.Dead;
+                    tz.SettledCell = -1;
                     tz.Vel = float3.zero;
                     zombies[best] = tz;
                     kills++;
@@ -475,14 +478,14 @@ namespace TBD.Sim
         }
 
         /// <summary>Cuerpo a cuerpo: cada zombi vivo a menos de MeleeRange de un soldado le quita vida. Devuelve los soldados caídos este tick.</summary>
-        public static int Melee(NativeArray<Soldier> soldiers, NativeArray<Zombie> zombies, ref ZoneAmmo ammo)
+        public static int Melee(NativeArray<Soldier> soldiers, NativeArray<Zombie> zombies, ref ZoneAmmo ammo, in CombatParams cp)
         {
             int fallen = 0;
-            float r2 = CombatConst.MeleeRange * CombatConst.MeleeRange;
+            float r2 = cp.MeleeRange * cp.MeleeRange;
             for (int si = 0; si < soldiers.Length; si++)
             {
                 var s = soldiers[si];
-                if (s.State != SoldierState.Deployed) continue;
+                if (s.State != SoldierState.Deployed) continue;              // a bordo (D-N27): tras el muro móvil, sin cuerpo a cuerpo
                 int touching = 0;
                 for (int i = 0; i < zombies.Length; i++)
                 {
@@ -492,7 +495,7 @@ namespace TBD.Sim
                     if (math.dot(d, d) <= r2) touching++;
                 }
                 if (touching == 0) continue;
-                s.Hp -= touching * CombatConst.ZombieDamagePerTick;
+                s.Hp -= touching * cp.ZombieDamagePerTick;
                 if (s.Hp <= 0) { s.Hp = 0; s.State = SoldierState.Dead; fallen++; ammo.SoldiersLost++; }
                 soldiers[si] = s;
             }
@@ -543,6 +546,19 @@ namespace TBD.Sim
             v = F(v, s.A.x, 11); v = F(v, s.A.y, 12); v = F(v, s.B.x, 13); v = F(v, s.B.y, 14);
             v = F(v, s.HalfThick, 15); v = F(v, s.Height, 16);
             return Mix(v ^ ((ulong)s.Kind << 8) ^ ((ulong)s.Open << 16) ^ ((ulong)s.Id << 24));
+        }
+
+        public static ulong OfSoldier(in Soldier s)
+        {
+            ulong v = Mix(s.SimId + 0x50D1E8UL);
+            v = F(v, s.Pos.x, 31); v = F(v, s.Pos.y, 32); v = F(v, s.Pos.z, 33); v = F(v, s.Heading, 34);
+            v = F(v, s.Slot.x, 35); v = F(v, s.Slot.y, 36);
+            return Mix(v ^ ((ulong)(uint)s.Hp << 8) ^ ((ulong)(uint)s.Cooldown << 24) ^ ((ulong)s.Kind << 40) ^ ((ulong)s.State << 48));
+        }
+
+        public static ulong OfAmmo(in ZoneAmmo a)
+        {
+            return Mix((ulong)a.ShotsLeft * 31UL + 0xA770UL) + Mix((ulong)a.ShotsFired + 0xF12EUL) + Mix(((ulong)(uint)a.Kills << 20) ^ (ulong)(uint)a.SoldiersLost);
         }
 
         public static ulong OfFloat(float value, int salt) { return F(Mix((ulong)(uint)salt), value, salt); }

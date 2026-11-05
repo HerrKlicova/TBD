@@ -63,6 +63,29 @@ namespace TBD.Net
         }
     }
 
+    /// <summary>Carga los parámetros del combate de la zona desde balance_combate.csv (decisión de Mak: Hugo los ajusta sin tocar C#).</summary>
+    public static class CombatParamsCsv
+    {
+        public static TBD.Sim.CombatParams Load(string csvText)
+        {
+            var t = new CsvTable(csvText);
+            var cp = TBD.Sim.CombatParams.Default;
+            cp.ShotsPerUnit = (int)t.PositiveValue("disparos_por_u");
+            cp.RifleCooldown = (int)t.PositiveValue("fusil_cadencia_ticks");
+            cp.MgCooldown = (int)t.PositiveValue("ametralladora_cadencia_ticks");
+            cp.RifleRange = t.PositiveValue("fusil_alcance_m");
+            cp.MgRange = t.PositiveValue("ametralladora_alcance_m");
+            cp.SoldierHp = (int)t.PositiveValue("soldado_vida");
+            cp.ZombieDamagePerTick = (int)t.Value("zombi_danio_tick");
+            cp.MeleeRange = t.PositiveValue("cuerpo_a_cuerpo_mm") / 1000f;
+            cp.HitPointBlankPermil = (int)t.Value("acierto_bocajarro_permil");
+            cp.HitSlopePermilPerM = (int)t.Value("acierto_pendiente_permil_m");
+            cp.HitMinPermil = (int)t.Value("acierto_minimo_permil");
+            cp.MgFactorPermil = (int)t.Value("ametralladora_factor_permil");
+            return cp;
+        }
+    }
+
     /// <summary>Fórmulas del balance v1, en enteros y con redondeo hacia abajo.</summary>
     public static class BalanceMath
     {
@@ -100,6 +123,22 @@ namespace TBD.Net
             r.Alive = zombies - killed;
             r.FortDamageMil = hasWalls ? r.Alive * fortDamagePerZombieMil : 0;
             r.CasualtiesMil = r.Alive * casualtiesPerZombieMil * (hasWalls ? 1 : noWallMult);
+            return r;
+        }
+
+        public struct AssaultResult { public long Killed, Contact, CasualtiesMil; }
+
+        /// <summary>
+        /// Asalto A PIE o en estación sin muros ni tren (D-N27 de Hugo y Lucía): los abatidos tienen tope por cadencia (tiradores ×
+        /// abatidos por tirador y asalto); los que pasan llegan al cuerpo a cuerpo y causan bajas. Tras muro o desde el tren parado
+        /// no hay tope: se usa Combat.
+        /// </summary>
+        public static AssaultResult Assault(long zombies, long shooters, long killsPerShooter, long casualtiesPerContactMil)
+        {
+            var r = new AssaultResult();
+            r.Killed = Math.Min(zombies, shooters * killsPerShooter);
+            r.Contact = zombies - r.Killed;
+            r.CasualtiesMil = r.Contact * casualtiesPerContactMil;
             return r;
         }
 

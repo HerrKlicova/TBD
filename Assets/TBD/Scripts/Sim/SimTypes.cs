@@ -67,6 +67,7 @@ namespace TBD.Sim
         public int Cooldown;                             // ticks hasta el siguiente disparo
         public byte Kind;
         public byte State;
+        public float2 Slot;                              // a bordo: posición relativa al tren (dx a lo largo de la vía, dz a un lado)
     }
 
     /// <summary>
@@ -81,23 +82,40 @@ namespace TBD.Sim
         public int SoldiersLost;
     }
 
+    /// <summary>
+    /// Parámetros del combate de la zona. Los valores salen de Assets/TBD/Data/balance_combate.csv (Hugo los ajusta sin tocar C#;
+    /// decisión de Mak); aquí solo están los de por defecto, iguales a los del CSV. Es un struct sin referencias: entra en Burst.
+    /// </summary>
+    public struct CombatParams
+    {
+        public int ShotsPerUnit, RifleCooldown, MgCooldown, SoldierHp, ZombieDamagePerTick;
+        public float RifleRange, MgRange, MeleeRange;
+        public int HitPointBlankPermil, HitSlopePermilPerM, HitMinPermil, MgFactorPermil;
+
+        public static CombatParams Default => new CombatParams
+        {
+            ShotsPerUnit = 2000, RifleCooldown = 30, MgCooldown = 4, SoldierHp = 100, ZombieDamagePerTick = 2,
+            RifleRange = 60f, MgRange = 70f, MeleeRange = 0.9f,
+            HitPointBlankPermil = 420, HitSlopePermilPerM = 6, HitMinPermil = 60, MgFactorPermil = 600,
+        };
+
+        /// <summary>Probabilidad de abatir (por mil) según la distancia: de cerca casi siempre, de lejos poco.</summary>
+        public int HitPermil(byte kind, float dist)
+        {
+            int p = (int)(HitPointBlankPermil - dist * HitSlopePermilPerM);
+            if (p < HitMinPermil) p = HitMinPermil;
+            return kind == SoldierKind.MachineGun ? p * MgFactorPermil / 1000 : p;
+        }
+    }
+
+    /// <summary>Parámetros de combate de esta zona (cargados del CSV al crearla). Componente de la raíz.</summary>
+    public struct CombatConfig : IComponentData { public CombatParams P; }
+
+    /// <summary>Compatibilidad: valores por defecto con los nombres de antes.</summary>
     public static class CombatConst
     {
-        public const int ShotsPerUnit = 2000;            // Hugo: 1 u = 2.000 disparos equivalentes
-        public const int RifleCooldown = 30;             // 1 disparo por segundo a 30 Hz (Hugo)
-        public const int MgCooldown = 4;                 // ametralladora: 7,5/s (Hugo pide 8/s; con ticks enteros de 30 Hz, 4 ticks)
-        public const float RifleRange = 60f;
-        public const float MgRange = 70f;
+        public const int ShotsPerUnit = 2000;
         public const int SoldierHp = 100;
-        public const int ZombieDamagePerTick = 2;        // por cada zombi a menos de MeleeRange: un soldado rodeado cae en segundos
-        public const float MeleeRange = 0.9f;
-        /// <summary>Probabilidad de abatir (por mil) según la distancia: de cerca casi siempre, de lejos poco (PROTOTIPO, para calibrar P7).</summary>
-        public static int HitPermil(byte kind, float dist)
-        {
-            int p = (int)(420f - dist * 6f);                 // 420 por mil a bocajarro, 60 por mil a 60 m
-            if (p < 60) p = 60;
-            return kind == SoldierKind.MachineGun ? p * 6 / 10 : p;
-        }
     }
 
     // ------------------------------------------------------------------ raíz de la simulación
@@ -256,6 +274,8 @@ namespace TBD.Sim
         ToggleGate = 2,
         ToggleTrain = 3,
         BuildWall = 4,                                   // muro libre de P0 a P1 (polilíneas = varias órdenes)
+        DeploySquad = 5,                                 // hito 3: desembarca un pelotón (20 fusileros + 1 ametralladora) junto al tren
+        EmbarkSquad = 6,                                 // hito 3 (D-N27): pelotón a bordo; dispara desde los vagones con el tren parado
     }
 
     /// <summary>Todo lo que hace el jugador es una orden con número de tick (regla 2 del GDD §17.3).</summary>
@@ -281,6 +301,14 @@ namespace TBD.Sim
         public const float RoofX0 = 40f, RoofX1 = 51f, RoofY0 = 30f, RoofY1 = 51f;
         public const float TrainMinX = 74f, TrainMaxX = 98f;
         public const byte GateId = 1;
+        public const byte TrainId = 2;                    // D-N27: el tren parado es un muro móvil
+        public const float TrainRear = 17.5f, TrainFront = 2.5f, TrainHalf = 1.0f, TrainH = 2.2f;
+
+        /// <summary>Sólido del tren parado en la posición X (de la cola a la locomotora).</summary>
+        public static Solid TrainSolid(float x)
+        {
+            return new Solid { A = new float2(x - TrainRear, TrackY), B = new float2(x + TrainFront, TrackY), HalfThick = TrainHalf, Height = TrainH, Kind = 0, Open = 0, Id = TrainId };
+        }
 
         /// <summary>Sólidos del nivel: cuatro lados del fuerte (el oeste partido por la puerta) y un edificio con tejado.</summary>
         public static List<Solid> CreateSolids()

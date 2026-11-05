@@ -29,7 +29,7 @@ namespace TBD.Net
     }
 
     // ================================================================== órdenes
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7 }
 
     public struct NetCommand
     {
@@ -248,6 +248,9 @@ namespace TBD.Net
                     case NetCmdType.TrainHold: if (c.Arg >= 0 && c.Arg < Services.Count) { Services[c.Arg].Held = true; Services[c.Arg].Train.Stop(); } break;
                     case NetCmdType.Materialize: Materialize(c.Arg); break;
                     case NetCmdType.Dematerialize: Dematerialize(c.Arg, c.Arg2); break;
+                    case NetCmdType.ConsumeAmmo:                       // munición gastada en una zona (hito 3): sale de la estación
+                        if (c.Arg >= 0 && c.Arg < Graph.Nodes.Count) Stock[c.Arg, (int)Res.Municion] = Math.Max(0, Stock[c.Arg, (int)Res.Municion] - Math.Max(0, c.Arg2));
+                        break;
                     case NetCmdType.TrainGo:
                         if (c.Arg >= 0 && c.Arg < Services.Count)
                         {

@@ -58,6 +58,9 @@ disparo_obus_equiv;100;1;
 combate_z_por_u;400;1;zombis comunes por u sin muros, CALIBRAR en zona (prueba P6)
 combate_danio_fort_por_z;10;1000;materiales por zombi no abatido
 combate_bajas_por_z;4;1000;personas por zombi no abatido, x3 sin muros
+combate_abatidos_tirador_contacto;54;1;D-N27: tope de abatidos por tirador y asalto SIN muros (cadencia, P7)
+combate_bajas_por_z_contacto;14;1000;D-N27: personas por zombi que llega al cuerpo a cuerpo sin muros
+tropa_asalto;30;1;D-N27: tiradores que el tren lleva para limpiar un nodo, desde el tren parado cuentan como tras muro (sin tope)
 asedio_refuerzo_municion;30;1;u que trae el tren
 limpiar_z_base;600;1;
 limpiar_z_por_km;4;1;

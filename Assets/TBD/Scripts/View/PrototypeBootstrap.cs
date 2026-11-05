@@ -107,7 +107,20 @@ namespace TBD.View
         int _zoneNode = -1;                 // nodo de la red del que viene esta zona (-1 = prototipo suelto, 10.000 zombis)
         float _fadeStart;
         bool _leaving;
-        public double LastMaterializeMs;    // lo que tardó en crearse la horda de la zona (para Lucía: ¿basta un vuelo de 0,8 s?)
+        public double LastMaterializeMs;
+        CombatParams _combat;
+        long _ammoUnitsAtStart;
+
+        static CombatParams LoadCombatParams()
+        {
+            try
+            {
+                string path = System.IO.Path.Combine(Application.dataPath, "TBD", "Data", "balance_combate.csv");
+                if (System.IO.File.Exists(path)) return CombatParamsCsv.Load(System.IO.File.ReadAllText(path));
+            }
+            catch (System.Exception e) { Debug.LogWarning("[TBD] balance_combate.csv no se pudo leer: " + e.Message); }
+            return CombatParams.Default;      // en una compilación el CSV irá a StreamingAssets (pendiente)
+        }    // lo que tardó en crearse la horda de la zona (para Lucía: ¿basta un vuelo de 0,8 s?)
 
         IEnumerator Start()
         {
@@ -147,10 +160,18 @@ namespace TBD.View
             }
             _fadeStart = Time.realtimeSinceStartup;
 
+            // Combate: parámetros de balance_combate.csv (Hugo). Munición: la de la estación de la red (unidades × 2.000 disparos)
+            // o 20 u en el prototipo suelto.
+            _combat = LoadCombatParams();
+            long ammoUnits = 20;
+            if (_zoneNode >= 0) ammoUnits = NetSession.A.Stock[_zoneNode, (int)Res.Municion];
+            _ammoUnitsAtStart = ammoUnits;
+            long shots = ammoUnits * _combat.ShotsPerUnit;
+
             var sw = System.Diagnostics.Stopwatch.StartNew();
             _worldA = World.DefaultGameObjectInjectionWorld;
             _groupA = SimWorldSetup.CreateSystems(_worldA);
-            _rootA = SimWorldSetup.Populate(_worldA.EntityManager, zombies, siege, seed);
+            _rootA = SimWorldSetup.Populate(_worldA.EntityManager, zombies, siege, seed, _combat, shots);
             sw.Stop();
             LastMaterializeMs = sw.Elapsed.TotalMilliseconds;
             Debug.Log($"[TBD] Zona {(_zoneNode >= 0 ? NetSession.A.Graph.Nodes[_zoneNode].Name : "suelta")}: {zombies} zombis ({(siege ? "asedio" : "deriva")}) creados en {LastMaterializeMs:0.0} ms");
@@ -158,7 +179,7 @@ namespace TBD.View
 
             _worldB = new World("TBD_SimB");
             _groupB = SimWorldSetup.CreateSystems(_worldB);
-            _rootB = SimWorldSetup.Populate(_worldB.EntityManager, zombies, siege, seed);
+            _rootB = SimWorldSetup.Populate(_worldB.EntityManager, zombies, siege, seed, _combat, shots);
         }
 
         void OnDestroy()
@@ -188,6 +209,9 @@ namespace TBD.View
             if (_zoneNode < 0 || _leaving) return;
             _leaving = true;
             int alive = _zombieQuery.CalculateEntityCount();
+            var ammo = _worldA.EntityManager.GetComponentData<ZoneAmmo>(_rootA);
+            int usedUnits = (int)((ammo.ShotsFired + _combat.ShotsPerUnit - 1) / _combat.ShotsPerUnit);   // redondeo hacia arriba: una caja empezada se gasta
+            if (usedUnits > 0) NetSession.Push(TBD.Net.NetCmdType.ConsumeAmmo, _zoneNode, 0, usedUnits);
             NetSession.Push(TBD.Net.NetCmdType.Dematerialize, _zoneNode, 0, alive / NetWorld.ZombiesPerPermil);
             NetSession.ReturnFromNode = _zoneNode;
             StartCoroutine(LeaveRoutine());
@@ -225,6 +249,7 @@ namespace TBD.View
             em.SetComponentData(_rootA, clock);
 
             UpdateTrainVisual();
+            UpdateSoldierVisuals();
             UpdateCamera();
             UpdateStats();
             UpdateCapture();
@@ -280,6 +305,8 @@ namespace TBD.View
             if (kb.digit3Key.wasPressedThisFrame) Push(CmdType.ToggleTrain);
             if (kb.digit4Key.wasPressedThisFrame) Push(CmdType.SpawnWest, 3000);
             if (kb.digit5Key.wasPressedThisFrame) FireVolley();
+            if (kb.digit6Key.wasPressedThisFrame) Push(CmdType.EmbarkSquad);      // D-N27: pelotón a bordo, dispara con el tren parado
+            if (kb.digit0Key.wasPressedThisFrame) Push(CmdType.DeploySquad);      // desplegar a pie: arriesgado en campo abierto (P7)
             if (kb.digit7Key.wasPressedThisFrame) ApplyGrade(0);
             if (kb.digit8Key.wasPressedThisFrame) ApplyGrade(1);
             if (kb.digit9Key.wasPressedThisFrame) ApplyGrade(2);
@@ -600,6 +627,8 @@ namespace TBD.View
                 var info = em.GetComponentData<ZoneInfo>(_rootA);
                 var train = em.GetComponentData<TrainState>(_rootA);
                 sb.AppendLine($"tick {clock.Tick}   ·   hash {hash.Value:X16}   ·   puerta {(info.GateOpen ? "ABIERTA" : "cerrada")}   ·   tren {(train.Speed > 0 ? "en marcha" : "parado")}");
+                var ammo = em.GetComponentData<ZoneAmmo>(_rootA);
+                sb.AppendLine($"munición {ammo.ShotsLeft / (float)_combat.ShotsPerUnit:0.0} u ({ammo.ShotsFired} disparos)   ·   abatidos {ammo.Kills}   ·   soldados {_soldierViews.Count} (bajas {ammo.SoldiersLost})   ·   6 pelotón a bordo · 0 pelotón a pie");
             }
             string check = _checkStale ? "apagada: B se quedó atrás (se reactiva al reiniciar)" : !_checkEnabled ? "desactivada (F3)"
                 : _desync ? $"¡DESINCRONIZADA en el tick {_desyncTick}!" : "correcta (dos mundos, mismo hash)";
@@ -943,6 +972,55 @@ namespace TBD.View
             Push(CmdType.BuildWall, 0, new Unity.Mathematics.float2(_wallStart.x, _wallStart.z), new Unity.Mathematics.float2(pt.x, pt.z));
             WallVisual(_wallStart, pt, Level.WallHalf * 0.5f, Level.WallH, _mWall);
             _wallStart = pt;
+        }
+
+        // ---------------------------------------------------------------- tropas (solo presentación)
+        readonly System.Collections.Generic.Dictionary<uint, Transform> _soldierViews = new System.Collections.Generic.Dictionary<uint, Transform>();
+        readonly System.Collections.Generic.HashSet<uint> _seenSoldiers = new System.Collections.Generic.HashSet<uint>();
+        Material _mSoldier, _mGunner;
+        EntityQuery _soldierQuery;
+
+        void UpdateSoldierVisuals()
+        {
+            if (_worldA == null) return;
+            var em = _worldA.EntityManager;
+            if (_soldierQuery == default) _soldierQuery = em.CreateEntityQuery(ComponentType.ReadOnly<Soldier>());
+            if (_mSoldier == null) { _mSoldier = Mat("d4d0cc"); _mGunner = Mat("e08c30"); }
+            var ss = _soldierQuery.ToComponentDataArray<Soldier>(Allocator.Temp);
+            _seenSoldiers.Clear();
+            for (int i = 0; i < ss.Length; i++)
+            {
+                var s = ss[i];
+                _seenSoldiers.Add(s.SimId);
+                if (!_soldierViews.TryGetValue(s.SimId, out var tr))
+                {
+                    var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                    go.name = "Soldado " + s.SimId;
+                    Destroy(go.GetComponent<Collider>());
+                    go.transform.SetParent(transform, false);
+                    go.transform.localScale = new Vector3(0.55f, 0.9f, 0.55f);
+                    go.GetComponent<Renderer>().sharedMaterial = s.Kind == SoldierKind.MachineGun ? _mGunner : _mSoldier;
+                    tr = go.transform;
+                    _soldierViews[s.SimId] = tr;
+                }
+                tr.position = new Vector3(s.Pos.x, s.Pos.y + 0.9f, s.Pos.z);
+                tr.rotation = Quaternion.Euler(0f, s.Heading * Mathf.Rad2Deg, 0f);
+                // acaba de disparar: fogonazo y trazadora en la capa de efectos HD (solo vista)
+                int cd = s.Kind == SoldierKind.MachineGun ? _combat.MgCooldown : _combat.RifleCooldown;
+                if (s.Cooldown == cd && _fx != null)
+                {
+                    var from = tr.position + new Vector3(0f, 0.6f, 0f);
+                    var dir = new Vector3(Mathf.Sin(s.Heading), 0f, Mathf.Cos(s.Heading));
+                    _fx.Volley(from, from + dir * 25f, 1);
+                }
+            }
+            ss.Dispose();
+            if (_soldierViews.Count > _seenSoldiers.Count)
+            {
+                var gone = new System.Collections.Generic.List<uint>();
+                foreach (var kv in _soldierViews) if (!_seenSoldiers.Contains(kv.Key)) gone.Add(kv.Key);
+                foreach (var id in gone) { Destroy(_soldierViews[id].gameObject); _soldierViews.Remove(id); }
+            }
         }
 
         void UpdateTrainVisual()

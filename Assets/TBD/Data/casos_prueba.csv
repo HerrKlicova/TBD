@@ -2,6 +2,9 @@ id;descripcion;entradas;esperado
 P1a;Combate S0 con munición insuficiente;z=2400 · municion_mil=4000 · nivel_fort_mil=2000;eff=560 · gasto_mil=4000 · vivos=160 · danio_fort_mil=1600 · bajas_mil=640
 P1b;Combate S0 con munición suficiente;z=2400 · municion_mil=9000 · nivel_fort_mil=2000;eff=560 · gasto_mil=4285 · vivos=0
 P1c;Combate S0 sin muros (bajas x3);z=2400 · municion_mil=4000 · nivel_fort_mil=0 · fort=0;eff=400 · gasto_mil=4000 · vivos=800 · bajas_mil=9600
+P1d;Asalto sin muros limitado por cadencia (réplica de P7);z=2000 · tiradores=21;abatidos=1134 · llegan_contacto=866 · bajas_mil=12124
+P1e;Limpiar Teruel A PIE con 30 tiradores (sin el tren al lado);z=1120 · tiradores=30;abatidos=1120 · llegan_contacto=0 · bajas_mil=0
+P1f;Limpiar Zaragoza A PIE con 30 tiradores (sin el tren al lado), desde el tren parado: sin tope, 0 bajas;z=1840 · tiradores=30;abatidos=1620 · llegan_contacto=220 · bajas_mil=3080
 P2-d10;Presupuesto de la Colmena (sin estación, rampa ni ruido);dia=10 · huella_mil=5000;tabla=1874 · raiz_mil=1341 · H=4020
 P2-d37;Presupuesto de la Colmena (sin estación, rampa ni ruido);dia=37 · huella_mil=12000;tabla=5070 · raiz_mil=1708 · H=13855
 P2-d150;Presupuesto de la Colmena (sin estación, rampa ni ruido);dia=150 · huella_mil=40000;tabla=27580 · raiz_mil=2720 · H=120028
@@ -12,5 +15,5 @@ P6-15;Producción de Castellón (base 60 de combustible);pob=15 · plantilla=30;
 P6-30;Producción de Castellón (base 60 de combustible);pob=30 · plantilla=30;factor_mil=1000 · produccion=60
 P6-60;Producción de Castellón (base 60 de combustible);pob=60 · plantilla=30;factor_mil=1500 · produccion=90
 P6-120;Producción de Castellón (base 60 de combustible);pob=120 · plantilla=30;factor_mil=2000 · produccion=120
-P7;Calibración zona vs S0 (medir en el hito 3);zona sin muros · 20 fusileros + 1 ametralladora contra 2000 comunes;S0 predice 5 u (2000/400). Aceptable 4–6 u. Si la zona gasta más de 6,7 u (menos de 300 zombis por u), la economía se rompe: avisar a Hugo
-P8;Camino crítico de la demo (rangos del modelo, mediana de 200 partidas);política equilibrada · semilla libre;Castellón ≤ día 2 · Teruel día 4–6 · Tren 3 día 6–9 · puente día 8–10 · ≥ 9 nodos el día 10 · derrota en 10 días = 0 %
+P7;Calibración zona vs S0 (D-N27: medido 1,51 u y 1.143 abatidos, objetivo tras ajustar acierto y cadencia);zona sin muros · 20 fusileros + 1 ametralladora contra 2000 comunes · 5 min;abatidos 1.000–1.300 (cadencia, igual que la medida) · 4–6 disparos por abatido · munición 2,5–3,9 u. Fuera de rango: avisar a Hugo
+P8;Camino crítico de la demo (rangos del modelo, mediana de 200 partidas);política equilibrada · semilla libre;Castellón ≤ día 2 · Teruel día 3–5 · Tren 3 día 6–9 · puente día 8–10 · ≥ 9 nodos el día 10 · derrota en 10 días = 0 %

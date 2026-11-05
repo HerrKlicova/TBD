@@ -12,14 +12,23 @@ namespace TBD.Sim
 
         public static Entity Populate(EntityManager em) { return Populate(em, InitialZombies, false, Seed); }
 
+        public static Entity Populate(EntityManager em, int zombies, bool siege, uint seed)
+        {
+            return Populate(em, zombies, siege, seed, CombatParams.Default, 20L * CombatParams.Default.ShotsPerUnit);
+        }
+
         /// <summary>
         /// Crea la zona con «zombies» zombis (hito 3: los que vienen de la mancha S0 al materializar). Reparto (D-N07 de Lucía):
         /// en «asedio», concentrados junto al muro oeste del fuerte; en «deriva», dispersos por el oeste de la zona. La semilla sale
         /// del nodo y del tick, así que dos mundos con las mismas órdenes crean exactamente la misma horda.
         /// </summary>
-        public static Entity Populate(EntityManager em, int zombies, bool siege, uint seed)
+        /// <param name="combat">Parámetros de combate (de balance_combate.csv).</param>
+        /// <param name="ammoShots">Munición del tren para esta zona, en disparos equivalentes.</param>
+        public static Entity Populate(EntityManager em, int zombies, bool siege, uint seed, CombatParams combat, long ammoShots)
         {
-            var root = em.CreateEntity(typeof(ZoneTag), typeof(SimClock), typeof(ZoneInfo), typeof(TrainState), typeof(SimHash));
+            var root = em.CreateEntity(typeof(ZoneTag), typeof(SimClock), typeof(ZoneInfo), typeof(TrainState), typeof(SimHash), typeof(ZoneAmmo), typeof(CombatConfig));
+            em.SetComponentData(root, new ZoneAmmo { ShotsLeft = ammoShots });
+            em.SetComponentData(root, new CombatConfig { P = combat });
             em.SetComponentData(root, new SimClock { Tick = 0, NextSimId = 1, Alpha = 1f });
             em.SetComponentData(root, new ZoneInfo { GateOpen = false, ForceFlow = true, GoalCell = 0 });
             em.SetComponentData(root, new TrainState { X = Level.TrainMinX, Speed = 0f, Dir = 1 });
@@ -40,6 +49,7 @@ namespace TBD.Sim
 
             var solids = em.GetBuffer<Solid>(root);
             foreach (var s in Level.CreateSolids()) solids.Add(s);
+            solids.Add(Level.TrainSolid(Level.TrainMinX));            // D-N27: el tren empieza parado, así que es muro
 
             SolidIndex.Rebuild(solids, em.GetBuffer<SolidBucketStart>(root), em.GetBuffer<SolidBucketRef>(root));
 
@@ -87,6 +97,7 @@ namespace TBD.Sim
             group.AddSystemToUpdateList(world.CreateSystem<CommandSystem>());
             group.AddSystemToUpdateList(world.CreateSystem<FlowFieldSystem>());
             group.AddSystemToUpdateList(world.CreateSystem<ZombieStepSystem>());
+            group.AddSystemToUpdateList(world.CreateSystem<SoldierSystem>());
             group.AddSystemToUpdateList(world.CreateSystem<PileApplySystem>());
             group.AddSystemToUpdateList(world.CreateSystem<TrainSystem>());
             group.AddSystemToUpdateList(world.CreateSystem<StateHashSystem>());
