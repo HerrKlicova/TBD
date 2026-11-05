@@ -74,7 +74,6 @@ namespace TBD.Sim
         public static SimRootGroup CreateSystems(World world)
         {
             var group = world.CreateSystemManaged<SimRootGroup>();
-            group.EnableSystemSorting = false;
             group.AddSystemToUpdateList(world.CreateSystem<CommandSystem>());
             group.AddSystemToUpdateList(world.CreateSystem<FlowFieldSystem>());
             group.AddSystemToUpdateList(world.CreateSystem<ZombieStepSystem>());

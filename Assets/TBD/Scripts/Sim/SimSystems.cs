@@ -11,7 +11,15 @@ namespace TBD.Sim
     /// Los sistemas se añaden en un orden explícito (EnableSystemSorting = false) para que sea idéntico en todos los mundos.
     /// </summary>
     [DisableAutoCreation]
-    public partial class SimRootGroup : ComponentSystemGroup { }
+    public partial class SimRootGroup : ComponentSystemGroup
+    {
+        // El setter de EnableSystemSorting es protected: se fija desde la propia clase.
+        protected override void OnCreate()
+        {
+            base.OnCreate();
+            EnableSystemSorting = false;
+        }
+    }
 
     // ================================================================== 1. órdenes
     [DisableAutoCreation]
