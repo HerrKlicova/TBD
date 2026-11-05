@@ -59,7 +59,7 @@ namespace TBD.View
             {
                 var e = ents[i];
                 RenderMeshUtility.AddComponents(e, em, desc, RenderAssets.Array, mmi);
-                em.AddComponentData(e, LocalTransform.FromPosition(new float3(zs[i].Pos.x, zs[i].Z + 0.9f, zs[i].Pos.y)));
+                em.AddComponentData(e, LocalTransform.FromPositionRotation(new float3(zs[i].Pos.x, zs[i].Pos.y + 0.9f, zs[i].Pos.z), quaternion.RotateY(zs[i].Heading)));
                 em.AddComponentData(e, scale);
                 em.AddComponentData(e, new URPMaterialPropertyBaseColor { Value = ColorFor(zs[i].SimId) });
             }
@@ -108,9 +108,12 @@ namespace TBD.View
 
             void Execute(ref LocalTransform lt, in Zombie z)
             {
-                float2 p = math.lerp(z.PrevPos, z.Pos, Alpha);
-                float h = math.lerp(z.PrevZ, z.Z, Alpha);
-                lt.Position = new float3(p.x, h + 0.9f, p.y);
+                float3 p = math.lerp(z.PrevPos, z.Pos, Alpha);
+                lt.Position = new float3(p.x, p.y + 0.9f, p.z);
+                // orientación continua: se interpola por el camino corto
+                float d = z.Heading - z.PrevHeading;
+                d -= 6.2831853f * math.floor((d + 3.14159265f) / 6.2831853f);
+                lt.Rotation = quaternion.RotateY(z.PrevHeading + d * Alpha);
             }
         }
     }

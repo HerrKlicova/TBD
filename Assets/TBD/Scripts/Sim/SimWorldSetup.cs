@@ -4,7 +4,7 @@ using Unity.Mathematics;
 
 namespace TBD.Sim
 {
-    /// <summary>Crea la entidad raíz con el reloj, la zona, el tren y las rejillas, y registra los sistemas en un orden fijo.</summary>
+    /// <summary>Crea la entidad raíz con el reloj, la zona, el tren, los sólidos y las rejillas, y registra los sistemas en un orden fijo.</summary>
     public static class SimWorldSetup
     {
         public const int InitialZombies = 10000;
@@ -18,15 +18,28 @@ namespace TBD.Sim
             em.SetComponentData(root, new TrainState { X = Level.TrainMinX, Speed = 0f, Dir = 1 });
 
             int n = SimConst.GridW * SimConst.GridH;
-            var ground = em.AddBuffer<CellGround>(root);
-            ground.ResizeUninitialized(n);
-            Level.Build(ground, gateOpen: false);
 
-            em.AddBuffer<CellPile>(root).Resize(n, NativeArrayOptions.ClearMemory);
-            em.AddBuffer<CellPileDelta>(root).Resize(n, NativeArrayOptions.ClearMemory);
-            em.AddBuffer<CellFlowDist>(root).Resize(n, NativeArrayOptions.ClearMemory);
-            em.AddBuffer<CellFlowDir>(root).Resize(n, NativeArrayOptions.ClearMemory);
+            // Primero se añaden todos los buffers (cambios estructurales) y solo después se obtienen y rellenan:
+            // un DynamicBuffer queda invalidado por cualquier cambio estructural de su entidad.
+            em.AddBuffer<Solid>(root);
+            em.AddBuffer<CellGround>(root);
+            em.AddBuffer<CellPile>(root);
+            em.AddBuffer<CellPileDelta>(root);
+            em.AddBuffer<CellFlowDist>(root);
+            em.AddBuffer<CellFlowVec>(root);
             em.AddBuffer<SimCommand>(root);
+
+            var solids = em.GetBuffer<Solid>(root);
+            foreach (var s in Level.CreateSolids()) solids.Add(s);
+
+            var ground = em.GetBuffer<CellGround>(root);
+            ground.ResizeUninitialized(n);
+            Level.RasterRegion(solids, ground, 0, 0, SimConst.GridW - 1, SimConst.GridH - 1);
+
+            em.GetBuffer<CellPile>(root).Resize(n, NativeArrayOptions.ClearMemory);
+            em.GetBuffer<CellPileDelta>(root).Resize(n, NativeArrayOptions.ClearMemory);
+            em.GetBuffer<CellFlowDist>(root).Resize(n, NativeArrayOptions.ClearMemory);
+            em.GetBuffer<CellFlowVec>(root).Resize(n, NativeArrayOptions.ClearMemory);
 
             SpawnInitialHorde(em, root);
             return root;
@@ -46,7 +59,7 @@ namespace TBD.Sim
                 {
                     p = new float2(rng.NextFloat(4f, 60f), rng.NextFloat(8f, 120f));
                 }
-                while (p.x > Level.RoofMinX - 1.5f && p.x < Level.RoofMaxX + 2.5f && p.y > Level.RoofMinY - 1.5f && p.y < Level.RoofMaxY + 2.5f);
+                while (p.x > Level.RoofX0 - 1.5f && p.x < Level.RoofX1 + 1.5f && p.y > Level.RoofY0 - 1.5f && p.y < Level.RoofY1 + 1.5f);
                 em.SetComponentData(ents[i], Zombie.Create(clock.NextSimId++, p, 0f));
             }
             ents.Dispose();

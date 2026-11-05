@@ -78,7 +78,13 @@ namespace TBD.View
         int _gradeIndex;
         int _lastW, _lastH;
         float _orthoSize = 18f;
+        float _targetOrtho = 18f;
+        float _yaw = 45f;                               // cámara libre: rotación, inclinación y zoom continuos
+        float _pitch = 50f;
         Vector3 _focus = new Vector3(66f, 0f, 64f);
+        bool _buildMode;
+        bool _hasWallStart;
+        Vector3 _wallStart;
         Transform[] _trainParts;
         GameObject _gate;
         float _fpsAcc;
@@ -170,16 +176,16 @@ namespace TBD.View
         }
 
         /// <summary>Una orden entra por la cola única con un número de tick futuro, igual en los dos mundos.</summary>
-        void Push(CmdType type, int arg = 0)
+        void Push(CmdType type, int arg = 0, Unity.Mathematics.float2 p0 = default, Unity.Mathematics.float2 p1 = default)
         {
-            PushTo(_worldA.EntityManager, _rootA, type, arg);
-            PushTo(_worldB.EntityManager, _rootB, type, arg);
+            PushTo(_worldA.EntityManager, _rootA, type, arg, p0, p1);
+            PushTo(_worldB.EntityManager, _rootB, type, arg, p0, p1);
         }
 
-        static void PushTo(EntityManager em, Entity root, CmdType type, int arg)
+        static void PushTo(EntityManager em, Entity root, CmdType type, int arg, Unity.Mathematics.float2 p0, Unity.Mathematics.float2 p1)
         {
             uint tick = em.GetComponentData<SimClock>(root).Tick + SimConst.InputDelayTicks;
-            em.GetBuffer<SimCommand>(root).Add(new SimCommand { Tick = tick, Type = type, Arg = arg });
+            em.GetBuffer<SimCommand>(root).Add(new SimCommand { Tick = tick, Type = type, Arg = arg, P0 = p0, P1 = p1 });
         }
 
         void HandleInput()
@@ -203,27 +209,50 @@ namespace TBD.View
             if (kb.f9Key.wasPressedThisFrame) SaveScreenshot();
             if (kb.f10Key.wasPressedThisFrame) ToggleRecording();
 
+            if (kb.bKey.wasPressedThisFrame) { _buildMode = !_buildMode; _hasWallStart = false; }
+            if (kb.escapeKey.wasPressedThisFrame) { _buildMode = false; _hasWallStart = false; }
+
+            // ---- cámara libre: rotación, inclinación y zoom continuos (GDD §11, v1.10)
+            float dt = Time.unscaledDeltaTime;
+            if (kb.qKey.isPressed) _yaw -= 70f * dt;
+            if (kb.eKey.isPressed) _yaw += 70f * dt;
+            if (kb.rKey.isPressed) _pitch = Mathf.Min(80f, _pitch + 40f * dt);
+            if (kb.fKey.isPressed) _pitch = Mathf.Max(20f, _pitch - 40f * dt);
+
+            Vector3 fwd = Quaternion.Euler(0f, _yaw, 0f) * Vector3.forward;
+            Vector3 right = Quaternion.Euler(0f, _yaw, 0f) * Vector3.right;
             Vector3 pan = Vector3.zero;
-            if (kb.wKey.isPressed || kb.upArrowKey.isPressed) pan += new Vector3(1, 0, 1);
-            if (kb.sKey.isPressed || kb.downArrowKey.isPressed) pan += new Vector3(-1, 0, -1);
-            if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) pan += new Vector3(-1, 0, 1);
-            if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) pan += new Vector3(1, 0, -1);
-            _focus += pan.normalized * (_orthoSize * 1.2f * Time.unscaledDeltaTime);
+            if (kb.wKey.isPressed || kb.upArrowKey.isPressed) pan += fwd;
+            if (kb.sKey.isPressed || kb.downArrowKey.isPressed) pan -= fwd;
+            if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) pan -= right;
+            if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) pan += right;
+            _focus += pan.normalized * (_orthoSize * 1.2f * dt);
 
             var mouse = Mouse.current;
             if (mouse != null)
             {
                 float s = mouse.scroll.ReadValue().y;
-                if (s > 0f) _orthoSize = Mathf.Max(6f, _orthoSize * 0.85f);
-                if (s < 0f) _orthoSize = Mathf.Min(70f, _orthoSize / 0.85f);
+                if (s != 0f) _targetOrtho = Mathf.Clamp(_targetOrtho * Mathf.Pow(0.9f, s / 120f), 6f, 70f);
+                if (mouse.rightButton.isPressed && !_buildMode)
+                {
+                    Vector2 dd = mouse.delta.ReadValue();
+                    _yaw += dd.x * 0.2f;
+                    _pitch = Mathf.Clamp(_pitch - dd.y * 0.2f, 20f, 80f);
+                }
+                if (_buildMode)
+                {
+                    if (mouse.leftButton.wasPressedThisFrame) PlaceWallPoint(mouse.position.ReadValue());
+                    if (mouse.rightButton.wasPressedThisFrame) _hasWallStart = false;
+                }
             }
+            _orthoSize = Mathf.Lerp(_orthoSize, _targetOrtho, 1f - Mathf.Exp(-12f * dt));
         }
 
         /// <summary>Descarga visual de trazadoras desde el tren (efecto de presentación, sin efecto en la simulación).</summary>
         void FireVolley()
         {
             Vector3 from = _trainParts[0].position + new Vector3(0f, 1.6f, 0f);
-            Vector3 to = new Vector3(Level.GateMinX - 10f, 0f, Level.TrackY + 0.5f);
+            Vector3 to = new Vector3(Level.FortX0 - 10f, 0f, Level.TrackY);
             _fx.Volley(from, to, 14);
         }
 
@@ -359,9 +388,15 @@ namespace TBD.View
             if (Screen.width != _lastW || Screen.height != _lastH) RebuildRt();
 
             _worldCam.orthographicSize = _orthoSize;
-            Vector3 dir = new Vector3(1f, -1f, 1f).normalized;      // mirando en diagonal, como un RTS isométrico
-            _worldCam.transform.position = _focus - dir * 120f;
-            _worldCam.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+            Quaternion rot = Quaternion.Euler(_pitch, _yaw, 0f);
+            Vector3 camPos = _focus - rot * Vector3.forward * 120f;
+            // snapping a la rejilla de píxeles: solo visual (la simulación no sabe nada de la cámara)
+            float pixelSize = 2f * _orthoSize / Mathf.Max(1, _lowRt.height);
+            Vector3 local = Quaternion.Inverse(rot) * camPos;
+            local.x = Mathf.Round(local.x / pixelSize) * pixelSize;
+            local.y = Mathf.Round(local.y / pixelSize) * pixelSize;
+            camPos = rot * local;
+            _worldCam.transform.SetPositionAndRotation(camPos, rot);
             _worldCam.nearClipPlane = 0.1f;
             _worldCam.farClipPlane = 400f;
 
@@ -461,9 +496,10 @@ namespace TBD.View
                 : _desync ? $"¡DESINCRONIZADA en el tick {_desyncTick}!" : "correcta (dos mundos, mismo hash)";
             sb.AppendLine($"Desincronización: {check}");
             sb.AppendLine($"Pixelado 1/{_factor}   ·   paleta {_paletteMix * 100:0}%   ·   gradación {GradeNames[_gradeIndex]}" + (_recording ? "   <color=#ff5a5a>● GRABANDO</color>" : ""));
-            sb.AppendLine("1 tejado · 2 puerta · 3 tren · 4 más zombis · 5 trazadoras · 7/8/9 hora · [ ] pixelado · , . paleta · F9 captura · F10 GIF");
+            sb.AppendLine("1 tejado · 2 puerta · 3 tren · 4 más zombis · 5 trazadoras · B muros libres" + (_buildMode ? " <color=#ffd25a>(MODO MURO: clics = puntos; clic derecho corta)</color>" : ""));
+            sb.AppendLine("WASD mover · Q E girar · R F inclinar · rueda zoom · botón derecho girar · 7/8/9 hora · [ ] pixelado · , . paleta · F9 captura · F10 GIF");
 
-            float pad = 10f, w = Screen.width * 0.62f, h = _hudStyle.lineHeight * 6.3f;
+            float pad = 10f, w = Screen.width * 0.7f, h = _hudStyle.lineHeight * 7.3f;
             GUI.Box(new Rect(pad, pad, w, h), GUIContent.none, _panelStyle);
             GUI.Label(new Rect(pad * 2f, pad * 1.4f, w - pad * 2f, h), sb.ToString(), _hudStyle);
         }
@@ -592,29 +628,30 @@ namespace TBD.View
             return go;
         }
 
+        /// <summary>Decorado generado desde los mismos sólidos que usa la simulación (geometría continua, no celdas).</summary>
         void SetupLevelObjects()
         {
-            int W = SimConst.GridW, H = SimConst.GridH;
-            Box("Suelo", new Vector3(W * 0.5f, -0.25f, H * 0.5f), new Vector3(W, 0.5f, H), _mGround);
+            float world = SimConst.WorldSize;
+            Box("Suelo", new Vector3(world * 0.5f, -0.25f, world * 0.5f), new Vector3(world, 0.5f, world), _mGround);
 
-            // Edificio con tejado
-            Box("Edificio", new Vector3((Level.RoofMinX + Level.RoofMaxX + 1) * 0.5f, Level.RoofH * 0.5f, (Level.RoofMinY + Level.RoofMaxY + 1) * 0.5f),
-                new Vector3(Level.RoofMaxX - Level.RoofMinX + 1, Level.RoofH, Level.RoofMaxY - Level.RoofMinY + 1), _mRoof);
-
-            // Muro del fuerte: cuatro lados de 2 m de grosor
-            float wh = Level.WallH, t = Level.WallThickness;
-            float x0 = Level.FortMinX, x1 = Level.FortMaxX + 1, y0 = Level.FortMinY, y1 = Level.FortMaxY + 1;
-            Box("Muro sur", new Vector3((x0 + x1) * 0.5f, wh * 0.5f, y0 + t * 0.5f), new Vector3(x1 - x0, wh, t), _mWall);
-            Box("Muro norte", new Vector3((x0 + x1) * 0.5f, wh * 0.5f, y1 - t * 0.5f), new Vector3(x1 - x0, wh, t), _mWall);
-            Box("Muro este", new Vector3(x1 - t * 0.5f, wh * 0.5f, (y0 + y1) * 0.5f), new Vector3(t, wh, y1 - y0), _mWall);
-            // Lado oeste en tres tramos, con la puerta en medio
-            float gy0 = Level.GateMinY, gy1 = Level.GateMaxY + 1;
-            Box("Muro oeste sur", new Vector3(x0 + t * 0.5f, wh * 0.5f, (y0 + gy0) * 0.5f), new Vector3(t, wh, gy0 - y0), _mWall);
-            Box("Muro oeste norte", new Vector3(x0 + t * 0.5f, wh * 0.5f, (gy1 + y1) * 0.5f), new Vector3(t, wh, y1 - gy1), _mWall);
-            _gate = Box("Puerta", new Vector3(x0 + t * 0.5f, wh * 0.5f, (gy0 + gy1) * 0.5f), new Vector3(t, wh, gy1 - gy0), _mGate);
+            foreach (var s in Level.CreateSolids())
+            {
+                if (s.Kind == 1)
+                {
+                    var c = (s.A + s.B) * 0.5f;
+                    var size = s.B - s.A;
+                    Box("Edificio", new Vector3(c.x, s.Height * 0.5f, c.y), new Vector3(size.x, s.Height, size.y), _mRoof);
+                }
+                else
+                {
+                    var go = WallVisual(new Vector3(s.A.x, 0f, s.A.y), new Vector3(s.B.x, 0f, s.B.y), s.HalfThick, s.Height,
+                        s.Id == Level.GateId ? _mGate : _mWall);
+                    if (s.Id == Level.GateId) _gate = go;
+                }
+            }
 
             // Vía: dos raíles y traviesas, de oeste a este por el centro del fuerte
-            float ty = Level.TrackY + 0.5f;
+            float ty = Level.TrackY;
             Box("Raíl A", new Vector3(55f, 0.12f, ty - 0.7f), new Vector3(90f, 0.1f, 0.12f), _mRail);
             Box("Raíl B", new Vector3(55f, 0.12f, ty + 0.7f), new Vector3(90f, 0.1f, 0.12f), _mRail);
             for (int x = 12; x < 100; x += 2)
@@ -627,12 +664,45 @@ namespace TBD.View
                 _trainParts[i] = Box("Vagón " + i, Vector3.zero, new Vector3(4.6f, 2f, 1.8f), _mWagon).transform;
         }
 
+        /// <summary>Muro como caja con posición, rotación, grosor y altura libres (de A a B).</summary>
+        GameObject WallVisual(Vector3 a, Vector3 b, float halfThick, float height, Material m)
+        {
+            Vector3 d = b - a;
+            float len = d.magnitude;
+            var go = Box("Muro", (a + b) * 0.5f + Vector3.up * (height * 0.5f), new Vector3(len + 2f * halfThick, height, 2f * halfThick), m);
+            go.transform.rotation = Quaternion.Euler(0f, Mathf.Atan2(-d.z, d.x) * Mathf.Rad2Deg, 0f);
+            return go;
+        }
+
+        /// <summary>Construcción libre: clic para cada punto de la polilínea; cada tramo es una orden BuildWall.</summary>
+        void PlaceWallPoint(Vector2 screenPos)
+        {
+            // Rayo por coordenadas de vista (la cámara del mundo pinta a una textura, no a la pantalla)
+            Ray ray = _worldCam.ViewportPointToRay(new Vector3(screenPos.x / Screen.width, screenPos.y / Screen.height, 0f));
+            var plane = new Plane(Vector3.up, Vector3.zero);
+            if (!plane.Raycast(ray, out float t)) return;
+            Vector3 pt = ray.GetPoint(t);
+            pt.x = Mathf.Clamp(pt.x, 2f, SimConst.WorldSize - 2f);
+            pt.z = Mathf.Clamp(pt.z, 2f, SimConst.WorldSize - 2f);
+            pt.y = 0f;
+            if (!_hasWallStart)
+            {
+                _wallStart = pt;
+                _hasWallStart = true;
+                return;
+            }
+            if ((pt - _wallStart).magnitude < 1f) return;
+            Push(CmdType.BuildWall, 0, new Unity.Mathematics.float2(_wallStart.x, _wallStart.z), new Unity.Mathematics.float2(pt.x, pt.z));
+            WallVisual(_wallStart, pt, Level.WallHalf * 0.5f, Level.WallH, _mWall);
+            _wallStart = pt;
+        }
+
         void UpdateTrainVisual()
         {
             var em = _worldA.EntityManager;
             var train = em.GetComponentData<TrainState>(_rootA);
             var info = em.GetComponentData<ZoneInfo>(_rootA);
-            float ty = Level.TrackY + 0.5f;
+            float ty = Level.TrackY;
             // el tren avanza hacia +x; la locomotora va delante
             float x = train.X + 0.5f;
             _trainParts[0].position = new Vector3(x, 1.3f, ty);
