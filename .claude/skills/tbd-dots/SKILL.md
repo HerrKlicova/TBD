@@ -61,7 +61,13 @@ con lo que ves en el Editor, manda el Editor: corrige esta skill.
 - `save-systems`, `procedural-gen` y `performance-optimization` vienen de awesome-gamedev-agent-skills (Apache-2.0, sin su cargador automático). Cada una lleva arriba sus «Notas para TBD (DOTS)». Si chocan con esta skill, manda esta. Lo principal: ni `System.Random` ni pooling de MonoBehaviour en la simulación.
 - Plugin oficial de Unity (`unity@unity-agent-plugin` 0.1.9-beta, instalado en este proyecto): no trae nada de DOTS. Sus skills de URP, Shader Graph y UI sí sirven.
 
+## Manejar el editor (Unity CLI y MCP for Unity), comprobado el 5-nov
+- La CLI está en `%LOCALAPPDATA%\Unity\bin\unity.exe` (1.0.0-beta.16), con el paquete `com.unity.pipeline` en el proyecto. Pasa siempre `--project-path C:/Dev/TBD --caller plugin --skill <skill>`.
+- Antes de un Play que vayas a medir o grabar: `unity command editor.playmode set_run_in_background`. Si no, con el editor sin foco la simulación se queda en el tick 4.
+- Si editas scripts desde fuera, refresca los assets antes de compilar (`refresh_unity` de MCP for Unity). `unity command script recompile` contesta «no hace falta» si Unity no ha visto el cambio, y `unity recompile` devolvió HTTP 400.
+- Capturas: `unity command capture game_view --output-path <png>`. Para las teclas del prototipo, `unity command script eval` con reflexión sobre `PrototypeBootstrap` (`Push`, `ApplyGrade`, `FireVolley`, `ToggleRecording`, `_factor` + `RebuildRt`).
+
 ## Antes de dar por buena una tarea de simulación
-1. `dotnet run -c Release --project Dotnet/TBD.Sim.Tests` en verde (hoy 49 comprobaciones).
+1. `dotnet run -c Release --project Dotnet/TBD.Sim.Tests` en verde (hoy 51 comprobaciones).
 2. En Unity: sin errores de compilación, prueba de desincronización correcta (`F3`), 10.000 zombis a 60 fps, Burst ≥ 1.8.25 en el Package Manager.
 3. Registrar el cambio de diseño en mr.mak (`CAMBIOS.md` con `C-xxx`, y `DECISIONES.md` si hay decisión).
