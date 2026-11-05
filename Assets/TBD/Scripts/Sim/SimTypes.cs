@@ -29,6 +29,8 @@ namespace TBD.Sim
         public const float TurnRate = 8f;               // rad/s al girar hacia la marcha
         public const float Accel = 0.25f;               // mezcla de velocidad por tick hacia la deseada
         public const int FlowEveryTicks = 15;           // el campo de flujo se recalcula cada 15 ticks
+        public const float SepGain = 0.35f;              // separación por densidad: m/s por (zombi extra por celda / m)
+        public const float SepMax = 1.0f;               // tope de la velocidad de separación (m/s)
         public const int InputDelayTicks = 2;           // retardo de entrada de las órdenes (lockstep)
         public const float TrainSpeed = 3f;             // m/s
     }

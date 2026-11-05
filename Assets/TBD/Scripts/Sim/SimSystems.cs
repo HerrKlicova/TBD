@@ -173,8 +173,13 @@ namespace TBD.Sim
             var snapshot = new NativeArray<int>(pile.Length, Allocator.TempJob);
             snapshot.CopyFrom(pile);
 
-            new ZombieStepJob { Solids = solids, BucketStart = bStart, BucketRefs = bRefs, PileRead = snapshot, FlowVec = flow, PileDelta = delta }.Run();
+            // Densidad del tick anterior para la separación entre agentes (sumas enteras: no depende del orden).
+            var density = new NativeArray<int>(pile.Length, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            new DensityCountJob { Density = density }.Run();
+
+            new ZombieStepJob { Solids = solids, BucketStart = bStart, BucketRefs = bRefs, PileRead = snapshot, FlowVec = flow, PileDelta = delta, Density = density }.Run();
             snapshot.Dispose();
+            density.Dispose();
         }
     }
 
@@ -187,10 +192,22 @@ namespace TBD.Sim
         [ReadOnly] public NativeArray<int> PileRead;
         [ReadOnly] public NativeArray<float2> FlowVec;
         public NativeArray<int> PileDelta;
+        [ReadOnly] public NativeArray<int> Density;
 
         void Execute(ref Zombie z)
         {
-            ZombieLogic.Step(ref z, Solids, BucketStart, BucketRefs, PileRead, FlowVec, PileDelta);   // lógica pura, probada con dotnet (carpeta Dotnet/)
+            ZombieLogic.Step(ref z, Solids, BucketStart, BucketRefs, PileRead, FlowVec, PileDelta, Density);   // lógica pura, probada con dotnet (carpeta Dotnet/)
+        }
+    }
+
+    [BurstCompile]
+    public partial struct DensityCountJob : IJobEntity
+    {
+        public NativeArray<int> Density;
+
+        void Execute(in Zombie z)
+        {
+            ZombieLogic.AddDensity(z, Density);
         }
     }
 

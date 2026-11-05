@@ -246,6 +246,50 @@ namespace TBD.Sim
             return math.lerp(a, b, f.y);
         }
 
+        static int CellIndex(float2 p)
+        {
+            int2 c = math.clamp((int2)math.floor(p / SimConst.CellSize), new int2(0, 0), new int2(SimConst.GridW - 1, SimConst.GridH - 1));
+            return c.y * SimConst.GridW + c.x;
+        }
+
+        /// <summary>Cuenta un zombi en la rejilla de densidad (sumas enteras: el resultado no depende del orden). Los que caen no cuentan.</summary>
+        public static void AddDensity(in Zombie z, NativeArray<int> density)
+        {
+            if (z.State == ZState.Fall) return;
+            density[CellIndex(z.Pos.xz)] += 1;
+        }
+
+        // Exceso de densidad de una celda: un zombi solo no se empuja a sí mismo.
+        static float DensityCell(NativeArray<int> density, int2 c)
+        {
+            c = math.clamp(c, new int2(0, 0), new int2(SimConst.GridW - 1, SimConst.GridH - 1));
+            return math.max(0, density[c.y * SimConst.GridW + c.x] - 1);
+        }
+
+        static float DensityAt(NativeArray<int> density, float2 p)
+        {
+            float2 u = p / SimConst.CellSize - 0.5f;
+            int2 i0 = (int2)math.floor(u);
+            float2 f = u - (float2)i0;
+            float a = math.lerp(DensityCell(density, i0), DensityCell(density, i0 + new int2(1, 0)), f.x);
+            float b = math.lerp(DensityCell(density, i0 + new int2(0, 1)), DensityCell(density, i0 + new int2(1, 1)), f.x);
+            return math.lerp(a, b, f.y);
+        }
+
+        /// <summary>
+        /// Separación entre agentes sin consultar vecinos: velocidad hacia donde baja la densidad del tick anterior (gradiente de la
+        /// rejilla interpolada). Evita que la horda se colapse en filas sobre las líneas del campo de flujo. Determinista: solo lee.
+        /// </summary>
+        public static float2 SeparationAt(NativeArray<int> density, float2 p)
+        {
+            float h = SimConst.CellSize;
+            float gx = DensityAt(density, p + new float2(h, 0f)) - DensityAt(density, p - new float2(h, 0f));
+            float gy = DensityAt(density, p + new float2(0f, h)) - DensityAt(density, p - new float2(0f, h));
+            float2 v = new float2(-gx, -gy) * (SimConst.SepGain / (2f * h));
+            float l = math.length(v);
+            return l > SimConst.SepMax ? v * (SimConst.SepMax / l) : v;
+        }
+
         static float ApproachAngle(float cur, float target, float maxStep)
         {
             float d = target - cur;
@@ -259,7 +303,8 @@ namespace TBD.Sim
         }
 
         public static void Step(ref Zombie z, NativeArray<Solid> solids, NativeArray<int> bStart, NativeArray<int> bRefs,
-                                NativeArray<int> pileRead, NativeArray<float2> flowVec, NativeArray<int> pileDelta)
+                                NativeArray<int> pileRead, NativeArray<float2> flowVec, NativeArray<int> pileDelta,
+                                NativeArray<int> density)
         {
             z.PrevPos = z.Pos;
             z.PrevHeading = z.Heading;
@@ -287,7 +332,8 @@ namespace TBD.Sim
 
             // ---- marcha en continuo: velocidad deseada = dirección del flujo interpolada
             float2 desired = FlowAt(flowVec, p) * z.Speed;
-            float2 vel2 = math.lerp(z.Vel.xz, desired, SimConst.Accel);
+            float2 steer = desired + SeparationAt(density, p);      // la separación no cuenta como «empujar contra el muro»
+            float2 vel2 = math.lerp(z.Vel.xz, steer, SimConst.Accel);
             float2 intended = vel2 * SimConst.Dt;
             float2 np = p + intended;
             float standing = GroundAt(solids, bStart, bRefs, p) + PileAt(pileRead, p);   // altura de la superficie bajo el zombi
@@ -365,7 +411,10 @@ namespace TBD.Sim
             else
             {
                 float dy = math.clamp(s2 - z.Pos.y, -SimConst.SlideSpeed * SimConst.Dt, SimConst.ClimbSpeed * SimConst.Dt);
-                z.Pos = new float3(np.x, z.Pos.y + dy, np.y);
+                // Nunca dentro de un sólido por debajo del escalón: si la pila le dejó pasar por encima del muro, ya está arriba
+                // (la subida limitada se quedaba atrás un tick cuando la separación lo empujaba hacia el muro).
+                float y = math.max(z.Pos.y + dy, g1 - SimConst.StepUp);
+                z.Pos = new float3(np.x, y, np.y);
             }
 
             // ---- orientación continua: gira suavemente hacia donde avanza

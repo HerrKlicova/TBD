@@ -16,7 +16,7 @@ namespace TBD.Sim.Tests
         public NativeArray<Solid> Solids;
         public NativeArray<int> BStart, BRefs;
         public NativeArray<float> Ground;
-        public NativeArray<int> Dist, Pile, Delta, Snapshot;
+        public NativeArray<int> Dist, Pile, Delta, Snapshot, Density;
         public NativeArray<float2> Vec;
         public Zombie[] Z;
         public uint Tick;
@@ -29,6 +29,7 @@ namespace TBD.Sim.Tests
             Pile = new NativeArray<int>(N, Allocator.Temp);
             Delta = new NativeArray<int>(N, Allocator.Temp);
             Snapshot = new NativeArray<int>(N, Allocator.Temp);
+            Density = new NativeArray<int>(N, Allocator.Temp);
             Vec = new NativeArray<float2>(N, Allocator.Temp);
             Z = new Zombie[0];
             Rebuild(goalX, goalY);
@@ -67,10 +68,17 @@ namespace TBD.Sim.Tests
         public void Tick1(int[] order = null)
         {
             Snapshot.CopyFrom(Pile);
+            for (int i = 0; i < N; i++) Density[i] = 0;
             if (order == null)
-                for (int i = 0; i < Z.Length; i++) ZombieLogic.Step(ref Z[i], Solids, BStart, BRefs, Snapshot, Vec, Delta);
+            {
+                for (int i = 0; i < Z.Length; i++) ZombieLogic.AddDensity(Z[i], Density);
+                for (int i = 0; i < Z.Length; i++) ZombieLogic.Step(ref Z[i], Solids, BStart, BRefs, Snapshot, Vec, Delta, Density);
+            }
             else
-                foreach (int i in order) ZombieLogic.Step(ref Z[i], Solids, BStart, BRefs, Snapshot, Vec, Delta);
+            {
+                foreach (int i in order) ZombieLogic.AddDensity(Z[i], Density);
+                foreach (int i in order) ZombieLogic.Step(ref Z[i], Solids, BStart, BRefs, Snapshot, Vec, Delta, Density);
+            }
             new PileApplyJob { Pile = Pile, Delta = Delta }.Execute();
             Tick++;
         }
@@ -119,6 +127,7 @@ namespace TBD.Sim.Tests
             TestSolidIndex();
             TestOneZombieAtWall();
             TestWallPileSpill();
+            TestSeparation();
             TestDeterminism();
             TestPerf();
             RailTests.Run(Check);
@@ -403,6 +412,30 @@ namespace TBD.Sim.Tests
             sw2.Stop();
             Console.WriteLine($"         lo mismo consultando todos los sólidos: {sw2.Elapsed.TotalMilliseconds / 5:0.00} ms por tick");
             Check(sw.Elapsed.TotalMilliseconds / 30 < 33.0, $"con {solids.Count} sólidos un tick de 10.000 zombis cabe en el presupuesto ({sw.Elapsed.TotalMilliseconds / 30:0.00} ms, sin Burst)");
+        }
+
+        // ------------------------------------------------------------------ separación entre agentes
+        static void TestSeparation()
+        {
+            Console.WriteLine("[6d] Separación por densidad (la horda no se colapsa en filas)");
+            var w = new MiniWorld(Level.CreateSolids(), 76f, 64.5f);
+            w.Spawn(2000, 4f, 40f, 20f, 110f, 0f, 77u);
+            for (int t = 0; t < 300; t++) w.Tick1();
+            var occ = new Dictionary<int, int>();
+            int walking = 0;
+            foreach (var z in w.Z)
+            {
+                if (z.State != ZState.Walk || z.Pos.y > 0.01f) continue;      // solo los que andan por el suelo
+                int c = (int)(z.Pos.z / SimConst.CellSize) * SimConst.GridW + (int)(z.Pos.x / SimConst.CellSize);
+                occ[c] = occ.TryGetValue(c, out var n) ? n + 1 : 1;
+                walking++;
+            }
+            int maxCell = 0; foreach (var v in occ.Values) maxCell = Math.Max(maxCell, v);
+            float perCell = occ.Count > 0 ? walking / (float)occ.Count : 0f;
+            // Sin separación (SepGain = 0) daba 1,38 por celda y un máximo de 9; con 0,35 da 1,22 y 4 (5-nov).
+            Console.WriteLine($"         a los 10 s: {walking} andando en {occ.Count} celdas ({perCell:0.00} por celda ocupada, máximo {maxCell})");
+            Check(perCell < 1.3f, $"los que andan se reparten (media {perCell:0.00} por celda ocupada de 0,5 m)");
+            Check(maxCell <= 5, $"ninguna celda de suelo concentra una fila entera (máximo {maxCell})");
         }
 
         // ------------------------------------------------------------------ determinismo
