@@ -461,11 +461,14 @@ namespace TBD.Sim
                 var tz = zombies[best];
                 float2 dv = tz.Pos.xz - s.Pos.xz;
                 s.Heading = math.atan2(dv.x, dv.y);
+                s.AimPoint = tz.Pos;
+                s.LastHit = 0;
                 uint roll = math.hash(new uint2(s.SimId * 0x9E3779B1u ^ 0x5EEDu, tick)) % 1000u;
                 if (roll < (uint)cp.HitPermil(s.Kind, math.sqrt(bestD2)))
                 {
                     if (tz.State == ZState.Settled && tz.SettledCell >= 0 && pileDelta.Length > 0) pileDelta[tz.SettledCell] -= 1;   // deja la pila
                     tz.State = ZState.Dead;
+                    s.LastHit = 1;
                     tz.SettledCell = -1;
                     tz.Vel = float3.zero;
                     zombies[best] = tz;
@@ -553,6 +556,7 @@ namespace TBD.Sim
             ulong v = Mix(s.SimId + 0x50D1E8UL);
             v = F(v, s.Pos.x, 31); v = F(v, s.Pos.y, 32); v = F(v, s.Pos.z, 33); v = F(v, s.Heading, 34);
             v = F(v, s.Slot.x, 35); v = F(v, s.Slot.y, 36);
+            v = F(v, s.AimPoint.x, 37); v = F(v, s.AimPoint.z, 38); v = Mix(v ^ s.LastHit);
             return Mix(v ^ ((ulong)(uint)s.Hp << 8) ^ ((ulong)(uint)s.Cooldown << 24) ^ ((ulong)s.Kind << 40) ^ ((ulong)s.State << 48));
         }
 

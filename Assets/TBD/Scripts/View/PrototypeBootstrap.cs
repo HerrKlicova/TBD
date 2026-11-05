@@ -1062,7 +1062,9 @@ namespace TBD.View
                 if (s.Cooldown == cd && _fx != null)
                 {
                     var dir = new Vector3(Mathf.Sin(s.Heading), 0f, Mathf.Cos(s.Heading));
-                    _fx.Shot(tr.position + new Vector3(0f, 0.6f, 0f) + dir * 0.5f, dir);
+                    var aim = new Vector3(s.AimPoint.x, s.AimPoint.y + 1f, s.AimPoint.z);
+                    _fx.Shot(tr.position + new Vector3(0f, 0.6f, 0f) + dir * 0.5f, aim);
+                    if (s.LastHit == 1) Impact(aim);
                 }
             }
             ss.Dispose();
@@ -1072,6 +1074,36 @@ namespace TBD.View
                 foreach (var kv in _soldierViews) if (!_seenSoldiers.Contains(kv.Key)) gone.Add(kv.Key);
                 foreach (var id in gone) { Destroy(_soldierViews[id].gameObject); _soldierViews.Remove(id); }
             }
+        }
+
+        // impacto (pauta de Lucía): soplo de sangre o polvo de 2-3 px durante 0,2 s sobre el zombi alcanzado, EN LA CAPA PIXELADA
+        ParticleSystem _impacts;
+
+        void Impact(Vector3 at)
+        {
+            if (_impacts == null)
+            {
+                var go = new GameObject("Impactos (capa pixelada)");
+                go.transform.SetParent(transform, false);
+                _impacts = go.AddComponent<ParticleSystem>();
+                var main = _impacts.main;
+                main.playOnAwake = false; main.loop = false; main.maxParticles = 600;
+                main.simulationSpace = ParticleSystemSimulationSpace.World;
+                var em = _impacts.emission; em.enabled = false;
+                var sh = _impacts.shape; sh.enabled = false;
+                var r = go.GetComponent<ParticleSystemRenderer>();
+                var m = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));
+                m.SetColor("_BaseColor", Color.white);
+                r.sharedMaterial = m;
+                _impacts.Play();
+            }
+            bool blood = Random.value < 0.7f;
+            _impacts.Emit(new ParticleSystem.EmitParams
+            {
+                position = at, velocity = new Vector3(Random.Range(-0.6f, 0.6f), Random.Range(0.4f, 1.2f), Random.Range(-0.6f, 0.6f)),
+                startLifetime = 0.2f, startSize = Random.Range(0.4f, 0.6f),
+                startColor = blood ? (Color)HexColor("7c181c") : (Color)HexColor("b4a080"),
+            }, 1);
         }
 
         void UpdateTrainVisual()

@@ -144,6 +144,7 @@ namespace TBD.Sim
                         {
                             SimId = clock.NextSimId++, Pos = new float3(x, 0f, y), Heading = -1.5708f, Hp = cfg.SoldierHp,
                             Kind = mg ? SoldierKind.MachineGun : SoldierKind.Rifle, State = SoldierState.Deployed,
+                            Cooldown = (int)((clock.NextSimId * 7u) % (uint)cfg.RifleCooldown),
                         });
                     }
                     ents.Dispose();
@@ -165,7 +166,7 @@ namespace TBD.Sim
                         {
                             SimId = clock.NextSimId++, Slot = slot, Pos = new float3(t.X + slot.x, Level.TrainH, Level.TrackY + slot.y),
                             Heading = -1.5708f, Hp = cfg.SoldierHp, Kind = i == 10 ? SoldierKind.MachineGun : SoldierKind.Rifle,
-                            State = SoldierState.Embarked,
+                            State = SoldierState.Embarked, Cooldown = (int)((clock.NextSimId * 7u) % (uint)cfg.RifleCooldown),   // desfase: no disparan a la vez
                         });
                     }
                     ents.Dispose();

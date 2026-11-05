@@ -68,6 +68,8 @@ namespace TBD.Sim
         public byte Kind;
         public byte State;
         public float2 Slot;                              // a bordo: posición relativa al tren (dx a lo largo de la vía, dz a un lado)
+        public float3 AimPoint;                          // dónde apuntó el último disparo (lo usa la vista para trazadora e impacto)
+        public byte LastHit;                             // 1 si el último disparo abatió
     }
 
     /// <summary>

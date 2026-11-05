@@ -68,19 +68,25 @@ namespace TBD.View
         /// solo en 1 de cada 4 balas, una trazadora corta y fina (núcleo #f0dc9c), de 0,06 s. Con fuego sostenido no debe tapar más
         /// del 5 % de la pantalla.
         /// </summary>
-        public void Shot(Vector3 muzzle, Vector3 dir)
+        public void Shot(Vector3 muzzle, Vector3 target)
         {
-            if (LegacyShots) { Volley(muzzle, muzzle + dir * 25f, 1); return; }
-            _flash.Emit(new ParticleSystem.EmitParams
-            {
-                position = muzzle, velocity = Vector3.zero, startLifetime = 0.04f, startSize = 0.6f,
-                startColor = new Color(1f, 0.86f, 0.61f, 0.55f),
-            }, 1);
+            Vector3 d = target - muzzle;
+            float dist = Mathf.Max(1f, d.magnitude);
+            if (LegacyShots) { Volley(muzzle, target, 1); return; }
+            // fogonazo de 4-6 px del mundo pixelado (un píxel ≈ 0,2 m), 2 fotogramas, con parpadeo irregular (pauta de Lucía)
+            if (Random.value < 0.85f)
+                _flash.Emit(new ParticleSystem.EmitParams
+                {
+                    position = muzzle, velocity = Vector3.zero, startLifetime = 0.066f, startSize = Random.Range(0.8f, 1.2f),
+                    startColor = new Color(1f, 0.86f, 0.61f, 0.8f),
+                }, 1);
             if ((_shotCount++ & 3) != 0) return;
+            // trazadora: mismo grosor, 1 de cada 4, trazo de un 20-25 % de la distancia (renderer estirado por la velocidad)
+            float speed = dist * 0.22f / 0.06f;
             _tracers.Emit(new ParticleSystem.EmitParams
             {
-                position = muzzle + dir * 1.5f, velocity = dir.normalized * 320f, startLifetime = 0.06f, startSize = 0.09f,
-                startColor = new Color(0.94f, 0.86f, 0.61f, 0.6f),
+                position = muzzle + d / dist * 1f, velocity = d / dist * speed, startLifetime = dist / speed, startSize = 0.09f,
+                startColor = new Color(0.94f, 0.86f, 0.61f, 0.7f),
             }, 1);
         }
 
