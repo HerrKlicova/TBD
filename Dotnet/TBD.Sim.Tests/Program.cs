@@ -131,6 +131,7 @@ namespace TBD.Sim.Tests
             TestDeterminism();
             TestPerf();
             RailTests.Run(Check);
+            NetWorldTests.Run(Check);
             Console.WriteLine($"\nResumen: {_pass} correctas, {_fail} fallos");
             return _fail == 0 ? 0 : 1;
         }

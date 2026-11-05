@@ -235,21 +235,23 @@ namespace TBD.Net
     {
         /// <summary>
         /// Red de ejemplo del MVP: nudo en Sagunto, línea Sagunto–Teruel–Zaragoza y costera Valencia–Sagunto–Castellón (GDD §15).
-        /// Las LONGITUDES SON DE EJEMPLO (kilómetros redondeados, sin verificar con datos de la red real).
+        /// Las LONGITUDES SON DE EJEMPLO (kilómetros redondeados, sin verificar con datos de la red real). Las posiciones del mapa salen
+        /// de latitud y longitud aproximadas de cada ciudad (de memoria, sin verificar): x = 50 + (lon + 0,38) · 24, y = 80 − (lat − 39,47) · 32;
+        /// una unidad de mapa ≈ 3,5 km.
         /// </summary>
         public static RailGraph Mvp()
         {
             var g = new RailGraph();
-            int valencia = g.AddNode("Valencia", 40, 70).Id;
-            int puerto = g.AddNode("Puerto de Sagunto", 52, 52).Id;
-            int sagunto = g.AddNode("Sagunto", 50, 50).Id;
-            int castellon = g.AddNode("Castellón", 62, 30).Id;
-            int segorbe = g.AddNode("Segorbe", 40, 38).Id;
-            int caminreal = g.AddNode("Caminreal", 30, 28).Id;
-            int teruel = g.AddNode("Teruel", 24, 24).Id;
-            int calatayud = g.AddNode("Calatayud", 14, 12).Id;
-            int zaragoza = g.AddNode("Zaragoza", 8, 4).Id;
-            int vinaros = g.AddNode("Vinaròs", 72, 16).Id;
+            int valencia = g.AddNode("Valencia", 50, 80).Id;
+            int puerto = g.AddNode("Puerto de Sagunto", 54, 74).Id;
+            int sagunto = g.AddNode("Sagunto", 53, 73).Id;
+            int castellon = g.AddNode("Castellón", 58, 63).Id;
+            int segorbe = g.AddNode("Segorbe", 47, 68).Id;
+            int caminreal = g.AddNode("Caminreal", 28, 36).Id;
+            int teruel = g.AddNode("Teruel", 33, 52).Id;
+            int calatayud = g.AddNode("Calatayud", 20, 20).Id;
+            int zaragoza = g.AddNode("Zaragoza", 38, 10).Id;
+            int vinaros = g.AddNode("Vinaròs", 70, 48).Id;
             const long km = 1_000_000L;
             g.AddEdge(valencia, sagunto, 30 * km, 0);
             g.AddEdge(sagunto, puerto, 5 * km, 30 * km);
