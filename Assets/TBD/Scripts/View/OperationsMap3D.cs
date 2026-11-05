@@ -18,7 +18,15 @@ namespace TBD.View
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
         {
-            if (SceneManager.GetActiveScene().name != "Union") return;
+            // AfterSceneLoad solo se ejecuta al darle a Play; al cambiar de escena (mapa ↔ zona, hito 3) lo hace sceneLoaded.
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            OnSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
+        }
+
+        static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (scene.name != "Union") return;
             if (FindFirstObjectByType<OperationsMap3D>() != null) return;
             new GameObject("TBD_OperationsMap3D").AddComponent<OperationsMap3D>();
         }
@@ -76,14 +84,25 @@ namespace TBD.View
         void Start()
         {
             Application.targetFrameRate = 60;
-            _a = NetScenario.Mvp();
-            _b = NetScenario.Mvp();
+            NetSession.Ensure();                       // la red vive en la sesión y sigue corriendo dentro de las zonas (hito 3)
+            _a = NetSession.A;
+            _b = NetSession.B;
             _relief = new PlaceholderRelief(_a.Graph);
             SetupCamera();
             BuildTerrain();
             BuildNetwork();
             var sag = _a.Graph.Nodes.Find(n => n.Name == "Sagunto");
             _focus = MapToWorldFlat(sag.XMeters - 6, sag.YMeters - 14);
+            _fadeStart = Time.realtimeSinceStartup;
+            if (NetSession.ReturnFromNode >= 0)
+            {
+                // vuelta de una zona: la cámara aparece sobre ese nodo a 2,5 km (por encima del umbral de entrada: histéresis)
+                var n = _a.Graph.Nodes[NetSession.ReturnFromNode];
+                _focus = MapToWorldFlat(n.XMeters, n.YMeters);
+                _dist = _targetDist = 2.5f;
+                _pitch = 50f;
+                NetSession.ReturnFromNode = -1;
+            }
         }
 
         void SetupCamera()
@@ -289,35 +308,56 @@ namespace TBD.View
         }
 
         // ---------------------------------------------------------------- bucle
-        void Push(NetCmdType type, int arg, long delay)
-        {
-            var c = new NetCommand { Tick = _a.Tick + delay, Type = type, Arg = arg };
-            _a.Push(c);
-            _b.Push(c);
-        }
+        void Push(NetCmdType type, int arg, long delay) { NetSession.Push(type, arg, delay); }
 
         void Update()
         {
             HandleInput();
-            _acc += Mathf.Min(Time.unscaledDeltaTime, 0.25f);
-            const float step = 1f / NetConst.TickRate;
-            while (_acc >= step)
-            {
-                _acc -= step;
-                _a.ApplyCommands();
-                _b.ApplyCommands();
-                for (int i = 0; i < _a.Speed; i++)
-                {
-                    _a.Step();
-                    if (_check) _b.Step();
-                    if (_check && !_desync && _a.Hash() != _b.Hash()) { _desync = true; Debug.LogError($"[TBD] Unión: desincronización en el tick {_a.Tick}"); }
-                }
-            }
             long fieldTick = _a.Tick / NetConst.FieldEvery;
             if (fieldTick != _lastFieldTick) { _lastFieldTick = fieldTick; UpdateTexture(); }
             UpdateNetwork();
             UpdateCamera();
             UpdateDetail();
+            CheckZoneEntry();
+        }
+
+        // ---------------------------------------------------------------- entrar en una zona (hito 3, D-N06)
+        float _fadeStart;
+        bool _entering;
+        bool _armed;                              // histéresis: hay que haber estado por encima de 2,5 km antes de volver a entrar
+
+        public const float EnterKm = 2f, ExitKm = 2.5f;
+
+        void CheckZoneEntry()
+        {
+            if (_dist > ExitKm) _armed = true;
+            if (_entering || !_armed || _dist >= EnterKm || _a.ActiveZoneNode >= 0) return;
+            // nodo más cercano al foco, a menos de 1,5 km
+            int best = -1;
+            float bd = 1.5f;
+            for (int i = 0; i < _a.Graph.Nodes.Count; i++)
+            {
+                var n = _a.Graph.Nodes[i];
+                float d = Vector3.Distance(new Vector3(_focus.x, 0, _focus.z), MapToWorldFlat(n.XMeters, n.YMeters));
+                if (d < bd) { bd = d; best = i; }
+            }
+            if (best < 0) return;
+            EnterZone(best);
+        }
+
+        public void EnterZone(int node)
+        {
+            if (_entering) return;
+            _entering = true;
+            NetSession.PendingZoneNode = node;
+            NetSession.Push(NetCmdType.Materialize, node, 0);
+            StartCoroutine(EnterRoutine());
+        }
+
+        System.Collections.IEnumerator EnterRoutine()
+        {
+            yield return NetSession.CaptureTransition();
+            SceneManager.LoadScene("SampleScene");
         }
 
         // ---------------------------------------------------------------- detalle de cerca
@@ -435,7 +475,7 @@ namespace TBD.View
             if (kb.digit2Key.wasPressedThisFrame) Push(NetCmdType.SetSpeed, 2, 0);
             if (kb.digit3Key.wasPressedThisFrame) Push(NetCmdType.SetSpeed, 4, 0);
             if (kb.jKey.wasPressedThisFrame) JumpToAlert();
-            if (kb.f3Key.wasPressedThisFrame) { _check = false; _desync = false; }
+            if (kb.f3Key.wasPressedThisFrame) { NetSession.Check = false; NetSession.Desync = false; }
             if (kb.f9Key.wasPressedThisFrame) Capture();
 
             float dt = Time.unscaledDeltaTime;
@@ -532,7 +572,7 @@ namespace TBD.View
             float y = 14;
             string speed = _a.Paused ? "<color=#E8C040>PAUSA</color>" : "x" + _a.Speed;
             GUI.Label(new Rect(16, y, pw, 40), $"Día {_a.Tick / NetConst.DayTicks + 1} · {NetConst.Clock(_a.Tick)} · {speed}", _title); y += _title.fontSize * 1.6f;
-            string sync = _check ? (_desync ? "<color=#E04030>DESINCRONIZACIÓN</color>" : "<color=#70C070>Desincronización: correcta</color>") : "<color=#999999>prueba apagada</color>";
+            string sync = NetSession.Check ? (NetSession.Desync ? "<color=#E04030>DESINCRONIZACIÓN</color>" : "<color=#70C070>Desincronización: correcta</color>") : "<color=#999999>prueba apagada</color>";
             GUI.Label(new Rect(16, y, pw, 30), sync + "  ·  <color=#B0A890>relieve de sustitución (no son datos reales)</color>", _small); y += _small.fontSize * 1.7f;
             string scaleTxt = _dist >= 10 ? $"{_dist:0} km" : $"{_dist * 1000:0} m";
             GUI.Label(new Rect(16, y, pw, 30), $"Distancia de cámara: {scaleTxt}", _small); y += _small.fontSize * 1.7f;
@@ -545,7 +585,8 @@ namespace TBD.View
             }
             if (_a.Alerts.Count == 0) { GUI.Label(new Rect(20, y, pw, 30), "<color=#808080>sin alertas</color>", _small); }
             GUI.Label(new Rect(16, Screen.height - _small.fontSize * 2.4f, Screen.width, 30),
-                "WASD mover · Q E girar · R F inclinar · rueda zoom · botón derecho girar · J ir a la alerta · Espacio pausa · 1/2/3 velocidad · F9 captura", _small);
+                "WASD mover · Q E girar · R F inclinar · rueda zoom (a menos de 2 km de una estación se entra en la zona) · J ir a la alerta · Espacio pausa · 1/2/3 velocidad · F9 captura", _small);
+            NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart);
         }
 
         void Capture()

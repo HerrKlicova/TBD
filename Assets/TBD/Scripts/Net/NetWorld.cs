@@ -29,13 +29,14 @@ namespace TBD.Net
     }
 
     // ================================================================== órdenes
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6 }
 
     public struct NetCommand
     {
         public long Tick;          // tick en que se aplica
         public NetCmdType Type;
-        public int Arg;            // velocidad (1, 2, 4) o id de tren
+        public int Arg;            // velocidad (1, 2, 4), id de tren o id de nodo
+        public int Arg2;           // Dematerialize: densidad que vuelve a la celda (por mil, 1 = 10 zombis vivos)
         public int Seq;            // orden de llegada (lo pone NetWorld.Push): desempata órdenes del mismo tick
     }
 
@@ -188,7 +189,13 @@ namespace TBD.Net
         public long Tick;
         public int Speed = 1;                       // 1, 2 o 4 ticks por paso de 1/30 s
         public bool Paused;
-        public bool AutoSlow = true;                // las alertas críticas nuevas bajan a x1 (D-N11)
+        public bool AutoSlow = true;
+
+        // ---- zona en detalle (hito 3, D-N05): 1 por mil de densidad = 10 zombis
+        public const int ZombiesPerPermil = 10;
+        public int ActiveZoneNode = -1;             // nodo con zona materializada (-1 = ninguna; el MVP admite una)
+        public int ActiveZoneTaken;                 // densidad (por mil) que salió de la mancha al materializar
+        public long ActiveZoneSinceTick = -1;                // las alertas críticas nuevas bajan a x1 (D-N11)
         public List<Alert> Alerts = new List<Alert>();
         readonly List<NetCommand> _queue = new List<NetCommand>();
 
@@ -232,6 +239,8 @@ namespace TBD.Net
                     case NetCmdType.Pause: Paused = true; break;
                     case NetCmdType.Resume: Paused = false; break;
                     case NetCmdType.TrainHold: if (c.Arg >= 0 && c.Arg < Services.Count) { Services[c.Arg].Held = true; Services[c.Arg].Train.Stop(); } break;
+                    case NetCmdType.Materialize: Materialize(c.Arg); break;
+                    case NetCmdType.Dematerialize: Dematerialize(c.Arg, c.Arg2); break;
                     case NetCmdType.TrainGo:
                         if (c.Arg >= 0 && c.Arg < Services.Count)
                         {
@@ -244,6 +253,34 @@ namespace TBD.Net
             }
             _queue.Clear();
             _queue.AddRange(keep);
+        }
+
+        // ---------------------------------------------------------------- zonas en detalle
+        /// <summary>
+        /// La horda de la celda del nodo pasa a la zona: la densidad sale de la mancha (masa conservada: vuelve al desmaterializar).
+        /// La zona la recibe como ActiveZoneTaken × 10 zombis. Si ya hay otra zona activa, se ignora (MVP: una sola zona).
+        /// </summary>
+        void Materialize(int node)
+        {
+            if (ActiveZoneNode >= 0 || node < 0 || node >= Graph.Nodes.Count) return;
+            var n = Graph.Nodes[node];
+            int i = n.YMeters * HordeField.W + n.XMeters;
+            ActiveZoneNode = node;
+            ActiveZoneTaken = Field.D[i];
+            ActiveZoneSinceTick = Tick;
+            Field.D[i] = 0;
+        }
+
+        /// <summary>Los zombis vivos de la zona vuelven a la celda del nodo (las bajas se pierden: la horda pierde masa, D-N05).</summary>
+        void Dematerialize(int node, int returnPermil)
+        {
+            if (node != ActiveZoneNode) return;
+            var n = Graph.Nodes[node];
+            int i = n.YMeters * HordeField.W + n.XMeters;
+            Field.D[i] += Math.Max(0, returnPermil);
+            ActiveZoneNode = -1;
+            ActiveZoneTaken = 0;
+            ActiveZoneSinceTick = -1;
         }
 
         // ---------------------------------------------------------------- un tick
@@ -388,6 +425,7 @@ namespace TBD.Net
         public ulong Hash()
         {
             ulong h = Mix((ulong)Tick) + Field.Hash() + Mix(0xC0FFEEUL ^ ((ulong)(uint)Speed << 1) ^ (Paused ? 1UL : 0UL));
+            h += Mix(0x2041EUL ^ ((ulong)(uint)(ActiveZoneNode + 1) << 8) ^ ((ulong)(uint)ActiveZoneTaken << 24) ^ ((ulong)(ActiveZoneSinceTick + 1) << 40));
             foreach (var s in Services)
             {
                 var t = s.Train;

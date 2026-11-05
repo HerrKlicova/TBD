@@ -20,7 +20,15 @@ namespace TBD.View
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
         {
-            if (SceneManager.GetActiveScene().name != "Red") return;
+            // AfterSceneLoad solo se ejecuta al darle a Play; al cambiar de escena (mapa ↔ zona, hito 3) lo hace sceneLoaded.
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            OnSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
+        }
+
+        static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (scene.name != "Red") return;
             if (FindFirstObjectByType<OperationsMap>() != null) return;
             new GameObject("TBD_OperationsMap").AddComponent<OperationsMap>();
         }

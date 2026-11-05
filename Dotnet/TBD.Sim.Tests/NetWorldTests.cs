@@ -122,6 +122,26 @@ namespace TBD.Sim.Tests
             for (int i = 0; i < 256; i++) maxStep = Math.Max(maxStep, Math.Abs(relief.HeightM(53 + (i + 1) * 0.5 / 3500.0 * 1000 / 1000, 73) - relief.HeightM(53 + i * 0.5 / 3500.0, 73)));
             check(maxStep < 5, $"a escala de zona el terreno es continuo (salto máximo {maxStep:0.00} m cada 0,5 m)");
 
+            // ---- materializar y desmaterializar (hito 3): la masa sale de la mancha y vuelve con los vivos; las bajas se pierden
+            {
+                var wz = NetScenario.Mvp();
+                int teruel = wz.Graph.Nodes.FindIndex(n => n.Name == "Teruel");
+                var tn = wz.Graph.Nodes[teruel];
+                wz.Field.D[tn.YMeters * HordeField.W + tn.XMeters] = 300;
+                long mass0 = wz.Field.Mass();
+                wz.Push(new NetCommand { Tick = wz.Tick, Type = NetCmdType.Materialize, Arg = teruel });
+                wz.Step();
+                check(wz.ActiveZoneNode == teruel && wz.ActiveZoneTaken == 300 && wz.Field.Mass() == mass0 - 300,
+                    $"materializar Teruel saca 300 por mil de la mancha (= {wz.ActiveZoneTaken * NetWorld.ZombiesPerPermil} zombis en la zona)");
+                wz.Push(new NetCommand { Tick = wz.Tick, Type = NetCmdType.Materialize, Arg = 0 });
+                wz.Step();
+                check(wz.ActiveZoneNode == teruel, "con una zona activa, otra orden de materializar se ignora (MVP: una zona)");
+                long massMid = wz.Field.Mass();
+                wz.Push(new NetCommand { Tick = wz.Tick, Type = NetCmdType.Dematerialize, Arg = teruel, Arg2 = 180 });   // 1.800 vivos de 3.000
+                wz.Step();
+                check(wz.ActiveZoneNode == -1 && wz.Field.Mass() == massMid + 180, "al salir vuelven 180 por mil (1.800 vivos); las 1.200 bajas se pierden");
+            }
+
             // ---- determinismo: dos mundos con las mismas órdenes, mismo hash en cada tick
             var w1 = NetScenario.Mvp();
             var w2 = NetScenario.Mvp();

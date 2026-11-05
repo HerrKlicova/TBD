@@ -267,7 +267,8 @@ namespace TBD.Net
         /// Calamocha–Cariñena–Zaragoza. Calatayud y Vinaròs quedan fuera (ganchos del acceso anticipado).
         /// Kilómetros desde Sagunto: los de balance_nodos.csv de Hugo. Posiciones del mapa: latitud y longitud APROXIMADAS (de memoria,
         /// sin verificar) con x = 50 + (lon + 0,38) · 24, y = 80 − (lat − 39,47) · 32; una unidad ≈ 3,5 km.
-        /// Puntos de emboscada: INVENTADOS por Marcos sobre la geografía aproximada (pendientes de revisión de Lucía).
+        /// Puntos de emboscada: propuestos por Marcos y revisados por Lucía (5-nov): seis valen, Paniza queda por verificar con la BTN
+        /// y Lucía añade el puente del barranco del Carraixet.
         /// </summary>
         public static RailGraph Mvp()
         {
@@ -288,7 +289,8 @@ namespace TBD.Net
             const long km = 1_000_000L;
             // rama sur
             g.AddEdge(sagunto, pucol, 12 * km, 0);
-            g.AddEdge(pucol, valencia, 18 * km, 12 * km);
+            var pv = g.AddEdge(pucol, valencia, 18 * km, 12 * km);
+            pv.Ambush.Add(new AmbushPoint { KmMm = 24 * km, Kind = AmbushKind.Puente, Name = "puente del barranco del Carraixet" });   // junto al nido de Valencia (Lucía)
             // rama norte
             g.AddEdge(sagunto, almenara, 10 * km, 0);
             g.AddEdge(almenara, nules, 12 * km, 10 * km);
@@ -306,7 +308,7 @@ namespace TBD.Net
             tc.Ambush.Add(new AmbushPoint { KmMm = 192 * km, Kind = AmbushKind.Puente, Name = "puente del Jiloca" });
             g.AddEdge(caminreal, calamocha, 15 * km, 200 * km);
             var cc = g.AddEdge(calamocha, carinena, 45 * km, 215 * km);
-            cc.Ambush.Add(new AmbushPoint { KmMm = 240 * km, Kind = AmbushKind.Desmonte, Name = "desmonte de Paniza" });
+            cc.Ambush.Add(new AmbushPoint { KmMm = 240 * km, Kind = AmbushKind.Desmonte, Name = "desmonte de Paniza (por verificar con la BTN)" });
             g.AddEdge(carinena, zaragoza, 50 * km, 260 * km);
             return g;
         }

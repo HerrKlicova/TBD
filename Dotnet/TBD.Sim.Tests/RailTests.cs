@@ -19,7 +19,7 @@ namespace TBD.Sim.Tests
             check(p.Count == 10 && Names(p) == "Valencia > Puçol > Sagunto > Segorbe > Barracas > Teruel > Caminreal > Calamocha > Cariñena > Zaragoza", "Valencia a Zaragoza por la red canónica (D-N14): " + Names(p));
             check(g.ShortestPath(Id("Valencia"), Id("Castellón")).Count == 6, "Valencia a Castellón pasa por Puçol, Sagunto, Almenara y Nules");
             int amb = 0; foreach (var ed in g.Edges) amb += ed.Ambush.Count;
-            check(amb >= 6 && g.FindEdge(Id("Teruel"), Id("Caminreal")).Ambush.Exists(a => a.Kind == AmbushKind.Puente), $"los tramos llevan puntos de emboscada ({amb}), con el puente del Jiloca entre Teruel y Caminreal");
+            check(amb >= 8 && g.FindEdge(Id("Teruel"), Id("Caminreal")).Ambush.Exists(a => a.Kind == AmbushKind.Puente), $"los tramos llevan puntos de emboscada ({amb}), con el puente del Jiloca entre Teruel y Caminreal");
 
             var e = g.FindEdge(Id("Barracas"), Id("Teruel"));
             e.State = EdgeState.Cortada;

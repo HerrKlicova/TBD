@@ -10,7 +10,14 @@ namespace TBD.Sim
         public const int InitialZombies = 10000;
         public const uint Seed = 12345u;
 
-        public static Entity Populate(EntityManager em)
+        public static Entity Populate(EntityManager em) { return Populate(em, InitialZombies, false, Seed); }
+
+        /// <summary>
+        /// Crea la zona con «zombies» zombis (hito 3: los que vienen de la mancha S0 al materializar). Reparto (D-N07 de Lucía):
+        /// en «asedio», concentrados junto al muro oeste del fuerte; en «deriva», dispersos por el oeste de la zona. La semilla sale
+        /// del nodo y del tick, así que dos mundos con las mismas órdenes crean exactamente la misma horda.
+        /// </summary>
+        public static Entity Populate(EntityManager em, int zombies, bool siege, uint seed)
         {
             var root = em.CreateEntity(typeof(ZoneTag), typeof(SimClock), typeof(ZoneInfo), typeof(TrainState), typeof(SimHash));
             em.SetComponentData(root, new SimClock { Tick = 0, NextSimId = 1, Alpha = 1f });
@@ -45,23 +52,26 @@ namespace TBD.Sim
             em.GetBuffer<CellFlowDist>(root).Resize(n, NativeArrayOptions.ClearMemory);
             em.GetBuffer<CellFlowVec>(root).Resize(n, NativeArrayOptions.ClearMemory);
 
-            SpawnInitialHorde(em, root);
+            SpawnInitialHorde(em, root, zombies, siege, seed);
             return root;
         }
 
         /// <summary>Horda inicial: posiciones deterministas (semilla fija) fuera del edificio del tejado.</summary>
-        static void SpawnInitialHorde(EntityManager em, Entity root)
+        static void SpawnInitialHorde(EntityManager em, Entity root, int count, bool siege, uint seed)
         {
             var clock = em.GetComponentData<SimClock>(root);
-            var rng = new Unity.Mathematics.Random(Seed);
+            var rng = new Unity.Mathematics.Random(seed | 1u);
             var arch = em.CreateArchetype(typeof(Zombie));
-            var ents = em.CreateEntity(arch, InitialZombies, Allocator.Temp);
-            for (int i = 0; i < InitialZombies; i++)
+            if (count <= 0) { em.SetComponentData(root, clock); return; }
+            var ents = em.CreateEntity(arch, count, Allocator.Temp);
+            for (int i = 0; i < count; i++)
             {
                 float2 p;
                 do
                 {
-                    p = new float2(rng.NextFloat(4f, 60f), rng.NextFloat(8f, 120f));
+                    p = siege
+                        ? new float2(rng.NextFloat(Level.FortX0 - 16f, Level.FortX0 - 2.5f), rng.NextFloat(Level.FortY0 - 4f, Level.FortY1 + 4f))   // asedio: contra el muro oeste
+                        : new float2(rng.NextFloat(4f, 60f), rng.NextFloat(8f, 120f));                                                            // deriva: dispersos
                 }
                 while (p.x > Level.RoofX0 - 1.5f && p.x < Level.RoofX1 + 1.5f && p.y > Level.RoofY0 - 1.5f && p.y < Level.RoofY1 + 1.5f);
                 em.SetComponentData(ents[i], Zombie.Create(clock.NextSimId++, p, 0f));

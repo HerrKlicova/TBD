@@ -1,6 +1,7 @@
 using System.Collections;
 using System.IO;
 using System.Text;
+using TBD.Net;
 using TBD.Sim;
 using Unity.Collections;
 using Unity.Entities;
@@ -45,7 +46,15 @@ namespace TBD.View
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
         {
-            if (SceneManager.GetActiveScene().name != "SampleScene") return;
+            // AfterSceneLoad solo se ejecuta al darle a Play; al cambiar de escena (mapa ↔ zona, hito 3) lo hace sceneLoaded.
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            OnSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
+        }
+
+        static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (scene.name != "SampleScene") return;
             if (FindFirstObjectByType<PrototypeBootstrap>() != null) return;
             new GameObject("TBD_Prototype").AddComponent<PrototypeBootstrap>();
         }
@@ -94,8 +103,15 @@ namespace TBD.View
         GUIStyle _hudStyle, _panelStyle;
         Texture2D _panelTex;
 
-        void Start()
+        // ---- hito 3: zona materializada desde el mapa de operaciones
+        int _zoneNode = -1;                 // nodo de la red del que viene esta zona (-1 = prototipo suelto, 10.000 zombis)
+        float _fadeStart;
+        bool _leaving;
+        public double LastMaterializeMs;    // lo que tardó en crearse la horda de la zona (para Lucía: ¿basta un vuelo de 0,8 s?)
+
+        IEnumerator Start()
         {
+            Application.targetFrameRate = -1;        // el mapa limita a 60; en la zona se mide sin tope
             SetupVisualAssets();
             SetupLevelObjects();
             SetupCameras();
@@ -103,25 +119,81 @@ namespace TBD.View
             SetupPost();
             _fx = FxHd.Create(_fxMat);
 
+            int zombies = SimWorldSetup.InitialZombies;
+            bool siege = false;
+            uint seed = SimWorldSetup.Seed;
+            if (NetSession.PendingZoneNode >= 0)
+            {
+                // La orden Materialize se aplica en el siguiente tick de la red: se espera a que esté (como mucho 2 s).
+                float t0 = Time.realtimeSinceStartup;
+                while (NetSession.A.ActiveZoneNode != NetSession.PendingZoneNode && Time.realtimeSinceStartup - t0 < 2f) yield return null;
+                var net = NetSession.A;
+                _zoneNode = NetSession.PendingZoneNode;
+                NetSession.PendingZoneNode = -1;
+                zombies = net.ActiveZoneTaken * NetWorld.ZombiesPerPermil;
+                siege = net.ActiveZoneTaken >= NetWorld.SiegeAt;
+                seed = (uint)(_zoneNode * 7919 + net.ActiveZoneSinceTick * 31 + 1);    // semilla del nodo y del tick (D-N07)
+                _orthoSize = 70f;                                                       // vuelo de cámara: de lejos a cerca
+                _targetOrtho = 18f;
+            }
+            _fadeStart = Time.realtimeSinceStartup;
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             _worldA = World.DefaultGameObjectInjectionWorld;
             _groupA = SimWorldSetup.CreateSystems(_worldA);
-            _rootA = SimWorldSetup.Populate(_worldA.EntityManager);
+            _rootA = SimWorldSetup.Populate(_worldA.EntityManager, zombies, siege, seed);
+            sw.Stop();
+            LastMaterializeMs = sw.Elapsed.TotalMilliseconds;
+            Debug.Log($"[TBD] Zona {(_zoneNode >= 0 ? NetSession.A.Graph.Nodes[_zoneNode].Name : "suelta")}: {zombies} zombis ({(siege ? "asedio" : "deriva")}) creados en {LastMaterializeMs:0.0} ms");
             _zombieQuery = _worldA.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<Zombie>());
 
             _worldB = new World("TBD_SimB");
             _groupB = SimWorldSetup.CreateSystems(_worldB);
-            _rootB = SimWorldSetup.Populate(_worldB.EntityManager);
+            _rootB = SimWorldSetup.Populate(_worldB.EntityManager, zombies, siege, seed);
         }
 
         void OnDestroy()
         {
             if (_lowRt != null) _lowRt.Release();
             if (_worldB != null && _worldB.IsCreated) _worldB.Dispose();
+            // El mundo A es el de Entities por defecto, que sobrevive a la escena: se quitan los sistemas y las entidades de la zona
+            // para que al volver a entrar no se dupliquen (hito 3: se entra y se sale de las zonas muchas veces).
+            if (_worldA != null && _worldA.IsCreated && _groupA != null)
+            {
+                var em = _worldA.EntityManager;
+                var handles = _groupA.GetAllSystems();
+                for (int i = 0; i < handles.Length; i++) _worldA.DestroySystem(handles[i]);
+                handles.Dispose();
+                _worldA.DestroySystemManaged(_groupA);
+                em.DestroyEntity(em.CreateEntityQuery(ComponentType.ReadOnly<Zombie>()));
+                em.DestroyEntity(em.CreateEntityQuery(ComponentType.ReadOnly<ZoneTag>()));
+            }
+        }
+
+        /// <summary>
+        /// Volver al mapa (tecla M o alejar la cámara al máximo): los zombis vivos vuelven a la mancha de su celda (D-N05) con la
+        /// orden Dematerialize, y se funde el último fotograma de la zona sobre el mapa.
+        /// </summary>
+        public void LeaveToMap()
+        {
+            if (_zoneNode < 0 || _leaving) return;
+            _leaving = true;
+            int alive = _zombieQuery.CalculateEntityCount();
+            NetSession.Push(TBD.Net.NetCmdType.Dematerialize, _zoneNode, 0, alive / NetWorld.ZombiesPerPermil);
+            NetSession.ReturnFromNode = _zoneNode;
+            StartCoroutine(LeaveRoutine());
+        }
+
+        IEnumerator LeaveRoutine()
+        {
+            yield return NetSession.CaptureTransition();
+            SceneManager.LoadScene("Union");
         }
 
         // ================================================================ bucle
         void Update()
         {
+            if (_worldA == null) return;                 // la zona aún espera a la orden Materialize
             HandleInput();
 
             if (!_paused)
@@ -208,6 +280,7 @@ namespace TBD.View
             if (kb.periodKey.wasPressedThisFrame) _paletteMix = Mathf.Min(1f, _paletteMix + 0.25f);
             if (kb.pKey.wasPressedThisFrame) _paused = !_paused;
             if (kb.f3Key.wasPressedThisFrame) ToggleCheck();
+            if (kb.mKey.wasPressedThisFrame) LeaveToMap();
             if (kb.f9Key.wasPressedThisFrame)
             {
                 if (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed) SaveScreenshotWithMask(); else SaveScreenshot();
@@ -237,7 +310,12 @@ namespace TBD.View
             if (mouse != null)
             {
                 float s = mouse.scroll.ReadValue().y;
-                if (s != 0f) _targetOrtho = Mathf.Clamp(_targetOrtho * Mathf.Pow(0.9f, s / 120f), 6f, 70f);
+                if (s != 0f)
+                {
+                    // hito 3: alejar más allá del máximo de la zona devuelve al mapa (histéresis: se volvió a entrar a < 2 km)
+                    if (s < 0f && _targetOrtho >= 69.5f && _zoneNode >= 0) LeaveToMap();
+                    _targetOrtho = Mathf.Clamp(_targetOrtho * Mathf.Pow(0.9f, s / 120f), 6f, 70f);
+                }
                 if (mouse.rightButton.isPressed && !_buildMode)
                 {
                     Vector2 dd = mouse.delta.ReadValue();
@@ -524,6 +602,13 @@ namespace TBD.View
             float pad = 10f, w = Screen.width * 0.7f, h = _hudStyle.lineHeight * 7.3f;
             GUI.Box(new Rect(pad, pad, w, h), GUIContent.none, _panelStyle);
             GUI.Label(new Rect(pad * 2f, pad * 1.4f, w - pad * 2f, h), sb.ToString(), _hudStyle);
+            if (_zoneNode >= 0)
+            {
+                var net = NetSession.A;
+                GUI.Label(new Rect(pad * 2f, h + pad * 1.6f, w, _hudStyle.lineHeight * 1.5f),
+                    $"ZONA {net.Graph.Nodes[_zoneNode].Name.ToUpper()} · día {net.Tick / TBD.Net.NetConst.DayTicks + 1} · {TBD.Net.NetConst.Clock(net.Tick)} · la red sigue corriendo · M o alejar del todo: volver al mapa", _hudStyle);
+            }
+            NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart);
         }
 
         // ================================================================ capturas y GIF (solo hitos importantes)
