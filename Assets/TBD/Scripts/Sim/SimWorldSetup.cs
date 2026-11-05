@@ -22,6 +22,8 @@ namespace TBD.Sim
             // Primero se añaden todos los buffers (cambios estructurales) y solo después se obtienen y rellenan:
             // un DynamicBuffer queda invalidado por cualquier cambio estructural de su entidad.
             em.AddBuffer<Solid>(root);
+            em.AddBuffer<SolidBucketStart>(root);
+            em.AddBuffer<SolidBucketRef>(root);
             em.AddBuffer<CellGround>(root);
             em.AddBuffer<CellPile>(root);
             em.AddBuffer<CellPileDelta>(root);
@@ -31,6 +33,8 @@ namespace TBD.Sim
 
             var solids = em.GetBuffer<Solid>(root);
             foreach (var s in Level.CreateSolids()) solids.Add(s);
+
+            SolidIndex.Rebuild(solids, em.GetBuffer<SolidBucketStart>(root), em.GetBuffer<SolidBucketRef>(root));
 
             var ground = em.GetBuffer<CellGround>(root);
             ground.ResizeUninitialized(n);

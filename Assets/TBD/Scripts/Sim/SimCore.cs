@@ -1,5 +1,6 @@
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
@@ -126,16 +127,88 @@ namespace TBD.Sim
         }
     }
 
+    /// <summary>
+    /// Índice espacial uniforme de los sólidos. Cada sólido se registra en todas las cubetas que toca su caja (ampliada por el radio de
+    /// un zombi y un margen), de modo que basta consultar la cubeta del zombi. Las listas van en orden ascendente de índice de sólido:
+    /// la colisión se resuelve en el mismo orden que con un recorrido lineal, así que el resultado es idéntico.
+    /// </summary>
+    public static class SolidIndex
+    {
+        public const float BucketSize = 4f;
+        public const int BucketsPerSide = (int)(SimConst.WorldSize / BucketSize);   // 32
+        public const int BucketCount = BucketsPerSide * BucketsPerSide;
+        const float Margin = SimConst.Radius + 0.25f;
+
+        public static int BucketOf(float2 p)
+        {
+            int bx = (int)math.clamp(math.floor(p.x / BucketSize), 0f, BucketsPerSide - 1f);
+            int by = (int)math.clamp(math.floor(p.y / BucketSize), 0f, BucketsPerSide - 1f);
+            return by * BucketsPerSide + bx;
+        }
+
+        static void Bounds(Solid s, out int x0, out int y0, out int x1, out int y1)
+        {
+            float2 mn, mx;
+            if (s.Kind == 1) { mn = s.A; mx = s.B; }
+            else { mn = math.min(s.A, s.B) - s.HalfThick; mx = math.max(s.A, s.B) + s.HalfThick; }
+            mn = mn - Margin;
+            mx = mx + Margin;
+            x0 = (int)math.clamp(math.floor(mn.x / BucketSize), 0f, BucketsPerSide - 1f);
+            y0 = (int)math.clamp(math.floor(mn.y / BucketSize), 0f, BucketsPerSide - 1f);
+            x1 = (int)math.clamp(math.floor(mx.x / BucketSize), 0f, BucketsPerSide - 1f);
+            y1 = (int)math.clamp(math.floor(mx.y / BucketSize), 0f, BucketsPerSide - 1f);
+        }
+
+        /// <summary>Reconstruye el índice (se llama solo cuando cambian los sólidos: al construir).</summary>
+        public static void Rebuild(DynamicBuffer<Solid> solids, DynamicBuffer<SolidBucketStart> start, DynamicBuffer<SolidBucketRef> refs)
+        {
+            var count = new int[BucketCount];
+            for (int i = 0; i < solids.Length; i++)
+            {
+                int x0, y0, x1, y1;
+                Bounds(solids[i], out x0, out y0, out x1, out y1);
+                for (int y = y0; y <= y1; y++)
+                    for (int x = x0; x <= x1; x++) count[y * BucketsPerSide + x]++;
+            }
+            start.ResizeUninitialized(BucketCount + 1);
+            int total = 0;
+            for (int b = 0; b < BucketCount; b++)
+            {
+                start[b] = new SolidBucketStart { Value = total };
+                total += count[b];
+            }
+            start[BucketCount] = new SolidBucketStart { Value = total };
+            refs.ResizeUninitialized(total);
+            var fill = new int[BucketCount];
+            for (int i = 0; i < solids.Length; i++)
+            {
+                int x0, y0, x1, y1;
+                Bounds(solids[i], out x0, out y0, out x1, out y1);
+                for (int y = y0; y <= y1; y++)
+                    for (int x = x0; x <= x1; x++)
+                    {
+                        int b = y * BucketsPerSide + x;
+                        refs[start[b].Value + fill[b]] = new SolidBucketRef { Value = i };
+                        fill[b]++;
+                    }
+            }
+        }
+    }
+
     /// <summary>Lógica de un zombi en un tick. Lee solo del estado del tick anterior (doble búfer) y escribe deltas enteros de pila.</summary>
     public static class ZombieLogic
     {
         const float TwoPi = 6.2831853f;
 
-        public static float GroundAt(NativeArray<Solid> solids, float2 p)
+        public static float GroundAt(NativeArray<Solid> solids, NativeArray<int> bStart, NativeArray<int> bRefs, float2 p)
         {
             float h = 0f;
-            for (int i = 0; i < solids.Length; i++)
-                if (SolidMath.Contains(solids[i], p)) h = math.max(h, solids[i].Height);
+            int b = SolidIndex.BucketOf(p);
+            for (int k = bStart[b]; k < bStart[b + 1]; k++)
+            {
+                var s = solids[bRefs[k]];
+                if (SolidMath.Contains(s, p)) h = math.max(h, s.Height);
+            }
             return h;
         }
 
@@ -185,8 +258,8 @@ namespace TBD.Sim
             return math.clamp(p, new float2(0.5f, 0.5f), new float2(SimConst.WorldSize - 0.5f, SimConst.WorldSize - 0.5f));
         }
 
-        public static void Step(ref Zombie z, NativeArray<Solid> solids, NativeArray<int> pileRead,
-                                NativeArray<float2> flowVec, NativeArray<int> pileDelta)
+        public static void Step(ref Zombie z, NativeArray<Solid> solids, NativeArray<int> bStart, NativeArray<int> bRefs,
+                                NativeArray<int> pileRead, NativeArray<float2> flowVec, NativeArray<int> pileDelta)
         {
             z.PrevPos = z.Pos;
             z.PrevHeading = z.Heading;
@@ -198,7 +271,7 @@ namespace TBD.Sim
                 z.Vel.y -= SimConst.Gravity * SimConst.Dt;
                 float3 np3 = z.Pos + z.Vel * SimConst.Dt;
                 float2 q = ClampWorld(np3.xz);
-                float surface = GroundAt(solids, q) + PileAt(pileRead, q);
+                float surface = GroundAt(solids, bStart, bRefs, q) + PileAt(pileRead, q);
                 if (np3.y <= surface)
                 {
                     z.Pos = new float3(q.x, surface, q.y);
@@ -217,7 +290,7 @@ namespace TBD.Sim
             float2 vel2 = math.lerp(z.Vel.xz, desired, SimConst.Accel);
             float2 intended = vel2 * SimConst.Dt;
             float2 np = p + intended;
-            float standing = GroundAt(solids, p) + PileAt(pileRead, p);   // altura de la superficie bajo el zombi
+            float standing = GroundAt(solids, bStart, bRefs, p) + PileAt(pileRead, p);   // altura de la superficie bajo el zombi
             // Un zombi apilado solo puede salir por encima del muro si está en las capas altas de la pila (su propia altura);
             // si todos usaran la altura de la pila, saldrían todos a la vez y la pila oscilaría entre llena y vacía cada tick.
             float reach = z.State == ZState.Settled ? z.Pos.y : standing;
@@ -225,9 +298,10 @@ namespace TBD.Sim
             // ---- colisión cápsula contra sólidos (muros con grosor y altura), no por celda
             bool hit = false;
             float2 hitN = new float2(0f, 0f);
-            for (int i = 0; i < solids.Length; i++)
+            int bucket = SolidIndex.BucketOf(np);
+            for (int k = bStart[bucket]; k < bStart[bucket + 1]; k++)
             {
-                var s = solids[i];
+                var s = solids[bRefs[k]];
                 if (s.Open != 0) continue;
                 if (s.Height <= reach + SimConst.StepUp) continue;         // se puede subir o pasar por encima
                 float2 n;
@@ -265,7 +339,7 @@ namespace TBD.Sim
                 }
                 z.Vel = float3.zero;
                 uint layers = (uint)math.max(1, math.min(pileRead[ci], SimConst.MaxPile));
-                float h = GroundAt(solids, np) + (math.hash(new uint2(z.SimId, 99u)) % layers) * SimConst.Thick;
+                float h = GroundAt(solids, bStart, bRefs, np) + (math.hash(new uint2(z.SimId, 99u)) % layers) * SimConst.Thick;
                 z.Pos = new float3(np.x, h, np.y);
                 return;
             }
@@ -280,8 +354,8 @@ namespace TBD.Sim
             z.Vel = new float3(vel2.x, 0f, vel2.y);
             // La caída se decide por el desnivel ESTÁTICO del terreno (borde de tejado o de muro), no por la pila: la pila es
             // una masa de zombis y se baja deslizando. La altura sigue la superficie con una velocidad vertical limitada.
-            float g0 = GroundAt(solids, p);
-            float g1 = GroundAt(solids, np);
+            float g0 = GroundAt(solids, bStart, bRefs, p);
+            float g1 = GroundAt(solids, bStart, bRefs, np);
             float s2 = g1 + PileAt(pileRead, np);
             if (g0 - g1 > SimConst.DropThreshold)
             {

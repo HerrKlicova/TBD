@@ -14,6 +14,7 @@ namespace TBD.Sim.Tests
         public readonly int N = SimConst.GridW * SimConst.GridH;
         public List<Solid> SolidList;
         public NativeArray<Solid> Solids;
+        public NativeArray<int> BStart, BRefs;
         public NativeArray<float> Ground;
         public NativeArray<int> Dist, Pile, Delta, Snapshot;
         public NativeArray<float2> Vec;
@@ -37,6 +38,13 @@ namespace TBD.Sim.Tests
         {
             Solids = new NativeArray<Solid>(SolidList.ToArray());
             var solidsBuf = new DynamicBuffer<Solid>(SolidList);
+            var startList = new List<SolidBucketStart>();
+            var refList = new List<SolidBucketRef>();
+            SolidIndex.Rebuild(solidsBuf, new DynamicBuffer<SolidBucketStart>(startList), new DynamicBuffer<SolidBucketRef>(refList));
+            var st = new int[startList.Count]; for (int i = 0; i < st.Length; i++) st[i] = startList[i].Value;
+            var rf = new int[refList.Count]; for (int i = 0; i < rf.Length; i++) rf[i] = refList[i].Value;
+            BStart = new NativeArray<int>(st);
+            BRefs = new NativeArray<int>(rf);
             var groundList = new List<CellGround>();
             var groundBuf = new DynamicBuffer<CellGround>(groundList);
             groundBuf.ResizeUninitialized(N);
@@ -60,9 +68,9 @@ namespace TBD.Sim.Tests
         {
             Snapshot.CopyFrom(Pile);
             if (order == null)
-                for (int i = 0; i < Z.Length; i++) ZombieLogic.Step(ref Z[i], Solids, Snapshot, Vec, Delta);
+                for (int i = 0; i < Z.Length; i++) ZombieLogic.Step(ref Z[i], Solids, BStart, BRefs, Snapshot, Vec, Delta);
             else
-                foreach (int i in order) ZombieLogic.Step(ref Z[i], Solids, Snapshot, Vec, Delta);
+                foreach (int i in order) ZombieLogic.Step(ref Z[i], Solids, BStart, BRefs, Snapshot, Vec, Delta);
             new PileApplyJob { Pile = Pile, Delta = Delta }.Execute();
             Tick++;
         }
@@ -108,6 +116,7 @@ namespace TBD.Sim.Tests
             TestOpenFieldWalk();
             TestRaster();
             TestRoofFall();
+            TestSolidIndex();
             TestOneZombieAtWall();
             TestWallPileSpill();
             TestDeterminism();
@@ -326,6 +335,73 @@ namespace TBD.Sim.Tests
             Check(maxPileAt900 >= 4, $"la pila crece contra el muro (máximo {maxPileAt900} por celda a los 30 s)");
             Check(inside > 0, $"la horda se derrama por encima del muro cuando la pila lo alcanza (dentro: {inside})");
             Check(w.Count(ZState.Fall) < w.Z.Length / 10, $"no hay zombis atascados alternando entre caer y andar (cayendo: {w.Count(ZState.Fall)} de {w.Z.Length})");
+        }
+
+        // ------------------------------------------------------------------ índice espacial de sólidos
+        static void TestSolidIndex()
+        {
+            Console.WriteLine("[5c] Índice espacial de sólidos");
+            uint seed = 99u;
+            float Next() { seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5; return (seed & 0xFFFFFF) / (float)0x1000000; }
+            var solids = Level.CreateSolids();
+            for (int i = 0; i < 300; i++)
+            {
+                var a = new float2(5f + Next() * 118f, 5f + Next() * 118f);
+                var b = new float2(math.clamp(a.x + (Next() - 0.5f) * 14f, 2f, 126f), math.clamp(a.y + (Next() - 0.5f) * 14f, 2f, 126f));
+                solids.Add(new Solid { A = a, B = b, HalfThick = 0.5f, Height = 2.5f, Kind = 0 });
+            }
+            var w = new MiniWorld(solids, 76f, 64.5f);
+            int mismatchGround = 0, mismatchPush = 0, samples = 20000;
+            for (int k = 0; k < samples; k++)
+            {
+                var p = new float2(Next() * 127f + 0.5f, Next() * 127f + 0.5f);
+                float linear = 0f;
+                foreach (var s in solids) if (SolidMath.Contains(s, p)) linear = Math.Max(linear, s.Height);
+                if (ZombieLogic.GroundAt(w.Solids, w.BStart, w.BRefs, p) != linear) mismatchGround++;
+                // conjunto de sólidos que empujan: lineal frente a índice
+                int linearPush = 0;
+                float2 n; float d;
+                foreach (var s in solids) if (SolidMath.Push(s, p, SimConst.Radius, out n, out d)) linearPush++;
+                int bucketPush = 0;
+                int b = SolidIndex.BucketOf(p);
+                for (int r = w.BStart[b]; r < w.BStart[b + 1]; r++) if (SolidMath.Push(solids[w.BRefs[r]], p, SimConst.Radius, out n, out d)) bucketPush++;
+                if (linearPush != bucketPush) mismatchPush++;
+            }
+            Check(mismatchGround == 0, $"la altura del suelo con el índice coincide con el recorrido lineal ({mismatchGround} diferencias en {samples})");
+            Check(mismatchPush == 0, $"los sólidos que empujan con el índice coinciden con el recorrido lineal ({mismatchPush} diferencias en {samples})");
+
+            // mismo resultado de la simulación completa que sin índice (una sola cubeta con todos): se compara el hash
+            var plain = new MiniWorld(solids, 76f, 64.5f);
+            plain.Spawn(300, 52f, 66f, 54f, 76f, 0f, 41u);
+            var indexed = new MiniWorld(solids, 76f, 64.5f);
+            indexed.Spawn(300, 52f, 66f, 54f, 76f, 0f, 41u);
+            // "sin índice": todas las cubetas apuntan a todos los sólidos
+            int ns = solids.Count, bc = SolidIndex.BucketCount;
+            var allStart = new int[bc + 1]; var allRefs = new int[bc * ns];
+            for (int bk = 0; bk < bc; bk++) { allStart[bk] = bk * ns; for (int i = 0; i < ns; i++) allRefs[bk * ns + i] = i; }
+            allStart[bc] = bc * ns;
+            plain.BStart = new NativeArray<int>(allStart); plain.BRefs = new NativeArray<int>(allRefs);
+            bool same = true;
+            for (int t = 0; t < 300; t++) { plain.Tick1(); indexed.Tick1(); if (plain.Hash() != indexed.Hash()) { same = false; break; } }
+            Check(same, "300 ticks con el índice dan el mismo hash que consultando todos los sólidos");
+
+            // coste con muchos muros
+            var big = new MiniWorld(solids, 76f, 64.5f);
+            big.Spawn(10000, 4f, 120f, 4f, 120f, 0f, 51u);
+            for (int t = 0; t < 5; t++) big.Tick1();
+            var sw = Stopwatch.StartNew();
+            for (int t = 0; t < 30; t++) big.Tick1();
+            sw.Stop();
+            Console.WriteLine($"         10.000 zombis y {solids.Count} sólidos con índice: {sw.Elapsed.TotalMilliseconds / 30:0.00} ms por tick");
+            var lin = new MiniWorld(solids, 76f, 64.5f);
+            lin.BStart = new NativeArray<int>(allStart); lin.BRefs = new NativeArray<int>(allRefs);
+            lin.Spawn(10000, 4f, 120f, 4f, 120f, 0f, 51u);
+            for (int t = 0; t < 2; t++) lin.Tick1();
+            var sw2 = Stopwatch.StartNew();
+            for (int t = 0; t < 5; t++) lin.Tick1();
+            sw2.Stop();
+            Console.WriteLine($"         lo mismo consultando todos los sólidos: {sw2.Elapsed.TotalMilliseconds / 5:0.00} ms por tick");
+            Check(sw.Elapsed.TotalMilliseconds / 30 < 33.0, $"con {solids.Count} sólidos un tick de 10.000 zombis cabe en el presupuesto ({sw.Elapsed.TotalMilliseconds / 30:0.00} ms, sin Burst)");
         }
 
         // ------------------------------------------------------------------ determinismo

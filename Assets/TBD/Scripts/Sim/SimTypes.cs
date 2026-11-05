@@ -77,6 +77,10 @@ namespace TBD.Sim
     public struct CellFlowDist : IBufferElementData { public int Value; }     // coste hasta la meta
     public struct CellFlowVec : IBufferElementData { public float2 Value; }   // dirección deseada (se interpola bilinealmente)
 
+    // Índice espacial de los sólidos (cubetas uniformes de 4 m): cada zombi solo mira los sólidos de su cubeta
+    public struct SolidBucketStart : IBufferElementData { public int Value; }  // inicio de la lista de cada cubeta (+ un final)
+    public struct SolidBucketRef : IBufferElementData { public int Value; }    // índices de sólidos, en orden ascendente
+
     // ------------------------------------------------------------------ sólidos: muros con grosor y altura, edificios
     /// <summary>
     /// Sólido del mundo, con geometría continua. Kind 0 = segmento con grosor (A, B, HalfThick); Kind 1 = caja alineada (A = mínimo, B = máximo).

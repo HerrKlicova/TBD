@@ -73,6 +73,7 @@ namespace TBD.Sim
                     solids.Add(s);
                     var ground = em.GetBuffer<CellGround>(root);
                     Level.RasterSolid(solids, ground, s);
+                    SolidIndex.Rebuild(solids, em.GetBuffer<SolidBucketStart>(root), em.GetBuffer<SolidBucketRef>(root));
                     var info = em.GetComponentData<ZoneInfo>(root);
                     info.ForceFlow = true;
                     em.SetComponentData(root, info);
@@ -153,6 +154,8 @@ namespace TBD.Sim
         {
             var root = SystemAPI.GetSingletonEntity<ZoneTag>();
             var solids = SystemAPI.GetBuffer<Solid>(root).AsNativeArray();
+            var bStart = SystemAPI.GetBuffer<SolidBucketStart>(root).Reinterpret<int>().AsNativeArray();
+            var bRefs = SystemAPI.GetBuffer<SolidBucketRef>(root).Reinterpret<int>().AsNativeArray();
             var pile = SystemAPI.GetBuffer<CellPile>(root).Reinterpret<int>().AsNativeArray();
             var delta = SystemAPI.GetBuffer<CellPileDelta>(root).Reinterpret<int>().AsNativeArray();
             var flow = SystemAPI.GetBuffer<CellFlowVec>(root).Reinterpret<float2>().AsNativeArray();
@@ -161,7 +164,7 @@ namespace TBD.Sim
             var snapshot = new NativeArray<int>(pile.Length, Allocator.Temp);
             snapshot.CopyFrom(pile);
 
-            new ZombieStepJob { Solids = solids, PileRead = snapshot, FlowVec = flow, PileDelta = delta }.Run();
+            new ZombieStepJob { Solids = solids, BucketStart = bStart, BucketRefs = bRefs, PileRead = snapshot, FlowVec = flow, PileDelta = delta }.Run();
             snapshot.Dispose();
         }
     }
@@ -170,13 +173,15 @@ namespace TBD.Sim
     public partial struct ZombieStepJob : IJobEntity
     {
         [ReadOnly] public NativeArray<Solid> Solids;
+        [ReadOnly] public NativeArray<int> BucketStart;
+        [ReadOnly] public NativeArray<int> BucketRefs;
         [ReadOnly] public NativeArray<int> PileRead;
         [ReadOnly] public NativeArray<float2> FlowVec;
         public NativeArray<int> PileDelta;
 
         void Execute(ref Zombie z)
         {
-            ZombieLogic.Step(ref z, Solids, PileRead, FlowVec, PileDelta);   // lógica pura, probada con dotnet (carpeta Dotnet/)
+            ZombieLogic.Step(ref z, Solids, BucketStart, BucketRefs, PileRead, FlowVec, PileDelta);   // lógica pura, probada con dotnet (carpeta Dotnet/)
         }
     }
 
