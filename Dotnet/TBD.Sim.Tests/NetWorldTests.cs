@@ -41,6 +41,19 @@ namespace TBD.Sim.Tests
             int sieged = 0; foreach (var n in w.Graph.Nodes) if (n.State == NodeState.Asediada) sieged++;
             check(sieged <= 1, $"a las 12:00 del primer día hay como mucho una estación asediada ({sieged})");
 
+            // ---- D-N08 (Lucía): el día 1 no hay asedios. Ningún nodo «asediado» ni alerta de asedio en todo el día 1
+            {
+                var wd = NetScenario.Mvp();
+                bool any = false;
+                while (wd.Tick < NetConst.DayTicks)
+                {
+                    wd.Step();
+                    foreach (var n in wd.Graph.Nodes) if (n.State == NodeState.Asediada) any = true;
+                    foreach (var al in wd.Alerts) if (al.Kind == AlertKind.NodoAsediado || al.Text.Contains("asediad")) any = true;
+                }
+                check(!any, "el día 1 no hay ningún nodo ni alerta de asedio (hasta el director del H4, una densidad alta es «amenazada»)");
+            }
+
             // ---- horarios: el tren 1 sale a las 06:00 de Valencia y llega a Sagunto con la carga
             w = NetScenario.Mvp();
             var s1 = w.Services[0];

@@ -203,7 +203,7 @@ namespace TBD.Net
         public int ActiveZoneNode = -1;             // nodo con zona materializada (-1 = ninguna; el MVP admite una)
         public int ActiveZoneTaken;                 // densidad (por mil) que salió de la mancha al materializar
         public long ActiveZoneSinceTick = -1;
-        public int ActiveZoneCell = -1;             // celda de la mancha de la que salió la horda (y a la que vuelve)                // las alertas críticas nuevas bajan a x1 (D-N11)
+        public int ActiveZoneCell = -1;             // celda de la mancha de la que salió la horda (y a la que vuelve)
         public List<Alert> Alerts = new List<Alert>();
         readonly List<NetCommand> _queue = new List<NetCommand>();
 
@@ -442,7 +442,9 @@ namespace TBD.Net
             {
                 int d = MaxAround(n.XMeters, n.YMeters);
                 n.HordeDensity = d;
-                n.State = d >= SiegeAt ? NodeState.Asediada : (d >= ThreatAt ? NodeState.Amenazada : NodeState.Segura);
+                // Lucía (6-nov, D-N08): «asediada» solo con un asedio real, que lanzará el director de la Colmena (hito 4). Hasta entonces,
+                // una densidad alta es «amenazada», por alta que sea.
+                n.State = d >= ThreatAt ? NodeState.Amenazada : NodeState.Segura;
             }
             foreach (var e in Graph.Edges)
             {
@@ -473,27 +475,46 @@ namespace TBD.Net
         }
 
         // ---------------------------------------------------------------- hash (prueba de desincronización)
-        public ulong Hash()
+        /// <summary>Hash por sistema (repetición dorada, D3 de Sara): control, mancha, trenes, existencias y vías.</summary>
+        public struct SystemHashes
         {
-            ulong h = Mix((ulong)Tick) + Field.Hash() + Mix(0xC0FFEEUL ^ ((ulong)(uint)Speed << 1) ^ (Paused ? 1UL : 0UL));
-            h += Mix(0x2041EUL ^ ((ulong)(uint)(ActiveZoneCell + 1) << 48) ^ ((ulong)(uint)(ActiveZoneNode + 1) << 8) ^ ((ulong)(uint)ActiveZoneTaken << 24) ^ ((ulong)(ActiveZoneSinceTick + 1) << 40));
+            public ulong Control, Field, Trains, Stock, Edges;
+            public ulong Total => Control + Field + Trains + Stock + Edges;
+        }
+
+        public static readonly string[] SystemNames = { "control", "mancha", "trenes", "existencias", "vias" };
+
+        public SystemHashes Systems()
+        {
+            var r = new SystemHashes();
+            r.Control = Mix((ulong)Tick) + Mix(0xC0FFEEUL ^ ((ulong)(uint)Speed << 1) ^ (Paused ? 1UL : 0UL))
+                      + Mix(0x2041EUL ^ ((ulong)(uint)(ActiveZoneCell + 1) << 48) ^ ((ulong)(uint)(ActiveZoneNode + 1) << 8) ^ ((ulong)(uint)ActiveZoneTaken << 24) ^ ((ulong)(ActiveZoneSinceTick + 1) << 40));
+            r.Field = Field.Hash();
+            ulong h = 0;
             foreach (var s in Services)
             {
                 var t = s.Train;
                 h += Mix(((ulong)(uint)t.Id << 40) ^ ((ulong)(uint)t.Leg << 32) ^ (ulong)t.OffsetMm);
                 h += Mix(((ulong)t.State << 48) ^ ((ulong)(uint)s.StopIndex << 16) ^ (ulong)(uint)s.CargoTotal());
-                for (int r = 0; r < NetConst.ResCount; r++) h += Mix(((ulong)(uint)t.Id << 8) ^ (ulong)r ^ ((ulong)(uint)s.Cargo[r] << 20));
+                for (int r2 = 0; r2 < NetConst.ResCount; r2++) h += Mix(((ulong)(uint)t.Id << 8) ^ (ulong)r2 ^ ((ulong)(uint)s.Cargo[r2] << 20));
                 for (int k = 0; k < s.DepartedDay.Count; k++) h += Mix(((ulong)(uint)t.Id << 52) ^ ((ulong)(uint)k << 40) ^ (ulong)(s.DepartedDay[k] + 1));
                 h += Mix(((ulong)(uint)t.Id << 4) ^ (s.AtStop ? 1UL : 0UL) ^ (s.Held ? 2UL : 0UL));
             }
+            r.Trains = h;
+            h = 0;
             for (int n = 0; n < Graph.Nodes.Count; n++)
             {
                 h += Mix(((ulong)(uint)n << 32) ^ (ulong)(uint)Attraction[n]);
-                for (int r = 0; r < NetConst.ResCount; r++) h += Mix(((ulong)(uint)n << 40) ^ ((ulong)r << 32) ^ (ulong)(uint)Stock[n, r]);
+                for (int r2 = 0; r2 < NetConst.ResCount; r2++) h += Mix(((ulong)(uint)n << 40) ^ ((ulong)r2 << 32) ^ (ulong)(uint)Stock[n, r2]);
             }
+            r.Stock = h;
+            h = 0;
             foreach (var e in Graph.Edges) h += Mix(((ulong)(uint)e.Id << 8) ^ (ulong)e.State);
-            return h;
+            r.Edges = h;
+            return r;
         }
+
+        public ulong Hash() { return Systems().Total; }
     }
 
     // ================================================================== escenario del MVP

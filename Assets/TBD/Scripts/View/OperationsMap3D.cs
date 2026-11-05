@@ -133,7 +133,8 @@ namespace TBD.View
         static Color32 Hypso(double h)
         {
             if (h < 0) return Color32.Lerp(new Color32(30, 58, 92, 255), new Color32(14, 30, 58, 255), (float)System.Math.Min(1, -h / 400));
-            Color32[] stops = { new Color32(116, 128, 78, 255), new Color32(146, 142, 88, 255), new Color32(168, 146, 98, 255), new Color32(150, 118, 86, 255), new Color32(128, 110, 98, 255), new Color32(196, 190, 182, 255) };
+            // llano en el ocre del suelo de la zona (#b4a080), para que el fundido mapa ↔ zona no salte de color (Lucía, 6-nov)
+            Color32[] stops = { new Color32(180, 160, 128, 255), new Color32(168, 142, 106, 255), new Color32(152, 124, 92, 255), new Color32(132, 106, 82, 255), new Color32(118, 100, 90, 255), new Color32(176, 170, 162, 255) };
             double[] at = { 0, 200, 500, 900, 1300, 1700 };
             for (int i = 1; i < at.Length; i++)
                 if (h < at[i]) return Color32.Lerp(stops[i - 1], stops[i], (float)((h - at[i - 1]) / (at[i] - at[i - 1])));

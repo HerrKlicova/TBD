@@ -109,6 +109,7 @@ namespace TBD.View
         bool _leaving;
         public double LastMaterializeMs;
         CombatParams _combat;
+        bool _hasTrain = true;
         long _ammoUnitsAtStart;
 
         static CombatParams LoadCombatParams()
@@ -167,11 +168,19 @@ namespace TBD.View
             if (_zoneNode >= 0) ammoUnits = NetSession.A.AmmoAvailableAt(_zoneNode);   // carga del tren en el andén + estación
             _ammoUnitsAtStart = ammoUnits;
             long shots = ammoUnits * _combat.ShotsPerUnit;
+            bool hasTrain = true;
+            if (_zoneNode >= 0)
+            {
+                hasTrain = false;
+                foreach (var sv in NetSession.A.Services)
+                    if (sv.AtStop && sv.Stops.Count > 0 && sv.Stops[sv.StopIndex].Node == _zoneNode) hasTrain = true;
+            }
+            _hasTrain = hasTrain;
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
             _worldA = World.DefaultGameObjectInjectionWorld;
             _groupA = SimWorldSetup.CreateSystems(_worldA);
-            _rootA = SimWorldSetup.Populate(_worldA.EntityManager, zombies, siege, seed, _combat, shots);
+            _rootA = SimWorldSetup.Populate(_worldA.EntityManager, zombies, siege, seed, _combat, shots, hasTrain);
             sw.Stop();
             LastMaterializeMs = sw.Elapsed.TotalMilliseconds;
             Debug.Log($"[TBD] Zona {(_zoneNode >= 0 ? NetSession.A.Graph.Nodes[_zoneNode].Name : "suelta")}: {zombies} zombis ({(siege ? "asedio" : "deriva")}) creados en {LastMaterializeMs:0.0} ms");
@@ -179,7 +188,7 @@ namespace TBD.View
 
             _worldB = new World("TBD_SimB");
             _groupB = SimWorldSetup.CreateSystems(_worldB);
-            _rootB = SimWorldSetup.Populate(_worldB.EntityManager, zombies, siege, seed, _combat, shots);
+            _rootB = SimWorldSetup.Populate(_worldB.EntityManager, zombies, siege, seed, _combat, shots, hasTrain);
         }
 
         void OnDestroy()
@@ -1112,6 +1121,7 @@ namespace TBD.View
             var train = em.GetComponentData<TrainState>(_rootA);
             var info = em.GetComponentData<ZoneInfo>(_rootA);
             float ty = Level.TrackY;
+            foreach (var part in _trainParts) part.gameObject.SetActive(info.HasTrain);   // sin tren de la red en el andén, no hay tren
             // el tren avanza hacia +x; la locomotora va delante
             float x = train.X + 0.5f;
             _trainParts[0].position = new Vector3(x, 1.3f, ty);

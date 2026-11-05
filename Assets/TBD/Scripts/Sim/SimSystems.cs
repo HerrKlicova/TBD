@@ -108,6 +108,7 @@ namespace TBD.Sim
                 }
                 case CmdType.ToggleTrain:
                 {
+                    if (!em.GetComponentData<ZoneInfo>(root).HasTrain) break;      // sin tren en el andén no hay nada que mover
                     var t = em.GetComponentData<TrainState>(root);
                     t.Speed = t.Speed > 0f ? 0f : SimConst.TrainSpeed;
                     em.SetComponentData(root, t);
@@ -153,6 +154,7 @@ namespace TBD.Sim
                 }
                 case CmdType.EmbarkSquad:
                 {
+                    if (!em.GetComponentData<ZoneInfo>(root).HasTrain) break;      // sin tren no se puede ir a bordo
                     // D-N27: 20 fusileros y la ametralladora a bordo, repartidos por los tres vagones (7 por vagón), a los dos lados
                     var clock = em.GetComponentData<SimClock>(root);
                     var cfg = em.GetComponentData<CombatConfig>(root).P;
@@ -476,7 +478,7 @@ namespace TBD.Sim
             var train = SystemAPI.GetSingleton<TrainState>();
             sum += HashMath.OfFloat(train.X, 21) + HashMath.OfFloat(train.Speed, 22) + HashMath.Mix((ulong)(uint)train.Dir + 0x1234567UL);
             var info = SystemAPI.GetSingleton<ZoneInfo>();
-            sum += HashMath.Mix((info.GateOpen ? 1UL : 2UL) ^ ((ulong)(uint)info.GoalCell << 8) ^ 0xFEEDUL);
+            sum += HashMath.Mix((info.GateOpen ? 1UL : 2UL) ^ (info.HasTrain ? 4UL : 0UL) ^ ((ulong)(uint)info.GoalCell << 8) ^ 0xFEEDUL);
             sum += HashMath.Mix(((ulong)clock.NextSimId << 1) ^ 0xBEEF00UL);
             foreach (var sr in SystemAPI.Query<RefRO<Soldier>>()) sum += HashMath.OfSoldier(sr.ValueRO);
             sum += HashMath.OfAmmo(SystemAPI.GetSingleton<ZoneAmmo>());

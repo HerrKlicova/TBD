@@ -135,6 +135,7 @@ namespace TBD.Sim
         public bool GateOpen;
         public bool ForceFlow;
         public int GoalCell;
+        public bool HasTrain;                            // hito 3: solo hay tren en la zona si hay un tren de la red en el andén
     }
 
     public struct TrainState : IComponentData
