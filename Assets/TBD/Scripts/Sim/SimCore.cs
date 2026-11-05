@@ -255,7 +255,7 @@ namespace TBD.Sim
         /// <summary>Cuenta un zombi en la rejilla de densidad (sumas enteras: el resultado no depende del orden). Los que caen no cuentan.</summary>
         public static void AddDensity(in Zombie z, NativeArray<int> density)
         {
-            if (z.State == ZState.Fall) return;
+            if (z.State == ZState.Fall || z.State == ZState.Dead) return;
             density[CellIndex(z.Pos.xz)] += 1;
         }
 
@@ -306,6 +306,7 @@ namespace TBD.Sim
                                 NativeArray<int> pileRead, NativeArray<float2> flowVec, NativeArray<int> pileDelta,
                                 NativeArray<int> density)
         {
+            if (z.State == ZState.Dead) return;          // abatido: no se mueve (se retira al final del tick)
             z.PrevPos = z.Pos;
             z.PrevHeading = z.Heading;
             float2 p = z.Pos.xz;
@@ -420,6 +421,94 @@ namespace TBD.Sim
             // ---- orientación continua: gira suavemente hacia donde avanza
             if (math.lengthsq(vel2) > 0.0025f)
                 z.Heading = ApproachAngle(z.Heading, math.atan2(vel2.x, vel2.y), SimConst.TurnRate * SimConst.Dt);
+        }
+    }
+
+    /// <summary>
+    /// Combate de las tropas en la zona (hito 3, parte 4). Lógica pura y determinista: los soldados se procesan en orden de SimId,
+    /// cada disparo busca el zombi vivo más cercano dentro del alcance (empate: el de SimId menor) y el acierto sale de un hash del
+    /// soldado y del tick, no de un generador compartido. Lo prueba dotnet (P7 de Hugo).
+    /// </summary>
+    public static class SoldierLogic
+    {
+        /// <summary>Un tick de disparos. Devuelve cuántos zombis se abatieron. «order» = índices de soldados ordenados por SimId.</summary>
+        public static int Fire(NativeArray<Soldier> soldiers, NativeArray<int> order, NativeArray<Zombie> zombies, ref ZoneAmmo ammo, uint tick)
+        {
+            int kills = 0;
+            for (int o = 0; o < order.Length; o++)
+            {
+                int si = order[o];
+                var s = soldiers[si];
+                if (s.State != SoldierState.Deployed) continue;
+                if (s.Cooldown > 0) { s.Cooldown--; soldiers[si] = s; continue; }
+                float range = s.Kind == SoldierKind.MachineGun ? CombatConst.MgRange : CombatConst.RifleRange;
+                int best = -1;
+                float bestD2 = range * range;
+                uint bestId = uint.MaxValue;
+                for (int i = 0; i < zombies.Length; i++)
+                {
+                    var z = zombies[i];
+                    if (z.State == ZState.Dead) continue;
+                    float2 d = z.Pos.xz - s.Pos.xz;
+                    float d2 = math.dot(d, d);
+                    if (d2 < bestD2 || (d2 == bestD2 && z.SimId < bestId)) { bestD2 = d2; best = i; bestId = z.SimId; }
+                }
+                if (best < 0 || ammo.ShotsLeft <= 0) { soldiers[si] = s; continue; }     // sin objetivo no se dispara (Hugo)
+                ammo.ShotsLeft--;
+                ammo.ShotsFired++;
+                s.Cooldown = s.Kind == SoldierKind.MachineGun ? CombatConst.MgCooldown : CombatConst.RifleCooldown;
+                var tz = zombies[best];
+                float2 dv = tz.Pos.xz - s.Pos.xz;
+                s.Heading = math.atan2(dv.x, dv.y);
+                uint roll = math.hash(new uint2(s.SimId * 0x9E3779B1u ^ 0x5EEDu, tick)) % 1000u;
+                if (roll < (uint)CombatConst.HitPermil(s.Kind, math.sqrt(bestD2)))
+                {
+                    tz.State = ZState.Dead;
+                    tz.Vel = float3.zero;
+                    zombies[best] = tz;
+                    kills++;
+                    ammo.Kills++;
+                }
+                soldiers[si] = s;
+            }
+            return kills;
+        }
+
+        /// <summary>Cuerpo a cuerpo: cada zombi vivo a menos de MeleeRange de un soldado le quita vida. Devuelve los soldados caídos este tick.</summary>
+        public static int Melee(NativeArray<Soldier> soldiers, NativeArray<Zombie> zombies, ref ZoneAmmo ammo)
+        {
+            int fallen = 0;
+            float r2 = CombatConst.MeleeRange * CombatConst.MeleeRange;
+            for (int si = 0; si < soldiers.Length; si++)
+            {
+                var s = soldiers[si];
+                if (s.State != SoldierState.Deployed) continue;
+                int touching = 0;
+                for (int i = 0; i < zombies.Length; i++)
+                {
+                    var z = zombies[i];
+                    if (z.State == ZState.Dead || z.State == ZState.Fall) continue;
+                    float2 d = z.Pos.xz - s.Pos.xz;
+                    if (math.dot(d, d) <= r2) touching++;
+                }
+                if (touching == 0) continue;
+                s.Hp -= touching * CombatConst.ZombieDamagePerTick;
+                if (s.Hp <= 0) { s.Hp = 0; s.State = SoldierState.Dead; fallen++; ammo.SoldiersLost++; }
+                soldiers[si] = s;
+            }
+            return fallen;
+        }
+
+        /// <summary>Orden por SimId (inserción: son pocos soldados).</summary>
+        public static void SortById(NativeArray<Soldier> soldiers, NativeArray<int> order)
+        {
+            for (int i = 0; i < order.Length; i++) order[i] = i;
+            for (int i = 1; i < order.Length; i++)
+            {
+                int v = order[i], j = i - 1;
+                while (j >= 0 && soldiers[order[j]].SimId > soldiers[v].SimId) { order[j + 1] = order[j]; j--; }
+                order[j + 1] = v;
+            }
         }
     }
 

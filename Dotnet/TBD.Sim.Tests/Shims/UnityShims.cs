@@ -133,6 +133,7 @@ namespace Unity.Mathematics
         public static float length(float2 a) => (float)Math.Sqrt(lengthsq(a));
         public static float2 normalize(float2 a) { float l = length(a); return new float2(a.x / l, a.y / l); }
         public static float atan2(float y, float x) => (float)Math.Atan2(y, x);
+        public static float sqrt(float v) => (float)Math.Sqrt(v);
         // Fórmula de Unity.Mathematics: csum(v * uint2(0xFA3A3285, 0xAD55999D)) + 0xDCDD5341
         public static uint hash(uint2 v) { var m = v * new uint2(0xFA3A3285u, 0xAD55999Du); return unchecked(m.x + m.y + 0xDCDD5341u); }
     }

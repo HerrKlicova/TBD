@@ -40,6 +40,64 @@ namespace TBD.Sim
         public const byte Walk = 0;
         public const byte Fall = 1;
         public const byte Settled = 2;                  // bloqueado contra un muro: forma parte de la pila
+        public const byte Dead = 3;                     // abatido: se retira al final del tick (hito 3, combate)
+    }
+
+    // ------------------------------------------------------------------ tropas (hito 3, parte 4)
+    public static class SoldierKind
+    {
+        public const byte Rifle = 0;
+        public const byte MachineGun = 1;
+    }
+
+    public static class SoldierState
+    {
+        public const byte Embarked = 0;                 // en el tren
+        public const byte Deployed = 1;                 // desplegado en la zona
+        public const byte Dead = 2;                     // muerto: se levanta como zombi (D-N09 de Lucía, GDD 5.6)
+    }
+
+    /// <summary>Un soldado. Posición continua; dispara con cadencia en ticks; la munición es del tren (ZoneAmmo), no suya.</summary>
+    public struct Soldier : IComponentData
+    {
+        public uint SimId;
+        public float3 Pos;
+        public float Heading;
+        public int Hp;
+        public int Cooldown;                             // ticks hasta el siguiente disparo
+        public byte Kind;
+        public byte State;
+    }
+
+    /// <summary>
+    /// Munición de la zona en «disparos equivalentes» (Hugo, D-N10 y D-N21: 1 u = 2.000). Es la carga del tren: lo gastado vuelve a la
+    /// red como consumo. Abatidos y disparos se cuentan para calibrar el combate abstracto S0 (P7).
+    /// </summary>
+    public struct ZoneAmmo : IComponentData
+    {
+        public long ShotsLeft;
+        public long ShotsFired;
+        public int Kills;
+        public int SoldiersLost;
+    }
+
+    public static class CombatConst
+    {
+        public const int ShotsPerUnit = 2000;            // Hugo: 1 u = 2.000 disparos equivalentes
+        public const int RifleCooldown = 30;             // 1 disparo por segundo a 30 Hz (Hugo)
+        public const int MgCooldown = 4;                 // ametralladora: 7,5/s (Hugo pide 8/s; con ticks enteros de 30 Hz, 4 ticks)
+        public const float RifleRange = 60f;
+        public const float MgRange = 70f;
+        public const int SoldierHp = 100;
+        public const int ZombieDamagePerTick = 2;        // por cada zombi a menos de MeleeRange: un soldado rodeado cae en segundos
+        public const float MeleeRange = 0.9f;
+        /// <summary>Probabilidad de abatir (por mil) según la distancia: de cerca casi siempre, de lejos poco (PROTOTIPO, para calibrar P7).</summary>
+        public static int HitPermil(byte kind, float dist)
+        {
+            int p = (int)(420f - dist * 6f);                 // 420 por mil a bocajarro, 60 por mil a 60 m
+            if (p < 60) p = 60;
+            return kind == SoldierKind.MachineGun ? p * 6 / 10 : p;
+        }
     }
 
     // ------------------------------------------------------------------ raíz de la simulación
