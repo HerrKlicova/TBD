@@ -142,3 +142,6 @@ crashlytics-build.properties
 
 # Salidas de generadores de imagen/3D sin revisar
 /_inbox/
+
+# Capturas y grabaciones del prototipo (se suben los hitos a mr.mak, no los fotogramas)
+/Captures/

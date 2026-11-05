@@ -27,7 +27,13 @@ esperable es tener que corregir algunos errores de compilación; la estructura y
 
 ## Controles
 `1` zombis en el tejado (500) · `2` abrir/cerrar la puerta · `3` arrancar/parar el tren · `4` 3.000 zombis más por el oeste ·
-`WASD`/flechas mover la cámara · rueda del ratón zoom · `F3` prueba de desincronización · `P` pausa.
+`WASD`/flechas mover la cámara · rueda del ratón zoom · `F3` prueba de desincronización · `P` pausa ·
+`F9` captura PNG de la imagen pixelada · `F10` empieza/para la grabación de fotogramas.
+
+## Capturas y GIF (solo hitos importantes, petición de Eugenio)
+`F9` guarda un PNG de 480×270 y `F10` graba fotogramas a 15 por segundo (hasta 30 s) en `<proyecto>/Captures/`, que Git ignora.
+Para montar el GIF: `python C:\Dev\mr-mak-workspace\scripts\capturas\hacer_gif.py <carpeta gif_...> <salida.gif>` (amplía ×3 sin suavizar).
+Después se copia a la tarjeta de mr.mak y se manda a Eugenio.
 
 ## Estructura
 - `Scripts/Sim/SimTypes.cs` constantes, componentes, rejillas y geometría del nivel.

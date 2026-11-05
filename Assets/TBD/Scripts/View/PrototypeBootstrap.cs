@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text;
 using TBD.Sim;
 using Unity.Collections;
@@ -112,6 +113,7 @@ namespace TBD.View
             UpdateTrainVisual();
             UpdateCamera();
             UpdateStats();
+            UpdateCapture();
 
             _fpsAcc += Time.unscaledDeltaTime;
             _fpsFrames++;
@@ -164,6 +166,8 @@ namespace TBD.View
             if (kb.digit3Key.wasPressedThisFrame) Push(CmdType.ToggleTrain);
             if (kb.digit4Key.wasPressedThisFrame) Push(CmdType.SpawnWest, 3000);
             if (kb.pKey.wasPressedThisFrame) _paused = !_paused;
+            if (kb.f9Key.wasPressedThisFrame) SaveScreenshot();
+            if (kb.f10Key.wasPressedThisFrame) ToggleRecording();
             if (kb.f3Key.wasPressedThisFrame) { _checkEnabled = !_checkEnabled; _desync = false; }
 
             Vector3 pan = Vector3.zero;
@@ -180,6 +184,74 @@ namespace TBD.View
                 if (s > 0f) _orthoSize = Mathf.Max(6f, _orthoSize * 0.85f);
                 if (s < 0f) _orthoSize = Mathf.Min(70f, _orthoSize / 0.85f);
             }
+        }
+
+        // ================================================================ capturas y GIF (solo hitos importantes)
+        // F9 = captura PNG de la imagen pixelada · F10 = empieza/para una grabación de fotogramas (se monta el GIF con
+        // scripts/capturas/hacer_gif.py de mr-mak-workspace). Todo se guarda en <proyecto>/Captures/, fuera de Git.
+        RenderTexture _palRt;
+        bool _recording;
+        float _recTimer;
+        int _recIndex;
+        string _recDir;
+        const float RecInterval = 1f / 15f;
+
+        static string CaptureRoot => Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Captures"));
+
+        Texture2D GrabPixelFrame()
+        {
+            if (_palRt == null)
+                _palRt = new RenderTexture(LowW, LowH, 0, RenderTextureFormat.ARGB32) { filterMode = FilterMode.Point };
+            if (_paletteMat != null) Graphics.Blit(_lowRt, _palRt, _paletteMat);
+            else Graphics.Blit(_lowRt, _palRt);
+            var prev = RenderTexture.active;
+            RenderTexture.active = _palRt;
+            var tex = new Texture2D(LowW, LowH, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, LowW, LowH), 0, 0);
+            tex.Apply();
+            RenderTexture.active = prev;
+            return tex;
+        }
+
+        void SaveScreenshot()
+        {
+            Directory.CreateDirectory(CaptureRoot);
+            var tex = GrabPixelFrame();
+            string path = Path.Combine(CaptureRoot, $"captura_{System.DateTime.Now:yyyyMMdd_HHmmss}.png");
+            File.WriteAllBytes(path, tex.EncodeToPNG());
+            Destroy(tex);
+            Debug.Log($"[TBD] Captura guardada: {path}");
+        }
+
+        void ToggleRecording()
+        {
+            if (!_recording)
+            {
+                _recDir = Path.Combine(CaptureRoot, $"gif_{System.DateTime.Now:yyyyMMdd_HHmmss}");
+                Directory.CreateDirectory(_recDir);
+                _recIndex = 0;
+                _recTimer = 0f;
+                _recording = true;
+                Debug.Log($"[TBD] Grabando fotogramas en {_recDir} (F10 para parar)");
+            }
+            else
+            {
+                _recording = false;
+                Debug.Log($"[TBD] Grabación parada: {_recIndex} fotogramas en {_recDir}. Monta el GIF con scripts/capturas/hacer_gif.py");
+            }
+        }
+
+        void UpdateCapture()
+        {
+            if (!_recording) return;
+            _recTimer += Time.unscaledDeltaTime;
+            if (_recTimer < RecInterval) return;
+            _recTimer -= RecInterval;
+            var tex = GrabPixelFrame();
+            File.WriteAllBytes(Path.Combine(_recDir, $"f_{_recIndex:D4}.png"), tex.EncodeToPNG());
+            Destroy(tex);
+            _recIndex++;
+            if (_recIndex >= 450) ToggleRecording();      // tope de 30 s a 15 fps
         }
 
         // ================================================================ estadísticas para la pantalla
@@ -276,7 +348,7 @@ namespace TBD.View
             string check = !_checkEnabled ? "desactivada (F3)"
                 : _desync ? $"¡DESINCRONIZADA en el tick {_desyncTick}!" : "correcta (dos mundos, mismo hash)";
             sb.AppendLine($"Prueba de desincronización: {check}");
-            sb.AppendLine("1 tejado · 2 puerta · 3 tren · 4 más zombis · WASD mover · rueda zoom · P pausa");
+            sb.AppendLine("1 tejado · 2 puerta · 3 tren · 4 más zombis · WASD mover · rueda zoom · P pausa · F9 captura · F10 grabar GIF" + (_recording ? "  ● GRABANDO" : ""));
             GUI.Label(new Rect(10, 8, 1100, 120), sb.ToString());
         }
 
