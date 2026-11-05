@@ -9,3 +9,6 @@
 *.fbx  filter=lfs diff=lfs merge=lfs -text
 *.glb  filter=lfs diff=lfs merge=lfs -text
 *.blend filter=lfs diff=lfs merge=lfs -text
+
+# QA Q12: finales de línea normalizados (evita diffs de miles de líneas por cambios de CRLF)
+* text=auto
