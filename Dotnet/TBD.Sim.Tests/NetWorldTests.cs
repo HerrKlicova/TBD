@@ -145,6 +145,20 @@ namespace TBD.Sim.Tests
                 check(wz.ActiveZoneNode == -1 && wz.Field.Mass() == massMid + 180, "al salir vuelven 180 por mil (1.800 vivos); las 1.200 bajas se pierden");
             }
 
+            // ---- munición de una zona: carga del tren en el andén + estación; se gasta primero la del tren
+            {
+                var wa = NetScenario.Mvp();
+                var sv = wa.Services[0];                                         // el tren 1 empieza en el andén de Valencia
+                int val = sv.Stops[0].Node;
+                sv.Cargo[(int)Res.Municion] = 30;
+                long beforeAmmo = wa.AmmoAvailableAt(val);
+                check(beforeAmmo == wa.Stock[val, (int)Res.Municion] + 30, $"la munición de la zona suma la carga del tren en el andén ({beforeAmmo} u)");
+                long st = wa.Stock[val, (int)Res.Municion];
+                wa.Push(new NetCommand { Tick = wa.Tick, Type = NetCmdType.ConsumeAmmo, Arg = val, Arg2 = 40 });
+                wa.Step();
+                check(sv.Cargo[(int)Res.Municion] == 0 && wa.Stock[val, (int)Res.Municion] == st - 10, "al gastar 40 u, primero salen las 30 del tren y luego 10 de la estación");
+            }
+
             // ---- determinismo: dos mundos con las mismas órdenes, mismo hash en cada tick
             var w1 = NetScenario.Mvp();
             var w2 = NetScenario.Mvp();

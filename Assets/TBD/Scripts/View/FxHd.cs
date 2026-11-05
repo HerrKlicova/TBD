@@ -47,6 +47,43 @@ namespace TBD.View
             return ps;
         }
 
+        int _shotCount;
+        public static bool LegacyShots;            // solo para la captura «antes» de Sara: el disparo con la descarga grande de antes
+
+        /// <summary>Máscara de efectos (Sara, D-N28): todas las partículas en magenta opaco a cuadro entero (con su halo), o null para volver.</summary>
+        public void SetMaskMaterial(Material m)
+        {
+            foreach (var ps in new[] { _tracers, _sparks, _flash })
+            {
+                var r = ps.GetComponent<ParticleSystemRenderer>();
+                if (m != null) { if (!_saved.ContainsKey(r)) _saved[r] = r.sharedMaterial; r.sharedMaterial = m; }
+                else if (_saved.TryGetValue(r, out var orig)) r.sharedMaterial = orig;
+            }
+            if (m == null) _saved.Clear();
+        }
+        readonly System.Collections.Generic.Dictionary<ParticleSystemRenderer, Material> _saved = new System.Collections.Generic.Dictionary<ParticleSystemRenderer, Material>();
+
+        /// <summary>
+        /// Disparo de arma ligera (pauta de Lucía, 6-nov): fogonazo diminuto (2-4 px del mundo pixelado, 1-2 fotogramas) en la boca y,
+        /// solo en 1 de cada 4 balas, una trazadora corta y fina (núcleo #f0dc9c), de 0,06 s. Con fuego sostenido no debe tapar más
+        /// del 5 % de la pantalla.
+        /// </summary>
+        public void Shot(Vector3 muzzle, Vector3 dir)
+        {
+            if (LegacyShots) { Volley(muzzle, muzzle + dir * 25f, 1); return; }
+            _flash.Emit(new ParticleSystem.EmitParams
+            {
+                position = muzzle, velocity = Vector3.zero, startLifetime = 0.04f, startSize = 0.6f,
+                startColor = new Color(1f, 0.86f, 0.61f, 0.55f),
+            }, 1);
+            if ((_shotCount++ & 3) != 0) return;
+            _tracers.Emit(new ParticleSystem.EmitParams
+            {
+                position = muzzle + dir * 1.5f, velocity = dir.normalized * 320f, startLifetime = 0.06f, startSize = 0.09f,
+                startColor = new Color(0.94f, 0.86f, 0.61f, 0.6f),
+            }, 1);
+        }
+
         /// <summary>Descarga de trazadoras con fogonazo en el origen y chispas en el destino.</summary>
         public void Volley(Vector3 from, Vector3 to, int count = 12)
         {
@@ -83,13 +120,13 @@ namespace TBD.View
                 _flash.Emit(fl, 1);
 
                 yield return new WaitForSeconds(dist / speed);
-                for (int k = 0; k < 6; k++)
+                for (int k = 0; k < 3; k++)                                // chispas: la mitad y más cortas (Lucía)
                 {
                     var sp = new ParticleSystem.EmitParams
                     {
                         position = target + Vector3.up * 0.5f,
                         velocity = new Vector3(Random.Range(-6f, 6f), Random.Range(3f, 9f), Random.Range(-6f, 6f)),
-                        startLifetime = Random.Range(0.3f, 0.7f),
+                        startLifetime = Random.Range(0.15f, 0.35f),
                         startSize = Random.Range(0.12f, 0.3f),
                         startColor = new Color(1f, 0.6f, 0.25f, 1f),
                     };

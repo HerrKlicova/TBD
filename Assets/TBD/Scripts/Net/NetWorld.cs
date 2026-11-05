@@ -248,9 +248,7 @@ namespace TBD.Net
                     case NetCmdType.TrainHold: if (c.Arg >= 0 && c.Arg < Services.Count) { Services[c.Arg].Held = true; Services[c.Arg].Train.Stop(); } break;
                     case NetCmdType.Materialize: Materialize(c.Arg); break;
                     case NetCmdType.Dematerialize: Dematerialize(c.Arg, c.Arg2); break;
-                    case NetCmdType.ConsumeAmmo:                       // munición gastada en una zona (hito 3): sale de la estación
-                        if (c.Arg >= 0 && c.Arg < Graph.Nodes.Count) Stock[c.Arg, (int)Res.Municion] = Math.Max(0, Stock[c.Arg, (int)Res.Municion] - Math.Max(0, c.Arg2));
-                        break;
+                    case NetCmdType.ConsumeAmmo: ConsumeAmmo(c.Arg, c.Arg2); break;
                     case NetCmdType.TrainGo:
                         if (c.Arg >= 0 && c.Arg < Services.Count)
                         {
@@ -263,6 +261,36 @@ namespace TBD.Net
             }
             _queue.Clear();
             _queue.AddRange(keep);
+        }
+
+        /// <summary>
+        /// Munición disponible en una zona (diseño del hito 3 de Lucía): la carga de los trenes parados en la estación (a menos de
+        /// 150 m, en la práctica los que están en el andén) más las existencias de la estación.
+        /// </summary>
+        public long AmmoAvailableAt(int node)
+        {
+            if (node < 0 || node >= Graph.Nodes.Count) return 0;
+            long u = Stock[node, (int)Res.Municion];
+            foreach (var sv in Services)
+                if (sv.AtStop && sv.Stops.Count > 0 && sv.Stops[sv.StopIndex].Node == node) u += sv.Cargo[(int)Res.Municion];
+            return u;
+        }
+
+        /// <summary>Gasta munición en un nodo: primero la de los trenes del andén (en orden de id), luego la de la estación.</summary>
+        void ConsumeAmmo(int node, int units)
+        {
+            if (node < 0 || node >= Graph.Nodes.Count || units <= 0) return;
+            int left = units;
+            foreach (var sv in Services)                        // Services va en orden de creación: determinista
+            {
+                if (left == 0) break;
+                if (!(sv.AtStop && sv.Stops.Count > 0 && sv.Stops[sv.StopIndex].Node == node)) continue;
+                int take = Math.Min(left, sv.Cargo[(int)Res.Municion]);
+                sv.Cargo[(int)Res.Municion] -= take;
+                sv.Train.CargoTonnes = sv.CargoTotal();
+                left -= take;
+            }
+            Stock[node, (int)Res.Municion] = Math.Max(0, Stock[node, (int)Res.Municion] - left);
         }
 
         // ---------------------------------------------------------------- zonas en detalle

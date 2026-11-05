@@ -160,11 +160,11 @@ namespace TBD.View
             }
             _fadeStart = Time.realtimeSinceStartup;
 
-            // Combate: parámetros de balance_combate.csv (Hugo). Munición: la de la estación de la red (unidades × 2.000 disparos)
+            // Combate: parámetros de balance_combate.csv (Hugo). Munición: la del tren en el andén y la estación (unidades × 2.000 disparos)
             // o 20 u en el prototipo suelto.
             _combat = LoadCombatParams();
             long ammoUnits = 20;
-            if (_zoneNode >= 0) ammoUnits = NetSession.A.Stock[_zoneNode, (int)Res.Municion];
+            if (_zoneNode >= 0) ammoUnits = NetSession.A.AmmoAvailableAt(_zoneNode);   // carga del tren en el andén + estación
             _ammoUnitsAtStart = ammoUnits;
             long shots = ammoUnits * _combat.ShotsPerUnit;
 
@@ -562,8 +562,8 @@ namespace TBD.View
             tm.mode.Override(TonemappingMode.None);
 
             _bloom = profile.Add<Bloom>(true);
-            _bloom.threshold.Override(1f);                 // solo brillan los efectos HDR (> 1)
-            _bloom.intensity.Override(1.4f);
+            _bloom.threshold.Override(1.25f);              // solo brillan los efectos HDR; halo, no mancha (Lucía, 6-nov)
+            _bloom.intensity.Override(0.8f);
             _bloom.scatter.Override(0.75f);
             _bloom.highQualityFiltering.Override(true);
 
@@ -731,6 +731,49 @@ namespace TBD.View
             _paused = wasPaused;
             _capturing = false;
             Debug.Log($"[TBD] Captura y máscara guardadas: {normalPath} · {maskPath}");
+        }
+
+        /// <summary>Captura normal y máscara de EFECTOS (partículas de VFX_HD en #FF00FF a cuadro entero, sin bloom), en pausa (Sara).</summary>
+        public void SaveFxMask(string tag)
+        {
+            if (_capturing) return;
+            Directory.CreateDirectory(CaptureRoot);
+            StartCoroutine(FxMaskRoutine(Path.Combine(CaptureRoot, $"efectos_{tag}.png"), Path.Combine(CaptureRoot, $"efectos_{tag}_mascara.png")));
+        }
+
+        IEnumerator FxMaskRoutine(string normalPath, string maskPath)
+        {
+            _capturing = true;
+            bool wasPaused = _paused;
+            _paused = true;
+            float ts = Time.timeScale;
+            Time.timeScale = 0f;                                              // las partículas se quedan quietas
+            yield return new WaitForEndOfFrame();
+            var normal = ScreenCapture.CaptureScreenshotAsTexture();
+            File.WriteAllBytes(normalPath, normal.EncodeToPNG());
+            Destroy(normal);
+            var mask = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            mask.SetColor("_BaseColor", Color.magenta);
+            _fx.SetMaskMaterial(mask);
+            bool vol = _volume != null && _volume.enabled;
+            if (_volume != null) _volume.enabled = false;
+            var fxD = _fxCam.GetUniversalAdditionalCameraData();
+            var prD = _presentCam.GetUniversalAdditionalCameraData();
+            bool fxPost = fxD.renderPostProcessing, prPost = prD.renderPostProcessing;
+            fxD.renderPostProcessing = false;
+            prD.renderPostProcessing = false;
+            yield return new WaitForEndOfFrame();
+            var m = ScreenCapture.CaptureScreenshotAsTexture();
+            File.WriteAllBytes(maskPath, m.EncodeToPNG());
+            Destroy(m);
+            _fx.SetMaskMaterial(null);
+            if (_volume != null) _volume.enabled = vol;
+            fxD.renderPostProcessing = fxPost;
+            prD.renderPostProcessing = prPost;
+            Time.timeScale = ts;
+            _paused = wasPaused;
+            _capturing = false;
+            Debug.Log($"[TBD] Captura y máscara de efectos: {normalPath}");
         }
 
         void ToggleRecording()
@@ -1009,9 +1052,8 @@ namespace TBD.View
                 int cd = s.Kind == SoldierKind.MachineGun ? _combat.MgCooldown : _combat.RifleCooldown;
                 if (s.Cooldown == cd && _fx != null)
                 {
-                    var from = tr.position + new Vector3(0f, 0.6f, 0f);
                     var dir = new Vector3(Mathf.Sin(s.Heading), 0f, Mathf.Cos(s.Heading));
-                    _fx.Volley(from, from + dir * 25f, 1);
+                    _fx.Shot(tr.position + new Vector3(0f, 0.6f, 0f) + dir * 0.5f, dir);
                 }
             }
             ss.Dispose();
