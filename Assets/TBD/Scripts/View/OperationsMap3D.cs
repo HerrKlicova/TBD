@@ -59,6 +59,7 @@ namespace TBD.View
         Texture2D _detailTex;
         Vector3 _detailCenter = new Vector3(-9999, 0, -9999);
         Vector3[] _coarseVerts, _coarseWork;
+        Color32[] _detailBase, _detailPx;               // colores de relieve del parche de detalle y con la mancha encima
         GUIStyle _label, _small, _title;
         Texture2D _panelTex;
         GUIStyle _panel;
@@ -228,6 +229,7 @@ namespace TBD.View
                     lr.SetPosition(i, MapToWorld(MapGeo.Lerp(a.XMeters, b.XMeters, t), MapGeo.Lerp(a.YMeters, b.YMeters, t), 0.02f));
                 }
                 lr.widthMultiplier = 0.6f;
+                lr.useWorldSpace = false;                       // se elevan moviendo el objeto según la distancia de la cámara
                 lr.sharedMaterial = new Material(_lineMat);          // un material por vía: el Unlit de URP no usa el color de vértice
                 lr.numCapVertices = 2;
                 _rails.Add(lr);
@@ -271,7 +273,7 @@ namespace TBD.View
             var g = _a.Graph;
             // tamaño constante en pantalla: los marcadores y las vías se escalan con la distancia de la cámara
             float k = Mathf.Clamp(_dist / 230f, 0.0015f, 2f);
-            foreach (var r in _rails) r.widthMultiplier = 0.6f * k;
+            foreach (var r in _rails) { r.widthMultiplier = 0.6f * k; r.transform.position = new Vector3(0f, 0.05f * k + 0.01f, 0f); }
             for (int i = 0; i < _nodes.Count; i++) _nodes[i].localScale = new Vector3(1.6f, 0.3f, 1.6f) * k;
             foreach (var t in _trains) t.localScale = new Vector3(0.9f, 0.5f, 2.4f) * Mathf.Max(k, 0.004f);
             for (int i = 0; i < g.Edges.Count; i++)
@@ -291,7 +293,7 @@ namespace TBD.View
                 {
                     var n = g.Nodes[s.AtStop || t.Route.Count == 0 ? s.Stops[s.StopIndex].Node : t.Route[t.Route.Count - 1]];
                     float kk = Mathf.Clamp(_dist / 230f, 0.004f, 2f);
-                    p = MapToWorld(n.XMeters, n.YMeters, 0.6f * kk) + new Vector3(1.2f * (i - 1) * kk, 0, 0);
+                    p = MapToWorld(n.XMeters, n.YMeters, 0.6f * kk) + (_dist > 20f ? new Vector3(1.2f * (i - 1) * kk, 0, 0) : Vector3.zero);
                 }
                 else
                 {
@@ -314,7 +316,7 @@ namespace TBD.View
         {
             HandleInput();
             long fieldTick = _a.Tick / NetConst.FieldEvery;
-            if (fieldTick != _lastFieldTick) { _lastFieldTick = fieldTick; UpdateTexture(); }
+            if (fieldTick != _lastFieldTick) { _lastFieldTick = fieldTick; UpdateTexture(); UpdateDetailTexture(); }
             UpdateNetwork();
             UpdateCamera();
             UpdateDetail();
@@ -372,6 +374,34 @@ namespace TBD.View
             var c = new Vector3(_focus.x, 0, _focus.z);
             if (_detail != null && _detail.activeSelf && (c - _detailCenter).magnitude < DetailSizeKm * 0.25f) return;
             BuildDetail(c);
+        }
+
+        /// <summary>La mancha de horda también de cerca (Lucía: al volver de una zona a 2,5 km tiene que verse alrededor de la estación).</summary>
+        void UpdateDetailTexture()
+        {
+            if (_detail == null || !_detail.activeSelf || _detailBase == null) return;
+            const int TW = 256;
+            float half = DetailSizeKm * 0.5f;
+            var f = _a.Field;
+            for (int y = 0; y < TW; y++)
+                for (int x = 0; x < TW; x++)
+                {
+                    float wx = _detailCenter.x - half + DetailSizeKm * x / (TW - 1f);
+                    float wz = _detailCenter.z - half + DetailSizeKm * y / (TW - 1f);
+                    float mx = MinX + wx / (float)MapGeo.KmPerUnit, my = MaxY - wz / (float)MapGeo.KmPerUnit;
+                    float u = mx - 0.5f, v = my - 0.5f;
+                    int x0 = Mathf.FloorToInt(u), y0 = Mathf.FloorToInt(v);
+                    float fx = u - x0, fy = v - y0;
+                    float d = Mathf.Lerp(Mathf.Lerp(f.At(x0, y0), f.At(x0 + 1, y0), fx), Mathf.Lerp(f.At(x0, y0 + 1), f.At(x0 + 1, y0 + 1), fx), fy) / 1000f;
+                    var c = _detailBase[y * TW + x];
+                    float a = Mathf.Clamp01((d - 0.08f) * 1.6f) * 0.85f;
+                    // de cerca, la mancha se ve como un moteado (puntos de horda), no como una tinta lisa
+                    uint hsh = (uint)(x * 73856093) ^ (uint)(y * 19349663);
+                    bool dot = (hsh % 1000) < d * 1000f;
+                    _detailPx[y * TW + x] = a > 0 ? Color32.Lerp(c, dot ? new Color32(70, 10, 14, 255) : new Color32(150, 22, 26, 255), dot ? Mathf.Min(1f, a + 0.3f) : a) : c;
+                }
+            _detailTex.SetPixels32(_detailPx);
+            _detailTex.Apply(true);
         }
 
         /// <summary>Altura que tiene el terreno grueso (interpolado en su triángulo) en un punto del mundo.</summary>
@@ -450,9 +480,10 @@ namespace TBD.View
             }
             _detailMesh.RecalculateNormals();
             _detailMesh.RecalculateBounds();
-            _detailTex.SetPixels32(cols);
-            _detailTex.Apply(true);
+            _detailBase = cols;
+            _detailPx = new Color32[cols.Length];
             _detail.SetActive(true);
+            UpdateDetailTexture();
 
             // el terreno grueso se hunde bajo el parche de detalle (con un margen) para que no asome por encima
             System.Array.Copy(_coarseVerts, _coarseWork, _coarseVerts.Length);
@@ -555,13 +586,13 @@ namespace TBD.View
             var g = _a.Graph;
             foreach (var n in g.Nodes)
             {
-                var sp = _cam.WorldToScreenPoint(MapToWorld(n.XMeters, n.YMeters, 0.8f));
+                var sp = _cam.WorldToScreenPoint(MapToWorld(n.XMeters, n.YMeters, 0.8f * Mathf.Clamp(_dist / 230f, 0.0015f, 2f)));
                 if (sp.z <= 0) continue;
                 GUI.Label(new Rect(sp.x + 8, Screen.height - sp.y - 10, 220, 30), n.Name, _small);
             }
             for (int i = 0; i < _trains.Count; i++)
             {
-                var sp = _cam.WorldToScreenPoint(_trains[i].position + Vector3.up * 0.8f);
+                var sp = _cam.WorldToScreenPoint(_trains[i].position + Vector3.up * 0.8f * Mathf.Clamp(_dist / 230f, 0.0015f, 2f));
                 if (sp.z <= 0) continue;
                 GUI.Label(new Rect(sp.x - 30, Screen.height - sp.y - 26, 160, 30), "<b><color=#FFF0A0>" + _a.Services[i].Train.Name + "</color></b>", _small);
             }
