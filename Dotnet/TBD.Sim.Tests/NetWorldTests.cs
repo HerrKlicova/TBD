@@ -136,6 +136,9 @@ namespace TBD.Sim.Tests
                 wz.Push(new NetCommand { Tick = wz.Tick, Type = NetCmdType.Materialize, Arg = 0 });
                 wz.Step();
                 check(wz.ActiveZoneNode == teruel, "con una zona activa, otra orden de materializar se ignora (MVP: una zona)");
+                int ti = tn.YMeters * HordeField.W + tn.XMeters;
+                for (int k2 = 0; k2 < 3000; k2++) wz.Step();                     // 200 pasos de la mancha con la zona activa
+                check(wz.Field.D[ti] == 0 && wz.Field.Mass() == mass0 - 300, $"con la zona activa la celda del nodo está congelada: no se rellena ({wz.Field.D[ti]}) y la masa se conserva");
                 long massMid = wz.Field.Mass();
                 wz.Push(new NetCommand { Tick = wz.Tick, Type = NetCmdType.Dematerialize, Arg = teruel, Arg2 = 180 });   // 1.800 vivos de 3.000
                 wz.Step();

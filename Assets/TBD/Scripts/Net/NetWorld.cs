@@ -99,6 +99,12 @@ namespace TBD.Net
                 }
         }
 
+        /// <summary>
+        /// Celda congelada (-1 = ninguna): la del nodo con una zona en detalle. No da ni recibe masa mientras la zona existe
+        /// (decisión de Sara/Mak, QA H3): si no, la difusión la rellenaría y al volver se sumaría a lo devuelto (masa duplicada).
+        /// </summary>
+        public int Frozen = -1;
+
         public void Step(RailGraph g, int[] attraction)
         {
             // potencial: suma de atracciones de los nodos, que cae con la distancia (Manhattan, enteros)
@@ -123,14 +129,15 @@ namespace TBD.Net
                     int d = D[i];
                     if (d == 0) continue;
                     int keep = d;
-                    // difusión: 1/48 a cada vecino
+                    if (i == Frozen) { _next[i] += keep; continue; }
+                    // difusión: 1/48 a cada vecino (nunca hacia la celda congelada)
                     int share = d / 48;
                     if (share > 0)
                     {
-                        if (x > 0) { _next[i - 1] += share; keep -= share; }
-                        if (x < W - 1) { _next[i + 1] += share; keep -= share; }
-                        if (y > 0) { _next[i - W] += share; keep -= share; }
-                        if (y < H - 1) { _next[i + W] += share; keep -= share; }
+                        if (x > 0 && i - 1 != Frozen) { _next[i - 1] += share; keep -= share; }
+                        if (x < W - 1 && i + 1 != Frozen) { _next[i + 1] += share; keep -= share; }
+                        if (y > 0 && i - W != Frozen) { _next[i - W] += share; keep -= share; }
+                        if (y < H - 1 && i + W != Frozen) { _next[i + W] += share; keep -= share; }
                     }
                     // deriva: 1/60 hacia el vecino de más potencial (orden fijo de vecinos en los empates), si no está ya cargado
                     int best = -1;
@@ -139,7 +146,7 @@ namespace TBD.Net
                     if (x < W - 1 && _pot[i + 1] > bp) { bp = _pot[i + 1]; best = i + 1; }
                     if (y > 0 && _pot[i - W] > bp) { bp = _pot[i - W]; best = i - W; }
                     if (y < H - 1 && _pot[i + W] > bp) { bp = _pot[i + W]; best = i + W; }
-                    if (best >= 0 && D[best] < DriftStop)
+                    if (best >= 0 && best != Frozen && D[best] < DriftStop)
                     {
                         int move = d / 60;
                         _next[best] += move;
@@ -157,7 +164,7 @@ namespace TBD.Net
                 int[] nb = { x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, y > 0 ? i - W : -1, y < H - 1 ? i + W : -1 };
                 foreach (int j in nb)
                 {
-                    if (j < 0 || over == 0) continue;
+                    if (j < 0 || j == Frozen || over == 0) continue;
                     int room = Max - _next[j];
                     if (room <= 0) continue;
                     int m = Math.Min(room, over);
@@ -269,6 +276,7 @@ namespace TBD.Net
             ActiveZoneTaken = Field.D[i];
             ActiveZoneSinceTick = Tick;
             Field.D[i] = 0;
+            Field.Frozen = i;
         }
 
         /// <summary>Los zombis vivos de la zona vuelven a la celda del nodo (las bajas se pierden: la horda pierde masa, D-N05).</summary>
@@ -278,6 +286,7 @@ namespace TBD.Net
             var n = Graph.Nodes[node];
             int i = n.YMeters * HordeField.W + n.XMeters;
             Field.D[i] += Math.Max(0, returnPermil);
+            Field.Frozen = -1;
             ActiveZoneNode = -1;
             ActiveZoneTaken = 0;
             ActiveZoneSinceTick = -1;

@@ -124,9 +124,18 @@ namespace TBD.View
             uint seed = SimWorldSetup.Seed;
             if (NetSession.PendingZoneNode >= 0)
             {
-                // La orden Materialize se aplica en el siguiente tick de la red: se espera a que esté (como mucho 2 s).
+                // La orden Materialize se aplica en el siguiente tick de la red (también en pausa). Se espera a que esté; si en 10 s
+                // no ha llegado, se vuelve al mapa en vez de crear una zona vacía que perdería masa (QA Q13).
                 float t0 = Time.realtimeSinceStartup;
-                while (NetSession.A.ActiveZoneNode != NetSession.PendingZoneNode && Time.realtimeSinceStartup - t0 < 2f) yield return null;
+                while (NetSession.A.ActiveZoneNode != NetSession.PendingZoneNode && Time.realtimeSinceStartup - t0 < 10f) yield return null;
+                if (NetSession.A.ActiveZoneNode != NetSession.PendingZoneNode)
+                {
+                    Debug.LogError("[TBD] La orden Materialize no llegó en 10 s: se vuelve al mapa sin crear la zona.");
+                    NetSession.ReturnFromNode = NetSession.PendingZoneNode;
+                    NetSession.PendingZoneNode = -1;
+                    SceneManager.LoadScene("Union");
+                    yield break;
+                }
                 var net = NetSession.A;
                 _zoneNode = NetSession.PendingZoneNode;
                 NetSession.PendingZoneNode = -1;
