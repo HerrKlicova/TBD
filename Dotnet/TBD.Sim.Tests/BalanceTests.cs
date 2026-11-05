@@ -92,6 +92,19 @@ namespace TBD.Sim.Tests
                 check(n == 3, $"casos_prueba.csv trae P1d, P1e y P1f ({n})");
             }
 
+            // ---- D-N27: desde el tren parado no hay tope de cadencia (es como un muro); a pie sí
+            {
+                long cap = eco.PositiveValue("combate_abatidos_tirador_contacto"), bxc = eco.Value("combate_bajas_por_z_contacto");
+                var tren = BalanceMath.Engage(2000, 9000, 0, false, true, 21, 400, bonus, cap, bxc);
+                var pie = BalanceMath.Engage(2000, 9000, 0, false, false, 21, 400, bonus, cap, bxc);
+                check(tren.Killed == 2000 && tren.Alive == 0 && !tren.Capped && tren.FortDamageMil == 0,
+                    $"desde el tren parado, 21 tiradores con 9 u limpian 2.000 sin tope ({tren.Killed} abatidos, gasto {tren.SpentMil})");
+                check(pie.Killed == 1134 && pie.Alive == 866 && pie.Capped && pie.CasualtiesMil == 12124,
+                    $"a pie, el mismo asalto topa en la cadencia ({pie.Killed} abatidos, {pie.Alive} llegan, bajas {pie.CasualtiesMil}) = P1d");
+                var poca = BalanceMath.Engage(2000, 2000, 0, false, false, 30, 400, bonus, cap, bxc);
+                check(poca.Killed == 800, $"a pie y con poca munición manda la munición (2 u = 800 abatidos: {poca.Killed})");
+            }
+
             // ---- P2: presupuesto de la Colmena. Los esperados se LEEN de casos_prueba.csv: cuando Hugo recalibra (D-N25), basta
             // con copiar sus CSV; la prueba sigue comprobando que el código y su modelo dan lo mismo.
             long h0 = col.Value("H0_zombis_dia"), k = col.Value("k_huella");

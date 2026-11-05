@@ -142,6 +142,35 @@ namespace TBD.Net
             return r;
         }
 
+        public struct EngagementResult { public long Killed, Alive, SpentMil, FortDamageMil, CasualtiesMil; public bool Capped; }
+
+        /// <summary>
+        /// Regla de combate S0 completa (D-N27, Hugo y Lucía): quien dispara tras un muro de estación o desde un tren PARADO no tiene
+        /// tope de cadencia (combate por munición, Combat; el tren cuenta como muro aunque la estación no tenga). A pie o en una
+        /// estación sin muros ni tren hay tope por cadencia (Assault) y además manda la munición disponible.
+        /// </summary>
+        public static EngagementResult Engage(long zombies, long ammoMil, long fortLevelMil, bool stationWalls, bool trainStopped, long shooters,
+                                              long zombiesPerU, long fortBonusMil, long killsPerShooter, long casualtiesPerContactMil)
+        {
+            var r = new EngagementResult();
+            if (stationWalls || trainStopped)
+            {
+                var c = Combat(zombies, ammoMil, stationWalls ? fortLevelMil : 0, true, zombiesPerU, fortBonusMil);
+                r.Killed = zombies - c.Alive; r.Alive = c.Alive; r.SpentMil = c.SpentMil;
+                r.FortDamageMil = stationWalls ? c.FortDamageMil : 0;        // el tren no pierde materiales de fortificación
+                r.CasualtiesMil = c.CasualtiesMil;
+                return r;
+            }
+            var a = Assault(zombies, shooters, killsPerShooter, casualtiesPerContactMil);
+            long ammoKills = ammoMil * zombiesPerU / 1000;                      // tampoco se abate más de lo que da la munición
+            r.Killed = Math.Min(a.Killed, ammoKills);
+            r.Capped = a.Killed < zombies;
+            r.Alive = zombies - r.Killed;
+            r.SpentMil = Math.Min(ammoMil, r.Killed * 1000 / zombiesPerU);
+            r.CasualtiesMil = r.Alive * casualtiesPerContactMil;
+            return r;
+        }
+
         /// <summary>Presupuesto diario de la Colmena (§4), sin estación, rampa ni ruido: H0 · tabla/1000 · raíz(1 + k·huella).</summary>
         public static long HiveBudget(long h0, long tableX1000, long kHuellaMil, long huellaMil, out long rootMil)
         {
