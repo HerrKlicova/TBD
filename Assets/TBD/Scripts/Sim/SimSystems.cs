@@ -169,7 +169,8 @@ namespace TBD.Sim
             var flow = SystemAPI.GetBuffer<CellFlowVec>(root).Reinterpret<float2>().AsNativeArray();
 
             // Doble búfer (regla 5): cada zombi lee la pila del tick anterior y solo escribe deltas (sumas enteras conmutativas).
-            var snapshot = new NativeArray<int>(pile.Length, Allocator.Temp);
+            // TempJob y no Temp: IJobEntity.Run() pasa por el planificador y rechaza contenedores Temp (visto en Unity 6000.3).
+            var snapshot = new NativeArray<int>(pile.Length, Allocator.TempJob);
             snapshot.CopyFrom(pile);
 
             new ZombieStepJob { Solids = solids, BucketStart = bStart, BucketRefs = bRefs, PileRead = snapshot, FlowVec = flow, PileDelta = delta }.Run();
