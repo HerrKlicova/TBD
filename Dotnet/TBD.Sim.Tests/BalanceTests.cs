@@ -14,6 +14,19 @@ namespace TBD.Sim.Tests
             return d == null ? null : Path.Combine(d.FullName, "Assets", "TBD", "Data");
         }
 
+        /// <summary>«dia=10 · huella_mil=5000» → diccionario de enteros (los campos que no son enteros se ignoran).</summary>
+        static System.Collections.Generic.Dictionary<string, long> Fields(string s)
+        {
+            var d = new System.Collections.Generic.Dictionary<string, long>();
+            foreach (var part in s.Split('·'))
+            {
+                var kv = part.Split('=');
+                if (kv.Length != 2) continue;
+                try { d[kv[0].Trim()] = CsvTable.Int(kv[1]); } catch (FormatException) { }
+            }
+            return d;
+        }
+
         public static void Run(Action<bool, string> check)
         {
             Console.WriteLine("[11] Balance v1 (Hugo): CSV y casos de prueba P1-P6");
@@ -59,15 +72,26 @@ namespace TBD.Sim.Tests
             var c1 = BalanceMath.Combat(2400, 4000, 0, false, fortBonusMil: bonus);
             check(c1.Eff == 400 && c1.SpentMil == 4000 && c1.Alive == 800 && c1.CasualtiesMil == 9600, $"P1c: eff {c1.Eff}, vivos {c1.Alive}, bajas {c1.CasualtiesMil} (esperado 400 · 800 · 9600)");
 
-            // ---- P2: presupuesto de la Colmena
+            // ---- P2: presupuesto de la Colmena. Los esperados se LEEN de casos_prueba.csv: cuando Hugo recalibra (D-N25), basta
+            // con copiar sus CSV; la prueba sigue comprobando que el código y su modelo dan lo mismo.
             long h0 = col.Value("H0_zombis_dia"), k = col.Value("k_huella");
-            long r1, r2, r3;
-            long h10 = BalanceMath.HiveBudget(h0, table[10], k, 5000, out r1);
-            long h37 = BalanceMath.HiveBudget(h0, table[37], k, 12000, out r2);
-            long h150 = BalanceMath.HiveBudget(h0, table[150], k, 40000, out r3);
-            check(table[10] == 1764 && r1 == 1581 && h10 == 4461, $"P2 día 10: tabla {table[10]}, raíz {r1}, H {h10} (esperado 1764 · 1581 · 4461)");
-            check(table[37] == 4332 && r2 == 2144 && h37 == 14860, $"P2 día 37: tabla {table[37]}, raíz {r2}, H {h37} (esperado 4332 · 2144 · 14860)");
-            check(table[150] == 20007 && r3 == 3605 && h150 == 115399, $"P2 día 150: tabla {table[150]}, raíz {r3}, H {h150} (esperado 20007 · 3605 · 115399)");
+            var casos = new CsvTable(File.ReadAllText(Path.Combine(dir, "casos_prueba.csv")));
+            int p2 = 0;
+            foreach (var row in casos.Rows)
+            {
+                if (!row[0].StartsWith("P2")) continue;
+                var inp = Fields(row[casos.Col("entradas")]);
+                var exp = Fields(row[casos.Col("esperado")]);
+                long dia = inp["dia"], huella = inp["huella_mil"];
+                long root;
+                long h = BalanceMath.HiveBudget(h0, table[dia], k, huella, out root);
+                check(table[dia] == exp["tabla"] && root == exp["raiz_mil"] && h == exp["H"],
+                    $"{row[0]}: tabla {table[dia]}, raíz {root}, H {h} (esperado {exp["tabla"]} · {exp["raiz_mil"]} · {exp["H"]})");
+                p2++;
+            }
+            check(p2 >= 3, $"casos_prueba.csv trae los casos P2 ({p2})");
+            var dif = new CsvTable(File.ReadAllText(Path.Combine(dir, "balance_dificultad.csv")));
+            check(dif.Rows.Exists(r => r[0] == "normal"), "balance_dificultad.csv tiene el nivel «normal»");
 
             // ---- P3: memoria de tráfico, jugador rutinario (sin derrame)
             long inc = col.Value("memoria_trafico_inc"), dec = col.Value("memoria_trafico_decae_dia");

@@ -2,9 +2,9 @@ id;descripcion;entradas;esperado
 P1a;Combate S0 con munición insuficiente;z=2400 · municion_mil=4000 · nivel_fort_mil=2000;eff=560 · gasto_mil=4000 · vivos=160 · danio_fort_mil=1600 · bajas_mil=640
 P1b;Combate S0 con munición suficiente;z=2400 · municion_mil=9000 · nivel_fort_mil=2000;eff=560 · gasto_mil=4285 · vivos=0
 P1c;Combate S0 sin muros (bajas x3);z=2400 · municion_mil=4000 · nivel_fort_mil=0 · fort=0;eff=400 · gasto_mil=4000 · vivos=800 · bajas_mil=9600
-P2-d10;Presupuesto de la Colmena (sin estación, rampa ni ruido);dia=10 · huella_mil=5000;tabla=1764 · raiz_mil=1581 · H=4461
-P2-d37;Presupuesto de la Colmena (sin estación, rampa ni ruido);dia=37 · huella_mil=12000;tabla=4332 · raiz_mil=2144 · H=14860
-P2-d150;Presupuesto de la Colmena (sin estación, rampa ni ruido);dia=150 · huella_mil=40000;tabla=20007 · raiz_mil=3605 · H=115399
+P2-d10;Presupuesto de la Colmena (sin estación, rampa ni ruido);dia=10 · huella_mil=5000;tabla=1874 · raiz_mil=1341 · H=4020
+P2-d37;Presupuesto de la Colmena (sin estación, rampa ni ruido);dia=37 · huella_mil=12000;tabla=5070 · raiz_mil=1708 · H=13855
+P2-d150;Presupuesto de la Colmena (sin estación, rampa ni ruido);dia=150 · huella_mil=40000;tabla=27580 · raiz_mil=2720 · H=120028
 P3;Memoria de tráfico, jugador rutinario (inc 200, decae 850, sin derrame);1 paso/día a la misma hora, días 1–10;memoria_al_pasar=0,170,314,436,540,629,704,768,822,868 | sucesos=-,-,-,aviso,aviso,emboscada,emboscada,emboscada,emboscada,corte
 P4;Pila en un muro de sacos de 60 m (altura 1200 mm);h0=0 · hora1: vivos=900 abatidos=2100 · hora2: sin presión · alternativa hora2: vivos=600 abatidos=1000;hora1=740 mm brecha=0 · hora2=590 mm · alternativa=1206 mm brecha=1
 P5;Viaje ida y vuelta con carga y descarga;Sagunto–Teruel 130 km · Sagunto–Zaragoza 310 km · vel 60;teruel_ticks=12500 · zaragoza_ticks=21500 · viajes_teruel_por_tren_dia_mil=1920

@@ -1,0 +1,4 @@
+nivel;H0;alfa_x1000;k_huella_x1000;interdiccion_max_x1000;nota
+facil;1600;1500;120;370;equilibrado ~2 %, prisa ~11 %
+normal;1600;1550;160;370;equilibrado ~5 %, prisa ~42 %, escasez ~45 % (por defecto)
+veterano;1800;1400;220;370;equilibrado ~12 %, prisa ~75 %

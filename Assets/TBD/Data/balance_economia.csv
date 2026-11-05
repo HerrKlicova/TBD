@@ -44,7 +44,7 @@ municion_reposo_nodo_dia;500;1000;
 checkpoint_p_brote_por_persona;12;1000;solo al aceptar sin cuarentena
 checkpoint_z_brote;400;1;zombis que aparecen en la estación
 checkpoint_bajas_brote;80;1000;fracción de población
-checkpoint_cupo_cuarentena_ciudad;12;1;personas/día, 1/3 en apeaderos
+checkpoint_cupo_cuarentena_ciudad;40;1;plazas por oleada/día, apeadero 0
 checkpoint_coste_cuarentena;2;1;x víveres durante el día de cuarentena
 checkpoint_z_por_rechazado;25;1;zombis extra en la estación
 checkpoint_decae_rechazados;600;1000;por día
@@ -62,3 +62,15 @@ asedio_refuerzo_municion;30;1;u que trae el tren
 limpiar_z_base;600;1;
 limpiar_z_por_km;4;1;
 colapso_dias_sin_combustible;5;1;derrota §3b (PROTOTIPO)
+oleada_p_dia_ciudad;100;1000;
+oleada_grupos_min;4;1;
+oleada_grupos_max;8;1;
+heridos_dias_curar;5;1;
+moral_por_familiar;10;1000;+producción del nodo por familiar
+moral_max;250;1000;
+moral_por_rechazo;500;1000;familiares de moral perdidos por cada rechazado vulnerable
+reputacion_mult_familia;3;1;echar a familias y heridos cuesta x3 de reputación
+reputacion_umbral_moral;500;1000;por debajo, la moral cae
+reputacion_pen_produccion;100;1000;producción perdida con mala fama
+cupo_cuarentena_estacion;20;1;
+cupo_cuarentena_nudo;60;1;
