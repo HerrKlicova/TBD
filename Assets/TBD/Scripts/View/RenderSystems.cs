@@ -79,14 +79,15 @@ namespace TBD.View
         }
 
         // Verdes y grises de la paleta de 32 colores
-        static float4 ColorFor(uint id)
+        public static float4 ColorFor(uint id)
         {
+            // Revisión de arte de Lucía (5-nov): zombis OSCUROS sobre suelo claro, para que la horda se lea de un vistazo
             switch (math.hash(new uint2(id, 5u)) & 3u)
             {
-                case 0: return Srgb(0x6c, 0x78, 0x74);
-                case 1: return Srgb(0x70, 0x78, 0x4c);
-                case 2: return Srgb(0x88, 0x88, 0x5c);
-                default: return Srgb(0x60, 0x5c, 0x48);
+                case 0: return Srgb(0x30, 0x34, 0x24);
+                case 1: return Srgb(0x28, 0x34, 0x40);
+                case 2: return Srgb(0x48, 0x40, 0x3c);
+                default: return Srgb(0x44, 0x2c, 0x0c);
             }
         }
 

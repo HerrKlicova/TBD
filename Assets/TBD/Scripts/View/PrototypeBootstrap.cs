@@ -207,7 +207,10 @@ namespace TBD.View
             if (kb.periodKey.wasPressedThisFrame) _paletteMix = Mathf.Min(1f, _paletteMix + 0.25f);
             if (kb.pKey.wasPressedThisFrame) _paused = !_paused;
             if (kb.f3Key.wasPressedThisFrame) ToggleCheck();
-            if (kb.f9Key.wasPressedThisFrame) SaveScreenshot();
+            if (kb.f9Key.wasPressedThisFrame)
+            {
+                if (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed) SaveScreenshotWithMask(); else SaveScreenshot();
+            }
             if (kb.f10Key.wasPressedThisFrame) ToggleRecording();
 
             if (kb.bKey.wasPressedThisFrame) { _buildMode = !_buildMode; _hasWallStart = false; }
@@ -464,19 +467,19 @@ namespace TBD.View
             switch (index)
             {
                 case 0:  // día cálido mediterráneo
-                    _grade.colorFilter.Override(new Color(1f, 0.97f, 0.9f));
+                    _grade.colorFilter.Override(new Color(1f, 0.97f, 0.92f));   // día menos lavado: algo más de saturación cálida
                     _grade.postExposure.Override(0f);
-                    _grade.saturation.Override(0f);
+                    _grade.saturation.Override(8f);
                     break;
                 case 1:  // atardecer naranja
-                    _grade.colorFilter.Override(new Color(1f, 0.72f, 0.5f));
-                    _grade.postExposure.Override(-0.2f);
+                    _grade.colorFilter.Override(new Color(1f, 0.8f, 0.62f));
+                    _grade.postExposure.Override(0.1f);
                     _grade.saturation.Override(10f);
                     break;
                 default: // noche casi monocroma
-                    _grade.colorFilter.Override(new Color(0.55f, 0.64f, 0.98f));
-                    _grade.postExposure.Override(-0.7f);
-                    _grade.saturation.Override(-45f);
+                    _grade.colorFilter.Override(new Color(0.7f, 0.8f, 1f));     // noche de luna: suelo legible, horda en silueta oscura
+                    _grade.postExposure.Override(0.25f);
+                    _grade.saturation.Override(-25f);
                     break;
             }
         }
@@ -538,6 +541,69 @@ namespace TBD.View
             string path = Path.Combine(CaptureRoot, $"captura_{System.DateTime.Now:yyyyMMdd_HHmmss}.png");
             StartCoroutine(CaptureRoutine(path));
             Debug.Log($"[TBD] Captura guardada en {path}");
+        }
+
+        /// <summary>
+        /// Shift+F9 (petición de Sara, QA): en pausa y en el mismo fotograma guarda la captura normal y una «máscara» con los zombis en
+        /// magenta puro #FF00FF, sin paleta ni contorno, para medir el contraste horda/suelo con docs/qa/legibilidad_horda.py.
+        /// </summary>
+        public void SaveScreenshotWithMask()
+        {
+            if (_capturing) return;
+            Directory.CreateDirectory(CaptureRoot);
+            string stamp = System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            StartCoroutine(MaskRoutine(Path.Combine(CaptureRoot, $"captura_{stamp}.png"), Path.Combine(CaptureRoot, $"captura_{stamp}_mascara.png")));
+        }
+
+        IEnumerator MaskRoutine(string normalPath, string maskPath)
+        {
+            _capturing = true;
+            bool wasPaused = _paused;
+            _paused = true;
+            yield return new WaitForEndOfFrame();
+            var normal = ScreenCapture.CaptureScreenshotAsTexture();
+            File.WriteAllBytes(normalPath, normal.EncodeToPNG());
+            Destroy(normal);
+
+            var em = _worldA.EntityManager;
+            var q = em.CreateEntityQuery(typeof(Zombie), typeof(ZombieBaseColor));
+            var ents = q.ToEntityArray(Allocator.Persistent);                 // Persistent: cruza fotogramas (Temp se libera al acabar el fotograma)
+            var mat = RenderAssets.ZombieMaterial;
+            var lit = mat.shader;
+            mat.shader = Shader.Find("Universal Render Pipeline/Unlit");
+            var magenta = new Unity.Mathematics.float4(1f, 0f, 1f, 1f);       // #FF00FF también en espacio lineal
+            for (int i = 0; i < ents.Length; i++) em.SetComponentData(ents[i], new ZombieBaseColor { Value = magenta });
+            float mix = _paletteMix;
+            float outline = _quadMat.GetFloat("_OutlineStrength");
+            _paletteMix = 0f;
+            _quadMat.SetFloat("_PaletteMix", 0f);
+            _quadMat.SetFloat("_OutlineStrength", 0f);
+            bool vol = _volume != null && _volume.enabled;
+            if (_volume != null) _volume.enabled = false;                     // sin gradación ni bloom: el magenta tiene que salir puro
+            var fxD = _fxCam.GetUniversalAdditionalCameraData();
+            var prD = _presentCam.GetUniversalAdditionalCameraData();
+            bool fxPost = fxD.renderPostProcessing, prPost = prD.renderPostProcessing;
+            fxD.renderPostProcessing = false;                                   // tampoco el tonemapping de URP
+            prD.renderPostProcessing = false;
+            yield return null;                                                // un fotograma para que Entities Graphics suba los colores
+            yield return new WaitForEndOfFrame();
+            var mask = ScreenCapture.CaptureScreenshotAsTexture();
+            File.WriteAllBytes(maskPath, mask.EncodeToPNG());
+            Destroy(mask);
+
+            for (int i = 0; i < ents.Length; i++)
+                em.SetComponentData(ents[i], new ZombieBaseColor { Value = RenderAttachSystem.ColorFor(em.GetComponentData<Zombie>(ents[i]).SimId) });
+            ents.Dispose();
+            mat.shader = lit;
+            _paletteMix = mix;
+            _quadMat.SetFloat("_PaletteMix", mix);
+            _quadMat.SetFloat("_OutlineStrength", outline);
+            if (_volume != null) _volume.enabled = vol;
+            fxD.renderPostProcessing = fxPost;
+            prD.renderPostProcessing = prPost;
+            _paused = wasPaused;
+            _capturing = false;
+            Debug.Log($"[TBD] Captura y máscara guardadas: {normalPath} · {maskPath}");
         }
 
         void ToggleRecording()
@@ -613,22 +679,28 @@ namespace TBD.View
 
         void SetupVisualAssets()
         {
-            _mGround = Mat("50541c"); _mWall = Mat("88885c"); _mRoof = Mat("6c7874"); _mRail = Mat("94948c");
+            // Revisión de arte de Lucía (5-nov): suelo claro y cálido, tejado de terracota (antes era del color del suelo)
+            _mGround = Mat("b4a080"); _mWall = Mat("88885c"); _mRoof = Mat("a86c50"); _mRail = Mat("94948c");
             _mSleeper = Mat("442c0c"); _mTrain = Mat("303424"); _mWagon = Mat("605c48"); _mGate = Mat("7c3c18");
 
             // Zombi: cápsula de Unity (escalada a 0,5 x 1,8 m en RenderAttachSystem)
             var tmp = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             Mesh capsule = tmp.GetComponent<MeshFilter>().sharedMesh;
             Destroy(tmp);
-            RenderAssets.Set(capsule, Mat("70784c"));
+            RenderAssets.Set(capsule, Mat("ffffff"));       // el color real va por instancia (ZombieBaseColor)
 
             // Luz direccional
-            if (FindFirstObjectByType<Light>() == null)
-            {
-                var l = new GameObject("Sol").AddComponent<Light>();
-                l.type = LightType.Directional;
-                l.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
-            }
+            // Sol bajo (unos 32°), cálido, con sombras proyectadas; la luz ambiente fría tiñe las sombras de azul (revisión de Lucía)
+            var sun = FindFirstObjectByType<Light>();
+            if (sun == null) sun = new GameObject("Sol").AddComponent<Light>();
+            sun.type = LightType.Directional;
+            sun.transform.rotation = Quaternion.Euler(32f, -35f, 0f);
+            sun.color = new Color(1f, 0.95f, 0.86f);
+            sun.intensity = 1.2f;
+            sun.shadows = LightShadows.Soft;
+            sun.shadowStrength = 0.85f;
+            RenderSettings.ambientMode = AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.30f, 0.36f, 0.52f);
         }
 
         GameObject Box(string name, Vector3 center, Vector3 size, Material m, Transform parent = null)
