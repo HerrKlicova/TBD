@@ -1,0 +1,64 @@
+clave;valor;escala;nota
+tren_vagones_carga;5;1;vagones de carga por tren
+tren_u_por_vagon;20;1;u por vagón (1 u = 1 palé)
+tren_vel_kmh;60;1;km/h de juego en vía abierta (D-N11)
+tren_horas_utiles_dia;16;1;horas de servicio por tren y día
+tren_horas_carga_viaje;4000;1000;cargar y descargar 5 vagones
+tren_horas_parada;1000;1000;por estación en la ruta diaria
+tren_comb_dia_plena;16;1;combustible por tren y día a pleno uso
+tren_comb_parado;250;1000;fracción mínima de gasto aunque no trabaje
+tren_coste_materiales;120;1;taller: tren nuevo
+tren_coste_combustible;30;1;
+tren3_demo_coste_materiales;60;1;Tren 3 a medio montar (guion de Lucía)
+tren3_demo_coste_combustible;15;1;
+tren_dias_construir;3;1;
+tren_tripulacion;10;1;personas
+trenes_inicio;2;1;
+trenes_max_etapa2;6;1;
+pob_inicio_sagunto;80;1;
+viveres_por_persona_dia;100;1000;1 u alimenta a 10 personas
+refugiados_ciudad_dia;4;1;antes de reputación
+refugiados_nodo_dia;1;1;
+pob_max_ciudad;250;1;
+pob_max_nodo;60;1;
+hambre_perdida_dia;50;1000;fracción de población perdida por día sin víveres
+guarnicion_minima;12;1;personas para guarnecer y producir al 100 % (nodo)
+plantilla_ciudad;30;1;personas para que una ciudad produzca al 100 %
+reten_apeadero;6;1;
+rend_ciudad_max;2000;1000;ciudad: f = min(max, 1 + 0,5·(pob/req − 1)) si pob > req
+rend_ciudad_pendiente;500;1000;
+acero_sagunto_dia;80;1;materiales
+fundar_materiales;30;1;
+puente_jiloca_materiales;80;1;
+puente_jiloca_dias;2;1;
+fabrica_municion_materiales;80;1;
+fabrica_municion_combustible;20;1;
+fabrica_municion_u_dia;8;1;
+fabrica_consumo_materiales_dia;2;1;
+fort_materiales_por_nivel;30;1;
+fort_nivel_max;5;1;
+fort_bonus_por_nivel;200;1000;+20 % de eficacia por nivel
+fort_desgaste_dia;10;1000;sobre el valor fortificado
+focos_combustible_por_nivel_dia;400;1000;
+municion_reposo_nodo_dia;500;1000;
+checkpoint_p_brote_por_persona;12;1000;solo al aceptar sin cuarentena
+checkpoint_z_brote;400;1;zombis que aparecen en la estación
+checkpoint_bajas_brote;80;1000;fracción de población
+checkpoint_cupo_cuarentena_ciudad;12;1;personas/día, 1/3 en apeaderos
+checkpoint_coste_cuarentena;2;1;x víveres durante el día de cuarentena
+checkpoint_z_por_rechazado;25;1;zombis extra en la estación
+checkpoint_decae_rechazados;600;1000;por día
+checkpoint_reputacion_por_rechazo;20;1000;
+checkpoint_reputacion_min;300;1000;
+checkpoint_reputacion_recupera_dia;10;1000;
+municion_disparos_por_u;2000;1;disparos de fusil equivalentes (D-N08)
+disparo_fusil_equiv;1;1;
+disparo_ametralladora_equiv_s;8;1;
+disparo_obus_equiv;100;1;
+combate_z_por_u;400;1;zombis comunes por u sin muros, CALIBRAR en zona (prueba P6)
+combate_danio_fort_por_z;10;1000;materiales por zombi no abatido
+combate_bajas_por_z;4;1000;personas por zombi no abatido, x3 sin muros
+asedio_refuerzo_municion;30;1;u que trae el tren
+limpiar_z_base;600;1;
+limpiar_z_por_km;4;1;
+colapso_dias_sin_combustible;5;1;derrota §3b (PROTOTIPO)

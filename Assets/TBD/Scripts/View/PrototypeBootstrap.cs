@@ -75,7 +75,7 @@ namespace TBD.View
         ColorAdjustments _grade;
         Bloom _bloom;
         int _factor = 3;                              // factor de pixelado N (PROTOTIPO: 2-4)
-        float _paletteMix = 1f;
+        float _paletteMix = 0.65f;                     // mezcla con la paleta en el mundo 3D (Lucía, D-4 de dirección visual): el ocre y el ámbar no viran
         int _gradeIndex;
         int _lastW, _lastH;
         float _orthoSize = 18f;

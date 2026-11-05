@@ -18,6 +18,8 @@
     <Compile Include="Program.cs" />
     <Compile Include="RailTests.cs" />
     <Compile Include="NetWorldTests.cs" />
+    <Compile Include="BalanceTests.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Net\Balance.cs" Link="Net\Balance.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\NetWorld.cs" Link="Net\NetWorld.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Relief.cs" Link="Net\Relief.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\RailNet.cs" Link="Net\RailNet.cs" />

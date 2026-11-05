@@ -1,0 +1,36 @@
+clave;valor;escala;nota
+H0_zombis_dia;1600;1;presupuesto diario del director el día 0
+tau_dias;20;1;curva H = H0·(1+d/τ)^α·raiz(1+k·huella)
+alfa;1400;1000;usar la tabla colmena_curva.csv
+k_huella;300;1000;raíz con isqrt sobre milésimas
+huella_por_persona;10;1000;
+huella_por_tren;500;1000;
+huella_por_nodo;400;1000;
+huella_por_obra;1500;1000;
+rampa_dia0;150;1000;sondeos (D-N08)
+rampa_dia1;500;1000;
+rampa_dia2;800;1000;primer asedio anunciado
+exposicion_interior;1400;1000;
+sigma_ataque;300;1000;ruido lognormal, semilla del lockstep
+asedio_fraccion_H;450;1000;
+asedio_mult;1800;1000;
+asedio_grande_cada_dias;7;1;
+asedio_grande_mult;2000;1000;
+asedios_max_etapa1;1;1;D-N08
+asedios_max_etapa2;2;1;
+asedios_max_etapa3;3;1;
+estacion_amplitud;150;1000;
+estacion_periodo_dias;30;1;demo, campaña por definir
+interdiccion_base;40;1000;fracción de horas-tren perdidas
+interdiccion_por_H;120;1000;
+interdiccion_H_ref;3000;1;
+interdiccion_max;350;1000;
+asedio_horas_tren;6;1;horas de un tren por asedio defendido
+memoria_trafico_inc;200;1;por paso de tren en su franja (validado, D-N18)
+memoria_trafico_derrame;500;1000;a cada franja vecina
+memoria_trafico_decae_dia;850;1000;
+memoria_trafico_franjas;6;1;de 4 h
+memoria_umbral_aviso;400;1;
+memoria_umbral_emboscada;600;1;
+memoria_umbral_corte;850;1;
+memoria_atencion_horas_dia;6;1;horas de juego acumuladas en una zona
