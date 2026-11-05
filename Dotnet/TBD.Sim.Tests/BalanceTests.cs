@@ -40,6 +40,11 @@ namespace TBD.Sim.Tests
             try { CsvTable.Int("1,5"); } catch (FormatException) { rejects = true; }
             check(rejects, "un valor con decimales («1,5») se rechaza");
 
+            bool zeroCaught = false;
+            try { BalanceMath.Combat(100, 1000, 0, true, zombiesPerU: 0); } catch (ArgumentOutOfRangeException) { zeroCaught = true; }
+            bool zeroCaught2 = false;
+            try { BalanceMath.CityFactorMil(10, 0); } catch (ArgumentOutOfRangeException) { zeroCaught2 = true; }
+            check(zeroCaught && zeroCaught2, "un 0 en un divisor del balance da un error claro, no una división por cero (QA Q11)");
             var eco = new CsvTable(File.ReadAllText(Path.Combine(dir, "balance_economia.csv")));
             var col = new CsvTable(File.ReadAllText(Path.Combine(dir, "balance_colmena.csv")));
             var pila = new CsvTable(File.ReadAllText(Path.Combine(dir, "balance_pila.csv")));
@@ -88,13 +93,13 @@ namespace TBD.Sim.Tests
             check(h1 == 740 && h1 < sacos && h2 == 590 && alt == 1206 && alt >= sacos, $"P4: hora 1 {h1} mm, hora 2 sin presión {h2} mm, alternativa {alt} mm, brecha {(alt >= sacos ? 1 : 0)} (esperado 740 · 590 · 1206 · 1)");
 
             // ---- P5: viajes
-            long vel = eco.Value("tren_vel_kmh"), carga = eco.Value("tren_horas_carga_viaje"), utiles = eco.Value("tren_horas_utiles_dia");
+            long vel = eco.PositiveValue("tren_vel_kmh"), carga = eco.Value("tren_horas_carga_viaje"), utiles = eco.Value("tren_horas_utiles_dia");
             long ter = BalanceMath.RoundTripTicks(130, vel, carga), zar = BalanceMath.RoundTripTicks(310, vel, carga);
             long viajes = utiles * 1500 * 1000 / ter;
             check(ter == 12500 && zar == 21500 && viajes == 1920, $"P5: Teruel {ter} ticks, Zaragoza {zar} ticks, {viajes} viajes/día ×1000 (esperado 12500 · 21500 · 1920)");
 
             // ---- P6: producción de Castellón según población
-            long staff = eco.Value("plantilla_ciudad"), max = eco.Value("rend_ciudad_max"), slope = eco.Value("rend_ciudad_pendiente");
+            long staff = eco.PositiveValue("plantilla_ciudad"), max = eco.Value("rend_ciudad_max"), slope = eco.Value("rend_ciudad_pendiente");
             long[] pops = { 15, 30, 60, 120 }, fac = { 500, 1000, 1500, 2000 }, prod = { 30, 60, 90, 120 };
             bool p6 = true; var p6s = new System.Text.StringBuilder();
             for (int i = 0; i < pops.Length; i++)

@@ -52,6 +52,9 @@ namespace TBD.Net
         }
 
         /// <summary>Para las tablas «clave;valor;escala;nota»: valor de una clave (en su escala: si escala = 1000, son milésimas).</summary>
+        /// <summary>Como Value, pero exige un valor mayor que 0 (QA Q11: los divisores del balance).</summary>
+        public long PositiveValue(string key) { long v = Value(key); BalanceMath.Positive(v, key); return v; }
+
         public long Value(string key)
         {
             int kc = Col("clave"), vc = Col("valor");
@@ -63,6 +66,12 @@ namespace TBD.Net
     /// <summary>Fórmulas del balance v1, en enteros y con redondeo hacia abajo.</summary>
     public static class BalanceMath
     {
+        /// <summary>QA Q11: un 0 (o un negativo) en un divisor del CSV es un error de datos, no una división por cero.</summary>
+        public static void Positive(long v, string name)
+        {
+            if (v <= 0) throw new ArgumentOutOfRangeException(name, v, "El balance necesita un valor mayor que 0 en «" + name + "»");
+        }
+
         public static long ISqrt(long n)
         {
             if (n <= 0) return 0;
@@ -82,6 +91,7 @@ namespace TBD.Net
                                           long zombiesPerU = 400, long fortBonusMil = 200, long fortDamagePerZombieMil = 10,
                                           long casualtiesPerZombieMil = 4, long noWallMult = 3)
         {
+            Positive(zombiesPerU, nameof(zombiesPerU));
             var r = new CombatResult();
             r.Eff = zombiesPerU * (1000 + fortBonusMil * fortLevelMil / 1000) / 1000;
             long neededMil = zombies * 1000 / r.Eff;
@@ -120,6 +130,7 @@ namespace TBD.Net
         /// <summary>Ticks de un viaje de ida y vuelta (§3): a 60 km/h, 1 km = 25 ticks (1 tick = 2,4 s); más la carga y descarga.</summary>
         public static long RoundTripTicks(long km, long speedKmh, long loadHoursMil)
         {
+            Positive(speedKmh, nameof(speedKmh));
             long ticksPerHour = 3600L * 1000 / NetConst.GameMsPerTick;          // 1.500
             return 2 * km * ticksPerHour / speedKmh + loadHoursMil * ticksPerHour / 1000;
         }
@@ -127,6 +138,7 @@ namespace TBD.Net
         /// <summary>Producción de una ciudad según su población (§2): f = pob/plantilla si falta gente; si sobra, min(máx, 1 + pendiente·(pob/req − 1)).</summary>
         public static long CityFactorMil(long pop, long staff, long maxMil = 2000, long slopeMil = 500)
         {
+            Positive(staff, nameof(staff));
             if (pop <= staff) return pop * 1000 / staff;
             return Math.Min(maxMil, 1000 + slopeMil * (pop * 1000 / staff - 1000) / 1000);
         }

@@ -422,31 +422,30 @@ namespace TBD.Net
 
             // atracción base: tamaño de la ciudad (PROTOTIPO)
             void Base(string n, int a) { int i = Id(n); w.BaseAttraction[i] = a; w.Attraction[i] = a; }
-            Base("Valencia", 60); Base("Sagunto", 30); Base("Puerto de Sagunto", 20); Base("Castellón", 40); Base("Segorbe", 10);
-            Base("Teruel", 20); Base("Caminreal", 5); Base("Calatayud", 15); Base("Zaragoza", 50); Base("Vinaròs", 10);
+            Base("Valencia", 60); Base("Sagunto", 40); Base("Puçol", 8); Base("Almenara", 6); Base("Nules", 8); Base("Castellón", 40);
+            Base("Segorbe", 10); Base("Barracas", 4); Base("Teruel", 20); Base("Caminreal", 4); Base("Calamocha", 5); Base("Cariñena", 6);
+            Base("Zaragoza", 50);
 
             // existencias iniciales (toneladas; personas = plazas)
             void Stock(string n, int mun, int comb, int mat, int per) { int i = Id(n); w.Stock[i, 0] = mun; w.Stock[i, 1] = comb; w.Stock[i, 2] = mat; w.Stock[i, 3] = per; }
             Stock("Valencia", 600, 800, 900, 300);
-            Stock("Puerto de Sagunto", 300, 1200, 400, 50);
-            Stock("Sagunto", 200, 200, 300, 120);
+            Stock("Sagunto", 200, 1400, 700, 170);              // incluye el Puerto (D-N14): combustible y acero
             Stock("Castellón", 100, 100, 100, 80);
             Stock("Teruel", 20, 30, 40, 40);
 
             int[] T(int mun, int comb, int mat, int per) { return new[] { mun, comb, mat, per }; }
             ScheduleStop Stop(string n, double hour, int[] tr) { return new ScheduleStop { Node = Id(n), DepartAt = NetConst.Hours(hour), Transfer = tr }; }
 
-            // Tren 1: lanzadera de la costa Valencia–Sagunto–Puerto
-            Add(w, 1, "1 Costa", Stop("Valencia", 6, T(80, 0, 120, 40)), Stop("Sagunto", 9, T(-40, 0, -60, -20)),
-                Stop("Puerto de Sagunto", 11, T(0, 150, 0, 0)), Stop("Sagunto", 14, T(0, -50, 0, 0)));
+            // Dos trenes al empezar (balance de Hugo: trenes_inicio = 2; el Tren 3 está a medio montar en el taller de Sagunto)
+            // Tren 1: lanzadera de la costa Valencia–Sagunto–Castellón
+            Add(w, 1, "1 Costa", Stop("Valencia", 6, T(80, 0, 120, 40)), Stop("Sagunto", 9, T(-40, 150, -60, -20)),
+                Stop("Castellón", 11, T(-30, -100, 0, 0)), Stop("Sagunto", 14, T(0, -50, 0, 0)));
             // Tren 2: Sagunto–Teruel, el de montaña (abastece a Teruel)
             Add(w, 2, "2 Montaña", Stop("Sagunto", 7, T(60, 40, 80, 20)), Stop("Teruel", 15, T(-60, -40, -80, -20)));
-            // Tren 3: costera norte Sagunto–Castellón
-            Add(w, 3, "3 Norte", Stop("Sagunto", 8, T(30, 30, 0, 0)), Stop("Castellón", 12, T(-30, -30, 0, 0)));
 
             // tres manchas: al oeste de Segorbe (interior), al norte de Castellón y al este de Teruel
             w.Field.Blob(40, 66, 6, 550);
-            w.Field.Blob(64, 54, 5, 600);
+            w.Field.Blob(61, 55, 5, 600);           // al norte de Castellón, tierra adentro (no en el mar)
             w.Field.Blob(37, 46, 4, 500);
             w.Tick = NetConst.Hours(5.5);          // el prototipo arranca a las 05:30, media hora antes del primer tren
             return w;

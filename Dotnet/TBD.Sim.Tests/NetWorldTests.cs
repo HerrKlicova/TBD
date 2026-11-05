@@ -70,7 +70,7 @@ namespace TBD.Sim.Tests
             for (long t = 0; t < 2 * NetConst.DayTicks; t++) { w.ApplyCommands(); w.Step(); }
             check(TotalGoods(w) == total0, $"en dos días no se crea ni se pierde carga ({total0} t)");
             int moved = 0; foreach (var s in w.Services) if (s.LastDepartDay >= 1) moved++;
-            check(moved >= 2, $"los trenes vuelven a salir al día siguiente ({moved} de 3)");
+            check(moved == w.Services.Count, $"los trenes vuelven a salir al día siguiente ({moved} de {w.Services.Count})");
 
             // ---- órdenes de tiempo: pausa, reanudar y velocidad
             w = NetScenario.Mvp();
@@ -129,8 +129,8 @@ namespace TBD.Sim.Tests
             var sw = Stopwatch.StartNew();
             for (long t = 0; t < NetConst.DayTicks; t++)
             {
-                if (t == 500) { var c = new NetCommand { Tick = 502, Type = NetCmdType.TrainHold, Arg = 2 }; w1.Push(c); w2.Push(c); }
-                if (t == 9000) { var c = new NetCommand { Tick = 9002, Type = NetCmdType.TrainGo, Arg = 2 }; w1.Push(c); w2.Push(c); }
+                if (t == 500) { var c = new NetCommand { Tick = 502, Type = NetCmdType.TrainHold, Arg = 1 }; w1.Push(c); w2.Push(c); }
+                if (t == 9000) { var c = new NetCommand { Tick = 9002, Type = NetCmdType.TrainGo, Arg = 1 }; w1.Push(c); w2.Push(c); }
                 w1.ApplyCommands(); w1.Step();
                 w2.ApplyCommands(); w2.Step();
                 if (w1.Hash() != w2.Hash()) { same = false; break; }

@@ -16,14 +16,16 @@ namespace TBD.Sim.Tests
             int Id(string name) { foreach (var n in g.Nodes) if (n.Name == name) return n.Id; return -1; }
             var p = g.ShortestPath(Id("Valencia"), Id("Zaragoza"));
             string Names(List<int> path) { var l = new List<string>(); foreach (var i in path) l.Add(g.Nodes[i].Name); return string.Join(" > ", l); }
-            check(p.Count == 7 && Names(p) == "Valencia > Sagunto > Segorbe > Teruel > Caminreal > Calatayud > Zaragoza", "Valencia a Zaragoza pasa por Sagunto, Segorbe y Teruel: " + Names(p));
-            check(g.ShortestPath(Id("Valencia"), Id("Vinaròs")).Count == 4, "Valencia a Vinaròs pasa por Sagunto y Castellón");
+            check(p.Count == 10 && Names(p) == "Valencia > Puçol > Sagunto > Segorbe > Barracas > Teruel > Caminreal > Calamocha > Cariñena > Zaragoza", "Valencia a Zaragoza por la red canónica (D-N14): " + Names(p));
+            check(g.ShortestPath(Id("Valencia"), Id("Castellón")).Count == 6, "Valencia a Castellón pasa por Puçol, Sagunto, Almenara y Nules");
+            int amb = 0; foreach (var ed in g.Edges) amb += ed.Ambush.Count;
+            check(amb >= 6 && g.FindEdge(Id("Teruel"), Id("Caminreal")).Ambush.Exists(a => a.Kind == AmbushKind.Puente), $"los tramos llevan puntos de emboscada ({amb}), con el puente del Jiloca entre Teruel y Caminreal");
 
-            var e = g.FindEdge(Id("Segorbe"), Id("Teruel"));
+            var e = g.FindEdge(Id("Barracas"), Id("Teruel"));
             e.State = EdgeState.Cortada;
             check(g.ShortestPath(Id("Valencia"), Id("Zaragoza")).Count == 0, "con la única línea al interior cortada no hay camino a Zaragoza");
             e.State = EdgeState.Danada;
-            check(g.ShortestPath(Id("Valencia"), Id("Zaragoza")).Count == 7, "una vía dañada se puede usar (cuesta más)");
+            check(g.ShortestPath(Id("Valencia"), Id("Zaragoza")).Count == 10, "una vía dañada se puede usar (cuesta más)");
             e.State = EdgeState.Ok;
 
             // empates: dos caminos de igual longitud -> siempre el mismo
@@ -47,36 +49,44 @@ namespace TBD.Sim.Tests
             t2.Go();
             for (int i = 0; i < 100_000; i++) t2.Step(g);     // unos 10 km
             long before = t2.OffsetMm;
-            g.FindEdge(Id("Valencia"), Id("Sagunto")).State = EdgeState.Cortada;
+            g.FindEdge(Id("Valencia"), Id("Puçol")).State = EdgeState.Cortada;
             for (int i = 0; i < 50; i++) t2.Step(g);
             check(t2.State == RailTrainState.Detenido && t2.OffsetMm == before, "si cortan la vía bajo el tren, se detiene donde está");
-            g.FindEdge(Id("Valencia"), Id("Sagunto")).State = EdgeState.Ok;
+            g.FindEdge(Id("Valencia"), Id("Puçol")).State = EdgeState.Ok;
             t2.Go();
             for (int i = 0; i < 50; i++) t2.Step(g);
             check(t2.State == RailTrainState.EnMarcha && t2.OffsetMm > before, "al reparar la vía vuelve a marchar");
 
             // ---- alertas
             var trains = new List<RailTrain> { t2 };
-            g.FindEdge(Id("Valencia"), Id("Sagunto")).HordeAtMm = 25_000_000L;      // horda en el km 25: a más de 3 km, no se detecta (D-N11)
+            // posición (medida desde A del tramo) a «d» mm por delante del tren, sea cual sea el sentido en que recorre el tramo
+            long Ahead(RailTrain tr, long d)
+            {
+                var ce = tr.CurrentEdge(g);
+                bool fwd = ce.A == tr.Route[tr.Leg];
+                long posA = fwd ? tr.OffsetMm : ce.LengthMm - tr.OffsetMm;
+                return fwd ? posA + d : posA - d;
+            }
+            g.FindEdge(Id("Valencia"), Id("Puçol")).HordeAtMm = 25_000_000L;      // horda en el km 25: a más de 3 km, no se detecta (D-N11)
             var far = AlertEngine.Evaluate(g, trains);
             check(far.Count == 0, "una horda a más de 3 km del tren no se detecta todavía (D-N11)");
-            g.FindEdge(Id("Valencia"), Id("Sagunto")).HordeAtMm = t2.OffsetMm + 2_500_000L;   // a 2,5 km por delante
+            g.FindEdge(Id("Valencia"), Id("Puçol")).HordeAtMm = Ahead(t2, 2_500_000L);   // a 2,5 km por delante
             var alerts = AlertEngine.Evaluate(g, trains, 9000);
             check(alerts.Count >= 1 && alerts[0].Kind == AlertKind.HordaCercaDelTren && alerts[0].EtaTicks > 0 && alerts[0].Text.Contains("min (") , "una horda por delante genera un aviso en tiempo de juego con hora: " + (alerts.Count > 0 ? alerts[0].Text : "ninguno"));
             // D-N11: con el tren parado y la horda común a 2 km/h, detectarla a 3 km da entre 60 y 120 s reales de aviso a x1
             var parado = new RailTrain { Id = 99, Name = "P", SpeedMmPerTick = 0 };
-            parado.SetRoute(new List<int> { Id("Valencia"), Id("Sagunto") });
-            g.FindEdge(Id("Valencia"), Id("Sagunto")).HordeAtMm = 3_000_000L;
+            parado.SetRoute(new List<int> { Id("Valencia"), Id("Puçol") });
+            g.FindEdge(Id("Valencia"), Id("Puçol")).HordeAtMm = Ahead(parado, 3_000_000L);
             var ap = AlertEngine.Evaluate(g, new List<RailTrain> { parado });
             double realSecs = ap.Count > 0 ? ap[0].EtaTicks / 30.0 : -1;
             check(realSecs >= 60 && realSecs <= 120, $"aviso a x1 entre 60 y 120 s reales con la horda detectada a 3 km ({realSecs:0} s)");
 
             // tren detenido con horda: prioridad máxima y por encima de una vía cortada y de un nodo asediado
-            g.FindEdge(Id("Segorbe"), Id("Teruel")).State = EdgeState.Cortada;
+            g.FindEdge(Id("Barracas"), Id("Teruel")).State = EdgeState.Cortada;
             g.Nodes[Id("Castellón")].State = NodeState.Asediada;
-            g.FindEdge(Id("Valencia"), Id("Sagunto")).State = EdgeState.Cortada;
+            g.FindEdge(Id("Valencia"), Id("Puçol")).State = EdgeState.Cortada;
             t2.Step(g);                                                              // el tren nota la vía cortada y se detiene
-            g.FindEdge(Id("Valencia"), Id("Sagunto")).HordeAtMm = t2.OffsetMm + 100_000L;   // horda a 100 m por delante
+            g.FindEdge(Id("Valencia"), Id("Puçol")).HordeAtMm = Ahead(t2, 100_000L);   // horda a 100 m por delante
             alerts = AlertEngine.Evaluate(g, trains);
             check(alerts.Count >= 4 && alerts[0].Kind == AlertKind.TrenDetenido && alerts[0].Priority == 0, "el tren detenido con horda cerca es el primer aviso: " + alerts[0].Text);
             bool sorted = true;

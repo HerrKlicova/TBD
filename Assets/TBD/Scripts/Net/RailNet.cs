@@ -26,7 +26,18 @@ namespace TBD.Net
         public long KmStartMm;                // punto kilométrico de A (para los avisos: «km 112»)
         public EdgeState State;
         public long HordeAtMm = -1;           // posición de la horda más cercana medida desde A; -1 = ninguna
+        public readonly List<AmbushPoint> Ambush = new List<AmbushPoint>();   // puntos de emboscada del tramo (D-N16 de Lucía, para la Colmena del hito 4)
         public long HordeSpeedMmPerTick = 1333; // horda común a 2 km/h de juego con 2,4 s por tick (decisión D-N11 de Lucía); los rápidos, 6 km/h
+    }
+
+    public enum AmbushKind : byte { Desmonte = 0, Curva = 1, Puente = 2 }
+
+    /// <summary>Punto de emboscada de un tramo: dónde le conviene a la Colmena atacar a un tren (km desde el nudo de Sagunto).</summary>
+    public struct AmbushPoint
+    {
+        public long KmMm;
+        public AmbushKind Kind;
+        public string Name;
     }
 
     public sealed class RailGraph
@@ -251,34 +262,52 @@ namespace TBD.Net
     public static class RailNetSamples
     {
         /// <summary>
-        /// Red de ejemplo del MVP: nudo en Sagunto, línea Sagunto–Teruel–Zaragoza y costera Valencia–Sagunto–Castellón (GDD §15).
-        /// Las LONGITUDES SON DE EJEMPLO (kilómetros redondeados, sin verificar con datos de la red real). Las posiciones del mapa salen
-        /// de latitud y longitud aproximadas de cada ciudad (de memoria, sin verificar): x = 50 + (lon + 0,38) · 24, y = 80 − (lat − 39,47) · 32;
-        /// una unidad de mapa ≈ 3,5 km.
+        /// Red canónica del MVP (D-N14 de Lucía, aprobada por Mak): nudo de Sagunto (con el Puerto dentro del nodo), rama sur
+        /// Puçol–Valencia, rama norte Almenara–Nules–Castellón y rama interior Segorbe–Barracas–Teruel–(puente del Jiloca)–Caminreal–
+        /// Calamocha–Cariñena–Zaragoza. Calatayud y Vinaròs quedan fuera (ganchos del acceso anticipado).
+        /// Kilómetros desde Sagunto: los de balance_nodos.csv de Hugo. Posiciones del mapa: latitud y longitud APROXIMADAS (de memoria,
+        /// sin verificar) con x = 50 + (lon + 0,38) · 24, y = 80 − (lat − 39,47) · 32; una unidad ≈ 3,5 km.
+        /// Puntos de emboscada: INVENTADOS por Marcos sobre la geografía aproximada (pendientes de revisión de Lucía).
         /// </summary>
         public static RailGraph Mvp()
         {
             var g = new RailGraph();
-            int valencia = g.AddNode("Valencia", 50, 80).Id;
-            int puerto = g.AddNode("Puerto de Sagunto", 54, 74).Id;
             int sagunto = g.AddNode("Sagunto", 53, 73).Id;
+            int pucol = g.AddNode("Puçol", 52, 75).Id;
+            int valencia = g.AddNode("Valencia", 50, 80).Id;
+            int almenara = g.AddNode("Almenara", 54, 71).Id;
+            int nules = g.AddNode("Nules", 55, 68).Id;
             int castellon = g.AddNode("Castellón", 58, 63).Id;
             int segorbe = g.AddNode("Segorbe", 47, 68).Id;
-            int caminreal = g.AddNode("Caminreal", 28, 36).Id;
+            int barracas = g.AddNode("Barracas", 42, 62).Id;
             int teruel = g.AddNode("Teruel", 33, 52).Id;
-            int calatayud = g.AddNode("Calatayud", 20, 20).Id;
+            int caminreal = g.AddNode("Caminreal", 27, 36).Id;
+            int calamocha = g.AddNode("Calamocha", 28, 34).Id;
+            int carinena = g.AddNode("Cariñena", 30, 20).Id;
             int zaragoza = g.AddNode("Zaragoza", 38, 10).Id;
-            int vinaros = g.AddNode("Vinaròs", 70, 48).Id;
             const long km = 1_000_000L;
-            g.AddEdge(valencia, sagunto, 30 * km, 0);
-            g.AddEdge(sagunto, puerto, 5 * km, 30 * km);
-            g.AddEdge(sagunto, castellon, 60 * km, 30 * km);
-            g.AddEdge(castellon, vinaros, 75 * km, 90 * km);
-            g.AddEdge(sagunto, segorbe, 35 * km, 30 * km);
-            g.AddEdge(segorbe, teruel, 90 * km, 65 * km);
-            g.AddEdge(teruel, caminreal, 45 * km, 155 * km);
-            g.AddEdge(caminreal, calatayud, 80 * km, 200 * km);
-            g.AddEdge(calatayud, zaragoza, 90 * km, 280 * km);
+            // rama sur
+            g.AddEdge(sagunto, pucol, 12 * km, 0);
+            g.AddEdge(pucol, valencia, 18 * km, 12 * km);
+            // rama norte
+            g.AddEdge(sagunto, almenara, 10 * km, 0);
+            g.AddEdge(almenara, nules, 12 * km, 10 * km);
+            var nc = g.AddEdge(nules, castellon, 18 * km, 22 * km);
+            nc.Ambush.Add(new AmbushPoint { KmMm = 31 * km, Kind = AmbushKind.Puente, Name = "puente del Mijares" });
+            // rama interior
+            var ss = g.AddEdge(sagunto, segorbe, 35 * km, 0);
+            ss.Ambush.Add(new AmbushPoint { KmMm = 21 * km, Kind = AmbushKind.Curva, Name = "curvas del Palancia" });
+            var sb = g.AddEdge(segorbe, barracas, 30 * km, 35 * km);
+            sb.Ambush.Add(new AmbushPoint { KmMm = 52 * km, Kind = AmbushKind.Desmonte, Name = "desmonte de Jérica" });
+            var bt = g.AddEdge(barracas, teruel, 65 * km, 65 * km);
+            bt.Ambush.Add(new AmbushPoint { KmMm = 78 * km, Kind = AmbushKind.Desmonte, Name = "puerto de Escandón" });
+            bt.Ambush.Add(new AmbushPoint { KmMm = 104 * km, Kind = AmbushKind.Curva, Name = "curvas de Puebla de Valverde" });
+            var tc = g.AddEdge(teruel, caminreal, 70 * km, 130 * km);
+            tc.Ambush.Add(new AmbushPoint { KmMm = 192 * km, Kind = AmbushKind.Puente, Name = "puente del Jiloca" });
+            g.AddEdge(caminreal, calamocha, 15 * km, 200 * km);
+            var cc = g.AddEdge(calamocha, carinena, 45 * km, 215 * km);
+            cc.Ambush.Add(new AmbushPoint { KmMm = 240 * km, Kind = AmbushKind.Desmonte, Name = "desmonte de Paniza" });
+            g.AddEdge(carinena, zaragoza, 50 * km, 260 * km);
             return g;
         }
     }
