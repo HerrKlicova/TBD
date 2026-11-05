@@ -276,6 +276,7 @@ namespace TBD.Sim
         BuildWall = 4,                                   // muro libre de P0 a P1 (polilíneas = varias órdenes)
         DeploySquad = 5,                                 // hito 3: desembarca un pelotón (20 fusileros + 1 ametralladora) junto al tren
         EmbarkSquad = 6,                                 // hito 3 (D-N27): pelotón a bordo; dispara desde los vagones con el tren parado
+        Reembark = 7,                                    // hito 3: los soldados a pie a menos de 20 m del tren vuelven a bordo
     }
 
     /// <summary>Todo lo que hace el jugador es una orden con número de tick (regla 2 del GDD §17.3).</summary>

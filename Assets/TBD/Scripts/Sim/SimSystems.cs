@@ -71,6 +71,19 @@ namespace TBD.Sim
             em.SetComponentData(root, info);
         }
 
+        /// <summary>Hueco k (0-20) de los vagones: 7 por vagón, a los dos lados.</summary>
+        public static float2 SlotOf(int k)
+        {
+            int wagon = k / 7, j = k % 7;
+            return new float2(-4.3f - wagon * 5f + (j - 3) * 0.6f, (j % 2 == 0 ? -0.55f : 0.55f));
+        }
+
+        static int SlotIndex(float2 slot)
+        {
+            for (int k = 0; k < 21; k++) { var s = SlotOf(k); if (math.abs(s.x - slot.x) < 0.01f && math.abs(s.y - slot.y) < 0.01f) return k; }
+            return -1;
+        }
+
         static void Execute(EntityManager em, Entity root, SimCommand cmd, uint tick)
         {
             switch (cmd.Type)
@@ -147,8 +160,7 @@ namespace TBD.Sim
                     var ents = em.CreateEntity(arch, 21, Allocator.Temp);
                     for (int i = 0; i < 21; i++)
                     {
-                        int wagon = i / 7, k = i % 7;
-                        var slot = new float2(-4.3f - wagon * 5f + (k - 3) * 0.6f, (k % 2 == 0 ? -0.55f : 0.55f));
+                        var slot = SlotOf(i);
                         em.SetComponentData(ents[i], new Soldier
                         {
                             SimId = clock.NextSimId++, Slot = slot, Pos = new float3(t.X + slot.x, Level.TrainH, Level.TrackY + slot.y),
@@ -158,6 +170,38 @@ namespace TBD.Sim
                     }
                     ents.Dispose();
                     em.SetComponentData(root, clock);
+                    break;
+                }
+                case CmdType.Reembark:
+                {
+                    // Los soldados a pie que estén a menos de 20 m del tren suben a bordo, en orden de SimId y a los huecos libres
+                    var t = em.GetComponentData<TrainState>(root);
+                    var q = em.CreateEntityQuery(typeof(Soldier));
+                    var ents = q.ToEntityArray(Allocator.Temp);
+                    var arr = q.ToComponentDataArray<Soldier>(Allocator.Temp);
+                    var order = new NativeArray<int>(arr.Length, Allocator.Temp);
+                    SoldierLogic.SortById(arr, order);
+                    var used = new NativeArray<bool>(21, Allocator.Temp);
+                    for (int i = 0; i < arr.Length; i++)
+                        if (arr[i].State == SoldierState.Embarked) { int sl = SlotIndex(arr[i].Slot); if (sl >= 0) used[sl] = true; }
+                    float2 a = new float2(t.X - Level.TrainRear, Level.TrackY), b = new float2(t.X + Level.TrainFront, Level.TrackY);
+                    for (int o = 0; o < order.Length; o++)
+                    {
+                        int i = order[o];
+                        var so = arr[i];
+                        if (so.State != SoldierState.Deployed) continue;
+                        float2 p = so.Pos.xz, ab = b - a;
+                        float tt = math.saturate(math.dot(p - a, ab) / math.dot(ab, ab));
+                        if (math.distance(p, a + ab * tt) > 20f) continue;
+                        int free = -1;
+                        for (int k = 0; k < 21; k++) if (!used[k]) { free = k; break; }
+                        if (free < 0) break;
+                        used[free] = true;
+                        so.Slot = SlotOf(free);
+                        so.State = SoldierState.Embarked;
+                        em.SetComponentData(ents[i], so);
+                    }
+                    ents.Dispose(); arr.Dispose(); order.Dispose(); used.Dispose();
                     break;
                 }
                 case CmdType.SpawnRoof:

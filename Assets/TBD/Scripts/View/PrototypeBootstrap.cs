@@ -212,6 +212,14 @@ namespace TBD.View
             var ammo = _worldA.EntityManager.GetComponentData<ZoneAmmo>(_rootA);
             int usedUnits = (int)((ammo.ShotsFired + _combat.ShotsPerUnit - 1) / _combat.ShotsPerUnit);   // redondeo hacia arriba: una caja empezada se gasta
             if (usedUnits > 0) NetSession.Push(TBD.Net.NetCmdType.ConsumeAmmo, _zoneNode, 0, usedUnits);
+            // Diseño del hito 3 (Lucía): si se fuerza la salida, la tropa a pie se queda atrás. Hoy se pierde; cuando la tropa exista en
+            // la red (S0) quedará como guarnición del nodo.
+            int leftBehind = 0;
+            var sq = _worldA.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<Soldier>());
+            var sa = sq.ToComponentDataArray<Soldier>(Allocator.Temp);
+            for (int i = 0; i < sa.Length; i++) if (sa[i].State == SoldierState.Deployed) leftBehind++;
+            sa.Dispose();
+            if (leftBehind > 0) Debug.LogWarning($"[TBD] Salida forzada: {leftBehind} soldados a pie se quedan atrás en {NetSession.A.Graph.Nodes[_zoneNode].Name}.");
             NetSession.Push(TBD.Net.NetCmdType.Dematerialize, _zoneNode, 0, alive / NetWorld.ZombiesPerPermil);
             NetSession.ReturnFromNode = _zoneNode;
             StartCoroutine(LeaveRoutine());
@@ -307,6 +315,7 @@ namespace TBD.View
             if (kb.digit5Key.wasPressedThisFrame) FireVolley();
             if (kb.digit6Key.wasPressedThisFrame) Push(CmdType.EmbarkSquad);      // D-N27: pelotón a bordo, dispara con el tren parado
             if (kb.digit0Key.wasPressedThisFrame) Push(CmdType.DeploySquad);      // desplegar a pie: arriesgado en campo abierto (P7)
+            if (kb.kKey.wasPressedThisFrame) Push(CmdType.Reembark);              // reembarcar a los que estén a menos de 20 m del tren
             if (kb.digit7Key.wasPressedThisFrame) ApplyGrade(0);
             if (kb.digit8Key.wasPressedThisFrame) ApplyGrade(1);
             if (kb.digit9Key.wasPressedThisFrame) ApplyGrade(2);
