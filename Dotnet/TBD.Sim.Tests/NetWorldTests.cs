@@ -10,6 +10,8 @@ namespace TBD.Sim.Tests
     {
         public static void Run(Action<bool, string> check)
         {
+            // Sonda de ritmo (TBD_PROBE=1): cuántas estaciones están asediadas cada 3 h durante dos días.
+            if (Environment.GetEnvironmentVariable("TBD_PROBE") == "1") { var dw = NetScenario.Mvp(); for (int h=6;h<=48;h+=3){ while(dw.Tick<NetConst.Hours(h)){dw.ApplyCommands();dw.Step();} int sg=0, th=0; foreach(var n in dw.Graph.Nodes){ if(n.State==NodeState.Asediada) sg++; else if(n.State==NodeState.Amenazada) th++; } Console.WriteLine($"PROBE {NetConst.Clock(dw.Tick)} d{dw.Tick/NetConst.DayTicks+1}: asediadas {sg}, amenazadas {th}"); } }
             Console.WriteLine("[10] Mundo S0 del hito 2: mancha, horarios, carga, tiempo y determinismo");
 
             // ---- la mancha conserva la masa y se mueve
@@ -23,6 +25,12 @@ namespace TBD.Sim.Tests
             check(changed > 500, $"la mancha se desplaza y se difunde ({changed} celdas cambian)");
             int maxCell = 0; foreach (var d in w.Field.D) maxCell = Math.Max(maxCell, d);
             check(maxCell <= HordeField.Max, $"ninguna celda pasa del tope ({maxCell})");
+
+            // ---- ritmo de la Colmena (ajustado el 5-nov a petición de Eugenio: antes asediaba 4 estaciones antes de las 12:00)
+            w = NetScenario.Mvp();
+            while (w.Tick < NetConst.Hours(12)) { w.ApplyCommands(); w.Step(); }
+            int sieged = 0; foreach (var n in w.Graph.Nodes) if (n.State == NodeState.Asediada) sieged++;
+            check(sieged <= 1, $"a las 12:00 del primer día hay como mucho una estación asediada ({sieged})");
 
             // ---- horarios: el tren 1 sale a las 06:00 de Valencia y llega a Sagunto con la carga
             w = NetScenario.Mvp();

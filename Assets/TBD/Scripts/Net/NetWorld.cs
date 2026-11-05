@@ -122,8 +122,8 @@ namespace TBD.Net
                     int d = D[i];
                     if (d == 0) continue;
                     int keep = d;
-                    // difusión: 1/24 a cada vecino
-                    int share = d / 24;
+                    // difusión: 1/48 a cada vecino
+                    int share = d / 48;
                     if (share > 0)
                     {
                         if (x > 0) { _next[i - 1] += share; keep -= share; }
@@ -131,7 +131,7 @@ namespace TBD.Net
                         if (y > 0) { _next[i - W] += share; keep -= share; }
                         if (y < H - 1) { _next[i + W] += share; keep -= share; }
                     }
-                    // deriva: 1/40 hacia el vecino de más potencial (orden fijo de vecinos en los empates), si no está ya cargado
+                    // deriva: 1/60 hacia el vecino de más potencial (orden fijo de vecinos en los empates), si no está ya cargado
                     int best = -1;
                     long bp = _pot[i];
                     if (x > 0 && _pot[i - 1] > bp) { bp = _pot[i - 1]; best = i - 1; }
@@ -140,7 +140,7 @@ namespace TBD.Net
                     if (y < H - 1 && _pot[i + W] > bp) { bp = _pot[i + W]; best = i + W; }
                     if (best >= 0 && D[best] < DriftStop)
                     {
-                        int move = d / 40;
+                        int move = d / 60;
                         _next[best] += move;
                         keep -= move;
                     }
@@ -191,7 +191,7 @@ namespace TBD.Net
         public List<Alert> Alerts = new List<Alert>();
         readonly List<NetCommand> _queue = new List<NetCommand>();
 
-        public const int SiegeAt = 450, ThreatAt = 150, CutAt = 850, NearAt = 250;
+        public const int SiegeAt = 500, ThreatAt = 150, CutAt = 850, NearAt = 250;
 
         public NetWorld(RailGraph g)
         {
@@ -311,7 +311,7 @@ namespace TBD.Net
             }
         }
 
-        void MakeNoise(int node) { Attraction[node] += 120; }       // el tráfico atrae a la Colmena (semilla de la memoria, GDD §5.2)
+        void MakeNoise(int node) { Attraction[node] += 70; }       // el tráfico atrae a la Colmena (semilla de la memoria, GDD §5.2)
 
         void Transfer(TrainService s, ScheduleStop stop)
         {
@@ -435,7 +435,7 @@ namespace TBD.Net
             Add(w, 3, "3 Norte", Stop("Sagunto", 8, T(30, 30, 0, 0)), Stop("Castellón", 12, T(-30, -30, 0, 0)));
 
             // tres manchas: al oeste de Segorbe (interior), al norte de Castellón y al este de Teruel
-            w.Field.Blob(40, 66, 6, 700);
+            w.Field.Blob(40, 66, 6, 550);
             w.Field.Blob(64, 54, 5, 600);
             w.Field.Blob(37, 46, 4, 500);
             w.Tick = NetConst.Hours(5.5);          // el prototipo arranca a las 05:30, media hora antes del primer tren
