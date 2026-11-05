@@ -99,6 +99,7 @@ namespace TBD.View
             SetupVisualAssets();
             SetupLevelObjects();
             SetupCameras();
+            SetupFloodlights();                      // después de las cámaras: el halo usa el material aditivo de la capa HD
             SetupPost();
             _fx = FxHd.Create(_fxMat);
 
@@ -469,17 +470,20 @@ namespace TBD.View
                 case 0:  // día cálido mediterráneo
                     _grade.colorFilter.Override(new Color(1f, 0.97f, 0.92f));   // día menos lavado: algo más de saturación cálida
                     _grade.postExposure.Override(0f);
-                    _grade.saturation.Override(8f);
+                    _grade.saturation.Override(4f);
+                    SetFloodlights(0f);
                     break;
                 case 1:  // atardecer naranja
                     _grade.colorFilter.Override(new Color(1f, 0.8f, 0.62f));
                     _grade.postExposure.Override(0.1f);
                     _grade.saturation.Override(10f);
+                    SetFloodlights(12f);
                     break;
                 default: // noche casi monocroma
-                    _grade.colorFilter.Override(new Color(0.7f, 0.8f, 1f));     // noche de luna: suelo legible, horda en silueta oscura
-                    _grade.postExposure.Override(0.25f);
-                    _grade.saturation.Override(-25f);
+                    _grade.colorFilter.Override(new Color(0.8f, 0.84f, 1f));    // noche de luna; los focos cálidos sacan a la horda del fondo
+                    _grade.postExposure.Override(-0.1f);
+                    _grade.saturation.Override(-10f);
+                    SetFloodlights(40f);
                     break;
             }
         }
@@ -695,7 +699,7 @@ namespace TBD.View
             if (sun == null) sun = new GameObject("Sol").AddComponent<Light>();
             sun.type = LightType.Directional;
             sun.transform.rotation = Quaternion.Euler(32f, -35f, 0f);
-            sun.color = new Color(1f, 0.95f, 0.86f);
+            sun.color = new Color(1f, 0.97f, 0.92f);          // casi neutro: el suelo ocre ya no vira a amarillo limón
             sun.intensity = 1.2f;
             sun.shadows = LightShadows.Soft;
             sun.shadowStrength = 0.85f;
@@ -716,6 +720,69 @@ namespace TBD.View
         }
 
         /// <summary>Decorado generado desde los mismos sólidos que usa la simulación (geometría continua, no celdas).</summary>
+        // ---------------------------------------------------------------- focos de noche (revisión de arte de Lucía, punto 5a)
+        readonly System.Collections.Generic.List<Light> _floodLights = new System.Collections.Generic.List<Light>();
+        readonly System.Collections.Generic.List<Transform> _halos = new System.Collections.Generic.List<Transform>();
+
+        /// <summary>
+        /// Tres focos en el muro oeste del fuerte, hacia el campo por donde llega la horda. La luz es un foco de URP (Forward+) que
+        /// se dibuja en la capa pixelada, así que los zombis dentro del cono salen claros sobre el fondo oscuro. La lámpara lleva un
+        /// halo pequeño en la capa de efectos HD, que el bloom derrama. Se encienden de noche (y a media potencia al atardecer).
+        /// </summary>
+        void SetupFloodlights()
+        {
+            var amber = HexColor("e08c30");
+            float[] ys = { Level.FortY0 + 6f, (Level.GateY0 + Level.GateY1) * 0.5f, Level.FortY1 - 6f };
+            foreach (float y in ys)
+            {
+                var pos = new Vector3(Level.FortX0, Level.WallH + 1.6f, y);
+                var lgo = new GameObject("Foco");
+                lgo.transform.SetParent(transform, false);
+                lgo.transform.position = pos;
+                lgo.transform.rotation = Quaternion.LookRotation(new Vector3(-1f, -0.55f, 0f));
+                var l = lgo.AddComponent<Light>();
+                l.type = LightType.Spot;
+                l.color = amber;
+                l.range = 45f;
+                l.spotAngle = 78f;
+                l.innerSpotAngle = 40f;
+                l.intensity = 0f;
+                l.shadows = LightShadows.None;                  // sin sombras: un foco con sombras cuesta un pase más por luz
+                _floodLights.Add(l);
+                Box("Poste del foco", pos + new Vector3(0.3f, -0.8f, 0f), new Vector3(0.25f, 1.6f, 0.25f), _mRail);
+
+                var h = new GameObject("Halo del foco");
+                h.layer = LayerFx;
+                h.transform.SetParent(transform, false);
+                h.transform.position = pos + new Vector3(-0.35f, 0f, 0f);
+                var mesh = new Mesh
+                {
+                    vertices = new[] { new Vector3(-0.9f, -0.9f, 0), new Vector3(0.9f, -0.9f, 0), new Vector3(-0.9f, 0.9f, 0), new Vector3(0.9f, 0.9f, 0) },
+                    uv = new[] { new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 1), new Vector2(1, 1) },
+                    colors = new[] { amber, amber, amber, amber },
+                    triangles = new[] { 0, 2, 1, 1, 2, 3 },
+                };
+                h.AddComponent<MeshFilter>().sharedMesh = mesh;
+                var hm = new Material(_fxMat);
+                hm.SetFloat("_Intensity", 5f);
+                h.AddComponent<MeshRenderer>().sharedMaterial = hm;
+                h.SetActive(false);
+                _halos.Add(h.transform);
+            }
+        }
+
+        void SetFloodlights(float intensity)
+        {
+            foreach (var l in _floodLights) l.intensity = intensity;
+            foreach (var h in _halos) h.gameObject.SetActive(intensity > 0f);
+        }
+
+        void LateUpdate()
+        {
+            if (_fxCam == null) return;
+            foreach (var h in _halos) if (h.gameObject.activeSelf) h.rotation = _fxCam.transform.rotation;   // el halo mira a la cámara
+        }
+
         void SetupLevelObjects()
         {
             float world = SimConst.WorldSize;

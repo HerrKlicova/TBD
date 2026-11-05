@@ -4,7 +4,7 @@
        No usa paquetes NuGet. Ejecutar con: dotnet run -c Release (opcion project) Dotnet/TBD.Sim.Tests -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>   <!-- QA Q10: con .NET 8 lo compila cualquiera; el SDK 10 también lo construye -->
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <LangVersion>latest</LangVersion>
