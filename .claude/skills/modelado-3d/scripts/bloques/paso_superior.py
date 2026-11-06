@@ -4,17 +4,18 @@ Tablero de hormigón de una sola luz de 26 m sobre dos estribos, con pretiles. L
 cruza a lo largo de Y. MEDIDAS SIN VERIFICAR (típicas, a falta de las fotos de Paula; referencia provisional: el paso
 superior del fondo de E3_poste_catenaria_2): gálibo libre de 7,0 m sobre el carril (vía electrificada), tablero de
 1,3 m de canto con cuatro vigas, calzada de 9 m entre pretiles de 0,3 x 1,1 m, estribos de 3 m de fondo con aletas.
-Los terraplenes de acceso los pone el terreno (Marcos). Colores: hormigón b8b8b8, cara inferior y vigas 6c7874,
-calzada 48403c, línea de la calzada d4d0cc (solo LOD0), imposta 94948c.
+Los terraplenes de acceso los pone el terreno (Marcos). Colores: hormigón 94948c, cara inferior, vigas e imposta
+6c7874, calzada 48403c, línea de la calzada d4d0cc (solo LOD0).
 """
 import math, os
 from taller import Taller
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 PIEZAS = ["hormigon", "viga", "calzada", "linea", "imposta", "estribo"]
-# Hormigón claro b8b8b8 como en la foto (la regla de no usar filos b8b8b8 es para vehículos largos, no para obra civil)
-COLORES = {"hormigon": "b8b8b8", "viga": "6c7874", "calzada": "48403c", "linea": "d4d0cc", "imposta": "94948c",
-           "estribo": "b8b8b8"}
+# Lucía (17:37): nada de b8b8b8 a lo largo de piezas largas en ninguna pieza (el filo claro del pretil se confunde con
+# el contorno de selección d4d0cc). Hormigón 94948c; imposta un escalón más oscura.
+COLORES = {"hormigon": "94948c", "viga": "6c7874", "calzada": "48403c", "linea": "d4d0cc", "imposta": "6c7874",
+           "estribo": "94948c"}
 FACCION = "neutro"
 PRESUPUESTO = {0: (60, 1500), 1: (30, 600)}
 LUZ, ANCHO, GALIBO, CANTO = 26.0, 10.2, 7.0, 1.3

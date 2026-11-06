@@ -4,18 +4,20 @@ Tramo metálico de celosía Warren de tablero inferior (el tren pasa por dentro)
 sobre dos estribos de sillería. La vía va a lo largo de X. MEDIDAS SIN VERIFICAR (típicas de un tramo metálico de
 línea convencional, a falta de las fotos de Paula): vigas de celosía de 6,5 m de alto (gálibo de la catenaria), 10 m
 entre ejes de vigas, 7 recuadros de 4 m, arriostramiento superior en cada nudo, tablero con balasto. Colores: acero
-b8b8b8 (gris claro de obra pública: en sombra, el 6c7874 y el 94948c se perdían contra el tablero), tablero y balasto 48403c, estribos de sillería b4a080 con remate 94948c.
-En el LOD1 los cordones son de 0,5 m y las diagonales de 0,36 m (2 px).
+94948c, tablero y balasto 48403c, estribos de sillería b4a080 con remate 94948c.
+LOD1 (Lucía, 17:37): a 64 px la celosía en geometría era una maraña de líneas negras. Las vigas laterales son
+paneles macizos 94948c con las diagonales de la Warren «pintadas» (tiras de 0,34 m = 2 px en 6c7874, a 2 cm de la
+cara) y contorno solo en la silueta. La celosía de verdad queda para el LOD0.
 """
 import math, os
 from taller import Taller
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
-PIEZAS = ["acero", "tablero", "balasto", "sillar", "remate"]
-COLORES = {"acero": "b8b8b8", "tablero": "605c48", "balasto": "48403c", "sillar": "b4a080", "remate": "94948c"}
+PIEZAS = ["acero", "tablero", "balasto", "sillar", "remate", "pintura"]
+COLORES = {"acero": "94948c", "pintura": "6c7874", "tablero": "605c48", "balasto": "48403c", "sillar": "b4a080", "remate": "94948c"}
 FACCION = "neutro"
 PRESUPUESTO = {0: (100, 2500), 1: (60, 1200)}
-UMBRAL_CONTORNO = {1: 0.2}   # LOD1: la viga de delante queda en la cara en sombra (-Y); el contorno por salto de profundidad la separa del tablero
+UMBRAL_CONTORNO = {1: 9.0}   # LOD1 (Lucía 17:37): contorno solo en la silueta; la celosía va pintada
 LUZ, ANCHO, ALTO, N = 28.0, 10.0, 6.5, 7
 
 
@@ -31,7 +33,9 @@ def construir(nombre="SM_PuentePalancia", lod=0):
     # tablero y balasto
     t.caja((0, 0, zt - 0.9), (LUZ + 0.4, ANCHO - 0.6, 0.7), "tablero")
     t.caja((0, 0, zt - 0.4), (LUZ + 0.3, ANCHO - 1.4, 0.3), "balasto")
-    for sy in (-1, 1):
+    if lod == 1:
+        _vigas_pintadas(t, hx, hy, zt, paso)
+    for sy in ((-1, 1) if lod == 0 else ()):
         y = sy * hy
         t.caja((0, y, zt - 0.7), (LUZ + 0.4, c, c * 1.6), "acero")                         # cordón inferior
         t.caja((0, y, zt + ALTO), (LUZ - paso + d, max(c, dy), c), "acero")                         # cordón superior
@@ -65,3 +69,19 @@ def construir(nombre="SM_PuentePalancia", lod=0):
         for k in range(4):
             fino.caja((xe - sx * 2.02, 0, zt - 6.0 + 1.2 * (k + 1)), (0.02, ANCHO + 1.9, 0.08), "remate")
     return t.objeto(nombre, bisel=0)
+
+
+def _vigas_pintadas(t, hx, hy, zt, paso):
+    """LOD1: viga lateral maciza con la Warren pintada en las dos caras (tiras de 2 px en 6c7874)."""
+    z0, z1 = zt - 1.2, zt + ALTO + 0.35
+    for sy in (-1, 1):
+        t.caja((0, sy * hy, (z0 + z1) / 2), (LUZ + 0.4, 0.5, z1 - z0), "acero")
+        zb_, zt_ = zt - 0.4, zt + ALTO - 0.05
+        for cara in (-1, 1):
+            y = sy * hy + cara * 0.27
+            for k in range(N):
+                xb0, xt, xb1 = -hx + k * paso, -hx + (k + 0.5) * paso, -hx + (k + 1) * paso
+                for (xa, za, xb, zb) in ((xb0 + 0.15, zb_, xt, zt_), (xt, zt_, xb1 - 0.15, zb_)):
+                    L = math.hypot(xb - xa, zb - za) - 0.3
+                    ang = math.atan2(zb - za, xb - xa)
+                    t.caja(((xa + xb) / 2, y, (za + zb) / 2), (L, 0.02, 0.34), "pintura", rot_y=-ang)
