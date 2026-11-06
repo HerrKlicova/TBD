@@ -67,7 +67,7 @@ namespace TBD.Sim.Tests
             var wl = Setup(out var svl, out int sl); wl.FoundStation(sl);
             wl.Stock[sl, (int)Res.Personas] = 100; wl.Stock[sl, (int)Res.Materiales] = 100;
             check(wl.StationKindOf(sl) == StationKind.Apeadero, "sin depósito, aunque haya gente, sigue siendo un apeadero");
-            wl.Works.Add(sl, wl.Works.Preview(sl, PieceKind.Deposito, new[] { 0, 0 }, 100));
+            wl.Works.Add(sl, wl.Works.Preview(sl, PieceKind.Deposito, new[] { 0, 6000 }, 100));
             check(wl.StationKindOf(sl) == StationKind.Apeadero, "un depósito sin terminar tampoco sube de nivel");
             wl.Works.CompleteAll(sl);
             wl.Stock[sl, (int)Res.Personas] = 39; var k39 = wl.StationKindOf(sl);
