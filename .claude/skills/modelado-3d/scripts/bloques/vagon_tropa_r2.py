@@ -1,9 +1,11 @@
 """R2 · Vagón de tropa: plataforma de bogies con parapeto de chapa y aspilleras, donde viaja el pelotón (Lucía, 6-nov).
 
 Base: vagón plataforma de cuatro ejes de tipo UIC (Rgs).
-SIN VERIFICAR (no hay fuente consultada todavía; Paula no ha bajado aún las fotos de R3 porque el PC está en pausa):
-19,9 m entre topes, tablero de 18,5 × 2,9 m a 1,25 m de altura, bogies de dos ejes con centros a ±7 m y ruedas de
-0,92 m. Las cotas se ajustan en cuanto lleguen las fotos y la ficha.
+Fotos de Paula (catálogo R3, CC BY-SA 4.0, Falk2): R3_vagon_plataforma_2.jpg, rama de Rgs de ancho ibérico en 3/4 casi
+cenital, y _1.jpg, plataforma Kgs de dos ejes. De la Rgs se toman: teleros finos y altos (unos 10 por costado), larguero
+oscuro bajo el tablero con el canto del piso pintado, testeros altos en los extremos y bogies de dos ejes junto a los
+testeros. Ninguna de las dos da cotas: SIGUEN SIN VERIFICAR 19,9 m entre topes, tablero de 18,5 × 2,9 m a 1,25 m,
+bogies con centros a ±7 m y ruedas de 0,92 m (no hay ficha consultada).
 Improvisado por el taller (encargo de Lucía): parapeto de chapa de 1,3 m alrededor del tablero, sujeto a los teleros
 de la plataforma (montantes cada 2,3 m), con aspilleras a la altura del tirador; acceso por los testeros; sacos en las
 esquinas y cajas de munición. Colores D-N42: laterales 50541c y canto superior y tablero en el claro b8b8b8.
@@ -35,7 +37,8 @@ def construir(nombre="SM_R2_VagonTropa", lod=0):
     fino = t.fino(lod)
     # --- tablero, testeros del bastidor, topes y bogies
     t.caja((0, 0, ZT - 0.15), (2.9, 18.5, 0.3), "tablero")
-    t.caja((0, 0, ZT - 0.45), (2.4, 18.5, 0.3), "bastidor")
+    t.caja((0, 0, ZT - 0.5), (2.6, 18.5, 0.4), "bastidor")   # foto 2: larguero oscuro y alto bajo el tablero
+    fino.caja((0, 0, ZT - 0.18), (2.94, 18.3, 0.22), "casco")   # canto del piso pintado (verde en la foto)
     for s in (-1, 1):
         t.caja((0, s * 9.35, ZT - 0.35), (2.9, 0.3, 0.5), "bastidor")
         for x in (-0.9, 0.9):
@@ -61,8 +64,8 @@ def construir(nombre="SM_R2_VagonTropa", lod=0):
                 fino.caja((x * (1.45 - EP / 2) + cara * (EP / 2 + 0.005), y, ZT + 1.0), (0.01, 0.45, 0.12), "optica")
     # teleros (montantes de la plataforma) por fuera de la chapa
     for x in (-1.0, 1.0):
-        for k in range(9):
-            fino.caja((x * 1.5, -9.2 + k * 2.3, ZT + 0.55), (0.1, 0.12, 1.4), "metal")
+        for k in range(10):   # foto 2: unos 10 teleros por costado, finos y más altos que el borde
+            fino.caja((x * 1.5, -8.8 + k * 1.955, ZT + 0.6), (0.08, 0.1, 1.5), "metal")
     # remiendos soldados (chapa de otro acero), uno por costado y desplazados
     for x, y in ((-1.0, -3.0), (1.0, 4.2), (1.0, -6.0)):
         t.caja((x * 1.47, y, ZT + 0.75), (0.03, 1.6, 0.9), "chapa")
