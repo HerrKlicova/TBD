@@ -32,6 +32,9 @@ import build_sagunto  # noqa: E402
 import build_decals  # noqa: E402
 import build_suelo_sagunto  # noqa: E402
 import build_asfalto_variado  # noqa: E402
+import build_a9_pelotones  # noqa: E402
+import build_interfaz  # noqa: E402
+import build_vfx_combate  # noqa: E402
 
 PIVOTE = [0.5, 0.53]
 
@@ -133,6 +136,19 @@ def asfalto_variado(out):
     build_asfalto_variado.exportar(out)
 
 
+def prototipo_noche(out):
+    """Noche del 6-nov (plan-noche-7nov.md): iconos de pelotón y NH90 (A9), interfaz (paneles, botones,
+    tarjetas, barras, alertas, cursores, órdenes, marcadores, logo y fondo del menú), señalización de la
+    carretera y del helipuerto, y VFX de combate (impacto, granada de 40 mm, sangre, restos y polvo de rotor).
+    Los iconos de fusileros y del Dragón (blindado 8x8) son los de A6."""
+    s32, s16 = build_a9_pelotones.iconos()
+    for n in build_a9_pelotones.NOMBRES:
+        s32[n].save(out / f"vm_unidades_{n}_32.png")
+        s16[n].save(out / f"vm_unidades_{n}_16.png")
+    build_interfaz.exportar(out)
+    build_vfx_combate.exportar(out)
+
+
 if __name__ == "__main__":
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "sprites_exportados")
     out.mkdir(parents=True, exist_ok=True)
@@ -145,4 +161,5 @@ if __name__ == "__main__":
     ambientacion_sagunto(out)
     suelo_sagunto(out)
     asfalto_variado(out)
+    prototipo_noche(out)
     print("atlas en", out.resolve())
