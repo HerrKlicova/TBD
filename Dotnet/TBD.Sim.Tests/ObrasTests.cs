@@ -435,6 +435,25 @@ namespace TBD.Sim.Tests
             dp.Push(Place(dp.Tick, PieceKind.Deposito, 1000, 1000)); dp.Push(Place(dp.Tick, PieceKind.Hesco, 100_000, 0, 150_000, 0)); dp.ApplyCommands();
             dp.Works.CompleteAll(Node);
             check(dp.Works.MaintenanceU(Node) == 1, $"el depósito y un muro a más de 60 m del andén no suman al mantenimiento (siguen en 1 u): {dp.Works.MaintenanceU(Node)}");
+            // el depósito no se desgasta; los muros a más de 60 m sí, aunque la estación pague el mantenimiento (Hugo)
+            var fo = Built(50); fo.Services.Clear();
+            fo.Push(Place(fo.Tick, PieceKind.Deposito, 1000, 1000)); fo.Push(Place(fo.Tick, PieceKind.Hesco, 100_000, 0, 110_000, 0)); fo.ApplyCommands(); fo.Works.CompleteAll(Node);
+            fo.Stock[Node, (int)Res.Materiales] = 50;
+            check(fo.Works.P.OutsideWearMil == 10, "el desgaste fuera del perímetro viene de desgaste_fuera_perimetro_permil_dia del CSV de Hugo (10 ‰)");
+            for (int d = 1; d <= 20; d++) { fo.Tick = d * NetConst.DayTicks - 1; fo.Step(); }
+            int inside = -1, outside = -1, dep = -1;
+            foreach (var x in fo.Works.At(Node))
+            {
+                if (x.Kind == PieceKind.Deposito) dep = x.LifeMil;
+                else if (Math.Abs((x.X0 + x.X1) / 2) > 60_000) outside = x.LifeMil;
+                else if (x.Kind == PieceKind.Hesco && x.X0 == 0) inside = x.LifeMil;
+            }
+            check(inside == 1000 && dep == 1000 && outside >= 800 && outside <= 830, $"con el mantenimiento pagado 20 días: dentro 1000 ‰, depósito 1000 ‰ y el muro de fuera {outside} ‰ (~82 %)");
+            var fu = Built(0); fu.Services.Clear(); fu.Stock[Node, (int)Res.Materiales] = 10;
+            fu.Push(Place(fu.Tick, PieceKind.Deposito, 1000, 1000)); fu.ApplyCommands(); fu.Works.CompleteAll(Node); fu.Stock[Node, (int)Res.Materiales] = 0;
+            fu.Tick = 3 * NetConst.DayTicks - 1; fu.Step();
+            int dep2 = -1; foreach (var x in fu.Works.At(Node)) if (x.Kind == PieceKind.Deposito) dep2 = x.LifeMil;
+            check(dep2 == 1000, "tampoco se desgasta el depósito cuando la estación no puede pagar el mantenimiento");
             var d20 = Built(1000); d20.Services.Clear();
             for (int d = 1; d <= 20; d++) { d20.Tick = d * NetConst.DayTicks - 1; d20.Step(); }
             check(d20.Stock[Node, (int)Res.Materiales] == 980 && d20.Works.At(Node)[0].LifeMil == 1000, "abastecida 20 días: paga 1 u al día (980 u quedan) y conserva el 100 % de vida");

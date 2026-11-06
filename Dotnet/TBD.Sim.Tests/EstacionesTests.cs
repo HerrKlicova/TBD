@@ -190,11 +190,11 @@ namespace TBD.Sim.Tests
 
             // el puente: 80 u y 192 obrero·h = 36.000 ticks con 8 obreros
             var w6 = Setup(out var sv6, out var e6, 79, 8); w6.DestroyEdge(e6.Id, true);
-            check(w6.RepairEdge(e6.Id, 0) == RepairResult.SinCarga, "el puente pide 80 u: con 79 no se empieza");
+            check(w6.RepairEdge(e6.Id, 0) == RepairResult.SinCarga, "el puente pide 80 u (puente_jiloca_materiales): con 79 no se empieza");
             sv6.Cargo[(int)Res.Materiales] = 80;
             check(w6.RepairEdge(e6.Id, 0) == RepairResult.Ok && sv6.Cargo[(int)Res.Materiales] == 0, "con 80 u se empieza y se pagan todas");
-            int t6 = 0; while (e6.Debris && t6 < 60_000) { w6.Step(); t6++; }
-            check(t6 == 36_000 && !e6.Debris, $"el puente son 192 obrero·h: con 8 obreros, un día entero (36.000 ticks): {t6}");
+            int t6 = 0; while (e6.Debris && t6 < 100_000) { w6.Step(); t6++; }
+            check(w6.Works.P.BridgeU == 80 && w6.Works.P.BridgeDays == 2 && t6 == 72_000 && !e6.Debris, $"el puente son puente_jiloca_dias = 2 días del CSV de Hugo: con 8 obreros, 72.000 ticks: {t6}");
 
             // determinismo: dos mundos con la misma reparación dan el mismo hash en cada punto
             var wa = Setup(out var sva, out var ea); var wb = Setup(out var svb, out var eb);
