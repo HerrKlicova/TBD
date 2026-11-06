@@ -751,9 +751,9 @@ namespace TBD.Net
         {
             for (int n = 0; n < Works.Nodes; n++)
             {
-                int cost = Works.MaintenanceU(n);
-                bool paid = Stock[n, (int)Res.Materiales] >= cost;
-                if (paid) Stock[n, (int)Res.Materiales] -= cost;
+                int need = Works.AccrueMaintenance(n);        // el 1 % exacto con remanente (adenda de D-N63): hay que poder cubrir ceil(remanente); se cobra la parte entera
+                bool paid = Stock[n, (int)Res.Materiales] >= need;
+                Stock[n, (int)Res.Materiales] -= Works.SettleMaintenance(n, paid);
                 Works.WearDay(n, paid);          // el depósito no se gasta y lo que está fuera del perímetro sí, pague o no la estación (Hugo)
             }
         }

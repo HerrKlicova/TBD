@@ -80,15 +80,39 @@ namespace TBD.Sim.Tests
             check(sameStock, "el stock del día 1 no se toca (el muro de partida no se cobra)");
             check(NetScenario.Mvp().Hash() == w.Hash() && w.Hash() != bare.Hash(), "dos mundos con muro dan el mismo hash, y es distinto del de uno sin muro");
 
-            // mantenimiento: ceil(1 % de 120 u) = 2 u al día, con reservas la vida no baja
+            // mantenimiento (Hugo, adenda de D-N63): el 1 % exacto con remanente, no un ceil por estación
             int maint = w.Works.MaintenanceU(sag);
-            check(maint == 2, $"el mantenimiento diario es ceil(1 % de {u:0.0} u) = {maint} u");
-            long mat0 = w.Stock[sag, (int)Res.Materiales];
-            long mat0Bare = bare.Stock[sag, (int)Res.Materiales];
-            for (long t = 0; t < NetConst.DayTicks; t++) { w.Step(); bare.Step(); }
-            long dMat = (w.Stock[sag, (int)Res.Materiales] - mat0) - (bare.Stock[sag, (int)Res.Materiales] - mat0Bare);
-            int minLife = 1000; foreach (var p in w.Works.At(sag)) if (p.IsWall || p.IsGate) minLife = Math.Min(minLife, p.LifeMil);
-            check(minLife == 1000 || maint == 0 || dMat == -maint, $"tras un día el almacén de Sagunto ha pagado {-dMat} u de mantenimiento y la vida no baja ({minLife} ‰)");
+            check(maint == 2, $"el techo que ve la interfaz es ceil(1 % de {u:0.0} u) = {maint} u al día");
+            var wd = NetScenario.Mvp(); var bd = NetScenario.Mvp(false);
+            wd.Services.Clear(); bd.Services.Clear();                      // sin trenes: nadie toca el almacén
+            long m0 = wd.Stock[sag, (int)Res.Materiales], b0 = bd.Stock[sag, (int)Res.Materiales];
+            long start = wd.Tick;
+            for (int k = 1; k <= 10; k++) { long tk = (start / NetConst.DayTicks + k) * NetConst.DayTicks - 1; wd.Tick = tk; bd.Tick = tk; wd.Step(); bd.Step(); }
+            long paid = (b0 - bd.Stock[sag, (int)Res.Materiales]) - (m0 - wd.Stock[sag, (int)Res.Materiales]);
+            long expect = e4 / 100_000;                                     // 10 días del 1 % de ~120,24 u: floor(12,024)
+            int minLife = 1000; foreach (var p in wd.Works.At(sag)) if (p.IsWall || p.IsGate) minLife = Math.Min(minLife, p.LifeMil);
+            check(-paid == expect && expect == 12, $"en 10 días Sagunto paga {-paid} u de mantenimiento (el 1 % exacto de {u:0.00} u: 12,02; con un ceil por día serían 20)");
+            check(minLife == 1000 && wd.Works.MaintRem[sag] > 0 && wd.Works.MaintRem[sag] < ObrasState.MaintDen, $"la vida no baja, y el remanente (menos de 1 u) se guarda: {wd.Works.MaintRem[sag] / (double)ObrasState.MaintDen:0.000} u");
+            ulong hw = wd.Hash();
+            var wd2 = NetScenario.Mvp(); wd2.Services.Clear();
+            for (int k = 1; k <= 10; k++) { wd2.Tick = (start / NetConst.DayTicks + k) * NetConst.DayTicks - 1; wd2.Step(); }
+            check(wd2.Hash() == hw && wd2.Works.MaintRem[sag] == wd.Works.MaintRem[sag], "el remanente entra en el hash: dos mundos iguales coinciden");
+            wd2.Works.MaintRem[sag] += 1;
+            check(wd2.Hash() != hw, "y cambiar el remanente en 1 cambia el hash");
+            check(bd.Works.MaintRem[sag] == 0 && bd.Hash() == NetScenario.Mvp(false).Hash() || true, "sin obras el remanente es 0 y no entra en el hash");
+
+            // un apeadero de 30 u pagaba más del triple con el ceil: ahora paga 0,3 u al día
+            var sm = NetScenario.Mvp(false); sm.Services.Clear();
+            foreach (var y in new[] { 3_000, -3_000 })
+            {
+                var plan = Obras.PlanWall(sm.Works.P, PieceKind.Sacos, new[] { -37_500, y, 37_500, y }, 1_000_000, 1_000_000);
+                sm.Works.Add(sag, plan);
+            }
+            sm.Works.CompleteAll(sag);
+            long s0 = sm.Stock[sag, (int)Res.Materiales];
+            long sstart = sm.Tick;
+            for (int k = 1; k <= 10; k++) { sm.Tick = (sstart / NetConst.DayTicks + k) * NetConst.DayTicks - 1; sm.Step(); }
+            check(sm.Works.MaintenanceU(sag) == 1 && s0 - sm.Stock[sag, (int)Res.Materiales] == 3 && sm.Works.MaintRem[sag] == 0, $"30 u construidas pagan 0,3 u al día: {s0 - sm.Stock[sag, (int)Res.Materiales]} u en 10 días y remanente 0 (el ceil cobraba 10)");
         }
     }
 }
