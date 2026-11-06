@@ -1212,7 +1212,7 @@ namespace TBD.View
         void BuildCuttingTerrain()
         {
             var bank = Mat("8a7650");                                // llano de arriba (L* 64-68 en captura normal)
-            var slope = Mat("766444");                               // taludes: L* 52-56 (medido: con el albedo del llano salían a 66)
+            var slope = Mat("5a4c34");                               // taludes: L* 52-56 (medido: con el albedo del llano salían a 66)
             float hb = 0.7f, hp = CuttingLevel.Depth;                // altura de la base de la rampa y del llano de arriba
             float yb = Level.TrackY + CuttingLevel.HalfBottom;       // 72,5: pie del talud norte
             float yc = yb + (hp - hb) / 0.84f;                       // pendiente 0,84 m por metro: pasa por la mitad de los escalones
