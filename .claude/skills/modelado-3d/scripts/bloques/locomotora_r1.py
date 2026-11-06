@@ -97,7 +97,9 @@ def construir(nombre="SM_R1_Locomotora", lod=0):
     t.caja((0, -Y0 - 0.2, 0.95), (1.6, 0.3, 0.3), "metal")
     # --- costado: panel de rejillas en la mitad central (lateral 1) y nervios en el LOD0
     for x in (-1.0, 1.0):
-        t.caja((x * 1.6, 0.0, 2.5), (0.04, 11.0, 1.8), "rejilla")
+        # Solo en el LOD0 (Lucía, 6-nov): en el LOD1 el 303424 era un agujero negro en el flanco, y la paleta no tiene un
+        # oliva entre 5 y 12 de L* por debajo del 50541c, así que en el LOD1 el flanco queda liso en 50541c
+        fino.caja((x * 1.6, 0.0, 2.5), (0.04, 11.0, 1.8), "rejilla")
         for k in range(6):
             fino.caja((x * 1.625, 0.0, 1.75 + k * 0.3), (0.03, 10.9, 0.08), "casco")
     # --- techo: carenado de radiadores con rejilla, escapes y ventiladores
