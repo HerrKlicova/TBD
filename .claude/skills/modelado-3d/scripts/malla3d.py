@@ -381,6 +381,38 @@ def escalar_a_altura(obj, altura_m):
     return {"factor": round(k, 5)}
 
 
+def escalar_a_largo(obj, largo_m):
+    """Escala uniforme para que la dimensión horizontal mayor mida largo_m (vehículos: la longitud es la medida fiable;
+    la altura suele no aclarar si incluye la torre)."""
+    me = obj.data
+    co = np.empty(len(me.vertices) * 3)
+    me.vertices.foreach_get("co", co)
+    co = co.reshape(-1, 3)
+    l = float((co.max(0) - co.min(0))[:2].max())
+    if l <= 0:
+        return {"error": "largo cero"}
+    k = largo_m / l
+    me.transform(Matrix.Scale(k, 4))
+    me.update()
+    return {"factor": round(k, 5)}
+
+
+def alisar_superficie(obj, iteraciones=10, lambda_factor=1.0):
+    """Quita las ondulaciones de Hunyuan en superficies que deberían ser planas (techos, chapas) con un alisado
+    laplaciano que conserva el volumen. Se aplica a la malla densa, antes de remallar y diezmar: si no, la luz de
+    Unity marca cada bulto como una mancha de otro tono."""
+    m = obj.modifiers.new("_laplaciano", "LAPLACIANSMOOTH")
+    m.iterations = int(iteraciones)
+    m.lambda_factor = lambda_factor
+    m.lambda_border = 0.0
+    m.use_volume_preserve = True
+    m.use_normalized = True
+    me = _malla_eval(obj)
+    me.transform(obj.matrix_world.inverted())
+    _aplicar_malla(obj, me)
+    return {"iteraciones": int(iteraciones), "lambda": lambda_factor}
+
+
 def remallar_voxel(obj, voxel_m=None, divisiones=160):
     """Remallado por vóxeles: cierra agujeros y une piezas. Pierde las UV y la textura (el color se recupera
     con paleta_desde_original). voxel_m por defecto = dimensión mayor / divisiones."""
@@ -811,7 +843,8 @@ def _poner_indices(obj, idx):
     me.update()
 
 
-def valor_partido(obj, claro="b4a080", costado=None, umbral_arriba=0.55, oscurecer=12.0, paleta=None,
+def valor_partido(obj, claro="b4a080", costado=None, umbral_arriba=0.7, oscurecer=12.0, paleta=None, suavizar=3,
+                  alisar=25,
                   excluir=PROHIBIDOS_OBJETO):
     """D-N57 + regla 1 de Iris: valor partido horneado en el albedo. Caras que miran arriba (normal z > umbral) al
     color claro de la paleta (b4a080 por defecto, decisión de Lucía: 94948c es la camisa de los zombis; con claro=None se elige por el tono dominante); costados
@@ -823,7 +856,20 @@ def valor_partido(obj, claro="b4a080", costado=None, umbral_arriba=0.55, oscurec
     permit = np.array([h not in (excluir or ()) for h in hexes])
     idx = _indices_atlas(obj)
     me = obj.data
-    nz = np.array([(obj.matrix_world.to_3x3() @ p.normal).normalized().z for p in me.polygons])
+    # normales de una copia alisada (misma topología): las ondulaciones de Hunyuan no cuentan, solo la forma grande
+    nz = None
+    if alisar:
+        m = obj.modifiers.new("_alisar", "SMOOTH")
+        m.factor = 1.0
+        m.iterations = int(alisar)
+        dg = bpy.context.evaluated_depsgraph_get()
+        me_a = obj.evaluated_get(dg).to_mesh()
+        if len(me_a.polygons) == len(me.polygons):
+            nz = np.array([(obj.matrix_world.to_3x3() @ p.normal).normalized().z for p in me_a.polygons])
+        obj.evaluated_get(dg).to_mesh_clear()
+        obj.modifiers.remove(m)
+    if nz is None:
+        nz = np.array([(obj.matrix_world.to_3x3() @ p.normal).normalized().z for p in me.polygons])
     areas = np.array([p.area for p in me.polygons])
     if claro is None:
         uso = np.bincount(idx, weights=areas, minlength=len(pal))
@@ -844,12 +890,34 @@ def valor_partido(obj, claro="b4a080", costado=None, umbral_arriba=0.55, oscurec
     if costado and costado.lower().lstrip("#") in COSTADOS_PROHIBIDOS:
         raise ValueError("costado %s prohibido (suelo o zombi): usa 50541c (militar) o 605c48 (civil)" % costado)
     permit = permit & np.array([h not in COSTADOS_PROHIBIDOS for h in hexes])
+    # clase de cada cara: 1 arriba, 0 costado, -1 abajo; se suaviza por mayoría (ponderada por área) entre vecinas
+    # para que el ruido de Hunyuan no deje motas de costado en el techo ni de beige en los flancos
+    clase = np.where(nz > umbral_arriba, 1, np.where(nz < -umbral_arriba, -1, 0))
+    if suavizar:
+        arista_caras = {}
+        for p in me.polygons:
+            for ek in p.edge_keys:
+                arista_caras.setdefault(ek, []).append(p.index)
+        vecinas = [[] for _ in me.polygons]
+        for caras in arista_caras.values():
+            for a in caras:
+                vecinas[a].extend(c for c in caras if c != a)
+        for _ in range(suavizar):
+            nueva = clase.copy()
+            for k, vs in enumerate(vecinas):
+                if not vs:
+                    continue
+                peso = {}
+                for c in vs + [k]:
+                    peso[clase[c]] = peso.get(clase[c], 0.0) + areas[c]
+                nueva[k] = max(peso, key=peso.get)
+            clase = nueva
     nuevo = idx.copy()
     i_cost = hexes.index(costado.lower().lstrip("#")) if costado else None
     for k in range(len(idx)):
-        if nz[k] > umbral_arriba:
+        if clase[k] == 1:
             nuevo[k] = i_claro
-        elif nz[k] < -umbral_arriba:
+        elif clase[k] == -1:
             base = i_cost if i_cost is not None else idx[k]
             nuevo[k] = mas_oscuro(base, oscurecer + 8)
         else:
@@ -857,7 +925,7 @@ def valor_partido(obj, claro="b4a080", costado=None, umbral_arriba=0.55, oscurec
     _poner_indices(obj, nuevo)
     usados = sorted(set(int(i) for i in nuevo))
     return {"claro": claro, "costado": costado or "oscurecido por cara",
-            "caras_arriba": int((nz > umbral_arriba).sum()), "caras_costado": int((np.abs(nz) <= umbral_arriba).sum()),
+            "caras_arriba": int((clase == 1).sum()), "caras_costado": int((clase == 0).sum()),
             "colores_usados": len(usados), "hex": [hexes[i] for i in usados]}
 
 
@@ -1090,7 +1158,7 @@ def importar(ruta):
 
 def procesar(ruta, salida, nombre=None, objetivo=3000, altura_m=None, voxel=True, max_colores=10,
              presupuesto=(1500, 4000), formato="FBX", faccion="neutro", partido=True, claro="b4a080", costado=None,
-             suelos=None, tipo=None):
+             suelos=None, tipo=None, largo_m=None, alisar=0):
     """Hunyuan (GLB denso) -> pieza de juego: importar, escalar, limpiar, (remallar), diezmar, paleta, auditar,
     vistas y exportar. Devuelve el informe completo y lo guarda en <salida>/<nombre>_informe.json."""
     os.makedirs(salida, exist_ok=True)
@@ -1105,12 +1173,17 @@ def procesar(ruta, salida, nombre=None, objetivo=3000, altura_m=None, voxel=True
     original.hide_render = True
     original.hide_set(True)
     inf["limpiar"] = limpiar(obj)  # antes de escalar: las motas flotantes falsean la altura
-    if altura_m:
-        k = altura_m / max(obj.dimensions.z, 1e-9)
-        inf["escala"] = escalar_a_altura(obj, altura_m)
+    if altura_m or largo_m:
+        co = np.empty(len(obj.data.vertices) * 3)
+        obj.data.vertices.foreach_get("co", co)
+        ext = np.ptp(co.reshape(-1, 3), axis=0)
+        k = (largo_m / max(ext[:2].max(), 1e-9)) if largo_m else (altura_m / max(ext[2], 1e-9))
+        inf["escala"] = escalar_a_largo(obj, largo_m) if largo_m else escalar_a_altura(obj, altura_m)
         original.data.transform(Matrix.Scale(k, 4))
         llevar_origen_a_base(obj)
     llevar_origen_a_base(original)
+    if alisar:
+        inf["alisar"] = alisar_superficie(obj, iteraciones=alisar)
     if voxel:
         inf["remallar"] = remallar_voxel(obj)
     # si la silueta cae por debajo del 95 %, se reintenta con más triángulos sin pasar del máximo del presupuesto
@@ -1165,6 +1238,7 @@ def _main(argv):
     ap.add_argument("--nombre")
     ap.add_argument("--objetivo", type=int, default=3000)
     ap.add_argument("--altura", type=float, help="altura real en metros")
+    ap.add_argument("--largo", type=float, help="longitud real en metros (escala por la longitud; la altura se audita)")
     ap.add_argument("--sin-voxel", dest="voxel", action="store_false",
                     help="no remallar por vóxeles (conserva las UV originales; deja más aristas de borde)")
     ap.add_argument("--colores", type=int, default=10)
@@ -1176,7 +1250,8 @@ def _main(argv):
     ap.add_argument("--tipo", choices=list(COSTADO_POR_TIPO), help="militar (costado 50541c) o civil (605c48)")
     a = ap.parse_args(argv)
     inf = procesar(a.entrada, a.salida, a.nombre, a.objetivo, a.altura, a.voxel, a.colores, formato=a.formato,
-                   faccion=a.faccion, partido=a.partido, claro=a.claro, costado=a.costado, tipo=a.tipo)
+                   faccion=a.faccion, partido=a.partido, claro=a.claro, costado=a.costado, tipo=a.tipo,
+                   largo_m=a.largo)
     print(json.dumps({k: inf[k] for k in ("nombre", "triangulos_entrada", "diezmar", "paleta")}, ensure_ascii=False,
                      default=str))
     print("VEREDICTO", inf["auditoria"]["veredicto"])
