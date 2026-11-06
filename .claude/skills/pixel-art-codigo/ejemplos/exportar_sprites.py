@@ -8,7 +8,8 @@ Uso (desde la raíz del repo, con Python 3 y Pillow):
     python .claude/skills/pixel-art-codigo/ejemplos/exportar_sprites.py <carpeta_salida>
 Salida: atlas_zombi_muerte.png/.json (160x192), atlas_zombi_lod.png/.json (40x8),
         atlas_oficial.png/.json (160x128),
-        vm_taller_{puerta_via_rota,tren_nuevo,rehabilitar,chispas}_{32,16}.png (iconos de UI). Importar con filtro de punto, sin compresión.
+        vm_taller_{puerta_via_rota,tren_nuevo,rehabilitar,chispas}_{32,16}.png (iconos de UI),
+        vm_alertas_aviso_{32,16}.png (aviso ámbar de la etiqueta de construcción). Importar con filtro de punto, sin compresión.
 """
 import json
 import sys
@@ -25,6 +26,7 @@ import build_zombi  # noqa: E402
 import build_zombi_lod  # noqa: E402
 import build_oficial  # noqa: E402
 import build_taller  # noqa: E402
+import build_a2  # noqa: E402
 
 PIVOTE = [0.5, 0.53]
 
@@ -82,6 +84,15 @@ def iconos_taller(out):
         build_taller.icono_16(n, s).save(out / f"vm_taller_{n}_16.png")
 
 
+
+def aviso_ambar(out):
+    """Icono de aviso en ámbar para la etiqueta de construcción (D-N61), a 32 y 16 px."""
+    s = build_a2.aviso()
+    s.limit_colors(10)
+    s.save(out / "vm_alertas_aviso_32.png")
+    build_a2.aviso_16().save(out / "vm_alertas_aviso_16.png")
+
+
 if __name__ == "__main__":
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "sprites_exportados")
     out.mkdir(parents=True, exist_ok=True)
@@ -90,4 +101,5 @@ if __name__ == "__main__":
     atlas_lod(out)
     atlas_oficial(out)
     iconos_taller(out)
+    aviso_ambar(out)
     print("atlas en", out.resolve())
