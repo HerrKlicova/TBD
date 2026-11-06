@@ -108,6 +108,12 @@ Ningún modelo se entrega como bloque liso ni con un solo color. Para cada pieza
 4. **Entrega con captura junto a la foto real**: foto, versión anterior y nueva en 3/4, a tamaño de juego y en lateral
    (ejemplo: `capturas/dragon_v3_v5_foto.png`).
 Ejemplo completo: `scripts/bloques/dragon_v5.py` (2.432 tris, auditoría OK, 9 colores).
+**Regla de píxel de Bruno (6-nov) para el LOD1**: (1) medir la escala de juego: ~0,17 m/px (el Dragón, 8 m, ocupa
+~48 px; un VAMTAC de 6 m, ~36 px: `entregar.py --px`); (2) detalle mínimo de 2 px en su lado más corto (~0,35 m): con
+menos de 1 px parpadea al girar y entre 1 y 2 px el contorno lo vuelve una línea negra; (3) al menos 2 px de superficie
+entre dos detalles; (4) nada que salga de la silueta con menos de 3×3 px; (5) lo que no llega va fuera o como cambio de
+valor plano, sin geometría ni contorno (escotillas, juntas, lamas). Los cañones se engordan a 2 px en el LOD1.
+
 **Atajo (nube, sin el PC de Eugenio)**: `scripts/bloques/taller.py` (caja, cilindro, perfil extruido con bandas planas,
 costuras, LOD con `fino`) para escribir el bloque, y `scripts/entregar.py <modulo> <salida> --fotos 34.jpg:caja
 lateral.jpg:caja --claro … --python_bpy <python con bpy>`, que genera el LOD0 y el LOD1, sus informes y FBX, y la captura

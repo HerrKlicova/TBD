@@ -123,7 +123,7 @@ class Taller:
             v.co = rot @ v.co + Vector(c)
         self._marcar(list({f for v in res["verts"] for f in v.link_faces}), pieza)
 
-    def neumatico(self, c, r=0.68, ancho=0.5, tacos=12):
+    def neumatico(self, c, r=0.68, ancho=0.5, tacos=12, buje=True):
         """Neumático con tacos en la silueta (radio alterno), llanta y buje."""
         bm = self.bm
         n = tacos * 2
@@ -146,7 +146,8 @@ class Taller:
         self._marcar(caras, "goma")
         # llanta (disco algo hundido respecto al flanco) y buje saliente
         self.cilindro((x0 + lado * (ancho / 2 + 0.01), y0, z0), 0.38, 0.04, "X", 10, "llanta")
-        self.cilindro((x0 + lado * (ancho / 2 + 0.06), y0, z0), 0.17, 0.1, "X", 8, "casco")
+        if buje:   # en el LOD1 no: 0,34 m es menos de 2 px a 48 px (regla de Bruno)
+            self.cilindro((x0 + lado * (ancho / 2 + 0.06), y0, z0), 0.17, 0.1, "X", 8, "casco")
 
 
 class _Nada:
@@ -171,18 +172,19 @@ def construir(nombre="SM_VCR_Dragon_v5", lod=0):
     # --- ruedas: ejes medidos en el lateral (desde el morro 1,56 / 2,99 / 4,52 / 6,08 m)
     for y in (-2.44, -1.01, 0.52, 2.08):
         for x in (-1.22, 1.22):
-            t.neumatico((x, y, 0.68))
+            t.neumatico((x, y, 0.68), buje=lod == 0)
     # --- torre RCWS 30 mm (3/4 y frontal): base, cuerpo con frente inclinado, mantelete, cañón con bocacha
     tz = HULL_Z
     t.caja((0.25, 0.1, tz + 0.12), (1.8, 1.9, 0.24), bisel=True)
     t.caja((0.25, 0.15, tz + 0.52), (1.5, 1.6, 0.56), inclinar=0.3, bisel=True)
     t.caja((0.25, -0.75, tz + 0.5), (0.5, 0.4, 0.38))
-    t.cilindro((0.25, -2.1, tz + 0.52), 0.065, 2.5, "Y", 8, "metal")
-    t.cilindro((0.25, -3.3, tz + 0.52), 0.1, 0.22, "Y", 8, "metal")
+    # cañón: en el LOD1 engordado a ~2 px (0,3 m) para que no parpadee al girar (regla de Bruno, 6-nov)
+    t.cilindro((0.25, -2.1, tz + 0.52), 0.065 if lod == 0 else 0.15, 2.5, "Y", 8, "metal")
+    fino.cilindro((0.25, -3.3, tz + 0.52), 0.1, 0.22, "Y", 8, "metal")
     # visores a los dos lados de la torre con su cristal (frontal: cajas con óptica en las esquinas)
     for x in (-0.62, 1.12):
-        t.caja((x, -0.35, tz + 0.62), (0.32, 0.42, 0.34))
-        t.caja((x, -0.57, tz + 0.64), (0.22, 0.03, 0.18), "optica")
+        fino.caja((x, -0.35, tz + 0.62), (0.32, 0.42, 0.34))      # cajas de visor: < 2 px, fuera del LOD1
+        fino.caja((x, -0.57, tz + 0.64), (0.22, 0.03, 0.18), "optica")
     # visor panorámico del jefe encima de la torre (cilindro con cabeza)
     fino.cilindro((0.85, 0.45, tz + 0.95), 0.12, 0.3, "Z", 8)
     fino.caja((0.85, 0.45, tz + 1.16), (0.28, 0.28, 0.16))
@@ -193,8 +195,8 @@ def construir(nombre="SM_VCR_Dragon_v5", lod=0):
             fino.cilindro((x + (k - 1) * 0.11, 0.55, tz + 0.9), 0.045, 0.2, "Z", 6, "metal")
     # --- techo: escotilla abierta junto a la torre (3/4: marco grande vertical), escotilla del conductor,
     # periscopios, dos escotillas de tropa y asas
-    t.caja((-0.85, -0.85, tz + 0.04), (0.8, 0.8, 0.08))
-    t.caja((-0.85, -1.22, tz + 0.45), (0.8, 0.06, 0.8))
+    fino.caja((-0.85, -0.85, tz + 0.04), (0.8, 0.8, 0.08))   # LOD1 fuera: tapa de 6 cm, menos de 1 px de canto (Bruno)
+    fino.caja((-0.85, -1.22, tz + 0.45), (0.8, 0.06, 0.8))   # LOD1 fuera: tapa de 6 cm, menos de 1 px de canto (Bruno)
     fino.cilindro((-0.75, -2.35, tz + 0.05), 0.32, 0.1, "Z", 10)
     for k in range(3):
         fino.caja((-0.75 + (k - 1) * 0.2, -2.78, tz + 0.08), (0.14, 0.1, 0.14))
