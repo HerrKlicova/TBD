@@ -85,6 +85,7 @@ namespace TBD.View
 
         void Start()
         {
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k") >= 0 && NetSession.DebugForceAmbush()) { NetSession.PendingAmbush = true; UnityEngine.SceneManagement.SceneManager.LoadScene("SampleScene"); return; }   // prueba de rendimiento (D-N61)
             Application.targetFrameRate = 60;
             NetSession.Ensure();                       // la red vive en la sesión y sigue corriendo dentro de las zonas (hito 3)
             _a = NetSession.A;

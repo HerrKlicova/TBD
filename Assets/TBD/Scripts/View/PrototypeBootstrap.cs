@@ -265,9 +265,53 @@ namespace TBD.View
         const int MassRes = 2;                  // metros por texel de la sombra de masa
 
         /// <summary>LOD con histéresis según los píxeles por metro del búfer pixelado, y sombra de masa (suelo más oscuro bajo la densidad).</summary>
+        // ---------------------------------------------------------------- prueba de rendimiento (D-N61): TBD.exe -stress10k
+        // Entra solo en una emboscada, mete 10.000 zombis en la trinchera con el tren disparando, mide FPS 40 s y escribe Captures/stress_10k_fps.txt
+        static readonly bool Stress = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k") >= 0;
+        float _stressT0 = -1f, _stressNext; int _stressFrames; readonly System.Collections.Generic.List<float> _stressFps = new System.Collections.Generic.List<float>();
+
+        void StressTick()
+        {
+            if (_stressT0 < 0f) { _stressT0 = Time.realtimeSinceStartup; Application.targetFrameRate = -1; QualitySettings.vSyncCount = 0; }   // sin tope: queremos saber si pasa de 60
+            float t = Time.realtimeSinceStartup - _stressT0;
+            if (t < 3f) return;
+            if (_stressFrames == 0 && _stressNext == 0f)
+            {
+                foreach (var w in new[] { _worldA, _worldB })
+                {
+                    var em = w.EntityManager;
+                    using (var qc = em.CreateEntityQuery(typeof(SimClock)))
+                    {
+                        var clock = qc.GetSingleton<SimClock>();
+                        var rng = new Unity.Mathematics.Random(777u);
+                        var ents = em.CreateEntity(em.CreateArchetype(typeof(Zombie)), 10000, Allocator.Temp);
+                        for (int i = 0; i < 10000; i++)
+                            em.SetComponentData(ents[i], Zombie.Create(clock.NextSimId++, new Unity.Mathematics.float2(90f + rng.NextFloat() * 90f, Level.TrackY - 7f + rng.NextFloat() * 14f), 0f));
+                        ents.Dispose(); qc.SetSingleton(clock);
+                    }
+                }
+                _targetOrtho = 22f; _stressNext = Time.realtimeSinceStartup + 1f; _stressT0 = Time.realtimeSinceStartup; return;
+            }
+            _stressFrames++;
+            if (Time.realtimeSinceStartup >= _stressNext)
+            {
+                _stressFps.Add(_stressFrames); _stressFrames = 0; _stressNext += 1f;
+                if (_stressFps.Count >= 40)
+                {
+                    var arr = _stressFps.ToArray(); System.Array.Sort(arr); float sum = 0f; foreach (var f in arr) sum += f;
+                    var net = _worldA.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<Zombie>()).CalculateEntityCount();
+                    var ammo = _worldA.EntityManager.CreateEntityQuery(typeof(ZoneAmmo)).GetSingleton<ZoneAmmo>();
+                    Directory.CreateDirectory(CaptureRoot);
+                    File.WriteAllText(Path.Combine(CaptureRoot, "stress_10k_fps.txt"), $"zombis al final {net}\nabatidos {ammo.Kills} disparos {ammo.ShotsFired}\nFPS medio {sum / arr.Length:0.0} mínimo {arr[0]:0} p5 {arr[2]:0} máximo {arr[arr.Length - 1]:0}\nresolución {Screen.width}x{Screen.height} factor 1/{_factor}\n");
+                    Application.Quit();
+                }
+            }
+        }
+
         void UpdateHordePresentation()
         {
             if (_worldCam == null || _worldA == null) return;
+            if (Stress) StressTick();
             if (_autoPix && Time.unscaledTime > _factorNext)                      // ~12 px por metro como máximo: cerca, factor 4-6; lejos, 3
             {
                 float ideal = Screen.height / (24f * Mathf.Max(0.01f, _worldCam.orthographicSize));
