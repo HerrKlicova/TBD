@@ -8,7 +8,7 @@ Revisión de Lucía (19:32): a tamaño de juego un tallo suelto medía 1 px y la
 Ahora los tallos van AGRUPADOS en 3 o 4 haces gruesos (tronco de pirámide de unos 0,55 m de base y 0,33 m arriba, más
 de 2 px a 0,17 m/px), con la parte baja en 847c34 y el tramo alto en 88885c (seco), penachos octaedro b4a080. Sin hojas
 colgantes: a tamaño de juego eran otra vez líneas de 1 px. Los haces se abren hacia fuera para que se lean separados.
-Cada haz son 18 triángulos.
+Cada haz son 18 triángulos. Revisión 19:36: haces afilados arriba y 1–2 tallos sueltos más altos (silueta dentada).
 Variantes: 0 densa de 3 m; 1 media de 2,5 m; 2 rala de 2 m; 3 tumbada por una riada (tallos inclinados hacia +X);
 4 seca y rota (más penachos, tallos partidos a media altura).
 """
@@ -59,8 +59,12 @@ def construir(nombre="SM_Canas", lod=0):
             h *= 0.55
         f1 = 0.62 if not roto else 0.8
         base, mid, top = (x, y, -0.02), (x + dx * f1, y + dy * f1, h * f1), (x + dx, y + dy, h)
-        w = (R.uniform(0.5, 0.6), R.uniform(0.42, 0.48), R.uniform(0.3, 0.36))
+        w = (R.uniform(0.5, 0.6), R.uniform(0.42, 0.48), R.uniform(0.08, 0.12))   # casi en punta bajo el penacho (Lucía 19:36)
         haz(t, (base, mid, top), w, a + R.uniform(0, 1), ("tallo", "tallo" if roto else "seco"))
+        if not roto and i < 2:                            # tallo suelto más alto: silueta de arriba dentada
+            b = (x + dx * 0.5, y + dy * 0.5, h * 0.5)
+            hoja(t, b, (x + dx * 1.25 + 0.15 * math.cos(a), y + dy * 1.25 + 0.15 * math.sin(a), h * 1.2), 0.34,
+                 "seco", giro=a)
         if not roto and npen < 5:
             _octaedro(t, (top[0], top[1], top[2] + 0.12), 0.17, "penacho")
             npen += 1
