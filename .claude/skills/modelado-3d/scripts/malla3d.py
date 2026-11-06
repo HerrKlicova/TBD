@@ -734,7 +734,7 @@ def _muestra(px, w, h, u, v):
 
 
 def _render(obj, vista="rts", res=128, paleta=None, intensidad=0.65, fondo=(0x18, 0x1c, 0x30), contorno=True,
-            luz_on=True):
+            luz_on=True, umbral_contorno=0.06):
     """Render propio: (imagen RGB, máscara del modelo, máscara del contorno)."""
     pal = cargar_paleta() if paleta is None else paleta
     me = _malla_eval(obj)
@@ -765,18 +765,20 @@ def _render(obj, vista="rts", res=128, paleta=None, intensidad=0.65, fondo=(0x18
         for dy, dx in ((0, 1), (1, 0), (0, -1), (-1, 0)):
             vec = np.roll(np.roll(m, dy, 0), dx, 1)
             vz = np.roll(np.roll(zz, dy, 0), dx, 1)
-            borde |= m & (~vec | (np.abs(vz - zz) > 0.06 * rango))
+            borde |= m & (~vec | (np.abs(vz - zz) > umbral_contorno * rango))
         img[borde] = oscuro
     return img, m, borde
 
 
 def vista_pixelada(obj, ruta_png, vista="rts", res=128, ampliar=3, paleta=None, intensidad=0.65,
-                   fondo=(0x18, 0x1c, 0x30), contorno=True):
-    """Imitación del shader del juego: render a baja resolución, luz desde arriba a la izquierda, acercamiento a la
+                   fondo=(0x18, 0x1c, 0x30), contorno=True, umbral_contorno=0.06):
+    """umbral_contorno: salto de profundidad (fracción del fondo de la pieza) que dibuja línea interior. Con 0,15 solo
+    quedan la silueta y los grandes cambios de volumen (regla de Lucía del 6-nov: el detalle interior va con valor).
+    Imitación del shader del juego: render a baja resolución, luz desde arriba a la izquierda, acercamiento a la
     paleta al 65 %, contorno de 1 px por profundidad y vecino más cercano. Sirve para revisar sin abrir Unity;
     la última palabra la tiene la captura de Unity (regla 13). El contorno lo pone siempre el script (o el shader),
     nunca se pinta en la textura (regla 2 de encargo-modelos-hunyuan.md)."""
-    img, _, _ = _render(obj, vista, res, paleta, intensidad, fondo, contorno)
+    img, _, _ = _render(obj, vista, res, paleta, intensidad, fondo, contorno, umbral_contorno=umbral_contorno)
     rgba = np.concatenate([img, np.full((res, res, 1), 255.0)], 2)
     rgba = np.repeat(np.repeat(rgba, ampliar, 0), ampliar, 1)
     _png(ruta_png, np.clip(rgba, 0, 255))

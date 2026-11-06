@@ -112,8 +112,18 @@ class Taller:
         self.cilindro((x0 + lado * (ancho / 2 + 0.06), y0, z0), 0.17, 0.1, "X", 8, "casco")
 
 
-def construir(nombre="SM_VCR_Dragon_v5"):
+class _Nada:
+    """Taller que no construye nada: las piezas finas no entran en el LOD1."""
+    def __getattr__(self, _):
+        return lambda *a, **k: None
+
+
+def construir(nombre="SM_VCR_Dragon_v5", lod=0):
+    """lod=0: de cerca, con todo el detalle. lod=1: tamaño de juego (regla de Lucía del 6-nov): solo piezas de
+    0,4 m o más (unos 3 px): torre, escotillas, rampa, cajones, ruedas y faros. Fuera retrovisores, ganchos,
+    periscopios, redes, mástil, lanzafumígenos, asas y lamas."""
     t = Taller()
+    fino = t if lod == 0 else _Nada()
     t.casco()
     # --- ruedas: ejes medidos en el lateral (desde el morro 1,56 / 2,99 / 4,52 / 6,08 m)
     for y in (-2.44, -1.01, 0.52, 2.08):
@@ -131,50 +141,50 @@ def construir(nombre="SM_VCR_Dragon_v5"):
         t.caja((x, -0.35, tz + 0.62), (0.32, 0.42, 0.34))
         t.caja((x, -0.57, tz + 0.64), (0.22, 0.03, 0.18), "optica")
     # visor panorámico del jefe encima de la torre (cilindro con cabeza)
-    t.cilindro((0.85, 0.45, tz + 0.95), 0.12, 0.3, "Z", 8)
-    t.caja((0.85, 0.45, tz + 1.16), (0.28, 0.28, 0.16))
-    t.caja((0.85, 0.3, tz + 1.16), (0.2, 0.02, 0.1), "optica")
+    fino.cilindro((0.85, 0.45, tz + 0.95), 0.12, 0.3, "Z", 8)
+    fino.caja((0.85, 0.45, tz + 1.16), (0.28, 0.28, 0.16))
+    fino.caja((0.85, 0.3, tz + 1.16), (0.2, 0.02, 0.1), "optica")
     # lanzafumígenos: dos racimos a los lados de la torre
     for x in (-0.55, 1.05):
         for k in range(3):
-            t.cilindro((x + (k - 1) * 0.11, 0.55, tz + 0.9), 0.045, 0.2, "Z", 6, "metal")
+            fino.cilindro((x + (k - 1) * 0.11, 0.55, tz + 0.9), 0.045, 0.2, "Z", 6, "metal")
     # --- techo: escotilla abierta junto a la torre (3/4: marco grande vertical), escotilla del conductor,
     # periscopios, dos escotillas de tropa y asas
     t.caja((-0.85, -0.85, tz + 0.04), (0.8, 0.8, 0.08))
     t.caja((-0.85, -1.22, tz + 0.45), (0.8, 0.06, 0.8))
     t.cilindro((-0.75, -2.35, tz + 0.05), 0.32, 0.1, "Z", 10)
     for k in range(3):
-        t.caja((-0.75 + (k - 1) * 0.2, -2.78, tz + 0.08), (0.14, 0.1, 0.14))
-        t.caja((-0.75 + (k - 1) * 0.2, -2.835, tz + 0.09), (0.1, 0.01, 0.06), "optica")
+        fino.caja((-0.75 + (k - 1) * 0.2, -2.78, tz + 0.08), (0.14, 0.1, 0.14))
+        fino.caja((-0.75 + (k - 1) * 0.2, -2.835, tz + 0.09), (0.1, 0.01, 0.06), "optica")
     for x in (-0.6, 0.6):
         t.caja((x, 2.6, tz + 0.04), (0.9, 1.2, 0.08))
-        t.caja((x, 3.25, tz + 0.12), (0.5, 0.05, 0.08), "metal")
+        fino.caja((x, 3.25, tz + 0.12), (0.5, 0.05, 0.08), "metal")
     for y in (1.1, 1.6):
-        t.caja((1.0, y, tz + 0.08), (0.45, 0.04, 0.06), "metal")
+        fino.caja((1.0, y, tz + 0.08), (0.45, 0.04, 0.06), "metal")
     # rejilla del motor (delante a la derecha): placa con lamas
     t.caja((0.85, -1.9, tz + 0.03), (1.0, 1.0, 0.06))
     for k in range(3):
-        t.caja((0.85, -2.25 + k * 0.3, tz + 0.08), (0.9, 0.12, 0.04), "metal")
+        fino.caja((0.85, -2.25 + k * 0.3, tz + 0.08), (0.9, 0.12, 0.04), "metal")
     # mástil del visor del jefe (3/4: poste delante a la izquierda con caja negra arriba)
-    t.cilindro((-1.15, -1.7, tz + 0.6), 0.07, 1.2, "Z", 6, "metal")
-    t.caja((-1.15, -1.7, tz + 1.35), (0.26, 0.26, 0.36), "metal")
-    t.caja((-1.15, -1.84, tz + 1.38), (0.18, 0.02, 0.14), "optica")
+    fino.cilindro((-1.15, -1.7, tz + 0.6), 0.07, 1.2, "Z", 6, "metal")
+    fino.caja((-1.15, -1.7, tz + 1.35), (0.26, 0.26, 0.36), "metal")
+    fino.caja((-1.15, -1.84, tz + 1.38), (0.18, 0.02, 0.14), "optica")
     # antenas en las esquinas traseras: solo la base. La varilla (1,8 m y 5 cm) sale a tamaño de juego como trazos
     # sueltos que no se unen; se quitó a propósito (lectura antes que fidelidad)
     for x in (-1.2, 1.2):
-        t.cilindro((x, 3.6, tz + 0.12), 0.09, 0.24, "Z", 6, "metal")
+        fino.cilindro((x, 3.6, tz + 0.12), 0.09, 0.24, "Z", 6, "metal")
     # --- frontal: retrovisores en mástil, grupos de faros, ganchos y redes de carga
     for s in (-1, 1):
-        t.cilindro((s * 1.45, -3.35, 2.45), 0.06, 0.9, "Z", 6, "metal")
-        t.caja((s * 1.62, -3.35, 2.75), (0.12, 0.2, 0.42), "metal")
-        t.caja((s * 1.62, -3.46, 2.75), (0.08, 0.02, 0.34), "optica")
+        fino.cilindro((s * 1.45, -3.35, 2.45), 0.06, 0.9, "Z", 6, "metal")
+        fino.caja((s * 1.62, -3.35, 2.75), (0.12, 0.2, 0.42), "metal")
+        fino.caja((s * 1.62, -3.46, 2.75), (0.08, 0.02, 0.34), "optica")
         t.caja((s * 1.1, -3.98, 1.68), (0.5, 0.08, 0.16))
         for k in range(2):
             t.caja((s * (0.98 + k * 0.22), -4.03, 1.68), (0.1, 0.02, 0.1), "foco")
-        t.cilindro((s * 0.75, -3.9, 0.95), 0.07, 0.18, "Y", 6, "metal")
-        t.caja((s * 0.75, -3.95, 0.82), (0.16, 0.08, 0.1), "metal")
-    t.caja((0.0, -3.62, 1.15), (1.4, 0.18, 0.45), "carga", inclinar=None)
-    t.caja((-0.95, -3.25, 2.0), (0.7, 0.3, 0.22), "carga")
+        fino.cilindro((s * 0.75, -3.9, 0.95), 0.07, 0.18, "Y", 6, "metal")
+        fino.caja((s * 0.75, -3.95, 0.82), (0.16, 0.08, 0.1), "metal")
+    fino.caja((0.0, -3.62, 1.15), (1.4, 0.18, 0.45), "carga", inclinar=None)
+    fino.caja((-0.95, -3.25, 2.0), (0.7, 0.3, 0.22), "carga")
     # --- costados: cajones de herramientas sobre el flanco, entre ruedas 3 y 4
     for s in (-1, 1):
         t.caja((s * 1.53, 1.3, 1.65), (0.08, 1.6, 0.5))

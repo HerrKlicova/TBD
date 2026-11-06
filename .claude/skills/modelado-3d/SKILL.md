@@ -108,6 +108,13 @@ Ningún modelo se entrega como bloque liso ni con un solo color. Para cada pieza
 4. **Entrega con captura junto a la foto real**: foto, versión anterior y nueva en 3/4, a tamaño de juego y en lateral
    (ejemplo: `capturas/dragon_v3_v5_foto.png`).
 Ejemplo completo: `scripts/bloques/dragon_v5.py` (2.432 tris, auditoría OK, 9 colores).
+5. **Dos lecturas (Lucía, 6-nov, como D-N61 de la horda)**: **LOD0** de cerca con todo el detalle y **LOD1** a tamaño
+   de juego solo con las piezas de 0,4 m o más (unos 3 px): `construir(lod=1)`, que deja fuera las piezas finas.
+   El contorno de 1 px va solo en la silueta y en los grandes cambios de volumen (`vista_pixelada(...,
+   umbral_contorno=0.15)`; en Unity es cosa del shader, **no verificado** allí). El detalle interior se dibuja con valor,
+   nunca con líneas negras. Dragón: LOD0 2.432 tris y LOD1 1.844, los dos OK.
+6. **Textura de chapa desde las fotos** (paneles, remaches, líneas): cuantizada a la paleta y con una diferencia de L*
+   interna de 12 como máximo, como los suelos. **Pendiente**: el atlas de celdas planas todavía no la lleva.
 
 ## Vehículos con pocas fotos: bloque con medidas reales (estándar de Lucía, 6-nov)
 Cuando solo hay una o dos fotos, Hunyuan con una imagen inventa la parte que no ve y deja la chapa ondulada (manchas
