@@ -3,7 +3,7 @@
 Encargo de Mak (00:18): unos 8 tonos de camisa, 6 de pantalón y 4 de piel, con su regla de mezcla, que
 sigan leyéndose de noche contra el suelo, sin confundirse con nuestros soldados ni con el coyote #605c48.
 Los zombis son personas (norma de variantes de Eugenio), pero la horda sigue siendo LO MÁS OSCURO de la
-escena (D-N61): por eso todos los tonos viven en una banda de valor estrecha, L* 9–16, y la variedad va
+escena (D-N61): por eso todos los tonos viven en una banda de valor estrecha, L* 9–13 (Lucía: toda la partida es de noche), y la variedad va
 en el matiz y la saturación, nunca en el valor. Así:
   - el decorado más oscuro (#303424, L* 20,9) queda siempre por encima de cualquier zombi;
   - de noche, con el suelo en L* ≈ 25 (luna 0,45, D-N69), el contraste de Sara (ΔL* ≥ 8) se mantiene;
@@ -34,12 +34,12 @@ from pixelvm import PAL, _lab_l  # noqa: E402
 OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "out_horda")
 
 # (nombre, hex, peso): pesos de una calle cualquiera (más gris, negro y vaquero que color).
-CAMISAS = [("negro desteñido", "#1c1c1e", 3), ("gris marengo", "#262628", 3), ("azul mahón", "#1c2230", 2),
-           ("chocolate", "#28221a", 2), ("tostado", "#2a2418", 1), ("gris azulado", "#22262c", 2),
-           ("ciruela apagado", "#26202c", 1), ("pardo sucio", "#2a2724", 2)]
-PANTALONES = [("vaquero", "#1a202e", 4), ("negro", "#1a1a1c", 3), ("gris", "#252525", 2),
-              ("marrón", "#262016", 2), ("chándal marino", "#181c2a", 1), ("pana parda", "#28241c", 1)]
-PIEL = [("cerúlea", "#262624", 2), ("morena", "#2c2724", 2), ("amoratada", "#28242c", 1), ("terrosa", "#2a2720", 2)]
+CAMISAS = [("negro desteñido", "#1c1c1e", 3), ("gris marengo", "#202022", 3), ("azul mahón", "#1b212f", 2),
+           ("chocolate", "#262018", 2), ("tostado", "#262014", 1), ("gris azulado", "#1d2127", 2),
+           ("ciruela apagado", "#241e2a", 1), ("pardo sucio", "#23201d", 2)]
+PANTALONES = [("vaquero", "#1a202e", 4), ("negro", "#1a1a1c", 3), ("gris", "#212121", 2),
+              ("marrón", "#262016", 2), ("chándal marino", "#181c2a", 1), ("pana parda", "#242018", 1)]
+PIEL = [("cerúlea", "#21211f", 2), ("morena", "#25201d", 2), ("amoratada", "#231f27", 1), ("terrosa", "#232019", 2)]
 
 # Colores que la horda no debe imitar: soldado (D-N57), coyote, rim, sangre y ataque.
 PROHIBIDOS = {"olive": "#70784c", "olive_dark": "#50541c", "olive_grey (coyote)": "#605c48", "slate (rim)": "#404460",
@@ -71,8 +71,8 @@ def revisar():
     for grupo, lista in (("camisa", CAMISAS), ("pantalón", PANTALONES), ("piel", PIEL)):
         for n, h, _ in lista:
             L = _lab_l(rgb(h))
-            if not 9 <= L <= 16.5:
-                avisos.append(f"{grupo} {n}: L* {L:.1f} fuera de 9–16")
+            if not 9 <= L <= 13:
+                avisos.append(f"{grupo} {n}: L* {L:.1f} fuera de 9–13")
             hz, cz = matiz(rgb(h))
             for pn, ph in PROHIBIDOS.items():
                 hp, cp = matiz(rgb(ph))
@@ -229,7 +229,8 @@ def muestra(hora, variada, W=320, H=180, n=200, seed=26):
                 px[X, Y] = v
                 lums.append(_lab_l(v))
     suelo_l = sorted(_lab_l(c) for c in suelo_cache.values())
-    return base, (max(lums), suelo_l[len(suelo_l) // 10])
+    lums.sort()
+    return base, (lums[int(len(lums) * .9)], suelo_l[len(suelo_l) // 10])   # p90 de la horda frente a p10 del suelo
 
 
 def exportar(out):
@@ -255,7 +256,7 @@ if __name__ == "__main__":
             im.save(OUT / f"{nombre}_x1.png")
             im.resize((im.width * 3, im.height * 3), Image.NEAREST).save(OUT / f"{nombre}_x3.png")
             hoja.paste(im, (4 + i * 324, 4 + j * 184))
-            info[nombre] = {"L_max_horda": round(lmax, 1), "L_p10_suelo": round(lsuelo, 1), "dL": round(lsuelo - lmax, 1)}
+            info[nombre] = {"L_p90_horda": round(lmax, 1), "L_p10_suelo": round(lsuelo, 1), "dL": round(lsuelo - lmax, 1)}
             print(nombre, info[nombre])
     hoja.resize((hoja.width * 3, hoja.height * 3), Image.NEAREST).save(OUT / "muestra_horda_comparativa_x3.png")
     meta = {"nota": __doc__.split("Salidas:")[0].strip(),

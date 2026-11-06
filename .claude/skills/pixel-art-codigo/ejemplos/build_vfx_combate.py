@@ -234,6 +234,153 @@ def polvo_rotor(f):
     return s
 
 
+# --- Vehículos (Dragón y NH90) --------------------------------------------------------------
+def fogonazo_30mm(f):
+    """Boca del cañón de 30 mm del Dragón (mira a la derecha, boca en x=4): llamarada ancha con dos lenguas
+    laterales del freno de boca y anillo de humo. 48 px, 4 f, una vez. Mucho mayor que el del fusil."""
+    s = Sprite(48, 48)
+    ox, oy = 4, 24
+    if f == 0:
+        blob(s, ox + 6, oy, 6, "cream")
+        for k in range(8):
+            a = k * math.pi / 4
+            for r in range(6, 12):
+                s.set(int(ox + 6 + math.cos(a) * r), int(oy + math.sin(a) * r), "amber")
+    elif f in (1, 2):
+        largo = 36 if f == 1 else 26
+        for x in range(largo):
+            t = x / largo
+            semi = (9 if f == 1 else 6) * math.sin(math.pi * min(1, t * 1.4)) * (1 - t * .45)
+            for y in range(int(oy - semi), int(oy + semi) + 1):
+                v = (1 - t) * (1 - abs(y + .5 - oy) / max(semi, .5) * .8)
+                c = "cream" if v > .6 else "amber" if v > .32 else "ochre_dark"
+                if f == 2:
+                    c = {"cream": "amber", "amber": "ochre_dark", "ochre_dark": "rust"}[c]
+                s.set(ox + x, y, c)
+        for d in (-1, 1):                              # lenguas del freno de boca, en perpendicular
+            for k in range(2, 10 if f == 1 else 6):
+                s.set(ox + 3, oy + d * k, "amber" if k < 6 else "ochre_dark")
+                s.set(ox + 4, oy + d * k, "cream" if k < 4 else "amber")
+    else:
+        blob(s, ox + 12, oy - 2, 9, "concrete", .55)
+        blob(s, ox + 5, oy, 5, "olive_grey", .45)
+    return s
+
+
+def trazadora_30mm(f):
+    """Proyectil trazador de 30 mm: cabeza de 3 px en crema y cola de 14 px que enfría a ámbar y ocre.
+    32 px, bucle de 2 (parpadeo de la cola). Horizontal, cabeza a la derecha; el motor la mueve y la gira."""
+    s = Sprite(32, 32)
+    y = 16
+    for x in range(14, 28):
+        t = (x - 14) / 13
+        c = "cream" if t > .85 else "amber" if t > .45 else "ochre_dark"
+        if f == 1 and t < .3 and x % 2:
+            continue
+        s.set(x, y, c)
+        if t > .55:
+            s.set(x, y - 1, "amber" if t < .85 else "cream")
+    s.rect(27, 15, 3, 3, "cream")
+    return s
+
+
+def fogonazo_mag(f):
+    """MAG 58 de puerta del NH90: estrella pequeña de 4 puntas y lengua corta. 24 px, 2 f (alterna en ráfaga)."""
+    s = Sprite(24, 24)
+    ox, oy = 3, 12
+    largo = 12 if f == 0 else 8
+    for x in range(largo):
+        t = x / largo
+        semi = 2.5 * (1 - t)
+        for y in range(int(oy - semi), int(oy + semi) + 1):
+            s.set(ox + x, y, "cream" if t < .35 else "amber" if t < .7 else "ochre_dark")
+    for k in range(1, 5 if f == 0 else 3):
+        s.set(ox + 2, oy - k - 1, "amber")
+        s.set(ox + 2, oy + k + 1, "amber")
+    return s
+
+
+def trazadora_mag(f):
+    """Trazador de 7,62 (1 de cada 5): cabeza de 2 px y cola de 8 px, más fino que el de 30 mm. 24 px, bucle de 2."""
+    s = Sprite(24, 24)
+    for x in range(10, 20):
+        t = (x - 10) / 9
+        if f == 1 and t < .4 and x % 2:
+            continue
+        s.set(x, 12, "cream" if t > .75 else "amber" if t > .35 else "ochre_dark")
+    s.rect(20, 12, 2, 1, "cream")
+    return s
+
+
+def vainas(f):
+    """Vainas de latón que salen del arma y caen rebotando (3 vainas, 6 f, una vez). 16 px, pivote arriba."""
+    s = Sprite(16, 16)
+    for k in range(3):
+        t = (f + k * .7) / 5
+        if t > 1.2:
+            continue
+        x = 4 + k * 3 + t * 6
+        y = 2 + 16 * t * t - (4 * t if t < .5 else 0)
+        y = min(y, 13 - (k % 2))
+        horiz = (f + k) % 2
+        c, luz = "ochre_dark", "amber"
+        if horiz:
+            s.set(int(x), int(y), c)
+            s.set(int(x) + 1, int(y), luz)
+        else:
+            s.set(int(x), int(y), luz)
+            s.set(int(x), int(y) + 1, c)
+    return s
+
+
+def polvo_ruedas(f):
+    """Polvo que levantan las ruedas del Dragón al arrancar: nube baja hacia atrás (izquierda) que crece y se
+    deshace. 48 px, 6 f, una vez; un emisor por cada eje trasero."""
+    s = Sprite(48, 48)
+    t = f / 5
+    dens = [1, .9, .7, .5, .3, .15][f]
+    for k, (dx, dy, fr) in enumerate([(0, 0, 1), (-6, -2, .8), (-11, 1, .7), (-4, 3, .6), (-15, -3, .55)]):
+        r = (3 + t * 9) * fr
+        cx, cy = 40 + dx * (1 + t * 1.6), 36 + dy * (1 + t) - t * 6
+        blob(s, cx, cy, r, "olive_light", dens)
+        blob(s, cx - r * .3, cy - r * .3, r * .55, "beige", dens * .9)
+    if f < 3:                                          # chinas que despiden los neumáticos
+        for k in range(5):
+            s.set(int(40 - f * 6 - k * 3), int(38 - f * 2 + (k % 2) * 2), "grey_brown")
+    return s
+
+
+def impacto_30mm(f):
+    """Impacto de 30 mm (HE) en la horda: destello, cráter de polvo, sangre y trozos. 48 px, 6 f, una vez.
+    Unas 3 veces el de bala; la explosión de 40 mm (granada) sigue siendo mayor."""
+    s = Sprite(48, 48)
+    cx, cy = 24, 30
+    if f == 0:
+        blob(s, cx, cy, 5, "cream")
+        for k in range(6):
+            a = k * math.pi / 3 + .3
+            for r in range(5, 10):
+                s.set(int(cx + math.cos(a) * r), int(cy + math.sin(a) * r * .8), "amber")
+        return s
+    t = f / 5
+    blob(s, cx, cy - t * 6, 4 + t * 10, "olive_grey", [1, .85, .6, .4, .2][f - 1])
+    blob(s, cx - 2, cy - 2 - t * 6, 2 + t * 6, "concrete_light", [.9, .6, .4, .2, .1][f - 1])
+    if f == 1:
+        blob(s, cx, cy, 4, "amber")
+        blob(s, cx, cy, 2, "cream")
+    for k in range(14):                                # sangre y trozos en abanico
+        a = math.pi * (1.05 + .9 * _h(k, 0, 711))
+        v = 6 + _h(k, 1, 711) * 14
+        x = cx + math.cos(a) * v * t * 1.4
+        y = cy + math.sin(a) * v * t + 2 * f * f / 2
+        y = min(y, cy + 10)
+        if k % 4 == 0:
+            s.rect(int(x), int(y), 2, 2, "olive_shadow")
+        else:
+            s.set(int(x), int(y), "wine" if k % 3 == 0 else "blood_dark")
+    return s
+
+
 EFECTOS = {
     #  nombre          (función, fotogramas, tamaño, bucle, pivote)
     "impacto_bala": (impacto_bala, 4, 32, False, (0.5, 0.62)),
@@ -241,6 +388,13 @@ EFECTOS = {
     "sangre_impacto": (sangre_impacto, 5, 32, False, (0.31, 0.5)),
     "sangre_muerte": (sangre_muerte, 7, 48, False, (0.5, 0.62)),
     "polvo_rotor": (polvo_rotor, 8, 96, True, (0.5, 0.5)),
+    "fogonazo_30mm": (fogonazo_30mm, 4, 48, False, (0.08, 0.5)),
+    "trazadora_30mm": (trazadora_30mm, 2, 32, True, (0.9, 0.5)),
+    "fogonazo_mag": (fogonazo_mag, 2, 24, True, (0.12, 0.5)),
+    "trazadora_mag": (trazadora_mag, 2, 24, True, (0.88, 0.5)),
+    "vainas": (vainas, 6, 16, False, (0.3, 0.1)),
+    "polvo_ruedas": (polvo_ruedas, 6, 48, False, (0.85, 0.75)),
+    "impacto_30mm": (impacto_30mm, 6, 48, False, (0.5, 0.62)),
 }
 
 
