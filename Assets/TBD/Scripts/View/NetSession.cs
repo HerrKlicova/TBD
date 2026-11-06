@@ -36,6 +36,26 @@ namespace TBD.View
             _instance = go.AddComponent<NetSession>();
         }
 
+        /// <summary>
+        /// Solo para probar (F8 en el mapa): monta una emboscada ya materializada sobre el primer tramo con punto de emboscada, con el tren 1
+        /// parado en él y 300 ‰ de horda. Se aplica igual a los dos mundos (no es una orden de red: no vale para coop).
+        /// </summary>
+        public static bool DebugForceAmbush()
+        {
+            Ensure();
+            if (A.Encounter.Active) return false;
+            foreach (var w in new[] { A, B })
+            {
+                int ei = w.Graph.Edges.FindIndex(e => e.Ambush.Count > 0);
+                var edge = w.Graph.Edges[ei];
+                int cell = (w.Graph.Nodes[edge.A].YMeters + w.Graph.Nodes[edge.B].YMeters) / 2 * HordeField.W + (w.Graph.Nodes[edge.A].XMeters + w.Graph.Nodes[edge.B].XMeters) / 2;
+                var sv = w.Services[0];
+                sv.Ambushed = true; sv.AtStop = false; sv.Train.SetRoute(w.Graph.ShortestPath(edge.A, edge.B)); sv.Train.Stop();
+                w.Encounter = new NetWorld.AmbushEncounter { Active = true, Service = 0, Edge = ei, Cell = cell, Taken = 300, ExpireTick = w.Tick + NetWorld.AmbushWaitTicks };
+            }
+            return true;
+        }
+
         public static void Push(NetCmdType type, int arg, long delay, int arg2 = 0)
         {
             Ensure();

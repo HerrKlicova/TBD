@@ -519,6 +519,7 @@ namespace TBD.View
             if (kb.jKey.wasPressedThisFrame) JumpToAlert();
             if (kb.enterKey.wasPressedThisFrame && _a.Encounter.Active && !_entering) EnterAmbush();     // D-N38: entrar en la emboscada
             if (kb.f3Key.wasPressedThisFrame) { NetSession.Check = false; NetSession.Desync = false; }
+            if (kb.f8Key.wasPressedThisFrame) NetSession.DebugForceAmbush();      // solo para probar: monta una emboscada de prueba (luego Intro entra)
             if (kb.f9Key.wasPressedThisFrame) Capture();
 
             float dt = Time.unscaledDeltaTime;
@@ -629,7 +630,7 @@ namespace TBD.View
             if (_a.Alerts.Count == 0) { GUI.Label(new Rect(20, y, pw, 30), "<color=#808080>sin alertas</color>", _small); }
             DrawIntel();
             GUI.Label(new Rect(16, Screen.height - _small.fontSize * 2.4f, Screen.width, 30),
-                "WASD mover · Q E girar · R F inclinar · rueda zoom (a menos de 2 km de una estación se entra en la zona) · J ir a la alerta · Espacio pausa · 1/2/3 velocidad · F9 captura", _small);
+                "WASD mover · Q E girar · R F inclinar · rueda zoom (a menos de 2 km de una estación se entra en la zona) · J ir a la alerta · Espacio pausa · 1/2/3 velocidad · F8 emboscada de prueba · Intro entrar en la emboscada · F9 captura", _small);
             NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart);
         }
 
