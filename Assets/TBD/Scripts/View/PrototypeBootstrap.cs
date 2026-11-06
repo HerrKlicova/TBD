@@ -370,8 +370,15 @@ namespace TBD.View
             }
             if (kb.f10Key.wasPressedThisFrame) ToggleRecording();
 
-            if (kb.bKey.wasPressedThisFrame) { _buildMode = !_buildMode; _hasWallStart = false; }
-            if (kb.escapeKey.wasPressedThisFrame) { _buildMode = false; _hasWallStart = false; }
+            if (kb.bKey.wasPressedThisFrame) { _buildMode = !_buildMode; _hasWallStart = false; _wallPts.Clear(); }
+            if (kb.escapeKey.wasPressedThisFrame) { _buildMode = false; _hasWallStart = false; _wallPts.Clear(); }
+            if (_zoneNode >= 0 && !_ambush)
+            {
+                if (kb.hKey.wasPressedThisFrame) _workKind = _workKind == PieceKind.Sacos ? PieceKind.Hesco : PieceKind.Sacos;     // sacos <-> HESCO
+                if (kb.nKey.wasPressedThisFrame)                                                                                       // asignar obreros / quitarlos
+                    NetSession.Push(NetCmdType.AssignWorkers, _zoneNode, 0, NetSession.A.Works.Workers[_zoneNode] > 0 ? 0 : 8);
+                if (kb.enterKey.wasPressedThisFrame && _buildMode) FinishWall();
+            }
 
             // ---- cámara libre: rotación, inclinación y zoom continuos (GDD §11, v1.10)
             float dt = Time.unscaledDeltaTime;
@@ -408,7 +415,7 @@ namespace TBD.View
                 if (_buildMode)
                 {
                     if (mouse.leftButton.wasPressedThisFrame) PlaceWallPoint(mouse.position.ReadValue());
-                    if (mouse.rightButton.wasPressedThisFrame) _hasWallStart = false;
+                    if (mouse.rightButton.wasPressedThisFrame) { if (_zoneNode >= 0 && !_ambush) FinishWall(); _hasWallStart = false; }
                 }
             }
             _orthoSize = Mathf.Lerp(_orthoSize, _targetOrtho, 1f - Mathf.Exp(-12f * dt));
@@ -442,6 +449,7 @@ namespace TBD.View
             _statsTimer -= Time.unscaledDeltaTime;
             if (_statsTimer > 0f) return;
             _statsTimer = 0.5f;
+            SyncWorks();
             var zs = _zombieQuery.ToComponentDataArray<Zombie>(Allocator.Temp);
             _total = zs.Length;
             _walking = _falling = _settled = 0;
@@ -713,6 +721,8 @@ namespace TBD.View
                 var net = NetSession.A;
                 GUI.Label(new Rect(pad * 2f, h + pad * 1.6f, w, _hudStyle.lineHeight * 1.5f),
                     $"{ZoneTitle(net)} · día {net.Tick / TBD.Net.NetConst.DayTicks + 1} · {TBD.Net.NetConst.Clock(net.Tick)} · la red sigue corriendo · M o alejar del todo: volver al mapa" + (_deployedSoldiers > 0 ? $"   <color=#ffb050>¡{_deployedSoldiers} soldados a pie se quedarían atrás! (K: reembarcar)</color>" : ""), _hudStyle);
+                string wh = WorkHud();
+                if (wh.Length > 0) GUI.Label(new Rect(pad * 2f, h + pad * 1.6f + _hudStyle.lineHeight * 1.7f, w, _hudStyle.lineHeight * 7f), wh, _hudStyle);
             }
             NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart);
         }
@@ -1192,6 +1202,81 @@ namespace TBD.View
             return go;
         }
 
+        // ---------------------------------------------------------------- obras de la red en la zona (hito 5)
+        static readonly Vector2 WorkOrigin = new Vector2(85f, Level.TrackY);        // el andén (0,0) de las obras del nodo, en metros de la zona
+        readonly System.Collections.Generic.List<int> _wallPts = new System.Collections.Generic.List<int>();   // polilínea en curso, mm locales al nodo
+        PieceKind _workKind = PieceKind.Sacos;
+        readonly System.Collections.Generic.List<GameObject> _workVisuals = new System.Collections.Generic.List<GameObject>();   // una por pieza de la red
+        readonly System.Collections.Generic.List<bool> _workBuilt = new System.Collections.Generic.List<bool>();               // la pieza ya es muro en la simulación
+        float _workTimer;
+        string _workMsg = "";
+
+        static int ToLocalMm(float v, bool z = false) { return (int)Mathf.Round((v - (z ? WorkOrigin.y : WorkOrigin.x)) * 1000f); }
+
+        void FinishWall()
+        {
+            if (_wallPts.Count < 4) { _wallPts.Clear(); return; }
+            var plan = NetSession.A.Works.Preview(_zoneNode, _workKind, _wallPts.ToArray(), NetSession.A.Stock[_zoneNode, (int)Res.Materiales]);
+            if (!plan.Ok) { _workMsg = "No se puede construir: " + plan.Why; _wallPts.Clear(); return; }
+            NetSession.PushPayload(NetCmdType.PlaceWork, _zoneNode | ((int)_workKind << 16), _wallPts.ToArray());
+            _workMsg = $"Obra pedida: {plan.AllowedMm / 1000f:0.0} m de {(_workKind == PieceKind.Sacos ? "sacos" : "HESCO")}, {plan.CostU} u" + (plan.Cut ? " (se corta por falta de materiales)" : "");
+            _wallPts.Clear();
+        }
+
+        /// <summary>Sincroniza lo construido en la red (Works) con la zona: las piezas terminadas pasan a ser muros de la simulación; las que están en obra, un fantasma.</summary>
+        void SyncWorks()
+        {
+            if (_zoneNode < 0 || _ambush || NetSession.A == null) return;
+            var pieces = NetSession.A.Works.At(_zoneNode);
+            while (_workVisuals.Count < pieces.Count) { _workVisuals.Add(null); _workBuilt.Add(false); }
+            for (int i = 0; i < pieces.Count; i++)
+            {
+                var w = pieces[i];
+                if (!w.IsWall) continue;                                              // las piezas puntuales se dibujan en un paso posterior
+                if (w.Built && !_workBuilt[i])
+                {
+                    if (_workVisuals[i] != null) Destroy(_workVisuals[i]);
+                    var a = new Vector3(WorkOrigin.x + w.X0 / 1000f, 0f, WorkOrigin.y + w.Y0 / 1000f);
+                    var b = new Vector3(WorkOrigin.x + w.X1 / 1000f, 0f, WorkOrigin.y + w.Y1 / 1000f);
+                    Push(CmdType.BuildWall, Obras.HeightMm(w.Kind), new Unity.Mathematics.float2(a.x, a.z), new Unity.Mathematics.float2(b.x, b.z));
+                    _workVisuals[i] = WallVisual(a, b, Level.WallHalf * 0.5f, Obras.HeightMm(w.Kind) / 1000f, w.Kind == PieceKind.Sacos ? _mWall : _mRoof);
+                    _workBuilt[i] = true;
+                }
+                else if (!w.Built && _workVisuals[i] == null)
+                {
+                    var a = new Vector3(WorkOrigin.x + w.X0 / 1000f, 0.15f, WorkOrigin.y + w.Y0 / 1000f);
+                    var b = new Vector3(WorkOrigin.x + w.X1 / 1000f, 0.15f, WorkOrigin.y + w.Y1 / 1000f);
+                    var g = WallVisual(a, b, Level.WallHalf * 0.5f, 0.3f, _mSleeper);   // fantasma: obra en marcha
+                    _workVisuals[i] = g;
+                }
+            }
+        }
+
+        /// <summary>Texto de la obra para la pantalla: coste en directo del muro que se traza, obreros y avance.</summary>
+        string WorkHud()
+        {
+            if (_zoneNode < 0 || _ambush || NetSession.A == null) return "";
+            var net = NetSession.A;
+            var sb = new System.Text.StringBuilder();
+            int stock = net.Stock[_zoneNode, (int)Res.Materiales];
+            sb.Append($"OBRAS · materiales {stock} u · obreros {net.Works.Workers[_zoneNode]} (N asigna/quita) · nivel {net.Works.LevelMil(_zoneNode) / 1000f:0.0} · H cambia a {(_workKind == PieceKind.Sacos ? "HESCO" : "sacos")}");
+            if (_buildMode)
+            {
+                sb.Append($"\nMURO DE {(_workKind == PieceKind.Sacos ? "SACOS (2 u / 10 m)" : "HESCO (6 u / 10 m)")}: clic = punto · Intro o clic derecho = pedir la obra · Esc = cancelar");
+                if (_wallPts.Count >= 4)
+                {
+                    var plan = net.Works.Preview(_zoneNode, _workKind, _wallPts.ToArray(), stock);
+                    sb.Append(plan.Ok ? $"\n{plan.AllowedMm / 1000f:0.0} m · {plan.CostU} u" + (plan.Cut ? $" · faltan materiales: se construirá hasta aquí ({plan.AllowedMm / 1000f:0.0} de {plan.WantedMm / 1000f:0.0} m)" : "") : "\n" + plan.Why);
+                }
+            }
+            var pieces = net.Works.At(_zoneNode);
+            int building = 0; long need = 0, done = 0;
+            foreach (var w in pieces) if (!w.Built) { building++; need += w.NeedE4; done += w.WorkE4; }
+            if (building > 0) sb.Append($"\nobra en marcha: {building} piezas · {(need > 0 ? done * 100 / need : 0)} %");
+            if (_workMsg.Length > 0) sb.Append("\n" + _workMsg);
+            return sb.ToString();
+        }
+
         /// <summary>Construcción libre: clic para cada punto de la polilínea; cada tramo es una orden BuildWall.</summary>
         void PlaceWallPoint(Vector2 screenPos)
         {
@@ -1210,6 +1295,14 @@ namespace TBD.View
                 return;
             }
             if ((pt - _wallStart).magnitude < 1f) return;
+            if (_zoneNode >= 0 && !_ambush)
+            {
+                // H5: en una zona de la red, el muro es una obra: la polilínea se acumula en mm enteros y se paga y se registra en la red al cerrarla
+                if (_wallPts.Count == 0) { _wallPts.Add(ToLocalMm(_wallStart.x)); _wallPts.Add(ToLocalMm(_wallStart.z, true)); }
+                _wallPts.Add(ToLocalMm(pt.x)); _wallPts.Add(ToLocalMm(pt.z, true));
+                _wallStart = pt;
+                return;
+            }
             Push(CmdType.BuildWall, 0, new Unity.Mathematics.float2(_wallStart.x, _wallStart.z), new Unity.Mathematics.float2(pt.x, pt.z));
             WallVisual(_wallStart, pt, Level.WallHalf * 0.5f, Level.WallH, _mWall);
             _wallStart = pt;

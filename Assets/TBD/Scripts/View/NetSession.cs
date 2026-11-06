@@ -56,6 +56,14 @@ namespace TBD.View
             return true;
         }
 
+        public static void PushPayload(NetCmdType type, int arg, int[] payload)
+        {
+            Ensure();
+            var c = new NetCommand { Tick = A.Tick, Type = type, Arg = arg, Payload = payload };
+            A.Push(c);
+            B.Push(c);
+        }
+
         public static void Push(NetCmdType type, int arg, long delay, int arg2 = 0)
         {
             Ensure();

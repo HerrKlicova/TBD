@@ -136,7 +136,7 @@ namespace TBD.Sim
                 {
                     // Construcción libre: muro con posición y orientación libres; en la rejilla solo se rasteriza la región afectada
                     var solids = em.GetBuffer<Solid>(root);
-                    var s = new Solid { A = cmd.P0, B = cmd.P1, HalfThick = Level.WallHalf * 0.5f, Height = Level.WallH, Kind = 0, Open = 0, Id = 0 };
+                    var s = new Solid { A = cmd.P0, B = cmd.P1, HalfThick = Level.WallHalf * 0.5f, Height = cmd.Arg > 0 ? Det.Mm(cmd.Arg) : Level.WallH, Kind = 0, Open = 0, Id = 0 };   // H5: Arg = altura en mm (sacos 1.200, HESCO 2.100)
                     solids.Add(s);
                     var ground = em.GetBuffer<CellGround>(root);
                     Level.RasterSolid(solids, ground, s);
