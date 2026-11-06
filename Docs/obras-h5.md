@@ -33,7 +33,7 @@ Solo se acepta con la **zona del nodo materializada** (`ActiveZoneNode == nodo`)
 - Cada tick, en cada nodo, trabajan `min(obreros asignados, población del nodo)`. Se reparten por obra (la más antigua primero), como mucho **4 por pieza**; cada obrero aporta 1 obrero·tick (1 obrero·h = 1.500 ticks).
 - Trabajo de una pieza (`NeedE4`, en 1/10.000 de obrero·tick): sacos 2 obrero·h por 10 m, HESCO 4 por 10 m, puerta 4, nido 6, foco 2, depósito 8, andén 10. Un muro de 10 m de sacos con 2 obreros: 1.500 ticks exactos.
 - `ObrasState.IsActive(nodo)` = hay obreros asignados y alguna pieza sin terminar. Es lo que usará el director para el sondeo de obra.
-- Cancelar: 100 % de lo pagado si nadie ha empezado; 50 % (`cancelar_obra_empezada_permil`, ya en el CSV) si hay trabajo hecho o piezas terminadas. Lo terminado se queda.
+- Cancelar (Hugo, D-N59): si nadie ha empezado, se devuelven **exactamente las u cobradas** (cada obra guarda `PaidU`; antes se redondeaba hacia abajo y se perdía 1 u); si ya hay trabajo hecho o piezas terminadas, `floor(50 % de lo cobrado)` por la parte sin terminar (`cancelar_obra_empezada_permil`). Lo terminado se queda.
 - `ObrasState.CompleteAll` sigue ahí solo como atajo de pruebas.
 
 ## Condiciones de Marcos (obreros)
@@ -76,7 +76,7 @@ Solo se acepta con la **zona del nodo materializada** (`ActiveZoneNode == nodo`)
 - **Tren de obras**: `TrainService.WorksTrain` (marcador, entra en el hash solo si es true). Hasta que el taller rehabilite uno (paso 5), la escena lo marca a mano.
 - **Orden** `NetCmdType.RepairEdge = 14` (`Arg` = tramo, `Arg2` = servicio). Resultado en `RepairResult`: el tren de obras debe estar **en posición** (parado en un extremo del tramo o detenido delante del corte), con **5 u** de materiales y **8 obreros** a bordo (`reparar_tramo_u`, `tren_obras_obreros`), y sin horda encima (sobre el tramo o densidad de asedio en un extremo). Gasta los materiales de la **carga del tren** y lo retiene (`Held`) hasta terminar.
 - **Avance**: cada tick suma los obreros que quedan a bordo (máximo 8), así que 3 h con 8 obreros son 4.500 ticks y si mueren obreros va más lenta. Se para si el tren sale de posición o llega la horda, y espera. Al terminar el tramo vuelve a existir (`Ok`) y el tren se libera.
-- **Puente** (el del Jiloca): `puente_jiloca_materiales` (80 u) y `puente_jiloca_dias` (2 días) de `balance_economia.csv` (manda el CSV sobre las 192 obrero·h de `balance_construccion.csv`, que ya no se lee): con los 8 obreros del tren de obras, 72.000 ticks. `reparar_tramo_h` (3) ya está en el CSV.
+- **Puente** (el del Jiloca): `puente_jiloca_materiales` (80 u, `balance_economia.csv`) y `puente_jiloca_obreros_h` (192, `balance_construccion.csv`): con los 8 obreros del tren de obras y el horario de obra, 2 días (72.000 ticks). `reparar_tramo_h` (3) ya está en el CSV.
 - **No incluido**: texto de aviso de reparación terminada (Lucía), la huella de la obra (1,5 para el puente) y el ruido de obra en el director, el tren de obras de verdad (taller, paso 5), la zona de emboscada como batalla.
 
 ## Puerta de vía (paso 4, diseno-hito5.md §2a, Lucía y Hugo)
@@ -92,3 +92,7 @@ Solo se acepta con la **zona del nodo materializada** (`ActiveZoneNode == nodo`)
 - **Rota** (daño o desgaste a 0 ‰): la pieza **no desaparece**: queda `Broken` (hueco con escombros, la horda entra, la vía sigue usable), no cuenta para el nivel ni el mantenimiento y no se mueve. Se **reconstruye encima**: una puerta nueva a ≤ 3,2 m la sustituye.
 - **Zona**: `SplitAroundTrack` de la vista ya no hace falta; basta enviar la polilínea entera con `PlaceWork` y la red añade las puertas. La vista debe dibujar `PieceKind.PuertaVia` (sprite de puerta de Bruno) y no tratar `Puerta` y `PuertaVia` igual en el sólido que bloquea a la horda: la de vía, abierta, deja pasar al tren.
 - Las pruebas de coste, nivel y obra de las secciones [15] a [19] trazan muros por el andén (y = 0), así que desactivan la vía en su mundo (`TrackHalfMm = 0`); la franja se prueba en la sección [21].
+
+## Horario de obra (Hugo, D-N59)
+- **Todas las obras trabajan de 06:00 a 18:00** (`obra_hora_inicio` 6 y `obra_hora_fin` 18; 12 h al día, el `horas_obra_dia` del modelo) y de noche se paran: obras de muros y piezas (`EffectiveWorkers`) y reparaciones de tramo y puente. Una obra a medias a las 18:00 se queda congelada y sigue a las 06:00 sin perder progreso.
+- Una obra parada de noche **no cuenta como activa** (`WorkActive`): no hay sondeo de obra ni peso ×1,5 ni huella de 0,5 mientras no se trabaja. *Esto lo deduje yo: Hugo no lo dijo; si la Colmena debe oír la obra aunque pare de noche, es una línea en `EffectiveWorkers`.*

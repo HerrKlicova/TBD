@@ -132,7 +132,7 @@ namespace TBD.Sim.Tests
             // montaje: el tren 0, marcado como tren de obras, parado en su primera parada; el tramo es uno que sale de ese nodo
             NetWorld Setup(out TrainService sv, out RailEdge edge, int mats = 20, int people = 8)
             {
-                var w = NetScenario.Mvp();
+                var w = NetScenario.Mvp(); w.Tick = NetConst.Hours(8);                 // en horario de obra (06:00–18:00)
                 sv = w.Services[0]; sv.WorksTrain = true; sv.AtStop = true; sv.StopIndex = 0;
                 sv.Cargo[(int)Res.Materiales] = mats; sv.Cargo[(int)Res.Personas] = people;
                 int node = sv.Stops[0].Node; edge = null;
@@ -194,7 +194,7 @@ namespace TBD.Sim.Tests
             sv6.Cargo[(int)Res.Materiales] = 80;
             check(w6.RepairEdge(e6.Id, 0) == RepairResult.Ok && sv6.Cargo[(int)Res.Materiales] == 0, "con 80 u se empieza y se pagan todas");
             int t6 = 0; while (e6.Debris && t6 < 100_000) { w6.Step(); t6++; }
-            check(w6.Works.P.BridgeU == 80 && w6.Works.P.BridgeDays == 2 && t6 == 72_000 && !e6.Debris, $"el puente son puente_jiloca_dias = 2 días del CSV de Hugo: con 8 obreros, 72.000 ticks: {t6}");
+            check(w6.Works.P.BridgeU == 80 && w6.Works.P.BridgeObreroH == 192 && t6 == 72_000 && !e6.Debris, $"el puente son 192 obrero·h: con 8 obreros trabajando de 06:00 a 18:00, 2 días (72.000 ticks): {t6}");
 
             // determinismo: dos mundos con la misma reparación dan el mismo hash en cada punto
             var wa = Setup(out var sva, out var ea); var wb = Setup(out var svb, out var eb);

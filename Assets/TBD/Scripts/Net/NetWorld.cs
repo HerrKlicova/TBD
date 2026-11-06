@@ -549,7 +549,7 @@ namespace TBD.Net
         /// </summary>
         public int EffectiveWorkers(int node)
         {
-            if (WorkPaused(node)) return 0;
+            if (WorkPaused(node) || !Works.P.IsWorkTime(Tick % NetConst.DayTicks)) return 0;     // de noche se para toda la obra (Hugo, D-N59: 06:00 a 18:00)
             return Math.Max(0, Math.Min(Works.Workers[node], Stock[node, (int)Res.Personas] - Works.P.GarrisonMin));
         }
 
@@ -626,7 +626,7 @@ namespace TBD.Net
             {
                 if (!e.Debris || e.RepairSvc < 0) continue;
                 var sv = Services[e.RepairSvc];
-                if (!RepairInPosition(sv, e) || RepairBlocked(e)) continue;
+                if (!Works.P.IsWorkTime(Tick % NetConst.DayTicks) || !RepairInPosition(sv, e) || RepairBlocked(e)) continue;     // también de 06:00 a 18:00
                 int crew = Math.Min(sv.Cargo[(int)Res.Personas], Works.P.WorksCrew);
                 if (crew <= 0) continue;
                 e.RepairDone += crew;
