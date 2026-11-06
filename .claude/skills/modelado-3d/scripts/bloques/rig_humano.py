@@ -2,7 +2,8 @@
 del atributo de cara «hueso» que pone soldado.Cuerpo. Animaciones (24 fps), una acción por clip, para que el FBX las
 exporte como tomas separadas que Unity importa como clips: reposo (24 f, bucle), andar (24 f, bucle, un paso completo
 a ~1,4 m/s: avanza 0,7 m por ciclo si se quiere root motion, aquí sin desplazamiento), disparar (12 f, bucle: encara y
-dos retrocesos) y morir (36 f, sin bucle: se doblan las rodillas y cae de espaldas).
+dos retrocesos) y morir (36 f, sin bucle: flojea de rodillas y cae de espaldas; revisión de Lucía 23:17: sin
+arrodillarse, para que las piernas no se separen de la pelvis en ningún fotograma).
 Ángulos SIN VERIFICAR contra captura de movimiento; ajustados a ojo en el render a tamaño de juego."""
 import math
 import bpy
@@ -86,8 +87,8 @@ def animaciones(arm, tipo=0):
         1: {"raiz": ((0, 0, 0), (0, 0, 0)), "muslo_L": ((0, 0, 0), None), "muslo_R": ((0, 0, 0), None),
             "pierna_L": ((0, 0, 0), None), "pierna_R": ((0, 0, 0), None), "brazos": ((0, 0, 0), None),
             "pecho": ((0, 0, 0), None), "cabeza": ((0, 0, 0), None)},
-        8: {"raiz": ((0, 0, 0), (0, 0.06, -0.30)), "muslo_L": ((-60, 0, 0), None), "muslo_R": ((-50, 0, 0), None),
-            "pierna_L": ((105, 0, 0), None), "pierna_R": ((95, 0, 0), None), "pecho": ((10, 0, 0), None),
+        8: {"raiz": ((-15, 0, 0), (0, 0.05, -0.12)), "muslo_L": ((-25, 0, 0), None), "muslo_R": ((-15, 0, 0), None),
+            "pierna_L": ((40, 0, 0), None), "pierna_R": ((30, 0, 0), None), "pecho": ((8, 0, 0), None),
             "brazos": ((-30, 0, 0), None)},
         22: {"raiz": ((-88, 0, 0), (0, 0.2, 0.1)), "muslo_L": ((-20, 0, 0), None), "muslo_R": ((-5, 0, 0), None),
              "pierna_L": ((30, 0, 0), None), "pierna_R": ((10, 0, 0), None), "pecho": ((-5, 0, 0), None),

@@ -35,8 +35,10 @@ def piezas_arma(c, tipo, fino):
         return (xr + d.x * t + dx, yr + d.y * t, zr + d.z * t + dz)
     g = 1.0 if fino else 1.4          # LOD1: piezas finas algo más gruesas para que no desaparezcan
     if tipo == 4:   # C90 a la espalda, en diagonal
-        c.barra((0.16, 0.25, 0.92), (-0.12, 0.27, 1.62), 0.10, 0.10, "tubo")
-        c.barra((0.13, 0.25, 0.99), (0.09, 0.25, 1.07), 0.13, 0.13, "tubo")        # aro trasero
+        # cruzado en diagonal (Lucía 23:17): de la cadera derecha a por encima del hombro izquierdo, para que asome
+        # como una línea sobre el hombro y no como un gorro en punta sobre el casco
+        c.barra((0.24, 0.25, 0.84), (-0.40, 0.27, 1.52), 0.10, 0.10, "tubo")
+        c.barra((0.22, 0.25, 0.91), (0.16, 0.25, 0.99), 0.13, 0.13, "tubo")        # aro trasero
         return
     if tipo == 2:   # MG4E
         c.barra(p(-0.30), p(0.04), 0.06, 0.12, "arma")

@@ -63,8 +63,17 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
         na = db.NORMALES_ARRIBA
         idx = None if na is True else {db.PIEZAS.index(p) for p in na}
         ns_ = []
+        k = getattr(db, "NORMALES_INCLINACION", None)   # None: del todo hacia arriba; k: n + k·Z (conserva el volumen)
         for pol in me.polygons:
-            n = (0.0, 0.0, 1.0) if idx is None or pol.material_index in idx else tuple(pol.normal)
+            if idx is None or pol.material_index in idx:
+                if k is None:
+                    n = (0.0, 0.0, 1.0)
+                else:
+                    v = pol.normal.copy()
+                    v.z += k
+                    n = tuple(v.normalized())
+            else:
+                n = tuple(pol.normal)
             ns_ += [n] * pol.loop_total
         me.normals_split_custom_set(ns_)
         o["tbd_normales_arriba"] = 1
@@ -92,6 +101,48 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
                     ns["vista_pixelada"](o, os.path.join(out, "lat_%s_%02d.png" % (act.name, k)), vista="izquierda",
                                          fondo=SUELOS[0][1], umbral_contorno=u)
             arm.animation_data.action = None
+    elif hasattr(db, "separar"):   # vehículos con piezas animables: casco + hijos (ruedas, torre, rotores…)
+        objs = db.separar(o, lod)
+        bpy.context.view_layer.update()
+        inf["piezas_animables"] = {x.name: [round(c, 3) for c in x.matrix_world.translation] for x in objs[1:]}
+        inf["triangulos_por_objeto"] = {x.name: sum(len(p.vertices) - 2 for p in x.data.polygons) for x in objs}
+        ns["exportar_unity"](o, os.path.join(out, nombre + ".fbx"), extra=objs[1:])
+        # comprobación: copia con la torre (o el rotor) girada 50° y el cañón elevado, unida en una malla y renderizada
+        import math
+        from mathutils import Matrix
+        copias = []
+        for x in objs:
+            c = x.copy()
+            c.data = x.data.copy()
+            c.parent = None
+            bpy.context.scene.collection.objects.link(c)
+            M = x.matrix_world.copy()
+            cad, a = [], x
+            while a is not None:
+                cad.append(a)
+                a = a.parent
+            for a in reversed(cad):
+                p = a.matrix_world.translation
+                if a.name.startswith(("Torre", "RotorPrincipal")):
+                    M = Matrix.Translation(p) @ Matrix.Rotation(math.radians(50), 4, "Z") @ Matrix.Translation(-p) @ M
+                if a.name.startswith("Canon"):
+                    eje = (Matrix.Rotation(math.radians(50), 4, "Z") @ Matrix.Translation((1, 0, 0))).translation
+                    pz = (Matrix.Translation(a.parent.matrix_world.translation) @ Matrix.Rotation(math.radians(50), 4, "Z")
+                          @ Matrix.Translation(-a.parent.matrix_world.translation)) @ p
+                    M = Matrix.Translation(pz) @ Matrix.Rotation(math.radians(20), 4, eje) @ Matrix.Translation(-pz) @ M
+            c.matrix_world = M
+            copias.append(c)
+        bpy.context.view_layer.update()
+        for c in copias:
+            c.data.transform(c.matrix_world)
+            c.matrix_world = Matrix.Identity(4)
+        bpy.ops.object.select_all(action="DESELECT")
+        for c in copias:
+            c.select_set(True)
+        bpy.context.view_layer.objects.active = copias[0]
+        bpy.ops.object.join()
+        ns["vista_pixelada"](copias[0], os.path.join(out, "animable_giro.png"), vista="rts", fondo=SUELOS[0][1],
+                             umbral_contorno=u)
     else:
         ns["exportar_unity"](o, os.path.join(out, nombre + ".fbx"))
     with open(os.path.join(out, "informe.json"), "w", encoding="utf-8") as f:

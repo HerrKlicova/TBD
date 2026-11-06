@@ -5,7 +5,9 @@ Encargo: Eugenio (6-nov 23:03: «los soldados bien modelados… con sus armas»)
 (arma_infanteria.py). Referencia: docs/arte/referencias/infanteria-et.md (Paula); fotos de referencias-reales/militar/
 cuando lleguen. Lo que no sale de foto va de memoria y está SIN VERIFICAR (chaleco, medidas).
 Colores (Lucía): valor partido con casco y hombros claros (b4a080, el arena del pixelado árido) y costados en 50541c.
-El portaplacas va en 605c48 (coyote, de memoria) para que el chaleco se lea sobre el uniforme. Piel a86c50, botas
+Revisión de Lucía (23:17): en 3/4 las caras del pantalón que miran a la cámara caían en el valor de la horda; el
+uniforme lleva ahora los costados en 70784c (un escalón más) y el chaleco en 847c34, y las caras de abajo en 50541c.
+El portaplacas va en 605c48 (coyote, aprobado) para que el chaleco se lea sobre el uniforme. Piel a86c50, botas
 543820, mochila 847c34. Nada de valores de la horda (ni en las caras de abajo).
 Variantes del cuerpo (TBD_VARIANTE % 6):
   0 base con mochila de asalto;  1 casco con funda, gafas sobre el casco y rodilleras;  2 sin mochila y remangado
@@ -31,9 +33,15 @@ PIEZAS = ["uniforme", "chaleco", "yelmo", "piel", "botas", "arma", "mochila", "e
 COLORES = {"uniforme": "88885c", "chaleco": "605c48", "yelmo": "88885c", "piel": "a86c50", "botas": "543820",
            "arma": "48403c", "mochila": "847c34", "equipo": "605c48", "tubo": "50541c"}
 # claro arriba, costado, abajo (fijo: nunca 442c0c, de la horda)
-VALOR_PIEZAS = {"uniforme": ("b4a080", "50541c", "50541c"), "yelmo": ("b4a080", "50541c", "50541c"),
-                "chaleco": ("b4a080", "605c48", "605c48")}
+VALOR_PIEZAS = {"uniforme": ("b4a080", "70784c", "50541c"), "yelmo": ("b4a080", "50541c", "50541c"),
+                "chaleco": ("b4a080", "847c34", "605c48")}
 FACCION = "propio"
+# Normales inclinadas hacia arriba (n + 1,0·Z, normalizada; se exportan en el FBX: Normals = Import). Con la luz del
+# juego, casi cenital, las caras verticales caían a la mitad de luz y el pantalón y el torso cuantizaban en
+# 1e220c/303424, los valores de la horda (Lucía, 23:17). Así los costados conservan su color de paleta y el volumen
+# sigue leyéndose por el valor partido horneado (arriba claro, costados un escalón más oscuros).
+NORMALES_ARRIBA = True
+NORMALES_INCLINACION = 1.0
 PRESUPUESTO = {0: (150, 900), 1: (100, 500)}
 UMBRAL_CONTORNO = {0: 0.2, 1: 9.0}
 HUESOS = ["raiz", "cadera", "pecho", "cabeza", "brazos", "muslo_L", "pierna_L", "muslo_R", "pierna_R"]
@@ -97,7 +105,7 @@ def construir(nombre="SM_Soldado", lod=0):
         if a == 1:
             c.caja((x, -0.085, 0.50), (0.12, 0.04, 0.10), "equipo")            # rodillera
         c.hueso("muslo_" + lado)
-        c.caja((x, 0.0, 0.715), (0.14 * e, 0.17, 0.43), "uniforme")
+        c.caja((x, 0.0, 0.74), (0.14 * e, 0.17, 0.48), "uniforme")   # sube hasta dentro de la cadera: sin hueco al doblar
         if fino:
             c.caja((x + s * 0.08 * e, 0.0, 0.74), (0.03, 0.10, 0.14), "equipo")   # bolsillo de pernera
     # ---------------- cadera y torso

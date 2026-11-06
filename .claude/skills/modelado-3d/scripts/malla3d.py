@@ -1245,7 +1245,7 @@ def _material_paleta(obj, ruta):
 
 # ---------------------------------------------------------------- exportar
 
-def exportar_unity(obj, ruta, formato="FBX", armature=None):
+def exportar_unity(obj, ruta, formato="FBX", armature=None, extra=()):
     """FBX para Unity: escala 1 = 1 m, Y arriba, transformaciones horneadas, sombreado plano. Convención de ejes
     MEDIDA por Marcos en Unity (6-nov): un modelo que en Blender mira a -Y sale en Unity mirando a +Z, es decir, a
     transform.forward, que es lo que espera Unity. axis_forward="-Z" es el parámetro del exportador, no hacia dónde
@@ -1265,6 +1265,8 @@ def exportar_unity(obj, ruta, formato="FBX", armature=None):
                                  bake_anim_force_startend_keying=True, bake_anim_simplify_factor=0.0,
                                  path_mode="COPY", embed_textures=False, use_custom_props=True)
         return {"ruta": ruta, "bytes": os.path.getsize(ruta)}
+    for x in extra:   # hijos animables (ruedas, torre, rotores): van en el mismo FBX con su jerarquía
+        x.select_set(True)
     if formato.upper() == "FBX":
         bpy.ops.export_scene.fbx(filepath=ruta, use_selection=True, object_types={"MESH"},
                                  apply_scale_options="FBX_SCALE_ALL", axis_forward="-Z", axis_up="Y",
