@@ -45,8 +45,8 @@ def construir(nombre="SM_R2_VagonTropa", lod=0):
             t.cilindro((x, s * (Y0 - 0.2), 1.06), 0.2, 0.4, "Y", 8, "metal")
         yb = s * 7.0
         for x in (-1.0, 1.0):
-            t.caja((x, yb, 0.6), (0.2, 2.6, 0.35), "bastidor")
-        for e in (-0.9, 0.9):
+            t.caja((x, yb, 0.6), (0.2, 2.8, 0.35), "bastidor")
+        for e in (-1.0, 1.0):   # batalla del bogie 2,0 m (autor de la foto en Commons, R3_rgs_cotas.md; no es del fabricante)
             for x in (-0.83, 0.83):
                 t.cilindro((x, yb + e, 0.46), 0.46, 0.13, "X", 12, "rueda")
     # --- parapeto de chapa: dos costados y dos testeros con hueco de acceso de 1 m en el centro
