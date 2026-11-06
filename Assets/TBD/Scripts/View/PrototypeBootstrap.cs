@@ -806,7 +806,7 @@ namespace TBD.View
                     _grade.saturation.Override(-15f);
                     // luna y ambiente poco azules y bajos, y focos más fuertes: medido a resolución completa (Shift+F9 con máscara), el 84 % de los
                     // píxeles cálidos del charco queda entre 20° y 45° (con la gradación azul y el foco de antes, el 18 %: el borde del charco salía rosa)
-                    SetLight(new Color(0.26f, 0.30f, 0.45f), 0.14f, Color.black, 50f);   // ambiente a 0: medido, con cualquier ambiente > 0 (incluso 0,002) la paleta sube el suelo a L* 37; a 0 sale L* 17 y fuera de los focos casi no se ve nada   // luna alta; ambiente al 6-10 %
+                    SetLight(new Color(0.42f, 0.48f, 0.62f), 0.45f, new Color(0.012f, 0.016f, 0.026f), 50f);   // luna D-N69 elegida por Eugenio (0,45): gris azulado frio y ambiente azul gris muy bajo   // ambiente a 0: medido, con cualquier ambiente > 0 (incluso 0,002) la paleta sube el suelo a L* 37; a 0 sale L* 17 y fuera de los focos casi no se ve nada   // luna alta; ambiente al 6-10 %
                     SetFloodlights(90f);
                     break;
             }
