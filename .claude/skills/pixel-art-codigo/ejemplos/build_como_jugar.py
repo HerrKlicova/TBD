@@ -4,6 +4,8 @@ Encargo de Mak (23:44). Las teclas son las de plan-noche-7nov §8: mover (clic d
 Emplazar (D, solo ametralladores) y Embarcar o desembarcar (E). La selección es clic y arrastre (§2, fila 3) y el
 zoom es la rueda (D-N70). El desplazamiento de la cámara NO está en el plan: va marcado como «por confirmar».
   ui_tecla_{a,s,d,e}             tecla de 14x14 con la letra dibujada a mano (sin fuente)
+  ui_tecla_raton_rueda           ratón de 9x12 con la rueda marcada
+  Reabasteciendo y alto el fuego existen en la lógica de Nacho (PR #24: Resupply y SetHoldFire).
   ui_estado_{emplazado,embarcado,sin_municion,reabasteciendo,alto_el_fuego}_16
                                  estado del pelotón sobre su tarjeta y sobre el pelotón en el mundo
   maqueta_como_jugar_x3.png      el cartel sobre el fondo del menú (texto con fuente provisional)
@@ -122,6 +124,21 @@ def estado(nombre):
     return s
 
 
+def rueda_raton():
+    """Ratón de 9x12 como tecla_raton (D-N78), pero con los dos botones apagados y la rueda marcada (D-N89)."""
+    s = Sprite(9, 12)
+    s.rect(0, 0, 9, 12, "beige")
+    s.hline(1, 7, 0, "bone")
+    s.hline(0, 8, 5, "grey_brown")
+    s.vline(4, 0, 4, "grey_brown")
+    s.rect(3, 1, 3, 4, "cream")                      # rueda resaltada
+    s.vline(4, 1, 4, "ochre_dark")
+    for x, y in ((0, 0), (8, 0), (0, 11), (8, 11)):
+        s.set(x, y, None)
+    s.outline()
+    return s
+
+
 CONTROLES = [   # (icono, texto). icono: ("tecla", letra) | ("raton", "izq"/"dcho") | ("rueda",)
     (("raton", "izq"), "Clic y arrastre: seleccionar pelotones"),
     (("raton", "dcho"), "Clic derecho: mover"),
@@ -145,7 +162,7 @@ def cartel():
     x0, y0 = (W - pw) // 2, (H - ph) // 2
     m.pega(fondo, ui.panel(pw, ph), x0, y0)
     m.texto(fondo, (W // 2, y0 + 8), "Cómo se juega", 13, "cream", centro=True)
-    m.texto(fondo, (W // 2, y0 + 28), "Aguanta en Sagunto de las 22:00 al amanecer. Si la horda entra, cae.", 9,
+    m.texto(fondo, (W // 2, y0 + 28), "Aguanta en Sagunto de las 22:00 al amanecer. Si cae la estación o el tren, se acaba.", 9,
             "beige", centro=True, sombra=False)
     for i, (ic, t) in enumerate(CONTROLES):
         y = y0 + 52 + i * 22
@@ -154,8 +171,7 @@ def cartel():
         elif ic[0] == "raton":
             m.pega(fondo, m.tecla_raton(ic[1]), x0 + 18, y + 1)
         else:
-            s = m.tecla_raton("dcho")
-            s.rect(4, 1, 1, 3, "brown_dark")                 # rueda marcada
+            s = rueda_raton()
             m.pega(fondo, s, x0 + 18, y + 1)
         m.texto(fondo, (x0 + 38, y + 2), t, 9, "bone", sombra=False)
     m.texto(fondo, (x0 + 290, y0 + 52), "Estados del pelotón", 9, "cream", sombra=False)
@@ -171,6 +187,7 @@ def cartel():
 def exportar(out):
     out = Path(out)
     todo = {}
+    rueda_raton().img.save(out / "ui_tecla_raton_rueda.png")
     for l in LETRAS:
         s = tecla(l)
         s.img.save(out / f"ui_tecla_{l}.png")
