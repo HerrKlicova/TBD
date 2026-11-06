@@ -1545,6 +1545,7 @@ namespace TBD.View
         readonly System.Collections.Generic.HashSet<int> _chunkPending = new System.Collections.Generic.HashSet<int>();
         readonly System.Collections.Concurrent.ConcurrentQueue<ChunkResult> _chunkDone = new System.Collections.Concurrent.ConcurrentQueue<ChunkResult>();
         public static bool SueloPorTrozos = true;
+        readonly System.Collections.Generic.Queue<System.Action> _vegQueue = new System.Collections.Generic.Queue<System.Action>();
 
         int VegMask(float x, float z)
         {
@@ -1566,7 +1567,7 @@ namespace TBD.View
             gs.mApis = Mean(gs.apis); gs.mLabr = Mean(gs.labr); gs.mAsf = Mean(gs.asf); gs.mRod = Mean(gs.rod);
             var mk = Resources.Load<Texture2D>("Suelo/sagunto_sin_vegetacion_1m"); _vegMask = mk != null && mk.width == MapW && mk.height == MapH ? mk.GetPixels32() : null;
             _gs = gs; _chunkRoot = new GameObject("Suelo por trozos (D-N67)").transform; _chunkRoot.SetParent(root, false);
-            _chunks.Clear(); _chunkPending.Clear(); while (_chunkDone.TryDequeue(out _)) { }
+            _chunks.Clear(); _chunkPending.Clear(); while (_chunkDone.TryDequeue(out _)) { } _vegQueue.Clear();
         }
 
         static int ChunkKey(int i, int j) { return j * 64 + i; }
@@ -1576,12 +1577,15 @@ namespace TBD.View
             if (_gs == null) return;
             if (_chunkRoot == null) { _gs = null; _chunks.Clear(); _chunkPending.Clear(); return; }           // la zona se ha destruido
             // 1) subir a la GPU el trozo terminado (1 por fotograma)
+            bool didChunk = false;
             if (_chunkDone.TryDequeue(out var res))
             {
+                didChunk = true;
                 _chunkPending.Remove(ChunkKey(res.I, res.J));
                 if (res.Error != null) Debug.LogWarning("[TBD] Trozo de suelo " + res.I + "," + res.J + ": " + res.Error);
                 else FinishChunk(res);
             }
+            if (!didChunk && _vegQueue.Count > 0) _vegQueue.Dequeue()();
             // 2) cargar los cercanos al foco (mas cercanos primero, hasta 2 hilos a la vez) y descargar los lejanos
             float fx = _focus.x, fz = _focus.z; int started = 0;
             int cols = (MapW + ChunkM - 1) / ChunkM, rows = (MapH + ChunkM - 1) / ChunkM;
@@ -1615,6 +1619,7 @@ namespace TBD.View
 
         void FinishChunk(ChunkResult r)
         {
+            var swc = System.Diagnostics.Stopwatch.StartNew();
             float X0 = MapX0 + r.I * ChunkM, Z0 = MapZ0 + r.J * ChunkM;
             var day = new Texture2D(r.W, r.H, TextureFormat.RGBA32, false, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp, name = "Suelo " + r.I + "," + r.J };
             day.SetPixels32(r.Day); day.Apply(false, true);
@@ -1632,8 +1637,31 @@ namespace TBD.View
             int xi0 = r.I * ChunkM, zi0 = r.J * ChunkM, mw = Mathf.Min(ChunkM, MapW - xi0), mh = Mathf.Min(ChunkM, MapH - zi0);
             var sub = new Color32[mw * mh];
             for (int zz = 0; zz < mh; zz++) System.Array.Copy(_gs.map, (zi0 + zz) * MapW + xi0, sub, zz * mw, mw);
-            ScatterGround(holder.transform, sub, mw, mh, X0, Z0);
-            ScatterCracks(holder.transform, sub, mw, mh, X0, Z0);
+            _vegQueue.Enqueue(() => { if (holder != null) { ScatterGround(holder.transform, sub, mw, mh, X0, Z0); HideVegUnderWorks(holder.transform); } });      // la vegetacion y las grietas se crean en fotogramas distintos (<~5 ms cada uno)
+            _vegQueue.Enqueue(() => { if (holder != null) ScatterCracks(holder.transform, sub, mw, mh, X0, Z0); });
+            if (swc.Elapsed.TotalMilliseconds > 8.0) Debug.Log("[TBD] Trozo de suelo " + r.I + "," + r.J + " subido en " + swc.Elapsed.TotalMilliseconds.ToString("F1") + " ms (hilo principal)");
+        }
+
+        readonly System.Collections.Generic.List<(Vector2 a, Vector2 b, float r)> _workRects = new System.Collections.Generic.List<(Vector2, Vector2, float)>();
+        int _workRectSig;
+
+        /// <summary>Oculta las matas, piedras y grietas de un trozo que quedan bajo una obra (distancia punto-segmento menor que el radio).</summary>
+        void HideVegUnderWorks(Transform holder)
+        {
+            if (_workRects.Count == 0) return;
+            for (int g = 0; g < holder.childCount; g++)
+            {
+                var grp = holder.GetChild(g); if (!grp.name.StartsWith("Capa C")) continue;
+                for (int k = 0; k < grp.childCount; k++)
+                {
+                    var o = grp.GetChild(k); var pz = new Vector2(o.position.x, o.position.z);
+                    foreach (var wr in _workRects)
+                    {
+                        var ab = wr.b - wr.a; float l2 = ab.sqrMagnitude; float tt = l2 < 1e-6f ? 0f : Mathf.Clamp01(Vector2.Dot(pz - wr.a, ab) / l2);
+                        if ((wr.a + ab * tt - pz).sqrMagnitude < wr.r * wr.r) { o.gameObject.SetActive(false); break; }
+                    }
+                }
+            }
         }
 
         void SetChunksGrade(int index)
@@ -2409,6 +2437,20 @@ namespace TBD.View
             if (_zoneNode < 0 || _ambush || NetSession.A == null) return;
             var pieces = NetSession.A.Works.At(_zoneNode);
             while (_workVisuals.Count < pieces.Count) { _workVisuals.Add(null); _workBuilt.Add(false); }
+            {   // la capa C desaparece donde se construye (Lucía, D-N67): se recalcula solo cuando cambia el conjunto de obras
+                int sig = pieces.Count * 31; for (int q = 0; q < pieces.Count; q++) sig = sig * 17 + (pieces[q].Built ? 1 : 0) + pieces[q].X0 * 7 + pieces[q].Y0 * 13;
+                if (sig != _workRectSig)
+                {
+                    _workRectSig = sig; _workRects.Clear();
+                    for (int q = 0; q < pieces.Count; q++)
+                    {
+                        var wq = pieces[q];
+                        if (wq.IsWall) _workRects.Add((new Vector2(WorkOrigin.x + wq.X0 / 1000f, WorkOrigin.y + wq.Y0 / 1000f), new Vector2(WorkOrigin.x + wq.X1 / 1000f, WorkOrigin.y + wq.Y1 / 1000f), Level.WallHalf + 0.5f));
+                        else { var cq = new Vector2(WorkOrigin.x + (wq.IsGate ? (wq.X0 + wq.X1) * 0.5f : wq.X0) / 1000f, WorkOrigin.y + (wq.IsGate ? (wq.Y0 + wq.Y1) * 0.5f : wq.Y0) / 1000f); _workRects.Add((cq, cq, 1.5f)); }
+                    }
+                    foreach (var ch in _chunks.Values) if (ch.Go != null) HideVegUnderWorks(ch.Go.transform);
+                }
+            }
             for (int i = 0; i < pieces.Count; i++)
             {
                 var w = pieces[i];
