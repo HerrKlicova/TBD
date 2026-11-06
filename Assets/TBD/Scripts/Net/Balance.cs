@@ -126,6 +126,12 @@ namespace TBD.Net
             return v;
         }
 
+        public static ObrasParams Obras()
+        {
+            var t = Read("balance_construccion.csv");
+            return t == null ? ObrasParams.Default : ObrasParams.FromCsv(new CsvTable(t));
+        }
+
         public static TBD.Sim.CombatParams Combat()
         {
             var t = Read("balance_combate.csv");

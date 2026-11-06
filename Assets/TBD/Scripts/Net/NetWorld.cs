@@ -29,7 +29,7 @@ namespace TBD.Net
     }
 
     // ================================================================== órdenes
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9 }
 
     public struct NetCommand
     {
@@ -38,6 +38,7 @@ namespace TBD.Net
         public int Arg;            // velocidad (1, 2, 4), id de tren o id de nodo
         public int Arg2;           // Dematerialize: densidad que vuelve a la celda (por mil, 1 = 10 zombis vivos)
         public int Seq;            // orden de llegada (lo pone NetWorld.Push): desempata órdenes del mismo tick
+        public int[] Payload;      // datos largos de la orden (null en casi todas). PlaceWork: puntos del muro en mm locales al nodo
     }
 
     // ================================================================== horarios y carga
@@ -294,6 +295,7 @@ namespace TBD.Net
         public readonly int[] Attraction;          // por nodo: base de la ciudad + ruido del tráfico
         public readonly int[] BaseAttraction;
         public readonly int[,] Stock;              // por nodo y recurso
+        public readonly ObrasState Works;          // hito 5: lo construido en cada nodo (dentro del hash, en «existencias»)
         public long Tick;
         public int Speed = 1;                       // 1, 2 o 4 ticks por paso de 1/30 s
         public bool Paused;
@@ -341,6 +343,7 @@ namespace TBD.Net
             Attraction = new int[g.Nodes.Count];
             BaseAttraction = new int[g.Nodes.Count];
             Stock = new int[g.Nodes.Count, NetConst.ResCount];
+            Works = new ObrasState(g.Nodes.Count, BalanceSource.Obras());
             Traffic = new TrafficMemory(g.Edges.Count, BalanceSource.Traffic());
             Director.P = BalanceSource.Director();
             Director.Curve = BalanceSource.Curve();
@@ -382,6 +385,7 @@ namespace TBD.Net
                     case NetCmdType.ResolveAmbush: ResolveAmbush(c.Arg & 0xFF, c.Arg2, false, c.Arg >> 8); break;       // Arg = servicio | (munición gastada en u) << 8
                     case NetCmdType.Dematerialize: Dematerialize(c.Arg, c.Arg2); break;
                     case NetCmdType.ConsumeAmmo: ConsumeAmmo(c.Arg, c.Arg2); break;
+                    case NetCmdType.PlaceWork: PlaceWork(c.Arg & 0xFFFF, (PieceKind)(c.Arg >> 16), c.Payload); break;       // Arg = nodo | (PieceKind << 16)
                     case NetCmdType.TrainGo:
                         if (c.Arg >= 0 && c.Arg < Services.Count)
                         {
@@ -424,6 +428,22 @@ namespace TBD.Net
                 left -= take;
             }
             Stock[node, (int)Res.Municion] = Math.Max(0, Stock[node, (int)Res.Municion] - left);
+        }
+
+        // ---------------------------------------------------------------- obras (hito 5)
+        /// <summary>
+        /// Paga y registra una obra en el nodo (solo con la zona del nodo materializada: se construye dentro de una zona en detalle).
+        /// Los materiales salen de las existencias del nodo; si no alcanzan, el muro se corta donde lo decide Obras.PlanWall.
+        /// Devuelve el plan aplicado (null si no hubo orden válida), para que la interfaz muestre el resultado real.
+        /// </summary>
+        public WorkPlan PlaceWork(int node, PieceKind kind, int[] pts)
+        {
+            if (node < 0 || node >= Graph.Nodes.Count || node != ActiveZoneNode) return null;
+            var plan = Works.Preview(node, kind, pts, Stock[node, (int)Res.Materiales]);
+            if (!plan.Ok) return plan;
+            Stock[node, (int)Res.Materiales] -= plan.CostU;
+            Works.Add(node, plan);
+            return plan;
         }
 
         // ---------------------------------------------------------------- zonas en detalle
@@ -722,6 +742,7 @@ namespace TBD.Net
                 h += Mix(((ulong)(uint)n << 32) ^ (ulong)(uint)Attraction[n]);
                 for (int r2 = 0; r2 < NetConst.ResCount; r2++) h += Mix(((ulong)(uint)n << 40) ^ ((ulong)r2 << 32) ^ (ulong)(uint)Stock[n, r2]);
             }
+            h += Works.Hash();
             r.Stock = h;
             h = 0;
             foreach (var e in Graph.Edges) h += Mix(((ulong)(uint)e.Id << 8) ^ (ulong)e.State);
