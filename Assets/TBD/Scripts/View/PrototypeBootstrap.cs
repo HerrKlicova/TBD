@@ -789,11 +789,11 @@ namespace TBD.View
                 default: // noche: el azul viene de la luna y del ambiente (#283440 a #404460) sobre el albedo ocre de siempre; la gradación
                          // solo baja la saturación, sin teñir, para que el ámbar del foco siga siendo ámbar (no salmón)
                     _grade.colorFilter.Override(Color.white);
-                    _grade.postExposure.Override(0.9f);
+                    _grade.postExposure.Override(0.35f);
                     _grade.saturation.Override(-15f);
                     // luna y ambiente poco azules y bajos, y focos más fuertes: medido a resolución completa (Shift+F9 con máscara), el 84 % de los
                     // píxeles cálidos del charco queda entre 20° y 45° (con la gradación azul y el foco de antes, el 18 %: el borde del charco salía rosa)
-                    SetLight(new Color(0.26f, 0.30f, 0.45f), 0.45f, new Color(0.06f, 0.07f, 0.10f), 50f);   // luna alta; ambiente al 6-10 %
+                    SetLight(new Color(0.26f, 0.30f, 0.45f), 0.14f, Color.black, 50f);   // ambiente a 0: medido, con cualquier ambiente > 0 (incluso 0,002) la paleta sube el suelo a L* 37; a 0 sale L* 17 y fuera de los focos casi no se ve nada   // luna alta; ambiente al 6-10 %
                     SetFloodlights(90f);
                     break;
             }
@@ -1293,7 +1293,7 @@ namespace TBD.View
             foreach (var l in _floodLights) l.intensity = intensity;
             foreach (var l in _cohesionLights) l.intensity = intensity > 0f ? 90f : 0f;
             foreach (var rm in _rimMats) { rm.EnableKeyword("_EMISSION"); rm.SetColor("_EmissionColor", intensity > 40f ? HexColor("404460") * 0.6f : Color.black); }
-            foreach (var rm in _rimModelMats) { rm.EnableKeyword("_EMISSION"); rm.SetColor("_EmissionColor", intensity > 40f ? HexColor("404460") * 0.05f : Color.black); }   // modelos 3D de unidades propias: rim azul tenue de noche (a 0,6 salía casi blanco tras la exposición)
+            foreach (var rm in _rimModelMats) { rm.EnableKeyword("_EMISSION"); rm.SetColor("_EmissionColor", Color.black); }   // rim apagado (Lucía): hacía del tren un fantasma lila; el fresnel de borde queda para después del prototipo
             foreach (var h in _halos) h.gameObject.SetActive(intensity > 0f);
         }
 
