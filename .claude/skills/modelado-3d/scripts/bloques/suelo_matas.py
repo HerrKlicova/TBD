@@ -1,7 +1,8 @@
 """Matas del suelo de Sagunto (capa C, D-N67; docs/arte/suelo-sagunto.md). MUESTRA para Eugenio. Teo, 6-nov-2026.
 
 Fotos de Paula H1 (hierba seca de bancales, Marina Alta) y H3 (lentisco); el cardo sigue SIN FOTO (de memoria).
-H1 enseña la hierba seca pajiza, casi del color del suelo: por eso la mitad de sus hojas van en b4a080. Reglas de Lucía (§3, §4): ≤ 60 triángulos, ≤ 0,4 m de alto, hierba en 88885c
+H1 enseña la hierba seca pajiza, pero con la mitad en b4a080 se perdía contra el suelo en la captura de día de Marcos
+(suelo_v2): vuelve a 1 de cada 4 en b4a080 y el resto en 88885c y 847c34 (Lucía, 19:16). Reglas de Lucía (§3, §4): ≤ 60 triángulos, ≤ 0,4 m de alto, hierba en 88885c
 y 847c34, puntas en b4a080, 70784c solo de acento; SIN valor partido ni contorno propio (ΔL* 12–16 del suelo);
 nada de valores de la horda, rojo ni ámbar. Sin colisión ni sombra (las pone Marcos al instanciar).
 Cada hoja es un tetraedro cerrado (4 triángulos), así la malla es estanca con muy pocos triángulos.
@@ -49,7 +50,7 @@ def mata(t, tipo, cx=0.0, cy=0.0, semilla=1, lod=0, escala=1.0):
             b = (cx + r0 * math.cos(a), cy + r0 * math.sin(a), -0.01)
             p = (b[0] + caida * math.cos(a), b[1] + caida * math.sin(a), h)
             if tipo == "hierba_seca":
-                pieza = "punta" if i % 2 == 1 else "hierba"   # H1 (Paula): la hierba seca es pajiza; mitad b4a080
+                pieza = "punta" if i % 4 == 3 else ("hierba_v" if i % 3 == 1 else "hierba")   # 1 de 4 en b4a080 (Lucía, 19:16)
             else:
                 pieza = "acento" if i % 5 == 4 else ("punta" if i % 7 == 6 else "hierba_v")
             hoja(t, b, p, 0.08 * e, pieza, giro=a)
