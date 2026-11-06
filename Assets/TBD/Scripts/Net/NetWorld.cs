@@ -449,12 +449,34 @@ namespace TBD.Net
         public WorkPlan PlaceWork(int node, PieceKind kind, int[] pts)
         {
             if (node < 0 || node >= Graph.Nodes.Count || node != ActiveZoneNode) return null;
-            var plan = Works.Preview(node, kind, pts, Stock[node, (int)Res.Materiales]);
+            var plan = PreviewWork(node, kind, pts);
             if (!plan.Ok) return plan;
             Stock[node, (int)Res.Materiales] -= plan.CostU;
             plan.Id = Works.Add(node, plan);
             return plan;
         }
+
+        /// <summary>
+        /// Lo mismo que PlaceWork pero sin pagar ni registrar: es lo que enseña el fantasma. Además del coste y el corte, exige terreno asegurado
+        /// (sin zombis en pie a menos de SecureMm de la obra) cuando la zona ha enchufado su rejilla en ZoneDensity.
+        /// </summary>
+        public WorkPlan PreviewWork(int node, PieceKind kind, int[] pts)
+        {
+            var plan = Works.Preview(node, kind, pts, Stock[node, (int)Res.Materiales]);
+            if (!plan.Ok || ZoneDensity == null) return plan;
+            var view = ZoneDensity();
+            if (view != null && !Terreno.PlanSecure(view, plan, Works.P.SecureMm, out _, out _))
+            {
+                plan.Ok = false; plan.Why = "Hay zombis cerca: el terreno no está asegurado";
+            }
+            return plan;
+        }
+
+        /// <summary>
+        /// Enchufe de la zona (Marcos): devuelve la rejilla de densidad del tick en mm locales al nodo, o null si no hay zona. No entra en el hash:
+        /// la zona es determinista y el resultado depende solo de su estado. Sin enchufar (pruebas de la red, goldens) todo terreno vale.
+        /// </summary>
+        public Func<DensityView> ZoneDensity;
 
         /// <summary>«Asignar obreros»: población del nodo que trabaja en sus obras. Se limita a la población que hay en cada tick; no se gasta.</summary>
         public void AssignWorkers(int node, int workers)
