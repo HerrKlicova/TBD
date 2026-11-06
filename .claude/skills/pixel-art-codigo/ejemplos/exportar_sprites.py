@@ -46,6 +46,7 @@ import build_como_jugar  # noqa: E402
 import build_tarjetas  # noqa: E402
 import build_marcadores  # noqa: E402
 import build_avisos_minimapa  # noqa: E402
+import build_rutas  # noqa: E402
 
 PIVOTE = [0.5, 0.53]
 
@@ -169,6 +170,7 @@ def prototipo_noche(out):
     build_tarjetas.exportar(out)                         # P1: retratos de tarjeta, 6 variantes por tipo
     build_marcadores.exportar(out)                       # P1: selección, órdenes, cono, arrastre, aviso de entrada, cursores
     build_avisos_minimapa.exportar(out)                  # P1: avisos del HUD y minimapa (base de Sagunto e iconos)
+    build_rutas.exportar(out)                            # mundo persistente: ETA, rutas, refuerzos y ruta no válida
 
 
 if __name__ == "__main__":
