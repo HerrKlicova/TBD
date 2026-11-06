@@ -111,7 +111,7 @@ namespace TBD.View
 
         public static float4x4 SpriteMatrix(bool lod)
         {
-            if (FigureMode) return RenderAssets.Variants > 1 ? float4x4.RotateY(3.1415927f) : float4x4.identity;   // el modelo de Teo mira a -Z; la simulación, a +Z
+            if (FigureMode) return float4x4.identity;   // medido en Unity: el modelo de Teo (brazos a z medio +0,30) YA mira a +Z, como la simulación; no hace falta girarlo
             float m = lod ? LodMeters : SpriteMeters;
             return float4x4.TRS(float3.zero, quaternion.RotateX(1.5707964f), new float3(m, m, 1f));
         }               // lado del cuadrado de 32 px del zombi (hombros de unos 0,8 m)
@@ -135,7 +135,11 @@ namespace TBD.View
             if (!FigureMode) return new float4(1f, 1f, 1f, 1f);
             // D-N61 (Lucía): horda de un solo valor oscuro (#303424) con ±8 % de luminosidad por id, solo presentación
             float k = 0.92f + 0.16f * ((math.hash(new uint2(id, 17u)) & 255u) / 255f);
-            if (RenderAssets.Variants > 1) { float g = Mathf.GammaToLinearSpace(k); return new float4(g, g, g, 1f); }     // el color va en la paleta del modelo: solo ±8 % de luminosidad
+            if (RenderAssets.Variants > 1)                    // las tres camisas de Teo, teñidas hacia un solo valor oscuro (#303424 de media) con ±8 %
+            {
+                var tint = new Color(0.30f * k, 0.33f * k, 0.22f * k).linear;
+                return new float4(tint.r, tint.g, tint.b, 1f);
+            }
             var c = new Color(0x30 / 255f * k, 0x34 / 255f * k, 0x24 / 255f * k).linear;
             return new float4(c.r, c.g, c.b, 1f);
         }
