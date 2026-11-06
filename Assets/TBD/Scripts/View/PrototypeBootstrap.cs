@@ -1175,7 +1175,7 @@ namespace TBD.View
         void SetupVisualAssets()
         {
             // Revisión de arte de Lucía (5-nov): suelo claro y cálido, tejado de terracota (antes era del color del suelo)
-            _mGround = Mat("b4a080"); _mWall = Mat("88885c"); _mRoof = Mat("a86c50"); _mRail = Mat("94948c");
+            _mGround = Mat("b0a060"); _mWall = Mat("88885c"); _mRoof = Mat("a86c50"); _mRail = Mat("94948c");
             _mSleeper = Mat("442c0c"); _mTrain = Mat("303424"); _mWagon = Mat("605c48"); _mGate = Mat("7c3c18");
 
             // Zombi: cápsula de Unity (escalada a 0,5 x 1,8 m en RenderAttachSystem)
