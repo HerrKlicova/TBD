@@ -1185,10 +1185,11 @@ def paleta_uniforme(obj, color="50541c", paleta=None, ruta_textura=None, celda_p
 
 
 def paleta_por_piezas(obj, colores, por_defecto="50541c", paleta=None, ruta_textura=None, celda_px=4,
-                      excluir=PROHIBIDOS_OBJETO):
+                      excluir=PROHIBIDOS_OBJETO, permitir=()):
     """Albedo plano por pieza: cada cara toma el color de paleta asignado al nombre de su material de origen
     (p. ej. {"casco": "50541c", "goma": "303424", "llanta": "70784c", "optica": "181c30", "foco": "f0dc9c"}).
-    Los colores salen de las fotos de referencia llevados a la paleta de 32 y sin rojos ni ámbar.
+    Los colores salen de las fotos de referencia llevados a la paleta de 32 y sin rojos ni ámbar (excepción con
+    permitir=, p. ej. la franja ámbar e08c30 del frontal de la locomotora, D-N42).
     Deja un solo material con el atlas (como paleta_uniforme) y devuelve la máscara de cada pieza para
     valor_partido(mascara=...)."""
     pal = cargar_paleta() if paleta is None else paleta
@@ -1197,8 +1198,8 @@ def paleta_por_piezas(obj, colores, por_defecto="50541c", paleta=None, ruta_text
         h = h.lower().lstrip("#")
         if h not in hexes:
             raise ValueError("%s no está en la paleta de 32" % h)
-        if h in (excluir or ()):
-            raise ValueError("%s prohibido en objetos (familia roja o ámbar)" % h)
+        if h in (excluir or ()) and h not in permitir:
+            raise ValueError("%s prohibido en objetos (familia roja o ámbar); excepción explícita con permitir=" % h)
     me = obj.data
     nombres = [m.name.split(".")[0] if m else "" for m in me.materials]
     mi = np.zeros(len(me.polygons), dtype=np.int64)
