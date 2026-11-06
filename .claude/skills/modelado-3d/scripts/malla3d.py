@@ -37,6 +37,12 @@ TOKENS_INTERFAZ = ("982420", "e08c30")  # rojo de peligro y ámbar de alerta: nu
 # Lucía (6-nov): en un objeto no queda ningún rojo. Se prohíbe toda la familia roja y el ámbar, y los rojos y naranjas
 # de origen se reasignan POR VALOR a oliva, ocre o gris (no al rojo más cercano de la paleta).
 PROHIBIDOS_OBJETO = TOKENS_INTERFAZ + ("340000", "4c1008", "642030", "7c181c", "8c5048")
+# Lucía (6-nov 09:31): ningún costado tiene color de suelo ni de zombi. Costados por defecto según el tipo de pieza.
+COSTADO_POR_TIPO = {"militar": "50541c",  # oliva de los laterales del tren (D-N42): todo lo propio en la misma familia
+                    "civil": "605c48"}    # gris pardo: carretillas, cajas, mobiliario
+COSTADOS_PROHIBIDOS = ("48403c", "845c28",            # suelos (trinchera y llano)
+                       "6c7874", "94948c", "404460",  # grises de las texturas A7 (hormigón, balasto)
+                       "60546c")                      # costado de los zombis
 SUSTITUTOS_ROJO = ("303424", "48403c", "50541c", "605c48", "6c7874", "70784c", "845c28", "847c34", "88885c", "b8b8b8")
 
 
@@ -835,6 +841,9 @@ def valor_partido(obj, claro="b4a080", costado=None, umbral_arriba=0.55, oscurec
             return int(cand[np.argmin(lab[cand, 0])])
         d = ((lab[cand, 1:] - lab[i, 1:]) ** 2).sum(1) + 0.3 * (lab[cand, 0] - (lab[i, 0] - paso)) ** 2
         return int(cand[d.argmin()])
+    if costado and costado.lower().lstrip("#") in COSTADOS_PROHIBIDOS:
+        raise ValueError("costado %s prohibido (suelo o zombi): usa 50541c (militar) o 605c48 (civil)" % costado)
+    permit = permit & np.array([h not in COSTADOS_PROHIBIDOS for h in hexes])
     nuevo = idx.copy()
     i_cost = hexes.index(costado.lower().lstrip("#")) if costado else None
     for k in range(len(idx)):
@@ -1081,7 +1090,7 @@ def importar(ruta):
 
 def procesar(ruta, salida, nombre=None, objetivo=3000, altura_m=None, voxel=True, max_colores=10,
              presupuesto=(1500, 4000), formato="FBX", faccion="neutro", partido=True, claro="b4a080", costado=None,
-             suelos=None):
+             suelos=None, tipo=None):
     """Hunyuan (GLB denso) -> pieza de juego: importar, escalar, limpiar, (remallar), diezmar, paleta, auditar,
     vistas y exportar. Devuelve el informe completo y lo guarda en <salida>/<nombre>_informe.json."""
     os.makedirs(salida, exist_ok=True)
@@ -1124,7 +1133,10 @@ def procesar(ruta, salida, nombre=None, objetivo=3000, altura_m=None, voxel=True
     inf["paleta"] = paleta_desde_original(obj, original=original, max_colores=max_colores,
                                           ruta_textura=os.path.join(salida, "T_Paleta32.png"))
     if partido:
-        inf["valor_partido"] = valor_partido(obj, claro=claro, costado=costado)
+        # tipo: "militar" (vehículos y material propio) o "civil"; por defecto, militar si la facción es propia
+        tipo = tipo or ("militar" if faccion == "propio" else "civil")
+        inf["valor_partido"] = valor_partido(obj, claro=claro, costado=costado or COSTADO_POR_TIPO[tipo])
+        inf["valor_partido"]["tipo"] = tipo
     inf["faccion"] = marcar_faccion(obj, faccion)
     inf["auditoria"] = auditar(obj, presupuesto=presupuesto, altura_m=altura_m)
     leg = medir_legibilidad(obj, suelos)
@@ -1160,10 +1172,11 @@ def _main(argv):
     ap.add_argument("--faccion", default="neutro", choices=list(FACCIONES))
     ap.add_argument("--sin-partido", dest="partido", action="store_false", help="no aplicar el valor partido D-N57")
     ap.add_argument("--claro", default="b4a080", help="color de las caras de arriba (por defecto b4a080, Lucía)")
-    ap.add_argument("--costado", help="color fijo de los costados, p. ej. 50541c")
+    ap.add_argument("--costado", help="color fijo de los costados (por defecto según --tipo)")
+    ap.add_argument("--tipo", choices=list(COSTADO_POR_TIPO), help="militar (costado 50541c) o civil (605c48)")
     a = ap.parse_args(argv)
     inf = procesar(a.entrada, a.salida, a.nombre, a.objetivo, a.altura, a.voxel, a.colores, formato=a.formato,
-                   faccion=a.faccion, partido=a.partido, claro=a.claro, costado=a.costado)
+                   faccion=a.faccion, partido=a.partido, claro=a.claro, costado=a.costado, tipo=a.tipo)
     print(json.dumps({k: inf[k] for k in ("nombre", "triangulos_entrada", "diezmar", "paleta")}, ensure_ascii=False,
                      default=str))
     print("VEREDICTO", inf["auditoria"]["veredicto"])

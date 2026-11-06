@@ -73,6 +73,9 @@ result = {"veredicto": inf["auditoria"]["veredicto"], "intentos": inf["diezmar_i
 - **Decisiones de Lucía (6-nov)**: claro por defecto **b4a080** (94948c es la camisa de los zombis); llano = **#845c28**
   (ocre de A7); **ningún rojo en objetos**: se prohíbe la familia roja (340000, 4c1008, 642030, 7c181c, 8c5048, 982420)
   y el ámbar, y los rojos y naranjas de origen se reasignan por valor a oliva, ocre o gris.
+- **Costados (Lucía, 09:31)**: vehículos y material militar en **50541c** (oliva de los laterales del tren, D-N42);
+  objetos civiles en **605c48**. Prohibidos en costados: 48403c y 845c28 (suelos), 6c7874, 94948c y 404460 (grises de A7)
+  y 60546c (costado de los zombis). `procesar(tipo="militar"|"civil")`; por defecto, militar si `faccion="propio"`.
 
 ## Hunyuan con 4 vistas (pregunta de Eugenio)
 - **Sí se puede (verificado)**: el modelo **Hunyuan3D-2mv** acepta un diccionario `{"front", "left", "back", "right"}`
