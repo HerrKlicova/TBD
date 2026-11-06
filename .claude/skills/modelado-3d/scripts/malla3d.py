@@ -363,6 +363,9 @@ def llevar_origen_a_base(obj, poner_en_cero=True):
     base = np.array([(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, mn[2]])
     me.transform(Matrix.Translation(Vector(-base)))
     me.update()
+    # lo que se ha movido la malla: los pivotes de las piezas animables (separar) se dan en las coordenadas del bloque
+    # y hay que restárselo (sin esto, las ruedas del Dragón giraban 11 cm descentradas)
+    obj["tbd_base"] = [float(x) for x in base]
     obj.location = (0, 0, 0) if poner_en_cero else obj.location + Vector(base)
 
 

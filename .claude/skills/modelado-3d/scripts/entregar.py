@@ -136,10 +136,12 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
         import math
         from mathutils import Matrix
         for x in objs[1:]:
-            if x.name.startswith(("Torre", "RotorPrincipal")):
+            if x.name.startswith(("Torre", "RotorPrincipal", "Aro")):
                 x.rotation_euler.z = math.radians(50)
-            if x.name.startswith("Canon"):
+            if x.name.startswith(("Canon", "Ametralladora")):
                 x.rotation_euler.x = math.radians(-20)     # en Blender, elevar el cañón (que mira a −Y) es X negativo
+            if x.name in getattr(db, "DIRECCION", ()):   # ruedas directrices: giradas 25° sobre la vertical
+                x.rotation_euler.z = math.radians(25)
             if x.name.startswith("RotorCola"):
                 x.rotation_euler.x = math.radians(30)
         bpy.context.view_layer.update()

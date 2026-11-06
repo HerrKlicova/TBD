@@ -65,6 +65,7 @@ def separar(o, partes, pivotes, padres=None):
     padres = padres or {}
     at = o.data.attributes["parte"]
     cara_parte = [at.data[i].value for i in range(len(o.data.polygons))]
+    base = Vector(o.get("tbd_base", (0.0, 0.0, 0.0)))   # desplazamiento de limpiar() al llevar el origen a la base
     hijos = {}
     for k in range(1, len(partes)):
         sel = {i for i, v in enumerate(cara_parte) if v == k}
@@ -79,7 +80,7 @@ def separar(o, partes, pivotes, padres=None):
         b.from_mesh(n.data)
         b.faces.ensure_lookup_table()
         bmesh.ops.delete(b, geom=[f for f in b.faces if f.index not in sel], context="FACES")
-        p = Vector(pivotes[nom])
+        p = Vector(pivotes[nom]) - base
         bmesh.ops.translate(b, verts=b.verts, vec=-p)
         b.to_mesh(n.data)
         b.free()
@@ -97,5 +98,61 @@ def separar(o, partes, pivotes, padres=None):
             n.location = Vector(pivotes[nom]) - Vector(pivotes[pad])
         else:
             n.parent = o
-            n.location = Vector(pivotes[nom])
+            n.location = Vector(pivotes[nom]) - base
+    if "tbd_base" in o:
+        del o["tbd_base"]
     return [o] + list(hijos.values())
+
+
+# ---------------------------------------------------------------- piezas sueltas por material (ventanillas, focos…)
+
+def marcar_piezas(o):
+    """Guarda la pieza de cada cara (el material del Taller) en el atributo de cara «pieza», antes de que
+    paleta_por_piezas deje un solo material. Llamar justo después de Taller.objeto()."""
+    nombres = [m.name.split(".")[0] if m else "" for m in o.data.materials]
+    at = o.data.attributes.new("pieza", "INT", "FACE")
+    for i, p in enumerate(o.data.polygons):
+        at.data[i].value = p.material_index
+    o["tbd_piezas"] = ",".join(nombres)
+    return o
+
+
+def separar_piezas(o, grupos):
+    """grupos: {nombre_del_hijo: [piezas]}. Cada grupo sale a un objeto hijo del cuerpo con el MISMO origen (identidad
+    local): sirve para piezas que no se mueven pero se tratan aparte en Unity (ventanillas que se encienden de
+    noche). Devuelve [cuerpo] + hijos (solo los grupos con caras)."""
+    nombres = o["tbd_piezas"].split(",")
+    at = o.data.attributes["pieza"]
+    cara = [nombres[at.data[i].value] for i in range(len(o.data.polygons))]
+    hijos = []
+    quitar = set()
+    for nom, piezas in grupos.items():
+        sel = {i for i, p in enumerate(cara) if p in piezas}
+        if not sel:
+            continue
+        quitar |= sel
+        n = o.copy()
+        n.data = o.data.copy()
+        n.name = n.data.name = nom
+        bpy.context.scene.collection.objects.link(n)
+        b = bmesh.new()
+        b.from_mesh(n.data)
+        b.faces.ensure_lookup_table()
+        bmesh.ops.delete(b, geom=[f for f in b.faces if f.index not in sel], context="FACES")
+        b.to_mesh(n.data)
+        b.free()
+        n.parent = o
+        n.matrix_parent_inverse.identity()
+        n.location = (0, 0, 0)
+        hijos.append(n)
+    if quitar:
+        b = bmesh.new()
+        b.from_mesh(o.data)
+        b.faces.ensure_lookup_table()
+        bmesh.ops.delete(b, geom=[f for f in b.faces if f.index in quitar], context="FACES")
+        b.to_mesh(o.data)
+        b.free()
+    for x in [o] + hijos:
+        if "tbd_piezas" in x:
+            del x["tbd_piezas"]
+    return [o] + hijos

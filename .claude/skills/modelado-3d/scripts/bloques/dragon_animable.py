@@ -75,6 +75,7 @@ def _grupo(f_centro):
 
 def separar(o, lod):
     """Parte el objeto ya pintado en casco, 8 ruedas, torre y cañón. Devuelve [casco, hijos...]."""
+    base0 = Vector(o.get("tbd_base", (0.0, 0.0, 0.0)))
     bm = bmesh.new()
     bm.from_mesh(o.data)
     grupos = {}
@@ -82,7 +83,7 @@ def separar(o, lod):
         bm.faces.ensure_lookup_table()
         vs = {v for i in isla for v in bm.faces[i].verts}
         c = sum((v.co for v in vs), Vector()) / len(vs)
-        g = _grupo(tuple(c))
+        g = _grupo(tuple(c + base0))   # en coordenadas del bloque
         if g:
             grupos.setdefault(g, []).extend(isla)
     bm.free()
@@ -92,6 +93,7 @@ def separar(o, lod):
             i = int(k[6]) - 1
             xs = [1.22, -1.22] if lod == 0 else [1.32, -1.32]
             piv[k] = (xs[0] if k.endswith("L") else xs[1], EJES_Y[i], 0.68)
+    base = Vector(o.get("tbd_base", (0.0, 0.0, 0.0)))   # desplazamiento de limpiar() (origen a la base)
     hijos = {}
     quitar = set()
     for k, caras in grupos.items():
@@ -104,7 +106,7 @@ def separar(o, lod):
         b.faces.ensure_lookup_table()
         sel = set(caras)
         bmesh.ops.delete(b, geom=[f for f in b.faces if f.index not in sel], context="FACES")
-        p = Vector(piv[k])
+        p = Vector(piv[k]) - base
         bmesh.ops.translate(b, verts=b.verts, vec=-p)
         b.to_mesh(n.data)
         b.free()
@@ -123,4 +125,6 @@ def separar(o, lod):
             n.location = Vector(piv[k]) - Vector(piv["Torre"])
         else:
             n.parent = o
+    if "tbd_base" in o:
+        del o["tbd_base"]
     return [o] + list(hijos.values())
