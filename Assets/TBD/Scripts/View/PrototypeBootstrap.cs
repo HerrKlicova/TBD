@@ -1035,6 +1035,7 @@ namespace TBD.View
         void SetFloodlights(float intensity)
         {
             foreach (var l in _floodLights) l.intensity = intensity;
+            foreach (var l in _cohesionLights) l.intensity = intensity > 0f ? 90f : 0f;
             foreach (var h in _halos) h.gameObject.SetActive(intensity > 0f);
         }
 
@@ -1132,6 +1133,97 @@ namespace TBD.View
             dup.AddComponent<MeshFilter>().sharedMesh = back;
             dup.AddComponent<MeshRenderer>().sharedMaterial = m;
         }
+
+        // ---------------------------------------------------------------- captura de cohesión 3D (Iris y Lucía, 6-nov)
+        /// <summary>
+        /// Modelos PROVISIONALES con formas simples (albedo plano con colores de la paleta, sin texturas) para comprobar si el 3D bajo el
+        /// pixelado casa con los iconos de Bruno: soldado, civil, zombi, blindado 8×8, locomotora, HESCO y un foco. Se llama desde el
+        /// Editor (reflexión); escribe Captures/cohesion_pos.json con la posición en pantalla de cada modelo para medir L* contra el suelo.
+        /// </summary>
+        public void CohesionModels()
+        {
+            // sin la horda: la escena de cohesión muestra un solo zombi de referencia, y así se mide cada modelo contra el suelo
+            foreach (var w2 in new[] { _worldA, _worldB })
+                if (w2 != null && w2.IsCreated) w2.EntityManager.DestroyEntity(w2.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<Zombie>()));
+            var root = new GameObject("Cohesion_modelos").transform;
+            root.SetParent(transform, false);
+            float zc = Level.TrackY - 3f;                        // en el fondo de la trinchera, a la vista de la cámara por defecto
+            float x0 = CuttingLevel.LocoX - 38f;
+            Material M(string hex) { return Mat(hex); }
+            GameObject Prim(PrimitiveType t, string name, Vector3 pos, Vector3 scale, Material m, Quaternion? rot = null)
+            {
+                var g = GameObject.CreatePrimitive(t); g.name = name; Destroy(g.GetComponent<Collider>());
+                g.transform.SetParent(root, false); g.transform.position = pos; g.transform.localScale = scale;
+                if (rot.HasValue) g.transform.rotation = rot.Value;
+                g.GetComponent<MeshRenderer>().sharedMaterial = m; return g;
+            }
+            var olive = M("50541c"); var bone = M("d4d0cc"); var ochre = M("b4a080"); var beige = M("d8c8a8"); var steel = M("6c7874"); var dark = M("2c2820");
+            var amber = M("e08c30"); var zomb = M("78805c");
+            var pts = new System.Collections.Generic.List<(string name, Vector3 pos)>();
+            // soldado: cuerpo oliva, casco y detalle de hueso
+            Vector3 ps = new Vector3(x0, 0f, zc + 1f);
+            Prim(PrimitiveType.Capsule, "Soldado", ps + Vector3.up * 0.9f, new Vector3(0.5f, 0.9f, 0.5f), olive);
+            Prim(PrimitiveType.Cube, "Soldado casco", ps + Vector3.up * 1.85f, new Vector3(0.45f, 0.25f, 0.45f), steel);
+            Prim(PrimitiveType.Cube, "Soldado correaje", ps + Vector3.up * 1.0f + Vector3.forward * 0.26f, new Vector3(0.3f, 0.5f, 0.05f), bone);
+            pts.Add(("soldado", ps + Vector3.up * 0.9f));
+            // civil: ocre con detalle beige
+            Vector3 pc = new Vector3(x0 + 3f, 0f, zc + 1f);
+            Prim(PrimitiveType.Capsule, "Civil", pc + Vector3.up * 0.85f, new Vector3(0.5f, 0.85f, 0.5f), ochre);
+            Prim(PrimitiveType.Sphere, "Civil cabeza", pc + Vector3.up * 1.8f, new Vector3(0.38f, 0.38f, 0.38f), beige);
+            pts.Add(("civil", pc + Vector3.up * 0.85f));
+            // zombi: el verde grisáceo de la horda
+            Vector3 pz = new Vector3(x0 + 6f, 0f, zc + 1f);
+            Prim(PrimitiveType.Capsule, "Zombi", pz + Vector3.up * 0.9f, new Vector3(0.5f, 0.9f, 0.5f), zomb);
+            pts.Add(("zombi", pz + Vector3.up * 0.9f));
+            // blindado 8×8: casco oliva, torreta y cuatro ruedas
+            Vector3 pb = new Vector3(x0 + 11f, 0f, zc + 1f);
+            Prim(PrimitiveType.Cube, "Blindado casco", pb + Vector3.up * 1.2f, new Vector3(6.2f, 1.6f, 2.6f), olive);
+            Prim(PrimitiveType.Cube, "Blindado torreta", pb + Vector3.up * 2.4f + Vector3.left * 0.4f, new Vector3(2.4f, 0.9f, 1.8f), olive);
+            Prim(PrimitiveType.Cylinder, "Blindado cañón", pb + Vector3.up * 2.4f + Vector3.right * 1.9f, new Vector3(0.25f, 1.1f, 0.25f), dark, Quaternion.Euler(0f, 0f, 90f));
+            for (int i = 0; i < 4; i++)
+                Prim(PrimitiveType.Cylinder, "Rueda", pb + new Vector3(-2.2f + i * 1.45f, 0.55f, i < 2 || true ? 1.4f : -1.4f), new Vector3(1.1f, 0.15f, 1.1f), dark, Quaternion.Euler(90f, 0f, 0f));
+            for (int i = 0; i < 4; i++)
+                Prim(PrimitiveType.Cylinder, "Rueda", pb + new Vector3(-2.2f + i * 1.45f, 0.55f, -1.4f), new Vector3(1.1f, 0.15f, 1.1f), dark, Quaternion.Euler(90f, 0f, 0f));
+            pts.Add(("blindado", pb + Vector3.up * 1.6f));
+            // HESCO: tres módulos de gavión de 2,1 m
+            Vector3 ph = new Vector3(x0 + 20f, 0f, zc + 1f);
+            for (int i = 0; i < 3; i++) Prim(PrimitiveType.Cube, "HESCO", ph + new Vector3(i * 1.25f, 1.05f, 0f), new Vector3(1.2f, 2.1f, 1.2f), M("a89c78"));
+            pts.Add(("hesco", ph + Vector3.up * 1.05f));
+            // foco: poste y charco de luz
+            Vector3 pf = new Vector3(x0 + 28f, 0f, zc + 1f);
+            Prim(PrimitiveType.Cube, "Foco poste", pf + Vector3.up * 2.4f, new Vector3(0.25f, 4.8f, 0.25f), steel);
+            var lgo = new GameObject("Foco luz"); lgo.transform.SetParent(root, false); lgo.transform.position = pf + Vector3.up * 4.8f;
+            lgo.transform.rotation = Quaternion.Euler(75f, 0f, 0f);
+            var l = lgo.AddComponent<Light>(); l.type = LightType.Spot; l.color = HexColor("ffc850"); l.range = 22f; l.spotAngle = 80f; l.innerSpotAngle = 40f;
+            l.intensity = _gradeIndex == 2 ? 90f : 0f; l.shadows = LightShadows.None;
+            _cohesionLights.Add(l);
+            pts.Add(("charco", pf + Vector3.forward * 1.5f));
+            _cohesionPts = pts;
+            _focus = new Vector3(x0 + 14f, 0f, zc);
+            _targetOrtho = 10f;
+        }
+
+        System.Collections.Generic.List<(string name, Vector3 pos)> _cohesionPts;
+
+        /// <summary>Escribe Captures/cohesion_pos.json con la posición en pantalla (viewport 0-1) de cada modelo y de su suelo, para medir L*. Llamar con la cámara asentada.</summary>
+        public void CohesionPositions()
+        {
+            if (_cohesionPts == null) return;
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            var sb = new System.Text.StringBuilder("{");
+            for (int i = 0; i < _cohesionPts.Count; i++)
+            {
+                var pos = _cohesionPts[i].pos;
+                var vp = _worldCam.WorldToViewportPoint(pos);
+                var vg = _worldCam.WorldToViewportPoint(new Vector3(pos.x + 1.4f, 0f, pos.z));
+                sb.Append(i > 0 ? "," : "").Append("\"" + _cohesionPts[i].name + "\":{\"x\":" + vp.x.ToString(inv) + ",\"y\":" + vp.y.ToString(inv) + ",\"gx\":" + vg.x.ToString(inv) + ",\"gy\":" + vg.y.ToString(inv) + "}");
+            }
+            sb.Append('}');
+            Directory.CreateDirectory(CaptureRoot);
+            File.WriteAllText(Path.Combine(CaptureRoot, "cohesion_pos.json"), sb.ToString());
+        }
+
+        readonly System.Collections.Generic.List<Light> _cohesionLights = new System.Collections.Generic.List<Light>();
 
         /// <summary>Color de un escalón del talud: más oscuro cuanto más alto (para leer el relieve del desmonte).</summary>
         static string BankColor(float h)
