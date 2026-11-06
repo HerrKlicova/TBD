@@ -63,6 +63,25 @@ def voronoi(x, y, pts):
     return d[0][0], d[1][0], d[0][1]
 
 
+def motas(s, color, densidad, seed, dobles=0.15):
+    """Motas sueltas de 1 px (alguna de 2) sin formar islas: una mota no toca a otra, ni en
+    diagonal. Tileable: los vecinos se miran dando la vuelta (Lucía: nada de camuflaje digital)."""
+    ocup = set()
+    for y in range(T):
+        for x in range(T):
+            if _h(x, y, seed) > densidad:
+                continue
+            celdas = [(x, y)]
+            if _h(x, y, seed + 1) < dobles:
+                celdas.append(((x + 1) % T, y) if _h(x, y, seed + 2) < .5 else (x, (y + 1) % T))
+            libre = all(((cx + dx) % T, (cy + dy) % T) not in ocup
+                        for cx, cy in celdas for dx in (-1, 0, 1) for dy in (-1, 0, 1))
+            if libre:
+                for c in celdas:
+                    ocup.add(c)
+                    s.set(c[0], c[1], color)
+
+
 def tono(rampa, v):
     return rampa[min(len(rampa) - 1, max(0, int(v * len(rampa))))]
 
@@ -97,13 +116,10 @@ def balasto():
 
 
 def hormigon():
-    """Losa de hormigón: moteado fino y suave de dos grises y la junta de losa."""
+    """Losa de hormigón: gris liso con motas claras sueltas y la junta de losa."""
     s = Sprite(T, T)
-    for y in range(T):
-        for x in range(T):
-            v = fbm(x, y, 11, (4, 2))
-            c = "concrete_light" if v > 0.68 else "concrete"   # sin poros oscuros: ΔL* ≤ 12
-            s.set(x, y, c)
+    s.rect(0, 0, T, T, "concrete")
+    motas(s, "concrete_light", 0.16, 11)
     for i in range(T):                               # junta de losa, en el borde: casa al repetir
         s.set(i, 0, "grey_brown")
         s.set(0, i, "grey_brown")
@@ -148,15 +164,11 @@ def tierra():
 
 
 def asfalto():
-    """Asfalto gastado: ruido fino oscuro, árido en pizarra y una grieta fina."""
+    """Asfalto gastado: gris pardo oscuro con motas sueltas oscuras y de árido, y una grieta fina."""
     s = Sprite(T, T)
-    for y in range(T):
-        for x in range(T):
-            v = fbm(x, y, 41, (4, 2))
-            c = "grey_brown" if v > 0.42 else "olive_shadow"
-            if _h(x, y, 42) > 0.97:
-                c = "slate"                          # árido
-            s.set(x, y, c)
+    s.rect(0, 0, T, T, "grey_brown")
+    motas(s, "olive_shadow", 0.14, 41)
+    motas(s, "slate", 0.03, 42, dobles=0)
     x = 20.0                                         # grieta que envuelve al repetir (junta)
     for y in range(T):
         x += (ruido(0, y, 8, 43) - 0.5) * 2.2
