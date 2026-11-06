@@ -90,7 +90,7 @@ namespace TBD.View
         int _gradeIndex;
         int _lastW, _lastH;
         float _orthoSize = 18f;
-        float _targetOrtho = 12f;
+        float _targetOrtho = 26f;
         float _yaw = 45f;                               // cámara libre: rotación, inclinación y zoom continuos
         float _pitch = 55f;                           // inclinación por defecto 55° (Lucía, D-N61); la cámara es ortográfica: el FOV no aplica
         Vector3 _focus = new Vector3(66f, 0f, 64f);
@@ -168,7 +168,7 @@ namespace TBD.View
                 siege = net.ActiveZoneTaken >= NetWorld.SiegeAt;
                 seed = (uint)(_zoneNode * 7919 + net.ActiveZoneSinceTick * 31 + 1);    // semilla del nodo y del tick (D-N07)
                 _orthoSize = 70f;                                                       // vuelo de cámara: de lejos a cerca
-                _targetOrtho = 12f;
+                _targetOrtho = 26f;                                                     // D-N73: zoom por defecto a ortho 26 (minimo 6, maximo 70)
             }
             _fadeStart = Time.realtimeSinceStartup;
 
@@ -275,6 +275,13 @@ namespace TBD.View
         readonly System.Collections.Generic.List<float> _stressDt = new System.Collections.Generic.List<float>();      // tiempo de cada fotograma en ms (p99 y peor)
         bool _stressEmbarked; float _stressT0 = -1f, _stressNext; int _stressFrames; readonly System.Collections.Generic.List<float> _stressFps = new System.Collections.Generic.List<float>();
 
+        static float ArgFloat(string name, float def)
+        {
+            var a = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i + 1 < a.Length; i++) if (a[i] == name && float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)) return v;
+            return def;
+        }
+        bool _stressShot;
         static float P99(System.Collections.Generic.List<float> l) { if (l.Count == 0) return 0f; var a = l.ToArray(); System.Array.Sort(a); return a[Mathf.Min(a.Length - 1, (int)(a.Length * 0.99f))]; }
         static float Worst(System.Collections.Generic.List<float> l) { float w = 0f; foreach (var v in l) if (v > w) w = v; return w; }
         void StressTick()
@@ -298,13 +305,14 @@ namespace TBD.View
                         ents.Dispose(); qc.SetSingleton(clock);
                     }
                 }
-                _targetOrtho = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stressmax") >= 0 ? 70f : 22f; _stressNext = Time.realtimeSinceStartup + 1f; _stressT0 = Time.realtimeSinceStartup; return;
+                _targetOrtho = ArgFloat("-ortho", System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stressmax") >= 0 ? 70f : 22f); _stressNext = Time.realtimeSinceStartup + 1f; _stressT0 = Time.realtimeSinceStartup; return;
             }
             _stressFrames++; _stressDt.Add(Time.unscaledDeltaTime * 1000f);
             { float dtm = Time.unscaledDeltaTime * 1000f, tt = Time.realtimeSinceStartup - _stressT0; if (dtm > _stressWorst) { _stressWorst = dtm; _stressWorstAt = tt; } if (dtm > 33f && _stressSpikes.Count < 12) _stressSpikes.Add($"{tt:0.0}s={dtm:0}ms"); }
             if (Time.realtimeSinceStartup >= _stressNext)
             {
                 _stressFps.Add(_stressFrames); _stressFrames = 0; _stressNext += 1f;
+                if (!_stressShot && _stressFps.Count >= 30 && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stressshot") >= 0) { _stressShot = true; SaveScreenshot(); }
                 if (_stressFps.Count >= 40)
                 {
                     var arr = _stressFps.ToArray(); System.Array.Sort(arr); float sum = 0f; foreach (var f in arr) sum += f;

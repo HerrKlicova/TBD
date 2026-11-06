@@ -30,6 +30,15 @@ namespace TBD.View
     /// <summary>Malla y material de los zombis (los fija PrototypeBootstrap antes de que haya entidades).</summary>
     public static class RenderAssets
     {
+        /// <summary>Escala de dibujo de soldados y zombis (D-N73, Lucia): x1,3 por defecto; -escala 1.0 la quita. Solo presentacion.</summary>
+        public static float FigureScale = ParseScale();
+        static float ParseScale()
+        {
+            var a = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i + 1 < a.Length; i++) if (a[i] == "-escala" && float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)) return v;
+            return 1.3f;
+        }
+
         public static Mesh ZombieMesh;
         public static Material ZombieMaterial, ZombieLodMaterial;
         public static Material[] Materials;               // una por camisa del zombi de Teo (meshes[i] con materials[i])
@@ -98,7 +107,7 @@ namespace TBD.View
                     uint hv = math.hash(new uint2(zs[i].SimId, 41u));
                     mmi = MaterialMeshInfo.FromRenderMeshArrayIndices((int)(hv % (uint)RenderAssets.Variants), (int)((hv >> 8) % (uint)RenderAssets.MeshVariants));
                     float sy = 0.95f + 0.10f * (((hv >> 16) & 255u) / 255f);                                     // altura ±5 % por instancia
-                    scale = new PostTransformMatrix { Value = float4x4.Scale(1f, sy, 1f) };
+                    scale = new PostTransformMatrix { Value = float4x4.Scale(RenderAssets.FigureScale, sy * RenderAssets.FigureScale, RenderAssets.FigureScale) };
                 }
                 RenderMeshUtility.AddComponents(e, em, desc, RenderAssets.Array, mmi);
                 var lt = LocalTransform.FromPositionRotation(new float3(zs[i].Pos.x, zs[i].Pos.y + 0.05f, zs[i].Pos.z), quaternion.RotateY(zs[i].Heading));
@@ -116,6 +125,11 @@ namespace TBD.View
         public const float SpriteMeters = 2.6f, LodMeters = 1.1f;     // lado del cuadrado: sprite de 32 px y sprite de masa de 8 px
 
         public static float4x4 SpriteMatrix(bool lod)
+        {
+            var m0 = SpriteMatrixBase(lod); return FigureMode ? m0 : math.mul(float4x4.Scale(RenderAssets.FigureScale), m0);
+        }
+
+        public static float4x4 SpriteMatrixBase(bool lod)
         {
             if (FigureMode) return float4x4.identity;   // el zombi fino de Teo ya es delgado. Medido en Unity: el modelo de Teo (brazos a z medio +0,30) YA mira a +Z, como la simulación; no hace falta girarlo
             float m = lod ? LodMeters : SpriteMeters;
