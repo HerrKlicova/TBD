@@ -19,7 +19,7 @@ COLORES = {
     "bastidor": "303424",
     "rueda": "1c200c",
     "optica": "181c30",    # hueco de las aspilleras (se ve oscuro: dentro no da la luz)
-    "tablero": "b8b8b8",   # piso: el claro del techo del tren (D-N42). Con 6c7874 el 20 % claro no llegaba a 25 de ΔL*
+    "tablero": "b4a080",   # piso de madera o chapa gastada en beige (Lucía, 6-nov 12:41: con b8b8b8 parecía bandeja o nieve)
     "chapa": "605c48",     # remiendos soldados sobre el parapeto
     "metal": "1c200c",     # teleros, topes y asideros
     "sacos": "847c34",
