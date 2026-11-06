@@ -28,8 +28,17 @@ SIN_ROJOS = [PAL[k][:3] for k in PAL if k not in ("maroon", "blood_dark", "wine"
                                                   "rose_brown", "purple_grey", "tan", "rust")]
 
 
-def cercano(c):
-    return min(SIN_ROJOS, key=lambda p: sum((a - b) ** 2 for a, b in zip(p, c[:3])))
+# La sombra tampoco usa #404460 (slate): es el rim de las unidades propias y sobre el asfalto se veía
+# como pintura azul (Lucía, revisión de D-N61). Sobre el asfalto sale en #48403c.
+SOMBRA_PAL = [c for c in SIN_ROJOS if c not in (PAL["slate"][:3], PAL["navy"][:3])]
+
+
+# Sombra fijada por Lucía sobre el asfalto (#6c7874 y sus motas): #48403c, L* 28, entre suelo (49) y figura (11).
+SOMBRA_FIJA = {PAL["concrete"][:3]: PAL["grey_brown"][:3], PAL["concrete_light"][:3]: PAL["grey_brown"][:3]}
+
+
+def cercano(c, pal=None):
+    return min(pal or SIN_ROJOS, key=lambda p: sum((a - b) ** 2 for a, b in zip(p, c[:3])))
 
 
 # --- silueta -------------------------------------------------------------------------------------
@@ -150,11 +159,11 @@ def panel(nombre, hora, paso=0, w=132, h=40):
     return base
 
 
-LARGO_LOD_ATARDECER = 2.0
+LARGO_LOD_ATARDECER = 1.5                     # confirmado por Lucía: la mancha va a 1,5× también al atardecer
 
 
 def largo_de(hora, hh):
-    """2,5× al atardecer solo desde 12 px; la mancha LOD (< 12 px) va a 2× (Lucía, revisión de D-N61)."""
+    """2,5× al atardecer solo desde 12 px; la mancha LOD (< 12 px) va a 1,5× (Lucía, revisión de D-N61)."""
     return LARGO_LOD_ATARDECER if hora == "atardecer" and hh < 12 else HORAS[hora]["largo"]
 
 
@@ -169,7 +178,7 @@ def pinta(base, figs, hora):
         sombra_total |= {(x0 + sx, pies + sy) for sx, sy in sombra(m, hh, largo_de(hora, hh), *dxy)}
     for X, Y in sombra_total:
         if 0 <= X < w and 0 <= Y < h:
-            px[X, Y] = cercano(tuple(a * (1 - op) for a in px[X, Y]))
+            px[X, Y] = SOMBRA_FIJA.get(px[X, Y]) or cercano(tuple(a * (1 - op) for a in px[X, Y]), SOMBRA_PAL)
     for x0, pies, hh, m, _ in figs:
         for (x, y), c in m.items():
             X, Y = x0 + x, pies - (hh - 1) + y
@@ -239,6 +248,6 @@ if __name__ == "__main__":
         dm.text((G, G + j * (180 + G) + 80), f"{hora} {lg}x" if hora == "atardecer" else "dia 1.5x", fill=PAL["bone"][:3])
         for i, s in enumerate(suelos):
             mh.paste(masa(s, hora).resize((396, 180), Image.NEAREST), (90 + G + i * (396 + G), G + j * (180 + G)))
-    LARGO_LOD_ATARDECER = 2.0
+    LARGO_LOD_ATARDECER = 1.5
     mh.save(OUT / "prueba_masa_lod.png")
     print("ok", OUT)
