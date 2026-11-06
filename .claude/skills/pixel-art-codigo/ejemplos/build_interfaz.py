@@ -475,7 +475,7 @@ def piezas():
         p[f"ui_alerta_{n}"] = (alerta_slot(n), 4)
     for b in ("efectivos", "municion", "combustible", "baja"):
         p[f"ui_barra_{b}"] = (barra(b), 1)
-    import build_maquetas as bm                          # D-N74
+    import build_maquetas as bm                          # D-N78
     p["ui_cartel_oleada"] = (bm.cartel_oleada(), 6)
     p["ui_barra_recarga"] = (bm.barra_recarga(), 1)
     for c in CALIENTE:

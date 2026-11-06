@@ -36,6 +36,7 @@ import build_a9_pelotones  # noqa: E402
 import build_interfaz  # noqa: E402
 import build_vfx_combate  # noqa: E402
 import build_maquetas  # noqa: E402
+import build_horda_color  # noqa: E402
 
 PIVOTE = [0.5, 0.53]
 
@@ -148,7 +149,8 @@ def prototipo_noche(out):
         s16[n].save(out / f"vm_unidades_{n}_16.png")
     build_interfaz.exportar(out)
     build_vfx_combate.exportar(out)
-    build_maquetas.exportar(out)                         # D-N74: cartel de oleada, indicador de entrada, barra de recarga
+    build_maquetas.exportar(out)                         # D-N78: cartel, indicador, recarga, estrellas y ratón
+    build_horda_color.exportar(out)                      # D-N80: LUT de color de la horda y rampa de sangre
 
 
 if __name__ == "__main__":

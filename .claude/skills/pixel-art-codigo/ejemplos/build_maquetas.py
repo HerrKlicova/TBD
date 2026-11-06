@@ -1,4 +1,4 @@
-"""D-N74 · Maquetas de pantalla completa a 1080p, cartel de oleada e indicador de entrada. Bruno (Arte técnico).
+"""D-N78 · Maquetas de pantalla completa a 1080p, cartel de oleada e indicador de entrada. Bruno (Arte técnico).
 
 Encargo de Mak (6-nov, 00:12): HUD en partida, menú de inicio y pantallas de victoria y derrota con los
 textos del §8 de plan-noche-7nov.md, para que Eugenio las vea como muestra y Marcos tenga la composición
@@ -76,6 +76,38 @@ def indicador_entrada(f):
     s.rect(1, 6, 17, 12, "navy")                        # placa del nombre (O1–O4, lo escribe UI Toolkit)
     for x0, y0, w, h in ((1, 6, 17, 1), (1, 17, 17, 1), (1, 6, 1, 12), (17, 6, 1, 12)):
         s.rect(x0, y0, w, h, c)
+    s.outline()
+    return s
+
+
+def tecla_raton(boton="dcho"):
+    """Ratón de 9x12 con el botón derecho (o izquierdo) marcado: sustituye al texto «clic dcho.» (Lucía)."""
+    s = Sprite(9, 12)
+    s.rect(0, 0, 9, 12, "beige")
+    s.hline(1, 7, 0, "bone")
+    s.vline(4, 0, 4, "grey_brown")                      # separación de botones
+    s.hline(0, 8, 5, "grey_brown")
+    x0 = 5 if boton == "dcho" else 0
+    s.rect(x0, 0, 4, 5, "bone")
+    s.rect(x0, 1, 4, 3, "cream")
+    for x, y in ((0, 0), (8, 0), (0, 11), (8, 11)):
+        s.set(x, y, None)
+    s.outline()
+    return s
+
+
+def estrella(llena):
+    """Estrella de 16x16 de la pantalla de resultados: llena en #b4a080, vacía en #48403c (nunca ámbar)."""
+    s = Sprite(16, 16)
+    pts = []
+    for k in range(10):
+        r = 7.4 if k % 2 == 0 else 3.1
+        a = -math.pi / 2 + k * math.pi / 5
+        pts.append((7.5 + r * math.cos(a), 8.2 + r * math.sin(a)))
+    s.poly([(round(x), round(y)) for x, y in pts], "beige" if llena else "grey_brown")
+    if llena:
+        s.line(7, 2, 5, 7, "bone")                      # luz arriba a la izquierda
+        s.set(6, 5, "bone")
     s.outline()
     return s
 
@@ -163,20 +195,20 @@ def hud(im, cartel=True):
     import build_a9_pelotones as a9
     from pixelvm import reduce_16
     # barra de arriba: reloj y los tres recursos del almacén (munición 45, materiales 40, combustible 30)
-    pega(im, ui.panel(60, 20), 4, 4)
-    texto(im, (12, 8), "22:47", 10)
+    pega(im, ui.panel(64, 22), W // 2 - 32, 4)            # reloj arriba en el centro (D-N65)
+    texto(im, (W // 2, 8), "22:47", 11, centro=True)
     for i, (fn, v) in enumerate(((a1.municion, "45"), (a1.materiales, "40"), (a1.combustible, "30"))):
-        x = 68 + i * 60
+        x = 4 + i * 60
         pega(im, ui.recurso_slot(), x, 4)
         pega(im, reduce_16(fn()), x + 2, 6)
         texto(im, (x + 22, 8), v, 10)
     # alertas bajo los recursos
     import build_a2 as a2
-    pega(im, ui.panel(176, 24), 28, 28)
+    pega(im, ui.panel(160, 24), 28, 28)
     pega(im, ui.panel(196, 24), 28, 54)
     pega(im, ui.alerta_slot("ataque"), 4, 28)
     pega(im, reduce_16(a2.ataque()), 8, 32)
-    texto(im, (32, 34), "Oleada 2 en la puerta oeste", 9, "bone")
+    texto(im, (32, 34), "Oleada 2 · O1 · la vía", 9, "bone")
     pega(im, ui.alerta_slot("aviso"), 4, 54)
     pega(im, reduce_16(a2.sin_municion()), 8, 58)
     texto(im, (32, 60), "Ametralladores: poca munición", 9, "bone")
@@ -187,14 +219,14 @@ def hud(im, cartel=True):
         pega(im, c, cx, 84)
         texto(im, (W // 2, 90), "23:30 · OLEADA 2", 11, "bone", centro=True)
         texto(im, (W // 2, 107), "La Colmena se acerca por el oeste", 9, "beige", centro=True)
-        texto(im, (W // 2, 121), "Entrada O1: la vía", 9, "beige", centro=True)
+        texto(im, (W // 2, 121), "Entrada O1 · la vía", 9, "beige", centro=True)
     # indicadores de entrada en el borde (O1 al oeste fuera de cuadro, O2 al norte)
     i0 = indicador_entrada(0)
     pega(im, i0.img.transpose(Image.FLIP_LEFT_RIGHT), 2, 168)
     texto(im, (19, 173), "O1", 8, "bone", sombra=False)
     i1 = indicador_entrada(1).img.rotate(90, expand=True)
     pega(im, i1, 520, 2)
-    texto(im, (522, 20), "O2", 8, "bone", sombra=False)
+    texto(im, (522, 20), "O2", 8, "bone", sombra=False)   # (O2 aún no ha entrado: en la maqueta solo enseña la pieza)
     # panel del pelotón seleccionado (abajo a la izquierda)
     pega(im, ui.panel(168, 64), 4, 292)
     s32, _ = a9.iconos()
@@ -204,7 +236,7 @@ def hud(im, cartel=True):
     pega(im, barra_recarga(), 14, 342)
     texto(im, (56, 300), "Ametralladores", 9)
     texto(im, (56, 314), "Efectivos 4/4", 9, "beige")
-    texto(im, (56, 326), "Munición: recarga", 9, "beige")
+    texto(im, (56, 326), "Munición: recargando", 8, "beige")
     texto(im, (56, 338), "10 s junto al tren", 9, "olive_light")
     # barra de selección: 5 pelotones, Dragón y NH90
     unidades = [a6.fusileros(), s32["ametralladores"], s32["granaderos"], s32["tiradores"], s32["zapadores"],
@@ -226,12 +258,16 @@ def hud(im, cartel=True):
         texto(im, (x + 31, 309), str(i + 1), 7, "bone")
     # órdenes con su tecla (abajo a la derecha)
     pega(im, ui.panel(130, 76), 506, 280)
-    teclas = ["clic dcho.", "A", "S", "D", "E", "E"]
-    for i, (n, (a, b)) in enumerate(ui.ordenes().items()):
+    o = ui.ordenes()
+    botones = [("mover", None), ("atacar", "A"), ("mantener", "S"), ("emplazar", "D"), ("embarcar", "E")]
+    for i, (n, tecla) in enumerate(botones):
         x, y = 512 + (i % 3) * 40, 286 + (i // 3) * 34
         pega(im, ui.boton("encima" if i == 0 else "normal", 36, 31), x, y)
-        pega(im, b, x + 10, y + 3)
-        texto(im, (x + 18, y + 19), teclas[i] if len(teclas[i]) < 3 else "clic", 8, "beige", centro=True, sombra=False)
+        pega(im, o[n][1], x + 10, y + 3)
+        if tecla:
+            texto(im, (x + 18, y + 19), tecla, 8, "beige", centro=True, sombra=False)
+        else:
+            pega(im, tecla_raton(), x + 14, y + 18)
     # selección en el mundo y orden de mover
     pega(im, ui.seleccion(), 344, 164)
     pega(im, ui.orden_mover(2), 300, 200)
@@ -239,7 +275,17 @@ def hud(im, cartel=True):
     return im
 
 
-def pantalla_final(victoria):
+RESULTADOS = {   # cifras de ejemplo con los formatos de D-N77 (Hugo, clave «resultados» del JSON de la noche)
+    True: [("Zombis abatidos", "11.842 de 13.090"), ("Bajas propias", "5 de 26 soldados"),
+           ("Munición gastada", "34,0 u · 348 zombis por u"), ("Munición restante", "11,2 u"),
+           ("Combustible gastado", "17 de 30 u"), ("Fin de la noche", "Amanecer, 06:00")],
+    False: [("Zombis abatidos", "6.120 de 7.400"), ("Bajas propias", "26 de 26 soldados · Dragón perdido"),
+            ("Munición gastada", "41,5 u · 295 zombis por u"), ("Munición restante", "3,4 u"),
+            ("Combustible gastado", "24 de 30 u"), ("Fin de la noche", "Cayó a las 03:47, en la oleada 5")],
+}
+
+
+def pantalla_final(victoria, estrellas=2):
     im = escena()
     hud(im, cartel=False)
     px = im.load()
@@ -247,22 +293,35 @@ def pantalla_final(victoria):
         for x in range(W):
             if BAYER[y % 4][x % 4] < 11:
                 px[x, y] = PAL["navy"]
-    p = ui.panel(300, 120)
-    if not victoria:
-        for y in (0, 119):
-            p.hline(0, 299, y, "red_bright")
-        for x in (0, 299):
-            p.vline(x, 0, 119, "red_bright")
-    pega(im, p, W // 2 - 150, 100)
-    if victoria:
-        texto(im, (W // 2, 116), "06:00. Amanece en Sagunto.", 13, "cream", centro=True)
-        texto(im, (W // 2, 138), "La estación resiste", 10, "bone", centro=True)
-    else:
-        texto(im, (W // 2, 122), "Sagunto ha caído", 13, "bone", centro=True)
-    for i, t in enumerate(("Volver a intentarlo", "Menú")):
-        x = W // 2 - 140 + i * 150
-        pega(im, ui.boton("encima" if i == 0 else "normal", 130, 20), x, 182)
-        texto(im, (x + 65, 186), t, 9, "bone", centro=True)
+    pw, ph = 340, 230
+    p = ui.panel(pw, ph)
+    if not victoria:                                    # el marco rojo de la derrota se queda (Lucía)
+        for y in (0, ph - 1):
+            p.hline(0, pw - 1, y, "red_bright")
+        for x in (0, pw - 1):
+            p.vline(x, 0, ph - 1, "red_bright")
+    x0, y0 = W // 2 - pw // 2, 64
+    pega(im, p, x0, y0)
+    texto(im, (W // 2, y0 + 10), "Sagunto resiste" if victoria else "Sagunto ha caído", 13, "cream" if victoria else "bone", centro=True)
+    if victoria:                                        # de 1 a 3 estrellas; con derrota no hay
+        for k in range(3):
+            pega(im, estrella(k < estrellas), W // 2 - 30 + k * 20, y0 + 32)
+    ty = y0 + (56 if victoria else 40)
+    for i, (k, v) in enumerate(RESULTADOS[victoria]):
+        y = ty + i * 18
+        if i % 2 == 0:
+            for xx in range(x0 + 8, x0 + pw - 8):
+                for yy in range(y - 2, y + 13):
+                    px[xx, yy] = PAL["slate_dark"]
+        texto(im, (x0 + 14, y), k, 9, "beige", sombra=False)
+        d = ImageDraw.Draw(im)
+        d.fontmode = "1"
+        ancho = d.textlength(v, font=_f(9))
+        texto(im, (x0 + pw - 14 - ancho, y), v, 9, "bone", sombra=False)
+    for i, t in enumerate(("Repetir la noche", "Menú principal")):
+        x = W // 2 - 150 + i * 160
+        pega(im, ui.boton("encima" if i == 0 else "normal", 140, 20), x, y0 + ph - 30)
+        texto(im, (x + 70, y0 + ph - 26), t, 9, "bone", centro=True)
     return im
 
 
@@ -295,6 +354,10 @@ def exportar(out):
         hoja.alpha_composite(indicador_entrada(f).img, (32 * f, 0))
     hoja.save(out / "ui_indicador_entrada.png")
     barra_recarga().save(out / "ui_barra_recarga.png")
+    estrella(True).save(out / "ui_estrella_llena.png")
+    estrella(False).save(out / "ui_estrella_vacia.png")
+    tecla_raton("dcho").save(out / "ui_tecla_raton_dcho.png")
+    tecla_raton("izq").save(out / "ui_tecla_raton_izq.png")
 
 
 if __name__ == "__main__":
