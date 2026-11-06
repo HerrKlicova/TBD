@@ -29,7 +29,8 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
     out = os.path.join(salida, "lod%d" % lod)
     os.makedirs(out, exist_ok=True)
     inf = {"limpiar": ns["limpiar"](o)}
-    r = ns["paleta_por_piezas"](o, db.COLORES, ruta_textura=os.path.join(out, "T_Paleta32.png"), permitir=permitir)
+    colores = {**db.COLORES, **(getattr(db, "COLORES_LOD1", {}) if lod else {})}
+    r = ns["paleta_por_piezas"](o, colores, ruta_textura=os.path.join(out, "T_Paleta32.png"), permitir=permitir)
     m = r["mascaras"]["casco"]
     mc = r["mascaras"].get("costura", np.zeros_like(m))
     inf["valor_partido"] = ns["valor_partido"](o, claro=claro, costado=costado, alisar=0, suavizar=0, mascara=m | mc)

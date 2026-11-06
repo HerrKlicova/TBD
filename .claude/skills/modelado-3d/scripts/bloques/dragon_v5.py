@@ -28,6 +28,8 @@ COLORES = {  # muestreados de las fotos y llevados a la paleta de 32 (sin rojos 
     "torre": "88885c",   # solo LOD1: techo de la torre en olive_light para que se separe del techo beige (Bruno)
     "visor": "d4d0cc",   # solo LOD1: visor del tirador como mancha clara de 2x2 px (bone, Bruno)
 }
+# LOD1: la llanta sube a olive_light para que cada rueda sea un punto claro en la mancha oscura con la cámara alta (Bruno)
+COLORES_LOD1 = {"llanta": "88885c"}
 # Valor partido propio por pieza (además del casco): pieza -> (claro, costado). entregar.py lo aplica.
 VALOR_PIEZAS = {"torre": ("88885c", "50541c")}
 
@@ -189,7 +191,7 @@ def construir(nombre="SM_VCR_Dragon_v5", lod=0):
         # LOD1 (Lucía y Bruno, 6-nov): la torre es un solo bloque de unos 9x6 px, sin base ni mantelete, para que se
         # lea como una masa limpia y no como una maraña de líneas; el visor queda como una mancha clara de 2x2 px
         t.caja((0.25, 0.12, tz + 0.4), (1.7, 1.8, 0.8), "torre", inclinar=0.3, bisel=True)
-        t.caja((0.85, 0.5, tz + 0.86), (0.36, 0.36, 0.12), "visor")
+        t.caja((0.8, 0.45, tz + 0.815), (0.5, 0.5, 0.03), "visor")   # placa plana de 0,5 m: así cubre 2x2 px enteros y no sale cruz (Bruno, Lucía)
     # cañón: en el LOD1 engordado a ~2 px (0,3 m) para que no parpadee al girar (regla de Bruno, 6-nov)
     t.cilindro((0.25, -2.1, tz + 0.52), 0.065 if lod == 0 else 0.15, 2.5, "Y", 8, "metal")
     fino.cilindro((0.25, -3.3, tz + 0.52), 0.1, 0.22, "Y", 8, "metal")
