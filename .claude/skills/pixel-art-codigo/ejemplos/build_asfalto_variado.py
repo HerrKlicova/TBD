@@ -7,7 +7,7 @@ repetición. La solución separa lo que se puede repetir de lo que no:
      no tiene forma y no delata la repetición. 4 variantes para que el shader elija una por celda con hash,
      con giro de 90° y espejo.
   2. atlas_grietas_asfalto: 8 grietas sueltas de 64x64 (6,4 m) en #48403c, todas distintas (longitudinal,
-     transversal, en estrella, piel de cocodrilo, de borde, bacheo liso (sin árido) con borde roto, diagonal y en Y), que Marcos coloca como
+     transversal, en estrella, piel de cocodrilo, de borde, bacheo de asfalto nuevo más oscuro (motas olive_grey, ≈ −4 L*) con borde continuo irregular y esquinas mordidas, diagonal y en Y), que Marcos coloca como
      quads planos dispersos con giro y espejo al azar, unas 1 cada 60–100 m².
 Los colores no cambian respecto a la muestra aprobada (ΔL* 11,8 sin juntas).
 """
@@ -81,13 +81,24 @@ def _grieta(v):
         _rama(s, 1, 8, 0.0, 62, 915, quiebro=.5, hijos=0)
         _rama(s, 24, 8, 1.3, 9, 916, hijos=0)
         _rama(s, 46, 9, 1.0, 7, 917, hijos=0)
-    elif v == 5:                                         # bacheo: parche de reparación con borde roto
-        for y in range(20, 44):
-            for x in range(16, 48):
-                borde = min(x - 16, 47 - x, y - 20, 43 - y)
-                if borde == 0 and _h(x, y, 918) < .25:
-                    continue                             # esquina o borde comido
-                s.set(x, y, GRIETA if borde == 0 else "concrete")   # asfalto nuevo: liso, sin árido claro
+    elif v == 5:                                         # bacheo: parche de asfalto nuevo, algo más oscuro, borde continuo irregular
+        def onda(t, eje):                                # ruido suave: interpola entre valores cada 6 px
+            i, f = int(t // 6), (t % 6) / 6
+            return ((1 - f) * _h(i, eje, 918) + f * _h(i + 1, eje, 918) - .5) * 5
+
+        def dentro(x, y):
+            if not (15 + onda(y, 0) <= x <= 48 + onda(y, 1) and 20 + onda(x, 2) <= y <= 43 + onda(x, 3)):
+                return False
+            return math.hypot(x - 47, y - 21) >= 6 and math.hypot(x - 16, y - 42) >= 4   # esquinas mordidas
+        m = {(x, y) for y in range(G) for x in range(G) if dentro(x, y)}
+        for _ in range(2):                               # sin píxeles colgando: fuera lo que tenga < 2 vecinos
+            m = {(x, y) for x, y in m
+                 if sum((x + dx, y + dy) in m for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))) >= 2}
+        for x, y in m:
+            borde = any((x + dx, y + dy) not in m for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+            # relleno: sin árido claro, con un 40 % de motas olive_grey (−10 L*) → ≈ −4 L* de media a x1
+            c = GRIETA if borde else ("olive_grey" if _h(x, y, 919) < .4 else "concrete")
+            s.set(x, y, c)
     elif v == 6:                                         # diagonal con ramas
         _rama(s, 4, 58, -0.78, 70, 918, hijos=1)
     else:                                                # en Y
