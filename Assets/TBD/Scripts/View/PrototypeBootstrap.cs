@@ -387,6 +387,7 @@ namespace TBD.View
             if (_worldA == null) return;                 // la zona aún espera a la orden Materialize
             UpdateHordePresentation();
             UpdateGroundStreaming();
+            UpdateVegLod();
             HandleInput();
 
             if (!_paused)
@@ -1606,7 +1607,35 @@ namespace TBD.View
         {
             public Color32[] map, apis, labr, asf, rod, seca; public Color32[][] lisos; public Color32 mApis, mLabr, mAsf, mRod, mSeca;
         }
-        sealed class GroundChunk { public int I, J; public Texture2D Day, Night; public Material Mat; public GameObject Go; public float Cx, Cz; }
+        sealed class GroundChunk { public int I, J; public Texture2D Day, Night; public Material Mat; public GameObject Go; public float Cx, Cz; public VegBatch Veg; }
+
+        /// <summary>Capa C de un trozo combinada en UNA malla (un draw por trozo). Se reconstruye sin las instancias que quedan bajo una obra.</summary>
+        sealed class VegBatch
+        {
+            public readonly System.Collections.Generic.List<(Mesh mesh, Matrix4x4 m, Vector2 pos, bool low)> Items = new System.Collections.Generic.List<(Mesh, Matrix4x4, Vector2, bool)>();
+            public GameObject Go; public Mesh Combined; public Material Mat; public int Hidden;
+
+            public void Rebuild(System.Collections.Generic.List<(Vector2 a, Vector2 b, float r)> rects, bool lowOn)
+            {
+                var ci = new System.Collections.Generic.List<CombineInstance>(Items.Count); Hidden = 0;
+                foreach (var it in Items)
+                {
+                    bool hide = !lowOn && it.low;
+                    if (!hide) foreach (var wr in rects)
+                    {
+                        var ab = wr.b - wr.a; float l2 = ab.sqrMagnitude; float tt = l2 < 1e-6f ? 0f : Mathf.Clamp01(Vector2.Dot(it.pos - wr.a, ab) / l2);
+                        if ((wr.a + ab * tt - it.pos).sqrMagnitude < wr.r * wr.r) { hide = true; break; }
+                    }
+                    if (hide) { Hidden++; continue; }
+                    ci.Add(new CombineInstance { mesh = it.mesh, transform = it.m });
+                }
+                if (Combined != null) Object.Destroy(Combined);
+                Combined = new Mesh { name = "Capa C combinada", indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
+                if (ci.Count > 0) Combined.CombineMeshes(ci.ToArray(), true, true, false);
+                Combined.UploadMeshData(false);
+                if (Go != null) Go.GetComponent<MeshFilter>().sharedMesh = Combined;
+            }
+        }
         sealed class ChunkResult { public int I, J, W, H; public Color32[] Day, Night; public string Error; }
         GroundSrc _gs; Color32[] _vegMask; Transform _chunkRoot;
         readonly System.Collections.Generic.Dictionary<int, GroundChunk> _chunks = new System.Collections.Generic.Dictionary<int, GroundChunk>();
@@ -1705,7 +1734,7 @@ namespace TBD.View
             int xi0 = r.I * ChunkM, zi0 = r.J * ChunkM, mw = Mathf.Min(ChunkM, MapW - xi0), mh = Mathf.Min(ChunkM, MapH - zi0);
             var sub = new Color32[mw * mh];
             for (int zz = 0; zz < mh; zz++) System.Array.Copy(_gs.map, (zi0 + zz) * MapW + xi0, sub, zz * mw, mw);
-            _vegQueue.Enqueue(() => { if (holder != null) { ScatterGround(holder.transform, sub, mw, mh, X0, Z0); HideVegUnderWorks(holder.transform); } });      // la vegetacion y las grietas se crean en fotogramas distintos (<~5 ms cada uno)
+            _vegQueue.Enqueue(() => { if (holder != null) { var vb = ScatterGround(holder.transform, sub, mw, mh, X0, Z0); if (_chunks.TryGetValue(ChunkKey(r.I, r.J), out var chv)) chv.Veg = vb; } });      // la vegetacion y las grietas se crean en fotogramas distintos (<~5 ms cada uno)
             _vegQueue.Enqueue(() => { if (holder != null) ScatterCracks(holder.transform, sub, mw, mh, X0, Z0); });
             if (swc.Elapsed.TotalMilliseconds > 8.0) Debug.Log("[TBD] Trozo de suelo " + r.I + "," + r.J + " subido en " + swc.Elapsed.TotalMilliseconds.ToString("F1") + " ms (hilo principal)");
         }
@@ -1713,23 +1742,20 @@ namespace TBD.View
         readonly System.Collections.Generic.List<(Vector2 a, Vector2 b, float r)> _workRects = new System.Collections.Generic.List<(Vector2, Vector2, float)>();
         int _workRectSig;
 
-        /// <summary>Oculta las matas, piedras y grietas de un trozo que quedan bajo una obra (distancia punto-segmento menor que el radio).</summary>
-        void HideVegUnderWorks(Transform holder)
+        /// <summary>Tras un cambio de obras, reconstruye la capa C combinada de cada trozo cargado sin las instancias bajo una obra (un trozo por fotograma).</summary>
+        void QueueVegRebuild()
         {
-            if (_workRects.Count == 0) return;
-            for (int g = 0; g < holder.childCount; g++)
-            {
-                var grp = holder.GetChild(g); if (!grp.name.StartsWith("Capa C")) continue;
-                for (int k = 0; k < grp.childCount; k++)
-                {
-                    var o = grp.GetChild(k); var pz = new Vector2(o.position.x, o.position.z);
-                    foreach (var wr in _workRects)
-                    {
-                        var ab = wr.b - wr.a; float l2 = ab.sqrMagnitude; float tt = l2 < 1e-6f ? 0f : Mathf.Clamp01(Vector2.Dot(pz - wr.a, ab) / l2);
-                        if ((wr.a + ab * tt - pz).sqrMagnitude < wr.r * wr.r) { o.gameObject.SetActive(false); break; }
-                    }
-                }
-            }
+            foreach (var ch in _chunks.Values) { var c = ch; _vegQueue.Enqueue(() => { if (c.Veg != null && c.Go != null) c.Veg.Rebuild(_workRects, _vegLowOn); }); }
+        }
+
+        bool _vegLowOn = true;
+        /// <summary>D-N67 §5 (Lucia): con pixelado 1/5 o 1/6 la hierba baja y los escombros no se ven (<1 px): se quitan de la malla combinada; canas, piedras, basura y lentisco se quedan.</summary>
+        void UpdateVegLod()
+        {
+            if (_chunkRoot == null) return;
+            bool low = _factor <= 4;
+            if (low == _vegLowOn) return;
+            _vegLowOn = low; QueueVegRebuild();
         }
 
         void SetChunksGrade(int index)
@@ -1917,7 +1943,7 @@ namespace TBD.View
         /// Capa C de la muestra (D-N67): matas y piedras de Teo (36-60 triángulos, sin colisión ni sombra) repartidas según el mapa de zonas y las densidades de Álvaro por cada 100 m²,
         /// con semilla fija por celda de 1 m (hash de la posición, giro aleatorio, escala 0,8-1,2). Fuera de las huellas de las construcciones y de la zona de la puerta (máscara).
         /// </summary>
-        void ScatterGround(Transform root, Color32[] map, int mw, int mh, float X0, float Z0)
+        VegBatch ScatterGround(Transform root, Color32[] map, int mw, int mh, float X0, float Z0)
         {
             var mat = Mat("ffffff"); var pal = Resources.Load<Texture2D>("Models/Suelo/T_Paleta32"); if (pal != null) mat.SetTexture("_BaseMap", pal); mat.enableInstancing = true;
             var cacheM = new System.Collections.Generic.Dictionary<string, Mesh>();
@@ -1927,11 +1953,12 @@ namespace TBD.View
                 var g = Resources.Load<GameObject>("Models/Suelo/SM_suelo_" + key + "_LOD1"); var mf = g != null ? g.GetComponentInChildren<MeshFilter>() : null;
                 m = mf != null ? mf.sharedMesh : null; cacheM[key] = m; return m;
             }
-            if (GetMesh("matas", 0) == null || System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sincapac") >= 0) return;   // -sincapac: medida de rendimiento sin la capa C
+            if (GetMesh("matas", 0) == null || System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sincapac") >= 0) return null;   // -sincapac: medida de rendimiento sin la capa C
             // exclusiones: almacén de naranjas (X 40-51, Z 30-51), zona de la puerta oeste y el paso a nivel (X 52-76, Z 54-73)
             bool Excluded(float x, float z) { return (x > 39.5f && x < 51.5f && z > 29.5f && z < 51.5f) || (x > 52f && x < 76f && z > 54f && z < 73f); }
             // densidad por zona (por 100 m2): 0 descampado 20, 6 pisado 8, 2 glacis 3, 4 calle 3 (basura y hierba en bordes), 5 huerta 10, 9 acequia 12, 1 recinto 8 junto a los muros (D-N67, ronda 2 de Lucia)
             int count = 0; var holder = new GameObject("Capa C (matas, piedras, canas, basura, escombros)").transform; holder.SetParent(root, false);
+            var batch = new VegBatch();
             for (int cz = 0; cz < mh; cz++)
                 for (int cx = 0; cx < mw; cx++)
                 {
@@ -1961,13 +1988,15 @@ namespace TBD.View
                     else if (zone == 0 && x > 160f && pick < 20) { kind = "lentisco"; scale = Mathf.Min(scale, 1f); }
                     else { kind = "matas"; scale *= 1.5f; }
                     var mesh = GetMesh(kind, v); if (mesh == null) continue;
-                    var o = new GameObject(kind); o.transform.SetParent(holder, false);
-                    o.transform.position = new Vector3(x, 0.1f, z); o.transform.rotation = Quaternion.Euler(0f, (h >> 4) % 360u, 0f); o.transform.localScale = Vector3.one * scale;
-                    o.AddComponent<MeshFilter>().sharedMesh = mesh;
-                    var r = o.AddComponent<MeshRenderer>(); r.sharedMaterial = mat; r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false;
+                    batch.Items.Add((mesh, Matrix4x4.TRS(new Vector3(x, 0.1f, z), Quaternion.Euler(0f, (h >> 4) % 360u, 0f), Vector3.one * scale), new Vector2(x, z), kind == "matas" || kind == "escombros"));
                     count++;
                 }
-            Debug.Log("[TBD] Capa C de la muestra: " + count + " instancias");
+            batch.Rebuild(_workRects, _vegLowOn);
+            var go = new GameObject("Capa C combinada"); go.transform.SetParent(holder, false);
+            go.AddComponent<MeshFilter>().sharedMesh = batch.Combined;
+            var r = go.AddComponent<MeshRenderer>(); r.sharedMaterial = mat; r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false;
+            batch.Go = go; batch.Mat = mat;
+            return batch;
         }
 
         /// <summary>Decal del atlas de suelo de Bruno (128 x 96, celdas de 32 x 32 = 3,2 m): quad plano con recorte por alfa y giro aleatorio. col/fila de la celda desde arriba a la izquierda.</summary>
@@ -2524,7 +2553,7 @@ namespace TBD.View
                         if (wq.IsWall) _workRects.Add((new Vector2(WorkOrigin.x + wq.X0 / 1000f, WorkOrigin.y + wq.Y0 / 1000f), new Vector2(WorkOrigin.x + wq.X1 / 1000f, WorkOrigin.y + wq.Y1 / 1000f), Level.WallHalf + 0.5f));
                         else { var cq = new Vector2(WorkOrigin.x + (wq.IsGate ? (wq.X0 + wq.X1) * 0.5f : wq.X0) / 1000f, WorkOrigin.y + (wq.IsGate ? (wq.Y0 + wq.Y1) * 0.5f : wq.Y0) / 1000f); _workRects.Add((cq, cq, 1.5f)); }
                     }
-                    foreach (var ch in _chunks.Values) if (ch.Go != null) HideVegUnderWorks(ch.Go.transform);
+                    QueueVegRebuild();
                 }
             }
             for (int i = 0; i < pieces.Count; i++)
