@@ -58,7 +58,7 @@ def aceite(v):
     for k in range(4 if v == 0 else 6):              # brillo apagado del aceite
         x, y = int(10 + _h(k, v, 4) * 12), int(10 + _h(k, v, 5) * 12)
         if s.get(x, y)[:3] == PAL["olive_black"][:3]:
-            s.set(x, y, "slate")
+            s.set(x, y, "concrete")                # brillo mate (sin slate: es el rim de las tropas)
     if v == 1:                                       # reguero
         for k in range(9):
             s.set(26 + k // 3, 18 + k, "slate_dark")

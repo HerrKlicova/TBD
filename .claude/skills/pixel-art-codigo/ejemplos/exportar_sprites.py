@@ -27,6 +27,8 @@ import build_zombi_lod  # noqa: E402
 import build_oficial  # noqa: E402
 import build_taller  # noqa: E402
 import build_a2  # noqa: E402
+import build_sagunto  # noqa: E402
+import build_decals  # noqa: E402
 
 PIVOTE = [0.5, 0.53]
 
@@ -93,6 +95,20 @@ def aviso_ambar(out):
     build_a2.aviso_16().save(out / "vm_alertas_aviso_16.png")
 
 
+
+def ambientacion_sagunto(out):
+    """Línea de seguridad, placa, reloj y hollín de la vía (ambientacion-sagunto.md), y los decals de suelo."""
+    b = build_sagunto
+    b.linea_seguridad().save(out / "decal_linea_seguridad_64x2.png")
+    b.placa_sagunto().save(out / "placa_sagunto.png")
+    b.reloj(16).save(out / "reloj_fachada_16.png")
+    b.reloj(24).save(out / "reloj_fachada_24.png")
+    b.via_hollin().save(out / "decal_via_hollin_64x32.png")
+    for t in ("aceite", "escombros", "quemado"):
+        for v in (0, 1):
+            getattr(build_decals, t)(v).save(out / f"decal_{t}_{v + 1}_32.png")
+
+
 if __name__ == "__main__":
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "sprites_exportados")
     out.mkdir(parents=True, exist_ok=True)
@@ -102,4 +118,5 @@ if __name__ == "__main__":
     atlas_oficial(out)
     iconos_taller(out)
     aviso_ambar(out)
+    ambientacion_sagunto(out)
     print("atlas en", out.resolve())
