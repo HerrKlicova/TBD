@@ -96,3 +96,6 @@ Solo se acepta con la **zona del nodo materializada** (`ActiveZoneNode == nodo`)
 ## Horario de obra (Hugo, D-N59)
 - **Todas las obras trabajan de 06:00 a 18:00** (`obra_hora_inicio` 6 y `obra_hora_fin` 18; 12 h al día, el `horas_obra_dia` del modelo) y de noche se paran: obras de muros y piezas (`EffectiveWorkers`) y reparaciones de tramo y puente. Una obra a medias a las 18:00 se queda congelada y sigue a las 06:00 sin perder progreso.
 - Una obra parada de noche **no cuenta como activa** (`WorkActive`): no hay sondeo de obra ni peso ×1,5 ni huella de 0,5 mientras no se trabaja. *Esto lo deduje yo: Hugo no lo dijo; si la Colmena debe oír la obra aunque pare de noche, es una línea en `EffectiveWorkers`.*
+
+### Obra en curso y obra trabajando
+La noche para el trabajo pero no la obra. `WorkInProgress` (encargada y sin acabar, con obreros) cuenta para el peso ×1,5 del asedio y la huella, de día y de noche, para que los objetivos del asedio sean estables. `WorkActive` (en curso y dentro del horario) es lo que hace sondeo y avanza.

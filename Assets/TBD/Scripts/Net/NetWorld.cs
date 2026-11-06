@@ -549,12 +549,25 @@ namespace TBD.Net
         /// </summary>
         public int EffectiveWorkers(int node)
         {
-            if (WorkPaused(node) || !Works.P.IsWorkTime(Tick % NetConst.DayTicks)) return 0;     // de noche se para toda la obra (Hugo, D-N59: 06:00 a 18:00)
+            if (!Works.P.IsWorkTime(Tick % NetConst.DayTicks)) return 0;     // de noche se para toda la obra (Hugo, D-N59: 06:00 a 18:00)
+            return AssignedWorkers(node);
+        }
+
+        /// <summary>Obreros que quedan asignados a la obra sin tener en cuenta el horario: sin bajar de la guarnición mínima y ninguno si la horda la tiene parada.</summary>
+        int AssignedWorkers(int node)
+        {
+            if (WorkPaused(node)) return 0;
             return Math.Max(0, Math.Min(Works.Workers[node], Stock[node, (int)Res.Personas] - Works.P.GarrisonMin));
         }
 
-        /// <summary>Obra activa = hay trabajo pendiente y trabaja alguien. Es lo que hace ruido (sondeo), pesa en el asedio y suma huella.</summary>
-        public bool WorkActive(int node) { return Works.IsActive(node) && EffectiveWorkers(node) > 0; }
+        /// <summary>
+        /// Obra EN CURSO = encargada y sin acabar, con gente asignada, también de noche (Hugo, D-N59 adenda 2). Es lo que pesa en el asedio (×1,5) y suma huella:
+        /// los objetivos del asedio son persistentes, no cambian cada 12 h y encargar las obras al anochecer no borra la presión.
+        /// </summary>
+        public bool WorkInProgress(int node) { return Works.IsActive(node) && AssignedWorkers(node) > 0; }
+
+        /// <summary>Obra TRABAJANDO = en curso y dentro del horario (06:00–18:00). Es lo que hace ruido (sondeo) y avanza.</summary>
+        public bool WorkActive(int node) { return WorkInProgress(node) && EffectiveWorkers(node) > 0; }
 
         /// <summary>Un tick de obra en cada nodo con obreros efectivos.</summary>
         /// <summary>Cada día, cada estación con obras paga el mantenimiento (MaintenanceU) de su almacén; si no puede, lo construido se desgasta (Hugo).</summary>
