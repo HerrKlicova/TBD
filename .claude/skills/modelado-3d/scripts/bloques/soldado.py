@@ -8,7 +8,8 @@ Colores (Lucía): valor partido con casco y hombros claros (b4a080, el arena del
 Revisión de Lucía (23:17): en 3/4 las caras del pantalón que miran a la cámara caían en el valor de la horda; el
 uniforme lleva ahora los costados en 70784c (un escalón más) y el chaleco en 847c34, y las caras de abajo en 50541c.
 El portaplacas va en 605c48 (coyote, aprobado) para que el chaleco se lea sobre el uniforme. Piel a86c50, botas
-543820, mochila 847c34. Nada de valores de la horda (ni en las caras de abajo).
+6c4038 (D-N80 de Bruno: ningún albedo propio bajo L* 28; el 543820 daba 26), mochila 847c34. Nada de valores de
+la horda (ni en las caras de abajo).
 Variantes del cuerpo (TBD_VARIANTE % 6):
   0 base con mochila de asalto;  1 casco con funda, gafas sobre el casco y rodilleras;  2 sin mochila y remangado
   (antebrazos en piel);  3 corpulento (+10 %) con mochila grande de munición (para el ametrallador);  4 braga en la
@@ -30,7 +31,7 @@ from taller import Taller
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 ASPECTO = VAR % 6
 PIEZAS = ["uniforme", "chaleco", "yelmo", "piel", "botas", "arma", "mochila", "equipo", "tubo"]
-COLORES = {"uniforme": "88885c", "chaleco": "605c48", "yelmo": "88885c", "piel": "a86c50", "botas": "543820",
+COLORES = {"uniforme": "88885c", "chaleco": "605c48", "yelmo": "88885c", "piel": "a86c50", "botas": "6c4038",
            "arma": "48403c", "mochila": "847c34", "equipo": "605c48", "tubo": "50541c"}
 # claro arriba, costado, abajo (fijo: nunca 442c0c, de la horda)
 VALOR_PIEZAS = {"uniforme": ("b4a080", "70784c", "50541c"), "yelmo": ("b4a080", "50541c", "50541c"),
@@ -64,10 +65,11 @@ class Cuerpo:
         self.h = HUESOS.index(nombre)
 
     def _sellar(self):
-        self.bm.faces.ensure_lookup_table()
-        for f in list(self.bm.faces)[self.n:]:
-            f[self.capa] = self.h
-        self.n = len(self.bm.faces)
+        """Las caras sin marcar (0) toman la parte activa + 1; así no importa el orden de las caras en el bmesh
+        (Taller.cilindro borra y rehace caras y desplaza los índices). Al final objeto() resta 1."""
+        for f in self.bm.faces:
+            if f[self.capa] == 0:
+                f[self.capa] = self.h + 1
 
     def barra(self, p0, p1, ancho, alto, pieza):
         """Caja orientada de p0 a p1 (sección ancho × alto)."""
@@ -88,6 +90,8 @@ class Cuerpo:
 
     def objeto(self, nombre):
         self._sellar()
+        for f in self.bm.faces:
+            f[self.capa] -= 1
         return self.t.objeto(nombre, bisel=0)
 
 

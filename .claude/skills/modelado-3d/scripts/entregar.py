@@ -107,35 +107,30 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
         inf["piezas_animables"] = {x.name: [round(c, 3) for c in x.matrix_world.translation] for x in objs[1:]}
         inf["triangulos_por_objeto"] = {x.name: sum(len(p.vertices) - 2 for p in x.data.polygons) for x in objs}
         ns["exportar_unity"](o, os.path.join(out, nombre + ".fbx"), extra=objs[1:])
-        # comprobación: copia con la torre (o el rotor) girada 50° y el cañón elevado, unida en una malla y renderizada
+        # comprobación: la torre (o el rotor) girada 50° sobre la vertical y el cañón elevado 20°, con las mismas
+        # transformaciones locales que usará Unity; luego se hornea en una sola malla para el render
         import math
         from mathutils import Matrix
+        for x in objs[1:]:
+            if x.name.startswith(("Torre", "RotorPrincipal")):
+                x.rotation_euler.z = math.radians(50)
+            if x.name.startswith("Canon"):
+                x.rotation_euler.x = math.radians(-20)     # en Blender, elevar el cañón (que mira a −Y) es X negativo
+            if x.name.startswith("RotorCola"):
+                x.rotation_euler.x = math.radians(30)
+        bpy.context.view_layer.update()
         copias = []
         for x in objs:
             c = x.copy()
             c.data = x.data.copy()
-            c.parent = None
             bpy.context.scene.collection.objects.link(c)
-            M = x.matrix_world.copy()
-            cad, a = [], x
-            while a is not None:
-                cad.append(a)
-                a = a.parent
-            for a in reversed(cad):
-                p = a.matrix_world.translation
-                if a.name.startswith(("Torre", "RotorPrincipal")):
-                    M = Matrix.Translation(p) @ Matrix.Rotation(math.radians(50), 4, "Z") @ Matrix.Translation(-p) @ M
-                if a.name.startswith("Canon"):
-                    eje = (Matrix.Rotation(math.radians(50), 4, "Z") @ Matrix.Translation((1, 0, 0))).translation
-                    pz = (Matrix.Translation(a.parent.matrix_world.translation) @ Matrix.Rotation(math.radians(50), 4, "Z")
-                          @ Matrix.Translation(-a.parent.matrix_world.translation)) @ p
-                    M = Matrix.Translation(pz) @ Matrix.Rotation(math.radians(20), 4, eje) @ Matrix.Translation(-pz) @ M
-            c.matrix_world = M
-            copias.append(c)
-        bpy.context.view_layer.update()
-        for c in copias:
-            c.data.transform(c.matrix_world)
+            mw = x.matrix_world.copy()
+            c.parent = None
             c.matrix_world = Matrix.Identity(4)
+            c.data.transform(mw)
+            copias.append(c)
+        for x in objs[1:]:
+            x.rotation_euler = (0, 0, 0)
         bpy.ops.object.select_all(action="DESELECT")
         for c in copias:
             c.select_set(True)
