@@ -40,7 +40,7 @@ namespace TBD.View
             sb.Append("Repetición dorada · ").Append(Application.isEditor ? "Editor" : "compilación").Append(" · ")
               .Append(Application.unityVersion).Append(" · backend ").Append(ScriptingBackend()).Append('\n');
             string dir = Path.Combine(Application.streamingAssetsPath, "Golden");
-            foreach (var name in new[] { "G3_red.golden", "G1_zona.golden", "G2_tropas.golden" })
+            foreach (var name in new[] { "G3_red.golden", "G1_zona.golden", "G2_tropas.golden", "G4_bucle.golden" })
             {
                 string path = Path.Combine(dir, name);
                 try
@@ -50,6 +50,7 @@ namespace TBD.View
                     string res;
                     bool ok;
                     if (text.StartsWith(NetGolden.Format)) { var r = NetGolden.Verify(text); res = r.ToString(); ok = r.Ok; }
+                    else if (text.StartsWith(LoopGolden.Format)) { var r = LoopGolden.Verify(text); res = r.ToString(); ok = r.Ok; }
                     else { var r = ZoneGolden.Verify(text); res = r.ToString(); ok = r.Ok; }
                     allOk &= ok;
                     sb.Append(name).Append(": ").Append(res).Append(" · ").Append(sw.ElapsedMilliseconds).Append(" ms\n");
