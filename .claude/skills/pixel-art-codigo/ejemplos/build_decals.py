@@ -52,12 +52,13 @@ def aceite(v):
             c = m(x, y)
             if c <= 0:
                 if c > -.12 and _h(x, y, 3 + v) > .8:
-                    s.set(x, y, "olive_shadow")      # salpicadura suelta
+                    s.set(x, y, "grey_brown")        # salpicadura suelta
                 continue
-            s.set(x, y, "olive_black" if c > .3 else "slate_dark" if c > .12 else "olive_shadow")
+            # Sin el #1c200c de la horda (Lucía, 6-nov): un punto en el valor más oscuro parece un zombi suelto.
+            s.set(x, y, "olive_shadow" if c > .3 else "slate_dark" if c > .12 else "grey_brown")
     for k in range(4 if v == 0 else 6):              # brillo apagado del aceite
         x, y = int(10 + _h(k, v, 4) * 12), int(10 + _h(k, v, 5) * 12)
-        if s.get(x, y)[:3] == PAL["olive_black"][:3]:
+        if s.get(x, y)[:3] == PAL["olive_shadow"][:3]:
             s.set(x, y, "concrete")                # brillo mate (sin slate: es el rim de las tropas)
     if v == 1:                                       # reguero
         for k in range(9):
@@ -67,7 +68,7 @@ def aceite(v):
 
 def escombros(v):
     s = Sprite(T, T)
-    tonos = ["concrete", "concrete_light", "grey_brown", "rose_brown", "olive_grey"]
+    tonos = ["concrete", "concrete_light", "grey_brown", "brown", "olive_grey"]   # sin rosado: nada que parezca sangre
     n = 9 if v == 0 else 13
     for k in range(n):
         cx, cy = 4 + _h(k, v, 21) * 24, 4 + _h(k, v, 22) * 24
@@ -84,7 +85,7 @@ def escombros(v):
         if not s.get(x, y)[3]:
             s.set(x, y, "grey_brown" if k % 2 else "olive_grey")
     if v == 1:                                       # trozo de varilla
-        s.line(5, 26, 12, 22, "rust")
+        s.line(5, 26, 12, 22, "brown_dark")          # varilla oxidada, en pardo (el óxido parecía sangre)
     return s
 
 
@@ -120,9 +121,9 @@ def quemado(v):
             c = m(x, y)
             if c <= 0:
                 if c > -.25 and _h(x, y, 41 + v) > .78:
-                    s.set(x, y, "olive_shadow")      # hollín suelto
+                    s.set(x, y, "grey_brown")        # hollín suelto
                 continue
-            s.set(x, y, "olive_black" if c > .45 else "brown_dark" if c > .2 else "olive_shadow")
+            s.set(x, y, "olive_shadow" if c > .45 else "brown_dark" if c > .2 else "grey_brown")   # sin #1c200c
             if c > .45 and _h(x, y, 43) > .93:
                 s.set(x, y, "grey_brown")            # ceniza
     if v == 1:                                       # rayos de la deflagración
@@ -143,9 +144,9 @@ def grietas(v):
             x += math.cos(ang)
             y += math.sin(ang)
             xi, yi = int(x), int(y)
-            s.set(xi, yi, "olive_black")
+            s.set(xi, yi, "olive_shadow")            # sin #1c200c (regla del negro de la horda)
             if prof == 0 and k % 2 == 0:
-                s.set(xi + 1, yi, "olive_shadow")    # labio de la grieta, 2 px de ancho
+                s.set(xi + 1, yi, "grey_brown")      # labio de la grieta, 2 px de ancho
             if prof < 1 and k in (largo // 3, 2 * largo // 3):
                 grieta(x, y, ang + (1 if k % 2 else -1) * .9, largo // 2, seed + k, prof + 1)
 
@@ -154,8 +155,8 @@ def grietas(v):
     else:
         for k, a in enumerate((0.3, 2.3, 4.2)):      # estrella de impacto
             grieta(16, 16, a, 14, 60 + k)
-        s.set(16, 16, "olive_black")
-        s.set(15, 16, "olive_black")
+        s.set(16, 16, "olive_shadow")
+        s.set(15, 16, "olive_shadow")
     return s
 
 
