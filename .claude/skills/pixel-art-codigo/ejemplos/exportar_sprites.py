@@ -86,7 +86,7 @@ def iconos_taller(out):
 
 
 def aviso_ambar(out):
-    """Icono de aviso en ámbar para la etiqueta de construcción (D-N61), a 32 y 16 px."""
+    """Icono de aviso en ámbar para la etiqueta de construcción (D-N62), a 32 y 16 px."""
     s = build_a2.aviso()
     s.limit_colors(10)
     s.save(out / "vm_alertas_aviso_32.png")

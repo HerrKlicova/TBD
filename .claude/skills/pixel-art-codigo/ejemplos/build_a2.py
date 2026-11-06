@@ -187,7 +187,7 @@ def senal_aviso(s, x0, y0, n):
 
 
 def aviso():
-    """Aviso genérico en ámbar (etiqueta de construcción, D-N61): triángulo y signo de exclamación oscuro."""
+    """Aviso genérico en ámbar (etiqueta de construcción, D-N62): triángulo y signo de exclamación oscuro."""
     s = Sprite()
     senal_aviso(s, 1, 2, 31)
     s.rect(15, 11, 3, 9, "olive_black")                                 # palo
