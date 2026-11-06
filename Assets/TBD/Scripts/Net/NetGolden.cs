@@ -38,7 +38,7 @@ namespace TBD.Net
             sb.Append("inicio_tick=").Append(w.Tick).Append('\n');
             sb.Append("ticks=").Append(ticks).Append('\n');
             sb.Append("ORDENES\n");
-            foreach (var c in script) sb.Append(c.Tick).Append(';').Append((int)c.Type).Append(';').Append(c.Arg).Append(';').Append(c.Arg2).Append('\n');
+            foreach (var c in script) sb.Append(c.Tick).Append(';').Append((int)c.Type).Append(';').Append(c.Arg).Append(';').Append(c.Arg2).Append(c.Payload != null ? ";" + string.Join(",", c.Payload) : "").Append('\n');
             sb.Append("HASHES\n");
             Play(w, script, ticks, (t, h, sys) =>
             {
@@ -67,7 +67,7 @@ namespace TBD.Net
             for (i++; i < lines.Length && lines[i] != "HASHES"; i++)
             {
                 var f = lines[i].Split(';');
-                script.Add(new NetCommand { Tick = long.Parse(f[0], CultureInfo.InvariantCulture), Type = (NetCmdType)int.Parse(f[1], CultureInfo.InvariantCulture), Arg = int.Parse(f[2], CultureInfo.InvariantCulture), Arg2 = int.Parse(f[3], CultureInfo.InvariantCulture) });
+                script.Add(new NetCommand { Tick = long.Parse(f[0], CultureInfo.InvariantCulture), Type = (NetCmdType)int.Parse(f[1], CultureInfo.InvariantCulture), Arg = int.Parse(f[2], CultureInfo.InvariantCulture), Arg2 = int.Parse(f[3], CultureInfo.InvariantCulture), Payload = f.Length > 4 && f[4].Length > 0 ? Array.ConvertAll(f[4].Split(','), x => int.Parse(x, CultureInfo.InvariantCulture)) : null });
             }
             var expected = new Dictionary<long, string[]>();
             for (i++; i < lines.Length && lines[i] != "FIN"; i++)
