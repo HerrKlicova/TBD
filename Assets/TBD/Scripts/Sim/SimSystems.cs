@@ -428,8 +428,10 @@ namespace TBD.Sim
         {
             var a = Ammo[0];
             SoldierLogic.SortById(Soldiers, Order);
-            SoldierLogic.Fire(Soldiers, Order, Zombies, ref a, Tick, P, PileDelta, TrainStopped);
-            SoldierLogic.Melee(Soldiers, Zombies, ref a, P);
+            var grid = new ZombieGrid();                          // índice espacial: una sola construcción por tick, compartida por Fire y Melee
+            SoldierLogic.Fire(Soldiers, Order, Zombies, ref a, Tick, P, PileDelta, TrainStopped, ref grid);
+            SoldierLogic.Melee(Soldiers, Zombies, ref a, P, ref grid);
+            grid.Dispose();
             Ammo[0] = a;
         }
     }

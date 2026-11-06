@@ -426,6 +426,174 @@ namespace TBD.Sim
     }
 
     /// <summary>
+    /// Índice espacial de zombis para los disparos y el cuerpo a cuerpo: rejilla uniforme de celdas de 8 m, ordenada por conteo
+    /// (sin hashes ni colas). Las posiciones no cambian dentro de SoldierSystem, así que se construye una vez por tick y vale para
+    /// Fire y Melee; los zombis abatidos durante el tick se descartan por su estado actual, no por el del momento de construirla.
+    /// Los resultados son idénticos a recorrer todos los zombis: «Nearest» devuelve el mínimo de (distancia², SimId) y «CountWithin»
+    /// una cuenta, y ninguna de las dos depende del orden de visita (QA: probado contra la versión exhaustiva en dotnet).
+    /// </summary>
+    public struct ZombieGrid
+    {
+        public bool Built;
+        int _queries;                                     // consultas de este tick: con pocas, recorrer todos sale más barato que construir
+        const int BruteQueries = 3;
+        NativeArray<int> _start, _items;
+        float _minX, _minZ, _cell, _inv;
+        int _w, _h;
+        const float BaseCell = 8f;
+        const int MaxCells = 1 << 16;
+        const float Slack = 0.01f;                        // margen contra el redondeo al asignar celdas
+
+        public void Build(NativeArray<Zombie> zombies, bool includeDead)
+        {
+            Built = true;
+            float minX = float.MaxValue, minZ = float.MaxValue, maxX = -float.MaxValue, maxZ = -float.MaxValue;
+            int n = 0;
+            for (int i = 0; i < zombies.Length; i++)
+            {
+                var z = zombies[i];
+                if (!includeDead && z.State == ZState.Dead) continue;
+                minX = math.min(minX, z.Pos.x); maxX = math.max(maxX, z.Pos.x);
+                minZ = math.min(minZ, z.Pos.z); maxZ = math.max(maxZ, z.Pos.z);
+                n++;
+            }
+            if (n == 0) { minX = minZ = 0f; maxX = maxZ = 0f; }
+            _cell = BaseCell;
+            while (((int)((maxX - minX) / _cell) + 1) * (long)((int)((maxZ - minZ) / _cell) + 1) > MaxCells) _cell *= 2f;
+            _inv = 1f / _cell;
+            _minX = minX; _minZ = minZ;
+            _w = (int)((maxX - minX) * _inv) + 1;
+            _h = (int)((maxZ - minZ) * _inv) + 1;
+            _start = new NativeArray<int>(_w * _h + 1, Allocator.Temp);
+            _items = new NativeArray<int>(math.max(n, 1), Allocator.Temp);
+            for (int i = 0; i < zombies.Length; i++)
+            {
+                var z = zombies[i];
+                if (!includeDead && z.State == ZState.Dead) continue;
+                _start[CellOf(z.Pos.x, z.Pos.z) + 1]++;
+            }
+            for (int c = 0; c < _w * _h; c++) _start[c + 1] += _start[c];
+            var fill = new NativeArray<int>(_w * _h, Allocator.Temp);
+            for (int i = 0; i < zombies.Length; i++)
+            {
+                var z = zombies[i];
+                if (!includeDead && z.State == ZState.Dead) continue;
+                int c = CellOf(z.Pos.x, z.Pos.z);
+                _items[_start[c] + fill[c]++] = i;
+            }
+            fill.Dispose();
+        }
+
+        int CellOf(float x, float z)
+        {
+            int cx = math.min(math.max((int)((x - _minX) * _inv), 0), _w - 1);
+            int cz = math.min(math.max((int)((z - _minZ) * _inv), 0), _h - 1);
+            return cz * _w + cx;
+        }
+
+        public void Dispose()
+        {
+            _queries = 0;
+            if (!Built) return;
+            _start.Dispose(); _items.Dispose();
+            Built = false;
+        }
+
+        /// <summary>Zombi vivo más cercano a «p» con distancia² ≤ maxD2 (empate: SimId menor). Devuelve -1 si no hay y deja en maxD2 la distancia² hallada.</summary>
+        public int Nearest(NativeArray<Zombie> zombies, float2 p, ref float maxD2)
+        {
+            int best = -1;
+            float bestD2 = maxD2;
+            uint bestId = uint.MaxValue;
+            if (!Built)
+            {
+                if (_queries++ < BruteQueries)            // las primeras consultas del tick, sin índice (mismo criterio y mismo resultado)
+                {
+                    for (int i = 0; i < zombies.Length; i++)
+                    {
+                        var z = zombies[i];
+                        if (z.State == ZState.Dead) continue;
+                        float2 d = z.Pos.xz - p;
+                        float d2 = math.dot(d, d);
+                        if (d2 < bestD2 || (d2 == bestD2 && z.SimId < bestId)) { bestD2 = d2; best = i; bestId = z.SimId; }
+                    }
+                    maxD2 = bestD2;
+                    return best;
+                }
+                Build(zombies, false);
+            }
+            int sx = (int)math.floor((p.x - _minX) * _inv), sz = (int)math.floor((p.y - _minZ) * _inv);
+            int reach = math.max(math.max(math.max(sx, _w - 1 - sx), math.max(sz, _h - 1 - sz)), 0);
+            float limit = math.sqrt(maxD2);
+            for (int k = 0; k <= reach; k++)
+            {
+                float safe = (k - 1) * _cell - Slack;        // todo zombi en un anillo ≥ k está a más de esto
+                if (safe > 0f && (safe > limit || (best >= 0 && bestD2 < safe * safe))) break;
+                int x0 = sx - k, x1 = sx + k, z0 = sz - k, z1 = sz + k;
+                for (int cz = math.max(z0, 0); cz <= math.min(z1, _h - 1); cz++)
+                {
+                    bool edgeRow = cz == z0 || cz == z1;
+                    int step = edgeRow ? 1 : math.max(x1 - x0, 1);
+                    for (int cx = x0; cx <= x1; cx += step)
+                    {
+                        if (cx < 0 || cx >= _w) continue;
+                        int c = cz * _w + cx;
+                        for (int e = _start[c]; e < _start[c + 1]; e++)
+                        {
+                            int i = _items[e];
+                            var zb = zombies[i];
+                            if (zb.State == ZState.Dead) continue;
+                            float2 d = zb.Pos.xz - p;
+                            float d2 = math.dot(d, d);
+                            if (d2 < bestD2 || (d2 == bestD2 && zb.SimId < bestId)) { bestD2 = d2; best = i; bestId = zb.SimId; }
+                        }
+                    }
+                }
+            }
+            maxD2 = bestD2;
+            return best;
+        }
+
+        /// <summary>Zombis vivos y no cayendo a distancia² ≤ r2 de «p» (cuerpo a cuerpo).</summary>
+        public int CountWithin(NativeArray<Zombie> zombies, float2 p, float r2)
+        {
+            if (!Built)
+            {
+                if (_queries++ < BruteQueries)
+                {
+                    int n = 0;
+                    for (int i = 0; i < zombies.Length; i++)
+                    {
+                        var z = zombies[i];
+                        if (z.State == ZState.Dead || z.State == ZState.Fall) continue;
+                        float2 d = z.Pos.xz - p;
+                        if (math.dot(d, d) <= r2) n++;
+                    }
+                    return n;
+                }
+                Build(zombies, false);
+            }
+            float r = math.sqrt(r2) + Slack;
+            int x0 = math.max((int)math.floor((p.x - r - _minX) * _inv), 0), x1 = math.min((int)math.floor((p.x + r - _minX) * _inv), _w - 1);
+            int z0 = math.max((int)math.floor((p.y - r - _minZ) * _inv), 0), z1 = math.min((int)math.floor((p.y + r - _minZ) * _inv), _h - 1);
+            int count = 0;
+            for (int cz = z0; cz <= z1; cz++)
+                for (int cx = x0; cx <= x1; cx++)
+                {
+                    int c = cz * _w + cx;
+                    for (int e = _start[c]; e < _start[c + 1]; e++)
+                    {
+                        var zb = zombies[_items[e]];
+                        if (zb.State == ZState.Dead || zb.State == ZState.Fall) continue;
+                        float2 d = zb.Pos.xz - p;
+                        if (math.dot(d, d) <= r2) count++;
+                    }
+                }
+            return count;
+        }
+    }
+
+    /// <summary>
     /// Combate de las tropas en la zona (hito 3, parte 4). Lógica pura y determinista: los soldados se procesan en orden de SimId,
     /// cada disparo busca el zombi vivo más cercano dentro del alcance (empate: el de SimId menor) y el acierto sale de un hash del
     /// soldado y del tick, no de un generador compartido. Lo prueba dotnet (P7 de Hugo).
@@ -434,6 +602,19 @@ namespace TBD.Sim
     {
         /// <summary>Un tick de disparos. Devuelve cuántos zombis se abatieron. «order» = índices de soldados ordenados por SimId.</summary>
         public static int Fire(NativeArray<Soldier> soldiers, NativeArray<int> order, NativeArray<Zombie> zombies, ref ZoneAmmo ammo, uint tick, in CombatParams cp, NativeArray<int> pileDelta, bool trainStopped = false)
+        {
+            var grid = new ZombieGrid();
+            int kills = Fire(soldiers, order, zombies, ref ammo, tick, cp, pileDelta, trainStopped, ref grid);
+            grid.Dispose();
+            return kills;
+        }
+
+        /// <summary>
+        /// Igual que Fire, pero con un índice espacial de zombis (ZombieGrid) que se construye la primera vez que alguien dispara y se
+        /// puede compartir con Melee. Da exactamente el mismo resultado que recorrer todos los zombis: el objetivo es el mínimo del par
+        /// (distancia al cuadrado, SimId), que no depende del orden de visita.
+        /// </summary>
+        public static int Fire(NativeArray<Soldier> soldiers, NativeArray<int> order, NativeArray<Zombie> zombies, ref ZoneAmmo ammo, uint tick, in CombatParams cp, NativeArray<int> pileDelta, bool trainStopped, ref ZombieGrid grid)
         {
             int kills = 0;
             for (int o = 0; o < order.Length; o++)
@@ -444,17 +625,8 @@ namespace TBD.Sim
                 if (!canFire) continue;
                 if (s.Cooldown > 0) { s.Cooldown--; soldiers[si] = s; continue; }
                 float range = s.Kind == SoldierKind.MachineGun ? cp.MgRange : cp.RifleRange;
-                int best = -1;
                 float bestD2 = range * range;
-                uint bestId = uint.MaxValue;
-                for (int i = 0; i < zombies.Length; i++)
-                {
-                    var z = zombies[i];
-                    if (z.State == ZState.Dead) continue;
-                    float2 d = z.Pos.xz - s.Pos.xz;
-                    float d2 = math.dot(d, d);
-                    if (d2 < bestD2 || (d2 == bestD2 && z.SimId < bestId)) { bestD2 = d2; best = i; bestId = z.SimId; }
-                }
+                int best = grid.Nearest(zombies, s.Pos.xz, ref bestD2);
                 if (best < 0 || ammo.ShotsLeft <= 0) { soldiers[si] = s; continue; }     // sin objetivo no se dispara (Hugo)
                 ammo.ShotsLeft--;
                 ammo.ShotsFired++;
@@ -484,20 +656,22 @@ namespace TBD.Sim
         /// <summary>Cuerpo a cuerpo: cada zombi vivo a menos de MeleeRange de un soldado le quita vida. Devuelve los soldados caídos este tick.</summary>
         public static int Melee(NativeArray<Soldier> soldiers, NativeArray<Zombie> zombies, ref ZoneAmmo ammo, in CombatParams cp)
         {
+            var grid = new ZombieGrid();
+            int fallen = Melee(soldiers, zombies, ref ammo, cp, ref grid);
+            grid.Dispose();
+            return fallen;
+        }
+
+        /// <summary>Melee con el índice espacial compartido con Fire (se construye si hace falta). Contar vecinos no depende del orden.</summary>
+        public static int Melee(NativeArray<Soldier> soldiers, NativeArray<Zombie> zombies, ref ZoneAmmo ammo, in CombatParams cp, ref ZombieGrid grid)
+        {
             int fallen = 0;
             float r2 = cp.MeleeRange * cp.MeleeRange;
             for (int si = 0; si < soldiers.Length; si++)
             {
                 var s = soldiers[si];
                 if (s.State != SoldierState.Deployed) continue;              // a bordo (D-N27): tras el muro móvil, sin cuerpo a cuerpo
-                int touching = 0;
-                for (int i = 0; i < zombies.Length; i++)
-                {
-                    var z = zombies[i];
-                    if (z.State == ZState.Dead || z.State == ZState.Fall) continue;
-                    float2 d = z.Pos.xz - s.Pos.xz;
-                    if (math.dot(d, d) <= r2) touching++;
-                }
+                int touching = grid.CountWithin(zombies, s.Pos.xz, r2);
                 if (touching == 0) continue;
                 s.Hp -= touching * cp.ZombieDamagePerTick;
                 if (s.Hp <= 0) { s.Hp = 0; s.State = SoldierState.Dead; fallen++; ammo.SoldiersLost++; }
