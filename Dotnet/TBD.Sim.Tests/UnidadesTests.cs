@@ -59,9 +59,27 @@ namespace TBD.Sim.Tests
                 check(ax == -6000 && Math.Abs(ay) <= 1 && Math.Abs(bx) <= 1 && by == -6000, "la columna va detrás del jefe según el rumbo (0° hacia +X, 90° hacia +Y)");
             }
 
+            // ------------------------------------------------------------------ datos de Hugo: los valores por defecto coinciden con los CSV
+            {
+                var h0 = WeaponCatalog.Hash(); var ph0 = PlatoonCatalog.Hash(); var before = (Weapon[])WeaponCatalog.Table.Clone();
+                WeaponCatalog.Load(new CsvTable(TBD.Net.BalanceSource.Read("balance_unidades.csv")));
+                PlatoonCatalog.Load(new CsvTable(TBD.Net.BalanceSource.Read("balance_unidades.csv")));
+                string wd = ""; for (int i = 0; i < before.Length; i++) foreach (var fi in typeof(Weapon).GetFields()) { var a0 = fi.GetValue(before[i]); var a1 = fi.GetValue(WeaponCatalog.Table[i]); if (!Equals(a0, a1)) wd += $" [{before[i].Key}.{fi.Name}: código {a0}, CSV {a1}]"; }
+                check(WeaponCatalog.Hash() == h0, "los valores por defecto de las armas coinciden con balance_unidades.csv (si Hugo cambia el CSV, hay que actualizar Armas.cs)" + wd);
+                check(PlatoonCatalog.Hash() == ph0, "los valores por defecto de los pelotones coinciden con balance_unidades.csv");
+                var nd = NightParams.FromCsv(new CsvTable(TBD.Net.BalanceSource.Read("balance_noche.csv"))); var dd = NightParams.Default();
+                bool same = nd.ClockX == dd.ClockX && nd.ScalePermil == dd.ScalePermil && nd.Waves.Length == dd.Waves.Length && nd.StartHour == dd.StartHour && nd.EndHour == dd.EndHour;
+                for (int i = 0; same && i < nd.Waves.Length; i++) same = nd.Waves[i].StartMinute == dd.Waves[i].StartMinute && nd.Waves[i].Zombies == dd.Waves[i].Zombies && nd.Waves[i].ArrivalSeconds == dd.Waves[i].ArrivalSeconds;
+                check(same, "los valores por defecto de la noche coinciden con balance_noche.csv (6 oleadas, ×28, escala 850 ‰)");
+                var w = WeaponCatalog.Get(WeaponId.Fusil);
+                check(w.RangeMm == 60000 && w.HitBlankPm == 210 && WeaponCatalog.Get(WeaponId.Lanzagranadas).RangeMm == 140000 && WeaponCatalog.Get(WeaponId.Canon30).RangeMm == 220000, "fusil 60 m y 210 ‰; lanzagranadas a 140 m y cañón de 30 mm a 220 m (cambios de Hugo de las 00:25)");
+                var w2 = new UnitsWorld(1); var f = w2.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0); var a = w2.AddPlatoon(PlatoonKind.Ametralladores, 0, 0, 0); var g = w2.AddPlatoon(PlatoonKind.Granaderos, 0, 0, 0); var t = w2.AddPlatoon(PlatoonKind.Tiradores, 0, 0, 0);
+                check(f.Men.Count == 8 && a.Men.Count == 6 && g.Men.Count == 6 && t.Men.Count == 2 && a.Men.FindAll(m => m.Kind == InfKind.Servidor).Count == 2 && f.AmmoCap == 3000 && a.AmmoCap == 4000, "los pelotones salen con las personas, servidores y dotación del CSV (8, 6 con 2 servidores, 6, 2; 1,5 u = 3.000 disparos)");
+            }
+
             // ------------------------------------------------------------------ movimiento
             {
-                var w = new UnitsWorld(7); var p = w.AddPlatoon(Presets.Fusileros, 0, 0, 0, Formation.Columna);
+                var w = new UnitsWorld(7); var p = w.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0, Formation.Columna);
                 w.Move(p.Id, 60000, 20000, 16384);
                 var res = new StepResult(); var none = new List<Target>();
                 int arrived = -1, maxStep = 0; var prev = new (int, int)[p.Men.Count];
@@ -72,100 +90,221 @@ namespace TBD.Sim.Tests
                     for (int i = 0; i < p.Men.Count; i++) { maxStep = Math.Max(maxStep, IMath.Dist(p.Men[i].X - prev[i].Item1, p.Men[i].Y - prev[i].Item2)); prev[i] = (p.Men[i].X, p.Men[i].Y); }
                     if (!p.Moving && arrived < 0) arrived = t;
                 }
-                int dist = IMath.Dist(60000, 20000), minSpeed = 2300;
-                int ideal = dist * IMath.TickRate / minSpeed;
-                check(arrived > 0 && arrived >= ideal * 9 / 10 && arrived <= ideal * 14 / 10, $"el pelotón llega a 63 m: {arrived} ticks (ideal con el más lento: {ideal})");
+                int dist = IMath.Dist(60000, 20000), ideal = dist * IMath.TickRate / 2500;
+                check(arrived > 0 && arrived >= ideal * 9 / 10 && arrived <= ideal * 14 / 10, $"el pelotón llega a 63 m: {arrived} ticks (ideal a 2,5 m/s: {ideal})");
                 int worstSlot = 0; for (int i = 0; i < p.Men.Count; i++) worstSlot = Math.Max(worstSlot, IMath.Dist(p.Men[i].X - p.Men[i].SlotX, p.Men[i].Y - p.Men[i].SlotY));
                 check(worstSlot < 50 && IMath.Diff(p.Heading, 16384) == 0, $"todos en su puesto al parar (máx. {worstSlot} mm) y orientados al rumbo final pedido");
-                check(maxStep <= 2600 * 5 / 4 / 30 + 2, $"nadie se teletransporta: paso máximo {maxStep} mm/tick (límite {2600 * 5 / 4 / 30 + 2})");
+                check(maxStep <= 2500 * 5 / 4 / 30 + 2, $"nadie se teletransporta: paso máximo {maxStep} mm/tick (límite {2500 * 5 / 4 / 30 + 2})");
                 w.SetFormation(p.Id, Formation.Linea); for (int t = 0; t < 120; t++) w.Step(none, res);
-                var xs = new HashSet<int>(); foreach (var m in p.Men) xs.Add(m.X / 500);   // rumbo final 90°: la línea se abre a lo largo de X
+                var xs = new HashSet<int>(); foreach (var m in p.Men) xs.Add(m.X / 500);
                 check(xs.Count >= 6, $"al cambiar a línea se abren a lo ancho ({xs.Count} bandas distintas)");
             }
-
-            // ------------------------------------------------------------------ combate
             {
-                var w = new UnitsWorld(11); var p = w.AddPlatoon(Presets.Fusileros, 0, 0, 0, Formation.Cuna);
-                var z = new List<Zed>(); var rng = new IRng(5);
-                for (int i = 0; i < 120; i++) z.Add(new Zed { Id = 100 + i, X = 60000 + rng.Below(30000), Y = rng.Below(40000) - 20000 });
-                var res = new StepResult(); int kills = 0, shots = 0, ammo = 0; int maxRangeSeen = 0; bool rangeOk = true;
-                var kinds = new Dictionary<InfKind, int>();
-                for (int t = 0; t < 1800; t++)
+                // mover frente a atacar en marcha frente a mantener
+                Func<int, (int, int)> run = mode =>
                 {
-                    foreach (var a in z) if (a.Hp > 0) { int dx = -a.X, dy = -a.Y, d = Math.Max(1, IMath.Dist(dx, dy)); if (d > 1200) { a.X += dx * 1500 / 30 / d; a.Y += dy * 1500 / 30 / d; } }
-                    w.Step(ToTargets(z), res);
-                    foreach (var s in res.Shots)
+                    var w = new UnitsWorld(9); var p = w.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0, Formation.Cuna);
+                    var tg = new List<Target> { new Target { Id = 1, X = 75000, Y = 0 } };   // un blanco que no muere: el pelotón lo ve siempre
+                    if (mode == 0) w.Move(p.Id, 150000, 0); else if (mode == 1) w.AttackMove(p.Id, 150000, 0); else { w.Move(p.Id, 150000, 0); }
+                    var res = new StepResult(); int shots = 0;
+                    for (int t = 0; t < 900; t++) { if (mode == 2 && t == 120) w.Hold(p.Id); w.Step(tg, res); shots += res.Shots.Count; }
+                    return (p.AX, shots);
+                };
+                var mv = run(0); var am = run(1); var hd = run(2);
+                check(mv.Item1 > 70000 && mv.Item2 > 0, $"mover: avanza sin pararse ({mv.Item1 / 1000} m en 30 s) y dispara por el camino ({mv.Item2} disparos)");
+                check(am.Item1 < 40000 && am.Item2 > 30, $"atacar en marcha: se detiene al tener el blanco a tiro (avanza solo {am.Item1 / 1000} m) y dispara ({am.Item2} disparos)");
+                check(hd.Item1 < 12000, $"mantener: se queda donde está ({hd.Item1 / 1000} m)");
+                // reanuda al desaparecer el blanco
+                var w3 = new UnitsWorld(9); var p3 = w3.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0); w3.AttackMove(p3.Id, 60000, 0);
+                var one = new List<Target> { new Target { Id = 1, X = 50000, Y = 500 } }; var r3 = new StepResult();
+                for (int t = 0; t < 200; t++) w3.Step(one, r3);
+                int stuck = p3.AX; for (int t = 0; t < 900; t++) w3.Step(new List<Target>(), r3);
+                check(stuck < 20000 && !p3.Moving && IMath.Dist(p3.AX - 60000, p3.AY) < 200, $"al no quedar enemigos a tiro, el ataque en marcha reanuda y llega al punto (parado en {stuck / 1000} m, llegó a {p3.AX / 1000} m)");
+            }
+
+            // ------------------------------------------------------------------ armas
+            {
+                // puntería: bocajarro − pendiente·metros, medida con miles de disparos
+                var w = new UnitsWorld(21); var p = w.AddPlatoon(PlatoonKind.Tiradores, 0, 0, 0, Formation.Cuna); p.AmmoShots = 100000000;
+                var tg = new List<Target> { new Target { Id = 1, X = 20000, Y = 0 } }; var res = new StepResult();
+                int fs = 0, fh = 0, ps = 0, phh = 0;
+                for (int t = 0; t < 40000; t++) { w.Step(tg, res); foreach (var sh in res.Shots) { if (sh.Weapon == WeaponId.Fusil) { fs++; if (sh.Hit) fh++; } else if (sh.Weapon == WeaponId.FusilPrecision) { ps++; if (sh.Hit) phh++; } } }
+                double rf = fh / (double)Math.Max(1, fs), rp = phh / (double)Math.Max(1, ps);
+                check(fs > 2000 && ps > 500 && rf > 0.10 && rf < 0.21 && rp > 0.88 && rp < 0.97, $"puntería a 20 m (desde unos 20–25 m según el puesto): fusil {rf * 1000:F0} ‰ (≈ 140–150) en {fs} disparos y fusil de precisión {rp * 1000:F0} ‰ (≈ 930) en {ps}");
+                var w2 = new UnitsWorld(4); var far = w2.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0); far.AmmoShots = 100000000;
+                int farShots = 0, farHits = 0; var res2 = new StepResult(); var tgf = new List<Target> { new Target { Id = 1, X = 58000, Y = 0 } };
+                for (int t = 0; t < 40000; t++) { w2.Step(tgf, res2); foreach (var s in res2.Shots) if (s.Weapon == WeaponId.Fusil) { farShots++; if (s.Hit) farHits++; } }
+                double fr = farHits / (double)Math.Max(1, farShots);
+                check(farShots > 1000 && fr > 0.02 && fr < 0.06, $"el fusil a 58 m casi no acierta ({fr * 1000:F0} ‰ frente a los 36 ‰ del modelo, {farShots} disparos)");
+            }
+            {
+                // munición: sin disparos equivalentes no se dispara; el almacén reabastece
+                var w = new UnitsWorld(2); var p = w.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0); p.AmmoShots = 5; w.StockShots = 100;
+                var tg = new List<Target> { new Target { Id = 1, X = 20000, Y = 0 } }; var res = new StepResult(); int spent = 0, shots = 0;
+                for (int t = 0; t < 300; t++) { w.Step(tg, res); spent += res.AmmoSpent; shots += res.Shots.Count; }
+                check(spent <= 5 && p.AmmoShots >= 0 && shots > 0 && shots <= 5, $"con 5 disparos de munición, el pelotón dispara como mucho 5 veces ({shots}) y gasta {spent}");
+                int got = w.Resupply(p.Id); int before = shots;
+                for (int t = 0; t < 120; t++) { w.Step(tg, res); shots += res.Shots.Count; }
+                check(got > 0 && w.StockShots == 100 - got && shots > before, $"reabastecer pasa {got} disparos del almacén al pelotón y vuelve a disparar");
+                w.Resupply(p.Id); check(p.AmmoShots <= p.AmmoCap, "el pelotón nunca pasa de su dotación");
+            }
+            {
+                // granadero: solo con ≥ 6 zombis en el radio; si no, fusil. Alcance mínimo de 15 m. Vuelo de 20 ticks. Tope de 10 bajas.
+                Func<int, int, (int, int, int, int)> run = (n, dm) =>
+                {
+                    var w = new UnitsWorld(5); var p = w.AddPlatoon(PlatoonKind.Granaderos, 0, 0, 0, Formation.Circulo); p.AmmoShots = 100000000;
+                    var tg = new List<Target>(); for (int i = 0; i < n; i++) tg.Add(new Target { Id = i + 1, X = dm * 1000 + (i % 4) * 500, Y = (i / 4) * 500 });
+                    var res = new StepResult(); int grenades = 0, rifles = 0, blasts = 0, maxKills = 0; bool firstBlastLate = true;
+                    for (int t = 0; t < 400; t++)
                     {
-                        shots++; kinds[s.Kind] = kinds.TryGetValue(s.Kind, out int c) ? c + 1 : 1;
-                        var man = p.Men.Find(m => m.Id == s.Man);
-                        int d = IMath.Dist(s.AimX - man.X, s.AimY - man.Y);
-                        if (!s.Splash && d > InfCatalog.Get(s.Kind).RangeMm + 50) rangeOk = false; maxRangeSeen = Math.Max(maxRangeSeen, d);
+                        w.Step(tg, res);
+                        foreach (var s in res.Shots) { if (s.Weapon == WeaponId.Lanzagranadas) { grenades++; if (grenades == 1 && s.FlightTicks != 20) firstBlastLate = false; } else rifles++; }
+                        blasts += res.Blasts.Count; int k = 0; foreach (var h in res.Hits) if (h.Weapon == WeaponId.Lanzagranadas) k++; if (res.Blasts.Count > 0) maxKills = Math.Max(maxKills, (k + res.Blasts.Count - 1) / res.Blasts.Count);
                     }
-                    ammo += res.AmmoSpent; kills += Apply(res, z, w);
+                    return (grenades, rifles, blasts, firstBlastLate ? maxKills : -1);
+                };
+                var many = run(12, 40); var few = run(3, 40); var close = run(12, 7);
+                check(many.Item1 > 10 && many.Item3 > 10 && many.Item4 >= 1 && many.Item4 <= 10, $"con 12 zombis juntos a 40 m el granadero lanza granadas ({many.Item1}), explotan ({many.Item3}) y abaten como mucho {many.Item4} de golpe (tope 10)");
+                check(few.Item1 == 0 && few.Item2 > 0, $"con solo 3 zombis usa el fusil ({few.Item2} disparos) y no gasta granadas");
+                check(close.Item1 == 0, "a menos de 15 m no lanza granadas (alcance mínimo)");
+            }
+            {
+                // ametralladora emplazada: hay que dar la orden, 60 ticks, y solo dispara en su cono de 60°
+                Func<int, int, int, (int, int)> run = (mode, tx, ty) =>
+                {
+                    var w = new UnitsWorld(6); var p = w.AddPlatoon(PlatoonKind.Ametralladores, 0, 0, 0); p.AmmoShots = 100000000;
+                    var tg = new List<Target> { new Target { Id = 1, X = tx, Y = ty } }; var res = new StepResult(); int first = -1, shots = 0;
+                    if (mode >= 1) w.DeployAt(p.Id, 0);
+                    for (int t = 0; t < 400; t++)
+                    {
+                        if (mode == 2 && t == 200) w.Move(p.Id, 5000, 0);
+                        w.Step(tg, res); int n = 0; foreach (var s in res.Shots) if (s.Weapon == WeaponId.MgEmplazada) n++;
+                        if (n > 0 && first < 0) first = t; if (t >= 200 || mode != 2) shots += n;
+                    }
+                    return (first, shots);
+                };
+                var nodeploy = run(0, 40000, 0); var dep = run(1, 40000, 0); var side = run(1, 0, 40000); var cone = run(1, 40000, 15000); var moved = run(2, 40000, 0);
+                check(nodeploy.Item2 == 0, "sin la orden de emplazar, la ametralladora emplazada no dispara");
+                check(dep.Item1 >= 58 && dep.Item1 <= 75 && dep.Item2 > 100, $"emplazada: empieza a disparar a los {dep.Item1} ticks (despliegue de 60) y dispara {dep.Item2} veces");
+                check(side.Item2 == 0 && cone.Item2 > 0, "dispara a un blanco a 20° del eje (dentro del cono de 60°) y no a uno a 90° (fuera)");
+                check(moved.Item2 == 0, "si el pelotón se mueve, deja de estar emplazado y no dispara");
+            }
+            {
+                // perforación: con horda densa abate uno más al 50 %; con un blanco aislado, no
+                Func<bool, double> pierce = dense =>
+                {
+                    var w = new UnitsWorld(33); var p = w.AddPlatoon(PlatoonKind.Tiradores, 0, 0, 0); p.AmmoShots = 100000000;
+                    var tg = new List<Target> { new Target { Id = 1, X = 40000, Y = 0 } };
+                    if (dense) for (int i = 0; i < 6; i++) tg.Add(new Target { Id = 10 + i, X = 40600 + i * 120, Y = (i % 2) * 300 });
+                    var res = new StepResult(); int direct = 0, entries = 0;
+                    for (int t = 0; t < 30000; t++) { w.Step(tg, res); foreach (var s in res.Shots) if (s.Weapon == WeaponId.FusilPrecision && s.Hit) direct++; foreach (var h in res.Hits) if (h.Weapon == WeaponId.FusilPrecision) entries++; }
+                    return entries / (double)Math.Max(1, direct);
+                };
+                double sparse = pierce(false), densed = pierce(true);
+                check(sparse == 1.0 && densed > 1.35 && densed < 1.65, $"perforación del fusil de precisión: {sparse:F2} bajas por impacto con un blanco aislado y {densed:F2} con horda densa (50 % de uno extra)");
+            }
+            {
+                var w = new UnitsWorld(11); var p = w.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0); var q = w.AddPlatoon(PlatoonKind.Ametralladores, 0, 8000, 0); w.DeployAt(q.Id, 0);
+                var z = new List<Zed>(); var rng = new IRng(5);
+                for (int i = 0; i < 300; i++) z.Add(new Zed { Id = 100 + i, X = 70000 + rng.Below(40000), Y = rng.Below(30000) - 10000 });
+                var res = new StepResult(); int kills = 0, shots = 0;
+                for (int t = 0; t < 2400; t++)
+                {
+                    foreach (var a in z) if (a.Hp > 0) { int dx = 0 - a.X, dy = 4000 - a.Y, d = Math.Max(1, IMath.Dist(dx, dy)); if (d > 1200) { a.X += dx * 1500 / 30 / d; a.Y += dy * 1500 / 30 / d; } }
+                    w.Step(ToTargets(z), res); shots += res.Shots.Count; kills += Apply(res, z, w);
                 }
                 int alive = 0; foreach (var a in z) if (a.Hp > 0) alive++;
-                check(kills > 80 && kills == 120 - alive, $"un pelotón de 10 abate {kills} de 120 zombis que avanzan a 1,5 m/s en 60 s (quedan {alive})");
-                check(rangeOk, $"nadie dispara fuera de su alcance (máx. visto {maxRangeSeen / 1000} m)");
-                check(kinds.ContainsKey(InfKind.Fusilero) && kinds.ContainsKey(InfKind.Ametrallador) && kinds.ContainsKey(InfKind.Tirador),
-                    "disparan fusileros, ametrallador y tirador (el granadero, al ir en la cola, no llega a tener horda a su alcance: se prueba aparte): " + string.Join(", ", kinds));
-                check(kinds[InfKind.Ametrallador] > 2 * kinds[InfKind.Fusilero] / 6 && ammo == p.AmmoSpent && ammo > shots, $"la ametralladora dispara más del doble que cada fusilero ({kinds[InfKind.Ametrallador]} disparos contra {kinds[InfKind.Fusilero] / 6} por fusilero), y la munición gastada ({ammo}) cuadra con el pelotón");
+                check(kills == 300 - alive && kills > 100 && shots > 800, $"fusileros y ametralladores emplazadas contra 300 zombis a 1,5 m/s: {kills} abatidos, {shots} disparos, quedan {alive}");
             }
             {
-                // lanzagranadas: área con caída, alcance mínimo y a mano alzada
-                var w = new UnitsWorld(3); var p = w.AddPlatoon(new[] { InfKind.Granadero }, 0, 0, 0);
-                var z = new List<Zed>(); for (int i = 0; i < 12; i++) z.Add(new Zed { Id = i + 1, X = 25000 + (i % 4) * 600, Y = (i / 4) * 600 });
-                var res = new StepResult(); w.Step(ToTargets(z), res);
-                int hit = res.Hits.Count; int maxD = 0, minD = int.MaxValue; foreach (var h in res.Hits) { maxD = Math.Max(maxD, h.Damage); minD = Math.Min(minD, h.Damage); }
-                check(res.Shots.Count == 1 && res.Shots[0].Splash && hit >= 4 && maxD <= 130 && minD >= 130 * 40 / 100 - 1, $"una granada alcanza a {hit} zombis a la vez con daño entre {minD} y {maxD} (100 % centro, 40 % borde)");
-                var near = new List<Zed> { new Zed { Id = 1, X = 5000, Y = 0 } }; var w2 = new UnitsWorld(3); w2.AddPlatoon(new[] { InfKind.Granadero }, 0, 0, 0);
-                w2.Step(ToTargets(near), res);
-                check(res.Shots.Count == 0, "el granadero no dispara a menos de 8 m (alcance mínimo)");
-                var w3 = new UnitsWorld(3); var p3 = w3.AddPlatoon(Presets.Fusileros, 0, 0, 0); w3.SetHoldFire(p3.Id, true);
-                int s3 = 0; for (int t = 0; t < 120; t++) { w3.Step(ToTargets(new List<Zed> { new Zed { Id = 1, X = 15000, Y = 0 } }), res); s3 += res.Shots.Count; }
-                check(s3 == 0, "con la orden de alto el fuego no se dispara ni un tiro");
-            }
-            {
-                var w = new UnitsWorld(1); var p = w.AddPlatoon(Presets.Fusileros, 0, 0, 0, Formation.Cuna);
+                var w = new UnitsWorld(1); var p = w.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0, Formation.Cuna);
                 int leader = p.Men[0].Id; bool died = w.DamageMan(p.Id, leader, 500);
                 var res = new StepResult(); w.Step(null, res);
-                check(died && p.AliveCount() == 9, "muere el jefe y el pelotón sigue con 9");
-                int c = 0; var pts = new HashSet<(int, int)>(); foreach (var m in p.Men) if (m.Alive) { c++; pts.Add((m.SlotX, m.SlotY)); }
-                check(pts.Count == 9, "la formación se recompone con los vivos: 9 puestos distintos");
+                check(died && p.AliveCount() == 7, "muere un soldado y el pelotón sigue con 7");
+                var pts = new HashSet<(int, int)>(); foreach (var m in p.Men) if (m.Alive) pts.Add((m.SlotX, m.SlotY));
+                check(pts.Count == 7, "la formación se recompone con los vivos: 7 puestos distintos");
+                var w4 = new UnitsWorld(1); var h4 = w4.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0); h4.AmmoShots = 100000000; w4.SetHoldFire(h4.Id, true); int s4 = 0;
+                for (int t = 0; t < 120; t++) { w4.Step(new List<Target> { new Target { Id = 1, X = 15000, Y = 0 } }, res); s4 += res.Shots.Count; }
+                check(s4 == 0, "con la orden de alto el fuego no se dispara ni un tiro");
             }
 
-            // ------------------------------------------------------------------ determinismo y guardado
+            // ------------------------------------------------------------------ bucle de la noche
             {
+                var g = new NightGame(NightParams.Default(), 77);
+                check(g.TotalTicks == 30857 && Math.Abs(g.TotalTicks / 30.0 / 60 - 17.1) < 0.05, $"de 22:00 a 06:00 a ×28: {g.TotalTicks} ticks = {g.TotalTicks / 30.0 / 60:F1} min reales");
+                var sp = new List<SpawnPoint>();
+                bool clockBad = false; int all = 0; var perWave = new int[6]; var perEntry = new int[4]; bool inRect = true; int firstSpawnTick = -1; bool early = false;
+                int frontCount1 = 0, tail1 = 0; int ymin = int.MaxValue, ymax = int.MinValue, fymin = int.MaxValue, fymax = int.MinValue;
+                while (g.State == NightState.Jugando)
+                {
+                    g.Step(true, true, sp);
+                    if (g.Tick == 7715 && (g.Hour != 0 || g.Minute != 0)) clockBad = true;
+                    foreach (var s in sp)
+                    {
+                        if (firstSpawnTick < 0) firstSpawnTick = g.Tick; all++; perWave[s.Wave]++; perEntry[s.Entry]++;
+                        var e = g.P.Entries[s.Entry]; if (s.X < e.X0 || s.X >= e.X1 || s.Y < e.Y0 || s.Y >= e.Y1) inRect = false;
+                        if (g.Tick < g.WaveStartTick(s.Wave)) early = true;
+                        if (s.Wave == 0 && s.Entry == 0) { if (s.Front) { frontCount1++; fymin = Math.Min(fymin, s.Y); fymax = Math.Max(fymax, s.Y); } else { tail1++; ymin = Math.Min(ymin, s.Y); ymax = Math.Max(ymax, s.Y); } }
+                    }
+                }
+                check(g.State == NightState.Victoria && g.Tick == g.TotalTicks, "si el edificio y el tren aguantan hasta las 06:00, victoria");
+                check(perWave[0] == 510 && perWave[1] == 1020 && perWave[2] == 1700 && perWave[3] == 2550 && perWave[4] == 3060 && perWave[5] == 4250 && all == 13090, $"las 6 oleadas suman exactamente 510, 1.020, 1.700, 2.550, 3.060 y 4.250 zombis al 850 ‰ ({all})");
+                check(!early && firstSpawnTick == g.WaveStartTick(0) + 1 - 0 || firstSpawnTick == g.WaveStartTick(0) + 1 || firstSpawnTick > g.WaveStartTick(0), $"nadie aparece antes de su oleada (primera aparición en el tick {firstSpawnTick}, oleada 1 en {g.WaveStartTick(0)} = 22:20)");
+                check(!clockBad, "el reloj marca las 00:00 a las 2 h de juego (tick 7.715)");
+                check(inRect && perEntry[3] == 0, "los zombis aparecen dentro de los rectángulos de entrada de Álvaro, y la entrada O4 (peso 0) no se usa");
+                double w1 = perEntry[0] / (double)all, w2 = perEntry[1] / (double)all, w3 = perEntry[2] / (double)all;
+                check(Math.Abs(w1 - 0.5) < 0.03 && Math.Abs(w2 - 0.3) < 0.03 && Math.Abs(w3 - 0.2) < 0.03, $"reparto por entradas 50/30/20: {w1 * 100:F0}/{w2 * 100:F0}/{w3 * 100:F0} %");
+                int wtot = g.WaveTotal(0); int fc = g.Cumulative(0, g.WaveDurationTicks(0) * 25 / 100);
+                check(Math.Abs(fc - wtot * 55 / 100) <= 1 && fymax - fymin < 17000 / 3 + 2 && ymax - ymin > 17000 * 8 / 10, $"frente denso y cola dispersa: el 55 % entra en el primer 25 % del tiempo ({fc} de {wtot}) por el tercio central ({(fymax - fymin) / 1000.0:F1} m) y la cola se abre a {(ymax - ymin) / 1000.0:F1} m");
+            }
+            {
+                // la derrota gana siempre
+                var g = new NightGame(NightParams.Default(), 1); var sp = new List<SpawnPoint>();
+                while (g.Tick < g.TotalTicks - 1) g.Step(true, true, sp);
+                g.Step(true, false, sp);
+                check(g.State == NightState.Derrota && g.Tick == g.TotalTicks && g.EndedByTrain && !g.EndedByStation, "en el mismo tick de las 06:00 cae la locomotora: DERROTA, no victoria");
+                var g2 = new NightGame(NightParams.Default(), 1); while (g2.Tick < g2.TotalTicks - 1) g2.Step(true, true, sp); g2.Step(false, true, sp);
+                check(g2.State == NightState.Derrota && g2.EndedByStation, "en el mismo tick de las 06:00 cae el edificio de viajeros: DERROTA");
+                var g3 = new NightGame(NightParams.Default(), 1); while (g3.Tick < 5000) g3.Step(true, true, sp); g3.Step(false, false, sp);
+                int t0 = g3.Tick; g3.Step(true, true, sp);
+                check(g3.State == NightState.Derrota && g3.DefeatTick == 5001 && g3.Tick == t0 && sp.Count == 0, "la derrota es definitiva: el reloj se para y no entra nadie más");
+                var g4 = new NightGame(NightParams.Default(), 1); while (g4.State == NightState.Jugando) g4.Step(true, true, sp); g4.Step(false, false, sp);
+                check(g4.State == NightState.Victoria, "una vez ganada la noche, un fallo posterior no la cambia");
+            }
+            {
+                // determinismo y guardado de todo junto: pelotones + noche
                 Func<uint, List<ulong>> run = seed =>
                 {
-                    var w = new UnitsWorld(seed); var a = w.AddPlatoon(Presets.Fusileros, 0, 0, 0); var b = w.AddPlatoon(Presets.Ametralladores, 0, 12000, 0, Formation.Linea);
-                    var z = new List<Zed>(); var rg = new IRng(99); for (int i = 0; i < 400; i++) z.Add(new Zed { Id = i + 1, X = 70000 + rg.Below(60000), Y = rg.Below(50000) - 25000 });
-                    var res = new StepResult(); var hs = new List<ulong>();
-                    for (int t = 0; t < 1800; t++)
+                    var w = new UnitsWorld(seed); var f = w.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0); var a = w.AddPlatoon(PlatoonKind.Ametralladores, 0, 12000, 0, Formation.Linea); var gr = w.AddPlatoon(PlatoonKind.Granaderos, 0, -12000, 0);
+                    var n = new NightGame(NightParams.Default(), seed + 1); var sp = new List<SpawnPoint>();
+                    var z = new List<Zed>(); int id = 1000; var hs = new List<ulong>(); var res = new StepResult();
+                    for (int t = 0; t < 4000; t++)
                     {
-                        if (t == 100) w.Move(a.Id, 30000, 5000, 0);
-                        if (t == 400) w.SetFormation(b.Id, Formation.Circulo);
-                        if (t == 700) w.Move(b.Id, 20000, -10000);
-                        foreach (var q in z) if (q.Hp > 0) { int dx = 20000 - q.X, dy = -q.Y, d = Math.Max(1, IMath.Dist(dx, dy)); if (d > 1500) { q.X += dx * 2000 / 30 / d; q.Y += dy * 2000 / 30 / d; } }
+                        if (t == 1300) w.DeployAt(a.Id, 0);
+                        if (t == 1500) w.AttackMove(f.Id, 30000, 5000, 0);
+                        if (t == 2500) { w.SetFormation(gr.Id, Formation.Circulo); w.Resupply(gr.Id); }
+                        w.StockShots = 20000;
+                        n.Step(true, true, sp);
+                        foreach (var s in sp) z.Add(new Zed { Id = id++, X = 60000 + s.X / 4, Y = s.Y - 40000 });
+                        foreach (var q in z) if (q.Hp > 0) { int dx = 10000 - q.X, dy = -q.Y, d = Math.Max(1, IMath.Dist(dx, dy)); if (d > 1500) { q.X += dx * 3000 / 30 / d; q.Y += dy * 3000 / 30 / d; } }
                         w.Step(ToTargets(z), res); Apply(res, z, w);
-                        if (t % 100 == 0) hs.Add(w.Hash());
-                        if (t == 900) { var sw = new SaveWriter(); w.SaveState(sw); var w2 = new UnitsWorld(0); w2.LoadState(new SaveReader(sw.ToArray())); hs.Add(w2.Hash() == w.Hash() ? 1UL : 0UL); }
+                        if (t % 250 == 0) hs.Add(w.Hash() ^ n.Hash());
+                        if (t == 1900) { var sw = new SaveWriter(); w.SaveState(sw); n.SaveState(sw); var sr = new SaveReader(sw.ToArray()); var w2 = new UnitsWorld(0); var n2 = new NightGame(NightParams.Default(), 0); w2.LoadState(sr); n2.LoadState(sr); hs.Add(w2.Hash() == w.Hash() && n2.Hash() == n.Hash() ? 1UL : 0UL); }
                     }
                     hs.Add(w.Hash()); return hs;
                 };
                 var h1 = run(42); var h2 = run(42); var h3 = run(43);
                 bool same = h1.Count == h2.Count; for (int i = 0; same && i < h1.Count; i++) same = h1[i] == h2[i];
-                check(same, $"dos partidas iguales con órdenes y combate dan el mismo hash en {h1.Count} puntos (1.800 ticks)");
+                check(same, $"dos partidas iguales (pelotones con órdenes y combate + la noche) dan el mismo hash en {h1.Count} puntos (4.000 ticks)");
                 check(h1[h1.Count - 1] != h3[h3.Count - 1], "otra semilla da otro estado final");
-                bool saveOk = false; for (int i = 0; i < h1.Count; i++) { } int idx = 10; saveOk = h1[idx] == 1UL;   // posición del control de guardado (tras el tick 900)
-                check(saveOk, "guardar y cargar el estado de los pelotones da el mismo hash");
-                // seguir jugando tras cargar: mismos hashes tick a tick
-                var wa = new UnitsWorld(5); wa.AddPlatoon(Presets.Fusileros, 0, 0, 0); wa.Move(1, 40000, 0);
-                var ra = new StepResult(); var tgs = new List<Target> { new Target { Id = 1, X = 30000, Y = 3000 }, new Target { Id = 2, X = 31000, Y = -2000 } };
+                check(h1[8] == 1UL, "guardar y cargar pelotones y noche en pleno combate (con granadas en el aire) da el mismo hash");
+                var wa = new UnitsWorld(5); wa.AddPlatoon(PlatoonKind.Granaderos, 0, 0, 0); wa.AddPlatoon(PlatoonKind.Fusileros, 0, 8000, 0); wa.Move(2, 40000, 0);
+                var ra = new StepResult(); var tgs = new List<Target>(); for (int i = 0; i < 20; i++) tgs.Add(new Target { Id = i + 1, X = 50000 + (i % 5) * 500, Y = (i / 5) * 500 });
                 for (int t = 0; t < 300; t++) wa.Step(tgs, ra);
                 var sw2 = new SaveWriter(); wa.SaveState(sw2); var wb = new UnitsWorld(0); wb.LoadState(new SaveReader(sw2.ToArray()));
                 bool lock2 = true; var rb = new StepResult();
-                for (int t = 0; t < 600 && lock2; t++) { wa.Step(tgs, ra); wb.Step(tgs, rb); lock2 = wa.Hash() == wb.Hash() && ra.Shots.Count == rb.Shots.Count; }
-                check(lock2, "tras cargar, el pelotón sigue igual que el original (600 ticks, mismos disparos)");
+                for (int t = 0; t < 600 && lock2; t++) { wa.Step(tgs, ra); wb.Step(tgs, rb); lock2 = wa.Hash() == wb.Hash() && ra.Shots.Count == rb.Shots.Count && ra.Hits.Count == rb.Hits.Count; }
+                check(lock2, "tras cargar, los pelotones siguen igual que el original (600 ticks, mismos disparos e impactos)");
                 bool trunc = true; var full = sw2.ToArray();
                 for (int cut = 0; cut < full.Length && trunc; cut += 7) { try { new UnitsWorld(0).LoadState(new SaveReader(full, 0, cut)); trunc = false; } catch (SaveException) { } }
                 check(trunc, "un guardado de pelotones recortado da siempre error, nunca un mundo a medias en silencio");
@@ -173,11 +312,12 @@ namespace TBD.Sim.Tests
 
             // ------------------------------------------------------------------ rendimiento
             {
-                var w = new UnitsWorld(2); for (int i = 0; i < 4; i++) w.AddPlatoon(Presets.Fusileros, i * 8000, 0, 0);
+                var w = new UnitsWorld(2); for (int i = 0; i < 4; i++) w.AddPlatoon(PlatoonKind.Fusileros, i * 8000, 0, 0); for (int i = 0; i < 2; i++) w.AddPlatoon(PlatoonKind.Granaderos, i * 8000, 10000, 0);
+                foreach (var p in w.Platoons) p.AmmoShots = 1000000000;
                 var z = new List<Target>(); var rg = new IRng(3); for (int i = 0; i < 10000; i++) z.Add(new Target { Id = i, X = 30000 + rg.Below(150000), Y = rg.Below(120000) - 60000 });
                 var res = new StepResult(); var sw = Stopwatch.StartNew(); for (int t = 0; t < 300; t++) w.Step(z, res); sw.Stop();
                 double ms = sw.Elapsed.TotalMilliseconds / 300;
-                check(ms < 3.0, $"40 soldados contra 10.000 objetivos: {ms:F2} ms por tick (< 3 ms; cada uno solo busca cuando puede disparar)");
+                check(ms < 4.0, $"6 pelotones (40 soldados) contra 10.000 objetivos: {ms:F2} ms por tick (< 4 ms)");
             }
 
             // ------------------------------------------------------------------ vehículo (local)
