@@ -787,7 +787,10 @@ def vista_pixelada(obj, ruta_png, vista="rts", res=128, ampliar=3, paleta=None, 
 
 # ---------------------------------------------------------------- legibilidad D-N57
 
-SUELOS_POR_DEFECTO = {"trinchera": "48403c", "llano_ocre": "845c28"}  # confirmado por Lucía el 6-nov (ocre de A7)
+SUELOS_POR_DEFECTO = {"trinchera": "48403c", "llano_ocre": "845c28",  # confirmado por Lucía el 6-nov (ocre de A7)
+                      # D-N61 (corrección de las 10:18): el fondo real de la trinchera va a L* 42-46; 48403c queda solo
+                      # en la franja de balasto bajo la vía. 6e6a5a (L* ~44) es un fondo de banco, no un color de paleta
+                      "fondo_trinchera": "6e6a5a"}
 
 
 def _hex_rgb(h):

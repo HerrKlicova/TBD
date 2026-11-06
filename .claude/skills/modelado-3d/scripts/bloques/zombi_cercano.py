@@ -26,6 +26,9 @@ COLORES = {
     "calzado": "1c200c",
     "roto": "1c200c",      # LOD0: roto de la camisa (sin rojos ni 4c1008, que se leería como sangre)
 }
+# LOD1 (Bruno, 6-nov 12:29): a 20 px la piel 48403c sale como píxeles grises sueltos que parecen ojos o hebillas; en el
+# LOD1 cara y manos van en el mismo escalón que la camisa. El LOD0 conserva la piel apagada de Lucía.
+COLORES_LOD1 = {"piel": COLORES["camisa"]}
 VALOR_PIEZAS = {}          # sin valor partido: todo oscuro
 # Legibilidad del zombi (Lucía): cuerpo medio contra el suelo, ΔL* >= 25 (no el 20 % más claro)
 LEGIBILIDAD = "cuerpo_medio"

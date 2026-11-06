@@ -12,7 +12,10 @@ Necesita bpy (módulo de Blender para Python); se ejecuta en la nube, sin tocar 
 import argparse, importlib, json, os, subprocess, sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-SUELOS = (("trinchera", (0x48, 0x40, 0x3c)), ("llano", (0x84, 0x5c, 0x28)))
+# Fondo de banco de la trinchera a L* ~44 (D-N61, corrección de Lucía de las 10:18: el fondo real va a L* 42-46; el
+# 48403c de L* 28 es solo la franja de balasto bajo la vía, que medir_legibilidad sigue midiendo como «trinchera»)
+SUELOS = (("trinchera", (0x6e, 0x6a, 0x5a)), ("llano", (0x84, 0x5c, 0x28)))
+CLAVE_SUELO = {"trinchera": "fondo_trinchera", "llano": "llano_ocre"}
 
 
 def generar(modulo, salida, lod, claro, costado, permitir, px):
@@ -89,7 +92,7 @@ def cuerpo_medio(salida):
             px_ = px_.reshape(-1, 3).astype(int)
             fig = px_[np.abs(px_ - np.array(hx)).sum(1) > 6]
             d = abs(float(_L(fig).mean()) - float(_L([hx])[0]))
-            clave = suelo if suelo in inf["legibilidad"] else "llano_ocre"
+            clave = CLAVE_SUELO[suelo]
             inf["legibilidad"].setdefault(clave, {}).update(dL_cuerpo_medio=round(d, 1), ok_cuerpo_medio=d >= 25)
         json.dump(inf, open(ri, "w", encoding="utf-8"), ensure_ascii=False, indent=1, default=str)
         print("lod%d cuerpo medio:" % lod, {k: v.get("dL_cuerpo_medio") for k, v in inf["legibilidad"].items()})
