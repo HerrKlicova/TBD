@@ -14,41 +14,45 @@ from pixelvm import PAL, Sprite, check, contact_sheet  # noqa: E402
 
 OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "out_a8")
 F, W, H = 8, 64, 64
-N = 11                      # bocanadas vivas a la vez
+N = 4                      # bocanadas vivas a la vez: una nueva cada 2 fotogramas
 BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]
-# Del escape (denso, oscuro) al humo frío (claro y ralo).
-TONOS = ["olive_shadow", "grey_brown", "olive_grey", "concrete", "concrete_light"]
-LUZ = {"olive_shadow": "grey_brown", "grey_brown": "olive_grey", "olive_grey": "concrete",
-       "concrete": "concrete_light", "concrete_light": "grey_light"}
+# Del escape (carbón, denso) al humo frío (claro y ralo). Revisión de Lucía 6-nov: base carbón, no oliva.
+TONOS = ["slate_dark", "slate", "concrete", "concrete_light"]
+LUZ = {"slate_dark": "slate", "slate": "concrete", "concrete": "concrete_light",
+       "concrete_light": "grey_light"}
+ESCAPE = (46, 58)          # chimenea abajo a la derecha; el tren avanza a la derecha
 
 
-def _blob(s, cx, cy, r, tono, densidad, solo_vacio=False):
+def _blob(s, cx, cy, r, tono, densidad):
     for j in range(int(cy - r) - 1, int(cy + r) + 2):
         for i in range(int(cx - r) - 1, int(cx + r) + 2):
             d = math.hypot(i + .5 - cx, (j + .5 - cy) * 1.1)
             if d > r:
                 continue
             borde = 1 - d / r
-            if BAYER[j % 4][i % 4] / 16 >= densidad * min(1, borde * 4 + 0.5):
+            if BAYER[j % 4][i % 4] / 16 >= densidad * min(1, borde * 5 + 0.4):
                 continue
-            # Luz desde arriba a la izquierda: media luna clara (círculo desplazado), no un corte recto.
             dl = math.hypot(i + .5 - (cx - r * 0.35), (j + .5 - (cy - r * 0.4)) * 1.1)
-            s.set(i, j, LUZ[tono] if dl < r * 0.62 else tono, "empty" if solo_vacio else None)
+            s.set(i, j, LUZ[tono] if dl < r * 0.6 else tono)
 
 
 def bocanada(s, age, semilla):
-    # Sube, se abre y deriva a la derecha (viento por la marcha del tren).
-    x0, y0 = 18, 60
-    rise = 46 * (1 - (1 - age) ** 1.5)
-    cx = x0 + 22 * age ** 1.4
+    """Nace pequeña y densa en el escape, sube, se abre, se queda atrás (izquierda)
+    por el avance del tren y al final se deshace en lóbulos sueltos."""
+    x0, y0 = ESCAPE
+    rise = 44 * (1 - (1 - age) ** 1.7)
+    cx = x0 - 30 * age ** 1.25
     cy = y0 - rise
-    r = 2.5 + 7.5 * age ** 0.75
-    tono = TONOS[min(len(TONOS) - 1, int(age ** 0.8 * len(TONOS)))]
-    densidad = 1.0 if age < 0.6 else max(0.0, 1 - (age - 0.6) / 0.4)
-    # Cada bocanada son 3 lóbulos que giran despacio: forma de coliflor, no de bola.
-    for n in range(3):
-        ang = semilla * 1.7 + n * 2.1 + age * 2.5
-        _blob(s, cx + math.cos(ang) * r * 0.45, cy + math.sin(ang) * r * 0.35, r * 0.72, tono, densidad)
+    r = 2 + 9 * age ** 0.7
+    tono = TONOS[min(len(TONOS) - 1, int(age * len(TONOS)))]
+    densidad = 1.0 if age < 0.5 else max(0.0, 1 - (age - 0.5) / 0.5) ** 0.8
+    # Lóbulos: juntos al nacer, se separan al envejecer (la bocanada se rompe).
+    nl = 1 if age < 0.12 else 4
+    sep = 0.25 + 0.9 * age
+    for n in range(nl):
+        ang = semilla * 1.9 + n * (2 * math.pi / nl) + age * 1.5
+        _blob(s, cx + math.cos(ang) * r * sep * 0.6, cy + math.sin(ang) * r * sep * 0.45,
+              r * (0.75 - 0.15 * age), tono, densidad)
 
 
 def fotograma(f):
