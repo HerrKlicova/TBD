@@ -89,7 +89,7 @@ namespace TBD.Sim.Tests
                     }
                 }
                 foreach (var e in wd.Intel) if (e.Id != "TR-1" && e.Id != "TR-5") events.Add(NetConst.Clock(e.Tick) + " d" + (e.Tick / NetConst.DayTicks + 1) + " " + e.Id);
-                check(wd.Field.Mass() + (wd.ActiveZoneNode >= 0 ? wd.ActiveZoneTaken : 0) == mass0 + wd.InjectedTotal - wd.LostTotal, $"masa(t) = masa(0) + inyectada − bajas, exacto en enteros, en 6 días ({mass0} + {wd.InjectedTotal} − {wd.LostTotal} = {wd.Field.Mass()})");
+                check(wd.Field.Mass() + (wd.ActiveZoneNode >= 0 ? wd.ActiveZoneTaken : 0) == mass0 + wd.InjectedTotal - wd.LostTotal - wd.RetiredTotal, $"masa(t) = masa(0) + inyectada − bajas − retirados, exacto en enteros, en 6 días ({mass0} + {wd.InjectedTotal} − {wd.LostTotal} − {wd.RetiredTotal} = {wd.Field.Mass()})");
                 check(wd.InjectedTotal > 0, "el director inyecta el presupuesto como masa nueva (D-N33, Mak)");
                 check(!siegeDay1, "el director no asedia el día 1 (D-N08)");
                 check(siegeLater, "desde el día 2 el director lanza asedios (como mucho uno a la vez en la etapa 1)");
@@ -122,7 +122,7 @@ namespace TBD.Sim.Tests
                     && dc.AmbushPerMem == dd.AmbushPerMem && dc.CutPerMem == dd.CutPerMem && dc.MaxSiegesStage1 == dd.MaxSiegesStage1
                     && dc.PointUniqueMil == dd.PointUniqueMil && dc.AttentionMil == dd.AttentionMil && dc.RespiteMinH == dd.RespiteMinH && dc.RespiteMaxH == dd.RespiteMaxH,
                     $"balance_colmena.csv (D-N33/34) coincide con el director: curva ×{dc.BudgetCurveMil}‰, asedio {dc.SiegeShareMil}‰ y {dc.SiegeDays} días, respiro {dc.RespiteMinH}-{dc.RespiteMaxH} h");
-                Console.WriteLine($"         presupuesto por hora (‰ de densidad): día 1 {HiveDirector.HourlyBudgetPermil(0, null, 1360)}, día 2 {HiveDirector.HourlyBudgetPermil(1, null, 1360)}, día 3 {HiveDirector.HourlyBudgetPermil(2, null, 1360)}, día 20 {HiveDirector.HourlyBudgetPermil(19, null, 1360)}");
+                Console.WriteLine($"         presupuesto del día (zombis, sin ruido de semilla): día 0 {NetScenario.Mvp().Director.DayZombies(0, 2000)}, día 1 {NetScenario.Mvp().Director.DayZombies(1, 2000)}, día 10 {NetScenario.Mvp().Director.DayZombies(10, 5000)}");
             }
 
             // ---- D-N33/D-N34: asedio por calendario (siempre uno desde el primero, salvo el respiro de 6-12 h), objetivo sorteado por peso²
@@ -153,7 +153,7 @@ namespace TBD.Sim.Tests
                 check(maxAt == 1 && starts.Count >= 6, $"desde el día 2 hay asedio por calendario, uno a la vez en la etapa 1 ({starts.Count} asedios en 20 días)");
                 check(gapsOk && ends.Count > 0, $"entre asedios, un respiro de 6-12 h más el aviso de 3 h (huecos: {gaps.Trim()})");
                 check(targets.Count >= 2, $"el objetivo se sortea por peso² y no es siempre el mismo ({string.Join(", ", tl)})");
-                check(wc.Field.Mass() == NetScenario.Mvp().Field.Mass() + wc.InjectedTotal - wc.LostTotal, $"el reparto por peso (deriva) solo mueve masa: lo único que entra es lo inyectado ({wc.InjectedTotal}) en 20 días");
+                check(wc.Field.Mass() == NetScenario.Mvp().Field.Mass() + wc.InjectedTotal - wc.LostTotal - wc.RetiredTotal, $"el reparto por peso (deriva) solo mueve masa: entra lo inyectado ({wc.InjectedTotal}) y sale lo retirado ({wc.RetiredTotal}) en 20 días");
             }
 
             // ---- D-N33 (Mak): reparto de objetivos con 200 semillas, jugador quieto en Sagunto y sin atención, a ±8 puntos del modelo de Hugo
@@ -226,6 +226,67 @@ namespace TBD.Sim.Tests
                 }
                 check(count > 0 && edgeOnly && notTarget && awayFromPlayer, $"lo inyectado solo cae en celdas del borde, lejos del objetivo y de los nodos del jugador ({count} inyecciones, {sum} por mil en 4 días)");
                 check(sum == wi.InjectedTotal, "el contador por tick de lo inyectado suma lo mismo que el total del mundo");
+            }
+
+            // ---- D-N36 (Mak, 4): los zombis sin combatir vuelven a los nidos: la masa sobre la inicial nunca supera lo inyectado en los últimos 6 días
+            {
+                var wr = NetScenario.Mvp();
+                long baseMass = wr.Field.Mass();
+                var perDay = new long[21];
+                bool capOk = true; long worst = 0; long retiredSeen = 0; bool tickCounters = true;
+                for (int day = 0; day < 20; day++)
+                {
+                    long before = wr.InjectedTotal;
+                    for (long t = 0; t < NetConst.DayTicks; t++)
+                    {
+                        wr.Step();
+                        retiredSeen += wr.RetiredThisTick;
+                    }
+                    perDay[day] = wr.InjectedTotal - before;
+                    long last6 = 0; for (int k = Math.Max(0, day - 5); k <= day; k++) last6 += perDay[k];
+                    long extra = wr.Field.Mass() + (wr.ActiveZoneNode >= 0 ? wr.ActiveZoneTaken : 0) - baseMass;
+                    if (extra > last6) { capOk = false; worst = Math.Max(worst, extra - last6); }
+                }
+                check(capOk, $"la masa nueva en el campo no supera lo inyectado en los últimos 6 días (peor exceso: {worst} por mil)");
+                check(retiredSeen == wr.RetiredTotal && wr.RetiredTotal > 0, $"el contador de retirados por tick suma el total ({wr.RetiredTotal} por mil retirados en 20 días)");
+            }
+
+            // ---- mediana de varias semillas contra la referencia de Hugo (solo con TBD_SEEDS=n, tarda: n × 20 días de simulación)
+            {
+                string ns = Environment.GetEnvironmentVariable("TBD_SEEDS");
+                string dump2 = Environment.GetEnvironmentVariable("TBD_DUMP_DIR");
+                if (!string.IsNullOrEmpty(ns))
+                {
+                    int seeds = int.Parse(ns);
+                    var per = new System.Collections.Generic.List<long>[20];
+                    for (int dd2 = 0; dd2 < 20; dd2++) per[dd2] = new System.Collections.Generic.List<long>();
+                    for (int sd = 0; sd < seeds; sd++)
+                    {
+                        var wsd = NetScenario.Mvp();
+                        wsd.Director.Seed = (ulong)(sd + 1) * 0x9E3779B97F4A7C15UL;
+                        long prevS = 0;
+                        for (int dd2 = 0; dd2 < 20; dd2++)
+                        {
+                            for (long t = 0; t < NetConst.DayTicks; t++) wsd.Step();
+                            per[dd2].Add((wsd.Director.SiegeMovedTotal - prevS) * NetWorld.ZombiesPerPermil);
+                            prevS = wsd.Director.SiegeMovedTotal;
+                        }
+                    }
+                    var csv = new System.Text.StringBuilder("dia;zombis_asedio_mediana;p10;p90\n");
+                    var refTab = new CsvTable(File.ReadAllText(Path.Combine(dump2 ?? ".", "referencia_asedios_d1_20.csv")));
+                    int within = 0, counted = 0; string det = "";
+                    for (int dd2 = 0; dd2 < 20; dd2++)
+                    {
+                        per[dd2].Sort();
+                        long med = per[dd2][per[dd2].Count / 2], p10 = per[dd2][per[dd2].Count / 10], p90 = per[dd2][Math.Min(per[dd2].Count - 1, per[dd2].Count * 9 / 10)];
+                        csv.Append(dd2).Append(';').Append(med).Append(';').Append(p10).Append(';').Append(p90).Append('\n');
+                        long hug = CsvTable.Int(refTab.Rows[dd2][refTab.Col("golpean_asedios_mediana")]);
+                        if (dd2 >= 2 && hug > 0) { counted++; if (Math.Abs(med - hug) * 100 <= hug * 25) within++; det += $"d{dd2}:{med}/{hug} "; }
+                    }
+                    if (!string.IsNullOrEmpty(dump2)) File.WriteAllText(Path.Combine(dump2, "director_mediana_semillas.csv"), csv.ToString());
+                    Console.WriteLine($"         mediana de {seeds} semillas (mía/Hugo): {det.Trim()}");
+                    check(counted > 0, $"mediana de {seeds} semillas: {within} de {counted} días dentro de ±25 % de la referencia de Hugo");
+                }
             }
 
             // ---- medición para Hugo: zombis que mueve el director cada día (asedio, deriva, emboscada), días 1-20, a un CSV si TBD_DUMP_DIR existe

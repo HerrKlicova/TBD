@@ -200,9 +200,10 @@ namespace TBD.Net
 
         // ---- zona en detalle (hito 3, D-N05): 1 por mil de densidad = 10 zombis
         public const int ZombiesPerPermil = 10;
-        public long InjectedTotal, LostTotal;
+        public long InjectedTotal, LostTotal, RetiredTotal;
         public readonly List<Injection> Injections = new List<Injection>();   // lo inyectado en ESTE tick (celda y cantidad), para QA (Sara); no entra en el hash
-        public long LostThisTick;       // masa(t) = masa(t-1) + inyectada − bajas, exacto en enteros (D-N33, Mak)
+        public long LostThisTick, RetiredThisTick;
+        public readonly List<Injection> Retirements = new List<Injection>();   // lo retirado en ESTE tick (celda y cantidad), para QA       // masa(t) = masa(t-1) + inyectada − bajas, exacto en enteros (D-N33, Mak)
         public int ActiveZoneNode = -1;             // nodo con zona materializada (-1 = ninguna; el MVP admite una)
         public int ActiveZoneTaken;                 // densidad (por mil) que salió de la mancha al materializar
         public long ActiveZoneSinceTick = -1;
@@ -226,6 +227,8 @@ namespace TBD.Net
             Traffic = new TrafficMemory(g.Edges.Count, BalanceSource.Traffic());
             Director.P = BalanceSource.Director();
             Director.Curve = BalanceSource.Curve();
+            Director.Season = BalanceSource.Table("colmena_estacion.csv");
+            Director.Noise = BalanceSource.Table("colmena_ruido.csv");
         }
 
         public static ulong Mix(ulong h)
@@ -351,7 +354,7 @@ namespace TBD.Net
         // ---------------------------------------------------------------- un tick
         public void Step()
         {
-            Injections.Clear(); LostThisTick = 0;
+            Injections.Clear(); Retirements.Clear(); LostThisTick = 0; RetiredThisTick = 0;
             ApplyCommands();                 // en cada tick, no al ritmo de los fotogramas (QA Q5)
             if (Paused) return;
             for (int s = 0; s < Services.Count; s++) StepService(Services[s]);

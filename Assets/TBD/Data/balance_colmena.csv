@@ -1,5 +1,5 @@
 clave;valor;escala;nota
-H0_zombis_dia;1600;1;presupuesto diario del director el día 0
+H0_zombis_dia;1550;1;presupuesto diario del director el día 0
 tau_dias;20;1;curva H = H0·(1+d/τ)^α·raiz(1+k·huella)
 alfa;1550;1000;usar la tabla colmena_curva.csv
 k_huella;160;1000;raíz con isqrt sobre milésimas
@@ -7,9 +7,11 @@ huella_por_persona;10;1000;
 huella_por_tren;500;1000;
 huella_por_nodo;400;1000;
 huella_por_obra;1500;1000;
-rampa_dia0;150;1000;sondeos (D-N08)
-rampa_dia1;500;1000;
-rampa_dia2;800;1000;primer asedio anunciado
+rampa_dia0;150;1000;sondeos (D-N08), índice de día, 0 = primer día
+rampa_dia1;350;1000;D-N36: primer asedio (2.º día de juego, D-N32)
+rampa_dia2;650;1000;
+rampa_dia3;850;1000;D-N36, desde el índice 4, 1000
+dia_primer_asedio;1;1;D-N36: índice de día, también desde aquí el presupuesto x1,36
 exposicion_interior;1400;1000;
 sigma_ataque;300;1000;ruido lognormal, semilla del lockstep
 asedio_fraccion_H;600;1000;D-N33: parte del presupuesto del director para los asedios activos, el resto, a los demás nodos por peso

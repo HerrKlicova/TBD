@@ -115,6 +115,17 @@ namespace TBD.Net
             return curve;
         }
 
+        /// <summary>Tabla «índice;valor» (colmena_estacion.csv: 30 filas por día mod 30; colmena_ruido.csv: 64 cuantiles ×1000). Null si no hay archivo.</summary>
+        public static long[] Table(string file)
+        {
+            var t = Read(file);
+            if (t == null) return null;
+            var table = new CsvTable(t);
+            var v = new long[table.Rows.Count];
+            foreach (var r in table.Rows) { int i = (int)CsvTable.Int(r[0]); if (i >= 0 && i < v.Length) v[i] = CsvTable.Int(r[1]); }
+            return v;
+        }
+
         public static TBD.Sim.CombatParams Combat()
         {
             var t = Read("balance_combate.csv");
