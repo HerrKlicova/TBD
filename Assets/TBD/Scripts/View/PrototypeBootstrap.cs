@@ -374,7 +374,7 @@ namespace TBD.View
             if (kb.escapeKey.wasPressedThisFrame) { _buildMode = false; _hasWallStart = false; _wallPts.Clear(); }
             if (_zoneNode >= 0 && !_ambush)
             {
-                if (kb.hKey.wasPressedThisFrame) _workKind = _workKind == PieceKind.Sacos ? PieceKind.Hesco : PieceKind.Sacos;     // sacos <-> HESCO
+                if (kb.hKey.wasPressedThisFrame) { _workKind = NextKind(_workKind); _wallPts.Clear(); _hasWallStart = false; }       // sacos, HESCO, puerta, nido, foco
                 if (kb.nKey.wasPressedThisFrame)                                                                                       // asignar obreros / quitarlos
                     NetSession.Push(NetCmdType.AssignWorkers, _zoneNode, 0, NetSession.A.Works.Workers[_zoneNode] > 0 ? 0 : 8);
                 if (kb.enterKey.wasPressedThisFrame && _buildMode) FinishWall();
@@ -1036,6 +1036,7 @@ namespace TBD.View
         {
             foreach (var l in _floodLights) l.intensity = intensity;
             foreach (var l in _cohesionLights) l.intensity = intensity > 0f ? 90f : 0f;
+            foreach (var rm in _rimMats) { rm.EnableKeyword("_EMISSION"); rm.SetColor("_EmissionColor", intensity > 40f ? HexColor("404460") * 0.6f : Color.black); }
             foreach (var h in _halos) h.gameObject.SetActive(intensity > 0f);
         }
 
@@ -1111,7 +1112,14 @@ namespace TBD.View
             AddQuad(bank, new Vector3(x0, 0f, 0f), new Vector3(x0, 0f, ys), new Vector3(x0, hp, 0f), new Vector3(x0, hp, ys));
             AddQuad(bank, new Vector3(x1, 0f, ys), new Vector3(x1, 0f, 0f), new Vector3(x1, hp, ys), new Vector3(x1, hp, 0f));
             // fondo: el valor más oscuro de la escena (balasto #48403c); el tren se lee contra él
-            Box("Fondo de la trinchera", new Vector3((x0 + x1) * 0.5f, 0.02f, Level.TrackY), new Vector3(x1 - x0, 0.04f, CuttingLevel.HalfBottom * 2f), Mat("48403c"));
+            var floor = Box("Fondo de la trinchera", new Vector3((x0 + x1) * 0.5f, 0.02f, Level.TrackY), new Vector3(x1 - x0, 0.04f, CuttingLevel.HalfBottom * 2f), Mat("48403c"));
+            var tb = Resources.Load<Texture2D>("Icons/texturas/tex_balasto_64");        // balasto de Bruno, tileable (regla 13): una repetición cada 4 m
+            if (tb != null)
+            {
+                var fm = floor.GetComponent<MeshRenderer>().material;
+                fm.SetTexture("_BaseMap", tb); fm.SetColor("_BaseColor", Color.white);
+                fm.SetTextureScale("_BaseMap", new Vector2((x1 - x0) / 4f, CuttingLevel.HalfBottom * 2f / 4f));
+            }
             // oclusión ambiental falsa: una banda más oscura al pie de cada talud (20-30 % según la profundidad)
             Box("Sombra del pie norte", new Vector3((x0 + x1) * 0.5f, 0.03f, yb + 1f), new Vector3(x1 - x0, 0.03f, 2f), Mat("342e2a"));
             Box("Sombra del pie sur", new Vector3((x0 + x1) * 0.5f, 0.03f, ys - 1f), new Vector3(x1 - x0, 0.03f, 2f), Mat("342e2a"));
@@ -1158,27 +1166,35 @@ namespace TBD.View
                 g.GetComponent<MeshRenderer>().sharedMaterial = m; return g;
             }
             var olive = M("50541c"); var bone = M("d4d0cc"); var ochre = M("b4a080"); var beige = M("d8c8a8"); var steel = M("6c7874"); var dark = M("2c2820");
+            var oliveLight = M("88885c"); var beigeTop = M("b4a080"); var black = M("000000");
+            // D-N57 (Lucía): valor partido. Costados en olive_dark, caras de arriba claras (beige en techos, olive_light en cascos y hombros) y
+            // contorno negro de 1 px; solo las unidades propias llevan un rim frío (#404460) de noche. Los zombis, no.
+            void Outline(GameObject g) { var o = Prim(PrimitiveType.Cube, g.name + " contorno", g.transform.position, g.transform.localScale + new Vector3(0.18f, -0.05f, 0.18f), black); o.GetComponent<MeshFilter>().sharedMesh = g.GetComponent<MeshFilter>().sharedMesh; o.transform.rotation = g.transform.rotation; }
+            void Rim(GameObject g) { _rimMats.Add(g.GetComponent<MeshRenderer>().material); }
             var amber = M("e08c30"); var zomb = M("78805c");
             var pts = new System.Collections.Generic.List<(string name, Vector3 pos)>();
             // soldado: cuerpo oliva, casco y detalle de hueso
             Vector3 ps = new Vector3(x0, 0f, zc + 1f);
-            Prim(PrimitiveType.Capsule, "Soldado", ps + Vector3.up * 0.9f, new Vector3(0.5f, 0.9f, 0.5f), olive);
-            Prim(PrimitiveType.Cube, "Soldado casco", ps + Vector3.up * 1.85f, new Vector3(0.45f, 0.25f, 0.45f), steel);
+            var sold = Prim(PrimitiveType.Capsule, "Soldado", ps + Vector3.up * 0.9f, new Vector3(0.5f, 0.9f, 0.5f), olive); Outline(sold); Rim(sold);
+            Prim(PrimitiveType.Cube, "Soldado hombros", ps + Vector3.up * 1.6f, new Vector3(0.9f, 0.16f, 0.7f), oliveLight);
+            Prim(PrimitiveType.Cube, "Soldado casco", ps + Vector3.up * 1.9f, new Vector3(0.6f, 0.3f, 0.6f), oliveLight);
             Prim(PrimitiveType.Cube, "Soldado correaje", ps + Vector3.up * 1.0f + Vector3.forward * 0.26f, new Vector3(0.3f, 0.5f, 0.05f), bone);
             pts.Add(("soldado", ps + Vector3.up * 0.9f));
             // civil: ocre con detalle beige
             Vector3 pc = new Vector3(x0 + 3f, 0f, zc + 1f);
-            Prim(PrimitiveType.Capsule, "Civil", pc + Vector3.up * 0.85f, new Vector3(0.5f, 0.85f, 0.5f), ochre);
-            Prim(PrimitiveType.Sphere, "Civil cabeza", pc + Vector3.up * 1.8f, new Vector3(0.38f, 0.38f, 0.38f), beige);
+            var civ = Prim(PrimitiveType.Capsule, "Civil", pc + Vector3.up * 0.85f, new Vector3(0.5f, 0.85f, 0.5f), ochre); Outline(civ);
+            Prim(PrimitiveType.Cube, "Civil hombros", pc + Vector3.up * 1.62f, new Vector3(0.9f, 0.16f, 0.7f), beigeTop); Prim(PrimitiveType.Sphere, "Civil cabeza", pc + Vector3.up * 1.85f, new Vector3(0.5f, 0.5f, 0.5f), bone);
             pts.Add(("civil", pc + Vector3.up * 0.85f));
             // zombi: el verde grisáceo de la horda
             Vector3 pz = new Vector3(x0 + 6f, 0f, zc + 1f);
-            Prim(PrimitiveType.Capsule, "Zombi", pz + Vector3.up * 0.9f, new Vector3(0.5f, 0.9f, 0.5f), zomb);
+            var zom = Prim(PrimitiveType.Capsule, "Zombi", pz + Vector3.up * 0.9f, new Vector3(0.5f, 0.9f, 0.5f), zomb); Outline(zom); Prim(PrimitiveType.Cube, "Zombi hombros", pz + Vector3.up * 1.65f, new Vector3(0.8f, 0.14f, 0.6f), M("98a078"));
             pts.Add(("zombi", pz + Vector3.up * 0.9f));
             // blindado 8×8: casco oliva, torreta y cuatro ruedas
             Vector3 pb = new Vector3(x0 + 11f, 0f, zc + 1f);
-            Prim(PrimitiveType.Cube, "Blindado casco", pb + Vector3.up * 1.2f, new Vector3(6.2f, 1.6f, 2.6f), olive);
-            Prim(PrimitiveType.Cube, "Blindado torreta", pb + Vector3.up * 2.4f + Vector3.left * 0.4f, new Vector3(2.4f, 0.9f, 1.8f), olive);
+            var bl = Prim(PrimitiveType.Cube, "Blindado casco", pb + Vector3.up * 1.2f, new Vector3(6.2f, 1.6f, 2.6f), olive); Outline(bl); Rim(bl);
+            Prim(PrimitiveType.Cube, "Blindado techo", pb + Vector3.up * 2.04f, new Vector3(6.0f, 0.08f, 2.4f), beigeTop);
+            var tor = Prim(PrimitiveType.Cube, "Blindado torreta", pb + Vector3.up * 2.4f + Vector3.left * 0.4f, new Vector3(2.4f, 0.9f, 1.8f), olive); Outline(tor);
+            Prim(PrimitiveType.Cube, "Blindado techo torreta", pb + Vector3.up * 2.88f + Vector3.left * 0.4f, new Vector3(2.2f, 0.07f, 1.6f), beigeTop);
             Prim(PrimitiveType.Cylinder, "Blindado cañón", pb + Vector3.up * 2.4f + Vector3.right * 1.9f, new Vector3(0.25f, 1.1f, 0.25f), dark, Quaternion.Euler(0f, 0f, 90f));
             for (int i = 0; i < 4; i++)
                 Prim(PrimitiveType.Cylinder, "Rueda", pb + new Vector3(-2.2f + i * 1.45f, 0.55f, i < 2 || true ? 1.4f : -1.4f), new Vector3(1.1f, 0.15f, 1.1f), dark, Quaternion.Euler(90f, 0f, 0f));
@@ -1187,7 +1203,7 @@ namespace TBD.View
             pts.Add(("blindado", pb + Vector3.up * 1.6f));
             // HESCO: tres módulos de gavión de 2,1 m
             Vector3 ph = new Vector3(x0 + 20f, 0f, zc + 1f);
-            for (int i = 0; i < 3; i++) Prim(PrimitiveType.Cube, "HESCO", ph + new Vector3(i * 1.25f, 1.05f, 0f), new Vector3(1.2f, 2.1f, 1.2f), M("a89c78"));
+            for (int i = 0; i < 3; i++) { var hs = Prim(PrimitiveType.Cube, "HESCO", ph + new Vector3(i * 1.25f, 1.05f, 0f), new Vector3(1.2f, 2.1f, 1.2f), olive); Outline(hs); Prim(PrimitiveType.Cube, "HESCO relleno", ph + new Vector3(i * 1.25f, 2.12f, 0f), new Vector3(1.1f, 0.06f, 1.1f), beigeTop); }
             pts.Add(("hesco", ph + Vector3.up * 1.05f));
             // foco: poste y charco de luz
             Vector3 pf = new Vector3(x0 + 28f, 0f, zc + 1f);
@@ -1222,6 +1238,8 @@ namespace TBD.View
             Directory.CreateDirectory(CaptureRoot);
             File.WriteAllText(Path.Combine(CaptureRoot, "cohesion_pos.json"), sb.ToString());
         }
+
+        readonly System.Collections.Generic.List<Material> _rimMats = new System.Collections.Generic.List<Material>();
 
         readonly System.Collections.Generic.List<Light> _cohesionLights = new System.Collections.Generic.List<Light>();
 
@@ -1303,6 +1321,18 @@ namespace TBD.View
         float _workTimer;
         string _workMsg = "";
 
+        static bool IsPoint(PieceKind k) { return k == PieceKind.Puerta || k == PieceKind.Nido || k == PieceKind.Foco; }
+
+        static PieceKind NextKind(PieceKind k)
+        {
+            return k == PieceKind.Sacos ? PieceKind.Hesco : k == PieceKind.Hesco ? PieceKind.Puerta : k == PieceKind.Puerta ? PieceKind.Nido : k == PieceKind.Nido ? PieceKind.Foco : PieceKind.Sacos;
+        }
+
+        static string KindName(PieceKind k)
+        {
+            return k == PieceKind.Sacos ? "muro de sacos" : k == PieceKind.Hesco ? "muro HESCO" : k == PieceKind.Puerta ? "puerta" : k == PieceKind.Nido ? "nido de ametralladora" : k == PieceKind.Foco ? "foco" : k.ToString();
+        }
+
         static int ToLocalMm(float v, bool z = false) { return (int)Mathf.Round((v - (z ? WorkOrigin.y : WorkOrigin.x)) * 1000f); }
 
         void FinishWall()
@@ -1324,7 +1354,32 @@ namespace TBD.View
             for (int i = 0; i < pieces.Count; i++)
             {
                 var w = pieces[i];
-                if (!w.IsWall) continue;                                              // las piezas puntuales se dibujan en un paso posterior
+                if (!w.IsWall)
+                {
+                    if (!IsPoint(w.Kind)) continue;                                   // depósito y andén: sin dibujo aún
+                    if (w.Built && !_workBuilt[i])
+                    {
+                        if (_workVisuals[i] != null) Destroy(_workVisuals[i]);
+                        var c = new Vector3(WorkOrigin.x + w.X0 / 1000f, 0f, WorkOrigin.y + w.Y0 / 1000f);
+                        _workVisuals[i] = PieceSprite(w.Kind, c, 1f);
+                        if (w.Kind == PieceKind.Puerta || w.Kind == PieceKind.Nido)   // bloquean a la horda: un tramo corto de muro
+                        {
+                            float half = w.Kind == PieceKind.Puerta ? 1.2f : 0.8f;
+                            Push(CmdType.BuildWall, Obras.HeightMm(w.Kind), new Unity.Mathematics.float2(c.x - half, c.z), new Unity.Mathematics.float2(c.x + half, c.z));
+                        }
+                        else if (w.Kind == PieceKind.Foco)                            // el foco ilumina de noche
+                        {
+                            var lg = new GameObject("Foco de obra"); lg.transform.SetParent(_workVisuals[i].transform, false); lg.transform.localPosition = new Vector3(0f, 3f, 0f);
+                            lg.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+                            var l = lg.AddComponent<Light>(); l.type = LightType.Spot; l.color = HexColor("ffc850"); l.range = 25f; l.spotAngle = 90f; l.innerSpotAngle = 50f;
+                            l.intensity = _gradeIndex == 2 ? 90f : 0f; l.shadows = LightShadows.None; _cohesionLights.Add(l);
+                        }
+                        _workBuilt[i] = true;
+                    }
+                    else if (!w.Built && _workVisuals[i] == null)
+                        _workVisuals[i] = PieceSprite(w.Kind, new Vector3(WorkOrigin.x + w.X0 / 1000f, 0f, WorkOrigin.y + w.Y0 / 1000f), 0.5f);   // fantasma: la mitad de tamaño
+                    continue;
+                }
                 if (w.Built && !_workBuilt[i])
                 {
                     if (_workVisuals[i] != null) Destroy(_workVisuals[i]);
@@ -1344,6 +1399,23 @@ namespace TBD.View
             }
         }
 
+        /// <summary>Sprite de Bruno (puerta, nido, foco; 32 px, vista cenital, miran a +Y) tumbado sobre el suelo, con filtro de punto.</summary>
+        GameObject PieceSprite(PieceKind k, Vector3 pos, float scale)
+        {
+            string n = k == PieceKind.Puerta ? "puerta" : k == PieceKind.Nido ? "nido" : "foco";
+            var tex = Resources.Load<Texture2D>("Icons/prototipo/vm_mundo_" + n + "_32");
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad); go.name = "Pieza " + n; Destroy(go.GetComponent<Collider>());
+            go.transform.SetParent(transform, false);
+            go.transform.position = pos + Vector3.up * 0.06f;
+            go.transform.rotation = Quaternion.Euler(90f, 0f, 0f);                // el arriba del sprite (+Y) apunta a +Z del mundo
+            go.transform.localScale = new Vector3(3f * scale, 3f * scale, 1f);
+            var m = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            if (tex != null) m.SetTexture("_BaseMap", tex);
+            m.SetFloat("_Surface", 0f); m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON");
+            go.GetComponent<MeshRenderer>().sharedMaterial = m;
+            return go;
+        }
+
         /// <summary>Texto de la obra para la pantalla: coste en directo del muro que se traza, obreros y avance.</summary>
         string WorkHud()
         {
@@ -1351,11 +1423,12 @@ namespace TBD.View
             var net = NetSession.A;
             var sb = new System.Text.StringBuilder();
             int stock = net.Stock[_zoneNode, (int)Res.Materiales];
-            sb.Append($"OBRAS · materiales {stock} u · obreros {net.Works.Workers[_zoneNode]} (N asigna/quita) · nivel {net.Works.LevelMil(_zoneNode) / 1000f:0.0} · H cambia a {(_workKind == PieceKind.Sacos ? "HESCO" : "sacos")}");
+            sb.Append($"OBRAS · materiales {stock} u · obreros {net.Works.Workers[_zoneNode]} (N asigna/quita) · nivel {net.Works.LevelMil(_zoneNode) / 1000f:0.0} · H cambia de pieza (ahora: {KindName(_workKind)})");
             if (_buildMode)
             {
-                sb.Append($"\nMURO DE {(_workKind == PieceKind.Sacos ? "SACOS (2 u / 10 m)" : "HESCO (6 u / 10 m)")}: clic = punto · Intro o clic derecho = pedir la obra · Esc = cancelar");
-                if (_wallPts.Count >= 4)
+                sb.Append(IsPoint(_workKind) ? $"\n{KindName(_workKind).ToUpper()}: clic = colocarla en ese punto · H cambia de pieza · Esc = salir"
+                    : $"\nMURO DE {(_workKind == PieceKind.Sacos ? "SACOS (2 u / 10 m)" : "HESCO (6 u / 10 m)")}: clic = punto · Intro o clic derecho = pedir la obra · Esc = cancelar");
+                if (!IsPoint(_workKind) && _wallPts.Count >= 4)
                 {
                     var plan = net.Works.Preview(_zoneNode, _workKind, _wallPts.ToArray(), stock);
                     sb.Append(plan.Ok ? $"\n{plan.AllowedMm / 1000f:0.0} m · {plan.CostU} u" + (plan.Cut ? $" · faltan materiales: se construirá hasta aquí ({plan.AllowedMm / 1000f:0.0} de {plan.WantedMm / 1000f:0.0} m)" : "") : "\n" + plan.Why);
@@ -1380,6 +1453,15 @@ namespace TBD.View
             pt.x = Mathf.Clamp(pt.x, 2f, SimConst.WorldW - 2f);
             pt.z = Mathf.Clamp(pt.z, 2f, SimConst.WorldH - 2f);
             pt.y = 0f;
+            if (_zoneNode >= 0 && !_ambush && IsPoint(_workKind))
+            {
+                // pieza puntual (puerta, nido, foco): un clic = una obra en ese punto, en mm enteros locales al nodo
+                var pp = NetSession.A.Works.Preview(_zoneNode, _workKind, new[] { ToLocalMm(pt.x), ToLocalMm(pt.z, true) }, NetSession.A.Stock[_zoneNode, (int)Res.Materiales]);
+                if (!pp.Ok) { _workMsg = "No se puede construir: " + pp.Why; return; }
+                NetSession.PushPayload(NetCmdType.PlaceWork, _zoneNode | ((int)_workKind << 16), new[] { ToLocalMm(pt.x), ToLocalMm(pt.z, true) });
+                _workMsg = $"Obra pedida: {KindName(_workKind)}, {pp.CostU} u";
+                return;
+            }
             if (!_hasWallStart)
             {
                 _wallStart = pt;

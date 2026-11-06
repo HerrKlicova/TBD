@@ -20,7 +20,7 @@ namespace TBD.EditorTools
             ti.alphaIsTransparency = true;
             ti.npotScale = TextureImporterNPOTScale.None;
             ti.isReadable = false;
-            ti.wrapMode = TextureWrapMode.Clamp;
+            ti.wrapMode = assetPath.Contains("/texturas/") ? TextureWrapMode.Repeat : TextureWrapMode.Clamp;   // las texturas de Bruno son tileables (Repeat)
         }
     }
 }
