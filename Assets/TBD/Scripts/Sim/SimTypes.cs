@@ -258,8 +258,11 @@ namespace TBD.Sim
 
         public static Zombie Create(uint id, float2 pos, float height)
         {
-            float speed = 1.2f + (math.hash(new uint2(id, 7u)) & 1023u) / 1023f * 0.8f;
-            float heading = (math.hash(new uint2(id, 13u)) & 1023u) / 1023f * 6.2831853f;
+            // Repetición dorada en IL2CPP (6-nov): fuera de Burst, Mono puede calcular una cadena de operaciones en coma flotante
+            // con más precisión que IL2CPP y el resultado difiere en 1 ulp. Por eso aquí todo se hace en enteros y se termina con UNA
+            // sola división, que sale igual en todos los runtimes.
+            float speed = (1200 + (int)((math.hash(new uint2(id, 7u)) & 1023u) * 800u / 1023u)) / 1000f;
+            float heading = (int)((math.hash(new uint2(id, 13u)) & 1023u) * 6283u / 1023u) / 1000f;
             var p = new float3(pos.x, height, pos.y);
             return new Zombie
             {

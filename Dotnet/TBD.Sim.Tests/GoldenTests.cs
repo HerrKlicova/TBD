@@ -24,10 +24,16 @@ namespace TBD.Sim.Tests
             string dir = Path.Combine(BalanceTests.DataDirPublic(), "..", "Golden");
             Directory.CreateDirectory(dir);
             string file = Path.Combine(dir, "G3_red.golden");
-            bool created = false;
-            if (!File.Exists(file)) { File.WriteAllText(file, a); created = true; }
-            var rf = NetGolden.Verify(File.ReadAllText(file));
-            check(rf.Ok, $"el archivo guardado (Assets/TBD/Golden/G3_red.golden) se reproduce igual: {rf}" + (created ? " (recién creado)" : ""));
+            // Sara: si falta el archivo, la prueba FALLA (borrarlo no puede pasar desapercibido). Regenerar es explícito:
+            // TBD_REGEN_GOLDEN=1 dotnet run ... (y una línea en el registro de decisiones diciendo quién lo aprobó y por qué).
+            bool regen = Environment.GetEnvironmentVariable("TBD_REGEN_GOLDEN") == "1";
+            if (regen) { File.WriteAllText(file, a); Console.WriteLine("         G3_red.golden REGENERADO (TBD_REGEN_GOLDEN=1)"); }
+            check(File.Exists(file), "existe Assets/TBD/Golden/G3_red.golden (para regenerarlo: TBD_REGEN_GOLDEN=1)");
+            if (File.Exists(file))
+            {
+                var rf = NetGolden.Verify(File.ReadAllText(file));
+                check(rf.Ok, $"el archivo guardado (Assets/TBD/Golden/G3_red.golden) se reproduce igual: {rf}");
+            }
 
             // criterio 5: el reproductor sabe fallar. Un bit en la mancha en el tick 8.400 ...
             long badTick = start + 8400;                 // 8.400 ticks después del arranque

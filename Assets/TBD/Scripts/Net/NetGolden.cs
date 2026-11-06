@@ -14,6 +14,7 @@ namespace TBD.Net
     public static class NetGolden
     {
         public const string Format = "TBD-GOLDEN-RED v1";
+        public const string GameVersion = "0.1.0";      // versión del juego (bundleVersion); el commit va en el mensaje del commit que regenera
         public const int SystemEvery = 300;
 
         public struct Result
@@ -32,6 +33,8 @@ namespace TBD.Net
             var sb = new StringBuilder();
             sb.Append(Format).Append('\n');
             sb.Append("escenario=").Append(scenario).Append('\n');
+            sb.Append("version=0.1.0").Append('\n');                                  // versión del juego (bundleVersion)
+            sb.Append("semilla=fija (NetScenario.Mvp no usa azar)").Append('\n');
             sb.Append("inicio_tick=").Append(w.Tick).Append('\n');
             sb.Append("ticks=").Append(ticks).Append('\n');
             sb.Append("ORDENES\n");

@@ -75,7 +75,7 @@ namespace TBD.Sim
         public static float2 SlotOf(int k)
         {
             int wagon = k / 7, j = k % 7;
-            return new float2(-4.3f - wagon * 5f + (j - 3) * 0.6f, (j % 2 == 0 ? -0.55f : 0.55f));
+            return new float2(Det.Mm(-4300 - wagon * 5000 + (j - 3) * 600), Det.Mm(j % 2 == 0 ? -550 : 550));   // enteros (determinista en IL2CPP)
         }
 
         static int SlotIndex(float2 slot)
@@ -139,8 +139,10 @@ namespace TBD.Sim
                     for (int i = 0; i < 21; i++)
                     {
                         bool mg = i == 20;
-                        float x = mg ? Level.FortX0 + 2.5f : Level.FortX0 + 2.5f + (i % 3) * 1.3f;
-                        float y = mg ? (Level.GateY0 + Level.GateY1) * 0.5f : Level.FortY0 + 4f + (i / 3) * ((Level.FortY1 - Level.FortY0 - 8f) / 6f);
+                        int fx0 = (int)math.round(Level.FortX0 * 1000f), fy0 = (int)math.round(Level.FortY0 * 1000f), fy1 = (int)math.round(Level.FortY1 * 1000f);
+                        int gy = ((int)math.round(Level.GateY0 * 1000f) + (int)math.round(Level.GateY1 * 1000f)) / 2;
+                        float x = Det.Mm(mg ? fx0 + 2500 : fx0 + 2500 + (i % 3) * 1300);                                        // enteros (IL2CPP)
+                        float y = Det.Mm(mg ? gy : fy0 + 4000 + (i / 3) * ((fy1 - fy0 - 8000) / 6));
                         em.SetComponentData(ents[i], new Soldier
                         {
                             SimId = clock.NextSimId++, Pos = new float3(x, 0f, y), Heading = -1.5708f, Hp = cfg.SoldierHp,
@@ -229,13 +231,13 @@ namespace TBD.Sim
                 float h;
                 if (roof)
                 {
-                    p = new float2(rng.NextFloat(Level.RoofX0 + 0.5f, Level.RoofX1 - 0.5f),
-                                   rng.NextFloat(Level.RoofY0 + 0.5f, Level.RoofY1 - 0.5f));
+                    p = new float2(Det.Range(ref rng, Level.RoofX0 + 0.5f, Level.RoofX1 - 0.5f),
+                                   Det.Range(ref rng, Level.RoofY0 + 0.5f, Level.RoofY1 - 0.5f));
                     h = Level.RoofH;
                 }
                 else
                 {
-                    p = new float2(rng.NextFloat(2f, 14f), rng.NextFloat(8f, 120f));
+                    p = new float2(Det.Range(ref rng, 2f, 14f), Det.Range(ref rng, 8f, 120f));
                     h = 0f;
                 }
                 em.SetComponentData(ents[i], Zombie.Create(clock.NextSimId++, p, h));

@@ -57,6 +57,9 @@ con lo que ves en el Editor, manda el Editor: corrige esta skill.
 - Los sólidos se consultan con el índice espacial (`SolidIndex`); al añadir o quitar un sólido hay que reconstruirlo (`SolidIndex.Rebuild`).
 - `Allocator.Temp` solo en el hilo principal. **No lo pases nunca a un job, aunque lo lances con `.Run()` en el mismo `OnUpdate`**: falla en ejecución («Temp memory containers cannot be used when scheduling a job»; visto en Unity 6000.3, commit `87f3a5f`). Usa `TempJob` y libéralo después del job.
 
+- **Fuera de Burst, nada de cadenas de operaciones en coma flotante que acaben en el estado** (spawn, `Zombie.Create`, órdenes de `CommandSystem`, huecos del tren): Mono puede calcularlas con más precisión que IL2CPP y salen distintas en 1 ulp (lo destapó la repetición dorada el 6-nov). Haz las cuentas en enteros (mm, milirradianes) y termina con UNA sola operación (`Det.Mm`, `Det.Range`). Dentro de los jobs con `FloatMode.Deterministic`, Burst ya lo garantiza.
+- **Repetición dorada**: `Assets/TBD/Golden/*.golden` (G1 y G2 zona, G3 red). Si un cambio altera los hashes a propósito, se regeneran (dotnet: `TBD_REGEN_GOLDEN=1`; zona: `ZoneGolden.Record` en el Editor) con una línea en el registro de decisiones, y se copian a `Assets/StreamingAssets/Golden`. Comprobar en una compilación: `TBD.exe -batchmode -nographics -tbd-golden -tbd-golden-out ruta.txt`.
+
 ## Skills de terceros en este repositorio
 - `save-systems`, `procedural-gen` y `performance-optimization` vienen de awesome-gamedev-agent-skills (Apache-2.0, sin su cargador automático). Cada una lleva arriba sus «Notas para TBD (DOTS)». Si chocan con esta skill, manda esta. Lo principal: ni `System.Random` ni pooling de MonoBehaviour en la simulación.
 - Plugin oficial de Unity (`unity@unity-agent-plugin` 0.1.9-beta, instalado en este proyecto): no trae nada de DOTS. Sus skills de URP, Shader Graph y UI sí sirven.

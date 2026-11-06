@@ -21,6 +21,14 @@ namespace TBD.View
         static void Run()
         {
             var args = Environment.GetCommandLineArgs();
+            int di = Array.IndexOf(args, "-tbd-golden-diag");
+            if (di >= 0 && di + 1 < args.Length)
+            {
+                Active = true;
+                File.WriteAllText(args[di + 1], ScriptingBackend() + "\n" + Diag());
+                if (!Application.isEditor) Application.Quit(0);
+                return;
+            }
             if (Array.IndexOf(args, "-tbd-golden") < 0) return;
             Active = true;
             string outPath = Path.Combine(Application.persistentDataPath, "golden_result.txt");
@@ -52,6 +60,37 @@ namespace TBD.View
             try { File.WriteAllText(outPath, sb.ToString()); } catch (Exception e) { Debug.LogError("[TBD] No se pudo escribir " + outPath + ": " + e.Message); }
             Debug.Log("[TBD] " + sb);
             if (!Application.isEditor) Application.Quit(allOk ? 0 : 1);
+        }
+
+        /// <summary>Diagnóstico de determinismo: bits de los primeros zombis de G1 recién creados y de cálculos de coma flotante sueltos.</summary>
+        public static string Diag()
+        {
+            var sb = new StringBuilder();
+            var rng = new Unity.Mathematics.Random(12345u);
+            for (int k = 0; k < 3; k++) { float a = rng.NextFloat(4f, 60f); sb.Append("rng ").Append(Unity.Mathematics.math.asuint(a).ToString("X8")).Append('\n'); }
+            float x = 1.2f, y = 0.37f, z = 0.8f;
+            float fma = x * y + z;
+            sb.Append("x*y+z ").Append(Unity.Mathematics.math.asuint(fma).ToString("X8")).Append('\n');
+            var w = new Unity.Entities.World("TBD_Diag");
+            try
+            {
+                SimWorldSetup.CreateSystems(w);
+                var root = SimWorldSetup.Populate(w.EntityManager, 10000, false, 12345u, CombatParams.Default, 0, true);
+                var q = w.EntityManager.CreateEntityQuery(typeof(Zombie));
+                var zs = q.ToComponentDataArray<Zombie>(Unity.Collections.Allocator.Temp);
+                for (int i = 0; i < 4 && i < zs.Length; i++)
+                {
+                    var zz = zs[i];
+                    sb.Append("z").Append(zz.SimId).Append(" pos ").Append(Unity.Mathematics.math.asuint(zz.Pos.x).ToString("X8")).Append(' ')
+                      .Append(Unity.Mathematics.math.asuint(zz.Pos.z).ToString("X8")).Append(" vel ").Append(Unity.Mathematics.math.asuint(zz.Speed).ToString("X8"))
+                      .Append(" rumbo ").Append(Unity.Mathematics.math.asuint(zz.Heading).ToString("X8")).Append('\n');
+                }
+                ulong sum = 0; for (int i = 0; i < zs.Length; i++) sum += HashMath.OfZombie(zs[i]);
+                sb.Append("hash zombis ").Append(sum.ToString("X16")).Append('\n');
+                zs.Dispose();
+            }
+            finally { w.Dispose(); }
+            return sb.ToString();
         }
 
         static string ScriptingBackend()

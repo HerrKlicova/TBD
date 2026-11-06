@@ -1,5 +1,7 @@
 TBD-GOLDEN-RED v1
 escenario=G3 red: un día del MVP
+version=0.1.0
+semilla=fija (NetScenario.Mvp no usa azar)
 inicio_tick=8250
 ticks=36000
 ORDENES

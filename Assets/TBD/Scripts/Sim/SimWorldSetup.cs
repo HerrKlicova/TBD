@@ -80,8 +80,8 @@ namespace TBD.Sim
                 do
                 {
                     p = siege
-                        ? new float2(rng.NextFloat(Level.FortX0 - 16f, Level.FortX0 - 2.5f), rng.NextFloat(Level.FortY0 - 4f, Level.FortY1 + 4f))   // asedio: contra el muro oeste
-                        : new float2(rng.NextFloat(4f, 60f), rng.NextFloat(8f, 120f));                                                            // deriva: dispersos
+                        ? new float2(Det.Range(ref rng, Level.FortX0 - 16f, Level.FortX0 - 2.5f), Det.Range(ref rng, Level.FortY0 - 4f, Level.FortY1 + 4f))   // asedio: contra el muro oeste
+                        : new float2(Det.Range(ref rng, 4f, 60f), Det.Range(ref rng, 8f, 120f));                                                                // deriva: dispersos
                 }
                 while (p.x > Level.RoofX0 - 1.5f && p.x < Level.RoofX1 + 1.5f && p.y > Level.RoofY0 - 1.5f && p.y < Level.RoofY1 + 1.5f);
                 em.SetComponentData(ents[i], Zombie.Create(clock.NextSimId++, p, 0f));
