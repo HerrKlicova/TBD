@@ -1238,7 +1238,11 @@ def _material_paleta(obj, ruta):
 # ---------------------------------------------------------------- exportar
 
 def exportar_unity(obj, ruta, formato="FBX"):
-    """FBX para Unity: escala 1 = 1 m, -Z adelante, Y arriba, transformaciones horneadas, sombreado plano
+    """FBX para Unity: escala 1 = 1 m, Y arriba, transformaciones horneadas, sombreado plano. Convención de ejes
+    MEDIDA por Marcos en Unity (6-nov): un modelo que en Blender mira a -Y sale en Unity mirando a +Z, es decir, a
+    transform.forward, que es lo que espera Unity. axis_forward="-Z" es el parámetro del exportador, no hacia dónde
+    mira el modelo en Unity. Todos los bloques (Dragón, R1, R2, VAMTAC, zombi) se modelan con delante = -Y en Blender
+    y usan este exportador, así que en Unity todos miran a +Z. Sombreado plano
     (normales por cara: el contorno del shader las usa). GLB si Unity tiene glTFast. Comprobar en Unity la
     escala contra un cubo de 1 m la primera vez (no verificado en este proyecto)."""
     _activar(obj)

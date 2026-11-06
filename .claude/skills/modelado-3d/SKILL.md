@@ -179,3 +179,8 @@ de luz en el techo, v3 del Dragón). El método estándar es este:
 - `referencias/criterios.md`: presupuestos, alturas reales y umbrales.
 - `referencias/externos.md`: herramientas externas evaluadas (qué se instaló, qué no y por qué).
 - `referencias/paleta_32.hex`: copia de `docs/arte/paleta_propuesta_32.hex`.
+
+**Convención de ejes (medida por Marcos en Unity, 6-nov)**: en Blender se modela con delante = -Y y Z arriba. Con
+`exportar_unity()` (FBX, axis_forward="-Z", axis_up="Y", bake_space_transform) el modelo sale en Unity mirando a **+Z**
+(transform.forward) y con Y arriba. Vale para todos los bloques entregados (Dragón, R1, R2, VAMTAC y zombi). El "-Z" es
+el parámetro del exportador, no la dirección del modelo en Unity.
