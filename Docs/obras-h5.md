@@ -64,3 +64,8 @@ Solo se acepta con la **zona del nodo materializada** (`ActiveZoneNode == nodo`)
 - **Detener en el emplazamiento** (Mak, 6-nov): `NetCmdType.HaltAtSite = 13` (`Arg` = nodo emplazamiento, `-1` cancela; `Arg2` = servicio). El tren para **justo en el nodo** en cuanto llega (la marcha sobrante de ese tick se pierde), queda retenido y `TrainGo` lo suelta. Solo emplazamientos. La parada pendiente (`TrainService.HaltAt`) entra en el hash del tren mientras está.
 - **Un emplazamiento sin fundar no cuenta** para el peso del director (ni como objetivo ni en la deriva) ni para la huella (Mak, 6-nov). Con los presupuestos de los goldens la parte de Nules en la deriva se redondea a 0, así que **G1–G5 siguen idénticos**: no hubo que regenerar ninguno.
 - **No incluido, a propósito**: el retén de 6 personas para asegurar apeaderos existentes; refugiados del checkpoint.
+
+## Mantenimiento y desgaste diario (paso 4, #8, Hugo)
+- Una vez al día (cambio de día), cada nodo con obras construidas paga el **mantenimiento** de su almacén: `MaintenanceU = ceil(fort_desgaste_dia ‰ × Σ(CostE4 × vida) ÷ 10.000)` u de materiales (cuenta todas las piezas construidas, también el depósito; las sin terminar, no).
+- Si el almacén lo cubre, se descuenta y **la vida no baja**. Si no, no se cobra nada y se aplica el desgaste: cada pieza construida pierde `fort_desgaste_dia` (10 ‰) de la vida que le queda (mínimo 1 ‰). A 0 ‰ la pieza se destruye y se quita. Una estación sin reservas conserva ~82 % a los 20 días.
+- `ObrasState.Damage(nodo, índice, ‰)`: gancho del daño de combate (aún sin llamador). Reparar y terreno asegurado, pendientes.

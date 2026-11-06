@@ -323,6 +323,20 @@ namespace TBD.Net
             return destroyed;
         }
 
+        /// <summary>
+        /// Mantenimiento de un día (Hugo, #8): ceil(WearDayMil ‰ de Σ(CostE4 × vida)) de lo construido, en u de materiales del almacén.
+        /// Si la estación puede pagarlo no hay desgaste; si no, se aplica WearDay (la caída geométrica).
+        /// </summary>
+        public int MaintenanceU(int node)
+        {
+            var l = _byNode[node];
+            if (l == null || P.WearDayMil <= 0) return 0;
+            long value = 0;                                              // E4 × ‰
+            foreach (var w in l) if (w.Built) value += (long)w.CostE4 * w.LifeMil;
+            long den = 1000L * 1000L * 10_000L;
+            return (int)((value * P.WearDayMil + den - 1) / den);
+        }
+
         /// <summary>Daño de combate a una pieza construida (la pila, los pesados; lo llamará la zona). Devuelve true si la pieza queda destruida (y se quita).</summary>
         public bool Damage(int node, int index, int lifeMil)
         {

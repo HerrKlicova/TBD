@@ -388,16 +388,17 @@ namespace TBD.Sim.Tests
 
         static void RunDesgaste(Action<bool, string> check)
         {
-            Console.WriteLine("[19] Obras (hito 5, paso 4): desgaste diario (1 %) y daño");
+            Console.WriteLine("[19] Obras (hito 5, paso 4): mantenimiento y desgaste diario (1 %) y daño");
             var mvp = NetScenario.Mvp();
             check(mvp.Works.P.WearDayMil == 10, "el desgaste diario viene de fort_desgaste_dia de balance_economia.csv (10 ‰)");
 
-            NetWorld Built()
+            NetWorld Built(int reserve = 0)
             {
                 var w = WorldWithZone();
                 w.Push(Place(w.Tick, PieceKind.Hesco, 0, 0, 30_000, 0)); w.Push(Place(w.Tick, PieceKind.Sacos, 0, 5_000, 10_000, 5_000));
                 w.ApplyCommands(); w.Works.CompleteAll(Node);
                 w.Push(Place(w.Tick, PieceKind.Sacos, 0, 9_000, 10_000, 9_000)); w.ApplyCommands();      // esta queda sin construir
+                w.Stock[Node, (int)Res.Materiales] = reserve;            // por defecto, una estación sin reservas: el mantenimiento no se puede pagar
                 return w;
             }
             var a = Built();
@@ -417,6 +418,24 @@ namespace TBD.Sim.Tests
             int expect = 990; for (int d = 0; d < 3; d++) expect -= Math.Max(1, (expect * 10 + 500) / 1000);
             bool seq = true; foreach (var x in a.Works.At(Node)) if (x.Built && x.LifeMil != expect) seq = false;
             check(seq, $"tras 4 días la vida es {expect} ‰ (1 % de lo que queda cada día)");
+
+            // mantenimiento (Hugo): una estación abastecida no se degrada y una vacía sí
+            var m = Built(2); m.Services.Clear();                  // sin trenes: nadie carga ni descarga el almacén durante la prueba
+            check(m.Works.MaintenanceU(Node) == 1, $"el mantenimiento de un día es ceil(1 % de Σ(coste × vida)) = 1 u para 20 u construidas: {m.Works.MaintenanceU(Node)}");
+            m.Tick = 3 * NetConst.DayTicks - 1; m.Step();
+            bool intact = true; foreach (var x in m.Works.At(Node)) if (x.Built && x.LifeMil != 1000) intact = false;
+            check(intact && m.Stock[Node, (int)Res.Materiales] == 1, "con reservas se paga el mantenimiento (1 u) y la vida no baja");
+            m.Tick = 4 * NetConst.DayTicks - 1; m.Step();
+            check(m.Stock[Node, (int)Res.Materiales] == 0, "el segundo día se paga con la última u");
+            m.Tick = 5 * NetConst.DayTicks - 1; m.Step();
+            bool worn = true; foreach (var x in m.Works.At(Node)) if (x.Built && x.LifeMil != 990) worn = false;
+            check(worn && m.Stock[Node, (int)Res.Materiales] == 0, "sin reservas no se puede pagar: se aplica la caída del 1 % (1000 → 990 ‰) y no se cobra nada");
+            var d20 = Built(1000); d20.Services.Clear();
+            for (int d = 1; d <= 20; d++) { d20.Tick = d * NetConst.DayTicks - 1; d20.Step(); }
+            check(d20.Stock[Node, (int)Res.Materiales] == 980 && d20.Works.At(Node)[0].LifeMil == 1000, "abastecida 20 días: paga 1 u al día (980 u quedan) y conserva el 100 % de vida");
+            var sinObras = NetScenario.Mvp(); sinObras.Services.Clear(); sinObras.Tick = 3 * NetConst.DayTicks - 1; int hs0 = sinObras.Stock[0, (int)Res.Materiales];
+            sinObras.Step();
+            check(sinObras.Stock[0, (int)Res.Materiales] == hs0, "sin obras el mantenimiento no cobra nada");
 
             // determinismo y hash
             var b = Built(); var c = Built();
