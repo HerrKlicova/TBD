@@ -41,15 +41,16 @@ def base(token, borde=None):
             d = math.hypot(i + .5 - C - .5, j + .5 - C - .5)
             if 8.3 <= d < 9.5 and (i - C) + (j - C) < -6:
                 s.set(i, j, LUZ[token])
-    # Símbolo de estación en hueso, con sombra beige abajo.
-    s.rect(11, 11, 10, 4, "bone")                     # andén
-    s.hline(11, 20, 11, "cream")
-    s.hline(11, 20, 14, "beige")
-    s.hline(8, 23, 18, "bone")                        # carril
-    s.hline(8, 23, 19, "beige")
-    for x in (9, 13, 17, 21):                         # traviesas
-        s.vline(x, 17, 21, "bone")
-        s.set(x, 21, "beige")
+    # Símbolo cartográfico de vía en hueso: línea con traviesas que la cruzan por arriba y por abajo,
+    # y un andén fino desplazado a un lado (arriba a la izquierda). Lucía, 6-nov.
+    s.hline(7, 24, 17, "bone")                        # vía
+    s.hline(7, 24, 18, "bone")
+    s.hline(8, 24, 19, "beige")
+    for x in (10, 15, 20):                            # traviesas cruzando
+        s.vline(x, 15, 20, "bone")
+        s.set(x + 1, 20, "beige")
+    s.rect(9, 10, 8, 2, "bone")                       # andén, fino y a un lado
+    s.hline(9, 16, 10, "cream")
     return s
 
 

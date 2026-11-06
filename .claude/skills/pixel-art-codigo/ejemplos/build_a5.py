@@ -31,6 +31,10 @@ def tren(s, y=14, obras=False):
     s.rect(18, y + 2, 4, 2, "olive_black")             # visor
     s.hline(23, 28, y + 5, "olive_dark")               # plancha
     s.set(20, y + 6, "concrete")
+    # Franja ámbar en el frontal (D-N42, la misma de la locomotora en la zona): dice hacia dónde va.
+    s.line(27, y + 2, 30, y + 6, "amber")
+    s.line(27, y + 3, 30, y + 7, "amber")
+    s.vline(30, y + 6, y + 7, "amber")
     # Bastidor y ruedas.
     s.rect(1, y + 9, 30, 1, "slate_dark")
     for x in (3, 7, 11, 18, 22, 27):                   # ruedas de tren, pequeñas y juntas
@@ -105,6 +109,12 @@ if __name__ == "__main__":
     nombres = ["en_marcha", "detenido", "bajo_ataque", "obras"]
     s32 = [globals()[n]() for n in nombres]
     s16 = [reduce_16(s) for s in s32]
+    # El marcador se voltea según el sentido de la marcha: se exportan las dos orientaciones
+    # (en Unity basta con flipX del SpriteRenderer; los PNG _izq son por comodidad).
+    from PIL import Image
+    for n, a, b in zip(nombres, s32, s16):
+        a.img.transpose(Image.FLIP_LEFT_RIGHT).save(OUT / f"vm_tren_{n}_izq_32.png")
+        b.img.transpose(Image.FLIP_LEFT_RIGHT).save(OUT / f"vm_tren_{n}_izq_16.png")
     for n, a, b in zip(nombres, s32, s16):
         a.save(OUT / f"vm_tren_{n}_32.png")
         b.save(OUT / f"vm_tren_{n}_16.png")
