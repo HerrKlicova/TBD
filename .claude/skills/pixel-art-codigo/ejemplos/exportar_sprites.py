@@ -9,7 +9,8 @@ Uso (desde la raíz del repo, con Python 3 y Pillow):
 Salida: atlas_zombi_muerte.png/.json (160x192), atlas_zombi_lod.png/.json (40x8),
         atlas_oficial.png/.json (160x128),
         vm_taller_{puerta_via_rota,tren_nuevo,rehabilitar,chispas}_{32,16}.png (iconos de UI),
-        vm_alertas_aviso_{32,16}.png (aviso ámbar de la etiqueta de construcción). Importar con filtro de punto, sin compresión.
+        vm_alertas_aviso_{32,16}.png (aviso ámbar de la etiqueta de construcción),
+        suelo_*_64.png, atlas_decals_suelo, suelo_asfalto_liso_1..4_64.png, atlas_grietas_{asfalto,tierra}.png/.json. Importar con filtro de punto, sin compresión.
 """
 import json
 import sys
@@ -30,6 +31,7 @@ import build_a2  # noqa: E402
 import build_sagunto  # noqa: E402
 import build_decals  # noqa: E402
 import build_suelo_sagunto  # noqa: E402
+import build_asfalto_variado  # noqa: E402
 
 PIVOTE = [0.5, 0.53]
 
@@ -126,6 +128,11 @@ def suelo_sagunto(out):
         "celda": [b.C, b.C], "texel_m": 0.1, "rects": rects}}}, indent=1))
 
 
+def asfalto_variado(out):
+    """Asfalto sin repetición: suelo_asfalto_liso_1..4_64 (base por hash) y atlas de grietas de asfalto y de tierra."""
+    build_asfalto_variado.exportar(out)
+
+
 if __name__ == "__main__":
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "sprites_exportados")
     out.mkdir(parents=True, exist_ok=True)
@@ -137,4 +144,5 @@ if __name__ == "__main__":
     aviso_ambar(out)
     ambientacion_sagunto(out)
     suelo_sagunto(out)
+    asfalto_variado(out)
     print("atlas en", out.resolve())

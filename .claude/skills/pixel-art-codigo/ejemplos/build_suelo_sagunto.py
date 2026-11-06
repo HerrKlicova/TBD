@@ -5,7 +5,7 @@ igual que el píxel de la escena en el escalón 1/3 con el zoom por defecto (ort
   - apisonada  (recinto)      beige #b4a080 con chinas #94948c y pisadas #88885c
   - rodadas    (glacis)       beige con dos rodadas en #88885c y gravilla
   - labrada    (huerta)       #a86c50 con surcos: lomo en #94948c al sol y hierbajo en #88885c
-  - seca       (descampado)   beige con grietas finas y ralas en #88885c y polvo #94948c
+  - seca       (descampado)   beige con motas #88885c y polvo #94948c (las grietas, en decals)
   - asfalto    (calles)       el de A7 (#6c7874) con más grietas ramificadas en #48403c (junta)
   - balasto    (vía)          el de A7, aprobado (única excepción a L* ≥ 47)
 Reglas (§3): nada por debajo de L* 47 salvo balasto y juntas; ΔL* ≤ 12 dentro de cada textura sin juntas;
@@ -77,16 +77,12 @@ def labrada():
 
 
 def seca():
-    """Tierra seca del descampado: base beige con grietas finas y ralas en #88885c (polígonos grandes y
-    cortados) y polvo #94948c. Lucía: el oliva y la red de grietas marcada se leían como camuflaje."""
+    """Tierra seca del descampado: base beige con pisadas #88885c y polvo #94948c, solo en motas sueltas.
+    Las grietas van aparte como decals (atlas_grietas_tierra, build_asfalto_variado.py): dentro de la
+    tesela se reconocían al repetirse (regla de Lucía: nada reconocible en una textura que se repite)."""
     s = Sprite(T, T)
     s.rect(0, 0, T, T, "beige")
-    pts = semillas(9, 831)
-    for y in range(T):
-        for x in range(T):
-            d1, d2, k = voronoi(x + .5, y + .5, pts)
-            if d2 - d1 < 0.55 and ruido(x, y, 8, 833) > 0.42:
-                s.set(x, y, "olive_light")
+    motas(s, "olive_light", 0.02, 831, dobles=0.4)
     motas(s, "concrete_light", 0.03, 832, dobles=0)
     return s
 
