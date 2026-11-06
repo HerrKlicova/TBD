@@ -2,7 +2,7 @@
 Bruno (Arte técnico), 6-nov-2026.
 
 8x8 px, vista cenital, mirando al norte. Cuerpo en #303424 (olive_shadow) y cabeza de 1 px en
-#605c48 (olive_grey); sin contorno, sin cara clara y sin variantes. Andar de 4 fotogramas con 1 px de
+#88885c (olive_light, revisión de Lucía); sin contorno, sin cara clara y sin variantes. Andar de 4 fotogramas con 1 px de
 balanceo lateral y paso alterno. Cadáver de masa: mancha plana en diagonal, un escalón más apagada.
 Salida: atlas_zombi_lod.png (5 columnas de 8 px: andar 0–3 y cadáver), un PNG por fotograma, JSON
 y prueba a x1 y x8 sobre los suelos.
@@ -21,7 +21,7 @@ from pixelvm import PAL, Sprite  # noqa: E402
 OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "out_lod")
 ZOMBI = Path(sys.argv[2]) if len(sys.argv) > 2 else None    # carpeta con vm_zombi_*_muerte.png
 
-CUERPO, CABEZA = "olive_shadow", "olive_grey"
+CUERPO, CABEZA = "olive_shadow", "olive_light"   # cabeza #88885c (Lucía): gentío también en balasto y asfalto
 CUERPO_M, CABEZA_M = "olive_black", "grey_brown"            # un escalón más apagado
 
 BASE = [
