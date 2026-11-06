@@ -23,20 +23,39 @@ LUZ = {"slate_dark": "slate", "slate": "concrete", "concrete": "concrete_light",
 ESCAPE = (46, 58)          # chimenea abajo a la derecha; el tren avanza a la derecha
 
 
-def _blob(s, cx, cy, r, tono, densidad):
+SOMBRA = {"slate_dark": "black", "slate": "slate_dark", "concrete": "slate", "concrete_light": "concrete"}
+
+
+def _ruido(i, j, f):
+    """Ruido determinista por píxel y fotograma (hash entero), para deshilachar sin rejilla."""
+    h = (i * 374761393 + j * 668265263 + f * 2147483647) & 0xFFFFFFFF
+    h = ((h ^ (h >> 13)) * 1274126177) & 0xFFFFFFFF
+    return (h & 0xFFFF) / 0xFFFF
+
+
+def _blob(s, cx, cy, r, tono, densidad, f=0):
     for j in range(int(cy - r) - 1, int(cy + r) + 2):
         for i in range(int(cx - r) - 1, int(cx + r) + 2):
             d = math.hypot(i + .5 - cx, (j + .5 - cy) * 1.1)
             if d > r:
                 continue
             borde = 1 - d / r
-            if BAYER[j % 4][i % 4] / 16 >= densidad * min(1, borde * 5 + 0.4):
+            # Umbral mitad Bayer, mitad ruido: el desvanecido se deshilacha en vez de formar un damero.
+            umbral = 0.45 * BAYER[j % 4][i % 4] / 16 + 0.55 * _ruido(i, j, f)
+            if umbral >= densidad * min(1, borde * 5 + 0.4):
                 continue
-            dl = math.hypot(i + .5 - (cx - r * 0.35), (j + .5 - (cy - r * 0.4)) * 1.1)
-            s.set(i, j, LUZ[tono] if dl < r * 0.6 else tono)
+            # Volumen: luz arriba a la izquierda, sombra abajo a la derecha, tono medio en el centro.
+            ox, oy = (i + .5 - cx) / r, (j + .5 - cy) / r
+            if ox + oy < -0.55:
+                c = LUZ[tono]
+            elif ox + oy > 0.75:
+                c = SOMBRA[tono]
+            else:
+                c = tono
+            s.set(i, j, c)
 
 
-def bocanada(s, age, semilla):
+def bocanada(s, age, semilla, f=0):
     """Nace pequeña y densa en el escape, sube, se abre, se queda atrás (izquierda)
     por el avance del tren y al final se deshace en lóbulos sueltos."""
     x0, y0 = ESCAPE
@@ -52,14 +71,14 @@ def bocanada(s, age, semilla):
     for n in range(nl):
         ang = semilla * 1.9 + n * (2 * math.pi / nl) + age * 1.5
         _blob(s, cx + math.cos(ang) * r * sep * 0.6, cy + math.sin(ang) * r * sep * 0.45,
-              r * (0.75 - 0.15 * age), tono, densidad)
+              r * (0.75 - 0.15 * age), tono, densidad, f)
 
 
 def fotograma(f):
     s = Sprite(W, H)
     edades = sorted((((f / F) + k / N) % 1.0, k) for k in range(N))
     for age, k in reversed(edades):   # las viejas detrás, la recién salida delante
-        bocanada(s, age, k)
+        bocanada(s, age, k, f)
     return s
 
 

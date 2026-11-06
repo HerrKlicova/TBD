@@ -18,6 +18,7 @@ contacto, criticar con la lista de `referencias/criterios.md` y corregir. Mínim
 | Iconos de recurso, alerta y orden (A1–A3), marcadores del mapa (A4–A5), sellos y piezas (fase B) | **Código** |
 | Variantes de estado o de color de algo ya dibujado (seguro, amenazado, asedio, perdido) | **Código** (`replace`, sin generar) |
 | VFX de cuerpo sencillos: humo, polvo, vapor, chispas en bucle | **Código** (ver `ejemplos/build_a8_humo.py`) |
+| VFX complejos: impactos, explosiones, trazadoras (fase D) | **pixelfx** + `scripts/fx_adaptar.py` (ver abajo) |
 | Reducir de 32 a 16 px y repasar el contorno (D-N46) | **Código** (`reduce_16`, y a mano si no se lee) |
 | Retratos (fase C), ilustraciones de evento (E), logotipo, texturas ricas (G) | **Pixelab**: el código da formas limpias pero planas |
 | Unidades con mucho detalle (A6) | Primero una prueba por código; si no llega, Pixelab |
@@ -25,7 +26,10 @@ contacto, criticar con la lista de `referencias/criterios.md` y corregir. Mínim
 ## Reglas fijas del proyecto (D-N46)
 - **Paleta estricta** de 32 (`docs/arte/paleta_propuesta_32.hex`); en `pixelvm.PAL` con nombres de trabajo. Nada fuera de paleta.
 - Paleta apagada y desaturada: óxido, verde oliva, gris hormigón. **Sin sangre, sin calaveras, sin texto, sin marco.**
-- **Acento sin rojo**. En recursos, `check(s, recurso=True)` rechaza los cinco rojos de la paleta.
+- **Acento sin rojo** en recursos y órdenes: `check(s, recurso=True)` rechaza los cinco rojos de la paleta.
+- **Alertas en dos niveles** (Lucía, 6-nov): aviso en ámbar, con el aspa ámbar en la esquina superior derecha para «falta o cortado»; emergencia (ataque, asedio) con el rojo de peligro `#982420`.
+- **Tokens de estado de estación**: segura `#70784c`, amenazada `#847c34`, asediada `#982420`, perdida `#340000` con borde `#7c181c`.
+- Órdenes: símbolos y flechas en hueso, sin marco (el marco lo pone el botón).
 - Acentos por carga (Lucía): munición latón y ámbar, combustible oliva, materiales gris acero, víveres ocre y beige, población hueso.
 - Siluetas de alto contraste, contorno exterior de 1 px (`outline()`, negro de la paleta), luz desde arriba a la izquierda.
 - Tamaños: 32×32 de origen; 16×16 reduciendo el de 32 y repasando. Comprobar siempre a ×1 sobre `#181c30` (la hoja lo incluye).
@@ -58,3 +62,12 @@ contacto, criticar con la lista de `referencias/criterios.md` y corregir. Mínim
 `docs/arte/herramientas/pixel_post.py` (Iris) quita el fondo y reduce a la paleta. Para más control:
 `s = Sprite(32, 32); s.img = Image.open(png).convert("RGBA"); s.px = s.img.load(); s.lock_palette()`, y después
 `replace` para quitar rojos o unificar acentos y `check()` para validar.
+
+## Efectos de la fase D con pixelfx (aprobado por Eugenio el 6-nov)
+[pixelfx](https://github.com/patch-gg/pixelfx) (MIT, 244 efectos, solo Node, sin red) se clona aparte, **fuera del repo**:
+`git clone --depth 1 https://github.com/patch-gg/pixelfx`. Busca con `node tools/list.mjs <palabra>` y exporta con
+`node tools/render.mjs <id> --sheet --opts '{"palette":[...]}'` usando rampas de nuestra paleta sin rojos
+(fuego: `#442c0c #7c3c18 #845c28 #a86c50 #e08c30 #f0dc9c #d4d0cc`). Después, siempre:
+`python scripts/fx_adaptar.py <hoja.png> <hoja.json> <salida> --fps 12 --escala 0.5`, que deja la hoja a 12 fps,
+recortada, con alfa binaria, paleta estricta y sin rojos, y un JSON estilo Aseprite con pivote para Unity.
+Las chispas y destellos muy brillantes van mejor en la capa de VFX en alta resolución de Unity (dirección visual §3).

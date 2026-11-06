@@ -1,6 +1,6 @@
 """A2 · Alertas (32 px y 16 px) por código. Bruno (Arte técnico), 6-nov-2026 (D-N47).
 Lenguaje común: pictograma con luz arriba-izquierda y el ámbar como acento de aviso.
-Sin rojo (D-N46): las «cruces» de vacío son aspas ámbar. Sin texto ni sangre."""
+Dos niveles (Lucía, 6-nov): aviso en ámbar (aspa en la esquina = falta o cortado) y emergencia\ncon el rojo de peligro #982420 (ataque y asedio). Sin texto ni sangre."""
 import sys
 from pathlib import Path
 
@@ -32,66 +32,57 @@ def apagar(s):
         s.replace(a, b)
 
 
+def senal_peligro(s):
+    """Triángulo de emergencia: borde rojo de peligro (#982420, token de alerta grave,
+    Lucía 6-nov) y relleno claro para que la silueta oscura se lea."""
+    s.poly([(16, 1), (31, 29), (1, 29)], "red_bright")
+    s.line(16, 1, 1, 29, "red")
+    s.poly([(16, 6), (27, 27), (5, 27)], "cream")
+    s.line(16, 6, 5, 27, "bone")
+    s.hline(6, 26, 27, "beige")
+
+
 def ataque():
     s = Sprite()
-    # Señal triangular de aviso en ámbar con una mano que sale del suelo, en silueta.
-    s.poly([(16, 2), (30, 28), (2, 28)], "amber")
-    s.line(16, 2, 2, 28, "cream")
-    s.hline(3, 29, 28, "ochre_dark")
-    s.line(17, 3, 30, 27, "ochre_dark")
-    s.poly([(16, 6), (27, 26), (5, 26)], "ochre_dark")
-    s.poly([(16, 8), (25, 25), (7, 25)], "brown_dark")
-    # Mano: dedos abiertos, piel gris verdosa apagada (no sangre).
+    senal_peligro(s)
+    # Mano que sale de la tierra en silueta oscura, cuatro dedos separados.
     mano = """
-        ....a.a....
         ..a.a.a.a..
         ..a.a.a.a..
         ..a.a.a.a..
         ..aaaaaaa..
         a.aaaaaaa..
         aaaaaaaaa..
-        .aaaaaaaa..
-        ..aaaaaa...
-        ..aaaaaa...
-        ..aaaaaa...
+        .aaaaaaa...
+        ..aaaaa....
+        ..aaaaa....
     """
-    s.grid(11, 11, mano, {"a": "olive_light"})
-    for x in (13, 15, 17, 19):
-        s.set(x, 12, "concrete_light")             # luz en las yemas
-    s.vline(19, 15, 21, "olive")                   # sombra a la derecha
-    s.vline(18, 19, 21, "olive")
-    s.set(14, 17, "olive")                         # nudillo
-    s.hline(8, 24, 22, "olive_shadow")             # tierra removida
-    s.hline(10, 22, 23, "olive_shadow")
-    s.set(9, 21, "olive_shadow")
-    s.set(23, 21, "olive_shadow")
+    s.grid(11, 13, mano, {"a": "olive_black"})
+    s.hline(9, 23, 22, "olive_black")      # tierra removida
+    s.hline(8, 24, 23, "olive_shadow")
+    s.set(10, 21, "olive_black")
+    s.set(22, 21, "olive_black")
     s.outline()
     return s
 
 
 def via_cortada():
     s = Sprite()
-    # Tramo de vía en perspectiva (se aleja hacia arriba) roto por el centro.
-    for y, (x0, x1) in zip(range(6, 30, 4), ((11, 20), (10, 21), (8, 23), (7, 24), (5, 26), (4, 27))):
-        if 13 <= y <= 17:
-            continue
-        s.hline(x0, x1, y, "brown")            # traviesa
-        s.hline(x0, x1, y + 1, "brown_dark")
-        s.set(x0, y, "ochre_dark")
-    for lado in (0, 1):
-        pts = [(12, 4), (8, 30)] if lado == 0 else [(19, 4), (23, 30)]
-        (xa, ya), (xb, yb) = pts
-        for y in range(ya, yb + 1):
-            if 12 <= y <= 18:
-                continue
-            x = round(xa + (xb - xa) * (y - ya) / (yb - ya))
-            s.set(x, y, "concrete_light")
-            s.set(x + (1 if lado else -1), y, "slate")
-    # Extremos doblados del carril roto y el aspa del corte.
-    s.line(11, 11, 9, 9, "concrete")
-    s.line(21, 19, 24, 20, "concrete")
-    aspa(s, 18, 1, 12)
+    # Vía vista desde arriba: traviesas separadas (se ve el balasto entre ellas) y dos carriles marcados.
+    for y in (2, 7, 22, 27):
+        s.rect(6, y, 16, 2, "brown")
+        s.hline(6, 21, y, "ochre_dark")
+    for x in (9, 17):
+        for (y0, y1) in ((1, 11), (20, 30)):
+            s.vline(x, y0, y1, "grey_light")
+            s.vline(x + 1, y0, y1, "concrete")
+            s.vline(x + 2, y0, y1, "slate")
+    # Extremos del carril roto, astillados.
+    for x in (9, 17):
+        s.set(x + 2, 12, "concrete")
+        s.set(x, 19, "concrete")
     s.outline()
+    aspa(s, 19, 1, 12)
     return s
 
 
@@ -125,13 +116,22 @@ def tren_detenido():
 def sin_municion():
     s = build_a1.municion()
     s.replace(CONTORNO, None)
-    for x in range(5, 22):                     # sin cartuchos: borra lo que asoma
+    for x in range(5, 22):                     # sin cartuchos de pie
         for y in range(0, 10):
             s.set(x, y, None)
-    s.rect(6, 11, 16, 2, "slate_dark")
+    s.rect(6, 10, 16, 3, "slate_dark")
+    for x in (6, 10, 14, 18):                  # huecos vacíos de los cartuchos, con el borde de latón gastado
+        s.rect(x, 10, 3, 2, "olive_black")
+        s.hline(x, x + 2, 12, "ochre_dark")
     apagar(s)
+    # Un único cartucho tumbado sobre la tapa: la lata conserva su identidad.
+    s.rect(3, 7, 9, 3, "amber")
+    s.hline(3, 11, 7, "cream")
+    s.hline(3, 11, 9, "ochre_dark")
+    s.rect(1, 7, 2, 3, "ochre_dark")
+    s.vline(9, 7, 9, "ochre_dark")
     s.outline()
-    aspa(s, 15, 2, 12)
+    aspa(s, 16, 1, 12)
     return s
 
 
@@ -144,39 +144,34 @@ def sin_combustible():
 
 def asedio():
     s = Sprite()
-    # Muro de bloques de hormigón con la horda (siluetas oscuras) apretada contra él.
-    s.rect(6, 6, 20, 16, "concrete")
-    for y in range(6, 22, 4):
+    # Fondo rojo de peligro (placa redondeada) para el nivel de emergencia.
+    s.rect(1, 2, 30, 28, "red_bright")
+    for (x, y) in ((1, 2), (30, 2), (1, 29), (30, 29)):
+        s.set(x, y, None)
+    s.hline(2, 29, 2, "red")
+    s.vline(1, 3, 28, "red")
+    # Muro de bloques de hormigón con almenas.
+    s.rect(6, 7, 20, 14, "concrete")
+    for y in range(7, 21, 4):
         s.hline(6, 25, y, "concrete_light")
-        s.hline(6, 25, y + 3, "grey_brown")
+        s.hline(6, 25, min(20, y + 3), "grey_brown")
         off = 0 if (y // 4) % 2 else 5
         for x in range(6 + off, 26, 10):
-            s.vline(x, y + 1, y + 2, "grey_brown")
-    s.vline(6, 6, 21, "concrete_light")
-    s.vline(25, 6, 21, "grey_brown")
-    s.rect(9, 3, 4, 3, "concrete")             # almenas de sacos
-    s.rect(19, 3, 4, 3, "concrete")
-    s.hline(9, 12, 3, "concrete_light")
-    s.hline(19, 22, 3, "concrete_light")
-    s.set(17, 11, "olive_shadow")              # grieta
-    s.set(18, 12, "olive_shadow")
+            s.vline(x, y + 1, min(20, y + 2), "grey_brown")
+    s.vline(6, 7, 20, "concrete_light")
+    s.vline(25, 7, 20, "grey_brown")
+    for x0 in (6, 13, 20):
+        s.rect(x0, 4, 5, 3, "concrete")
+        s.hline(x0, x0 + 4, 4, "concrete_light")
+    s.set(17, 12, "olive_shadow")              # grieta
     s.set(18, 13, "olive_shadow")
-    # Horda: figuras con los brazos en alto contra el muro, luz de borde arriba a la izquierda.
-    for k, (x, y) in enumerate(((1, 19), (6, 21), (11, 20), (16, 22), (21, 20), (26, 21),
-                                (3, 25), (9, 26), (14, 25), (19, 26), (24, 25))):
-        s.rect(x, y + 3, 4, 6, "olive_shadow")             # cuerpo
-        s.ellipse(x, y, x + 3, y + 3, "olive_shadow")      # cabeza
-        s.set(x, y + 1, "olive_grey")                      # luz de borde
-        s.vline(x, y + 3, y + 5, "olive_grey")
-        if k < 6:                                          # fila de delante: brazos al muro
-            s.vline(x - 1, y - 3, y + 3, "olive_shadow")
-            s.vline(x + 4, y - 2, y + 3, "olive_shadow")
-            s.set(x - 1, y - 3, "olive_grey")
-    s.rect(0, 29, 32, 1, None)
+    # Cinco cabezas y hombros en silueta al pie del muro (se leen a 16 px).
+    for x in (5, 12, 19, 26):
+        s.ellipse(x - 2, 19, x + 1, 22, "olive_black")
+        s.rect(x - 2, 23, 4, 5, "olive_black")
+        s.set(x - 2, 23, None)
+        s.set(x + 1, 23, None)
     s.outline()
-    # Acento ámbar: el foco del muro encendido.
-    s.rect(15, 4, 2, 2, "amber")
-    s.set(15, 4, "cream")
     return s
 
 
@@ -187,6 +182,7 @@ if __name__ == "__main__":
     for n, a, b in zip(nombres, s32, s16):
         a.save(OUT / f"vm_alertas_{n}_32.png")
         b.save(OUT / f"vm_alertas_{n}_16.png")
-        print(n, "32:", check(a, recurso=True) or "OK", "| 16:", check(b, recurso=True) or "OK")
+        grave = n in ("ataque", "asedio")   # nivel de emergencia: lleva el rojo de peligro
+        print(n, "32:", check(a, recurso=not grave) or "OK", "| 16:", check(b, recurso=not grave) or "OK")
     contact_sheet([s32, s16, [s.silhouette() for s in s32]], OUT / "contacto_a2.png", scale=6,
                   labels=["32 px", "16 px", "silueta"])
