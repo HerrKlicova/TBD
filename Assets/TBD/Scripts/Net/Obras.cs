@@ -29,6 +29,7 @@ namespace TBD.Net
         // Puerta de vía (diseno-hito5.md §2a): su estado va en el registro, dentro del hash (solo las puertas de vía lo usan)
         public byte GateMode;            // 0 = automática, 1 = bloqueada abierta, 2 = bloqueada cerrada (orden del jugador)
         public int GateProg;             // 0 = cerrada … GateSwapTicks = abierta (ticks de zona; tarda 6 s en cada sentido)
+        public int PaidU;                // u cobradas por la obra entera (solo la primera pieza de cada obra la guarda): cancelar sin empezar devuelve exactamente esto
         public bool Broken;              // rota: hueco con escombros por donde entra la horda, pero la vía sigue usable; no cuenta para el nivel
     }
 
@@ -45,7 +46,8 @@ namespace TBD.Net
         public int MaxWorkersPerPiece;   // obreros que pueden trabajar a la vez en una misma pieza (obra_obreros_max_pieza; las obras grandes lo suben)
         public int GarrisonMin;          // personas que nunca trabajan: el retén (obras_guarnicion_minima de balance_construccion.csv, 6; NO la guarnicion_minima de 12 de la producción, D-N59)
         public int RepairU, RepairHours, WorksCrew;     // reparar un tramo: 5 u y 3 h con el tren de obras y 8 obreros a bordo (reparar_tramo_u, reparar_tramo_h, tren_obras_obreros)
-        public int BridgeU, BridgeDays;                 // el puente del Jiloca: 80 u y 2 días con el tren de obras (puente_jiloca_materiales y puente_jiloca_dias de balance_economia.csv)
+        public int BridgeU, BridgeObreroH;              // el puente del Jiloca: 80 u (puente_jiloca_materiales, balance_economia.csv) y 192 obrero·h (puente_jiloca_obreros_h, balance_construccion.csv)
+        public int WorkStartHour, WorkEndHour;          // todas las obras trabajan de 06:00 a 18:00 (obra_hora_inicio, obra_hora_fin: 12 h al día) y de noche se paran
         public int ViaGateU, HViaGate;   // puerta de vía: 8 u y 6 obrero·h (pieza_puerta_via_u, obra_puerta_via_h)
         public int TrackHalfMm;          // semiancho del hueco de la vía (3,2 m en total) respecto de y = 0; 0 = la red no conoce la vía (via_hueco_mm / 2)
         public int GateSwapTicks;        // abrir o cerrar la puerta de vía: 6 s a 30 ticks de zona por segundo = 180 ticks enteros
@@ -65,7 +67,7 @@ namespace TBD.Net
                     SacosPer10m = 2, HescoPer10m = 6, PuertaU = 6, NidoU = 8, FocoU = 2, AndenU = 6, DepositoU = 5,
                     ModuleMm = 10_000, MinWallMm = 1_000, PerimeterMm = 60_000, LevelDivU = 30, LevelMaxMil = 5_000,
                     MaxPieces = 2_000, MaxVertices = 32, CoordLimitMm = 2_000_000,
-                    MaxWorkersPerPiece = 4, GarrisonMin = 6, ViaGateU = 8, HViaGate = 6, TrackHalfMm = 1_600, GateSwapTicks = 180, GateNearMm = 150_000, RepairU = 5, RepairHours = 3, WorksCrew = 8, BridgeU = 80, BridgeDays = 2, OutsideWearMil = 10, WearDayMil = 10, CancelStartedMil = 500,
+                    MaxWorkersPerPiece = 4, GarrisonMin = 6, ViaGateU = 8, HViaGate = 6, TrackHalfMm = 1_600, GateSwapTicks = 180, GateNearMm = 150_000, RepairU = 5, RepairHours = 3, WorksCrew = 8, BridgeU = 80, BridgeObreroH = 192, WorkStartHour = 6, WorkEndHour = 18, OutsideWearMil = 10, WearDayMil = 10, CancelStartedMil = 500,
                     HSacos10 = 2, HHesco10 = 4, HPuerta = 4, HNido = 6, HFoco = 2, HDeposito = 8, HAnden = 10
                 };
             }
@@ -86,6 +88,8 @@ namespace TBD.Net
             d.MinWallMm = (int)t.TryValue("muro_minimo_mm", d.MinWallMm);
             d.PerimeterMm = (int)t.TryValue("perimetro_mm", d.PerimeterMm);
             d.GarrisonMin = (int)t.TryValue("obras_guarnicion_minima", d.GarrisonMin);
+            d.BridgeObreroH = (int)t.TryValue("puente_jiloca_obreros_h", d.BridgeObreroH);
+            d.WorkStartHour = (int)t.TryValue("obra_hora_inicio", d.WorkStartHour); d.WorkEndHour = (int)t.TryValue("obra_hora_fin", d.WorkEndHour);
             d.ViaGateU = (int)t.TryValue("pieza_puerta_via_u", d.ViaGateU); d.HViaGate = (int)t.TryValue("obra_puerta_via_h", d.HViaGate);
             d.TrackHalfMm = (int)(t.TryValue("via_hueco_mm", 2L * d.TrackHalfMm) / 2); d.GateSwapTicks = (int)t.TryValue("puerta_via_ticks", d.GateSwapTicks); d.GateNearMm = (int)t.TryValue("puerta_via_cerca_mm", d.GateNearMm);
             d.RepairU = (int)t.TryValue("reparar_tramo_u", d.RepairU); d.RepairHours = (int)t.TryValue("reparar_tramo_h", d.RepairHours); d.WorksCrew = (int)t.TryValue("tren_obras_obreros", d.WorksCrew);
@@ -101,13 +105,16 @@ namespace TBD.Net
         }
 
         /// <summary>Añade los u por nivel de fortificación de balance_economia.csv (fort_materiales_por_nivel, 30; D-N59: sustituye a nivel_u_por_nivel).</summary>
-        public ObrasParams WithEconomia(CsvTable e) { var d = this; d.LevelDivU = (int)e.TryValue("fort_materiales_por_nivel", d.LevelDivU); d.WearDayMil = (int)e.TryValue("fort_desgaste_dia", d.WearDayMil); d.BridgeU = (int)e.TryValue("puente_jiloca_materiales", d.BridgeU); d.BridgeDays = (int)e.TryValue("puente_jiloca_dias", d.BridgeDays); BalanceMath.Positive(d.LevelDivU, "fort_materiales_por_nivel"); return d; }
+        public ObrasParams WithEconomia(CsvTable e) { var d = this; d.LevelDivU = (int)e.TryValue("fort_materiales_por_nivel", d.LevelDivU); d.WearDayMil = (int)e.TryValue("fort_desgaste_dia", d.WearDayMil); d.BridgeU = (int)e.TryValue("puente_jiloca_materiales", d.BridgeU); BalanceMath.Positive(d.LevelDivU, "fort_materiales_por_nivel"); return d; }
 
         /// <summary>Trabajo de reparar un tramo normal, en obrero·ticks (1 obrero·h = 1.500 ticks): 3 h con 8 obreros = 24 obrero·h.</summary>
         public long RepairNeedTicks { get { return (long)RepairHours * WorksCrew * 1500; } }
 
-        /// <summary>Trabajo del puente del Jiloca: puente_jiloca_dias días (2) con los 8 obreros del tren de obras, día entero (el CSV manda sobre las 192 obrero·h).</summary>
-        public long BridgeNeedTicks { get { return (long)BridgeDays * NetConst.DayTicks * WorksCrew; } }
+        /// <summary>Trabajo del puente del Jiloca: 192 obrero·h (8 obreros × 12 h × 2 días). Se trabaja solo de 06:00 a 18:00: con 8 obreros son 2 días.</summary>
+        public long BridgeNeedTicks { get { return (long)BridgeObreroH * 1500; } }
+
+        /// <summary>¿Es hora de obra a esta hora del día (ticks desde las 00:00)? De WorkStartHour a WorkEndHour; fuera de ese horario todas las obras se paran sin perder progreso.</summary>
+        public bool IsWorkTime(long tickOfDay) { return tickOfDay >= NetConst.Hours(WorkStartHour) && tickOfDay < NetConst.Hours(WorkEndHour); }
 
         public int PricePer10m(PieceKind k) { return k == PieceKind.Sacos ? SacosPer10m : HescoPer10m; }
 
@@ -389,9 +396,10 @@ namespace TBD.Net
             if (!plan.Ok) return -1;
             int id = NextId[node]++;
             var l = At(node);
+            bool first = true;
             foreach (var w in plan.Pieces)
             {
-                var x = w; x.Id = id;
+                var x = w; x.Id = id; x.PaidU = first ? plan.CostU : 0; first = false;
                 if (x.IsGate)                                                    // se reconstruye encima de una puerta rota (a ≤ 3,2 m): la rota desaparece y la nueva conserva su posición exacta (no mueve el hueco)
                     for (int i = l.Count - 1; i >= 0; i--)
                         if (l[i].IsGate && l[i].Broken && Math.Abs((long)(l[i].X0 + l[i].X1) / 2 - (x.X0 + x.X1) / 2) <= 2L * P.TrackHalfMm && Math.Abs((long)(l[i].Y0 + l[i].Y1) / 2 - (x.Y0 + x.Y1) / 2) <= 2L * P.TrackHalfMm)
@@ -495,11 +503,13 @@ namespace TBD.Net
             foreach (var w in l) if (w.Id == id && !w.Built) { any = true; if (w.WorkE4 > 0) started = true; }
             if (!any) return 0;
             foreach (var w in l) if (w.Id == id && w.Built) started = true;       // una obra que ya tiene piezas terminadas «está en marcha»
-            long pct = started ? P.CancelStartedMil : 1000, refund = 0;
+            // Hugo (D-N59): sin empezar se devuelve EXACTAMENTE lo cobrado (las u de la orden); empezada, floor(50 % de lo cobrado) por la parte sin terminar
+            long pct = started ? P.CancelStartedMil : 1000, paid = 0, totalE4 = 0, unbuiltE4 = 0;
+            foreach (var w in l) if (w.Id == id) { paid += w.PaidU; totalE4 += w.CostE4; if (!w.Built) unbuiltE4 += w.CostE4; }
             for (int i = l.Count - 1; i >= 0; i--)
-                if (l[i].Id == id && !l[i].Built) { refund += l[i].CostE4 * pct / 1000; l.RemoveAt(i); }
+                if (l[i].Id == id && !l[i].Built) l.RemoveAt(i);
             if (l.Count == 0) _byNode[node] = null;
-            return (int)(refund / 10_000);
+            return totalE4 <= 0 ? 0 : (int)(paid * unbuiltE4 * pct / (totalE4 * 1000));
         }
 
         /// <summary>
@@ -580,6 +590,7 @@ namespace TBD.Net
                     ulong c = (ulong)(uint)w.CostE4 | ((ulong)(uint)w.LifeMil << 32) | ((ulong)w.Kind << 52) | (w.Built ? 1UL << 60 : 0UL);
                     ulong d = (ulong)(uint)w.NeedE4 | ((ulong)(uint)w.WorkE4 << 32);
                     h += NetWorld.Mix(NetWorld.Mix(NetWorld.Mix(NetWorld.Mix(0x0B2A5UL ^ ((ulong)(uint)n << 40) ^ (ulong)(uint)i) ^ a) ^ b) ^ NetWorld.Mix(c) ^ NetWorld.Mix(d ^ ((ulong)(uint)w.Id << 20) ^ ((ulong)(uint)w.MaxWorkers << 44)));
+                    if (w.PaidU != 0) h += NetWorld.Mix(0x9A1DUL ^ ((ulong)(uint)n << 48) ^ ((ulong)(uint)i << 32) ^ (ulong)(uint)w.PaidU);
                     if (w.IsGate) h += NetWorld.Mix(0x6A7E5UL ^ ((ulong)(uint)n << 48) ^ ((ulong)(uint)i << 32) ^ ((ulong)w.GateMode << 24) ^ ((ulong)(uint)w.GateProg << 4) ^ (w.Broken ? 1UL : 0UL));     // estado de la puerta de vía (solo ellas)
                 }
             }
