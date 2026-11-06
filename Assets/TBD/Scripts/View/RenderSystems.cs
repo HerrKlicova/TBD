@@ -111,7 +111,7 @@ namespace TBD.View
 
         public static float4x4 SpriteMatrix(bool lod)
         {
-            if (FigureMode) return float4x4.identity;   // medido en Unity: el modelo de Teo (brazos a z medio +0,30) YA mira a +Z, como la simulación; no hace falta girarlo
+            if (FigureMode) return float4x4.identity;   // el zombi fino de Teo ya es delgado. Medido en Unity: el modelo de Teo (brazos a z medio +0,30) YA mira a +Z, como la simulación; no hace falta girarlo
             float m = lod ? LodMeters : SpriteMeters;
             return float4x4.TRS(float3.zero, quaternion.RotateX(1.5707964f), new float3(m, m, 1f));
         }               // lado del cuadrado de 32 px del zombi (hombros de unos 0,8 m)

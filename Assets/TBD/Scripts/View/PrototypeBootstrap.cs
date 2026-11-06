@@ -84,6 +84,7 @@ namespace TBD.View
         Volume _volume;
         ColorAdjustments _grade;
         Bloom _bloom;
+        bool _autoPix = true; float _factorNext;           // pixelado automático: a más zoom, píxeles más gordos, para que el 3D de cerca también se vea pixelado (Eugenio, 6-nov)
         int _factor = 3;                              // factor de pixelado N (PROTOTIPO: 2-4)
         float _paletteMix = 0.65f;                     // mezcla con la paleta en el mundo 3D (Lucía, D-4 de dirección visual): el ocre y el ámbar no viran
         int _gradeIndex;
@@ -267,6 +268,12 @@ namespace TBD.View
         void UpdateHordePresentation()
         {
             if (_worldCam == null || _worldA == null) return;
+            if (_autoPix && Time.unscaledTime > _factorNext)                      // ~12 px por metro como máximo: cerca, factor 4-6; lejos, 3
+            {
+                float ideal = Screen.height / (24f * Mathf.Max(0.01f, _worldCam.orthographicSize));
+                int want = Mathf.Clamp(Mathf.RoundToInt(ideal), 3, 6);
+                if (want != _factor && Mathf.Abs(ideal - _factor) > 0.6f) { _factor = want; RebuildRt(); _factorNext = Time.unscaledTime + 0.5f; }
+            }
             float pxPerM = _worldCam.pixelHeight / (2f * Mathf.Max(0.01f, _worldCam.orthographicSize));
             float bodyPx = 0.8f * pxPerM;                                          // anchura de hombros del zombi en el búfer
             bool lod = RenderAssets.LodOn ? bodyPx < 10f : bodyPx < 8f;            // entra a menos de 8 px (Eugenio quiere figuras, no manchas: el sprite grande aguanta más), sale a más de 10
@@ -421,8 +428,8 @@ namespace TBD.View
             if (kb.digit7Key.wasPressedThisFrame) ApplyGrade(0);
             if (kb.digit8Key.wasPressedThisFrame) ApplyGrade(1);
             if (kb.digit9Key.wasPressedThisFrame) ApplyGrade(2);
-            if (kb.leftBracketKey.wasPressedThisFrame) { _factor = Mathf.Max(2, _factor - 1); RebuildRt(); }
-            if (kb.rightBracketKey.wasPressedThisFrame) { _factor = Mathf.Min(4, _factor + 1); RebuildRt(); }
+            if (kb.leftBracketKey.wasPressedThisFrame) { _autoPix = false; _factor = Mathf.Max(2, _factor - 1); RebuildRt(); }
+            if (kb.rightBracketKey.wasPressedThisFrame) { _autoPix = false; _factor = Mathf.Min(6, _factor + 1); RebuildRt(); }
             if (kb.commaKey.wasPressedThisFrame) _paletteMix = Mathf.Max(0f, _paletteMix - 0.25f);
             if (kb.periodKey.wasPressedThisFrame) _paletteMix = Mathf.Min(1f, _paletteMix + 0.25f);
             if (kb.pKey.wasPressedThisFrame) _paused = !_paused;
@@ -442,6 +449,18 @@ namespace TBD.View
                 if (kb.nKey.wasPressedThisFrame)                                                                                       // asignar obreros / quitarlos
                     NetSession.Push(NetCmdType.AssignWorkers, _zoneNode, 0, NetSession.A.Works.Workers[_zoneNode] > 0 ? 0 : 8);
                 if (kb.enterKey.wasPressedThisFrame && _buildMode) FinishWall();
+                // taller de Sagunto (H5 paso 5): 1 tren de carga, 2 de combate, 3 de obras, 4 rehabilitar el Tren 3, 5 rehabilitar el de obras, 0 cancela el primer encargo, C mueve a Chispas
+                var tl = NetSession.A != null ? NetSession.A.Taller : null;
+                if (tl != null && tl.NodeIndex == _zoneNode)
+                {
+                    if (kb.digit1Key.wasPressedThisFrame) NetSession.Push(NetCmdType.OrderTrain, (int)TallerKind.Carga, 0);
+                    if (kb.digit2Key.wasPressedThisFrame) NetSession.Push(NetCmdType.OrderTrain, (int)TallerKind.Combate, 0);
+                    if (kb.digit3Key.wasPressedThisFrame) NetSession.Push(NetCmdType.OrderTrain, (int)TallerKind.Obras, 0);
+                    if (kb.digit4Key.wasPressedThisFrame) NetSession.Push(NetCmdType.OrderTrain, (int)TallerKind.RehabTren3, 0);
+                    if (kb.digit5Key.wasPressedThisFrame) NetSession.Push(NetCmdType.OrderTrain, (int)TallerKind.RehabObras, 0);
+                    if (kb.digit0Key.wasPressedThisFrame && tl.Queue.Count > 0) NetSession.Push(NetCmdType.CancelTrainOrder, 0, 0);
+                    if (kb.cKey.wasPressedThisFrame && tl.ChispasAt != -2) NetSession.Push(NetCmdType.SetChispas, tl.ChispasAt == -1 ? 1 : 0, 0);   // al tren 1 o de vuelta al taller
+                }
             }
 
             // ---- cámara libre: rotación, inclinación y zoom continuos (GDD §11, v1.10)
@@ -712,14 +731,14 @@ namespace TBD.View
                     _grade.colorFilter.Override(new Color(1f, 0.97f, 0.92f));   // día menos lavado: algo más de saturación cálida
                     _grade.postExposure.Override(0f);
                     _grade.saturation.Override(4f);
-                    SetLight(new Color(1f, 0.97f, 0.92f), 1.2f, new Color(0.30f, 0.36f, 0.52f));
+                    SetLight(new Color(1f, 0.97f, 0.92f), 1.2f, new Color(0.30f, 0.36f, 0.52f), 40f);   // sol a 40° de día (Lucía, D-N61: 35-45°)
                     SetFloodlights(0f);
                     break;
                 case 1:  // atardecer naranja
                     _grade.colorFilter.Override(new Color(1f, 0.8f, 0.62f));
                     _grade.postExposure.Override(0.1f);
                     _grade.saturation.Override(10f);
-                    SetLight(new Color(1f, 0.97f, 0.92f), 1.2f, new Color(0.30f, 0.36f, 0.52f));
+                    SetLight(new Color(1f, 0.97f, 0.92f), 1.2f, new Color(0.30f, 0.36f, 0.52f), 15f);   // al atardecer 15°: sombras largas (10-20°)
                     SetFloodlights(12f);
                     break;
                 default: // noche: el azul viene de la luna y del ambiente (#283440 a #404460) sobre el albedo ocre de siempre; la gradación
@@ -729,16 +748,16 @@ namespace TBD.View
                     _grade.saturation.Override(-15f);
                     // luna y ambiente poco azules y bajos, y focos más fuertes: medido a resolución completa (Shift+F9 con máscara), el 84 % de los
                     // píxeles cálidos del charco queda entre 20° y 45° (con la gradación azul y el foco de antes, el 18 %: el borde del charco salía rosa)
-                    SetLight(new Color(0.26f, 0.30f, 0.45f), 0.45f, new Color(0.06f, 0.07f, 0.10f));
+                    SetLight(new Color(0.26f, 0.30f, 0.45f), 0.45f, new Color(0.06f, 0.07f, 0.10f), 50f);   // luna alta; ambiente al 6-10 %
                     SetFloodlights(90f);
                     break;
             }
         }
 
         /// <summary>Sol (o luna) y luz ambiente de cada gradación: el tono de la hora va en la luz, no en un tinte de la imagen.</summary>
-        void SetLight(Color sunColor, float sunIntensity, Color ambient)
+        void SetLight(Color sunColor, float sunIntensity, Color ambient, float elevation = 40f)
         {
-            if (_sun != null) { _sun.color = sunColor; _sun.intensity = sunIntensity; }
+            if (_sun != null) { _sun.color = sunColor; _sun.intensity = sunIntensity; _sun.transform.rotation = Quaternion.Euler(elevation, -35f, 0f); }
             RenderSettings.ambientLight = ambient;
         }
 
@@ -1051,7 +1070,7 @@ namespace TBD.View
                 var teoMeshes = new System.Collections.Generic.List<Mesh>(); var teoMats = new System.Collections.Generic.List<Material>();
                 foreach (var camisa in new[] { "camisa_303424", "camisa_283440", "camisa_442c0c" })
                 {
-                    var go = Resources.Load<GameObject>("Models/Zombi/" + camisa + "/SM_zombi_cercano_LOD1");
+                    var go = Resources.Load<GameObject>("Models/Zombi/" + camisa + "/SM_zombi_fino_LOD1");
                     var tex = Resources.Load<Texture2D>("Models/Zombi/" + camisa + "/T_Paleta32");
                     var mf = go != null ? go.GetComponentInChildren<MeshFilter>() : null;
                     if (mf == null || tex == null) continue;
@@ -1069,7 +1088,7 @@ namespace TBD.View
             if (sun == null) sun = new GameObject("Sol").AddComponent<Light>();
             _sun = sun;
             sun.type = LightType.Directional;
-            sun.transform.rotation = Quaternion.Euler(32f, -35f, 0f);
+            sun.transform.rotation = Quaternion.Euler(40f, -35f, 0f);
             sun.color = new Color(1f, 0.97f, 0.92f);          // casi neutro: el suelo ocre ya no vira a amarillo limón
             sun.intensity = 1.2f;
             sun.shadows = LightShadows.Soft;
@@ -1205,7 +1224,7 @@ namespace TBD.View
         void BuildCuttingTerrain()
         {
             var bank = Mat("8a7650");                                // llano de arriba (L* 64-68 en captura normal)
-            var slope = Mat("766444");                               // taludes: L* 52-56 (medido: con el albedo del llano salían a 66)
+            var slope = Mat("5a4c34");                               // taludes: L* 52-56 (medido: con el albedo del llano salían a 66)
             float hb = 0.7f, hp = CuttingLevel.Depth;                // altura de la base de la rampa y del llano de arriba
             float yb = Level.TrackY + CuttingLevel.HalfBottom;       // 72,5: pie del talud norte
             float yc = yb + (hp - hb) / 0.84f;                       // pendiente 0,84 m por metro: pasa por la mitad de los escalones
@@ -1446,13 +1465,45 @@ namespace TBD.View
             return k == PieceKind.Sacos ? "muro de sacos" : k == PieceKind.Hesco ? "muro HESCO" : k == PieceKind.Puerta ? "puerta" : k == PieceKind.Nido ? "nido de ametralladora" : k == PieceKind.Foco ? "foco" : k.ToString();
         }
 
+        /// <summary>
+        /// DensityView para el terreno asegurado (Nacho, PR #16): rejilla de celdas de 0,5 m con los zombis en pie, en mm locales al nodo
+        /// (origen = esquina de la zona menos WorkOrigin; la vía es y = 0). Solo se enchufa mientras se previsualiza: las órdenes de la red
+        /// no la usan, así que los dos mundos aceptan lo mismo y el hash no cambia.
+        /// </summary>
+        DensityView _densCache; float _densTime = -9f;
+
+        DensityView BuildZoneDensity()
+        {
+            if (_densCache != null && Time.unscaledTime - _densTime < 0.3f) return _densCache;     // el fantasma lo pide en cada fotograma
+            const int CellMm = 500;
+            int w = (int)(SimConst.WorldW / 0.5f), h = (int)(SimConst.WorldH / 0.5f);
+            var d = new int[w * h];
+            var zs = _worldA.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<Zombie>()).ToComponentDataArray<Zombie>(Allocator.Temp);
+            for (int i = 0; i < zs.Length; i++)
+            {
+                if (zs[i].State == ZState.Fall || zs[i].State == ZState.Dead) continue;           // solo los que están en pie
+                int cx = (int)(zs[i].Pos.x / 0.5f), cz = (int)(zs[i].Pos.z / 0.5f);
+                if (cx >= 0 && cx < w && cz >= 0 && cz < h) d[cz * w + cx]++;
+            }
+            zs.Dispose();
+            _densTime = Time.unscaledTime;
+            return _densCache = new DensityView { D = d, W = w, H = h, CellMm = CellMm, OriginXMm = (int)Mathf.Round((0f - WorkOrigin.x) * 1000f), OriginYMm = (int)Mathf.Round((0f - WorkOrigin.y) * 1000f) };
+        }
+
+        WorkPlan PreviewZone(NetWorld net, PieceKind kind, int[] pts)
+        {
+            net.ZoneDensity = BuildZoneDensity;
+            try { return net.PreviewWork(_zoneNode, kind, pts); }
+            finally { net.ZoneDensity = null; }
+        }
+
         static int ToLocalMm(float v, bool z = false) { return (int)Mathf.Round((v - (z ? WorkOrigin.y : WorkOrigin.x)) * 1000f); }
 
         void FinishWall()
         {
             if (_wallPts.Count < 4) { _wallPts.Clear(); return; }
             // la red (PR #12 de Nacho) conoce la vía: envía la polilínea entera y añade las puertas de vía donde el muro cruza
-            var plan = NetSession.A.Works.Preview(_zoneNode, _workKind, _wallPts.ToArray(), NetSession.A.Stock[_zoneNode, (int)Res.Materiales]);
+            var plan = PreviewZone(NetSession.A, _workKind, _wallPts.ToArray());
             if (!plan.Ok) { _workMsg = "No se puede construir: " + plan.Why; _wallPts.Clear(); return; }
             NetSession.PushPayload(NetCmdType.PlaceWork, _zoneNode | ((int)_workKind << 16), _wallPts.ToArray());
             _workMsg = $"Obra pedida: {plan.AllowedMm / 1000f:0.0} m de {(_workKind == PieceKind.Sacos ? "sacos" : "HESCO")}, {plan.CostU} u" + (plan.Cut ? " (se corta por falta de materiales)" : "");
@@ -1537,6 +1588,21 @@ namespace TBD.View
             var net = NetSession.A;
             var sb = new System.Text.StringBuilder();
             int stock = net.Stock[_zoneNode, (int)Res.Materiales];
+            var tl2 = net.Taller;
+            if (tl2 != null && tl2.NodeIndex == _zoneNode)
+            {
+                var p = tl2.P;
+                string chispasTxt = tl2.ChispasAt == -2 ? "no está" : tl2.ChispasAt == -1 ? "en el taller" : "en el tren " + (tl2.ChispasAt + 1);
+                sb.Append($"TALLER · 1 carga ({p.TrainU} u, {p.TrainFuel} comb.) · 2 combate · 3 obras · 4 rehab. Tren 3 ({p.Tren3U} u) · 5 rehab. obras ({p.ObrasU} u) · 0 cancela el primero · C mueve a Chispas ({chispasTxt})\n");
+                if (tl2.Queue.Count == 0) sb.Append("   cola vacía\n");
+                for (int qi = 0; qi < tl2.Queue.Count; qi++)
+                {
+                    var o = tl2.Queue[qi];
+                    int pct = o.NeedTicks > 0 ? (int)System.Math.Min(100, o.DoneMilli / 10 / System.Math.Max(1, o.NeedTicks)) : 0;
+                    string est = o.Waiting ? "esperando dotación" : pct + " %";
+                    sb.Append("   " + (qi + 1) + ". " + o.Kind + " · " + est + "\n");
+                }
+            }
             sb.Append($"OBRAS · materiales {stock} u · obreros {net.Works.Workers[_zoneNode]} (N asigna/quita) · nivel {net.Works.LevelMil(_zoneNode) / 1000f:0.0} · H cambia de pieza (ahora: {KindName(_workKind)})");
             if (_buildMode)
             {
@@ -1544,7 +1610,7 @@ namespace TBD.View
                     : $"\nMURO DE {(_workKind == PieceKind.Sacos ? "SACOS (2 u / 10 m)" : "HESCO (6 u / 10 m)")}: clic = punto · Intro o clic derecho = pedir la obra · Esc = cancelar");
                 if (!IsPoint(_workKind) && _wallPts.Count >= 4)
                 {
-                    var plan = net.Works.Preview(_zoneNode, _workKind, _wallPts.ToArray(), stock);
+                    var plan = PreviewZone(net, _workKind, _wallPts.ToArray());
                     sb.Append(plan.Ok ? $"\n{plan.AllowedMm / 1000f:0.0} m · {plan.CostU} u" + (plan.Cut ? $" · faltan materiales: se construirá hasta aquí ({plan.AllowedMm / 1000f:0.0} de {plan.WantedMm / 1000f:0.0} m)" : "") : "\n" + plan.Why);
                 }
             }
@@ -1570,7 +1636,7 @@ namespace TBD.View
             if (_zoneNode >= 0 && !_ambush && IsPoint(_workKind))
             {
                 // pieza puntual (puerta, nido, foco): un clic = una obra en ese punto, en mm enteros locales al nodo
-                var pp = NetSession.A.Works.Preview(_zoneNode, _workKind, new[] { ToLocalMm(pt.x), ToLocalMm(pt.z, true) }, NetSession.A.Stock[_zoneNode, (int)Res.Materiales]);
+                var pp = PreviewZone(NetSession.A, _workKind, new[] { ToLocalMm(pt.x), ToLocalMm(pt.z, true) });
                 if (!pp.Ok) { _workMsg = "No se puede construir: " + pp.Why; return; }
                 NetSession.PushPayload(NetCmdType.PlaceWork, _zoneNode | ((int)_workKind << 16), new[] { ToLocalMm(pt.x), ToLocalMm(pt.z, true) });
                 _workMsg = $"Obra pedida: {KindName(_workKind)}, {pp.CostU} u";
