@@ -1245,7 +1245,7 @@ def _material_paleta(obj, ruta):
 
 # ---------------------------------------------------------------- exportar
 
-def exportar_unity(obj, ruta, formato="FBX"):
+def exportar_unity(obj, ruta, formato="FBX", armature=None):
     """FBX para Unity: escala 1 = 1 m, Y arriba, transformaciones horneadas, sombreado plano. Convención de ejes
     MEDIDA por Marcos en Unity (6-nov): un modelo que en Blender mira a -Y sale en Unity mirando a +Z, es decir, a
     transform.forward, que es lo que espera Unity. axis_forward="-Z" es el parámetro del exportador, no hacia dónde
@@ -1255,6 +1255,16 @@ def exportar_unity(obj, ruta, formato="FBX"):
     escala contra un cubo de 1 m la primera vez (no verificado en este proyecto)."""
     _activar(obj)
     os.makedirs(os.path.dirname(os.path.abspath(ruta)), exist_ok=True)
+    if armature is not None and formato.upper() == "FBX":   # personaje: malla + esqueleto + una toma por acción
+        armature.select_set(True)
+        bpy.ops.export_scene.fbx(filepath=ruta, use_selection=True, object_types={"MESH", "ARMATURE"},
+                                 apply_scale_options="FBX_SCALE_ALL", axis_forward="-Z", axis_up="Y",
+                                 bake_space_transform=False, use_mesh_modifiers=False, mesh_smooth_type="FACE",
+                                 add_leaf_bones=False, primary_bone_axis="Y", secondary_bone_axis="X",
+                                 bake_anim=True, bake_anim_use_all_actions=True, bake_anim_use_nla_strips=False,
+                                 bake_anim_force_startend_keying=True, bake_anim_simplify_factor=0.0,
+                                 path_mode="COPY", embed_textures=False, use_custom_props=True)
+        return {"ruta": ruta, "bytes": os.path.getsize(ruta)}
     if formato.upper() == "FBX":
         bpy.ops.export_scene.fbx(filepath=ruta, use_selection=True, object_types={"MESH"},
                                  apply_scale_options="FBX_SCALE_ALL", axis_forward="-Z", axis_up="Y",

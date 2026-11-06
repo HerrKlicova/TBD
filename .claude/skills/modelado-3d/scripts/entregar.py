@@ -76,7 +76,24 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
                              fondo=hx, umbral_contorno=u)
     for v in ("izquierda", "frente"):
         ns["vista_pixelada"](o, os.path.join(out, "%s.png" % v), vista=v, fondo=SUELOS[0][1], umbral_contorno=u)
-    ns["exportar_unity"](o, os.path.join(out, nombre + ".fbx"))
+    if hasattr(db, "rig"):   # personajes con esqueleto (soldado): armature + clips como tomas del FBX
+        arm = db.rig(o, lod)
+        inf["rig"] = {"huesos": [b.name for b in arm.data.bones],
+                      "clips": [a.name for a in bpy.data.actions]}
+        ns["exportar_unity"](o, os.path.join(out, nombre + ".fbx"), armature=arm)
+        if lod == 1:   # fotogramas de cada clip a tamaño de juego, para la hoja de animaciones
+            for act in bpy.data.actions:
+                arm.animation_data.action = act
+                f0, f1 = (int(x) for x in act.frame_range)
+                for k, f in enumerate(range(f0, f1 + 1, max(1, (f1 - f0) // 5))):
+                    bpy.context.scene.frame_set(f)
+                    ns["vista_pixelada"](o, os.path.join(out, "pose_%s_%02d.png" % (act.name, k)), vista="rts",
+                                         fondo=SUELOS[0][1], umbral_contorno=u)
+                    ns["vista_pixelada"](o, os.path.join(out, "lat_%s_%02d.png" % (act.name, k)), vista="izquierda",
+                                         fondo=SUELOS[0][1], umbral_contorno=u)
+            arm.animation_data.action = None
+    else:
+        ns["exportar_unity"](o, os.path.join(out, nombre + ".fbx"))
     with open(os.path.join(out, "informe.json"), "w", encoding="utf-8") as f:
         json.dump(inf, f, ensure_ascii=False, indent=1, default=str)
     return inf
