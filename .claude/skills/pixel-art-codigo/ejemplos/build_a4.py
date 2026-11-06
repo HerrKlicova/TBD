@@ -1,6 +1,6 @@
 """A4 · Estado de estación (marcador del mapa, 32 px) por código. Bruno (Arte técnico), 6-nov-2026.
 Simbología de mapa ferroviario y de estado mayor antiguo: círculo de estación con la marca del andén,
-banderines y flechas; sin calaveras (D-N48). Tokens de estado (Lucía/Iris):
+banderines y flechas; sin calaveras (D-N50). Tokens de estado (Lucía/Iris):
 segura #70784c, amenazada #847c34, asediada #982420, perdida #340000 con borde #7c181c.
 Además se exporta una base en grises para que Unity la tiña si lo prefiere."""
 import math

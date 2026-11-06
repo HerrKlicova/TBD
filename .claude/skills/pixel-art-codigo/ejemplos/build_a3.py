@@ -1,4 +1,4 @@
-"""A3 · Órdenes (32 px y 16 px) por código. Bruno (Arte técnico), 6-nov-2026 (D-N48).
+"""A3 · Órdenes (32 px y 16 px) por código. Bruno (Arte técnico), 6-nov-2026 (D-N50).
 Lenguaje: las flechas y símbolos de orden van en hueso (el color «de mando», neutro);
 el marco lo pone el botón, así que aquí no hay marco. Misma luz, contorno y desgaste que A1."""
 import sys
