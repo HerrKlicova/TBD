@@ -32,6 +32,8 @@ namespace TBD.View
     {
         public static Mesh ZombieMesh;
         public static Material ZombieMaterial, ZombieLodMaterial;
+        public static Material[] Materials;               // una por camisa del zombi de Teo (meshes[i] con materials[i])
+        public static int Variants = 1;
         public static RenderMeshArray Array;
         public static bool Ready;
         /// <summary>D-N61: a poco zoom cada zombi se dibuja con el sprite de masa de 8 px (con histéresis, la decide PrototypeBootstrap).</summary>
@@ -40,8 +42,17 @@ namespace TBD.View
         public static bool LodDebug;                      // tiñe el LOD de magenta para comprobar que el cambio ocurre (reflexión desde el Editor)
         public static int LodVersion;
 
+        public static void SetVariants(Mesh[] meshes, Material[] materials)
+        {
+            ZombieMesh = meshes[0]; ZombieMaterial = materials[0]; ZombieLodMaterial = materials[0];
+            Materials = materials; Variants = materials.Length;
+            Array = new RenderMeshArray(materials, meshes);
+            Ready = true;
+        }
+
         public static void Set(Mesh mesh, Material material, Material lodMaterial)
         {
+            Materials = new[] { material, lodMaterial };
             ZombieMesh = mesh;
             ZombieMaterial = material;
             ZombieLodMaterial = lodMaterial;
@@ -74,13 +85,15 @@ namespace TBD.View
 
             var desc = new RenderMeshDescription(FigureMode ? ShadowCastingMode.On : ShadowCastingMode.Off, FigureMode);
             var mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(RenderAssets.LodOn ? 1 : 0, 0);
-            var scale = new PostTransformMatrix { Value = SpriteMatrix(RenderAssets.LodOn) };   // sprite de Bruno tumbado sobre el suelo
+            var scale = new PostTransformMatrix { Value = SpriteMatrix(RenderAssets.LodOn) };
+            bool teo = RenderAssets.Variants > 1;   // sprite de Bruno tumbado sobre el suelo
             var ents = _query.ToEntityArray(Allocator.Temp);
             var zs = _query.ToComponentDataArray<Zombie>(Allocator.Temp);
             var em = EntityManager;
             for (int i = 0; i < ents.Length; i++)
             {
                 var e = ents[i];
+                if (teo) { int v = (int)(math.hash(new uint2(zs[i].SimId, 41u)) % (uint)RenderAssets.Variants); mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(v, v); }   // camisa por hash del id
                 RenderMeshUtility.AddComponents(e, em, desc, RenderAssets.Array, mmi);
                 var lt = LocalTransform.FromPositionRotation(new float3(zs[i].Pos.x, zs[i].Pos.y + 0.05f, zs[i].Pos.z), quaternion.RotateY(zs[i].Heading));
                 if (em.HasComponent<LocalTransform>(e)) em.SetComponentData(e, lt); else em.AddComponentData(e, lt);
@@ -98,7 +111,7 @@ namespace TBD.View
 
         public static float4x4 SpriteMatrix(bool lod)
         {
-            if (FigureMode) return float4x4.identity;        // la figura 3D de pie no necesita girarse ni escalarse
+            if (FigureMode) return RenderAssets.Variants > 1 ? float4x4.RotateY(3.1415927f) : float4x4.identity;   // el modelo de Teo mira a -Z; la simulación, a +Z
             float m = lod ? LodMeters : SpriteMeters;
             return float4x4.TRS(float3.zero, quaternion.RotateX(1.5707964f), new float3(m, m, 1f));
         }               // lado del cuadrado de 32 px del zombi (hombros de unos 0,8 m)
@@ -122,6 +135,7 @@ namespace TBD.View
             if (!FigureMode) return new float4(1f, 1f, 1f, 1f);
             // D-N61 (Lucía): horda de un solo valor oscuro (#303424) con ±8 % de luminosidad por id, solo presentación
             float k = 0.92f + 0.16f * ((math.hash(new uint2(id, 17u)) & 255u) / 255f);
+            if (RenderAssets.Variants > 1) { float g = Mathf.GammaToLinearSpace(k); return new float4(g, g, g, 1f); }     // el color va en la paleta del modelo: solo ±8 % de luminosidad
             var c = new Color(0x30 / 255f * k, 0x34 / 255f * k, 0x24 / 255f * k).linear;
             return new float4(c.r, c.g, c.b, 1f);
         }

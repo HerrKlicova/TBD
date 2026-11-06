@@ -839,13 +839,9 @@ namespace TBD.View
             var em = _worldA.EntityManager;
             var q = em.CreateEntityQuery(typeof(Zombie), typeof(ZombieBaseColor));
             var ents = q.ToEntityArray(Allocator.Persistent);                 // Persistent: cruza fotogramas (Temp se libera al acabar el fotograma)
-            var mat = RenderAssets.ZombieMaterial;
-            var lit = mat.shader;
-            var zTex = mat.GetTexture("_BaseMap");
-            var lodMat = RenderAssets.ZombieLodMaterial; var lodTex = lodMat.GetTexture("_BaseMap"); var lodShader = lodMat.shader;
-            lodMat.SetTexture("_BaseMap", null); lodMat.shader = Shader.Find("Universal Render Pipeline/Unlit");
-            mat.SetTexture("_BaseMap", null);                                 // sin textura: la silueta del sprite sale magenta puro
-            mat.shader = Shader.Find("Universal Render Pipeline/Unlit");
+            var allMats = RenderAssets.Materials; var savedTex = new Texture[allMats.Length]; var savedShader = new Shader[allMats.Length];
+            for (int mi = 0; mi < allMats.Length; mi++)                         // sin textura y sin luz: la silueta del zombi sale magenta puro
+            { savedTex[mi] = allMats[mi].GetTexture("_BaseMap"); savedShader[mi] = allMats[mi].shader; allMats[mi].SetTexture("_BaseMap", null); allMats[mi].shader = Shader.Find("Universal Render Pipeline/Unlit"); }
             var magenta = new Unity.Mathematics.float4(1f, 0f, 1f, 1f);       // #FF00FF también en espacio lineal
             for (int i = 0; i < ents.Length; i++) em.SetComponentData(ents[i], new ZombieBaseColor { Value = magenta });
             float mix = _paletteMix;
@@ -883,9 +879,7 @@ namespace TBD.View
             for (int i = 0; i < trainRenderers.Count; i++) trainRenderers[i].sharedMaterials = trainMats[i];
             Destroy(cyan);
             ents.Dispose();
-            mat.shader = lit;
-            mat.SetTexture("_BaseMap", zTex);
-            lodMat.shader = lodShader; lodMat.SetTexture("_BaseMap", lodTex);
+            for (int mi = 0; mi < allMats.Length; mi++) { allMats[mi].shader = savedShader[mi]; allMats[mi].SetTexture("_BaseMap", savedTex[mi]); }
             _paletteMix = mix;
             _quadMat.SetFloat("_PaletteMix", mix);
             _quadMat.SetFloat("_OutlineStrength", outline);
@@ -1051,8 +1045,23 @@ namespace TBD.View
             zl.SetFloat("_Cull", 0f); zl.SetFloat("_AlphaClip", 1f); zl.SetFloat("_Cutoff", 0.5f); zl.EnableKeyword("_ALPHATEST_ON"); zl.SetColor("_BaseColor", Color.white);
             var ztl = Resources.Load<Texture2D>("Icons/unidades/atlas_zombi_lod");
             if (ztl != null) zl.SetTexture("_BaseMap", ztl);
-            if (RenderAssets.FigureMode) { capsule = BuildZombieFigure(); zm = Mat("ffffff"); zl = zm; }
-            RenderAssets.Set(capsule, zm, zl);              // el color por instancia es blanco (ZombieBaseColor); la máscara lo pone magenta
+            if (RenderAssets.FigureMode)
+            {
+                // zombi de cerca de Teo (D-N61): tres camisas, LOD1 de 168-192 triángulos, paleta 32x16 con filtro de punto; si faltan, la figura procedural
+                var teoMeshes = new System.Collections.Generic.List<Mesh>(); var teoMats = new System.Collections.Generic.List<Material>();
+                foreach (var camisa in new[] { "camisa_303424", "camisa_283440", "camisa_442c0c" })
+                {
+                    var go = Resources.Load<GameObject>("Models/Zombi/" + camisa + "/SM_zombi_cercano_LOD1");
+                    var tex = Resources.Load<Texture2D>("Models/Zombi/" + camisa + "/T_Paleta32");
+                    var mf = go != null ? go.GetComponentInChildren<MeshFilter>() : null;
+                    if (mf == null || tex == null) continue;
+                    var mat = Mat("ffffff"); mat.SetTexture("_BaseMap", tex); mat.SetColor("_BaseColor", Color.white);
+                    teoMeshes.Add(mf.sharedMesh); teoMats.Add(mat);
+                }
+                if (teoMeshes.Count == 3) RenderAssets.SetVariants(teoMeshes.ToArray(), teoMats.ToArray());
+                else { capsule = BuildZombieFigure(); zm = Mat("ffffff"); zl = zm; RenderAssets.Set(capsule, zm, zl); }
+            }
+            else RenderAssets.Set(capsule, zm, zl);              // el color por instancia es blanco (ZombieBaseColor); la máscara lo pone magenta
 
             // Luz direccional
             // Sol bajo (unos 32°), cálido, con sombras proyectadas; la luz ambiente fría tiñe las sombras de azul (revisión de Lucía)
