@@ -7,7 +7,8 @@ local con el mismo código que los aprobados por Lucía. Es determinista: salen 
 Uso (desde la raíz del repo, con Python 3 y Pillow):
     python .claude/skills/pixel-art-codigo/ejemplos/exportar_sprites.py <carpeta_salida>
 Salida: atlas_zombi_muerte.png/.json (160x192), atlas_zombi_lod.png/.json (40x8),
-        atlas_oficial.png/.json (160x128). Importar con filtro de punto, sin compresión.
+        atlas_oficial.png/.json (160x128),
+        vm_taller_{puerta_via_rota,tren_nuevo,rehabilitar,chispas}_{32,16}.png (iconos de UI). Importar con filtro de punto, sin compresión.
 """
 import json
 import sys
@@ -23,6 +24,8 @@ sys.path.insert(0, str(AQUI.parent / "scripts"))
 import build_zombi  # noqa: E402
 import build_zombi_lod  # noqa: E402
 import build_oficial  # noqa: E402
+import build_taller  # noqa: E402
+from pixelvm import reduce_16  # noqa: E402
 
 PIVOTE = [0.5, 0.53]
 
@@ -71,6 +74,15 @@ def atlas_oficial(out):
                   for r, (n, fr, fps, b) in enumerate(filas)], "nota": "fila 0 arriba"}}}, indent=1))
 
 
+def iconos_taller(out):
+    """Iconos de UI del taller y de la puerta rota, a 32 y 16 px (sin atlas: uno por archivo)."""
+    for n in ("puerta_via_rota", "tren_nuevo", "rehabilitar", "chispas"):
+        s = getattr(build_taller, n)()
+        s.limit_colors(10)
+        s.save(out / f"vm_taller_{n}_32.png")
+        reduce_16(s).save(out / f"vm_taller_{n}_16.png")
+
+
 if __name__ == "__main__":
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "sprites_exportados")
     out.mkdir(parents=True, exist_ok=True)
@@ -78,4 +90,5 @@ if __name__ == "__main__":
     atlas_muerte_zombi(out)
     atlas_lod(out)
     atlas_oficial(out)
+    iconos_taller(out)
     print("atlas en", out.resolve())
