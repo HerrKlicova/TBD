@@ -55,7 +55,7 @@ Una alerta crítica nueva baja la velocidad a x1 sola (D-N11): vuelve a pulsar 3
 | C | parar |
 
 ## 3. Recorrido recomendado
-1. **Día 1.** Pulsa Play. Pulsa **3** (x4). El reloj arranca a las 05:30. El Tren 1 sale de Valencia a las 06:00. Arriba a la derecha está el informe de la Colmena (cuando aparece algo, suena el motivo).
+1. **Día 1.** Pulsa Play. Pulsa **3** (x4). El reloj arranca a las 05:30. El Tren 1 sale de Valencia a las 06:00. Arriba a la derecha está el informe de la Colmena (cuando aparece una entrada nueva se ve ahí).
 2. **Zona (H3).** Con la rueda, acércate a **Castellón** o a **Barracas**: empiezan «amenazadas» (la guarnición de la horda inicial). Entras en la zona. Pulsa **6** y mira cómo dispara el pelotón desde el tren. **4** añade zombis. **M** te devuelve al mapa.
 3. **Caza (H4).** Hacia las 11:00 del día 1 el Tren 1 sale de Castellón y una manada lo sigue: aparece **ES-1** en el informe.
 4. **Aviso y primer asedio.** Con x4 y unos 5–6 minutos reales llegas al día 2. A las 07:00 aparece la alerta **«Horda hacia Valencia en 3 h (10:00)»** (el objetivo se sortea con la semilla: puede ser otro nodo). Pulsa **J** para ir a ella. A las 10:00 el nodo pasa a **asediado** y entra **ES-2** en el informe. (Medido en el Editor: aviso a las 07:00, asedio a las 10:00 del día 2.)

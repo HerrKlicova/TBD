@@ -450,7 +450,14 @@ namespace TBD.View
                 }
             }
             zs.Dispose();
+            var sq = _worldA.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<Soldier>());
+            var sa = sq.ToComponentDataArray<Soldier>(Allocator.Temp);
+            _deployedSoldiers = 0;
+            for (int i = 0; i < sa.Length; i++) if (sa[i].State == SoldierState.Deployed) _deployedSoldiers++;
+            sa.Dispose();
         }
+
+        int _deployedSoldiers;      // soldados a pie: si se sale de la zona con ellos fuera, se quedan atrás
 
         // ================================================================ cámaras y render en capas
         void SetupCameras()
@@ -686,7 +693,7 @@ namespace TBD.View
             {
                 var net = NetSession.A;
                 GUI.Label(new Rect(pad * 2f, h + pad * 1.6f, w, _hudStyle.lineHeight * 1.5f),
-                    $"{ZoneTitle(net)} · día {net.Tick / TBD.Net.NetConst.DayTicks + 1} · {TBD.Net.NetConst.Clock(net.Tick)} · la red sigue corriendo · M o alejar del todo: volver al mapa", _hudStyle);
+                    $"{ZoneTitle(net)} · día {net.Tick / TBD.Net.NetConst.DayTicks + 1} · {TBD.Net.NetConst.Clock(net.Tick)} · la red sigue corriendo · M o alejar del todo: volver al mapa" + (_deployedSoldiers > 0 ? $"   <color=#ffb050>¡{_deployedSoldiers} soldados a pie se quedarían atrás! (K: reembarcar)</color>" : ""), _hudStyle);
             }
             NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart);
         }
