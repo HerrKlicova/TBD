@@ -206,6 +206,28 @@ namespace TBD.Sim.Tests
                 finally { TBD.Net.BalanceSource.Reader = reader; TBD.Net.BalanceSource.Warn = warnPrev; TBD.Net.BalanceSource.Missing.Clear(); }
             }
 
+            // ---- medición para Hugo: zombis que mueve el director cada día (asedio, deriva, emboscada), días 1-20, a un CSV si TBD_DUMP_DIR existe
+            {
+                var wm2 = NetScenario.Mvp();
+                var sb2 = new System.Text.StringBuilder("dia;zombis_asedio;presupuesto_zombis;deriva_zombis;emboscada_zombis;asedios_activos;objetivos\n");
+                long pb = 0, ps = 0, pd = 0, pa = 0; long totalSiege = 0;
+                int zpp = NetWorld.ZombiesPerPermil;
+                for (int day = 1; day <= 20; day++)
+                {
+                    for (long t = 0; t < NetConst.DayTicks; t++) wm2.Step();
+                    var tg = new System.Collections.Generic.List<string>(); int act = 0;
+                    foreach (var pl in wm2.Director.Active) if (pl.Kind == HiveDirector.PlanKind.Asedio && pl.Started) { act++; tg.Add(wm2.Graph.Nodes[pl.Node].Name); }
+                    var dr = wm2.Director;
+                    sb2.Append(day - 1).Append(';').Append((dr.SiegeMovedTotal - ps) * zpp).Append(';').Append((dr.BudgetTotal - pb) * zpp).Append(';').Append((dr.DriftMovedTotal - pd) * zpp)
+                       .Append(';').Append((dr.AmbushMovedTotal - pa) * zpp).Append(';').Append(act).Append(';').Append(string.Join("+", tg)).Append('\n');
+                    totalSiege += dr.SiegeMovedTotal - ps;
+                    pb = dr.BudgetTotal; ps = dr.SiegeMovedTotal; pd = dr.DriftMovedTotal; pa = dr.AmbushMovedTotal;
+                }
+                string dump = Environment.GetEnvironmentVariable("TBD_DUMP_DIR");
+                if (!string.IsNullOrEmpty(dump)) File.WriteAllText(Path.Combine(dump, "director_golpes_por_dia.csv"), sb2.ToString());
+                check(totalSiege > 0 && wm2.Director.BudgetTotal > 0, $"medición del director en 20 días: {wm2.Director.BudgetTotal * zpp} zombis de presupuesto, {wm2.Director.SiegeMovedTotal * zpp} a asedios, {wm2.Director.DriftMovedTotal * zpp} a deriva, {wm2.Director.AmbushMovedTotal * zpp} a emboscadas");
+            }
+
             // ---- parámetros del director en su CSV (Hugo los calibra sin tocar C#)
             {
                 var dp = DirectorParams.FromCsv(new CsvTable(File.ReadAllText(Path.Combine(dir, "balance_director.csv"))));

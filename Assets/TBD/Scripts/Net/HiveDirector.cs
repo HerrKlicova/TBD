@@ -15,7 +15,8 @@ namespace TBD.Net
         public int AttentionHours, AttentionBonus, HuntPerHour, HuntHours, HuntThreshold, SiegeWarnH, FirstSiegeFromH, FirstSiegeToH;
         // D-N33 (Hugo, aprobado por Mak), de balance_colmena.csv
         public int BudgetCurveMil, SiegeShareMil, SiegeDays, WeightBase, WeightInteriorMil, WeightNestMil, AmbushShareMil, MaxSiegesStage1;
-        public int PointUniqueMil, AttentionMil, RespiteMinH, RespiteMaxH;   // D-N34 (Lucía, medido por Hugo)
+        public int PointUniqueMil, AttentionMil, RespiteMinH, RespiteMaxH;
+        public int HuellaPersonMil, HuellaTrainMil, HuellaNodeMil, BigEveryDays, BigMultMil;   // huella (Hugo) y gran ataque anunciado (autoguardado, §14)   // D-N34 (Lucía, medido por Hugo)
 
         public static DirectorParams Default => new DirectorParams
         {
@@ -24,6 +25,7 @@ namespace TBD.Net
             SiegeWarnH = 3, FirstSiegeFromH = 10, FirstSiegeToH = 16,
             BudgetCurveMil = 1360, SiegeShareMil = 600, SiegeDays = 2, WeightBase = 60, WeightInteriorMil = 1400, WeightNestMil = 2000, AmbushShareMil = 250, MaxSiegesStage1 = 1,
             PointUniqueMil = 1500, AttentionMil = 1500, RespiteMinH = 6, RespiteMaxH = 12,
+            HuellaPersonMil = 10, HuellaTrainMil = 500, HuellaNodeMil = 400, BigEveryDays = 7, BigMultMil = 2000,
         };
 
         /// <summary>Añade los valores de D-N33 que Hugo puso en balance_colmena.csv.</summary>
@@ -37,6 +39,8 @@ namespace TBD.Net
             p.CutPerMem = (int)c.Value("corte_utilidad_x_memoria"); p.MaxSiegesStage1 = (int)c.PositiveValue("asedios_max_etapa1");
             p.PointUniqueMil = (int)c.Value("director_peso_punto_unico"); p.AttentionMil = (int)c.Value("director_peso_atencion");
             p.RespiteMinH = (int)c.Value("asedio_respiro_min_h"); p.RespiteMaxH = (int)c.Value("asedio_respiro_max_h");
+            p.HuellaPersonMil = (int)c.Value("huella_por_persona"); p.HuellaTrainMil = (int)c.Value("huella_por_tren"); p.HuellaNodeMil = (int)c.Value("huella_por_nodo");
+            p.BigEveryDays = (int)c.TryValue("asedio_grande_cada_dias", p.BigEveryDays); p.BigMultMil = (int)c.TryValue("asedio_grande_mult", p.BigMultMil);   // opcionales: Hugo aún no los puso en el CSV
             return p;
         }
 
@@ -91,12 +95,12 @@ namespace TBD.Net
         /// Presupuesto de una hora (D-N33 de Hugo), en «por mil» de densidad: H(día) de la curva × 1,36 desde el día 2 (los días 0 y 1,
         /// con la rampa de D-N08), / 24 horas, / 10 zombis por mil. Es lo que el director puede mover en esa hora.
         /// </summary>
-        public static long HourlyBudgetPermil(long day, long[] curve, int curveMil, long h0 = 1600, long kHuellaMil = 160, long huellaMil = 2000)
+        public static long HourlyBudgetPermil(long day, long[] curve, int curveMil, long huellaMil = 2000, long h0 = 1600, long kHuellaMil = 160)
         {
             long table = curve != null && day < curve.Length ? curve[day] : 1000 + day * 50;
             long root;
             long h = BalanceMath.HiveBudget(h0, table, kHuellaMil, huellaMil, out root);
-            long mult = day == 0 ? 150 : day == 1 ? 500 : curveMil;                    // D-N08 (15 %, 50 %) y D-N33 (× 1,36 desde el día 2)
+            long mult = day == 0 ? 150 : day == 1 ? 500 : day == 2 ? 800 * curveMil / 1000 : curveMil;                    // D-N08 (15 %, 50 %) y D-N33 (× 1,36 desde el día 2)
             return h * mult / 1000 / 24 / NetWorld.ZombiesPerPermil;
         }
 
@@ -108,6 +112,7 @@ namespace TBD.Net
         /// los multiplicadores en «por mil». Entero.
         /// </summary>
         const int PersonsPerHugoUnit = 10;
+        public long SiegeMovedTotal, DriftMovedTotal, AmbushMovedTotal, BudgetTotal;   // estadísticas para medir (no entran en el hash ni cambian la partida)
         public bool IgnoreAttention;                // solo pruebas: sin el peso de atención
         public ulong Seed;                          // semilla de la partida (0 por defecto)
         public long SiegeWeight(NetWorld w, int n)
@@ -155,6 +160,17 @@ namespace TBD.Net
             return moved;
         }
 
+        /// <summary>
+        /// Huella del jugador (modelo de Hugo): población (en unidades de 10) × 0,01 + trenes × 0,5 + nodos con gente × 0,4 (+ obras, aún sin modelar en S0).
+        /// Es lo que hace crecer la presión de la Colmena con el tamaño del jugador. En milésimas.
+        /// </summary>
+        public long HuellaMil(NetWorld w)
+        {
+            long pop = 0; int held = 0;
+            for (int n = 0; n < w.Graph.Nodes.Count; n++) { long p = Math.Max(0, w.Stock[n, (int)Res.Personas]); pop += p; if (p > 0) held++; }
+            return pop / PersonsPerHugoUnit * P.HuellaPersonMil + (long)w.Services.Count * P.HuellaTrainMil + (long)held * P.HuellaNodeMil;
+        }
+
         public long[] Curve;                          // colmena_curva.csv (si no se carga, una aproximación lineal)
 
         /// <summary>Una hora de juego: caducan los planes, se elige la acción de mayor utilidad y se ejecuta.</summary>
@@ -190,15 +206,17 @@ namespace TBD.Net
                 pl.UntilTick = w.Tick + (long)P.SiegeDays * NetConst.DayTicks;
                 Active[i] = pl;
                 var nd = w.Graph.Nodes[pl.Node];
-                w.Intel.Add(new IntelEntry { Tick = w.Tick, Id = "ES-2", Vars = new[] { "nodo", nd.Name, "n", (HourlyBudgetPermil(w.Tick / NetConst.DayTicks, Curve, P.BudgetCurveMil) * P.SiegeShareMil / 1000 * 24 * P.SiegeDays * NetWorld.ZombiesPerPermil).ToString() } });   // «hasta n»: lo que el presupuesto le deja reclutar en sus días
+                w.Intel.Add(new IntelEntry { Tick = w.Tick, Id = "ES-2", Vars = new[] { "nodo", nd.Name, "n", (HourlyBudgetPermil(w.Tick / NetConst.DayTicks, Curve, P.BudgetCurveMil, HuellaMil(w)) * P.SiegeShareMil / 1000 * 24 * P.SiegeDays * NetWorld.ZombiesPerPermil).ToString() } });   // «hasta n»: lo que el presupuesto le deja reclutar en sus días
                 int focus = AttentionNode(w);
                 if (focus >= 0 && focus != pl.Node)
                     w.Intel.Add(new IntelEntry { Tick = w.Tick, Id = "AT-1", Vars = new[] { "nodo_b", nd.Name, "nodo_a", w.Graph.Nodes[focus].Name } });
             }
 
             // presupuesto de la hora (D-N33): 600 ‰ a los asedios activos; del resto, 250 ‰ al canal de emboscada y corte y lo demás, deriva por peso
-            long hb = HourlyBudgetPermil(day, Curve, P.BudgetCurveMil);
+            long hb = HourlyBudgetPermil(day, Curve, P.BudgetCurveMil, HuellaMil(w));
             long siegeShare = hb * P.SiegeShareMil / 1000, rest = hb - siegeShare;
+            bool big = day >= 2 && P.BigEveryDays > 0 && day % P.BigEveryDays == 0;     // gran ataque anunciado: el asedio golpea ×2 (se suma al presupuesto)
+            long siegeFlow = big ? siegeShare * P.BigMultMil / 1000 : siegeShare;
             long ambushShare = rest * P.AmbushShareMil / 1000, drift = rest - ambushShare;
             int started = 0;
             foreach (var pl in Active) if (pl.Kind == PlanKind.Asedio && pl.Started) started++;
@@ -208,12 +226,12 @@ namespace TBD.Net
                 {
                     var pl = Active[i];
                     if (pl.Kind != PlanKind.Asedio || !pl.Started) continue;
-                    int m = Gather(w, pl.Cell, (int)(siegeShare / started));
-                    pl.Moved += m; BudgetUsedToday += m; Active[i] = pl;
+                    int m = Gather(w, pl.Cell, (int)(siegeFlow / started));
+                    pl.Moved += m; BudgetUsedToday += m; SiegeMovedTotal += m; Active[i] = pl;
                 }
             }
             else drift += siegeShare;                                       // D-N34: sin asedio, esa masa vuelve a la deriva y presiona por peso
-            BudgetUsedToday += Drift(w, drift);
+            long dm = Drift(w, drift); BudgetUsedToday += dm; DriftMovedTotal += dm; BudgetTotal += hb + (siegeFlow - siegeShare) * (started > 0 ? 1 : 0);
             _ambushBank += ambushShare;
 
             // canal de asedio (D-N33): por calendario, sin competir por utilidad
@@ -264,7 +282,7 @@ namespace TBD.Net
             int want = (int)Math.Min(_ambushBank, P.AmbushDensity);
             best.Moved = Gather(w, best.Cell, want);
             BudgetUsedToday += best.Moved;
-            _ambushBank -= best.Moved;
+            _ambushBank -= best.Moved; AmbushMovedTotal += best.Moved;
             if (best.Moved <= 0) return;
             Active.Add(best);
 

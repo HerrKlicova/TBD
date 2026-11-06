@@ -55,6 +55,14 @@ namespace TBD.Net
         /// <summary>Como Value, pero exige un valor mayor que 0 (QA Q11: los divisores del balance).</summary>
         public long PositiveValue(string key) { long v = Value(key); BalanceMath.Positive(v, key); return v; }
 
+        /// <summary>Como Value, pero con un valor por defecto si la clave no está (para claves nuevas que aún no están en el CSV de Hugo).</summary>
+        public long TryValue(string key, long fallback)
+        {
+            int kc = Col("clave"), vc = Col("valor");
+            foreach (var r in Rows) if (r[kc].Trim() == key) return Int(r[vc]);
+            return fallback;
+        }
+
         public long Value(string key)
         {
             int kc = Col("clave"), vc = Col("valor");
