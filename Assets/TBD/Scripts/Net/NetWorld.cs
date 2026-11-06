@@ -562,9 +562,9 @@ namespace TBD.Net
             for (int n = 0; n < Works.Nodes; n++)
             {
                 int cost = Works.MaintenanceU(n);
-                if (cost <= 0) continue;
-                if (Stock[n, (int)Res.Materiales] >= cost) Stock[n, (int)Res.Materiales] -= cost;
-                else Works.WearDay(n);
+                bool paid = Stock[n, (int)Res.Materiales] >= cost;
+                if (paid) Stock[n, (int)Res.Materiales] -= cost;
+                Works.WearDay(n, paid);          // el depósito no se gasta y lo que está fuera del perímetro sí, pague o no la estación (Hugo)
             }
         }
 
@@ -575,7 +575,7 @@ namespace TBD.Net
             var e = Graph.Edges[edge];
             e.Debris = true; e.State = EdgeState.Cortada; e.RepairSvc = -1; e.RepairDone = 0;
             e.RepairU = bridge ? Works.P.BridgeU : 0;
-            e.RepairNeed = bridge ? (long)Works.P.BridgeObreroH * 1500 : 0;
+            e.RepairNeed = bridge ? Works.P.BridgeNeedTicks : 0;
         }
 
         int EdgeRepairU(RailEdge e) { return e.RepairU > 0 ? e.RepairU : Works.P.RepairU; }

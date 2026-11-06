@@ -67,7 +67,8 @@ Solo se acepta con la **zona del nodo materializada** (`ActiveZoneNode == nodo`)
 
 ## Mantenimiento y desgaste diario (paso 4, #8, Hugo)
 - Una vez al día (cambio de día), cada nodo con obras construidas paga el **mantenimiento** de su almacén: `MaintenanceU = ceil(fort_desgaste_dia ‰ × Σ(CostE4 × vida) ÷ 10.000)` u de materiales (la misma Σ que el nivel de fortificación, Hugo: piezas defensivas construidas a ≤ 60 m del andén, sin el depósito).
-- Si el almacén lo cubre, se descuenta y **la vida no baja**. Si no, no se cobra nada y se aplica el desgaste: cada pieza construida pierde `fort_desgaste_dia` (10 ‰) de la vida que le queda (mínimo 1 ‰). A 0 ‰ la pieza se destruye y se quita. Una estación sin reservas conserva ~82 % a los 20 días.
+- Si el almacén lo cubre, se descuenta y **la vida no baja**. Si no, no se cobra nada y lo que está dentro del perímetro pierde `fort_desgaste_dia` (10 ‰) de la vida que le queda (mínimo 1 ‰). A 0 ‰ la pieza se destruye y se quita. Una estación sin reservas conserva ~82 % a los 20 días.
+- **El depósito no se desgasta.** Los **muros a más de 60 m** del andén se desgastan **siempre**, sin mantenimiento posible, a `desgaste_fuera_perimetro_permil_dia` (10 ‰, de `balance_construccion.csv`): ~82 % a los 20 días, así que no hay anillos exteriores eternos.
 - `ObrasState.Damage(nodo, índice, ‰)`: gancho del daño de combate (aún sin llamador). Reparar y terreno asegurado, pendientes.
 
 ## Reparar un tramo y el puente (paso 4, Hugo y Mak, D-N59)
@@ -75,5 +76,5 @@ Solo se acepta con la **zona del nodo materializada** (`ActiveZoneNode == nodo`)
 - **Tren de obras**: `TrainService.WorksTrain` (marcador, entra en el hash solo si es true). Hasta que el taller rehabilite uno (paso 5), la escena lo marca a mano.
 - **Orden** `NetCmdType.RepairEdge = 14` (`Arg` = tramo, `Arg2` = servicio). Resultado en `RepairResult`: el tren de obras debe estar **en posición** (parado en un extremo del tramo o detenido delante del corte), con **5 u** de materiales y **8 obreros** a bordo (`reparar_tramo_u`, `tren_obras_obreros`), y sin horda encima (sobre el tramo o densidad de asedio en un extremo). Gasta los materiales de la **carga del tren** y lo retiene (`Held`) hasta terminar.
 - **Avance**: cada tick suma los obreros que quedan a bordo (máximo 8), así que 3 h con 8 obreros son 4.500 ticks y si mueren obreros va más lenta. Se para si el tren sale de posición o llega la horda, y espera. Al terminar el tramo vuelve a existir (`Ok`) y el tren se libera.
-- **Puente** (el del Jiloca): 80 u (`puente_jiloca_u`, **no está en el CSV**: vive en el código con valor por defecto) y 192 obrero·h (`puente_jiloca_obreros_h`): con 8 obreros, un día entero (36.000 ticks). `reparar_tramo_h` (3) tampoco está en el CSV.
+- **Puente** (el del Jiloca): `puente_jiloca_materiales` (80 u) y `puente_jiloca_dias` (2 días) de `balance_economia.csv` (manda el CSV sobre las 192 obrero·h de `balance_construccion.csv`, que ya no se lee): con los 8 obreros del tren de obras, 72.000 ticks. `reparar_tramo_h` (3) ya está en el CSV.
 - **No incluido**: texto de aviso de reparación terminada (Lucía), la huella de la obra (1,5 para el puente) y el ruido de obra en el director, el tren de obras de verdad (taller, paso 5), la zona de emboscada como batalla.
