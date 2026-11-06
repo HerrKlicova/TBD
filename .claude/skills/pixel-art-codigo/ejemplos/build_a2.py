@@ -180,6 +180,8 @@ def asedio():
 if __name__ == "__main__":
     nombres = ["ataque", "via_cortada", "tren_detenido", "sin_municion", "sin_combustible", "asedio"]
     s32 = [globals()[n]() for n in nombres]
+    for s in s32:
+        s.limit_colors(10)   # regla de estética única: 6–10 colores por icono
     s16 = [reduce_16(s) for s in s32]
     for n, a, b in zip(nombres, s32, s16):
         a.save(OUT / f"vm_alertas_{n}_32.png")

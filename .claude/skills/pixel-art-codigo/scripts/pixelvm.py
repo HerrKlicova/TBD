@@ -228,6 +228,25 @@ class Sprite:
                 m = min(paleta, key=lambda p: (p[0] - r) ** 2 + (p[1] - g) ** 2 + (p[2] - b) ** 2)
                 self.px[i, j] = m + (255,)
 
+    def limit_colors(self, n=10):
+        """Deja como mucho n colores (sin contar el contorno): los menos usados pasan al color usado
+        más cercano. Regla de estética única: 6–10 colores por icono."""
+        cuenta = {}
+        for j in range(self.h):
+            for i in range(self.w):
+                p = self.px[i, j]
+                if p[3] and p != CONTORNO:
+                    cuenta[p] = cuenta.get(p, 0) + 1
+        if len(cuenta) <= n:
+            return
+        quedan = sorted(cuenta, key=cuenta.get, reverse=True)[:n]
+        mapa = {c: min(quedan, key=lambda q: sum((a - b) ** 2 for a, b in zip(c[:3], q[:3]))) for c in cuenta}
+        for j in range(self.h):
+            for i in range(self.w):
+                p = self.px[i, j]
+                if p[3] and p != CONTORNO:
+                    self.px[i, j] = mapa[p]
+
     def stamp(self, other, x, y):
         for j in range(other.h):
             for i in range(other.w):
@@ -281,8 +300,17 @@ def _lum(c):
     return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
 
 
-def check(s: Sprite, recurso=False, margen=0):
-    """Devuelve una lista de avisos (vacía = pasa). recurso=True prohíbe los rojos."""
+def _lab_l(c):
+    """L* de CIELAB (0–100) de un color RGB."""
+    y = _lum(c)
+    return 116 * (y ** (1 / 3) if y > 0.008856 else 7.787 * y + 16 / 116) - 16
+
+
+def check(s: Sprite, recurso=False, margen=0, max_colores=10):
+    """Devuelve una lista de avisos (vacía = pasa). recurso=True prohíbe los rojos.
+    Sigue la regla de estética única (docs/arte/regla-estetica-unica.md): 6–10 colores por icono
+    sin contar el contorno (12–16 en retratos: pasa max_colores=16) y L* del tono más claro
+    al menos 25 por encima del fondo de panel."""
     avisos, usados, opacos = [], {}, 0
     xs, ys = [], []
     for j in range(s.h):
@@ -306,14 +334,15 @@ def check(s: Sprite, recurso=False, margen=0):
         avisos.append("toca el borde del lienzo")
     # Legibilidad sobre el fondo de la interfaz: el tono más claro debe contrastar.
     claro = max(usados, key=_lum)
-    ratio = (_lum(claro) + 0.05) / (_lum(FONDO_UI) + 0.05)
-    if ratio < 4.5:
-        avisos.append(f"contraste bajo sobre #181c30 ({ratio:.1f}:1)")
+    dl = _lab_l(claro) - _lab_l(FONDO_UI)
+    if dl < 25:
+        avisos.append(f"contraste bajo sobre #181c30 (ΔL* {dl:.0f} < 25)")
     cobertura = opacos / (s.w * s.h)
     if cobertura < 0.25:
         avisos.append(f"silueta pequeña ({cobertura:.0%} del lienzo)")
-    if len(usados) > 12:
-        avisos.append(f"demasiados colores ({len(usados)})")
+    n = len([c for c in usados if c != CONTORNO[:3]])
+    if n > max_colores:
+        avisos.append(f"demasiados colores ({n} > {max_colores}, sin contar el contorno)")
     return sorted(set(avisos))
 
 

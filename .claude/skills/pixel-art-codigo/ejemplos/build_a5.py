@@ -108,10 +108,13 @@ def obras():
 if __name__ == "__main__":
     nombres = ["en_marcha", "detenido", "bajo_ataque", "obras"]
     s32 = [globals()[n]() for n in nombres]
+    for s in s32:
+        s.limit_colors(10)   # regla de estética única: 6–10 colores por icono
     s16 = [reduce_16(s) for s in s32]
     # El marcador se voltea según el sentido de la marcha: se exportan las dos orientaciones
     # (en Unity basta con flipX del SpriteRenderer; los PNG _izq son por comodidad).
     from PIL import Image
+    OUT.mkdir(parents=True, exist_ok=True)
     for n, a, b in zip(nombres, s32, s16):
         a.img.transpose(Image.FLIP_LEFT_RIGHT).save(OUT / f"vm_tren_{n}_izq_32.png")
         b.img.transpose(Image.FLIP_LEFT_RIGHT).save(OUT / f"vm_tren_{n}_izq_16.png")
