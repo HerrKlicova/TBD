@@ -1232,6 +1232,24 @@ namespace TBD.View
             for (float x = 10f; x < SimConst.WorldW - 5f; x += 50f)       // el modelo deja la vía hacia su -X: girado 90° la vía queda al norte (+Z)
                 if (PlaceModel("poste_catenaria", "SM_poste_catenaria_LOD1", new Vector3(x, 0f, ty - 3.6f), 90f, root) == null)
                     Box("Poste", new Vector3(x, 4f, ty - 3.6f), new Vector3(0.25f, 8f, 0.25f), iron, root);
+            // el pueblo fuera de los muros, al norte (lado contrario a la llegada de la horda por el oeste): dos manzanas de casas bajas encaladas (8 x 7 m, con colisión
+            // de caja), un bloque de pisos al este y naranjos en hileras detrás (sin colisión). Casas con la fachada a +Z del modelo girada hacia el sur.
+            var houses = new System.Collections.Generic.List<Vector3>();
+            for (int i = 0; i < 5; i++) houses.Add(new Vector3(88f + i * 11f, 0f, 97f));
+            for (int i = 0; i < 3; i++) houses.Add(new Vector3(94f + i * 11f, 0f, 109f));
+            foreach (var hp in houses)
+            {
+                if (PlaceModel("casa_baja", "SM_casa_baja_LOD1", hp, 180f, root) == null) Box("Casa", hp + new Vector3(0f, 2f, 0f), new Vector3(8f, 4f, 7f), wall, root);
+                foreach (float dz in new[] { -2.5f, 0f, 2.5f })
+                    Push(CmdType.BuildWall, 4500, new Unity.Mathematics.float2(hp.x - 3f, hp.z + dz), new Unity.Mathematics.float2(hp.x + 3f, hp.z + dz));
+            }
+            var blk = new Vector3(172f, 0f, 70f);
+            if (PlaceModel("bloque_pisos", "SM_bloque_pisos_LOD1", blk, 270f, root) == null) Box("Bloque", blk + new Vector3(0f, 7f, 0f), new Vector3(10f, 14f, 14f), wall, root);
+            foreach (float dx in new[] { -4f, -2f, 0f, 2f, 4f })                                   // bloque de 14 x 10 m girado: largo a lo largo de z
+                Push(CmdType.BuildWall, 14500, new Unity.Mathematics.float2(blk.x + dx, blk.z - 6f), new Unity.Mathematics.float2(blk.x + dx, blk.z + 6f));
+            for (int row = 0; row < 2; row++)
+                for (int i = 0; i < 14; i++)
+                    PlaceModel("naranjo", "SM_naranjo_LOD1", new Vector3(80f + i * 5f + (row == 1 ? 2.5f : 0f), 0f, 121f + row * 4f), (i * 53 + row * 17) % 360, root);
             // colisión: solo edificio y almacén (cuatro segmentos de 2 m de grosor cada uno cubren el solar completo)
             foreach (float z in new[] { 75.5f, 77.5f, 79.5f, 81.5f, 83.3f })                    // huella de 20 x 9 m del edificio de Teo
                 Push(CmdType.BuildWall, 11000, new Unity.Mathematics.float2(96.5f, z), new Unity.Mathematics.float2(115.5f, z));
