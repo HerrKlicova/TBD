@@ -8,7 +8,9 @@ testeros. Ninguna de las dos da cotas: SIGUEN SIN VERIFICAR 19,9 m entre topes, 
 bogies con centros a ±7 m y ruedas de 0,92 m (no hay ficha consultada).
 Improvisado por el taller (encargo de Lucía): parapeto de chapa de 1,3 m alrededor del tablero, sujeto a los teleros
 de la plataforma (montantes cada 2,3 m), con aspilleras a la altura del tirador; acceso por los testeros; sacos en las
-esquinas y cajas de munición. Colores D-N42: laterales 50541c y canto superior y tablero en el claro b8b8b8.
+esquinas y cajas de munición. Colores: laterales 50541c; canto del parapeto en 70784c (entregar.py --claro 70784c: en
+b8b8b8 salía a tamaño de juego como puntitos blancos y un filo claro se confunde con el contorno de selección, Lucía);
+piso en 605c48 (un piso abierto es un interior y va oscuro, Lucía 15:55).
 """
 import math
 from taller import Taller
@@ -19,7 +21,7 @@ COLORES = {
     "bastidor": "303424",
     "rueda": "1c200c",
     "optica": "181c30",    # hueco de las aspilleras (se ve oscuro: dentro no da la luz)
-    "tablero": "b4a080",   # piso de madera o chapa gastada en beige (Lucía, 6-nov 12:41: con b8b8b8 parecía bandeja o nieve)
+    "tablero": "605c48",   # piso abierto = interior oscuro (Lucía, 15:55: en b4a080 desaparecía sobre el suelo de Sagunto c19e78)
     "chapa": "605c48",     # remiendos soldados sobre el parapeto
     "metal": "1c200c",     # teleros, topes y asideros
     "sacos": "847c34",
