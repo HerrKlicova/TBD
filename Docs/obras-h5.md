@@ -38,7 +38,7 @@ Solo se acepta con la **zona del nodo materializada** (`ActiveZoneNode == nodo`)
 
 ## Condiciones de Marcos (obreros)
 - **Máximo de obreros por pieza**: `obra_obreros_max_pieza` (por defecto 4). Cada pieza guarda su `MaxWorkers` al registrarse, así que una obra grande puede llevar más (el puente del Jiloca, 8). El hash lo incluye.
-- **Guarnición mínima**: nunca trabajan obreros por debajo de `guarnicion_minima` (12, de `balance_economia.csv`): `EffectiveWorkers = min(asignados, población − 12)`.
+- **Retén**: nunca trabajan obreros por debajo de `obras_guarnicion_minima` (6, de `balance_construccion.csv`, D-N59): `EffectiveWorkers = min(asignados, población − 6)`. NO es la `guarnicion_minima` de 12 de la producción (con 12, una estación recién fundada, con 12 personas, no podría construir nada).
 - **Pausa**: `NetWorld.WorkPaused(nodo)` = nodo asediado o perdido, o con densidad de horda ≥ 500 (`SiegeAt`). Una obra pausada no avanza.
 - **Obra activa** (`NetWorld.WorkActive`) = trabajo pendiente y obreros efectivos > 0 y sin pausa. Es lo que usa el director.
 
@@ -53,7 +53,7 @@ Solo se acepta con la **zona del nodo materializada** (`ActiveZoneNode == nodo`)
 - Daño y desgaste diario (1 %), terreno asegurado (rejilla de densidad de la zona).
 - `OC-2` (sondeo en camino, con visión) necesita un plazo de aviso antes de que llegue la masa: es un cambio de modelo con Hugo.
 - Valores que no están en `balance_construccion.csv` y viven en el código con `TryValue`: `muro_modulo_mm` (10.000), `muro_minimo_mm` (1.000),
-  `perimetro_mm` (60.000), `nivel_u_por_nivel` (30), `obra_obreros_max_pieza` (4) y las horas de obra de cada pieza (`obra_sacos_h_por_10m` 2, `obra_hesco_h_por_10m` 4, `obra_puerta_h` 4, `obra_nido_h` 6, `obra_foco_h` 2, `obra_deposito_h` 8, `obra_anden_h` 10; salen de `diseno-hito5.md` §2). Alturas: sacos 1.200, HESCO y puerta 2.100, nido y andén 1.500 mm.
+  `perimetro_mm` (60.000), `obra_obreros_max_pieza` (4) y las horas de obra de cada pieza (`obra_sacos_h_por_10m` 2, `obra_hesco_h_por_10m` 4, `obra_puerta_h` 4, `obra_nido_h` 6, `obra_foco_h` 2, `obra_deposito_h` 8, `obra_anden_h` 10; salen de `diseno-hito5.md` §2). Desde D-N59 estas claves **ya están en `balance_construccion.csv`** (copia de Hugo en `Assets/TBD/Data`), y los u por nivel salen de `fort_materiales_por_nivel` de `balance_economia.csv` (la clave `nivel_u_por_nivel` ya no existe). Alturas: sacos 1.200, HESCO y puerta 2.100, nido y andén 1.500 mm.
 - Integración en la zona (Marcos): leer `Works.Snapshot(nodo)` al materializar y devolver con `Works.Restore(nodo, piezas)` al salir.
 
 ## Fundar una estación (paso 3 del orden de trabajo de Lucía)

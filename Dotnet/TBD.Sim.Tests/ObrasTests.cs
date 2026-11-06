@@ -193,9 +193,9 @@ namespace TBD.Sim.Tests
             check(StepsToBuild(2, 300, ten, PieceKind.Sacos, 5000) == 1500, "10 m de sacos son 2 obrero·h: con 2 obreros se terminan en 1 h de juego (1.500 ticks) exactos");
             check(StepsToBuild(4, 300, ten, PieceKind.Sacos, 5000) == 750, "con 4 obreros, en la mitad (750 ticks): con más obreros va más rápida");
             check(StepsToBuild(8, 300, ten, PieceKind.Sacos, 5000) == 750, "4 es el máximo por pieza: con 8 obreros en una sola pieza no va más rápida");
-            check(quiet >= 0 && StepsToBuild(6, 13, ten, PieceKind.Sacos, 5000, quiet) == 3000, "los obreros se limitan a la población del nodo menos la guarnición mínima (12): con 13 personas, 1 obrero, 3.000 ticks");
-            check(quiet >= 0 && StepsToBuild(6, 12, ten, PieceKind.Sacos, 4000, quiet) == -1 && StepsToBuild(6, 16, ten, PieceKind.Sacos, 5000, quiet) == 750, "con 12 personas (la guarnición) nadie construye; con 16 trabajan 4 (Marcos: nunca por debajo de la guarnición mínima)");
-            check(NetScenario.Mvp().Works.P.GarrisonMin == 12 && NetScenario.Mvp().Works.P.MaxWorkersPerPiece == 4, "la guarnición mínima (12) viene de balance_economia.csv y el máximo de obreros por pieza es 4");
+            check(quiet >= 0 && StepsToBuild(6, 7, ten, PieceKind.Sacos, 5000, quiet) == 3000, "los obreros se limitan a la población del nodo menos el retén (6, obras_guarnicion_minima): con 7 personas, 1 obrero, 3.000 ticks");
+            check(quiet >= 0 && StepsToBuild(6, 6, ten, PieceKind.Sacos, 4000, quiet) == -1 && StepsToBuild(6, 10, ten, PieceKind.Sacos, 5000, quiet) == 750 && StepsToBuild(6, 12, ten, PieceKind.Sacos, 5000, quiet) == 750, "con 6 personas (el retén) nadie construye; con 10 trabajan 4 y con 12 (una estación recién fundada) también construye (D-N59: con 12 de retén no podría)");
+            check(NetScenario.Mvp().Works.P.GarrisonMin == 6 && NetScenario.Mvp().Works.P.MaxWorkersPerPiece == 4 && NetScenario.Mvp().Works.P.LevelDivU == 30, "el retén de obras (6) viene de obras_guarnicion_minima de balance_construccion.csv (NO el 12 de la producción), los u por nivel (30) de fort_materiales_por_nivel y el máximo de obreros por pieza es 4");
             check(StepsToBuild(0, 300, ten, PieceKind.Sacos, 4000) == -1, "sin obreros asignados la obra no avanza");
             check(StepsToBuild(2, 0, ten, PieceKind.Sacos, 4000) == -1, "sin población en el nodo no trabaja nadie");
             check(StepsToBuild(4, 300, new[] { 0, 0 }, PieceKind.Anden, 5000) == 3750 && StepsToBuild(4, 300, new[] { 0, 0 }, PieceKind.Foco, 5000) == 750, "andén (10 obrero·h) con 4 obreros: 3.750 ticks; foco (2 obrero·h): 750");
@@ -232,7 +232,7 @@ namespace TBD.Sim.Tests
             check(wc.Works.Count(Node) == 1, "cancelar una obra que no existe no hace nada");
 
             // el máximo de obreros por pieza sale del CSV (obra_obreros_max_pieza) y las obras grandes lo suben (el puente del Jiloca lleva 8)
-            var p8 = ObrasParams.FromCsv(new CsvTable(File.ReadAllText(Path.Combine(BalanceTests.DataDirPublic(), "balance_construccion.csv")) + "\nobra_obreros_max_pieza;8;1;prueba\n"));
+            var p8 = ObrasParams.FromCsv(new CsvTable(File.ReadAllText(Path.Combine(BalanceTests.DataDirPublic(), "balance_construccion.csv")).Replace("obra_obreros_max_pieza;4;", "obra_obreros_max_pieza;8;")));
             var st8 = new ObrasState(3, p8); st8.Add(0, st8.Preview(0, PieceKind.Sacos, ten, 900));
             int ticks8 = 0; while (!st8.At(0)[0].Built && ticks8 < 5000) { st8.Advance(0, 8); ticks8++; }
             check(p8.MaxWorkersPerPiece == 8 && st8.At(0)[0].MaxWorkers == 8 && ticks8 == 375, $"con el máximo en 8 (obra grande) 8 obreros terminan 10 m de sacos en {ticks8} ticks (375)");

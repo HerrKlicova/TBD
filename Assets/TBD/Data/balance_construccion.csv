@@ -17,6 +17,20 @@ obra_huella_muros_permil;500;1000;huella de una obra de muros, el puente y las o
 reparar_tramo_u;5;1;y 3 h con el tren de obras
 puente_jiloca_obreros_h;192;1;80 u, 8 obreros x 12 h x 2 días
 cancelar_obra_empezada_permil;500;1000;
+muro_modulo_mm;10000;1;D-N59: validado (código de Nacho)
+muro_minimo_mm;1000;1;D-N59: validado
+perimetro_mm;60000;1;D-N59: radio desde el andén en el que las piezas cuentan para el nivel, cabe un perímetro de 150 m
+obra_sacos_h_por_10m;2;1;D-N59: obrero·h
+obra_hesco_h_por_10m;4;1;D-N59
+obra_puerta_h;4;1;D-N59
+obra_nido_h;6;1;D-N59
+obra_foco_h;2;1;D-N59
+obra_deposito_h;8;1;D-N59
+obra_anden_h;10;1;D-N59
+obra_obreros_max_pieza;4;1;D-N59: por pieza, el puente del Jiloca guarda 8 en su propia pieza (puente_jiloca_obreros_h 192 = 8 x 24 h)
+obras_guarnicion_minima;6;1;D-N59: personas que nunca trabajan (= retén). NO 12: con 12, una estación recién fundada (12 personas) no podría construir nada
+estacion_personas;40;1;D-N59: personas para subir de apeadero a estación (además del depósito)
+fundar_radio_tren_mm;5000;1;D-N59: el tren tiene que estar a 5 m o menos del emplazamiento
 taller_dias_tren;3;1;NO 2: con 2 días la prisa baja del 41 al 19 % de derrotas
 taller_rehabilitar_horas;36;1;D-N45: Tren 3 y tren de obras, con Chispas 29 h (+25 %), rehabilitar no es fabricar
 tren_obras_materiales;20;1;D-N45: tren viejo, sin tren de obras no hay puente

@@ -38,7 +38,7 @@ namespace TBD.Net
         public int MaxPieces;            // tope de piezas por nodo
         public int MaxVertices;          // tope de vértices de una polilínea
         public int MaxWorkersPerPiece;   // obreros que pueden trabajar a la vez en una misma pieza (obra_obreros_max_pieza; las obras grandes lo suben)
-        public int GarrisonMin;          // personas que no pueden ser obreros: la guarnición mínima del nodo (balance_economia.csv, 12)
+        public int GarrisonMin;          // personas que nunca trabajan: el retén (obras_guarnicion_minima de balance_construccion.csv, 6; NO la guarnicion_minima de 12 de la producción, D-N59)
         public int CancelStartedMil;     // lo que se recupera al cancelar una obra ya empezada (‰); si no ha empezado, el 100 %
         public int HSacos10, HHesco10, HPuerta, HNido, HFoco, HDeposito, HAnden;   // obra en obrero·h (por 10 m en los muros)
         public int CoordLimitMm;         // |coordenada| máxima (evita desbordes)
@@ -52,7 +52,7 @@ namespace TBD.Net
                     SacosPer10m = 2, HescoPer10m = 6, PuertaU = 6, NidoU = 8, FocoU = 2, AndenU = 6, DepositoU = 5,
                     ModuleMm = 10_000, MinWallMm = 1_000, PerimeterMm = 60_000, LevelDivU = 30, LevelMaxMil = 5_000,
                     MaxPieces = 2_000, MaxVertices = 32, CoordLimitMm = 2_000_000,
-                    MaxWorkersPerPiece = 4, GarrisonMin = 12, CancelStartedMil = 500,
+                    MaxWorkersPerPiece = 4, GarrisonMin = 6, CancelStartedMil = 500,
                     HSacos10 = 2, HHesco10 = 4, HPuerta = 4, HNido = 6, HFoco = 2, HDeposito = 8, HAnden = 10
                 };
             }
@@ -72,19 +72,19 @@ namespace TBD.Net
             d.ModuleMm = (int)t.TryValue("muro_modulo_mm", d.ModuleMm);
             d.MinWallMm = (int)t.TryValue("muro_minimo_mm", d.MinWallMm);
             d.PerimeterMm = (int)t.TryValue("perimetro_mm", d.PerimeterMm);
-            d.LevelDivU = (int)t.TryValue("nivel_u_por_nivel", d.LevelDivU);
+            d.GarrisonMin = (int)t.TryValue("obras_guarnicion_minima", d.GarrisonMin);
             d.CancelStartedMil = (int)t.TryValue("cancelar_obra_empezada_permil", d.CancelStartedMil);
             d.MaxWorkersPerPiece = (int)t.TryValue("obra_obreros_max_pieza", d.MaxWorkersPerPiece);
             d.HSacos10 = (int)t.TryValue("obra_sacos_h_por_10m", d.HSacos10); d.HHesco10 = (int)t.TryValue("obra_hesco_h_por_10m", d.HHesco10);
             d.HPuerta = (int)t.TryValue("obra_puerta_h", d.HPuerta); d.HNido = (int)t.TryValue("obra_nido_h", d.HNido);
             d.HFoco = (int)t.TryValue("obra_foco_h", d.HFoco); d.HDeposito = (int)t.TryValue("obra_deposito_h", d.HDeposito); d.HAnden = (int)t.TryValue("obra_anden_h", d.HAnden);
             BalanceMath.Positive(d.MaxWorkersPerPiece, "obra_obreros_max_pieza");
-            BalanceMath.Positive(d.ModuleMm, "muro_modulo_mm"); BalanceMath.Positive(d.LevelDivU, "nivel_u_por_nivel");
+            BalanceMath.Positive(d.ModuleMm, "muro_modulo_mm"); if (d.GarrisonMin < 0) throw new ArgumentOutOfRangeException("obras_guarnicion_minima", d.GarrisonMin, "El retén de obras no puede ser negativo");
             return d;
         }
 
-        /// <summary>Añade la guarnición mínima de balance_economia.csv (personas que no pueden dejar su puesto para construir).</summary>
-        public ObrasParams WithEconomia(CsvTable e) { var d = this; d.GarrisonMin = (int)e.TryValue("guarnicion_minima", d.GarrisonMin); return d; }
+        /// <summary>Añade los u por nivel de fortificación de balance_economia.csv (fort_materiales_por_nivel, 30; D-N59: sustituye a nivel_u_por_nivel).</summary>
+        public ObrasParams WithEconomia(CsvTable e) { var d = this; d.LevelDivU = (int)e.TryValue("fort_materiales_por_nivel", d.LevelDivU); BalanceMath.Positive(d.LevelDivU, "fort_materiales_por_nivel"); return d; }
 
         public int PricePer10m(PieceKind k) { return k == PieceKind.Sacos ? SacosPer10m : HescoPer10m; }
 
