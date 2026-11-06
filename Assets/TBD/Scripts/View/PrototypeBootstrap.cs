@@ -1293,6 +1293,7 @@ namespace TBD.View
             foreach (var l in _floodLights) l.intensity = intensity;
             foreach (var l in _cohesionLights) l.intensity = intensity > 0f ? 90f : 0f;
             foreach (var rm in _rimMats) { rm.EnableKeyword("_EMISSION"); rm.SetColor("_EmissionColor", intensity > 40f ? HexColor("404460") * 0.6f : Color.black); }
+            foreach (var rm in _rimModelMats) { rm.EnableKeyword("_EMISSION"); rm.SetColor("_EmissionColor", intensity > 40f ? HexColor("404460") * 0.05f : Color.black); }   // modelos 3D de unidades propias: rim azul tenue de noche (a 0,6 salía casi blanco tras la exposición)
             foreach (var h in _halos) h.gameObject.SetActive(intensity > 0f);
         }
 
@@ -1499,6 +1500,7 @@ namespace TBD.View
         }
 
         readonly System.Collections.Generic.List<Material> _rimMats = new System.Collections.Generic.List<Material>();
+        readonly System.Collections.Generic.List<Material> _rimModelMats = new System.Collections.Generic.List<Material>();
 
         readonly System.Collections.Generic.List<Light> _cohesionLights = new System.Collections.Generic.List<Light>();
 
@@ -1558,6 +1560,8 @@ namespace TBD.View
                     inst.transform.localPosition = Vector3.zero; inst.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);   // el modelo mira a +Z; el tren, a +X
                     var mat = Mat("ffffff"); mat.SetTexture("_BaseMap", tex); mat.SetColor("_BaseColor", Color.white);
                     foreach (var r in inst.GetComponentsInChildren<MeshRenderer>()) { r.sharedMaterial = mat; r.shadowCastingMode = ShadowCastingMode.On; }
+                    var rimMk = prefab.GetComponent<RimMarker>();
+                    if (rimMk != null && rimMk.Rim == 1) { mat.EnableKeyword("_EMISSION"); _rimModelMats.Add(mat); }          // unidad propia (tbd_rim = 1 del FBX): rim azul #404460 de noche (D-N57)
                 }
                 else
                 {
