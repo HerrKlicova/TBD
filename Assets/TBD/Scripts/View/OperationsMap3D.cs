@@ -601,12 +601,18 @@ namespace TBD.View
             {
                 var sp = _cam.WorldToScreenPoint(MapToWorld(n.XMeters, n.YMeters, 0.8f * Mathf.Clamp(_dist / 230f, 0.0015f, 2f)));
                 if (sp.z <= 0) continue;
-                GUI.Label(new Rect(sp.x + 8, Screen.height - sp.y - 10, 220, 30), n.Name, _small);
+                int px = IconPx(32);
+                DrawIcon(new Rect(sp.x - px * 0.5f, Screen.height - sp.y - px * 1.1f, px, px), "estaciones/vm_estacion_" + StateName(n.State) + "_32");
+                GUI.Label(new Rect(sp.x + px * 0.5f + 4, Screen.height - sp.y - 10, 220, 30), n.Name, _small);
             }
             for (int i = 0; i < _trains.Count; i++)
             {
                 var sp = _cam.WorldToScreenPoint(_trains[i].position + Vector3.up * 0.8f * Mathf.Clamp(_dist / 230f, 0.0015f, 2f));
                 if (sp.z <= 0) continue;
+                int tp = IconPx(32);
+                var sv = _a.Services[i];
+                string tn = _a.Encounter.Active && _a.Encounter.Service == i ? "bajo_ataque" : sv.Ambushed ? "bajo_ataque" : sv.Train.State == RailTrainState.EnMarcha ? "en_marcha" : sv.Train.State == RailTrainState.Detenido ? "detenido" : "detenido";
+                DrawIcon(new Rect(sp.x - tp * 0.5f, Screen.height - sp.y - tp * 1.6f, tp, tp), "trenes/vm_tren_" + tn + "_32");
                 GUI.Label(new Rect(sp.x - 30, Screen.height - sp.y - 26, 160, 30), "<b><color=#FFF0A0>" + _a.Services[i].Train.Name + "</color></b>", _small);
             }
 
@@ -625,13 +631,56 @@ namespace TBD.View
             {
                 if (shown++ >= 4) break;
                 string col = al.Priority == 0 ? "#F05040" : al.Priority == 1 ? "#F0A040" : al.Priority == 2 ? "#E0D070" : "#A0A0A0";
-                GUI.Label(new Rect(20, y, pw - 20, 30), $"<color={col}>●</color> {al.Text}", _small); y += _small.fontSize * 1.5f;
+                int ap = IconPx(16);
+                DrawIcon(new Rect(20, y - 2, ap, ap), "alertas/vm_alertas_" + AlertIcon(al.Kind) + "_16");
+                GUI.Label(new Rect(20 + ap + 6, y, pw - 20 - ap, 30), $"<color={col}>{al.Text}</color>", _small); y += Mathf.Max(_small.fontSize * 1.5f, ap + 4);
             }
             if (_a.Alerts.Count == 0) { GUI.Label(new Rect(20, y, pw, 30), "<color=#808080>sin alertas</color>", _small); }
+            DrawCargo(pw);
             DrawIntel();
             GUI.Label(new Rect(16, Screen.height - _small.fontSize * 2.4f, Screen.width, 30),
                 "WASD mover · Q E girar · R F inclinar · rueda zoom (a menos de 2 km de una estación se entra en la zona) · J ir a la alerta · Espacio pausa · 1/2/3 velocidad · F8 emboscada de prueba · Intro entrar en la emboscada · F9 captura", _small);
             NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart);
+        }
+
+        // ---------------------------------------------------------------- iconos de Bruno (pixel art por código, paleta de 32): Assets/TBD/Resources/Icons
+        static readonly System.Collections.Generic.Dictionary<string, Texture2D> _iconCache = new System.Collections.Generic.Dictionary<string, Texture2D>();
+
+        static int IconPx(int baseSize) { return baseSize * Mathf.Max(1, Mathf.RoundToInt(Screen.height / 540f)); }     // múltiplos enteros: el pixel art no se emborrona
+
+        static void DrawIcon(Rect r, string path)
+        {
+            Texture2D t;
+            if (!_iconCache.TryGetValue(path, out t)) { t = Resources.Load<Texture2D>("Icons/" + path); _iconCache[path] = t; }
+            if (t != null) GUI.DrawTexture(r, t, ScaleMode.ScaleToFit, true);
+        }
+
+        static string StateName(NodeState s) { return s == NodeState.Amenazada ? "amenazada" : s == NodeState.Asediada ? "asediada" : s == NodeState.Perdida ? "perdida" : "segura"; }
+
+        static string AlertIcon(AlertKind k) { return k == AlertKind.ViaCortada ? "via_cortada" : k == AlertKind.TrenDetenido ? "tren_detenido" : k == AlertKind.NodoAsediado ? "asedio" : "ataque"; }
+
+        /// <summary>Carga de cada tren con los iconos de los cinco recursos (munición, combustible, materiales, víveres, población).</summary>
+        void DrawCargo(float pw)
+        {
+            string[] ic = { "municion", "combustible", "materiales", "poblacion" };   // los cuatro recursos de la S0 (Res): la población ocupa el último
+            int p = IconPx(16);
+            float h = (p + 6) * (_a.Services.Count + 0.8f);
+            float x0 = 8, y0 = Screen.height * 0.12f + 6 * _small.fontSize;
+            GUI.Box(new Rect(x0, y0, pw, h), GUIContent.none, _panel);
+            float y = y0 + 4;
+            for (int i = 0; i < _a.Services.Count; i++)
+            {
+                var sv = _a.Services[i];
+                GUI.Label(new Rect(x0 + 8, y, 130, p + 4), "<b>" + sv.Train.Name + "</b>", _small);
+                float x = x0 + 136;
+                for (int r = 0; r < NetConst.ResCount && r < ic.Length; r++)
+                {
+                    DrawIcon(new Rect(x, y, p, p), "cargas/vm_cargas_" + ic[r] + "_16");
+                    GUI.Label(new Rect(x + p + 2, y, 60, p + 4), sv.Cargo[r].ToString(), _small);
+                    x += p + 2 + _small.fontSize * 2.6f;
+                }
+                y += p + 6;
+            }
         }
 
         // ---------------------------------------------------------------- informe de inteligencia (hito 4)
