@@ -1,0 +1,409 @@
+using System.Collections.Generic;
+using System.Text;
+using Unity.Collections;
+using Unity.Entities;
+using Unity.Mathematics;
+using UnityEngine;
+using UnityEngine.Animations;
+using UnityEngine.InputSystem;
+using UnityEngine.Playables;
+using UnityEngine.SceneManagement;
+using TBD.Sim;
+using TBD.Units;
+
+namespace TBD.View
+{
+    /// <summary>Estado compartido entre el menú y la zona: «Jugar» activa la noche de Sagunto (D-N71).</summary>
+    public static class NightRun
+    {
+        public static bool Active;
+        public static int Difficulty = 850;      // palanca única (D-N74): 725 fácil, 850 normal, 1000 difícil
+    }
+
+    /// <summary>
+    /// «La primera noche en Sagunto» (D-N71): pelotones (UnitsWorld) y oleadas (NightGame) de Nacho sobre la zona de Sagunto. La lógica de Nacho es C# puro; aquí solo se
+    /// conectan: aparición de zombis en los dos mundos, abatidos por impacto, vista de los soldados con los clips de Teo, selección y órdenes, HUD y pantalla final.
+    /// Todo es local (un jugador): los zombis se crean y se retiran igual en A y B, así que el hash de comprobación sigue coincidiendo.
+    /// </summary>
+    public partial class PrototypeBootstrap
+    {
+        // ---------------------------------------------------------------- estado
+        bool _nightOn, _nightInit; NightGame _ng; UnitsWorld _uw; readonly List<SpawnPoint> _spawns = new List<SpawnPoint>(); StepResult _res = new StepResult();
+        readonly List<Target> _tgt = new List<Target>(); readonly HashSet<uint> _killSet = new HashSet<uint>();
+        float _stationHp = 100f, _trainHp = 100f; int _nightKills, _nightLost, _nightShotsSpent; int _lastWave = -1; float _bannerUntil; string _bannerText = "";
+        bool _debugHud; float _lastStep; string _endReason = "";
+        readonly List<int> _sel = new List<int>();
+        bool _selDrag; Vector2 _selStart; bool _rmbDown; Vector2 _rmbStart; bool _attackNext;
+        static readonly Vector2 StationC = new Vector2(106f, 79f), TrainC = new Vector2(143f, 64.5f);
+        int _nightWaveTotal;
+
+        // ---------------------------------------------------------------- inicio
+        void InitNight()
+        {
+            _nightInit = true; _nightOn = true; _debugHud = false;
+            _ng = new NightGame(NightParams.Default(), 77u);
+            var p = _ng.P; p.ScalePermil = NightRun.Difficulty; _ng.P = p;
+            _uw = new UnitsWorld(1234u) { StockShots = 45 * WeaponCatalog.ShotsPerU };
+            int west = 32768;                                                        // rumbo −X (hacia la puerta oeste)
+            _pname.Clear();
+            _pname[_uw.AddPlatoon(PlatoonKind.Fusileros, 88000, 52000, west, Formation.Linea).Id] = "Fusileros 1";
+            _pname[_uw.AddPlatoon(PlatoonKind.Fusileros, 88000, 76000, west, Formation.Linea).Id] = "Fusileros 2";
+            _pname[_uw.AddPlatoon(PlatoonKind.Ametralladores, 94000, 64000, west, Formation.Linea).Id] = "Ametralladores";
+            _pname[_uw.AddPlatoon(PlatoonKind.Granaderos, 98000, 57000, west, Formation.Cuna).Id] = "Granaderos";
+            _pname[_uw.AddPlatoon(PlatoonKind.Tiradores, 98000, 72000, west, Formation.Cuna).Id] = "Tiradores";
+            foreach (var wld in new[] { _worldA, _worldB })                          // sin los zombis iniciales de la zona: solo las oleadas
+            {
+                if (wld == null || !wld.IsCreated) continue;
+                using (var q = wld.EntityManager.CreateEntityQuery(typeof(Zombie))) wld.EntityManager.DestroyEntity(q);
+            }
+            _targetOrtho = 26f; _focus = new Vector3(96f, 0f, 64f);
+            ApplyGrade(2);
+            _bannerText = "22:00. El tren se detiene en Sagunto.\nAguanta hasta el amanecer."; _bannerUntil = Time.unscaledTime + 5f;
+            Debug.Log($"[NOCHE] reloj_x={_ng.P.ClockX} municion_u=45 materiales_u=40 combustible_u=30 almacen_combustible_u=16");
+            if (_sel.Count == 0) _sel.Add(_uw.Platoons[0].Id);
+        }
+
+        // ---------------------------------------------------------------- un tick (30 Hz), antes de los sistemas de la zona
+        void NightTick()
+        {
+            if (!_nightOn || _ng == null) return;
+            bool playing = _ng.State == NightState.Jugando;
+            if (!playing && !_endDismissed) return;                                   // pantalla final abierta: el mundo espera
+            _spawns.Clear();
+            if (playing)
+            {
+                _ng.Step(_stationHp > 0f, _trainHp > 0f, _spawns);
+                if (_ng.State != NightState.Jugando) { NightEnded(); return; }
+            }
+
+            // oleadas: líneas de registro y rótulo
+            int wv = CurrentWave();
+            if (playing && wv != _lastWave && wv >= 0)
+            {
+                _lastWave = wv; _nightWaveTotal = _ng.WaveTotal(wv);
+                string time = $"{_ng.P.StartHour + _ng.P.Waves[wv].StartMinute / 60:00}:{_ng.P.Waves[wv].StartMinute % 60:00}".Replace("24:", "00:");
+                _bannerText = $"{TimeStr()} · OLEADA {wv + 1}\nLa Colmena se acerca por el oeste"; _bannerUntil = Time.unscaledTime + 4f;
+                Debug.Log($"[NOCHE] oleada={wv + 1} hora={TimeStr()} total={_nightWaveTotal} ammo_u={_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.0}");
+            }
+
+            // zombis nuevos (en los dos mundos, en el mismo punto)
+            if (_spawns.Count > 0) SpawnZombies(_spawns);
+
+            // soldados: objetivos = zombis a menos de 60 m de algún soldado
+            _tgt.Clear();
+            var emA = _worldA.EntityManager;
+            using (var q = emA.CreateEntityQuery(typeof(Zombie)))
+            {
+                var zs = q.ToComponentDataArray<Zombie>(Allocator.Temp);
+                int nearStation = 0, nearTrain = 0;
+                for (int i = 0; i < zs.Length; i++)
+                {
+                    var z = zs[i]; var pz = new Vector2(z.Pos.x, z.Pos.z);
+                    if ((pz - StationC).sqrMagnitude < 64f) nearStation++;
+                    if ((pz - TrainC).sqrMagnitude < 49f) nearTrain++;
+                    bool near = false;
+                    for (int pi = 0; pi < _uw.Platoons.Count && !near; pi++)
+                    {
+                        var pl = _uw.Platoons[pi]; float dx = z.Pos.x * 1000f - pl.AX, dy = z.Pos.z * 1000f - pl.AY;
+                        if (dx * dx + dy * dy < 60000f * 60000f) near = true;
+                    }
+                    if (near) _tgt.Add(new Target { Id = (int)z.SimId, X = (int)(z.Pos.x * 1000f), Y = (int)(z.Pos.z * 1000f) });
+                }
+                zs.Dispose();
+                _stationHp = Mathf.Max(0f, _stationHp - nearStation * 0.0015f); _trainHp = Mathf.Max(0f, _trainHp - nearTrain * 0.0015f);
+                _pileNearStation = nearStation;
+            }
+            _res.Clear(); _uw.Step(_tgt, _res);
+            _nightShotsSpent += _res.AmmoSpent;
+            if (_res.Hits.Count > 0) KillZombies(_res.Hits);
+            for (int i = 0; i < _res.Shots.Count; i++) NightShotFx(_res.Shots[i]);
+        }
+        int _pileNearStation;
+
+        int CurrentWave()
+        {
+            int w = -1; for (int i = 0; i < _ng.P.Waves.Length; i++) if (_ng.Tick >= _ng.WaveStartTick(i)) w = i; return w;
+        }
+
+        string TimeStr() { return $"{_ng.Hour:00}:{_ng.Minute:00}"; }
+
+        void SpawnZombies(List<SpawnPoint> pts)
+        {
+            foreach (var wld in new[] { _worldA, _worldB })
+            {
+                if (wld == null || !wld.IsCreated) continue;
+                var em = wld.EntityManager; var root = wld == _worldA ? _rootA : _rootB;
+                var clock = em.GetComponentData<SimClock>(root);
+                var arch = em.CreateArchetype(typeof(Zombie));
+                var ents = em.CreateEntity(arch, pts.Count, Allocator.Temp);
+                for (int i = 0; i < pts.Count; i++)
+                    em.SetComponentData(ents[i], Zombie.Create(clock.NextSimId++, new float2(pts[i].X / 1000f, pts[i].Y / 1000f), 0f));
+                ents.Dispose(); em.SetComponentData(root, clock);
+            }
+        }
+
+        void KillZombies(List<TargetHit> hits)
+        {
+            _killSet.Clear(); for (int i = 0; i < hits.Count; i++) _killSet.Add((uint)hits[i].TargetId);
+            foreach (var wld in new[] { _worldA, _worldB })
+            {
+                if (wld == null || !wld.IsCreated) continue;
+                var em = wld.EntityManager;
+                using (var q = em.CreateEntityQuery(typeof(Zombie)))
+                {
+                    var zs = q.ToComponentDataArray<Zombie>(Allocator.Temp); var es = q.ToEntityArray(Allocator.Temp);
+                    for (int i = 0; i < zs.Length; i++)
+                        if (_killSet.Contains(zs[i].SimId)) { em.DestroyEntity(es[i]); if (wld == _worldA) { _nightKills++; BloodAt(zs[i].Pos); } }
+                    zs.Dispose(); es.Dispose();
+                }
+            }
+            for (int i = 0; i < hits.Count; i++) _uw.NoteKill(hits[i].Platoon);
+        }
+
+        void NightEnded()
+        {
+            bool win = _ng.State == NightState.Victoria; var a = _uw;
+            int alive = 0, total = 0; foreach (var pl in a.Platoons) { alive += pl.AliveCount(); total += pl.Men.Count; }
+            _nightLost = total - alive;
+            float left = a.StockShots / (float)WeaponCatalog.ShotsPerU;
+            int stars = !win ? 0 : (_nightLost <= 2 && left >= 15f ? 3 : (_nightLost <= 6 && left >= 8f ? 2 : 1));
+            _endStars = stars;
+            Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} estrellas={stars} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 hora_fin={TimeStr()}");
+            _endReason = win ? "06:00. Amanece en Sagunto.\nLa estación resiste." : "Sagunto ha caído.";
+        }
+        int _endStars; bool _endDismissed;
+
+        // ---------------------------------------------------------------- sangre (decal efímero)
+        readonly Queue<(GameObject go, float t)> _blood = new Queue<(GameObject, float)>();
+        Material _bloodMat;
+        void BloodAt(float3 pos)
+        {
+            if (_blood.Count > 220) { var o = _blood.Dequeue(); if (o.go != null) Destroy(o.go); }
+            if (_bloodMat == null) { _bloodMat = new Material(Shader.Find("Universal Render Pipeline/Unlit")); _bloodMat.SetColor("_BaseColor", new Color32(0x4c, 0x10, 0x08, 255)); }
+            var g = GameObject.CreatePrimitive(PrimitiveType.Quad); Destroy(g.GetComponent<Collider>());
+            g.transform.position = new Vector3(pos.x, 0.13f, pos.z); g.transform.rotation = Quaternion.Euler(90f, UnityEngine.Random.value * 360f, 0f); g.transform.localScale = Vector3.one * (0.5f + UnityEngine.Random.value * 0.5f);
+            g.GetComponent<MeshRenderer>().sharedMaterial = _bloodMat; g.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _blood.Enqueue((g, Time.unscaledTime + 20f));
+        }
+
+        // ---------------------------------------------------------------- trazadoras
+        readonly List<(LineRenderer lr, float until)> _tracers = new List<(LineRenderer, float)>(); Material _trMat;
+        void NightShotFx(FireEvent s)
+        {
+            var pl = _uw.Find(s.Platoon); if (pl == null) return; Infantryman man = null; foreach (var m in pl.Men) if (m.Id == s.Man) { man = m; break; }
+            if (man == null) return;
+            if (_trMat == null) { _trMat = new Material(Shader.Find("Universal Render Pipeline/Unlit")); _trMat.SetColor("_BaseColor", new Color32(0xf0, 0xdc, 0x9c, 255)); }
+            var go = new GameObject("Trazadora"); var lr = go.AddComponent<LineRenderer>(); lr.material = _trMat; lr.startWidth = lr.endWidth = s.Splash ? 0.16f : 0.07f; lr.positionCount = 2;
+            lr.SetPosition(0, new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f)); lr.SetPosition(1, new Vector3(s.AimX / 1000f, 0.8f, s.AimY / 1000f)); lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            Destroy(go, 0.09f);
+        }
+
+        // ---------------------------------------------------------------- soldados (vista)
+        sealed class SoldierView
+        {
+            public GameObject Go; public PlayableGraph Graph; public AnimationMixerPlayable Mix; public AnimationClipPlayable[] Clips = new AnimationClipPlayable[4]; public float[] Len = new float[4];
+            public int State = 0; public float T; public float[] W = { 1, 0, 0, 0 }; public bool Dead; public float DeadT;
+        }
+        readonly Dictionary<int, SoldierView> _views = new Dictionary<int, SoldierView>();
+        Material _soldMat; Texture2D _soldPal; static readonly string[] ClipNames = { "reposo", "andar", "disparar", "morir" };
+
+        SoldierView MakeView(Infantryman m, bool leader)
+        {
+            int v; string weapon;
+            switch (m.Kind)
+            {
+                case InfKind.Ametrallador: v = 3; weapon = "MG4E"; break;
+                case InfKind.Zapador: v = 2; weapon = "G36E"; break;
+                case InfKind.Servidor: v = 1; weapon = "G36E"; break;
+                case InfKind.Granadero: v = (m.Id & 1) == 0 ? 0 : 1; weapon = "G36E_AG36"; break;
+                case InfKind.Tirador: v = 4; weapon = "G28"; break;
+                default: v = (m.Id & 1) == 0 ? 2 : 4; weapon = "G36E"; break;
+            }
+            if (leader) { v = 5; weapon = "G36E"; }                                  // jefe de pelotón: v5 + G36E
+            var prefab = Resources.Load<GameObject>("Models/Infanteria/SM_Soldado_v" + v + "_LOD1"); if (prefab == null) return null;
+            if (_soldMat == null) { _soldPal = Resources.Load<Texture2D>("Models/Infanteria/T_Paleta32"); _soldMat = Mat("ffffff"); _soldMat.SetTexture("_BaseMap", _soldPal); _soldMat.enableInstancing = true; }
+            var go = Instantiate(prefab); go.name = "Soldado " + m.Id; go.transform.localScale = Vector3.one * RenderAssets.FigureScale;
+            foreach (var r in go.GetComponentsInChildren<Renderer>()) { r.sharedMaterial = _soldMat; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On; }
+            Transform brazos = FindBone(go.transform, "brazos"), pecho = FindBone(go.transform, "pecho");
+            var wp = Resources.Load<GameObject>("Models/Infanteria/SM_Arma_" + weapon + "_LOD1");
+            if (wp != null && brazos != null) { var w = Instantiate(wp, go.transform); w.transform.localPosition = Vector3.zero; w.transform.localRotation = Quaternion.identity; w.transform.SetParent(brazos, true); foreach (var r in w.GetComponentsInChildren<Renderer>()) r.sharedMaterial = _soldMat; }
+            if (m.Kind == InfKind.Fusilero && pecho != null) { var c = Resources.Load<GameObject>("Models/Infanteria/SM_Arma_C90_LOD1"); if (c != null) { var w = Instantiate(c, go.transform); w.transform.localPosition = Vector3.zero; w.transform.localRotation = Quaternion.identity; w.transform.SetParent(pecho, true); foreach (var r in w.GetComponentsInChildren<Renderer>()) r.sharedMaterial = _soldMat; } }
+            var sv = new SoldierView { Go = go };
+            var an = go.GetComponent<Animator>(); if (an == null) an = go.AddComponent<Animator>();
+            an.runtimeAnimatorController = null; an.applyRootMotion = false;
+            var clips = Resources.LoadAll<AnimationClip>("Models/Infanteria/SM_Soldado_v" + v + "_LOD1");
+            sv.Graph = PlayableGraph.Create("Soldado " + m.Id); sv.Graph.SetTimeUpdateMode(DirectorUpdateMode.Manual);
+            var output = AnimationPlayableOutput.Create(sv.Graph, "anim", an); sv.Mix = AnimationMixerPlayable.Create(sv.Graph, 4); output.SetSourcePlayable(sv.Mix);
+            for (int i = 0; i < 4; i++)
+            {
+                AnimationClip clip = null; foreach (var c in clips) if (c.name.EndsWith("|" + ClipNames[i])) clip = c;
+                if (clip == null) { sv.Len[i] = 1f; sv.Clips[i] = AnimationClipPlayable.Create(sv.Graph, new AnimationClip()); } else { sv.Len[i] = clip.length; sv.Clips[i] = AnimationClipPlayable.Create(sv.Graph, clip); }
+                sv.Clips[i].SetApplyFootIK(false); sv.Clips[i].SetSpeed(0); sv.Graph.Connect(sv.Clips[i], 0, sv.Mix, i); sv.Mix.SetInputWeight(i, i == 0 ? 1f : 0f);
+            }
+            sv.T = (m.Id * 0.137f) % 1f; sv.Graph.Play();
+            return sv;
+        }
+
+        static Transform FindBone(Transform t, string name)
+        {
+            foreach (var c in t.GetComponentsInChildren<Transform>(true)) if (c.name == name) return c; return null;
+        }
+
+        void UpdateNightSoldiers()
+        {
+            float dt = Time.unscaledDeltaTime; foreach (var pl in _uw.Platoons)
+                foreach (var m in pl.Men)
+                {
+                    if (!_views.TryGetValue(m.Id, out var sv)) { sv = MakeView(m, pl.Men.Count > 0 && pl.Men[0] == m); _views[m.Id] = sv; if (sv == null) continue; }
+                    if (sv == null) continue;
+                    var go = sv.Go; var tgt = new Vector3(m.X / 1000f, 0f, m.Y / 1000f);
+                    go.transform.position = Vector3.Lerp(go.transform.position, tgt, 1f - Mathf.Exp(-14f * dt));
+                    float yaw = 90f - m.Heading * 360f / 65536f; go.transform.rotation = Quaternion.Slerp(go.transform.rotation, Quaternion.Euler(0f, yaw, 0f), 1f - Mathf.Exp(-12f * dt));
+                    int st = !m.Alive ? 3 : m.Firing ? 2 : m.Moving ? 1 : 0;
+                    if (st == 3 && !sv.Dead) { sv.Dead = true; sv.T = 0f; }
+                    sv.State = st;
+                    for (int i = 0; i < 4; i++) { float tw = i == st ? 1f : 0f; sv.W[i] = Mathf.MoveTowards(sv.W[i], tw, dt / 0.15f); sv.Mix.SetInputWeight(i, sv.W[i]); }
+                    sv.T += dt;
+                    for (int i = 0; i < 4; i++) { float tt = i == 3 ? Mathf.Min(sv.T, sv.Len[3] - 0.01f) : sv.T % sv.Len[i]; sv.Clips[i].SetTime(tt); }
+                    sv.Graph.Evaluate(0f);
+                }
+        }
+
+        // ---------------------------------------------------------------- entrada y órdenes
+        void NightUpdate()
+        {
+            if (!_nightOn) return;
+            var kb = Keyboard.current; var mouse = Mouse.current; if (kb == null || mouse == null) return;
+            if (kb.f2Key.wasPressedThisFrame) _debugHud = !_debugHud;
+            if (_ng.State != NightState.Jugando && !_endDismissed) { UpdateNightSoldiers(); return; }
+            Vector2 mp = mouse.position.ReadValue();
+            // selección: clic o arrastre de rectángulo (en pantalla) sobre los pelotones
+            if (mouse.leftButton.wasPressedThisFrame && !OverNightUi(mp)) { _selDrag = true; _selStart = mp; }
+            if (mouse.leftButton.wasReleasedThisFrame && _selDrag)
+            {
+                _selDrag = false;
+                if (_attackNext) { IssueAttackMove(mp); _attackNext = false; }
+                else
+                {
+                    var r = Rect.MinMaxRect(Mathf.Min(_selStart.x, mp.x), Mathf.Min(_selStart.y, mp.y), Mathf.Max(_selStart.x, mp.x), Mathf.Max(_selStart.y, mp.y));
+                    bool box = r.width > 6f && r.height > 6f; var found = new List<int>();
+                    foreach (var pl in _uw.Platoons)
+                    {
+                        if (pl.AliveCount() == 0) continue;
+                        var sp = _worldCam.WorldToScreenPoint(new Vector3(pl.AX / 1000f, 1f, pl.AY / 1000f));
+                        if (box ? r.Contains(new Vector2(sp.x, sp.y)) : (new Vector2(sp.x, sp.y) - mp).magnitude < Screen.height * 0.07f) found.Add(pl.Id);
+                    }
+                    if (found.Count > 0 || box) { if (!(kb.leftShiftKey.isPressed)) _sel.Clear(); foreach (var id in found) if (!_sel.Contains(id)) _sel.Add(id); }
+                }
+            }
+            // clic derecho sin arrastre = mover (con arrastre, gira la cámara como siempre)
+            if (mouse.rightButton.wasPressedThisFrame) { _rmbDown = true; _rmbStart = mp; }
+            if (mouse.rightButton.wasReleasedThisFrame && _rmbDown) { _rmbDown = false; if ((mp - _rmbStart).magnitude < 6f && !OverNightUi(mp)) IssueMove(mp, false); }
+            if (kb.aKey.wasPressedThisFrame) _attackNext = true;
+            if (kb.sKey.wasPressedThisFrame) foreach (var id in _sel) { _uw.Hold(id); _uw.SetHoldFire(id, false); }
+            if (kb.dKey.wasPressedThisFrame && TryGround(mp, out var gp)) foreach (var id in _sel) { var pl = _uw.Find(id); if (pl != null) _uw.DeployAt(id, IMath.Atan2((int)(gp.z * 1000f) - pl.AY, (int)(gp.x * 1000f) - pl.AX)); }
+            if (kb.rKey.wasPressedThisFrame && kb.leftShiftKey.isPressed) foreach (var id in _sel) _uw.Resupply(id);
+            if (kb.gKey.wasPressedThisFrame) foreach (var id in _sel) { var pl = _uw.Find(id); if (pl != null) _uw.SetHoldFire(id, !pl.HoldFire); }
+            if (kb.tKey.wasPressedThisFrame) foreach (var id in _sel) _uw.Resupply(id);
+            UpdateNightSoldiers();
+            while (_blood.Count > 0 && Time.unscaledTime > _blood.Peek().t) { var o = _blood.Dequeue(); if (o.go != null) Destroy(o.go); }
+            // la luz sigue a la hora: de noche hasta las 05:30, luego el alba
+            int minutes = _ng.GameSeconds / 60; int want = minutes < 7 * 60 + 30 ? 2 : (minutes < 8 * 60 ? 1 : 0);
+            if (want != _gradeIndex && !_nightGradeLock) ApplyGrade(want);
+        }
+        bool _nightGradeLock;
+
+        bool TryGround(Vector2 mp, out Vector3 p)
+        {
+            var ray = _worldCam.ViewportPointToRay(new Vector3(mp.x / Screen.width, mp.y / Screen.height, 0f)); p = Vector3.zero;
+            if (!new Plane(Vector3.up, Vector3.zero).Raycast(ray, out float t)) return false; p = ray.GetPoint(t); return true;
+        }
+
+        void IssueMove(Vector2 mp, bool attack)
+        {
+            if (!TryGround(mp, out var g)) return; int i = 0;
+            foreach (var id in _sel) { int ox = (i % 3 - 1) * 2500, oy = (i / 3) * 2500; if (attack) _uw.AttackMove(id, (int)(g.x * 1000f) + ox, (int)(g.z * 1000f) + oy); else _uw.Move(id, (int)(g.x * 1000f) + ox, (int)(g.z * 1000f) + oy); i++; }
+            _moveMark = g; _moveMarkUntil = Time.unscaledTime + 1.2f;
+        }
+        void IssueAttackMove(Vector2 mp) { IssueMove(mp, true); }
+        Vector3 _moveMark; float _moveMarkUntil;
+
+        bool OverNightUi(Vector2 mp) { float y = Screen.height - mp.y; return y < Screen.height * 0.075f || y > Screen.height * 0.80f; }
+
+        // ---------------------------------------------------------------- interfaz
+        GUIStyle _nStyle, _nBig; Texture2D _nPx;
+        void NightGUI()
+        {
+            if (_ng == null) return;
+            float W = Screen.width, H = Screen.height, k = H / 1080f;
+            if (_nPx == null) { _nPx = new Texture2D(1, 1); _nPx.SetPixel(0, 0, Color.white); _nPx.Apply(); }
+            if (_nStyle == null) { var f = Font.CreateDynamicFontFromOSFont(new[] { "Consolas", "Lucida Console", "Courier New" }, 20); _nStyle = new GUIStyle(GUI.skin.label) { font = f, richText = true }; _nBig = new GUIStyle(_nStyle) { alignment = TextAnchor.MiddleCenter }; }
+            _nStyle.fontSize = Mathf.RoundToInt(26 * k); _nBig.fontSize = Mathf.RoundToInt(40 * k);
+            void Box(Rect r, Color c) { var o = GUI.color; GUI.color = c; GUI.DrawTexture(r, _nPx); GUI.color = o; }
+            var bone = new Color32(0xd4, 0xd0, 0xcc, 255); var dark = new Color(0.07f, 0.08f, 0.04f, 0.88f);
+            // barra superior: reloj al centro, recursos a la izquierda, ola a la derecha
+            Box(new Rect(0, 0, W, 64 * k), dark);
+            _nStyle.normal.textColor = bone;
+            GUI.Label(new Rect(W * 0.5f - 90 * k, 10 * k, 200 * k, 44 * k), $"<b>{TimeStr()}</b>", _nBig);
+            float u = _uw.StockShots / (float)WeaponCatalog.ShotsPerU;
+            GUI.Label(new Rect(20 * k, 16 * k, 900 * k, 40 * k), $"munición {u:0.0} u   ·   abatidos {_nightKills}   ·   pila {_pileNearStation}", _nStyle);
+            int wv = Mathf.Max(0, CurrentWave());
+            GUI.Label(new Rect(W - 900 * k, 16 * k, 880 * k, 40 * k), $"oleada {wv + 1}/{_ng.P.Waves.Length}   ·   estación {Mathf.CeilToInt(_stationHp)} %   tren {Mathf.CeilToInt(_trainHp)} %", _nStyle);
+            // rótulo de oleada
+            if (Time.unscaledTime < _bannerUntil)
+            {
+                var r = new Rect(W * 0.5f - 300 * k, 252 * k, 600 * k, 116 * k); Box(r, dark);
+                _nStyle.alignment = TextAnchor.MiddleCenter; GUI.Label(r, _bannerText, _nStyle); _nStyle.alignment = TextAnchor.UpperLeft;
+            }
+            // panel de pelotones (abajo)
+            float cw = 250 * k, ch = 150 * k, x0 = 20 * k, y0 = H - ch - 20 * k; int idx = 0;
+            foreach (var pl in _uw.Platoons)
+            {
+                var r = new Rect(x0 + idx * (cw + 10 * k), y0, cw, ch); bool sel = _sel.Contains(pl.Id);
+                Box(r, sel ? new Color(0.3f, 0.34f, 0.16f, 0.95f) : dark);
+                string nm = PlatoonName(pl);
+                GUI.Label(new Rect(r.x + 10 * k, r.y + 6 * k, cw, 36 * k), $"<b>{nm}</b>", _nStyle);
+                float alive = pl.AliveCount() / (float)Mathf.Max(1, pl.Men.Count);
+                Box(new Rect(r.x + 10 * k, r.y + 54 * k, cw - 20 * k, 16 * k), new Color(0.2f, 0.2f, 0.15f, 1f)); Box(new Rect(r.x + 10 * k, r.y + 54 * k, (cw - 20 * k) * alive, 16 * k), new Color32(0x70, 0x78, 0x4c, 255));
+                float am = pl.AmmoCap > 0 ? pl.AmmoShots / (float)pl.AmmoCap : 0f;
+                Box(new Rect(r.x + 10 * k, r.y + 78 * k, cw - 20 * k, 12 * k), new Color(0.2f, 0.2f, 0.15f, 1f)); Box(new Rect(r.x + 10 * k, r.y + 78 * k, (cw - 20 * k) * am, 12 * k), new Color32(0xe0, 0x8c, 0x30, 255));
+                GUI.Label(new Rect(r.x + 10 * k, r.y + 96 * k, cw, 36 * k), $"{pl.AliveCount()}/{pl.Men.Count}  ·  {(pl.Moving ? "en marcha" : pl.Deploy ? "emplazado" : "alto")}", _nStyle);
+                idx++;
+            }
+            _nStyle.fontSize = Mathf.RoundToInt(19 * k); _nStyle.wordWrap = true;
+            GUI.Label(new Rect(1380 * k, H - 150 * k, W - 1400 * k, 140 * k), "clic: elegir (arrastra: varios) · clic dcho.: mover\nA + clic: atacar moviéndose · S: mantener · D: emplazar (hacia el cursor)\nG: alto el fuego · T: reabastecer · cámara: flechas / bordes / Z X girar · F2: depuración · F5: guardar", _nStyle);
+            if (_selDrag && Mouse.current != null)
+            {
+                var mp = Mouse.current.position.ReadValue(); var r = Rect.MinMaxRect(Mathf.Min(_selStart.x, mp.x), H - Mathf.Max(_selStart.y, mp.y), Mathf.Max(_selStart.x, mp.x), H - Mathf.Min(_selStart.y, mp.y));
+                if (r.width > 6f) { Box(new Rect(r.x, r.y, r.width, 2), bone); Box(new Rect(r.x, r.yMax, r.width, 2), bone); Box(new Rect(r.x, r.y, 2, r.height), bone); Box(new Rect(r.xMax, r.y, 2, r.height), bone); }
+            }
+            if (_ng.State != NightState.Jugando && !_endDismissed)
+            {
+                Box(new Rect(0, 0, W, H), new Color(0f, 0f, 0f, 0.55f));
+                var r = new Rect(W * 0.5f - 420 * k, 220 * k, 840 * k, 600 * k); Box(r, dark);
+                _nStyle.fontSize = Mathf.RoundToInt(34 * k); _nStyle.alignment = TextAnchor.UpperCenter;
+                GUI.Label(new Rect(r.x, r.y + 20 * k, r.width, 140 * k), $"<b>{_endReason}</b>", _nStyle);
+                _nStyle.fontSize = Mathf.RoundToInt(28 * k); _nStyle.alignment = TextAnchor.UpperLeft;
+                int alive = 0, total = 0; foreach (var pl in _uw.Platoons) { alive += pl.AliveCount(); total += pl.Men.Count; }
+                var sbb = new StringBuilder();
+                sbb.AppendLine($"zombis abatidos        {_nightKills}");
+                sbb.AppendLine($"bajas                  {total - alive}");
+                sbb.AppendLine($"munición gastada       {_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} u");
+                sbb.AppendLine($"munición restante      {_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.0} u");
+                sbb.AppendLine($"hora                   {TimeStr()}");
+                if (_ng.State == NightState.Victoria) sbb.AppendLine($"estrellas              {new string('★', _endStars)}{new string('☆', 3 - _endStars)}");
+                GUI.Label(new Rect(r.x + 60 * k, r.y + 170 * k, r.width - 120 * k, 300 * k), sbb.ToString(), _nStyle);
+                if (GUI.Button(new Rect(r.x + 60 * k, r.yMax - 110 * k, 320 * k, 70 * k), "Seguir jugando")) _endDismissed = true;       // el mundo sigue (D-N91)
+                if (GUI.Button(new Rect(r.xMax - 380 * k, r.yMax - 110 * k, 320 * k, 70 * k), "Menú principal")) { NetSession.Reset(); NightRun.Active = false; SceneManager.LoadScene("Menu"); }
+            }
+        }
+
+        readonly Dictionary<int, string> _pname = new Dictionary<int, string>();
+        string PlatoonName(Platoon p) { return _pname.TryGetValue(p.Id, out var n) ? n : "Pelotón"; }
+        static string PlatoonNameOld(Platoon p)
+        {
+            int amet = 0, gran = 0, tir = 0; foreach (var m in p.Men) { if (m.Kind == InfKind.Ametrallador) amet++; else if (m.Kind == InfKind.Granadero) gran++; else if (m.Kind == InfKind.Tirador) tir++; }
+            return amet > 0 ? "Ametralladores" : gran > 0 ? "Granaderos" : tir > 0 ? "Tiradores" : "Fusileros";
+        }
+    }
+}

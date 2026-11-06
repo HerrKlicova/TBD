@@ -27,7 +27,8 @@ namespace TBD.View
             _full = Screen.fullScreen;
             var cam = Camera.main; if (cam == null) { var go = new GameObject("Cámara del menú"); cam = go.AddComponent<Camera>(); go.AddComponent<AudioListener>(); }
             cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = Dark;
-            var cla = System.Environment.GetCommandLineArgs(); if (System.Array.IndexOf(cla, "-menu-auto") >= 0 || System.Array.IndexOf(cla, "-stress10k") >= 0 || System.Array.IndexOf(cla, "-stress10k-sagunto") >= 0) StartGame();       // pruebas: arranca directo
+            var cla = System.Environment.GetCommandLineArgs(); if (System.Array.IndexOf(cla, "-stress10k") >= 0 || System.Array.IndexOf(cla, "-stress10k-sagunto") >= 0) { NightRun.Active = false; SceneManager.LoadScene("Union"); }   // pruebas de rendimiento: sin la noche
+            else if (System.Array.IndexOf(cla, "-menu-auto") >= 0) StartGame();       // pruebas: arranca directo
         }
 
         static Texture2D Tex(Color c) { var t = new Texture2D(1, 1); t.SetPixel(0, 0, c); t.Apply(); return t; }
@@ -56,10 +57,10 @@ namespace TBD.View
             return nv;
         }
 
-        void StartGame() { SceneManager.LoadScene("Union"); }
+        void StartGame() { NetSession.Reset(); NightRun.Active = true; SceneManager.LoadScene("Union"); }
         void ContinueGame()
         {
-            try { NetSession.LoadGame(); SceneManager.LoadScene("Union"); }
+            try { NetSession.LoadGame(); NightRun.Active = false; SceneManager.LoadScene("Union"); }
             catch (System.Exception e) { _msg = "No se pudo cargar la partida: " + e.Message; }
         }
 

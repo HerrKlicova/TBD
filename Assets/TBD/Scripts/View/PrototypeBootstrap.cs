@@ -29,7 +29,7 @@ namespace TBD.View
     ///             , . mezcla con la paleta · WASD/flechas mover · rueda zoom · F3 prueba de desincronización · P pausa
     ///             F9 captura · F10 grabar fotogramas para un GIF
     /// </summary>
-    public class PrototypeBootstrap : MonoBehaviour
+    public partial class PrototypeBootstrap : MonoBehaviour
     {
         // Paleta de 32 colores aprobada (docs/arte/paleta_propuesta_32.hex del proyecto de diseño)
         static readonly string[] PaletteHex =
@@ -397,6 +397,8 @@ namespace TBD.View
             UpdateGroundStreaming();
             UpdateVegLod();
             HandleInput();
+            if (NightRun.Active && !_nightInit && _zoneNode >= 0 && _worldA != null && _worldA.IsCreated && !_cutting) InitNight();
+            if (_nightOn) NightUpdate();
 
             if (!_paused)
             {
@@ -418,7 +420,7 @@ namespace TBD.View
             em.SetComponentData(_rootA, clock);
 
             UpdateTrainVisual();
-            UpdateSoldierVisuals();
+            if (!_nightOn) UpdateSoldierVisuals();
             UpdateCamera();
             UpdateStats();
             UpdateCapture();
@@ -430,6 +432,7 @@ namespace TBD.View
 
         void StepSimulation()
         {
+            if (_nightOn) NightTick();
             _groupA.Update();
             if (_checkEnabled)
             {
@@ -528,18 +531,24 @@ namespace TBD.View
 
             // ---- cámara libre: rotación, inclinación y zoom continuos (GDD §11, v1.10)
             float dt = Time.unscaledDeltaTime;
-            if (kb.qKey.isPressed) _yaw -= 70f * dt;
-            if (kb.eKey.isPressed) _yaw += 70f * dt;
+            if (_nightOn ? kb.zKey.isPressed : kb.qKey.isPressed) _yaw -= 70f * dt;
+            if (_nightOn ? kb.xKey.isPressed : kb.eKey.isPressed) _yaw += 70f * dt;
             if (kb.rKey.isPressed) _pitch = Mathf.Min(80f, _pitch + 40f * dt);
             if (kb.fKey.isPressed) _pitch = Mathf.Max(20f, _pitch - 40f * dt);
 
             Vector3 fwd = Quaternion.Euler(0f, _yaw, 0f) * Vector3.forward;
             Vector3 right = Quaternion.Euler(0f, _yaw, 0f) * Vector3.right;
             Vector3 pan = Vector3.zero;
-            if (kb.wKey.isPressed || kb.upArrowKey.isPressed) pan += fwd;
-            if (kb.sKey.isPressed || kb.downArrowKey.isPressed) pan -= fwd;
-            if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) pan -= right;
-            if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) pan += right;
+            bool wasd = !_nightOn;                                                  // de noche A, S, D y E son órdenes: la cámara va con flechas, bordes de pantalla y Z X (girar)
+            if ((wasd && kb.wKey.isPressed) || kb.upArrowKey.isPressed) pan += fwd;
+            if ((wasd && kb.sKey.isPressed) || kb.downArrowKey.isPressed) pan -= fwd;
+            if ((wasd && kb.aKey.isPressed) || kb.leftArrowKey.isPressed) pan -= right;
+            if ((wasd && kb.dKey.isPressed) || kb.rightArrowKey.isPressed) pan += right;
+            if (_nightOn && Mouse.current != null && Application.isFocused)
+            {
+                var mpe = Mouse.current.position.ReadValue(); float edge = 6f;
+                if (mpe.y >= Screen.height - edge) pan += fwd; if (mpe.y <= edge) pan -= fwd; if (mpe.x <= edge) pan -= right; if (mpe.x >= Screen.width - edge) pan += right;
+            }
             _focus += pan.normalized * (_orthoSize * 1.2f * dt);
 
             var mouse = Mouse.current;
@@ -934,6 +943,8 @@ namespace TBD.View
         void OnGUI()
         {
             BuildOverlay();
+            if (_nightOn) NightGUI();
+            if (_nightOn && !_debugHud) { NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart); return; }
             if (Time.unscaledTime < _outHintUntil && _zoneNode >= 0)
             {
                 int fs = Mathf.Max(12, Screen.height / 70); var st = new GUIStyle(GUI.skin.label) { fontSize = fs, richText = true }; st.normal.textColor = new Color(0.9f, 0.92f, 0.95f);

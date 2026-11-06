@@ -85,6 +85,7 @@ namespace TBD.View
 
         void Start()
         {
+            if (NightRun.Active) { EnterZone(0); return; }                                    // «Jugar»: directo a la noche de Sagunto (D-N71)
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k-sagunto") >= 0) { EnterZone(0); return; }       // prueba de rendimiento en la zona de Sagunto (con la muestra del suelo)
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k") >= 0 && NetSession.DebugForceAmbush()) { NetSession.PendingAmbush = true; UnityEngine.SceneManagement.SceneManager.LoadScene("SampleScene"); return; }   // prueba de rendimiento (D-N61)
             Application.targetFrameRate = 60;

@@ -26,6 +26,9 @@ namespace TBD.View
 
         float _acc;
 
+        /// <summary>Descarta la sesion de red (nueva partida o repetir la noche).</summary>
+        public static void Reset() { if (_instance != null) Destroy(_instance.gameObject); _instance = null; A = null; B = null; Desync = false; }
+
         public static string SavePath { get { return System.IO.Path.Combine(Application.persistentDataPath, "partida.tbd"); } }
         public static bool HasSave { get { return System.IO.File.Exists(SavePath); } }
 
