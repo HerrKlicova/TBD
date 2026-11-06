@@ -92,14 +92,15 @@ def marcas_via(v):
     """Rodadas de vehículo: v0 de oruga (recta, con tacos), v1 de neumático en curva."""
     s = Sprite(T, T)
     if v == 0:
-        for x0 in (6, 21):
-            for y in range(T):
-                for i in range(5):
-                    if y % 4 == 0 or i in (0, 4):
-                        if _h(x0 + i, y, 31) > .15:
-                            s.set(x0 + i, y, "olive_shadow")
-                    elif _h(x0 + i, y, 32) > .85:
-                        s.set(x0 + i, y, "grey_brown")
+        for x0 in (6, 21):                           # solo tacos sueltos, sin carriles
+            for y in range(0, T, 4):
+                ancho = 4 + (1 if _h(x0, y, 31) > .5 else 0)
+                dx = int(_h(x0, y, 34) * 2)
+                for i in range(ancho):
+                    if _h(x0 + i, y, 32) > .12:
+                        s.set(x0 + dx + i, y, "olive_shadow")
+                if _h(x0, y, 35) > .6:
+                    s.set(x0 + 2, y + 2, "grey_brown")
     else:
         for off in (0, 9):
             for y in range(T):

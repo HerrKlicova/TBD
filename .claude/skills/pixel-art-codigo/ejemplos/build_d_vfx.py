@@ -154,10 +154,9 @@ def haz_foco(f):
         for x in range(int(32 - semi), int(32 + semi) + 1):
             d = abs(x + .5 - 32) / semi
             breath = .06 * math.sin(2 * math.pi * (f / 8 + y / 64))
-            dens = (1 - t) * .55 * (1 - d * d) + breath + .05
-            if d > .92 and tramado(x, y, .5):
-                s.set(x, y, "concrete_light")      # canto del cono
-            elif tramado(x, y, dens):
+            dens = (1 - t * .8) * .7 * (1 - d * d) + breath
+            dens *= 1 - d ** 3                     # sin borde: se desvanece hacia los lados
+            if tramado(x, y, dens):
                 s.set(x, y, "bone" if dens > .42 else "cream" if dens > .3 else "concrete_light")
     for k in range(7):                             # motas de polvo que cruzan el haz
         y = int((_h(k, 1, 3) * 64 + f * 8 * (1 + k % 2)) % 64)
