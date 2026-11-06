@@ -18,3 +18,7 @@ CK-2;Mora;Brote dentro de {nodo}. Venía con los de ayer.;Outbreak inside {node}
 TO-1;Bolea;Comandante, aquí abajo no hay balas para siempre. En Zaragoza, sí.;Commander, there aren't bullets down here forever. In Zaragoza, there are.
 TO-2;informe;La Colmena crece más rápido que tu red.;The Hive is growing faster than your network.
 TO-3;Reig;Al ritmo de hoy, Sagunto aguanta {dias} días.;At today's rate, Sagunto holds for {days} days.
+OC-1;Llorens;Una obra se oye desde lejos. Mientras dure, {nodo} atrae a la Colmena.;Construction carries a long way. While it lasts, {node} draws the Hive.
+OC-2;Mora;El ruido de la obra en {nodo} los está trayendo. Calculo {n} en {minutos} min.;The noise at {node} is drawing them in. I count {n}, {minutes} min out.
+OC-3;tras el ataque;El ruido de la obra nos ha delatado. Hay contacto en {nodo}.;The construction gave us away. Contact at {node}.
+OC-4;Llorens;Obra parada en {nodo}. Hay que despejar la zona para seguir.;Work stopped at {node}. Clear the area to resume.

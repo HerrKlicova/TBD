@@ -29,7 +29,7 @@ namespace TBD.Net
     }
 
     // ================================================================== órdenes
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12 }
 
     public struct NetCommand
     {
@@ -295,6 +295,7 @@ namespace TBD.Net
         public readonly int[] Attraction;          // por nodo: base de la ciudad + ruido del tráfico
         public readonly int[] BaseAttraction;
         public readonly int[,] Stock;              // por nodo y recurso
+        public readonly StationState Stations;     // hito 5: qué emplazamientos están fundados (flag dentro del hash, sin nodos en caliente)
         public readonly ObrasState Works;          // hito 5: lo construido en cada nodo (dentro del hash, en «existencias»)
         public long Tick;
         public int Speed = 1;                       // 1, 2 o 4 ticks por paso de 1/30 s
@@ -344,6 +345,7 @@ namespace TBD.Net
             BaseAttraction = new int[g.Nodes.Count];
             Stock = new int[g.Nodes.Count, NetConst.ResCount];
             Works = new ObrasState(g.Nodes.Count, BalanceSource.Obras());
+            Stations = new StationState(g, BalanceSource.Stations());
             Traffic = new TrafficMemory(g.Edges.Count, BalanceSource.Traffic());
             Director.P = BalanceSource.Director();
             Director.Curve = BalanceSource.Curve();
@@ -386,6 +388,7 @@ namespace TBD.Net
                     case NetCmdType.Dematerialize: Dematerialize(c.Arg, c.Arg2); break;
                     case NetCmdType.ConsumeAmmo: ConsumeAmmo(c.Arg, c.Arg2); break;
                     case NetCmdType.AssignWorkers: AssignWorkers(c.Arg, c.Arg2); break;                    // Arg = nodo, Arg2 = obreros
+                    case NetCmdType.FoundStation: FoundStation(c.Arg); break;                               // Arg = nodo
                     case NetCmdType.CancelWork: CancelWork(c.Arg, c.Arg2); break;                          // Arg = nodo, Arg2 = número de obra
                     case NetCmdType.PlaceWork: PlaceWork(c.Arg & 0xFFFF, (PieceKind)(c.Arg >> 16), c.Payload); break;       // Arg = nodo | (PieceKind << 16)
                     case NetCmdType.TrainGo:
@@ -455,6 +458,55 @@ namespace TBD.Net
             Works.Workers[node] = Math.Max(0, Math.Min(workers, 10_000));
         }
 
+        // ---------------------------------------------------------------- fundar una estación (hito 5, diseno-hito5.md §4)
+        /// <summary>¿Está el tren parado en el nodo? En una parada del horario, o detenido a menos de StopRadiusMm del nodo en su tramo.</summary>
+        public bool TrainAtNode(TrainService sv, int node)
+        {
+            if (sv.AtStop && sv.StopIndex >= 0 && sv.StopIndex < sv.Stops.Count && sv.Stops[sv.StopIndex].Node == node) return true;
+            var t = sv.Train;
+            if (t.State == RailTrainState.EnMarcha) return false;
+            var e = t.CurrentEdge(Graph);
+            if (e == null) return t.Route.Count > 0 && t.Route[t.Route.Count - 1] == node && t.State == RailTrainState.Llegado;
+            if (t.Route[t.Leg] == node && t.OffsetMm <= Stations.P.StopRadiusMm) return true;
+            return t.Route[t.Leg + 1] == node && e.LengthMm - t.OffsetMm <= Stations.P.StopRadiusMm;
+        }
+
+        /// <summary>
+        /// Prueba y aplica «Fundar»: un tren parado en el emplazamiento con 30 u de materiales y 12 personas a bordo, sin horda encima (densidad
+        /// menor que la de asedio). Descarga los materiales (se gastan en el apeadero) y las personas pasan a la población del nodo.
+        /// Si hay varios trenes, el de índice menor que reúna la carga. Devuelve el resultado (la interfaz explica por qué no).
+        /// </summary>
+        public FoundResult FoundStation(int node)
+        {
+            if (node < 0 || node >= Graph.Nodes.Count || !Stations.IsSite(node)) return FoundResult.NoEsEmplazamiento;
+            if (Stations.Founded[node]) return FoundResult.YaFundada;
+            bool anyTrain = false; TrainService pick = null;
+            foreach (var sv in Services)
+            {
+                if (!TrainAtNode(sv, node)) continue;
+                anyTrain = true;
+                if (sv.Cargo[(int)Res.Materiales] >= Stations.P.FoundMaterialsU && sv.Cargo[(int)Res.Personas] >= Stations.P.FoundPeople) { pick = sv; break; }
+            }
+            if (!anyTrain) return FoundResult.SinTren;
+            if (pick == null) return FoundResult.SinCarga;
+            if (Graph.Nodes[node].HordeDensity >= SiegeAt) return FoundResult.HordeEncima;
+            pick.Cargo[(int)Res.Materiales] -= Stations.P.FoundMaterialsU;
+            pick.Cargo[(int)Res.Personas] -= Stations.P.FoundPeople;
+            Stock[node, (int)Res.Personas] += Stations.P.FoundPeople;
+            Stations.Founded[node] = true;
+            return FoundResult.Ok;
+        }
+
+        /// <summary>Sin fundar, apeadero o estación (un depósito construido y 40 personas). Los demás nodos (ciudades, apeaderos existentes) no se tratan aquí.</summary>
+        public StationKind StationKindOf(int node)
+        {
+            if (node < 0 || node >= Graph.Nodes.Count || !Stations.Founded[node]) return StationKind.NoFundada;
+            bool deposit = false;
+            var l = Works.Snapshot(node);
+            foreach (var p in l) if (p.Kind == PieceKind.Deposito && p.Built) { deposit = true; break; }
+            return deposit && Stock[node, (int)Res.Personas] >= Stations.P.StationPeople ? StationKind.Estacion : StationKind.Apeadero;
+        }
+
         /// <summary>Cancela una obra: recupera el 100 % si no ha empezado y el 50 % si sí (D-N44).</summary>
         public void CancelWork(int node, int id)
         {
@@ -492,6 +544,11 @@ namespace TBD.Net
             {
                 int w = EffectiveWorkers(n);
                 if (w > 0) Works.Advance(n, w);
+                // avisos de obra (textos de Lucía, §7 de textos-informe-colmena.md)
+                if (!Works.FirstNoted && w > 0) { Works.FirstNoted = true; Intel.Add(new IntelEntry { Tick = Tick, Id = "OC-1", Vars = new[] { "nodo", Graph.Nodes[n].Name } }); }
+                bool stopped = Works.Workers[n] > 0 && Works.IsActive(n) && WorkPaused(n);          // la horda para la obra
+                if (stopped && !Works.WasPaused[n]) Intel.Add(new IntelEntry { Tick = Tick, Id = "OC-4", Vars = new[] { "nodo", Graph.Nodes[n].Name } });
+                Works.WasPaused[n] = stopped;
             }
         }
 
@@ -793,6 +850,7 @@ namespace TBD.Net
                 for (int r2 = 0; r2 < NetConst.ResCount; r2++) h += Mix(((ulong)(uint)n << 40) ^ ((ulong)r2 << 32) ^ (ulong)(uint)Stock[n, r2]);
             }
             h += Works.Hash();
+            h += Stations.Hash();
             r.Stock = h;
             h = 0;
             foreach (var e in Graph.Edges) h += Mix(((ulong)(uint)e.Id << 8) ^ (ulong)e.State);

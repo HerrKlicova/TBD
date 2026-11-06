@@ -318,15 +318,17 @@ namespace TBD.Net
             return (HordeField.H - 1) * HordeField.W + x;
         }
 
-        public long WorkProbes_Count, WorkProbes_Moved, WorkProbes_Asked, WorkProbes_Injected;   // estadísticas del sondeo de obra (no entran en el hash)
+        public long WorkProbes_Count, WorkProbes_Moved, WorkProbes_Asked, WorkProbes_Paid;   // estadísticas del sondeo de obra (no entran en el hash)
 
         /// <summary>
         /// Sondeo de obra (D-N44, Hugo): cada hora, cada nodo con una obra activa tiene un 83 ‰ de recibir un sondeo: el 5 % del presupuesto del
-        /// día (unos 330 zombis el día 9 en el modelo de Hugo) llega como masa NUEVA (Inject, igual que el presupuesto) y se concentra en su celda con
-        /// Gather: la masa del campo cambia solo por lo inyectado. Sorteo por semilla, tick y nodo, sin estado. Si la celda del nodo es la de la zona en detalle (congelada), la horda
-        /// se concentra en una celda vecina. Devuelve lo movido, en ‰ de densidad.
+        /// día se concentra en su celda con Gather. Va DESCONTADO, no es masa extra (Hugo, aprobado por Mak): se paga con el 400 ‰ del presupuesto
+        /// que no va a asedios, primero con la deriva de esa hora y después con lo que el canal de emboscada lleva ahorrado, así que el total de
+        /// 20 días cuadra con la referencia y la masa del campo no cambia. Si no hay presupuesto suficiente el sondeo es más pequeño (o no hay).
+        /// Sorteo por semilla, tick y nodo, sin estado. Si la celda del nodo es la de la zona en detalle (congelada), la horda se concentra en
+        /// una celda vecina. Devuelve lo movido, en ‰ de densidad.
         /// </summary>
-        long WorkProbes(NetWorld w, long day)
+        long WorkProbes(NetWorld w, long day, ref long drift, ref long bank)
         {
             long ask = DayZombies(day, HuellaMil(w)) * P.WorkProbeBudgetMil / 1000 / NetWorld.ZombiesPerPermil;
             if (ask <= 0) return 0;
@@ -335,6 +337,12 @@ namespace TBD.Net
             {
                 if (!w.WorkActive(n)) continue;
                 if ((long)(NetWorld.Mix(0x0B5E0UL ^ Seed ^ (ulong)w.Tick ^ ((ulong)(uint)n << 40)) % 1000UL) >= P.WorkProbeMil) continue;
+                long fromDrift = Math.Min(ask, Math.Max(0, drift));
+                long fromBank = Math.Min(ask - fromDrift, Math.Max(0, bank));
+                int pay = (int)(fromDrift + fromBank);
+                WorkProbes_Count++; WorkProbes_Asked += ask;
+                if (pay <= 0) continue;
+                drift -= fromDrift; bank -= fromBank;
                 var nd = w.Graph.Nodes[n];
                 int cell = nd.YMeters * HordeField.W + nd.XMeters;
                 if (cell == w.Field.Frozen)
@@ -342,11 +350,10 @@ namespace TBD.Net
                     int cx = nd.XMeters, cy = nd.YMeters;
                     cell = cx > 0 ? cell - 1 : cx < HordeField.W - 1 ? cell + 1 : cy > 0 ? cell - HordeField.W : cell + HordeField.W;
                 }
-                long inj = Inject(w, ask);
-                BudgetTotal += inj;
-                int m = Gather(w, cell, (int)inj);
+                int m = Gather(w, cell, pay);
                 moved += m;
-                WorkProbes_Count++; WorkProbes_Asked += ask; WorkProbes_Moved += m; WorkProbes_Injected += inj;
+                WorkProbes_Paid += pay; WorkProbes_Moved += m;
+                w.Intel.Add(new IntelEntry { Tick = w.Tick, Id = "OC-3", Vars = new[] { "nodo", nd.Name } });     // «el ruido de la obra nos ha delatado»: el sondeo llega de golpe, sin aviso previo (OC-2 necesitaría un plazo)
             }
             return moved;
         }
@@ -407,7 +414,6 @@ namespace TBD.Net
             bool big = day >= 2 && P.BigEveryDays > 0 && day % P.BigEveryDays == 0;     // gran ataque anunciado: el asedio golpea ×2 (se suma al presupuesto)
             long siegeFlow = big ? siegeShare * P.BigMultMil / 1000 : siegeShare;
             long ambushShare = rest * P.AmbushShareMil / 1000, drift = rest - ambushShare;
-            long probeMoved = WorkProbes(w, day);                             // hito 5: el ruido de obra es masa nueva aparte del presupuesto (Hugo, D-N44)
             int started = 0;
             foreach (var pl in Active) if (pl.Kind == PlanKind.Asedio && pl.Started) started++;
             if (started > 0)
@@ -422,9 +428,11 @@ namespace TBD.Net
             }
             else drift += siegeShare;                                       // D-N34: sin asedio, esa masa vuelve a la deriva y presiona por peso
             Inject(w, hb + (siegeFlow - siegeShare) * (started > 0 ? 1 : 0));        // D-N33 (Mak, A): masa nueva al campo, lejos del objetivo
+            long bank = _ambushBank + ambushShare;                          // hito 5 (Hugo, aprobado por Mak): el sondeo de obra se paga con el 400 ‰ que no va a asedios
+            long probeMoved = WorkProbes(w, day, ref drift, ref bank);      // (deriva de esta hora y, si no basta, lo ahorrado por el canal de emboscada); la masa se conserva
+            _ambushBank = bank;
             BudgetUsedToday += probeMoved;
             long dm = Drift(w, drift); BudgetUsedToday += dm; DriftMovedTotal += dm; BudgetTotal += hb + (siegeFlow - siegeShare) * (started > 0 ? 1 : 0);
-            _ambushBank += ambushShare;
 
             // canal de asedio (D-N33): por calendario, sin competir por utilidad
             long startTod = (w.Tick + NetConst.Hours(P.SiegeWarnH)) % NetConst.DayTicks;

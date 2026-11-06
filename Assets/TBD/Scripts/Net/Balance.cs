@@ -136,6 +136,12 @@ namespace TBD.Net
             return e == null ? p : p.WithEconomia(new CsvTable(e));
         }
 
+        public static StationParams Stations()
+        {
+            var e = Read("balance_economia.csv");
+            return e == null ? StationParams.Default : StationParams.FromCsv(new CsvTable(e));
+        }
+
         public static TBD.Sim.CombatParams Combat()
         {
             var t = Read("balance_combate.csv");

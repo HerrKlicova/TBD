@@ -277,8 +277,10 @@ namespace TBD.Net
         readonly List<WorkPiece>[] _byNode;
         public readonly int[] Workers;           // obreros asignados por nodo (población; la orden «asignar obreros»)
         public readonly int[] NextId;            // siguiente número de obra por nodo
+        public readonly bool[] WasPaused;        // por nodo: la obra estaba pausada en el tick anterior (para avisar OC-4 una sola vez por parada)
+        public bool FirstNoted;                  // ya se avisó de la primera obra de la partida (OC-1, una sola vez)
 
-        public ObrasState(int nodes, ObrasParams p) { P = p; _byNode = new List<WorkPiece>[nodes]; Workers = new int[nodes]; NextId = new int[nodes]; }
+        public ObrasState(int nodes, ObrasParams p) { P = p; _byNode = new List<WorkPiece>[nodes]; Workers = new int[nodes]; NextId = new int[nodes]; WasPaused = new bool[nodes]; }
 
         public int Nodes => _byNode.Length;
         public List<WorkPiece> At(int node) { return _byNode[node] ?? (_byNode[node] = new List<WorkPiece>()); }
@@ -382,6 +384,8 @@ namespace TBD.Net
                     h += NetWorld.Mix(NetWorld.Mix(NetWorld.Mix(NetWorld.Mix(0x0B2A5UL ^ ((ulong)(uint)n << 40) ^ (ulong)(uint)i) ^ a) ^ b) ^ NetWorld.Mix(c) ^ NetWorld.Mix(d ^ ((ulong)(uint)w.Id << 20) ^ ((ulong)(uint)w.MaxWorkers << 44)));
                 }
             }
+            if (FirstNoted) h += NetWorld.Mix(0x0C1F1UL);
+            for (int n = 0; n < WasPaused.Length; n++) if (WasPaused[n]) h += NetWorld.Mix(0x0C4A5UL ^ ((ulong)(uint)n << 40));
             for (int n = 0; n < Workers.Length; n++)
                 if (Workers[n] != 0 || NextId[n] != 0) h += NetWorld.Mix(0x0B0BEUL ^ ((ulong)(uint)n << 40) ^ ((ulong)(uint)Workers[n] << 16) ^ (ulong)(uint)NextId[n]);
             return h;
