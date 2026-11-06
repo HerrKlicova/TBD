@@ -39,6 +39,7 @@ namespace TBD.Net
         public int MaxVertices;          // tope de vértices de una polilínea
         public int MaxWorkersPerPiece;   // obreros que pueden trabajar a la vez en una misma pieza (obra_obreros_max_pieza; las obras grandes lo suben)
         public int GarrisonMin;          // personas que nunca trabajan: el retén (obras_guarnicion_minima de balance_construccion.csv, 6; NO la guarnicion_minima de 12 de la producción, D-N59)
+        public int OutsideWearMil;       // desgaste diario de los muros a más de 60 m del andén, sin mantenimiento posible (desgaste_fuera_perimetro_permil_dia, 10)
         public int WearDayMil;           // desgaste diario de lo construido (‰ de la vida, fort_desgaste_dia de balance_economia.csv, 10)
         public int CancelStartedMil;     // lo que se recupera al cancelar una obra ya empezada (‰); si no ha empezado, el 100 %
         public int HSacos10, HHesco10, HPuerta, HNido, HFoco, HDeposito, HAnden;   // obra en obrero·h (por 10 m en los muros)
@@ -53,7 +54,7 @@ namespace TBD.Net
                     SacosPer10m = 2, HescoPer10m = 6, PuertaU = 6, NidoU = 8, FocoU = 2, AndenU = 6, DepositoU = 5,
                     ModuleMm = 10_000, MinWallMm = 1_000, PerimeterMm = 60_000, LevelDivU = 30, LevelMaxMil = 5_000,
                     MaxPieces = 2_000, MaxVertices = 32, CoordLimitMm = 2_000_000,
-                    MaxWorkersPerPiece = 4, GarrisonMin = 6, WearDayMil = 10, CancelStartedMil = 500,
+                    MaxWorkersPerPiece = 4, GarrisonMin = 6, OutsideWearMil = 10, WearDayMil = 10, CancelStartedMil = 500,
                     HSacos10 = 2, HHesco10 = 4, HPuerta = 4, HNido = 6, HFoco = 2, HDeposito = 8, HAnden = 10
                 };
             }
@@ -74,6 +75,7 @@ namespace TBD.Net
             d.MinWallMm = (int)t.TryValue("muro_minimo_mm", d.MinWallMm);
             d.PerimeterMm = (int)t.TryValue("perimetro_mm", d.PerimeterMm);
             d.GarrisonMin = (int)t.TryValue("obras_guarnicion_minima", d.GarrisonMin);
+            d.OutsideWearMil = (int)t.TryValue("desgaste_fuera_perimetro_permil_dia", d.OutsideWearMil);
             d.CancelStartedMil = (int)t.TryValue("cancelar_obra_empezada_permil", d.CancelStartedMil);
             d.MaxWorkersPerPiece = (int)t.TryValue("obra_obreros_max_pieza", d.MaxWorkersPerPiece);
             d.HSacos10 = (int)t.TryValue("obra_sacos_h_por_10m", d.HSacos10); d.HHesco10 = (int)t.TryValue("obra_hesco_h_por_10m", d.HHesco10);
@@ -250,7 +252,12 @@ namespace TBD.Net
         /// <summary>¿Cuenta esta pieza para el nivel? Construida, defensiva (no el depósito) y a ≤ 60 m del andén (punto medio de la pieza).</summary>
         public static bool CountsForLevel(ObrasParams p, in WorkPiece w)
         {
-            if (!w.Built || w.Kind == PieceKind.Deposito) return false;
+            return w.Built && w.Kind != PieceKind.Deposito && InPerimeter(p, w);
+        }
+
+        /// <summary>El punto medio de la pieza está a ≤ 60 m del andén.</summary>
+        public static bool InPerimeter(ObrasParams p, in WorkPiece w)
+        {
             long mx = ((long)w.X0 + w.X1) / 2, my = ((long)w.Y0 + w.Y1) / 2;
             long r = p.PerimeterMm;
             return mx * mx + my * my <= r * r;
@@ -305,19 +312,23 @@ namespace TBD.Net
         }
 
         /// <summary>
-        /// Desgaste de un día: cada pieza construida pierde WearDayMil ‰ de su vida actual (mínimo 1 ‰, redondeo al más cercano).
-        /// Las piezas sin terminar no se gastan. Una pieza a 0 ‰ queda destruida y se quita (la interfaz pone los escombros). Devuelve cuántas se destruyen.
+        /// Desgaste de un día (Hugo): el depósito no se gasta; lo que está a ≤ 60 m del andén (la Σ del nivel) pierde WearDayMil ‰ de la vida que le queda
+        /// solo si el mantenimiento NO se ha pagado (paid = false); los muros a más de 60 m pierden OutsideWearMil ‰ siempre, sin mantenimiento posible
+        /// (así no hay anillos exteriores eternos). Mínimo 1 ‰, redondeo al más cercano. Las piezas sin terminar no se gastan. Una pieza a 0 ‰ queda
+        /// destruida y se quita (la interfaz pone los escombros). Devuelve cuántas se destruyen.
         /// </summary>
-        public int WearDay(int node)
+        public int WearDay(int node, bool paid = false)
         {
             var l = _byNode[node];
-            if (l == null || P.WearDayMil <= 0) return 0;
+            if (l == null) return 0;
             int destroyed = 0;
             for (int i = l.Count - 1; i >= 0; i--)
             {
                 var w = l[i];
-                if (!w.Built) continue;
-                int loss = Math.Max(1, (int)(((long)w.LifeMil * P.WearDayMil + 500) / 1000));
+                if (!w.Built || w.Kind == PieceKind.Deposito) continue;
+                int rate = Obras.InPerimeter(P, w) ? (paid ? 0 : P.WearDayMil) : P.OutsideWearMil;
+                if (rate <= 0) continue;
+                int loss = Math.Max(1, (int)(((long)w.LifeMil * rate + 500) / 1000));
                 if (w.LifeMil <= loss) { l.RemoveAt(i); destroyed++; } else { w.LifeMil -= loss; l[i] = w; }
             }
             return destroyed;
