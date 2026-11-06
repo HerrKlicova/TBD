@@ -50,6 +50,7 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
     inf["veredicto"] = a["veredicto"]
     inf["avisos"] = [(x["clave"], x["valor"]) for x in a["puntos"] if x["nivel"] != "OK"]
     inf["legibilidad"] = ns["medir_legibilidad"](o)["suelos"]
+    inf["criterio_legibilidad"] = getattr(db, "LEGIBILIDAD", "top20_o_contorno")
     inf["medidas_m"] = [round(d, 2) for d in o.dimensions]
     u = getattr(db, "UMBRAL_CONTORNO", {}).get(lod, 0.25 if lod else 0.06)
     for suelo, hx in SUELOS:
@@ -62,6 +63,36 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
     with open(os.path.join(out, "informe.json"), "w", encoding="utf-8") as f:
         json.dump(inf, f, ensure_ascii=False, indent=1, default=str)
     return inf
+
+
+def _L(rgb):
+    """L* de colores sRGB (N,3) 0-255."""
+    import numpy as np
+    c = np.asarray(rgb, float) / 255.0
+    c = np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+    y = c @ np.array([0.2126, 0.7152, 0.0722])
+    return np.where(y > 0.008856, 116 * np.cbrt(y) - 16, 903.3 * y)
+
+
+def cuerpo_medio(salida):
+    """Criterio de los zombis (Lucía, 6-nov): L* medio de la figura a tamaño de juego contra el suelo, ΔL* >= 25.
+    Se añade al informe.json de cada LOD cuyo bloque declara LEGIBILIDAD = "cuerpo_medio"."""
+    import numpy as np
+    from PIL import Image
+    for lod in (0, 1):
+        ri = os.path.join(salida, "lod%d" % lod, "informe.json")
+        inf = json.load(open(ri, encoding="utf-8"))
+        if inf.get("criterio_legibilidad") != "cuerpo_medio":
+            continue
+        for suelo, hx in SUELOS:
+            px_ = np.asarray(Image.open(os.path.join(salida, "lod%d" % lod, "%s_juego.png" % suelo)).convert("RGB"))
+            px_ = px_.reshape(-1, 3).astype(int)
+            fig = px_[np.abs(px_ - np.array(hx)).sum(1) > 6]
+            d = abs(float(_L(fig).mean()) - float(_L([hx])[0]))
+            clave = suelo if suelo in inf["legibilidad"] else "llano_ocre"
+            inf["legibilidad"].setdefault(clave, {}).update(dL_cuerpo_medio=round(d, 1), ok_cuerpo_medio=d >= 25)
+        json.dump(inf, open(ri, "w", encoding="utf-8"), ensure_ascii=False, indent=1, default=str)
+        print("lod%d cuerpo medio:" % lod, {k: v.get("dL_cuerpo_medio") for k, v in inf["legibilidad"].items()})
 
 
 def captura(salida, fotos, titulo, px):
@@ -131,6 +162,7 @@ def main():
             cmd += ["--permitir", *a.permitir]
         res = subprocess.run(cmd, capture_output=True, text=True)
         print(res.stdout.strip().splitlines()[-1] if res.stdout.strip() else res.stderr[-2000:])
+    cuerpo_medio(a.salida)
     print(captura(a.salida, a.fotos, a.titulo, a.px))
 
 

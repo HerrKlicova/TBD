@@ -1,6 +1,6 @@
 """Zombi de la Colmena para la vista cercana (encargo de Lucía, análisis del 6-nov, punto 8). Teo, 6-nov-2026.
 
-Referencias: el sprite aprobado de Bruno (pixel-codigo/zombi, variante «piedra/oliva») para colores y pose, y el
+Referencias: la lámina de siluetas de Bruno (pixel-codigo/siluetas, 6 a 20 px) para pose y medidas, y el
 análisis de Lucía (docs/arte/analisis-referencias-6nov.md, secciones 1 y 3):
 - proporción alargada, unos 3:1 de alto a ancho: piernas largas y torso estrecho;
 - brazos adelantados en la pose base, desparejos (el derecho más bajo, como en el sprite), porque es lo que dice
@@ -10,20 +10,25 @@ análisis de Lucía (docs/arte/analisis-referencias-6nov.md, secciones 1 y 3):
 Medidas: 1,75 m de alto, 0,58 m de hombro a hombro con los brazos. Delante = -Y, Z arriba, metros.
 Sin sangre ni gore (regla 11): el roto de la camisa y la tierra van en grises y oliva.
 """
-import math
+import math, os
 from taller import Taller
 
-PIEZAS = ["camisa", "piel", "pelo", "pantalon", "calzado", "roto"]
+PIEZAS = ["camisa", "piel", "pelo", "nuca", "pantalon", "calzado", "roto"]
+# Paleta de la Colmena (Lucía, 6-nov 12:28): el zombi es la EXCEPCIÓN a «arriba claro». La horda es siempre el valor más
+# oscuro sobre el suelo; nada de piel gris clara (se lee como calavera) ni camisas claras (trocean la silueta).
+CAMISAS = ("303424", "283440", "442c0c")   # una por instancia; todas rondan L* 21: masa de un solo valor
 COLORES = {
-    "camisa": "94948c",    # piedra (concrete_light), la camisa de los zombis según Lucía
-    "piel": "b8b8b8",      # piel pálida (grey_light), como el sprite
-    "pelo": "303424",      # olive_shadow: separa la cabeza de cualquier camisa
-    "pantalon": "605c48",  # olive_grey (variante «oliva»)
-    "calzado": "303424",
-    "roto": "60546c",      # roto y tierra de la camisa en purple_grey (sin rojos)
+    "camisa": os.environ.get("TBD_ZOMBI_CAMISA", CAMISAS[0]),
+    "piel": "48403c",      # cabeza y manos apagadas
+    "pelo": "1c200c",
+    "nuca": "303424",      # la única luz: 1 px en la nuca en olive_shadow, como en la lámina de Bruno
+    "pantalon": "1c200c",  # pantalón y base
+    "calzado": "1c200c",
+    "roto": "1c200c",      # LOD0: roto de la camisa (sin rojos ni 4c1008, que se leería como sangre)
 }
-# valor partido por pieza (D-N57): lo que mira arriba claro, costados un escalón abajo, como el sprite de Bruno
-VALOR_PIEZAS = {"camisa": ("94948c", "60546c"), "piel": ("b8b8b8", "6c7874")}
+VALOR_PIEZAS = {}          # sin valor partido: todo oscuro
+# Legibilidad del zombi (Lucía): cuerpo medio contra el suelo, ΔL* >= 25 (no el 20 % más claro)
+LEGIBILIDAD = "cuerpo_medio"
 FACCION = "zombi"          # sin rim (regla 3 de Iris: el rim solo en unidades propias)
 PRESUPUESTO = {0: (100, 600), 1: (60, 300)}
 UMBRAL_CONTORNO = {1: 9.0}   # LOD1: contorno solo en la silueta (Bruno): a 20 px las líneas interiores lo ensucian   # instanciado masivo: el mínimo de 1500 de los vehículos no aplica
@@ -61,6 +66,7 @@ def construir(nombre="SM_Zombi_Cercano", lod=0):
     # pelo ralo: casquete encima y detrás (desde arriba se ve sobre todo pelo, como en el sprite)
     t.caja((0.0, -0.09, 1.76), (0.28, 0.14, 0.03), "pelo")   # mitad de atrás: la coronilla clara asoma (calva)
     t.caja((0.0, -0.03, 1.65), (0.28, 0.02, 0.18), "pelo")
+    t.caja((0.0, -0.02, 1.7), (0.12, 0.02, 0.1), "nuca")   # luz de 1 px en la nuca
     # LOD0: roto de la camisa en la espalda y mancha de tierra delante (placas finas, fuera del LOD1)
     fino.caja((0.08, 0.11, 1.2), (0.14, 0.02, 0.16), "roto", rot_x=enc)
     fino.caja((-0.08, -0.2, 1.1), (0.12, 0.02, 0.1), "roto", rot_x=enc)
