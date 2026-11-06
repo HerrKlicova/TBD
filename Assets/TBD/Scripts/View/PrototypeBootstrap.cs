@@ -271,6 +271,7 @@ namespace TBD.View
         // ---------------------------------------------------------------- prueba de rendimiento (D-N61): TBD.exe -stress10k
         // Entra solo en una emboscada, mete 10.000 zombis en la trinchera con el tren disparando, mide FPS 40 s y escribe Captures/stress_10k_fps.txt
         static readonly bool Stress = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k") >= 0 || System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k-sagunto") >= 0;
+        float _stressWorst, _stressWorstAt; readonly System.Collections.Generic.List<string> _stressSpikes = new System.Collections.Generic.List<string>();
         readonly System.Collections.Generic.List<float> _stressDt = new System.Collections.Generic.List<float>();      // tiempo de cada fotograma en ms (p99 y peor)
         bool _stressEmbarked; float _stressT0 = -1f, _stressNext; int _stressFrames; readonly System.Collections.Generic.List<float> _stressFps = new System.Collections.Generic.List<float>();
 
@@ -297,9 +298,10 @@ namespace TBD.View
                         ents.Dispose(); qc.SetSingleton(clock);
                     }
                 }
-                _targetOrtho = 22f; _stressNext = Time.realtimeSinceStartup + 1f; _stressT0 = Time.realtimeSinceStartup; return;
+                _targetOrtho = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stressmax") >= 0 ? 70f : 22f; _stressNext = Time.realtimeSinceStartup + 1f; _stressT0 = Time.realtimeSinceStartup; return;
             }
             _stressFrames++; _stressDt.Add(Time.unscaledDeltaTime * 1000f);
+            { float dtm = Time.unscaledDeltaTime * 1000f, tt = Time.realtimeSinceStartup - _stressT0; if (dtm > _stressWorst) { _stressWorst = dtm; _stressWorstAt = tt; } if (dtm > 33f && _stressSpikes.Count < 12) _stressSpikes.Add($"{tt:0.0}s={dtm:0}ms"); }
             if (Time.realtimeSinceStartup >= _stressNext)
             {
                 _stressFps.Add(_stressFrames); _stressFrames = 0; _stressNext += 1f;
@@ -309,7 +311,7 @@ namespace TBD.View
                     var net = _worldA.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<Zombie>()).CalculateEntityCount();
                     var ammo = _worldA.EntityManager.CreateEntityQuery(typeof(ZoneAmmo)).GetSingleton<ZoneAmmo>();
                     Directory.CreateDirectory(CaptureRoot);
-                    File.WriteAllText(Path.Combine(CaptureRoot, "stress_10k_fps.txt"), $"zombis al final {net}\nabatidos {ammo.Kills} disparos {ammo.ShotsFired}\nFPS medio {sum / arr.Length:0.0} mínimo {arr[0]:0} p5 {arr[2]:0} máximo {arr[arr.Length - 1]:0}\nresolución {Screen.width}x{Screen.height} factor 1/{_factor}\n\nfotograma p99 {P99(_stressDt):0.00} ms peor {Worst(_stressDt):0.00} ms\n");
+                    File.WriteAllText(Path.Combine(CaptureRoot, "stress_10k_fps.txt"), $"zombis al final {net}\nabatidos {ammo.Kills} disparos {ammo.ShotsFired}\nFPS medio {sum / arr.Length:0.0} mínimo {arr[0]:0} p5 {arr[2]:0} máximo {arr[arr.Length - 1]:0}\nresolución {Screen.width}x{Screen.height} factor 1/{_factor}\n\nfotograma p99 {P99(_stressDt):0.00} ms peor {Worst(_stressDt):0.00} ms a los {_stressWorstAt:0.0} s (desde el inicio de la medida)\npicos >33 ms: {(_stressSpikes.Count == 0 ? "ninguno" : string.Join(", ", _stressSpikes))}\n");
                     Application.Quit();
                 }
             }
@@ -537,9 +539,17 @@ namespace TBD.View
                 float s = mouse.scroll.ReadValue().y;
                 if (s != 0f)
                 {
-                    // hito 3: alejar más allá del máximo de la zona devuelve al mapa (histéresis: se volvió a entrar a < 2 km)
-                    if (s < 0f && _targetOrtho >= 69.5f && _zoneNode >= 0) LeaveToMap();
-                    _targetOrtho = Mathf.Clamp(_targetOrtho * Mathf.Pow(0.9f, s / 120f), 6f, 70f);
+                    // D-N70: el delta de la rueda en el Input System son pixeles (+-120 por muesca en Windows, +-1 en el Editor y otros). Antes se dividia siempre entre 120:
+                    // en el Editor cada muesca valia 0,1 % y «no funcionaba». Ahora se normaliza a muescas (>=10 -> /120) y cada una da un salto del 15 %, suavizado por el lerp (~0,15 s).
+                    float notches = Mathf.Clamp(s / (Mathf.Abs(s) >= 10f ? 120f : 1f), -3f, 3f);
+                    if (notches < 0f && _targetOrtho >= 69.5f && _zoneNode >= 0)
+                    {
+                        // en el tope de 70: la primera muesca de mas avisa junto al cursor; la segunda, en menos de 0,6 s, sale al mapa (con el fundido que ya hay)
+                        if (Time.unscaledTime - _outNotchAt < 0.6f && _outNotchAt > 0f) { _outNotchAt = 0f; _outHintUntil = 0f; LeaveToMap(); }
+                        else { _outNotchAt = Time.unscaledTime; _outHintUntil = Time.unscaledTime + 1.4f; _outHintPos = mouse.position.ReadValue(); }
+                    }
+                    _targetOrtho = Mathf.Clamp(_targetOrtho * Mathf.Pow(0.85f, notches), 10f, 70f);
+                    _zoomAtCursor = true;
                 }
                 if (mouse.rightButton.isPressed && !_buildMode)
                 {
@@ -553,8 +563,19 @@ namespace TBD.View
                     if (mouse.rightButton.wasPressedThisFrame) { if (_zoneNode >= 0 && !_ambush) FinishWall(); _hasWallStart = false; }
                 }
             }
+            float oldOrtho = _orthoSize;
             _orthoSize = Mathf.Lerp(_orthoSize, _targetOrtho, 1f - Mathf.Exp(-12f * dt));
+            if (_zoomAtCursor && mouse != null && _worldCam != null && !Mathf.Approximately(oldOrtho, _orthoSize))
+            {
+                // el punto del suelo bajo el cursor se queda quieto: en ortografica la distancia al foco escala con el tamano, asi que el foco se desplaza (1 - nuevo/viejo) hacia el cursor
+                var mpz = mouse.position.ReadValue();
+                var ray = _worldCam.ViewportPointToRay(new Vector3(mpz.x / Screen.width, mpz.y / Screen.height, 0f));
+                if (new Plane(Vector3.up, Vector3.zero).Raycast(ray, out float tz)) { var pz = ray.GetPoint(tz); _focus += (pz - _focus) * (1f - _orthoSize / oldOrtho); }
+            }
+            else if (Mathf.Abs(_orthoSize - _targetOrtho) < 0.01f) _zoomAtCursor = false;
         }
+
+        float _outNotchAt, _outHintUntil; Vector2 _outHintPos; bool _zoomAtCursor;
 
         /// <summary>Descarga visual de trazadoras desde el tren (efecto de presentación, sin efecto en la simulación).</summary>
         void ToggleCheck()
@@ -904,6 +925,12 @@ namespace TBD.View
         void OnGUI()
         {
             BuildOverlay();
+            if (Time.unscaledTime < _outHintUntil && _zoneNode >= 0)
+            {
+                int fs = Mathf.Max(12, Screen.height / 70); var st = new GUIStyle(GUI.skin.label) { fontSize = fs, richText = true }; st.normal.textColor = new Color(0.9f, 0.92f, 0.95f);
+                var rc = new Rect(_outHintPos.x + 18f, Screen.height - _outHintPos.y + 14f, fs * 20f, fs * 1.8f);
+                FillRect(rc, new Color(0.06f, 0.07f, 0.09f, 0.78f)); GUI.Label(new Rect(rc.x + 6f, rc.y + 2f, rc.width, rc.height), "sigue alejando para ir al mapa", st);
+            }
             if (_hudStyle == null)
             {
                 _panelTex = new Texture2D(1, 1);
@@ -1205,6 +1232,25 @@ namespace TBD.View
         readonly System.Collections.Generic.Dictionary<string, Material> _teoMats = new System.Collections.Generic.Dictionary<string, Material>();
 
         /// <summary>Variante v0..v5 de una pieza de Teo con ficheros planos (SM_pieza_vK_LOD1 en la carpeta), elegida por hash de la posicion.</summary>
+        /// <summary>Quita de las mallas de la pieza los triangulos de las grandes caras horizontales a ras de suelo o a 1,1 m (la «losa» del muelle de Teo): area > 80 m2, normal vertical.</summary>
+        void StripFlatSlab(GameObject go)
+        {
+            foreach (var mf in go.GetComponentsInChildren<MeshFilter>())
+            {
+                var src = mf.sharedMesh; if (src == null) continue;
+                var v = src.vertices; var tr = src.triangles; var keep = new System.Collections.Generic.List<int>(tr.Length); int removed = 0;
+                for (int i = 0; i < tr.Length; i += 3)
+                {
+                    var a = v[tr[i]]; var b = v[tr[i + 1]]; var c = v[tr[i + 2]]; var n = Vector3.Cross(b - a, c - a); float area = n.magnitude * 0.5f; n.Normalize(); float y = (a.y + b.y + c.y) / 3f;
+                    if (area > 80f * 0.5f && Mathf.Abs(n.y) > 0.99f && (y < 0.2f || Mathf.Abs(y - 1.1f) < 0.05f)) { removed++; continue; }
+                    keep.Add(tr[i]); keep.Add(tr[i + 1]); keep.Add(tr[i + 2]);
+                }
+                if (removed == 0) continue;
+                var m = Instantiate(src); m.name = src.name + " sin losa"; m.triangles = keep.ToArray(); m.RecalculateBounds(); mf.sharedMesh = m;
+                Debug.Log("[TBD] Muelle: quitados " + removed + " triangulos de la losa plana");
+            }
+        }
+
         GameObject PlaceFlat(string folder, string pieza, Vector3 pos, float yaw, Transform parent)
         {
             int k = (int)(math_hash((int)(pos.x * 10f), (int)(pos.z * 10f)) % 6u);
@@ -1256,7 +1302,8 @@ namespace TBD.View
             // almacén con muelle al otro lado de la vía, hacia el fondo del recinto (x 127-143, z 50-58)
             Vector3 wc = new Vector3(135f, 0f, 54f);
             // pieza 7 de Teo: 18 x 8 m sobre un muelle de 1,1 m, rampa en +X, via en +Z a 7,5 m del centro. Solo visual (la colision de cajas pide tocar la simulacion y los goldens).
-            if (PlaceFlat("muelle_mercancias", "muelle_mercancias", new Vector3(135f, 0f, ty - 7.5f), 0f, root) == null)
+            var muelle = PlaceFlat("muelle_mercancias", "muelle_mercancias", new Vector3(135f, 0f, ty - 7.5f), 0f, root);
+            if (muelle == null)
             {
                 Box("Almacén muelle", wc + new Vector3(0f, 0.55f, 4.2f), new Vector3(16f, 1.1f, 2.4f), plinth, root);
                 Box("Almacén cuerpo", wc + new Vector3(0f, 2.6f, 0f), new Vector3(16f, 5f, 8f), M("94948c"), root);
