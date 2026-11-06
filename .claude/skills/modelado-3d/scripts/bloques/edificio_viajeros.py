@@ -14,12 +14,20 @@ Añadidos: cuerpo central adelantado 0,4 m con frontón, pilastras y recercados 
 está prohibido en objetos: se lleva al marrón oscuro más cercano por valor) y ala baja de 7 m con balaustrada al +X.
 Las medidas siguen SIN VERIFICAR (estimadas a ojo con las fotos; no hay planos).
 """
+import math, os
 from taller import Taller
 
-PIEZAS = ["fachada", "zocalo", "carpinteria", "tejado", "placa", "cornisa", "chimenea", "metal", "moldura"]
+# Variantes (Eugenio, 6-nov: al menos 5). El edificio es único en Sagunto, así que las variantes son ESTADOS de la misma
+# estación (para otras estaciones de la línea o para el avance de la partida): 0 intacto; 1 huecos de la planta baja
+# tapiados con tablas; 2 chimenea caída y hueco en el tejado; 3 hollín de un incendio sobre las ventanas de arriba;
+# 4 sacos terreros ante las puertas del andén; 5 balaustrada de la terraza rota y escombros.
+VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
+
+PIEZAS = ["fachada", "zocalo", "carpinteria", "tejado", "placa", "cornisa", "chimenea", "metal", "moldura", "tabla",
+          "hollin", "saco", "escombro"]
 COLORES = {"fachada": "d4d0cc", "zocalo": "605c48", "carpinteria": "543820", "tejado": "a86c50", "placa": "283440",
            "cornisa": "94948c", "chimenea": "605c48", "metal": "1c200c",
-           "moldura": "642030"}
+           "moldura": "642030", "tabla": "845c28", "hollin": "48403c", "saco": "b4a080", "escombro": "94948c"}
 # Lucía (17:25): la estación de Sagunt es blanca (cal d4d0cc, como la casa baja) con recercados, pilastras y frontón en
 # granate oscuro 642030 (no es el rojo de alerta 982420: entregar con --permitir 642030); carpintería en 543820.
 PERMITIR = ("642030",)
@@ -41,6 +49,11 @@ def construir(nombre="SM_EdificioViajeros", lod=0):
     t.caja((0, 0, ALERO + 0.15), (LARGO + 0.5, FONDO + 0.5, 0.3), "cornisa")      # cornisa bajo el alero
     t.tejado((0, 0, ALERO + 0.3), LARGO, FONDO, 2.5, "tejado", vuelo=0.6)
     for x in (-5.5, 5.5):                                                         # chimeneas
+        if VAR == 2 and x > 0:   # chimenea caída sobre el faldón
+            t.caja((x - 0.6, 2.2, ALERO + 1.5), (0.7, 2.0, 0.7), "chimenea", rot_x=math.radians(28))
+            # hueco en el tejado: placa oscura de 3 x 2 m pegada al faldón trasero (no es el valor de la horda)
+            t.caja((x + 1.0, 2.6, ALERO + 1.6), (3.0, 2.0, 0.06), "hollin", rot_x=math.radians(-26))
+            continue
         t.caja((x, 1.5, ALERO + 2.2), (0.7, 0.7, 2.0), "chimenea")
     hc = CUERPO / 2
     # cuerpo central adelantado con su cornisa y un frontón triangular (foto 2: hastial con el reloj)
@@ -58,13 +71,22 @@ def construir(nombre="SM_EdificioViajeros", lod=0):
     t.caja((ax, -0.6, 0.5), (ALA + 0.3, FONDO - 1.5, 1.02), "zocalo")
     t.caja((ax, -0.6, 4.6), (ALA + 0.4, FONDO - 1.3, 0.2), "cornisa")
     bal_y0, bal_y1, bal_x1 = -0.6 - (FONDO - 1.3) / 2 + 0.1, -0.6 + (FONDO - 1.3) / 2 - 0.1, hx + ALA + 0.05
+    rotos = set(range(4, 10)) if VAR == 5 else set()                               # v5: balaustres caídos
     if lod == 0:   # balaustres y pasamanos
-        for k in range(14):
+        for k in [k for k in range(14) if k not in rotos]:
             t.caja((hx + 0.3 + k * (ALA - 0.3) / 13, bal_y0, 5.1), (0.14, 0.14, 0.8), "fachada")
         for k in range(1, 12):
             t.caja((bal_x1, bal_y0 + k * (bal_y1 - bal_y0) / 12, 5.1), (0.14, 0.14, 0.8), "fachada")
-        t.caja(((hx + bal_x1) / 2 + 0.05, bal_y0, 5.55), (ALA + 0.05, 0.22, 0.1), "cornisa")
+        if VAR == 5:
+            for x0, x1 in ((hx, hx + 1.9), (hx + 4.9, bal_x1)):
+                t.caja(((x0 + x1) / 2 + 0.05, bal_y0, 5.55), (x1 - x0, 0.22, 0.1), "cornisa")
+        else:
+            t.caja(((hx + bal_x1) / 2 + 0.05, bal_y0, 5.55), (ALA + 0.05, 0.22, 0.1), "cornisa")
         t.caja((bal_x1, (bal_y0 + bal_y1) / 2, 5.55), (0.22, bal_y1 - bal_y0 + 0.2, 0.1), "cornisa")
+    elif VAR == 5:  # LOD1: antepecho macizo con el tramo roto
+        for x0, x1 in ((hx, hx + 1.9), (hx + 4.9, bal_x1)):
+            t.caja(((x0 + x1) / 2 + 0.05, bal_y0, 5.15), (x1 - x0, 0.2, 0.9), "fachada")
+        t.caja((bal_x1, (bal_y0 + bal_y1) / 2, 5.15), (0.2, bal_y1 - bal_y0 + 0.18, 0.9), "fachada")
     else:          # LOD1: antepecho macizo (los balaustres no llegan a 2 px)
         t.caja(((hx + bal_x1) / 2 + 0.05, bal_y0, 5.15), (ALA + 0.05, 0.2, 0.9), "fachada")
         t.caja((bal_x1, (bal_y0 + bal_y1) / 2, 5.15), (0.2, bal_y1 - bal_y0 + 0.18, 0.9), "fachada")
@@ -96,7 +118,31 @@ def construir(nombre="SM_EdificioViajeros", lod=0):
     # placa_sagunto_x2.png (72x22, 3,6 x 1,1 m, centro x=-0,8) y a la derecha el reloj reloj_fachada_24.png
     # (1,1 x 1,1 m, centro x=+1,95); la banda va de x=-2,6 a 2,6 con el centro a 7,15 m de altura
     t.caja((0, -hy - SALIENTE - 0.06, 7.15), (5.2, 0.08, 1.1), "placa")   # en el cuerpo central (v2)
+    _estado(t, fino, hx, hy, hc, bal_y0)
     return t.objeto(nombre, bisel=0)
+
+
+def _estado(t, fino, hx, hy, hc, bal_y0):
+    """Detalles de las variantes de estado (v1..v5) que no tocan la forma base."""
+    xs = (-8.0, -4.0, 0.0, 4.0, 8.0)
+    yf = lambda x: -hy - (SALIENTE if abs(x) < hc else 0.0)
+    if VAR == 1:   # tablas clavadas sobre las puertas del andén (en aspa: se lee como «cerrado»)
+        for x in xs:
+            for ang in (35, -35):
+                t.caja((x, yf(x) - 0.1 - (0.02 if ang > 0 else 0.0), 1.6), (0.3, 0.05, 3.3), "tabla", rot_y=math.radians(ang))
+    if VAR == 3:   # hollín: manchas oscuras que suben desde las ventanas de arriba hacia el alero
+        for x in (-4.0, 0.0, 8.0):
+            t.caja((x, yf(x) - 0.08, 7.0), (1.6, 0.04, 1.8), "hollin")
+    if VAR == 4:   # sacos terreros ante las puertas: un murete de 0,9 m en forma de U
+        for x in (-4.0, 0.0, 4.0):
+            y0 = yf(x) - 1.3
+            for k in range(3):
+                t.caja((x, y0, 0.2 + k * 0.3), (2.2 - k * 0.15, 0.55, 0.28), "saco")
+            for sx in (-1, 1):
+                t.caja((x + sx * 1.05, y0 + 0.6, 0.35), (0.5, 0.8, 0.6), "saco")
+    if VAR == 5:   # escombros de la balaustrada al pie del ala
+        for k, (dx, ang) in enumerate(((2.3, 20), (3.0, -35), (3.8, 60), (4.4, -10))):
+            t.caja((hx + dx, bal_y0 - 1.0 - 0.3 * (k % 2), 0.2), (0.9, 0.35, 0.3), "escombro", rot_z=math.radians(ang))
 
 
 def _fronton(t, y_frente, fondo, z, semiancho, alto):
