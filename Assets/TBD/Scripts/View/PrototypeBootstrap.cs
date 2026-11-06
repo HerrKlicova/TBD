@@ -1219,7 +1219,7 @@ namespace TBD.View
             float px0 = 78f, px1 = 138f, pz0 = ty + 2.2f, pz1 = ty + 6.2f;
             Box("Andén losa", new Vector3((px0 + px1) * 0.5f, 0.45f, (pz0 + pz1) * 0.5f), new Vector3(px1 - px0, 0.9f, pz1 - pz0), slab, root);
             Box("Andén bordillo", new Vector3((px0 + px1) * 0.5f, 0.92f, pz0 + 0.12f), new Vector3(px1 - px0, 0.08f, 0.3f), curb, root);
-            Box("Línea de seguridad", new Vector3((px0 + px1) * 0.5f, 0.93f, pz0 + 0.75f), new Vector3(px1 - px0, 0.03f, 0.25f), line, root);
+            DecalQuad("Icons/texturas/decal_linea_seguridad_64x2", new Vector3((px0 + px1) * 0.5f, 0.935f, pz0 + 0.5f), new Vector2(px1 - px0, 0.3f), new Vector3(90f, 0f, 0f), new Vector2((px1 - px0) / 9.6f, 1f), root);   // línea de seguridad de Bruno (#f0dc9c) a ~0,35 m del borde
             // marquesina de 30 m (modelo de Teo; el lado de la vía es +Z del modelo, así que se gira 180° para mirar a la vía al sur) en el tercio central
             if (PlaceModel("marquesina", "SM_marquesina_LOD1", new Vector3(108f, 0.9f, pz0 + 2.5f), 180f, root) == null)
             {
@@ -1228,6 +1228,8 @@ namespace TBD.View
             }
             // edificio de viajeros: dos plantas, pegado al muro norte por dentro (x 98-114, z 75-83), zócalo y tejado a cuatro aguas (aprox. con dos losas)
             Vector3 bc = new Vector3(106f, 0f, 79f);
+            DecalQuad("Icons/decals/placa_sagunto_x2", new Vector3(106f - 0.8f, 7.15f, 79f - 5.2f), new Vector2(3.6f, 1.1f), Vector3.zero, Vector2.one, root);
+            DecalQuad("Icons/decals/reloj_fachada_24", new Vector3(106f + 1.95f, 7.15f, 79f - 5.2f), new Vector2(1.1f, 1.1f), Vector3.zero, Vector2.one, root);
             if (PlaceModel("edificio_viajeros", "SM_edificio_viajeros_LOD1", bc, 180f, root) == null)      // 20 x 9 m, andén en +Z del modelo: se gira para dar al andén (sur)
             {
                 Box("Edificio zócalo", bc + new Vector3(0f, 0.6f, 0f), new Vector3(16f, 1.2f, 8f), plinth, root);
@@ -1313,7 +1315,9 @@ namespace TBD.View
             Box("Tablero de la carretera", new Vector3(303.2f, -0.25f, 23f), new Vector3(75.2f, 0.5f, 7f), asphalt, root);      // la carretera vieja cruza el cauce por su propio tablero de ~75 m
             AddTruck(root, new Vector3(258f, 0f, 23f));                            // cabeza del atasco: camión cruzado a la entrada del tablero
             // P9: silueta del castillo de Teo al fondo, borde norte del faldón (900 x 210 m, sin simulación ni colisión; mirando al sur)
-            PlaceModel("castillo_sagunto", "SM_castillo_sagunto_LOD1", new Vector3(130f, 0f, 330f), 180f, root);
+            var castle = PlaceModel("castillo_sagunto", "SM_castillo_sagunto_LOD1", new Vector3(130f, 0f, 330f), 180f, root);
+            if (castle != null)                                                                                // lejanía: un escalón menos de contraste (tinte hacia el color del suelo), sin niebla real
+                foreach (var cr in castle.GetComponentsInChildren<MeshRenderer>()) cr.sharedMaterial.SetColor("_BaseColor", new Color(0.78f, 0.74f, 0.66f));
             // P6: calle de la Estación (X 56-62), paso a nivel Z 58-67 (cubre también el desvío de la vía 2) y carretera vieja (Z 20-26)
             Box("Calle de la Estación", new Vector3(59f, 0.05f, 64f), new Vector3(6f, 0.06f, 528f), asphalt, root);
             for (int i = 0; i < 24; i++) Box("Grieta calle", new Vector3(57f + (i * 37 % 5), 0.09f, -150f + i * 21f), new Vector3(0.15f, 0.02f, 3.2f), crack, root);
@@ -1361,6 +1365,13 @@ namespace TBD.View
                                        : PlaceModel("tolva_volcada/v" + hp.Item3, "SM_tolva_volcada_v" + hp.Item3 + "_LOD1", hpos, hp.Item2, root);
                 if (hg == null) Box("Tolva volcada", hpos + new Vector3(0f, 1.7f, 0f), new Vector3(14f, 2.6f, 3f), rust, root).transform.rotation = Quaternion.Euler(hp.Item3 == 0 ? 0f : 80f, hp.Item2, 0f);
             }
+            // decals de Bruno (D-N61 / ambientacion-sagunto): hollín de la vía en el eje (mosaico de 9,6 m, 0,15 m/px), hollín junto a la puerta oeste (arrastres hacia +x: girado 180° dentro del muro),
+            // y pintadas en el muro norte (AQUÍ HAY VIVOS 13 x 2 m y flecha 4 x 1,8 m hacia la estación) en #d4d0cc, nunca rojas
+            DecalQuad("Icons/texturas/decal_via_hollin_64x32", new Vector3(128f, 0.06f, ty), new Vector2(756f, 4.4f), new Vector3(90f, 0f, 0f), new Vector2(78.75f, 1f), root);
+            DecalQuad("Icons/decals/decal_hollin_puerta_1_64", new Vector3(63.5f, 0.07f, ty), new Vector2(9.6f, 9.6f), new Vector3(90f, 0f, 0f), Vector2.one, root);
+            DecalQuad("Icons/decals/decal_hollin_puerta_2_64", new Vector3(77f, 0.07f, ty), new Vector2(9.6f, 9.6f), new Vector3(90f, 0f, 180f), Vector2.one, root);
+            DecalQuad("Icons/decals/decal_pintada_aqui_hay_vivos", new Vector3(100f, 1.5f, Level.FortY1 - 1.6f), new Vector2(13f, 2f), Vector3.zero, Vector2.one, root);
+            DecalQuad("Icons/decals/decal_pintada_flecha", new Vector3(112f, 1.5f, Level.FortY1 - 1.6f), new Vector2(4f, 1.8f), Vector3.zero, Vector2.one, root);
             // barricada civil rota a la entrada del pueblo y un autobús cruzado
             Box("Autobús cruzado", new Vector3(59f, 1.5f, 92f), new Vector3(11f, 3f, 2.6f), concrete, root).transform.rotation = Quaternion.Euler(0f, 74f, 0f);
             for (int i = 0; i < 5; i++) Box("Mueble barricada", new Vector3(53f + i * 2.3f, 0.7f, 88.5f + (i % 2) * 1.6f), new Vector3(1.8f, 1.4f, 1.2f), i % 2 == 0 ? rust : dark, root).transform.rotation = Quaternion.Euler(0f, i * 31f, 0f);
@@ -1395,6 +1406,19 @@ namespace TBD.View
         {
             var body = Box("Camión caja", pos + new Vector3(0f, 1.9f, 0f), new Vector3(8f, 2.4f, 2.5f), Mat("94948c"), root); body.transform.rotation = Quaternion.Euler(0f, 78f, 0f);
             var cab = Box("Camión cabina", pos + body.transform.rotation * new Vector3(5.2f, -0.3f, 0f), new Vector3(2.2f, 2.0f, 2.4f), Mat("283440"), root); cab.transform.rotation = body.transform.rotation;
+        }
+
+        /// <summary>Decal de Bruno: cuadrilátero con la textura (punto, recorte de alfa), plano en el suelo (euler 90,0,0) o vertical mirando a -Z (0,0,0); tile repite la textura.</summary>
+        GameObject DecalQuad(string res, Vector3 center, Vector2 size, Vector3 euler, Vector2 tile, Transform parent)
+        {
+            var tex = Resources.Load<Texture2D>(res);
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad); go.name = "Decal " + res; Destroy(go.GetComponent<Collider>());
+            go.transform.SetParent(parent, false); go.transform.position = center; go.transform.rotation = Quaternion.Euler(euler); go.transform.localScale = new Vector3(size.x, size.y, 1f);
+            var m = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            if (tex != null) { tex.wrapMode = tile.x > 1.01f || tile.y > 1.01f ? TextureWrapMode.Repeat : TextureWrapMode.Clamp; m.SetTexture("_BaseMap", tex); m.SetTextureScale("_BaseMap", tile); }
+            m.SetFloat("_Surface", 0f); m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON");
+            go.GetComponent<MeshRenderer>().sharedMaterial = m;
+            return go;
         }
 
         void AddCar(Transform root, Vector3 pos, float yawDeg, string hex, bool ambulance, bool doorOpen = false)
