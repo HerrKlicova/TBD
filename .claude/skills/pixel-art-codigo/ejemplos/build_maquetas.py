@@ -289,10 +289,11 @@ def pantalla_final(victoria, estrellas=2):
     im = escena()
     hud(im, cartel=False)
     px = im.load()
-    for y in range(H):                                  # velo con tramado (nunca alfa parcial)
-        for x in range(W):
-            if BAYER[y % 4][x % 4] < 11:
-                px[x, y] = PAL["navy"]
+    if not victoria:                                    # D-N91: el parte del amanecer no es modal, sin velo;
+        for y in range(H):                              # la derrota sí para la partida (velo con tramado)
+            for x in range(W):
+                if BAYER[y % 4][x % 4] < 11:
+                    px[x, y] = PAL["navy"]
     pw, ph = 340, 230
     p = ui.panel(pw, ph)
     if not victoria:                                    # el marco rojo de la derrota se queda (Lucía)
@@ -302,7 +303,7 @@ def pantalla_final(victoria, estrellas=2):
             p.vline(x, 0, ph - 1, "red_bright")
     x0, y0 = W // 2 - pw // 2, 64
     pega(im, p, x0, y0)
-    texto(im, (W // 2, y0 + 10), "Sagunto resiste" if victoria else "Sagunto ha caído", 13, "cream" if victoria else "bone", centro=True)
+    texto(im, (W // 2, y0 + 10), "Parte de la noche" if victoria else "Sagunto ha caído", 13, "cream" if victoria else "bone", centro=True)
     if victoria:                                        # de 1 a 3 estrellas; con derrota no hay
         for k in range(3):
             pega(im, estrella(k < estrellas), W // 2 - 30 + k * 20, y0 + 32)
@@ -324,8 +325,9 @@ def pantalla_final(victoria, estrellas=2):
         d.fontmode = "1"
         ancho = d.textlength(v, font=_f(9))
         texto(im, (x0 + pw - 14 - ancho, y), v, 9, "bone", sombra=False)
-    for i, t in enumerate(("Repetir la noche", "Menú principal")):
-        x = W // 2 - 150 + i * 160
+    botones = ("Seguir",) if victoria else ("Volver a empezar", "Menú principal")   # D-N91: fuera «Repetir la noche»
+    for i, t in enumerate(botones):
+        x = W // 2 - 70 if victoria else W // 2 - 150 + i * 160
         pega(im, ui.boton("encima" if i == 0 else "normal", 140, 20), x, y0 + ph - 30)
         texto(im, (x + 70, y0 + ph - 26), t, 9, "bone", centro=True)
     return im
