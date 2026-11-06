@@ -31,15 +31,19 @@ namespace TBD.View
     public static class RenderAssets
     {
         public static Mesh ZombieMesh;
-        public static Material ZombieMaterial;
+        public static Material ZombieMaterial, ZombieLodMaterial;
         public static RenderMeshArray Array;
         public static bool Ready;
+        /// <summary>D-N61: a poco zoom cada zombi se dibuja con el sprite de masa de 8 px (con histéresis, la decide PrototypeBootstrap).</summary>
+        public static bool LodOn;
+        public static int LodVersion;
 
-        public static void Set(Mesh mesh, Material material)
+        public static void Set(Mesh mesh, Material material, Material lodMaterial)
         {
             ZombieMesh = mesh;
             ZombieMaterial = material;
-            Array = new RenderMeshArray(new[] { material }, new[] { mesh });
+            ZombieLodMaterial = lodMaterial;
+            Array = new RenderMeshArray(new[] { material, lodMaterial }, new[] { mesh });
             Ready = true;
         }
     }
@@ -67,8 +71,8 @@ namespace TBD.View
             if (!RenderAssets.Ready || _query.IsEmptyIgnoreFilter) return;
 
             var desc = new RenderMeshDescription(ShadowCastingMode.Off, false);
-            var mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0);
-            var scale = new PostTransformMatrix { Value = float4x4.TRS(float3.zero, quaternion.RotateX(1.5707964f), new float3(SpriteMeters, SpriteMeters, 1f)) };   // sprite de Bruno tumbado sobre el suelo
+            var mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(RenderAssets.LodOn ? 1 : 0, 0);
+            var scale = new PostTransformMatrix { Value = SpriteMatrix(RenderAssets.LodOn) };   // sprite de Bruno tumbado sobre el suelo
             var ents = _query.ToEntityArray(Allocator.Temp);
             var zs = _query.ToComponentDataArray<Zombie>(Allocator.Temp);
             var em = EntityManager;
@@ -86,13 +90,21 @@ namespace TBD.View
             zs.Dispose();
         }
 
-        public const float SpriteMeters = 2.6f;               // lado del cuadrado de 32 px del zombi (hombros de unos 0,8 m)
+        public const float SpriteMeters = 2.6f, LodMeters = 1.1f;     // lado del cuadrado: sprite de 32 px y sprite de masa de 8 px
+
+        public static float4x4 SpriteMatrix(bool lod)
+        {
+            float m = lod ? LodMeters : SpriteMeters;
+            return float4x4.TRS(float3.zero, quaternion.RotateX(1.5707964f), new float3(m, m, 1f));
+        }               // lado del cuadrado de 32 px del zombi (hombros de unos 0,8 m)
         public const int ZombieVariants = 6, ZombieFrames = 4;
 
         /// <summary>Recorte del atlas (4 columnas de fotogramas x variantes de ropa en filas, la fila 0 arriba): solo presentación, el id manda la variante y la fase.</summary>
-        public static float4 AtlasST(uint id, double time)
+        public static float4 AtlasST(uint id, double time, bool lod = false)
         {
             uint h = math.hash(new uint2(id, 11u));
+            if (lod)                                         // atlas de masa: 5 columnas de 8 px (0-3 andar a 6 fps, 4 cadáver), una fila
+                return new float4(0.2f, 1f, (((int)(time * 6.0) + (int)((h >> 8) & 3u)) & 3) * 0.2f, 0f);
             int row = (int)(h % ZombieVariants);
             int frame = ((int)(time * 6.0) + (int)((h >> 8) & 3u)) & (ZombieFrames - 1);
             float rows = ZombieVariants;
@@ -132,7 +144,26 @@ namespace TBD.View
         protected override void OnUpdate()
         {
             double t = SystemAPI.Time.ElapsedTime;
-            Entities.ForEach((ref ZombieAtlasST st, in Zombie z) => { st.Value = RenderAttachSystem.AtlasST(z.SimId, t); }).ScheduleParallel();
+            bool lod = RenderAssets.LodOn;
+            Entities.ForEach((ref ZombieAtlasST st, in Zombie z) => { st.Value = RenderAttachSystem.AtlasST(z.SimId, t, lod); }).ScheduleParallel();
+        }
+    }
+
+    /// <summary>Cambia la malla/material y el tamaño de todos los zombis cuando cambia el LOD (solo al cruzar el umbral de zoom).</summary>
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateBefore(typeof(TransformSystemGroup))]
+    public partial class ZombieLodSystem : SystemBase
+    {
+        int _applied;
+
+        protected override void OnUpdate()
+        {
+            if (!RenderAssets.Ready || _applied == RenderAssets.LodVersion) return;
+            _applied = RenderAssets.LodVersion;
+            var mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(RenderAssets.LodOn ? 1 : 0, 0);
+            var post = new PostTransformMatrix { Value = RenderAttachSystem.SpriteMatrix(RenderAssets.LodOn) };
+            foreach (var (m, p) in SystemAPI.Query<RefRW<MaterialMeshInfo>, RefRW<PostTransformMatrix>>().WithAll<Zombie>())
+            { m.ValueRW = mmi; p.ValueRW = post; }
         }
     }
 
@@ -159,11 +190,13 @@ namespace TBD.View
             void Execute(ref LocalTransform lt, in Zombie z)
             {
                 float3 p = math.lerp(z.PrevPos, z.Pos, Alpha);
-                lt.Position = new float3(p.x, p.y + 0.05f, p.z);
+                uint h = math.hash(new uint2(z.SimId, 29u));                  // rompe las filas: ±0,5 m y ±20° por id, nunca la posición simulada
+                float jx = ((h & 255u) / 255f - 0.5f), jz = (((h >> 8) & 255u) / 255f - 0.5f), jr = (((h >> 16) & 255u) / 255f - 0.5f) * 0.6981317f;
+                lt.Position = new float3(p.x + jx, p.y + 0.05f, p.z + jz);
                 // orientación continua: se interpola por el camino corto
                 float d = z.Heading - z.PrevHeading;
                 d -= 6.2831853f * math.floor((d + 3.14159265f) / 6.2831853f);
-                lt.Rotation = quaternion.RotateY(z.PrevHeading + d * Alpha);
+                lt.Rotation = quaternion.RotateY(z.PrevHeading + d * Alpha + jr);
             }
         }
     }

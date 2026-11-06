@@ -259,9 +259,60 @@ namespace TBD.View
         }
 
         // ================================================================ bucle
+        // ---------------------------------------------------------------- la horda como mancha (D-N61, Lucía): LOD de masa y sombra bajo la horda
+        Texture2D _massTex; Color32[] _massPix; float[] _massCnt; GameObject _massQuad; float _massNext;
+        const int MassRes = 2;                  // metros por texel de la sombra de masa
+
+        /// <summary>LOD con histéresis según los píxeles por metro del búfer pixelado, y sombra de masa (suelo más oscuro bajo la densidad).</summary>
+        void UpdateHordePresentation()
+        {
+            if (_worldCam == null || _worldA == null) return;
+            float pxPerM = _worldCam.pixelHeight / (2f * Mathf.Max(0.01f, _worldCam.orthographicSize));
+            float bodyPx = 0.8f * pxPerM;                                          // anchura de hombros del zombi en el búfer
+            bool lod = RenderAssets.LodOn ? bodyPx < 10f : bodyPx < 8f;            // entra a menos de 8 px, sale a más de 10
+            if (lod != RenderAssets.LodOn) { RenderAssets.LodOn = lod; RenderAssets.LodVersion++; }
+            if (Time.unscaledTime < _massNext) return;
+            _massNext = Time.unscaledTime + 0.2f;
+            int w = (int)(SimConst.WorldW / MassRes), h = (int)(SimConst.WorldH / MassRes);
+            if (_massTex == null)
+            {
+                _massTex = new Texture2D(w, h, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+                _massPix = new Color32[w * h]; _massCnt = new float[w * h];
+                _massQuad = GameObject.CreatePrimitive(PrimitiveType.Quad); _massQuad.name = "Sombra de masa"; Destroy(_massQuad.GetComponent<Collider>());
+                _massQuad.transform.SetParent(transform, false);
+                _massQuad.transform.position = new Vector3(SimConst.WorldW * 0.5f, 0.02f, SimConst.WorldH * 0.5f);
+                _massQuad.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+                _massQuad.transform.localScale = new Vector3(SimConst.WorldW, SimConst.WorldH, 1f);
+                var mm = new Material(Shader.Find("Sprites/Default")); mm.mainTexture = _massTex;
+                _massQuad.GetComponent<MeshRenderer>().sharedMaterial = mm;
+            }
+            bool inZone = _zoneNode >= 0 || _ambush || _cutting;
+            _massQuad.SetActive(inZone);
+            if (!inZone) return;
+            System.Array.Clear(_massCnt, 0, _massCnt.Length);
+            var zs = _worldA.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<Zombie>()).ToComponentDataArray<Zombie>(Allocator.Temp);
+            for (int i = 0; i < zs.Length; i++)
+            {
+                int cx = (int)(zs[i].Pos.x / MassRes), cz = (int)(zs[i].Pos.z / MassRes);
+                if (cx >= 0 && cx < w && cz >= 0 && cz < h) _massCnt[cz * w + cx] += 1f;
+            }
+            zs.Dispose();
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    float sum = 0f; int n = 0;                                      // desenfoque 3x3: la mancha no es una cuadrícula
+                    for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++)
+                    { int xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue; sum += _massCnt[yy * w + xx]; n++; }
+                    float dens = Mathf.Clamp01(sum / n / 1.5f);                     // 1,5 zombis por texel de 2x2 m = lo más denso
+                    _massPix[y * w + x] = new Color32(0, 0, 0, (byte)(dens * 0.45f * 255f));   // multiplicar por ~0,6 en lo más denso
+                }
+            _massTex.SetPixels32(_massPix); _massTex.Apply(false);
+        }
+
         void Update()
         {
             if (_worldA == null) return;                 // la zona aún espera a la orden Materialize
+            UpdateHordePresentation();
             HandleInput();
 
             if (!_paused)
@@ -778,6 +829,8 @@ namespace TBD.View
             var mat = RenderAssets.ZombieMaterial;
             var lit = mat.shader;
             var zTex = mat.GetTexture("_BaseMap");
+            var lodMat = RenderAssets.ZombieLodMaterial; var lodTex = lodMat.GetTexture("_BaseMap"); var lodShader = lodMat.shader;
+            lodMat.SetTexture("_BaseMap", null); lodMat.shader = Shader.Find("Universal Render Pipeline/Unlit");
             mat.SetTexture("_BaseMap", null);                                 // sin textura: la silueta del sprite sale magenta puro
             mat.shader = Shader.Find("Universal Render Pipeline/Unlit");
             var magenta = new Unity.Mathematics.float4(1f, 0f, 1f, 1f);       // #FF00FF también en espacio lineal
@@ -819,6 +872,7 @@ namespace TBD.View
             ents.Dispose();
             mat.shader = lit;
             mat.SetTexture("_BaseMap", zTex);
+            lodMat.shader = lodShader; lodMat.SetTexture("_BaseMap", lodTex);
             _paletteMix = mix;
             _quadMat.SetFloat("_PaletteMix", mix);
             _quadMat.SetFloat("_OutlineStrength", outline);
@@ -959,7 +1013,10 @@ namespace TBD.View
             var zt = Resources.Load<Texture2D>("Icons/unidades/atlas_zombi_andar");
             if (zt != null) zm.SetTexture("_BaseMap", zt);
             zm.SetFloat("_Cull", 0f); zm.SetFloat("_AlphaClip", 1f); zm.SetFloat("_Cutoff", 0.5f); zm.EnableKeyword("_ALPHATEST_ON");
-            RenderAssets.Set(capsule, zm);                  // el color por instancia es blanco (ZombieBaseColor); la máscara lo pone magenta
+            var zl = new Material(zm);                      // LOD de masa: atlas de 8 px (D-N61)
+            var ztl = Resources.Load<Texture2D>("Icons/unidades/atlas_zombi_lod");
+            if (ztl != null) zl.SetTexture("_BaseMap", ztl);
+            RenderAssets.Set(capsule, zm, zl);              // el color por instancia es blanco (ZombieBaseColor); la máscara lo pone magenta
 
             // Luz direccional
             // Sol bajo (unos 32°), cálido, con sombras proyectadas; la luz ambiente fría tiñe las sombras de azul (revisión de Lucía)

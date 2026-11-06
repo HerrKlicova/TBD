@@ -591,6 +591,7 @@ namespace TBD.View
             _label.normal.textColor = new Color(0.94f, 0.92f, 0.86f);
             _small = new GUIStyle(_label) { fontSize = Mathf.Max(10, Screen.height / 64) };
             _title = new GUIStyle(_label) { fontSize = Mathf.Max(14, Screen.height / 42), fontStyle = FontStyle.Bold };
+            foreach (var st in new[] { _label, _small, _title }) { st.clipping = TextClipping.Overflow; st.wordWrap = false; st.padding = new RectOffset(2, 2, 2, 6); st.overflow = new RectOffset(0, 0, 0, 8); }   // la altura del rectángulo no recorta el texto (nombres cortados por abajo)
         }
 
         void OnGUI()
@@ -603,7 +604,7 @@ namespace TBD.View
                 if (sp.z <= 0) continue;
                 int px = IconPx(32);
                 DrawIcon(new Rect(sp.x - px * 0.5f, Screen.height - sp.y - px * 1.1f, px, px), "estaciones/vm_estacion_" + StateName(n.State) + "_32");
-                GUI.Label(new Rect(sp.x + px * 0.5f + 4, Screen.height - sp.y - 10, 220, 30), n.Name, _small);
+                GUI.Label(new Rect(sp.x + px * 0.5f + 4, Screen.height - sp.y - 10, 220, _small.fontSize * 2.2f), n.Name, _small);
             }
             for (int i = 0; i < _trains.Count; i++)
             {
@@ -613,7 +614,7 @@ namespace TBD.View
                 var sv = _a.Services[i];
                 string tn = _a.Encounter.Active && _a.Encounter.Service == i ? "bajo_ataque" : sv.Ambushed ? "bajo_ataque" : sv.Train.State == RailTrainState.EnMarcha ? "en_marcha" : sv.Train.State == RailTrainState.Detenido ? "detenido" : "detenido";
                 DrawIcon(new Rect(sp.x - tp * 0.5f, Screen.height - sp.y - tp * 1.6f, tp, tp), "trenes/vm_tren_" + tn + "_32");
-                GUI.Label(new Rect(sp.x - 30, Screen.height - sp.y - 26, 160, 30), "<b><color=#FFF0A0>" + _a.Services[i].Train.Name + "</color></b>", _small);
+                GUI.Label(new Rect(sp.x - 30, Screen.height - sp.y - 26 - _small.fontSize * 0.8f, 160, _small.fontSize * 2.2f), "<b><color=#FFF0A0>" + _a.Services[i].Train.Name + "</color></b>", _small);
             }
 
             float pw = Mathf.Min(460, Screen.width * 0.38f);
