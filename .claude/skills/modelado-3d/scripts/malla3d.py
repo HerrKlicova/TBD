@@ -34,6 +34,10 @@ AQUI = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() els
 # ---------------------------------------------------------------- paleta
 
 TOKENS_INTERFAZ = ("982420", "e08c30")  # rojo de peligro y ámbar de alerta: nunca como color de un objeto (regla 4)
+# Lucía (6-nov): en un objeto no queda ningún rojo. Se prohíbe toda la familia roja y el ámbar, y los rojos y naranjas
+# de origen se reasignan POR VALOR a oliva, ocre o gris (no al rojo más cercano de la paleta).
+PROHIBIDOS_OBJETO = TOKENS_INTERFAZ + ("340000", "4c1008", "642030", "7c181c", "8c5048")
+SUSTITUTOS_ROJO = ("303424", "48403c", "50541c", "605c48", "6c7874", "70784c", "845c28", "847c34", "88885c", "b8b8b8")
 
 
 PALETA_POR_DEFECTO = os.path.join(AQUI, "..", "referencias", "paleta_32.hex")
@@ -743,7 +747,7 @@ def vista_pixelada(obj, ruta_png, vista="rts", res=128, ampliar=3, paleta=None, 
 
 # ---------------------------------------------------------------- legibilidad D-N57
 
-SUELOS_POR_DEFECTO = {"trinchera": "48403c", "llano_ocre": "845c28"}  # llano ocre: supuesto, confirmar con Lucía
+SUELOS_POR_DEFECTO = {"trinchera": "48403c", "llano_ocre": "845c28"}  # confirmado por Lucía el 6-nov (ocre de A7)
 
 
 def _hex_rgb(h):
@@ -801,10 +805,10 @@ def _poner_indices(obj, idx):
     me.update()
 
 
-def valor_partido(obj, claro=None, costado=None, umbral_arriba=0.55, oscurecer=12.0, paleta=None,
-                  excluir=TOKENS_INTERFAZ):
+def valor_partido(obj, claro="b4a080", costado=None, umbral_arriba=0.55, oscurecer=12.0, paleta=None,
+                  excluir=PROHIBIDOS_OBJETO):
     """D-N57 + regla 1 de Iris: valor partido horneado en el albedo. Caras que miran arriba (normal z > umbral) al
-    color claro de la paleta (b4a080 cálido o 94948c neutro; si claro=None se elige por el tono dominante); costados
+    color claro de la paleta (b4a080 por defecto, decisión de Lucía: 94948c es la camisa de los zombis; con claro=None se elige por el tono dominante); costados
     oscurecidos (al color de paleta más parecido con L* al menos `oscurecer` por debajo, o a `costado` si se da, p. ej.
     50541c oliva oscuro para tropa); caras de abajo, un paso más oscuras. Requiere paleta_desde_original()."""
     pal = cargar_paleta() if paleta is None else paleta
@@ -827,7 +831,8 @@ def valor_partido(obj, claro=None, costado=None, umbral_arriba=0.55, oscurecer=1
         if not len(cand):
             cand = np.where(permit & (lab[:, 0] <= lab[i, 0] - paso) & (lab[:, 0] >= suelo_L))[0]
         if not len(cand):
-            return int(np.argmin(lab[:, 0]))
+            cand = np.where(permit & (lab[:, 0] >= suelo_L))[0]
+            return int(cand[np.argmin(lab[cand, 0])])
         d = ((lab[cand, 1:] - lab[i, 1:]) ** 2).sum(1) + 0.3 * (lab[cand, 0] - (lab[i, 0] - paso)) ** 2
         return int(cand[d.argmin()])
     nuevo = idx.copy()
@@ -898,7 +903,7 @@ def vistas_para_hunyuan(obj, carpeta, res=512):
 # ---------------------------------------------------------------- paleta en la malla (albedo plano)
 
 def paleta_desde_original(obj, original=None, paleta=None, max_colores=10, suavizar=2, celda_px=4,
-                          ruta_textura=None, excluir=TOKENS_INTERFAZ):
+                          ruta_textura=None, excluir=PROHIBIDOS_OBJETO):
     """Albedo plano con la paleta de 32 (pedido de Lucía, D-N54): cada cara toma el color de la textura original
     (de `original` si se remalló, si no del propio objeto), se acerca a la paleta, se limita a max_colores y se
     suaviza por mayoría entre caras vecinas. Las UV pasan a un atlas de 8×4 celdas (una por color de la paleta).
@@ -936,9 +941,19 @@ def paleta_desde_original(obj, original=None, paleta=None, max_colores=10, suavi
                     v = sum(w * uvl[li].uv.y for w, li in zip(pw, lt.loops))
                     muestras.append(_muestra(img[0], img[1], img[2], u, v))
                     dueno.append(f.index)
-        permitidos = np.array([i for i, c in enumerate(pal)
-                               if "%02x%02x%02x" % tuple(int(x) for x in c) not in (excluir or ())])
-        mi = permitidos[indice_paleta(np.array(muestras), pal[permitidos])]
+        hx = ["%02x%02x%02x" % tuple(int(x) for x in c) for c in pal]
+        permitidos = np.array([i for i, h in enumerate(hx) if h not in (excluir or ())])
+        sust = np.array([hx.index(h) for h in SUSTITUTOS_ROJO if h in hx])
+        muestras = np.array(muestras)
+        mi = permitidos[indice_paleta(muestras, pal[permitidos])]
+        # rojos y naranjas de origen (croma alto, tono entre -30° y 75°) -> sustituto de L* más parecida
+        lab_m = _srgb_a_lab(muestras)
+        croma = np.hypot(lab_m[:, 1], lab_m[:, 2])
+        tono = np.degrees(np.arctan2(lab_m[:, 2], lab_m[:, 1]))
+        rojo = (croma > 18) & (tono > -30) & (tono < 75)
+        if rojo.any() and len(sust):
+            L_sust = _srgb_a_lab(pal[sust])[:, 0]
+            mi[rojo] = sust[np.abs(lab_m[rojo, 0][:, None] - L_sust[None, :]).argmin(1)]
         dueno = np.array(dueno)
         cuenta = np.zeros((len(bm.faces), len(pal)))
         np.add.at(cuenta, (dueno, mi), 1)
@@ -1065,7 +1080,7 @@ def importar(ruta):
 
 
 def procesar(ruta, salida, nombre=None, objetivo=3000, altura_m=None, voxel=True, max_colores=10,
-             presupuesto=(1500, 4000), formato="FBX", faccion="neutro", partido=True, claro=None, costado=None,
+             presupuesto=(1500, 4000), formato="FBX", faccion="neutro", partido=True, claro="b4a080", costado=None,
              suelos=None):
     """Hunyuan (GLB denso) -> pieza de juego: importar, escalar, limpiar, (remallar), diezmar, paleta, auditar,
     vistas y exportar. Devuelve el informe completo y lo guarda en <salida>/<nombre>_informe.json."""
@@ -1144,7 +1159,7 @@ def _main(argv):
     ap.add_argument("--formato", default="FBX", choices=["FBX", "GLB"])
     ap.add_argument("--faccion", default="neutro", choices=list(FACCIONES))
     ap.add_argument("--sin-partido", dest="partido", action="store_false", help="no aplicar el valor partido D-N57")
-    ap.add_argument("--claro", help="b4a080 o 94948c (por defecto, según el tono dominante)")
+    ap.add_argument("--claro", default="b4a080", help="color de las caras de arriba (por defecto b4a080, Lucía)")
     ap.add_argument("--costado", help="color fijo de los costados, p. ej. 50541c")
     a = ap.parse_args(argv)
     inf = procesar(a.entrada, a.salida, a.nombre, a.objetivo, a.altura, a.voxel, a.colores, formato=a.formato,

@@ -51,10 +51,10 @@ result = {"veredicto": inf["auditoria"]["veredicto"], "intentos": inf["diezmar_i
 | `escalar_a_altura(obj, m)` | Hunyuan sale en un cubo de ~1 unidad: escala a la medida real. **Siempre después de `limpiar`** (las motas falsean la altura) |
 | `remallar_voxel(obj)` | Cierra agujeros y une piezas (malla estanca). Pierde las UV; el color se recupera de la original |
 | `diezmar(obj, objetivo=3000)` | Disolución planar de 2° + colapso con búsqueda binaria hasta ±4 % + separa aristas no manifold. Mide la **silueta en 4 vistas** con 1 px de tolerancia a 256 px; pasa con ≥ 0,985 (la IoU estricta queda como dato) |
-| `paleta_desde_original(obj, original)` | Albedo plano: 7 muestras por cara de la textura original, la paleta más repetida, tope de 10 colores, mayoría entre vecinas, UV a un atlas 8×4 (`T_Paleta32.png`, 32×16 px). **Excluye el rojo #982420 y el ámbar #e08c30** (regla 4) |
+| `paleta_desde_original(obj, original)` | Albedo plano: 7 muestras por cara de la textura original, la paleta más repetida, tope de 10 colores, mayoría entre vecinas, UV a un atlas 8×4 (`T_Paleta32.png`, 32×16 px). **Sin ningún rojo ni el ámbar**: los rojos y naranjas de origen pasan por valor a oliva, ocre o gris (Lucía) |
 | `valor_partido(obj, claro=None, costado=None)` | **D-N57**: caras de arriba al beige de la paleta (b4a080 cálido o 94948c neutro), costados un paso más oscuros (o un color fijo, p. ej. `costado="50541c"` oliva oscuro para tropa), bajos más oscuros aún. Horneado en el albedo, no depende de la luz de Unity |
 | `marcar_faccion(obj, "propio")` | Propiedades `tbd_faccion` y `tbd_rim` (1 solo en unidades propias) que viajan en el FBX para el marcador de rim del prefab |
-| `medir_legibilidad(obj)` | ΔL* de D-N57 contra la trinchera (#48403c) y el llano ocre (#845c28, **supuesto**): 20 % más claro del interior y contorno, sin luz y con la paleta al 65 % |
+| `medir_legibilidad(obj)` | ΔL* de D-N57 contra la trinchera (#48403c) y el llano ocre (#845c28, confirmado por Lucía): 20 % más claro del interior y contorno, sin luz y con la paleta al 65 % |
 | `vista_pixelada(obj, png, vista="rts")` | Imita el shader: 128 px ×3, luz arriba a la izquierda, paleta al 65 %, contorno de 1 px. Es una **aproximación**: manda la captura de Unity |
 | `vistas_para_hunyuan(obj, carpeta)` | front/left/back/right en RGBA desde un bloque hecho en Blender |
 | `exportar_unity(obj, ruta)` | FBX: 1 u = 1 m, −Z adelante, Y arriba, transformaciones horneadas, normales por cara |
@@ -70,6 +70,9 @@ result = {"veredicto": inf["auditoria"]["veredicto"], "intentos": inf["diezmar_i
    `cohesion_sheet.py --tipo modelo` sobre la captura de Unity (de día a mediodía; de noche, dentro del charco).
 - Prueba (carretilla de Hunyuan, 6-nov): 4 colores, beige arriba; ΔL* 39 contra la trinchera y 42 contra el llano
   (el 20 % claro solo llega a 24,5 contra el llano; pasa por el contorno, como permite la fórmula de D-N57).
+- **Decisiones de Lucía (6-nov)**: claro por defecto **b4a080** (94948c es la camisa de los zombis); llano = **#845c28**
+  (ocre de A7); **ningún rojo en objetos**: se prohíbe la familia roja (340000, 4c1008, 642030, 7c181c, 8c5048, 982420)
+  y el ámbar, y los rojos y naranjas de origen se reasignan por valor a oliva, ocre o gris.
 
 ## Hunyuan con 4 vistas (pregunta de Eugenio)
 - **Sí se puede (verificado)**: el modelo **Hunyuan3D-2mv** acepta un diccionario `{"front", "left", "back", "right"}`
