@@ -10,9 +10,12 @@ namespace TBD.Sim.Tests
     {
         const int Node = 0;                       // Valencia en el escenario MVP: 900 u de materiales
 
+        /// <summary>Mundo MVP a las 08:00 y sin vía para las pruebas de coste, nivel y obra, cuyos muros se trazan por el andén (y = 0): la franja de la vía se prueba en [21].</summary>
+        static NetWorld Mvp0() { var w = NetScenario.Mvp(); w.Works.P.TrackHalfMm = 0; w.Tick = NetConst.Hours(8); return w; }     // a las 08:00: en horario de obra (06:00–18:00); el escenario arranca a las 05:30
+
         static NetWorld WorldWithZone(int materials = 900)
         {
-            var w = NetScenario.Mvp();
+            var w = Mvp0();
             w.Stock[Node, (int)Res.Materiales] = materials;
             w.Push(new NetCommand { Tick = w.Tick, Type = NetCmdType.Materialize, Arg = Node });
             w.ApplyCommands();
@@ -30,6 +33,7 @@ namespace TBD.Sim.Tests
             // ---- los valores por defecto coinciden con el CSV de Hugo
             var csv = ObrasParams.FromCsv(new CsvTable(File.ReadAllText(Path.Combine(BalanceTests.DataDirPublic(), "balance_construccion.csv"))));
             var def = ObrasParams.Default;
+            def.TrackHalfMm = 0; csv.TrackHalfMm = 0;      // sin vía: estas pruebas trazan muros por el andén
             check(csv.SacosPer10m == def.SacosPer10m && csv.HescoPer10m == def.HescoPer10m && csv.PuertaU == def.PuertaU && csv.NidoU == def.NidoU && csv.FocoU == def.FocoU && csv.AndenU == def.AndenU && csv.DepositoU == def.DepositoU,
                 $"los precios por defecto coinciden con balance_construccion.csv (sacos {csv.SacosPer10m}, HESCO {csv.HescoPer10m}, puerta {csv.PuertaU}, nido {csv.NidoU}, foco {csv.FocoU}, andén {csv.AndenU}, depósito {csv.DepositoU} u)");
             var p = csv;
@@ -74,7 +78,7 @@ namespace TBD.Sim.Tests
             check(!Obras.PlanPoint(p, PieceKind.Nido, 0, 0, 7, 2000).Ok && Obras.PlanPoint(p, PieceKind.Nido, 0, 0, 8, 2000).Ok, "un nido (8 u) no se corta: o hay 8 u o no se pone");
 
             // ---- la orden: el coste en directo es el de la orden, y solo con zona
-            var wNoZone = NetScenario.Mvp();
+            var wNoZone = Mvp0();
             wNoZone.Stock[Node, (int)Res.Materiales] = 900;
             wNoZone.Push(Place(wNoZone.Tick, PieceKind.Sacos, 0, 0, 20_000, 0)); wNoZone.ApplyCommands();
             check(wNoZone.Works.Count(Node) == 0 && wNoZone.Stock[Node, (int)Res.Materiales] == 900, "sin zona materializada en el nodo la orden no hace nada ni cobra");
@@ -127,7 +131,7 @@ namespace TBD.Sim.Tests
             check(Obras.HeightMm(PieceKind.Hesco) == 2100 && Obras.HeightMm(PieceKind.Sacos) == 1200, "alturas de la pieza: sacos 1,2 m, HESCO 2,1 m");
 
             // ---- hash
-            var e0 = NetScenario.Mvp(); var e1 = NetScenario.Mvp();
+            var e0 = Mvp0(); var e1 = Mvp0();
             check(e0.Works.Hash() == 0 && e0.Hash() == e1.Hash(), "sin obras el hash de las obras es 0: los goldens G1–G5 no se mueven");
             ulong h0 = wl.Works.Hash();
             var m1 = wl.Works.At(Node); var piece = m1[3]; piece.LifeMil = 999; m1[3] = piece;
@@ -142,7 +146,7 @@ namespace TBD.Sim.Tests
             var wa = WorldWithZone(); var wb2 = WorldWithZone();
             foreach (var q in new[] { wa, wb2 }) { q.Push(Place(q.Tick, PieceKind.Sacos, 0, 0, 33_000, 17_000, 40_000, -9_000)); q.ApplyCommands(); for (int i = 0; i < 300; i++) q.Step(); }
             check(wa.Hash() == wb2.Hash() && wa.Works.Count(Node) > 0, "dos mundos con las mismas órdenes dan el mismo hash 300 ticks después");
-            check(NetScenario.Mvp().Hash() != WorldWithZone().Hash(), "construir (y gastar materiales) mueve el hash del mundo");
+            check(Mvp0().Hash() != WorldWithZone().Hash(), "construir (y gastar materiales) mueve el hash del mundo");
 
             // ---- repetición dorada con órdenes de obra (la carga útil de la orden se guarda y se reproduce)
             long T(double hours) { return NetConst.Hours(hours); }
@@ -167,14 +171,14 @@ namespace TBD.Sim.Tests
 
             // un nodo sin paradas en ningún horario: los trenes no cargan su población durante la prueba
             int quiet = -1;
-            for (int n = 0; n < NetScenario.Mvp().Graph.Nodes.Count && quiet < 0; n++)
+            for (int n = 0; n < Mvp0().Graph.Nodes.Count && quiet < 0; n++)
             {
-                bool stops = false; foreach (var sv in NetScenario.Mvp().Services) foreach (var st in sv.Stops) if (st.Node == n) stops = true;
+                bool stops = false; foreach (var sv in Mvp0().Services) foreach (var st in sv.Stops) if (st.Node == n) stops = true;
                 if (!stops) quiet = n;
             }
             int StepsToBuild(int workers, int people, int[] pts, PieceKind k, int maxSteps, int node = Node)
             {
-                var q = NetScenario.Mvp();
+                var q = Mvp0();
                 q.Stock[node, (int)Res.Materiales] = 900;
                 q.Push(new NetCommand { Tick = q.Tick, Type = NetCmdType.Materialize, Arg = node }); q.ApplyCommands();
                 q.Stock[node, (int)Res.Personas] = people;
@@ -195,9 +199,9 @@ namespace TBD.Sim.Tests
             check(StepsToBuild(8, 300, ten, PieceKind.Sacos, 5000) == 750, "4 es el máximo por pieza: con 8 obreros en una sola pieza no va más rápida");
             check(quiet >= 0 && StepsToBuild(6, 7, ten, PieceKind.Sacos, 5000, quiet) == 3000, "los obreros se limitan a la población del nodo menos el retén (6, obras_guarnicion_minima): con 7 personas, 1 obrero, 3.000 ticks");
             check(quiet >= 0 && StepsToBuild(6, 6, ten, PieceKind.Sacos, 4000, quiet) == -1 && StepsToBuild(6, 10, ten, PieceKind.Sacos, 5000, quiet) == 750 && StepsToBuild(6, 12, ten, PieceKind.Sacos, 5000, quiet) == 750, "con 6 personas (el retén) nadie construye; con 10 trabajan 4 y con 12 (una estación recién fundada) también construye (D-N59: con 12 de retén no podría)");
-            check(NetScenario.Mvp().Works.P.GarrisonMin == 6 && NetScenario.Mvp().Works.P.MaxWorkersPerPiece == 4 && NetScenario.Mvp().Works.P.LevelDivU == 30, "el retén de obras (6) viene de obras_guarnicion_minima de balance_construccion.csv (NO el 12 de la producción), los u por nivel (30) de fort_materiales_por_nivel y el máximo de obreros por pieza es 4");
+            check(Mvp0().Works.P.GarrisonMin == 6 && Mvp0().Works.P.MaxWorkersPerPiece == 4 && Mvp0().Works.P.LevelDivU == 30, "el retén de obras (6) viene de obras_guarnicion_minima de balance_construccion.csv (NO el 12 de la producción), los u por nivel (30) de fort_materiales_por_nivel y el máximo de obreros por pieza es 4");
             check(StepsToBuild(0, 300, ten, PieceKind.Sacos, 4000) == -1, "sin obreros asignados la obra no avanza");
-            check(StepsToBuild(2, 0, ten, PieceKind.Sacos, 4000) == -1, "sin población en el nodo no trabaja nadie");
+            check(quiet >= 0 && StepsToBuild(2, 0, ten, PieceKind.Sacos, 4000, quiet) == -1, "sin población en el nodo no trabaja nadie");
             check(StepsToBuild(4, 300, new[] { 0, 0 }, PieceKind.Anden, 5000) == 3750 && StepsToBuild(4, 300, new[] { 0, 0 }, PieceKind.Foco, 5000) == 750, "andén (10 obrero·h) con 4 obreros: 3.750 ticks; foco (2 obrero·h): 750");
             int ring = StepsToBuild(8, 300, Square(18750), PieceKind.Sacos, 20000);
             check(ring >= 5625 && ring <= 5640, $"150 m de sacos (30 obrero·h) con 8 obreros: unas 3,75 h de juego, {ring} ticks");
@@ -214,7 +218,7 @@ namespace TBD.Sim.Tests
             check(wo.Works.LevelMil(Node) == 3000 && !wo.Works.IsActive(Node), $"terminada la obra, el nivel de los 150 m de HESCO es el de D-N44 (nivel 3): {wo.Works.LevelMil(Node)} ‰");
 
             // cancelar: 100 % si no ha empezado, 50 % si ya hay trabajo hecho; lo terminado se queda
-            var wc = WorldWithZone(900);
+            var wc = WorldWithZone(900); wc.Services.Clear();                  // sin trenes: nadie carga ni descarga el almacén durante la prueba
             wc.Push(Place(wc.Tick, PieceKind.Hesco, 0, 0, 100_000, 0)); wc.ApplyCommands();           // 60 u
             check(wc.Stock[Node, (int)Res.Materiales] == 840 && wc.Works.Count(Node) == 10, "100 m de HESCO: 60 u y 10 módulos");
             wc.Push(new NetCommand { Tick = wc.Tick, Type = NetCmdType.CancelWork, Arg = Node, Arg2 = 0 }); wc.ApplyCommands();
@@ -233,6 +237,7 @@ namespace TBD.Sim.Tests
 
             // el máximo de obreros por pieza sale del CSV (obra_obreros_max_pieza) y las obras grandes lo suben (el puente del Jiloca lleva 8)
             var p8 = ObrasParams.FromCsv(new CsvTable(File.ReadAllText(Path.Combine(BalanceTests.DataDirPublic(), "balance_construccion.csv")).Replace("obra_obreros_max_pieza;4;", "obra_obreros_max_pieza;8;")));
+            p8.TrackHalfMm = 0;
             var st8 = new ObrasState(3, p8); st8.Add(0, st8.Preview(0, PieceKind.Sacos, ten, 900));
             int ticks8 = 0; while (!st8.At(0)[0].Built && ticks8 < 5000) { st8.Advance(0, 8); ticks8++; }
             check(p8.MaxWorkersPerPiece == 8 && st8.At(0)[0].MaxWorkers == 8 && ticks8 == 375, $"con el máximo en 8 (obra grande) 8 obreros terminan 10 m de sacos en {ticks8} ticks (375)");
@@ -258,7 +263,7 @@ namespace TBD.Sim.Tests
             pz2.Director.Active.Add(new HiveDirector.Plan { Kind = HiveDirector.PlanKind.Asedio, Node = Node, Edge = -1, Cell = 0, StartTick = pz2.Tick, UntilTick = pz2.Tick + 10 * NetConst.DayTicks, Started = true });
             for (int i = 0; i < 30; i++) pz2.Step();
             check(pz2.Intel.FindAll(e => e.Id == "OC-4").Count == 2, "una segunda parada vuelve a avisar (OC-4)");
-            var ph = NetScenario.Mvp(); ph.Works.Add(0, ph.Works.Preview(0, PieceKind.Sacos, ten, 900)); ph.Works.Workers[0] = 4;
+            var ph = Mvp0(); ph.Works.Add(0, ph.Works.Preview(0, PieceKind.Sacos, ten, 900)); ph.Works.Workers[0] = 4;
             ph.Graph.Nodes[0].HordeDensity = NetWorld.SiegeAt;
             check(ph.WorkPaused(0) && !ph.WorkActive(0), "con la horda encima (densidad de asedio) la obra se pausa");
 
@@ -300,17 +305,17 @@ namespace TBD.Sim.Tests
             var dd0 = DirectorParams.Default;
             check(dcsv.WorkProbeMil == dd0.WorkProbeMil && dcsv.WorkProbeBudgetMil == dd0.WorkProbeBudgetMil && dcsv.WorkWeightMil == dd0.WorkWeightMil && dcsv.WorkHuellaMil == dd0.WorkHuellaMil && dd0.WorkProbeMil == 83,
                 $"el ruido de obra por defecto coincide con balance_construccion.csv (sondeo {dcsv.WorkProbeMil} ‰/h, {dcsv.WorkProbeBudgetMil} ‰ del presupuesto, peso {dcsv.WorkWeightMil} ‰, huella {dcsv.WorkHuellaMil} ‰)");
-            check(NetScenario.Mvp().Director.P.WorkProbeMil == 83, "el mundo carga el ruido de obra del CSV");
+            check(Mvp0().Director.P.WorkProbeMil == 83, "el mundo carga el ruido de obra del CSV");
 
             NetWorld WithWork(int node, int workers = 4)
             {
-                var q = NetScenario.Mvp();
+                var q = Mvp0();
                 q.Works.Add(node, q.Works.Preview(node, PieceKind.Sacos, new[] { 0, 0, 50_000, 0 }, 900));
                 q.Works.Workers[node] = workers;
                 return q;
             }
             // huella: 0,5 por nodo con obra activa
-            var ctl = NetScenario.Mvp(); long h0Huella = ctl.Director.HuellaMil(ctl);
+            var ctl = Mvp0(); long h0Huella = ctl.Director.HuellaMil(ctl);
             var q1 = WithWork(0); var q0 = WithWork(0, 0);
             check(q1.Director.HuellaMil(q1) == h0Huella + 500 && q0.Director.HuellaMil(q0) == h0Huella, "una obra activa suma 0,5 a la huella; sin obreros no cuenta");
             q1.Works.Add(0, q1.Works.Preview(0, PieceKind.Hesco, new[] { 0, 0, 30_000, 0 }, 900));
@@ -322,13 +327,13 @@ namespace TBD.Sim.Tests
             bool wOk = qa.Director.SiegeTargetWeight(qa, 0) == qa.Director.SiegeWeight(qa, 0) * 1500 / 1000;
             for (int n = 0; n < qa.Graph.Nodes.Count; n++) if (n != 0 && qa.Director.SiegeTargetWeight(qa, n) != qa.Director.SiegeWeight(qa, n)) wOk = false;
             check(wOk && qa.Director.SiegeWeight(qa, 0) > 0, $"el nodo con obra activa pesa ×1,5 como objetivo de asedio y los demás no ({qa.Director.SiegeWeight(qa, 0)} → {qa.Director.SiegeTargetWeight(qa, 0)})");
-            int hitsWork = 0, hitsCtl = 0; var qc = NetScenario.Mvp();
+            int hitsWork = 0, hitsCtl = 0; var qc = Mvp0();
             for (int k = 0; k < 4000; k++) { qa.Tick = 40 * NetConst.DayTicks + k * 37; qc.Tick = qa.Tick; if (qa.Director.DrawSiegeTarget(qa) == 0) hitsWork++; if (qc.Director.DrawSiegeTarget(qc) == 0) hitsCtl++; }
             check(hitsWork > hitsCtl, $"con la obra el nodo sale más veces como objetivo: {hitsWork} contra {hitsCtl} de 4.000 sorteos");
 
             // sondeo: tasa de 83 ‰ por hora de obra, nada sin obra
             long Mass(NetWorld q) { return q.Field.Mass(); }
-            var pw = WithWork(0); var pc = NetScenario.Mvp();
+            var pw = WithWork(0); var pc = Mvp0();
             long m0w = Mass(pw), m0c = Mass(pc);
             for (int hr = 0; hr < 600; hr++)
             {
@@ -336,13 +341,13 @@ namespace TBD.Sim.Tests
                 pw.Director.Hourly(pw); pc.Director.Hourly(pc);
             }
             long rate = pw.Director.WorkProbes_Count;
-            check(pc.Director.WorkProbes_Count == 0 && rate >= 30 && rate <= 75, $"sin obra no hay sondeos; con una obra, unos 83 ‰ por hora: {rate} sondeos en 600 h (esperado ≈ 50)");
+            check(pc.Director.WorkProbes_Count == 0 && rate >= 12 && rate <= 40, $"sin obra no hay sondeos; con una obra, unos 83 ‰ por hora de obra, y solo se trabaja 12 h al día: {rate} sondeos en 600 h (esperado ≈ 25)");
             check(Mass(pw) == m0w + pw.InjectedTotal - pw.LostTotal - pw.RetiredTotal && Mass(pc) == m0c + pc.InjectedTotal - pc.LostTotal - pc.RetiredTotal, "la masa del campo se conserva con sondeos: masa = inicial + inyectada − bajas − retirada");
             check(pw.Director.WorkProbes_Moved > 0 && pw.Director.WorkProbes_Moved <= pw.Director.WorkProbes_Asked, $"los sondeos mueven horda hacia el nodo: pidieron {pw.Director.WorkProbes_Asked} ‰ y movieron {pw.Director.WorkProbes_Moved} ‰");
 
             // tamaño: 5 % del presupuesto del día, descontado del 400 ‰ que no va a asedios (Hugo): no es masa extra
             var ps = WithWork(0); ps.Director.P.WorkProbeMil = 1000;
-            ps.Tick = 9 * NetConst.DayTicks; ps.Director.Hourly(ps);
+            ps.Tick = 9 * NetConst.DayTicks + NetConst.Hours(9); ps.Director.Hourly(ps);     // a las 09:00: en horario de obra
             long askZ = ps.Director.WorkProbes_Asked * NetWorld.ZombiesPerPermil;
             long expectZ = ps.Director.DayZombies(9, ps.Director.HuellaMil(ps)) * 50 / 1000 / NetWorld.ZombiesPerPermil * NetWorld.ZombiesPerPermil;
             check(ps.Director.WorkProbes_Count == 1 && askZ == expectZ && askZ >= 150 && askZ <= 450, $"un sondeo del día 9 pide el 5 % del presupuesto del día: {askZ} zombis (Hugo: 214–281 según la huella, con el ruido y la estación del día)");
@@ -351,7 +356,7 @@ namespace TBD.Sim.Tests
             double k0 = ps.Director.DayZombies(8, 0), k3 = ps.Director.DayZombies(8, 3000);
             check(k3 / k0 > 1.30 && k3 / k0 < 1.33, $"con k_huella = 240 del CSV, huella 3 da {k3 / k0:0.000} veces el presupuesto de huella 0 (Hugo: 268 / 204 = 1,314)");
             // descontado, no extra: con la misma huella, la obra no cambia lo inyectado en 5 días
-            var xa = WithWork(0); var xb = NetScenario.Mvp(); xa.Director.P.WorkHuellaMil = 0; xb.Director.P.WorkHuellaMil = 0; xa.Director.P.WorkProbeMil = 1000;
+            var xa = WithWork(0); var xb = Mvp0(); xa.Director.P.WorkHuellaMil = 0; xb.Director.P.WorkHuellaMil = 0; xa.Director.P.WorkProbeMil = 1000;
             for (int hr = 0; hr < 120; hr++) { xa.Tick = 2 * NetConst.DayTicks + hr * 1500; xb.Tick = xa.Tick; xa.Director.Hourly(xa); xb.Director.Hourly(xb); }
             check(xa.Director.WorkProbes_Paid > 0 && xa.Director.BudgetTotal == xb.Director.BudgetTotal, $"el sondeo no suma presupuesto: el presupuesto de 120 h es el mismo con y sin obra ({xa.Director.BudgetTotal} = {xb.Director.BudgetTotal} ‰); el sondeo movió {xa.Director.WorkProbes_Moved} ‰ de masa que ya estaba en el campo");
 
@@ -369,14 +374,14 @@ namespace TBD.Sim.Tests
             check(oc1n == 1 && ic.Intel.FindAll(e => e.Id == "OC-1").Count == 1 && ic.Intel.Find(e => e.Id == "OC-1").Vars[1] == ic.Graph.Nodes[Node].Name, "OC-1: la primera obra activa de la partida avisa una sola vez");
             var hOc = ic.Hash(); ic.Works.FirstNoted = false; check(ic.Hash() != hOc, "haber avisado de la primera obra entra en el hash"); ic.Works.FirstNoted = true;
             check(ps.Intel.Exists(e => e.Id == "OC-3" && e.Vars[1] == ps.Graph.Nodes[0].Name), "OC-3: el sondeo que llega avisa con el nombre del nodo");
-            check(!NetScenario.Mvp().Intel.Exists(e => e.Id.StartsWith("OC-")), "sin obras no hay avisos de obra");
+            check(!Mvp0().Intel.Exists(e => e.Id.StartsWith("OC-")), "sin obras no hay avisos de obra");
 
             // en la zona en detalle: la celda congelada no recibe masa
             var pz = WithWork(0); pz.Director.P.WorkProbeMil = 1000;
             pz.Push(new NetCommand { Tick = pz.Tick, Type = NetCmdType.Materialize, Arg = 0 }); pz.ApplyCommands();
             long mz = Mass(pz);
             for (int hr = 0; hr < 24; hr++) { pz.Tick = 5 * NetConst.DayTicks + hr * 1500; pz.Director.Hourly(pz); }
-            check(pz.Director.WorkProbes_Count == 24 && pz.Field.D[pz.Field.Frozen] == 0 && Mass(pz) == mz + pz.InjectedTotal - pz.LostTotal - pz.RetiredTotal, "con la zona del nodo materializada el sondeo no toca la celda congelada y la masa se conserva");
+            check(pz.Director.WorkProbes_Count == 12 && pz.Field.D[pz.Field.Frozen] == 0 && Mass(pz) == mz + pz.InjectedTotal - pz.LostTotal - pz.RetiredTotal, "con la zona del nodo materializada el sondeo no toca la celda congelada y la masa se conserva");
 
             // determinismo
             var da = WithWork(0); var db = WithWork(0);
@@ -384,12 +389,169 @@ namespace TBD.Sim.Tests
             check(da.Hash() == db.Hash() && da.Hash() != WithWork(0).Hash(), "dos mundos con la misma obra dan el mismo hash tras 100 horas de director");
 
             RunDesgaste(check);
+            RunPuertaVia(check);
+            RunHorario(check);
+        }
+
+        static void RunHorario(Action<bool, string> check)
+        {
+            Console.WriteLine("[22] Horario de obra (06:00–18:00) y devolución exacta al cancelar (Hugo, D-N59)");
+            var mvp = NetScenario.Mvp();
+            check(mvp.Works.P.WorkStartHour == 6 && mvp.Works.P.WorkEndHour == 18 && mvp.Works.P.BridgeObreroH == 192 && mvp.Works.P.BridgeNeedTicks == 288_000, "el horario (obra_hora_inicio 6, obra_hora_fin 18) y las 192 obrero·h del puente vienen del CSV de Hugo");
+            check(!mvp.Works.P.IsWorkTime(NetConst.Hours(5.99)) && mvp.Works.P.IsWorkTime(NetConst.Hours(6)) && mvp.Works.P.IsWorkTime(NetConst.Hours(17.99)) && !mvp.Works.P.IsWorkTime(NetConst.Hours(18)), "se trabaja de 06:00 (incluida) a 18:00 (excluida)");
+
+            // una obra a medias a las 18:00 se queda congelada y sigue a las 06:00, sin perder progreso
+            NetWorld At(double hour)
+            {
+                var w = WorldWithZone(900); w.Services.Clear(); w.Works.P.TrackHalfMm = 0; w.Tick = NetConst.Hours(hour);
+                w.Stock[Node, (int)Res.Personas] = 300;
+                w.Push(Place(w.Tick, PieceKind.Sacos, 0, 0, 10_000, 0)); w.Push(new NetCommand { Tick = w.Tick, Type = NetCmdType.AssignWorkers, Arg = Node, Arg2 = 2 }); w.ApplyCommands();
+                return w;
+            }
+            var wn = At(17.5);
+            for (int i = 0; i < 750; i++) wn.Step();
+            long half = wn.Works.At(Node)[0].WorkE4;
+            check(wn.Works.At(Node)[0].WorkE4 == 1500 * 10_000 && !wn.Works.At(Node)[0].Built, $"a las 18:00 la obra de 10 m de sacos con 2 obreros lleva la mitad: {half / 10_000} de 3.000 obrero·ticks");
+            for (int i = 0; i < 17_999; i++) wn.Step();                                    // hasta las 05:59:59 del día siguiente
+            check(wn.Works.At(Node)[0].WorkE4 == half && !wn.WorkActive(Node), "de noche no avanza ni cuenta como obra activa (sin ruido para la Colmena)");
+            wn.Step(); wn.Step();
+            int t = 0; while (!wn.Works.At(Node)[0].Built && t < 5000) { wn.Step(); t++; }
+            check(wn.Works.At(Node)[0].Built && t == 749, $"a las 06:00 sigue donde se quedó: la otra mitad en 750 ticks ({t + 2})");
+            var wd = At(10);
+            check(wd.WorkActive(Node), "de día, con obreros y trabajo pendiente, la obra está activa");
+
+            // cancelar: sin empezar, exactamente lo cobrado; empezada, floor(50 % de lo cobrado)
+            NetWorld Cw() { var w = WorldWithZone(900); w.Services.Clear(); w.Works.P.TrackHalfMm = 0; w.Tick = NetConst.Hours(8); return w; }
+            var c1 = Cw(); c1.Push(Place(c1.Tick, PieceKind.Hesco, 0, 0, 33_000, 0)); c1.ApplyCommands();
+            int paid = 900 - c1.Stock[Node, (int)Res.Materiales];
+            c1.Push(new NetCommand { Tick = c1.Tick, Type = NetCmdType.CancelWork, Arg = Node, Arg2 = 0 }); c1.ApplyCommands();
+            check(paid == 20 && c1.Stock[Node, (int)Res.Materiales] == 900, $"33 m de HESCO son 19,8 u: se cobran 20 y, sin empezar, se devuelven exactamente 20 (antes 19): quedan {c1.Stock[Node, (int)Res.Materiales]}");
+            var c2 = Cw(); c2.Push(Place(c2.Tick, PieceKind.Hesco, 0, 0, 33_000, 0)); c2.Push(new NetCommand { Tick = c2.Tick, Type = NetCmdType.AssignWorkers, Arg = Node, Arg2 = 4 }); c2.ApplyCommands();
+            for (int i = 0; i < 10; i++) c2.Step();
+            c2.Push(new NetCommand { Tick = c2.Tick, Type = NetCmdType.CancelWork, Arg = Node, Arg2 = 0 }); c2.ApplyCommands();
+            check(c2.Stock[Node, (int)Res.Materiales] == 900 - 20 + 10 && c2.Works.Count(Node) == 0, $"empezada, se devuelve floor(50 % de 20 u) = 10: quedan {c2.Stock[Node, (int)Res.Materiales]}");
+            var c3 = Cw(); int s0 = c3.Stock[Node, (int)Res.Materiales];
+            for (int k = 0; k < 6; k++) { c3.Push(Place(c3.Tick, PieceKind.Sacos, 0, 0, 3_000 + 700 * k, 0)); c3.ApplyCommands(); c3.Push(new NetCommand { Tick = c3.Tick, Type = NetCmdType.CancelWork, Arg = Node, Arg2 = k }); c3.ApplyCommands(); }
+            check(c3.Stock[Node, (int)Res.Materiales] == s0 && c3.Works.Count(Node) == 0, "poner y quitar obras sin empezar nunca pierde material (6 órdenes de tamaños sueltos)");
+            var c4 = Cw(); c4.Push(Place(c4.Tick, PieceKind.Hesco, 0, 0, 20_000, 0)); c4.ApplyCommands();             // 2 módulos de 10 m: 12 u
+            c4.Works.At(Node)[0] = new Func<WorkPiece>(() => { var x = c4.Works.At(Node)[0]; x.Built = true; x.WorkE4 = x.NeedE4; return x; })();
+            c4.Push(new NetCommand { Tick = c4.Tick, Type = NetCmdType.CancelWork, Arg = Node, Arg2 = 0 }); c4.ApplyCommands();
+            check(c4.Works.Count(Node) == 1 && c4.Works.At(Node)[0].Built && c4.Stock[Node, (int)Res.Materiales] == 900 - 12 + 3, $"con un módulo ya terminado se devuelve el 50 % de la parte sin terminar (3 de 6 u): quedan {c4.Stock[Node, (int)Res.Materiales]}");
+            var h1 = Cw(); h1.Push(Place(h1.Tick, PieceKind.Sacos, 0, 0, 5_000, 0)); h1.ApplyCommands(); ulong hp = h1.Hash();
+            check(h1.Works.At(Node)[0].PaidU == 1, "la obra guarda lo cobrado (en el hash)");
+            var h2 = Cw(); h2.Push(Place(h2.Tick, PieceKind.Sacos, 0, 0, 5_000, 0)); h2.ApplyCommands();
+            check(h2.Hash() == hp, "y dos mundos con la misma orden dan el mismo hash");
+        }
+
+        static void RunPuertaVia(Action<bool, string> check)
+        {
+            Console.WriteLine("[21] Puerta de vía (hito 5, diseno-hito5.md §2a): la red de Obras conoce la vía");
+            var p = ObrasParams.FromCsv(new CsvTable(File.ReadAllText(Path.Combine(BalanceTests.DataDirPublic(), "balance_construccion.csv"))));
+            check(p.ViaGateU == 8 && p.HViaGate == 6 && p.TrackHalfMm == 1600 && p.GateSwapTicks == 180 && p.GateNearMm == 150_000,
+                $"la puerta de vía cuesta 8 u y 6 obrero·h (pieza_puerta_via_u y obra_puerta_via_h del CSV de Hugo); hueco de 3,2 m, 6 s = 180 ticks de zona, abre a 150 m");
+
+            // un muro que cruza la vía en perpendicular: puerta sola, 3,2 m, y su coste va en el trazado
+            var perp = Obras.PlanWall(p, PieceKind.Hesco, new[] { 20_000, -10_000, 20_000, 10_000 }, 900, 2000);
+            WorkPiece gate = default; int gates = 0; foreach (var x in perp.Pieces) if (x.IsGate) { gate = x; gates++; }
+            check(perp.Ok && perp.Gates == 1 && gates == 1 && perp.Pieces.Count == 3 && perp.WantedMm == 16_800, $"un muro de 20 m que cruza la vía deja 16,8 m de muro y una puerta de vía: {perp.Pieces.Count} piezas, pedido {perp.WantedMm} mm");
+            check(gate.X0 == 20_000 && gate.Y0 == -1600 && gate.X1 == 20_000 && gate.Y1 == 1600 && gate.CostE4 == 80_000 && gate.LifeMil == 1000 && !gate.Built, "la puerta ocupa 3,2 m perpendiculares a la vía, de y = −1.600 a y = 1.600, y cuesta 8 u");
+            check(perp.CostE4 == 2 * 8400 * 6 + 80_000 && perp.CostU == 19, $"el coste en directo suma muro y puerta: {perp.CostE4} E4 = {perp.CostU} u (2 × 8,4 m de HESCO + 8 u)");
+            check(Obras.HeightMm(PieceKind.PuertaVia) == 2100 && p.WorkE4(PieceKind.PuertaVia, 0) == 6 * 1500 * 10_000, "la puerta mide 2,1 m cerrada, como el HESCO, y son 6 obrero·h de obra");
+
+            // en diagonal: el hueco medido sobre el muro es 3,2 ÷ sen α; por debajo de 45° no se acepta
+            var d45 = Obras.PlanWall(p, PieceKind.Hesco, new[] { 0, -10_000, 20_000, 10_000 }, 900, 2000);
+            WorkPiece g45 = default; foreach (var x in d45.Pieces) if (x.IsGate) g45 = x;
+            long chord = Obras.SegLenMm(g45.X0, g45.Y0, g45.X1, g45.Y1);
+            check(d45.Ok && d45.Gates == 1 && chord == 4525, $"a 45° el hueco es 3,2 ÷ sen 45° = 4,525 m: {chord} mm");
+            var shallow = Obras.PlanWall(p, PieceKind.Hesco, new[] { 0, -10_000, 30_000, 10_000 }, 900, 2000);
+            check(!shallow.Ok && shallow.Why == "El muro cruza la vía demasiado en diagonal" && shallow.Pieces.Count == 0, $"a menos de 45° se rechaza el trazado: «{shallow.Why}»");
+
+            // un muro a lo largo de la vía o que acaba en la franja: la vía queda libre, sin puerta
+            var along = Obras.PlanWall(p, PieceKind.Hesco, new[] { 0, 500, 30_000, 500 }, 900, 2000);
+            check(!along.Ok && along.Why == "el muro cae sobre la vía", $"un muro dentro del gálibo no se construye: «{along.Why}»");
+            var ends = Obras.PlanWall(p, PieceKind.Sacos, new[] { 5000, 5000, 5000, 500 }, 900, 2000);
+            check(ends.Ok && ends.Gates == 0 && ends.AllowedMm == 3400 && ends.Pieces[ends.Pieces.Count - 1].Y1 == 1600, $"un muro que acaba en la vía se recorta en el borde del gálibo (y = 1.600): {ends.AllowedMm} mm, sin puerta");
+            var touch = Obras.PlanWall(p, PieceKind.Sacos, new[] { 0, 1600, 20_000, 1600 }, 900, 2000);
+            check(touch.Ok && touch.Gates == 0 && touch.AllowedMm == 20_000, "un muro justo en el borde del gálibo (y = 1.600) se queda entero");
+
+            // corte por materiales: la puerta entra en la regla (orden del trazado)
+            var c10 = Obras.PlanWall(p, PieceKind.Hesco, new[] { 20_000, -10_000, 20_000, 10_000 }, 10, 2000);
+            check(c10.Ok && c10.Cut && c10.Gates == 0 && c10.AllowedMm == 8400 && c10.CostU == 6, $"con 10 u el muro se corta antes de la vía y no lleva puerta ({c10.AllowedMm} mm, {c10.CostU} u)");
+            var c14 = Obras.PlanWall(p, PieceKind.Hesco, new[] { 20_000, -10_000, 20_000, 10_000 }, 14, 2000);
+            check(c14.Ok && c14.Cut && c14.Gates == 1 && c14.AllowedMm == 10_000 && c14.CostE4 == 140_000 && c14.CostU == 14, $"con 14 u cabe el primer muro, la puerta y 1,6 m del segundo: {c14.AllowedMm} mm, {c14.CostU} u");
+            check(Obras.PlanWall(p, PieceKind.Hesco, new[] { 20_000, -10_000, 20_000, 10_000 }, 900, 2).Why == "demasiadas piezas en el nodo", "el tope de piezas cuenta también la puerta");
+
+            // las piezas puntuales no ocupan la vía
+            check(Obras.PlanPoint(p, PieceKind.Nido, 5000, 800, 900, 2000).Why == "la vía queda libre" && Obras.PlanPoint(p, PieceKind.Puerta, 0, 0, 900, 2000).Why == "la vía queda libre", "un nido o una puerta suelta en el gálibo de la vía se rechaza");
+            check(Obras.PlanPoint(p, PieceKind.Nido, 5000, 1600, 900, 2000).Ok && Obras.PlanPoint(p, PieceKind.Anden, 0, 1600, 900, 2000).Ok, "pero sí pegado al borde del gálibo (a 1,6 m de la vía)");
+            check(Obras.PlanPoint(p, PieceKind.Anden, 0, 0, 900, 2000).Why == "la vía queda libre" && Obras.PlanPoint(p, PieceKind.Deposito, 0, -1599, 900, 2000).Why == "la vía queda libre" && Obras.PlanPoint(p, PieceKind.Foco, 0, 1599, 900, 2000).Why == "la vía queda libre", "el andén fortificado tampoco invade el gálibo: está junto a la vía, no encima (Lucía)");
+            check(!Obras.PlanPoint(p, PieceKind.PuertaVia, 0, 5000, 900, 2000).Ok, "la puerta de vía no se coloca a mano");
+
+            // en el mundo: la orden paga muro y puerta, el nivel cuenta la puerta, el hash es el mismo en dos mundos
+            NetWorld World() { var w = WorldWithZone(900); w.Works.P.TrackHalfMm = 1600; w.Push(Place(w.Tick, PieceKind.Hesco, 20_000, -10_000, 20_000, 10_000)); w.ApplyCommands(); return w; }
+            var wa = World(); var wb = World();
+            check(wa.Stock[Node, (int)Res.Materiales] == 900 - 19 && wa.Works.Count(Node) == 3 && wa.Hash() == wb.Hash(), "la orden descuenta 19 u (muro y puerta) y registra tres piezas; dos mundos dan el mismo hash");
+            wa.Works.CompleteAll(Node);
+            check(wa.Works.LevelMil(Node) == (int)(180_800L * 1000 / 300_000), $"la puerta es defensiva y cuenta para el nivel: {wa.Works.LevelMil(Node)} ‰");
+            check(wa.Works.MaintenanceU(Node) == 1, "y para el mantenimiento");
+
+            // estado: abrir y cerrar solas con un tren a ≤ 150 m, 6 s = 180 ticks, y el bloqueo del jugador, todo en el hash
+            int gi = -1; for (int i = 0; i < wa.Works.At(Node).Count; i++) if (wa.Works.At(Node)[i].IsGate) gi = i;
+            var near = new List<int> { 20_000 + 100_000 }; var far = new List<int> { 20_000 + 400_000 };
+            ulong h0 = wa.Hash();
+            for (int t = 0; t < 179; t++) wa.Works.StepGates(Node, near);
+            bool halfway = wa.Works.At(Node)[gi].GateProg == 179 && !ObrasState.GatePassable(wa.Works.P, wa.Works.At(Node)[gi]);
+            wa.Works.StepGates(Node, near);
+            check(halfway && ObrasState.GatePassable(wa.Works.P, wa.Works.At(Node)[gi]) && wa.Hash() != h0, "con un tren propio a 100 m la puerta tarda 180 ticks (6 s) en abrirse: a los 179 no deja pasar, a los 180 sí; el estado entra en el hash");
+            for (int t = 0; t < 500; t++) wa.Works.StepGates(Node, near);
+            check(wa.Works.At(Node)[gi].GateProg == 180, "se queda abierta mientras el tren esté cerca");
+            for (int t = 0; t < 179; t++) wa.Works.StepGates(Node, far);
+            bool still = !ObrasState.GatePassable(wa.Works.P, wa.Works.At(Node)[gi]) && wa.Works.At(Node)[gi].GateProg == 1;
+            wa.Works.StepGates(Node, far);
+            check(still && wa.Works.At(Node)[gi].GateProg == 0, "con el tren a más de 150 m se cierra, también en 180 ticks");
+            wa.Push(new NetCommand { Tick = wa.Tick, Type = NetCmdType.SetGate, Arg = Node | (1 << 16), Payload = new[] { 20_000, 0 } }); wa.ApplyCommands();
+            for (int t = 0; t < 200; t++) wa.Works.StepGates(Node, null);
+            check(wa.Works.At(Node)[gi].GateMode == 1 && wa.Works.At(Node)[gi].GateProg == 180, "bloqueada abierta, se abre sin ningún tren");
+            wa.Push(new NetCommand { Tick = wa.Tick, Type = NetCmdType.SetGate, Arg = Node | (2 << 16), Payload = new[] { 20_300, 100 } }); wa.ApplyCommands();
+            for (int t = 0; t < 200; t++) wa.Works.StepGates(Node, near);
+            check(wa.Works.At(Node)[gi].GateMode == 2 && wa.Works.At(Node)[gi].GateProg == 0, "bloqueada cerrada, no se abre aunque llegue un tren: se para antes (la zona lo detiene)");
+            ulong hLock = wa.Hash();
+            wa.Push(new NetCommand { Tick = wa.Tick, Type = NetCmdType.SetGate, Arg = Node | (0 << 16), Payload = new[] { 20_000, 0 } }); wa.ApplyCommands();
+            check(wa.Works.At(Node)[gi].GateMode == 0 && wa.Hash() != hLock, "el modo automático la desbloquea (y cambia el hash)");
+            var wz = World(); wz.Works.CompleteAll(Node); ulong hz = wz.Hash();
+            wz.Push(new NetCommand { Tick = wz.Tick, Type = NetCmdType.SetGate, Arg = Node | (1 << 16), Payload = new[] { 90_000, 90_000 } }); wz.ApplyCommands();
+            check(wz.Hash() == hz, "una orden sobre un punto sin puerta no hace nada");
+
+            // rota: queda un hueco con escombros, la vía sigue usable, no cuenta para el nivel y se reconstruye encima
+            var wr = World(); wr.Works.CompleteAll(Node);
+            int lvlWhole = wr.Works.LevelMil(Node); int gr = -1; for (int i = 0; i < wr.Works.At(Node).Count; i++) if (wr.Works.At(Node)[i].IsGate) gr = i;
+            bool broke = wr.Works.Damage(Node, gr, 1000);
+            var bg = wr.Works.At(Node)[gr];
+            check(broke && bg.Broken && bg.LifeMil == 0 && wr.Works.Count(Node) == 3 && ObrasState.GatePassable(wr.Works.P, bg), "una puerta rota se queda como hueco con escombros y la vía sigue siendo usable");
+            check(wr.Works.LevelMil(Node) < lvlWhole && wr.Works.LevelMil(Node) == (int)(100_800L * 1000 / 300_000), $"la puerta rota no cuenta para el nivel: {lvlWhole} ‰ → {wr.Works.LevelMil(Node)} ‰");
+            check(!wr.Works.Damage(Node, gr, 500) && wr.Works.MaintenanceU(Node) == 1, "una puerta rota no recibe más daño");
+            wr.Works.StepGates(Node, near);
+            check(wr.Works.At(Node)[gr].GateProg == 0 && wr.Works.At(Node)[gr].Broken, "una puerta rota no se mueve");
+            wr.Push(Place(wr.Tick, PieceKind.Hesco, 20_000, -10_000, 20_000, 10_000)); wr.ApplyCommands();
+            int nGates = 0, nBroken = 0; foreach (var x in wr.Works.At(Node)) { if (x.IsGate) nGates++; if (x.Broken) nBroken++; }
+            WorkPiece reb = default; foreach (var x in wr.Works.At(Node)) if (x.IsGate) reb = x;
+            check(reb.X0 == bg.X0 && reb.Y0 == bg.Y0 && reb.X1 == bg.X1 && reb.Y1 == bg.Y1 && reb.CostE4 == 80_000 && reb.LifeMil == 1000 && !reb.Broken, "la puerta nueva conserva la posición exacta de la rota y cuesta lo de una nueva (8 u)");
+            check(nGates == 1 && nBroken == 0 && wr.Works.Count(Node) == 5, $"se reconstruye encima: la puerta rota desaparece y entra la nueva ({nGates} puerta, {nBroken} rotas, {wr.Works.Count(Node)} piezas)");
+
+            // el desgaste también la rompe, y se cancela con su obra
+            var wc = World(); wc.Works.CompleteAll(Node); wc.Services.Clear(); wc.Stock[Node, (int)Res.Materiales] = 0;
+            for (int d = 1; d <= 400; d++) { wc.Tick = d * NetConst.DayTicks - 1; wc.Step(); }
+            bool anyBroken = false; foreach (var x in wc.Works.At(Node)) if (x.IsGate && x.Broken) anyBroken = true;
+            check(anyBroken && wc.Works.Count(Node) >= 1, "sin mantenimiento, el desgaste acaba rompiendo la puerta (queda como escombros, no desaparece)");
+            var wk = World(); int before = wk.Stock[Node, (int)Res.Materiales];
+            wk.Push(new NetCommand { Tick = wk.Tick, Type = NetCmdType.CancelWork, Arg = Node, Arg2 = 0 }); wk.ApplyCommands();
+            check(wk.Works.Count(Node) == 0 && wk.Stock[Node, (int)Res.Materiales] == before + 19, "cancelar sin empezar la obra de un muro con puerta quita la puerta y devuelve exactamente lo cobrado (19 u, Hugo D-N59)");
         }
 
         static void RunDesgaste(Action<bool, string> check)
         {
             Console.WriteLine("[19] Obras (hito 5, paso 4): mantenimiento y desgaste diario (1 %) y daño");
-            var mvp = NetScenario.Mvp();
+            var mvp = Mvp0();
             check(mvp.Works.P.WearDayMil == 10, "el desgaste diario viene de fort_desgaste_dia de balance_economia.csv (10 ‰)");
 
             NetWorld Built(int reserve = 0)
@@ -457,7 +619,7 @@ namespace TBD.Sim.Tests
             var d20 = Built(1000); d20.Services.Clear();
             for (int d = 1; d <= 20; d++) { d20.Tick = d * NetConst.DayTicks - 1; d20.Step(); }
             check(d20.Stock[Node, (int)Res.Materiales] == 980 && d20.Works.At(Node)[0].LifeMil == 1000, "abastecida 20 días: paga 1 u al día (980 u quedan) y conserva el 100 % de vida");
-            var sinObras = NetScenario.Mvp(); sinObras.Services.Clear(); sinObras.Tick = 3 * NetConst.DayTicks - 1; int hs0 = sinObras.Stock[0, (int)Res.Materiales];
+            var sinObras = Mvp0(); sinObras.Services.Clear(); sinObras.Tick = 3 * NetConst.DayTicks - 1; int hs0 = sinObras.Stock[0, (int)Res.Materiales];
             sinObras.Step();
             check(sinObras.Stock[0, (int)Res.Materiales] == hs0, "sin obras el mantenimiento no cobra nada");
 
@@ -467,7 +629,7 @@ namespace TBD.Sim.Tests
             check(b.Hash() == c.Hash() && b.Hash() != Built().Hash(), "dos mundos con la misma obra dan el mismo hash tras el desgaste, distinto del de antes");
 
             // sin obras no cambia nada: los goldens no se mueven
-            var e0 = NetScenario.Mvp(); e0.Tick = 3 * NetConst.DayTicks - 1; ulong h = e0.Hash(); long t = e0.Tick;
+            var e0 = Mvp0(); e0.Tick = 3 * NetConst.DayTicks - 1; ulong h = e0.Hash(); long t = e0.Tick;
             check(e0.Works.WearDay(0) == 0 && e0.Hash() == h, "sin obras el desgaste no cambia el hash");
 
             // destrucción: una pieza a 0 ‰ se quita y la obra sigue

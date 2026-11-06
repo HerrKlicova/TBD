@@ -11,7 +11,7 @@ namespace TBD.Net
     // - Un muro se parte en módulos de ≤ 10 m. Cada módulo es una pieza con su coste y su vida: el daño es local y la regla del perímetro
     //   (≤ 60 m del andén) se aplica pieza a pieza, sin trucos con muros largos.
 
-    public enum PieceKind : byte { Sacos = 0, Hesco = 1, Puerta = 2, Nido = 3, Foco = 4, Deposito = 5, Anden = 6 }
+    public enum PieceKind : byte { Sacos = 0, Hesco = 1, Puerta = 2, Nido = 3, Foco = 4, Deposito = 5, Anden = 6, PuertaVia = 7 }
 
     public struct WorkPiece
     {
@@ -25,6 +25,12 @@ namespace TBD.Net
         public int NeedE4;               // trabajo necesario, en 1/10.000 de obrero·tick (1 obrero·h = 1.500 obrero·ticks)
         public int WorkE4;               // trabajo hecho (mismas unidades)
         public bool IsWall => Kind == PieceKind.Sacos || Kind == PieceKind.Hesco;
+        public bool IsGate => Kind == PieceKind.PuertaVia;
+        // Puerta de vía (diseno-hito5.md §2a): su estado va en el registro, dentro del hash (solo las puertas de vía lo usan)
+        public byte GateMode;            // 0 = automática, 1 = bloqueada abierta, 2 = bloqueada cerrada (orden del jugador)
+        public int GateProg;             // 0 = cerrada … GateSwapTicks = abierta (ticks de zona; tarda 6 s en cada sentido)
+        public int PaidU;                // u cobradas por la obra entera (solo la primera pieza de cada obra la guarda): cancelar sin empezar devuelve exactamente esto
+        public bool Broken;              // rota: hueco con escombros por donde entra la horda, pero la vía sigue usable; no cuenta para el nivel
     }
 
     public struct ObrasParams
@@ -40,7 +46,12 @@ namespace TBD.Net
         public int MaxWorkersPerPiece;   // obreros que pueden trabajar a la vez en una misma pieza (obra_obreros_max_pieza; las obras grandes lo suben)
         public int GarrisonMin;          // personas que nunca trabajan: el retén (obras_guarnicion_minima de balance_construccion.csv, 6; NO la guarnicion_minima de 12 de la producción, D-N59)
         public int RepairU, RepairHours, WorksCrew;     // reparar un tramo: 5 u y 3 h con el tren de obras y 8 obreros a bordo (reparar_tramo_u, reparar_tramo_h, tren_obras_obreros)
-        public int BridgeU, BridgeDays;                 // el puente del Jiloca: 80 u y 2 días con el tren de obras (puente_jiloca_materiales y puente_jiloca_dias de balance_economia.csv)
+        public int BridgeU, BridgeObreroH;              // el puente del Jiloca: 80 u (puente_jiloca_materiales, balance_economia.csv) y 192 obrero·h (puente_jiloca_obreros_h, balance_construccion.csv)
+        public int WorkStartHour, WorkEndHour;          // todas las obras trabajan de 06:00 a 18:00 (obra_hora_inicio, obra_hora_fin: 12 h al día) y de noche se paran
+        public int ViaGateU, HViaGate;   // puerta de vía: 8 u y 6 obrero·h (pieza_puerta_via_u, obra_puerta_via_h)
+        public int TrackHalfMm;          // semiancho del hueco de la vía (3,2 m en total) respecto de y = 0; 0 = la red no conoce la vía (via_hueco_mm / 2)
+        public int GateSwapTicks;        // abrir o cerrar la puerta de vía: 6 s a 30 ticks de zona por segundo = 180 ticks enteros
+        public int GateNearMm;           // se abre sola con un tren propio a esta distancia o menos (150 m)
         public int OutsideWearMil;       // desgaste diario de los muros a más de 60 m del andén, sin mantenimiento posible (desgaste_fuera_perimetro_permil_dia, 10)
         public int WearDayMil;           // desgaste diario de lo construido (‰ de la vida, fort_desgaste_dia de balance_economia.csv, 10)
         public int CancelStartedMil;     // lo que se recupera al cancelar una obra ya empezada (‰); si no ha empezado, el 100 %
@@ -56,7 +67,7 @@ namespace TBD.Net
                     SacosPer10m = 2, HescoPer10m = 6, PuertaU = 6, NidoU = 8, FocoU = 2, AndenU = 6, DepositoU = 5,
                     ModuleMm = 10_000, MinWallMm = 1_000, PerimeterMm = 60_000, LevelDivU = 30, LevelMaxMil = 5_000,
                     MaxPieces = 2_000, MaxVertices = 32, CoordLimitMm = 2_000_000,
-                    MaxWorkersPerPiece = 4, GarrisonMin = 6, RepairU = 5, RepairHours = 3, WorksCrew = 8, BridgeU = 80, BridgeDays = 2, OutsideWearMil = 10, WearDayMil = 10, CancelStartedMil = 500,
+                    MaxWorkersPerPiece = 4, GarrisonMin = 6, ViaGateU = 8, HViaGate = 6, TrackHalfMm = 1_600, GateSwapTicks = 180, GateNearMm = 150_000, RepairU = 5, RepairHours = 3, WorksCrew = 8, BridgeU = 80, BridgeObreroH = 192, WorkStartHour = 6, WorkEndHour = 18, OutsideWearMil = 10, WearDayMil = 10, CancelStartedMil = 500,
                     HSacos10 = 2, HHesco10 = 4, HPuerta = 4, HNido = 6, HFoco = 2, HDeposito = 8, HAnden = 10
                 };
             }
@@ -77,6 +88,10 @@ namespace TBD.Net
             d.MinWallMm = (int)t.TryValue("muro_minimo_mm", d.MinWallMm);
             d.PerimeterMm = (int)t.TryValue("perimetro_mm", d.PerimeterMm);
             d.GarrisonMin = (int)t.TryValue("obras_guarnicion_minima", d.GarrisonMin);
+            d.BridgeObreroH = (int)t.TryValue("puente_jiloca_obreros_h", d.BridgeObreroH);
+            d.WorkStartHour = (int)t.TryValue("obra_hora_inicio", d.WorkStartHour); d.WorkEndHour = (int)t.TryValue("obra_hora_fin", d.WorkEndHour);
+            d.ViaGateU = (int)t.TryValue("pieza_puerta_via_u", d.ViaGateU); d.HViaGate = (int)t.TryValue("obra_puerta_via_h", d.HViaGate);
+            d.TrackHalfMm = (int)(t.TryValue("via_hueco_mm", 2L * d.TrackHalfMm) / 2); d.GateSwapTicks = (int)t.TryValue("puerta_via_ticks", d.GateSwapTicks); d.GateNearMm = (int)t.TryValue("puerta_via_cerca_mm", d.GateNearMm);
             d.RepairU = (int)t.TryValue("reparar_tramo_u", d.RepairU); d.RepairHours = (int)t.TryValue("reparar_tramo_h", d.RepairHours); d.WorksCrew = (int)t.TryValue("tren_obras_obreros", d.WorksCrew);
             d.OutsideWearMil = (int)t.TryValue("desgaste_fuera_perimetro_permil_dia", d.OutsideWearMil);
             d.CancelStartedMil = (int)t.TryValue("cancelar_obra_empezada_permil", d.CancelStartedMil);
@@ -90,13 +105,16 @@ namespace TBD.Net
         }
 
         /// <summary>Añade los u por nivel de fortificación de balance_economia.csv (fort_materiales_por_nivel, 30; D-N59: sustituye a nivel_u_por_nivel).</summary>
-        public ObrasParams WithEconomia(CsvTable e) { var d = this; d.LevelDivU = (int)e.TryValue("fort_materiales_por_nivel", d.LevelDivU); d.WearDayMil = (int)e.TryValue("fort_desgaste_dia", d.WearDayMil); d.BridgeU = (int)e.TryValue("puente_jiloca_materiales", d.BridgeU); d.BridgeDays = (int)e.TryValue("puente_jiloca_dias", d.BridgeDays); BalanceMath.Positive(d.LevelDivU, "fort_materiales_por_nivel"); return d; }
+        public ObrasParams WithEconomia(CsvTable e) { var d = this; d.LevelDivU = (int)e.TryValue("fort_materiales_por_nivel", d.LevelDivU); d.WearDayMil = (int)e.TryValue("fort_desgaste_dia", d.WearDayMil); d.BridgeU = (int)e.TryValue("puente_jiloca_materiales", d.BridgeU); BalanceMath.Positive(d.LevelDivU, "fort_materiales_por_nivel"); return d; }
 
         /// <summary>Trabajo de reparar un tramo normal, en obrero·ticks (1 obrero·h = 1.500 ticks): 3 h con 8 obreros = 24 obrero·h.</summary>
         public long RepairNeedTicks { get { return (long)RepairHours * WorksCrew * 1500; } }
 
-        /// <summary>Trabajo del puente del Jiloca: puente_jiloca_dias días (2) con los 8 obreros del tren de obras, día entero (el CSV manda sobre las 192 obrero·h).</summary>
-        public long BridgeNeedTicks { get { return (long)BridgeDays * NetConst.DayTicks * WorksCrew; } }
+        /// <summary>Trabajo del puente del Jiloca: 192 obrero·h (8 obreros × 12 h × 2 días). Se trabaja solo de 06:00 a 18:00: con 8 obreros son 2 días.</summary>
+        public long BridgeNeedTicks { get { return (long)BridgeObreroH * 1500; } }
+
+        /// <summary>¿Es hora de obra a esta hora del día (ticks desde las 00:00)? De WorkStartHour a WorkEndHour; fuera de ese horario todas las obras se paran sin perder progreso.</summary>
+        public bool IsWorkTime(long tickOfDay) { return tickOfDay >= NetConst.Hours(WorkStartHour) && tickOfDay < NetConst.Hours(WorkEndHour); }
 
         public int PricePer10m(PieceKind k) { return k == PieceKind.Sacos ? SacosPer10m : HescoPer10m; }
 
@@ -113,6 +131,7 @@ namespace TBD.Net
                 case PieceKind.Foco: return (int)(HFoco * TicksPerHour * 10_000);
                 case PieceKind.Deposito: return (int)(HDeposito * TicksPerHour * 10_000);
                 case PieceKind.Anden: return (int)(HAnden * TicksPerHour * 10_000);
+                case PieceKind.PuertaVia: return (int)(HViaGate * TicksPerHour * 10_000);
                 default: return 0;
             }
         }
@@ -136,6 +155,7 @@ namespace TBD.Net
     {
         public bool Ok;                              // hay algo que construir
         public bool Cut;                             // se corta por falta de materiales o de espacio
+        public int Gates;                            // puertas de vía que lleva el trazado (se ponen solas donde el muro cruza la vía)
         public long WantedMm, AllowedMm;             // longitud pedida y la que se puede pagar (muros)
         public int CostU;                            // u que se descuentan del almacén (redondeado hacia arriba)
         public long CostE4;                          // coste exacto
@@ -169,6 +189,7 @@ namespace TBD.Net
                 case PieceKind.Sacos: return 1200;
                 case PieceKind.Hesco: return 2100;
                 case PieceKind.Puerta: return 2100;
+                case PieceKind.PuertaVia: return 2100;
                 case PieceKind.Nido: return 1500;
                 case PieceKind.Anden: return 1500;
                 default: return 0;
@@ -182,6 +203,50 @@ namespace TBD.Net
         /// el tramo más largo cuyo coste (precio por 10 m × longitud, en u redondeadas hacia arriba) cabe en las existencias. Sin azar y
         /// sin dependencia de la interfaz. Los módulos de cada tramo son iguales entre sí (reparto entero) y suman exactamente la longitud.
         /// </summary>
+        struct Sub { public long Ax, Ay, Bx, By; public bool Gate; }
+        static long RoundDiv(long a, long b)                                          // a ÷ b redondeado al más cercano (b != 0), exacto y determinista
+        {
+            if (b < 0) { a = -a; b = -b; }
+            return a >= 0 ? (2 * a + b) / (2 * b) : -((-2 * a + b) / (2 * b));
+        }
+        const long TS = 1_000_000;                   // escala de t al recortar un segmento contra la franja de la vía
+
+        /// <summary>
+        /// Trocea la polilínea contra la franja de la vía (|y| &lt; TrackHalfMm; la vía es y = 0 en el nodo, 3,2 m de gálibo). Un tramo que cruza
+        /// la franja de lado a lado deja una puerta de vía en el cruce (el hueco medido sobre el muro: 3,2 ÷ sen α); lo que queda dentro de la franja
+        /// sin cruzarla (muro a lo largo de la vía o que acaba en ella) se descarta: la vía queda libre. Cruzar con menos de 45° rechaza el trazado.
+        /// </summary>
+        static bool SplitAtTrack(ObrasParams p, int[] pts, List<Sub> subs, out string why)
+        {
+            why = "";
+            long g = p.TrackHalfMm;
+            for (int s = 0; s + 3 < pts.Length; s += 2)
+            {
+                long x0 = pts[s], y0 = pts[s + 1], x1 = pts[s + 2], y1 = pts[s + 3], dx = x1 - x0, dy = y1 - y0;
+                bool outside = g <= 0 || Math.Min(y0, y1) >= g || Math.Max(y0, y1) <= -g;
+                if (outside) { subs.Add(new Sub { Ax = x0, Ay = y0, Bx = x1, By = y1 }); continue; }
+                if (dy == 0) continue;                                              // a lo largo de la vía, dentro del gálibo: se descarta
+                long ta = (-g - y0) * TS / dy, tb = (g - y0) * TS / dy;
+                long tIn = Math.Max(0, Math.Min(ta, tb)), tOut = Math.Min(TS, Math.Max(ta, tb));
+                if (tIn >= tOut) { subs.Add(new Sub { Ax = x0, Ay = y0, Bx = x1, By = y1 }); continue; }
+                bool crossing = (y0 <= -g && y1 >= g) || (y0 >= g && y1 <= -g);
+                if (crossing && 2 * dy * dy < dx * dx + dy * dy) { why = "El muro cruza la vía demasiado en diagonal"; return false; }   // sen α < sen 45°
+                long yIn = dy > 0 ? -g : g, yOut = dy > 0 ? g : -g;                 // los puntos de entrada y salida caen exactamente en el borde del gálibo
+                long ax = tIn == 0 ? x0 : x0 + RoundDiv(dx * (yIn - y0), dy), ay = tIn == 0 ? y0 : yIn;
+                long bx = tOut == TS ? x1 : x0 + RoundDiv(dx * (yOut - y0), dy), by = tOut == TS ? y1 : yOut;
+                if (tIn > 0) subs.Add(new Sub { Ax = x0, Ay = y0, Bx = ax, By = ay });
+                if (crossing) subs.Add(new Sub { Ax = ax, Ay = ay, Bx = bx, By = by, Gate = true });
+                if (tOut < TS) subs.Add(new Sub { Ax = bx, Ay = by, Bx = x1, By = y1 });
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Traza un muro (polilínea [x0,y0,x1,y1,…] en mm) con los materiales que hay. Si no alcanzan, la SIMULACIÓN decide dónde se corta:
+        /// el tramo más largo cuyo coste (precio por 10 m × longitud, en u redondeadas hacia arriba) cabe en las existencias. Sin azar y
+        /// sin dependencia de la interfaz. Los módulos de cada tramo son iguales entre sí (reparto entero) y suman exactamente la longitud.
+        /// Donde el muro cruza la vía se añade sola una puerta de vía (8 u): entra en el coste, en el orden del trazado y en la regla de corte.
+        /// </summary>
         public static WorkPlan PlanWall(ObrasParams p, PieceKind kind, int[] pts, int stockU, int pieceRoom)
         {
             var plan = new WorkPlan();
@@ -189,27 +254,38 @@ namespace TBD.Net
             if (pts == null || pts.Length < 4 || (pts.Length & 1) != 0 || pts.Length / 2 > p.MaxVertices) { plan.Why = "polilínea no válida"; return plan; }
             for (int i = 0; i < pts.Length; i++) if (pts[i] > p.CoordLimitMm || pts[i] < -p.CoordLimitMm) { plan.Why = "fuera de la zona"; return plan; }
 
-            int nSeg = pts.Length / 2 - 1;
-            var segLen = new long[nSeg];
-            long total = 0;
-            for (int s = 0; s < nSeg; s++) { segLen[s] = SegLenMm(pts[2 * s], pts[2 * s + 1], pts[2 * s + 2], pts[2 * s + 3]); total += segLen[s]; }
-            plan.WantedMm = total;
+            var subs = new List<Sub>();
+            if (!SplitAtTrack(p, pts, subs, out string bad)) { plan.Why = bad; return plan; }
+            long wanted = 0;
+            var subLen = new long[subs.Count];
+            for (int k = 0; k < subs.Count; k++) { subLen[k] = SegLenMm(subs[k].Ax, subs[k].Ay, subs[k].Bx, subs[k].By); if (!subs[k].Gate) wanted += subLen[k]; }
+            plan.WantedMm = wanted;
+            if (wanted == 0) { plan.Why = "el muro cae sobre la vía"; return plan; }
 
             long price = p.PricePer10m(kind);                        // u por cada 10.000 mm: coste E4 = precio × longitud en mm
-            long maxByStock = stockU <= 0 ? 0 : (long)stockU * 10_000 / price;
-            long allowed = Math.Min(total, maxByStock);
-            plan.AllowedMm = allowed;
-            plan.Cut = allowed < total;
-            if (allowed < p.MinWallMm) { plan.Why = plan.Cut ? "faltan materiales" : "muro demasiado corto"; plan.AllowedMm = 0; return plan; }
-
-            long left = allowed;
-            for (int s = 0; s < nSeg && left > 0; s++)
+            long rem = stockU <= 0 ? 0 : (long)stockU * 10_000;      // existencias en E4
+            long gateE4 = (long)p.ViaGateU * 10_000;
+            long allowedWall = 0;
+            bool cut = false;
+            for (int k = 0; k < subs.Count && !cut; k++)
             {
-                if (segLen[s] == 0) continue;
-                long len = Math.Min(segLen[s], left);
-                left -= len;
-                long ax = pts[2 * s], ay = pts[2 * s + 1], dx = pts[2 * s + 2] - ax, dy = pts[2 * s + 3] - ay;
-                int n = (int)CeilDiv(len, p.ModuleMm);
+                var sb = subs[k];
+                if (subLen[k] == 0) continue;
+                if (sb.Gate)
+                {
+                    if (rem < gateE4) { cut = true; break; }
+                    rem -= gateE4;
+                    plan.Pieces.Add(new WorkPiece { Kind = PieceKind.PuertaVia, X0 = (int)sb.Ax, Y0 = (int)sb.Ay, X1 = (int)sb.Bx, Y1 = (int)sb.By, CostE4 = (int)gateE4, LifeMil = 1000, Built = false,
+                        NeedE4 = p.WorkE4(PieceKind.PuertaVia, 0), MaxWorkers = p.MaxWorkersPerPiece });
+                    plan.CostE4 += gateE4; plan.Gates++;
+                    continue;
+                }
+                long len = Math.Min(subLen[k], rem / price);
+                if (len < subLen[k]) cut = true;
+                rem -= len * price;
+                allowedWall += len;
+                long dx = sb.Bx - sb.Ax, dy = sb.By - sb.Ay;
+                int n = len <= 0 ? 0 : (int)CeilDiv(len, p.ModuleMm);
                 long prev = 0;
                 for (int j = 1; j <= n; j++)
                 {
@@ -218,8 +294,8 @@ namespace TBD.Net
                     var piece = new WorkPiece
                     {
                         Kind = kind,
-                        X0 = (int)(ax + dx * prev / segLen[s]), Y0 = (int)(ay + dy * prev / segLen[s]),
-                        X1 = (int)(ax + dx * t / segLen[s]), Y1 = (int)(ay + dy * t / segLen[s]),
+                        X0 = (int)(sb.Ax + dx * prev / subLen[k]), Y0 = (int)(sb.Ay + dy * prev / subLen[k]),
+                        X1 = (int)(sb.Ax + dx * t / subLen[k]), Y1 = (int)(sb.Ay + dy * t / subLen[k]),
                         CostE4 = (int)(price * mlen), LifeMil = 1000, Built = false, NeedE4 = p.WorkE4(kind, mlen), MaxWorkers = p.MaxWorkersPerPiece
                     };
                     plan.Pieces.Add(piece);
@@ -227,7 +303,10 @@ namespace TBD.Net
                     prev = t;
                 }
             }
-            if (plan.Pieces.Count > pieceRoom) { plan.Pieces.Clear(); plan.CostE4 = 0; plan.Why = "demasiadas piezas en el nodo"; return plan; }
+            plan.AllowedMm = allowedWall;
+            plan.Cut = cut;
+            if (allowedWall < p.MinWallMm) { plan.Pieces.Clear(); plan.CostE4 = 0; plan.Gates = 0; plan.AllowedMm = 0; plan.Why = cut ? "faltan materiales" : "muro demasiado corto"; return plan; }
+            if (plan.Pieces.Count > pieceRoom) { plan.Pieces.Clear(); plan.CostE4 = 0; plan.Gates = 0; plan.Why = "demasiadas piezas en el nodo"; return plan; }
             plan.CostU = (int)CeilDiv(plan.CostE4, 10_000);
             plan.Ok = plan.Pieces.Count > 0;
             return plan;
@@ -241,6 +320,7 @@ namespace TBD.Net
             if (u <= 0) { plan.Why = "no es una pieza puntual"; return plan; }
             if (x > p.CoordLimitMm || x < -p.CoordLimitMm || y > p.CoordLimitMm || y < -p.CoordLimitMm) { plan.Why = "fuera de la zona"; return plan; }
             if (pieceRoom < 1) { plan.Why = "demasiadas piezas en el nodo"; return plan; }
+            if (p.TrackHalfMm > 0 && Math.Abs((long)y) < p.TrackHalfMm) { plan.Why = "la vía queda libre"; return plan; }     // la puerta de vía se pone sola donde un muro cruza la vía
             if (stockU < u) { plan.Cut = true; plan.Why = "faltan materiales"; return plan; }
             plan.Pieces.Add(new WorkPiece { Kind = kind, X0 = x, Y0 = y, X1 = x, Y1 = y, CostE4 = u * 10_000, LifeMil = 1000, Built = false, NeedE4 = p.WorkE4(kind, 0), MaxWorkers = p.MaxWorkersPerPiece });
             plan.CostE4 = u * 10_000L;
@@ -261,7 +341,7 @@ namespace TBD.Net
         /// <summary>¿Cuenta esta pieza para el nivel? Construida, defensiva (no el depósito) y a ≤ 60 m del andén (punto medio de la pieza).</summary>
         public static bool CountsForLevel(ObrasParams p, in WorkPiece w)
         {
-            return w.Built && w.Kind != PieceKind.Deposito && InPerimeter(p, w);
+            return w.Built && !w.Broken && w.Kind != PieceKind.Deposito && InPerimeter(p, w);
         }
 
         /// <summary>El punto medio de la pieza está a ≤ 60 m del andén.</summary>
@@ -316,7 +396,16 @@ namespace TBD.Net
             if (!plan.Ok) return -1;
             int id = NextId[node]++;
             var l = At(node);
-            foreach (var w in plan.Pieces) { var x = w; x.Id = id; l.Add(x); }
+            bool first = true;
+            foreach (var w in plan.Pieces)
+            {
+                var x = w; x.Id = id; x.PaidU = first ? plan.CostU : 0; first = false;
+                if (x.IsGate)                                                    // se reconstruye encima de una puerta rota (a ≤ 3,2 m): la rota desaparece y la nueva conserva su posición exacta (no mueve el hueco)
+                    for (int i = l.Count - 1; i >= 0; i--)
+                        if (l[i].IsGate && l[i].Broken && Math.Abs((long)(l[i].X0 + l[i].X1) / 2 - (x.X0 + x.X1) / 2) <= 2L * P.TrackHalfMm && Math.Abs((long)(l[i].Y0 + l[i].Y1) / 2 - (x.Y0 + x.Y1) / 2) <= 2L * P.TrackHalfMm)
+                        { x.X0 = l[i].X0; x.Y0 = l[i].Y0; x.X1 = l[i].X1; x.Y1 = l[i].Y1; l.RemoveAt(i); }
+                l.Add(x);
+            }
             return id;
         }
 
@@ -334,11 +423,11 @@ namespace TBD.Net
             for (int i = l.Count - 1; i >= 0; i--)
             {
                 var w = l[i];
-                if (!w.Built || w.Kind == PieceKind.Deposito) continue;
+                if (!w.Built || w.Broken || w.Kind == PieceKind.Deposito) continue;
                 int rate = Obras.InPerimeter(P, w) ? (paid ? 0 : P.WearDayMil) : P.OutsideWearMil;
                 if (rate <= 0) continue;
                 int loss = Math.Max(1, (int)(((long)w.LifeMil * rate + 500) / 1000));
-                if (w.LifeMil <= loss) { l.RemoveAt(i); destroyed++; } else { w.LifeMil -= loss; l[i] = w; }
+                if (w.LifeMil <= loss) { if (w.IsGate) { w.LifeMil = 0; w.Broken = true; l[i] = w; } else l.RemoveAt(i); destroyed++; } else { w.LifeMil -= loss; l[i] = w; }
             }
             return destroyed;
         }
@@ -361,9 +450,13 @@ namespace TBD.Net
         public bool Damage(int node, int index, int lifeMil)
         {
             var l = _byNode[node];
-            if (l == null || index < 0 || index >= l.Count || !l[index].Built || lifeMil <= 0) return false;
+            if (l == null || index < 0 || index >= l.Count || !l[index].Built || l[index].Broken || lifeMil <= 0) return false;
             var w = l[index];
-            if (w.LifeMil <= lifeMil) { l.RemoveAt(index); return true; }
+            if (w.LifeMil <= lifeMil)
+            {
+                if (w.IsGate) { w.LifeMil = 0; w.Broken = true; l[index] = w; return true; }     // la puerta de vía rota deja un hueco con escombros, no desaparece
+                l.RemoveAt(index); return true;
+            }
             w.LifeMil -= lifeMil; l[index] = w;
             return false;
         }
@@ -410,11 +503,13 @@ namespace TBD.Net
             foreach (var w in l) if (w.Id == id && !w.Built) { any = true; if (w.WorkE4 > 0) started = true; }
             if (!any) return 0;
             foreach (var w in l) if (w.Id == id && w.Built) started = true;       // una obra que ya tiene piezas terminadas «está en marcha»
-            long pct = started ? P.CancelStartedMil : 1000, refund = 0;
+            // Hugo (D-N59): sin empezar se devuelve EXACTAMENTE lo cobrado (las u de la orden); empezada, floor(50 % de lo cobrado) por la parte sin terminar
+            long pct = started ? P.CancelStartedMil : 1000, paid = 0, totalE4 = 0, unbuiltE4 = 0;
+            foreach (var w in l) if (w.Id == id) { paid += w.PaidU; totalE4 += w.CostE4; if (!w.Built) unbuiltE4 += w.CostE4; }
             for (int i = l.Count - 1; i >= 0; i--)
-                if (l[i].Id == id && !l[i].Built) { refund += l[i].CostE4 * pct / 1000; l.RemoveAt(i); }
+                if (l[i].Id == id && !l[i].Built) l.RemoveAt(i);
             if (l.Count == 0) _byNode[node] = null;
-            return (int)(refund / 10_000);
+            return totalE4 <= 0 ? 0 : (int)(paid * unbuiltE4 * pct / (totalE4 * 1000));
         }
 
         /// <summary>
@@ -425,6 +520,54 @@ namespace TBD.Net
             var l = _byNode[node];
             if (l == null) return;
             for (int i = 0; i < l.Count; i++) { var w = l[i]; w.Built = true; l[i] = w; }
+        }
+
+        // ---------------------------------------------------------------- puerta de vía (diseno-hito5.md §2a)
+        /// <summary>Un tick de zona de una puerta: va hacia abierta si el modo la bloquea abierta o, en automático, hay un tren propio cerca; si no, hacia cerrada. Tarda GateSwapTicks.</summary>
+        public static void StepGate(in ObrasParams p, ref WorkPiece w, bool trainNear)
+        {
+            if (!w.IsGate || !w.Built || w.Broken) return;
+            bool open = w.GateMode == 1 ? true : w.GateMode == 2 ? false : trainNear;
+            if (open) { if (w.GateProg < p.GateSwapTicks) w.GateProg++; }
+            else if (w.GateProg > 0) w.GateProg--;
+        }
+
+        /// <summary>El tren pasa por la puerta si está del todo abierta o si está rota (la vía sigue siendo usable). Cerrada, el tren se para antes de llegar.</summary>
+        public static bool GatePassable(in ObrasParams p, in WorkPiece w) { return w.IsGate && w.Built && (w.Broken || w.GateProg >= p.GateSwapTicks); }
+
+        /// <summary>Un tick de zona de todas las puertas del nodo. trainXMm = posición (x local, en mm, sobre la vía y = 0) de los trenes propios.</summary>
+        public void StepGates(int node, IList<int> trainXMm)
+        {
+            var l = _byNode[node];
+            if (l == null) return;
+            for (int i = 0; i < l.Count; i++)
+            {
+                var w = l[i];
+                if (!w.IsGate || !w.Built || w.Broken) continue;
+                long mx = ((long)w.X0 + w.X1) / 2; bool near = false;
+                if (trainXMm != null) for (int t = 0; t < trainXMm.Count; t++) if (Math.Abs(trainXMm[t] - mx) <= P.GateNearMm) { near = true; break; }
+                int before = w.GateProg; StepGate(P, ref w, near);
+                if (w.GateProg != before) l[i] = w;
+            }
+        }
+
+        /// <summary>Orden del jugador sobre la puerta de vía más cercana a (x, y) (a ≤ 3,2 m): mode 0 = automática, 1 = bloqueada abierta, 2 = bloqueada cerrada.</summary>
+        public bool SetGateMode(int node, int x, int y, int mode)
+        {
+            var l = _byNode[node];
+            if (l == null || mode < 0 || mode > 2) return false;
+            int best = -1; long bestD = long.MaxValue;
+            for (int i = 0; i < l.Count; i++)
+            {
+                var w = l[i];
+                if (!w.IsGate || !w.Built || w.Broken) continue;
+                long dx = (long)(w.X0 + w.X1) / 2 - x, dy = (long)(w.Y0 + w.Y1) / 2 - y, d = dx * dx + dy * dy;
+                if (d < bestD) { bestD = d; best = i; }
+            }
+            long lim = 2L * P.TrackHalfMm;
+            if (best < 0 || bestD > lim * lim) return false;
+            var g = l[best]; g.GateMode = (byte)mode; l[best] = g;
+            return true;
         }
 
         /// <summary>Copia de las piezas del nodo: es lo que lee la zona al materializarse (y lo que escribe al salir con Restore).</summary>
@@ -447,6 +590,8 @@ namespace TBD.Net
                     ulong c = (ulong)(uint)w.CostE4 | ((ulong)(uint)w.LifeMil << 32) | ((ulong)w.Kind << 52) | (w.Built ? 1UL << 60 : 0UL);
                     ulong d = (ulong)(uint)w.NeedE4 | ((ulong)(uint)w.WorkE4 << 32);
                     h += NetWorld.Mix(NetWorld.Mix(NetWorld.Mix(NetWorld.Mix(0x0B2A5UL ^ ((ulong)(uint)n << 40) ^ (ulong)(uint)i) ^ a) ^ b) ^ NetWorld.Mix(c) ^ NetWorld.Mix(d ^ ((ulong)(uint)w.Id << 20) ^ ((ulong)(uint)w.MaxWorkers << 44)));
+                    if (w.PaidU != 0) h += NetWorld.Mix(0x9A1DUL ^ ((ulong)(uint)n << 48) ^ ((ulong)(uint)i << 32) ^ (ulong)(uint)w.PaidU);
+                    if (w.IsGate) h += NetWorld.Mix(0x6A7E5UL ^ ((ulong)(uint)n << 48) ^ ((ulong)(uint)i << 32) ^ ((ulong)w.GateMode << 24) ^ ((ulong)(uint)w.GateProg << 4) ^ (w.Broken ? 1UL : 0UL));     // estado de la puerta de vía (solo ellas)
                 }
             }
             if (FirstNoted) h += NetWorld.Mix(0x0C1F1UL);

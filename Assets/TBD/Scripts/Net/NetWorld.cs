@@ -29,7 +29,7 @@ namespace TBD.Net
     }
 
     // ================================================================== órdenes
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15 }
 
     public struct NetCommand
     {
@@ -391,6 +391,7 @@ namespace TBD.Net
                     case NetCmdType.ConsumeAmmo: ConsumeAmmo(c.Arg, c.Arg2); break;
                     case NetCmdType.AssignWorkers: AssignWorkers(c.Arg, c.Arg2); break;                    // Arg = nodo, Arg2 = obreros
                     case NetCmdType.HaltAtSite: HaltAtSite(c.Arg, c.Arg2); break;                           // Arg = emplazamiento (-1 cancela), Arg2 = servicio
+                    case NetCmdType.SetGate: if (c.Payload != null && c.Payload.Length == 2 && (c.Arg & 0xFFFF) == ActiveZoneNode) Works.SetGateMode(c.Arg & 0xFFFF, c.Payload[0], c.Payload[1], c.Arg >> 16); break;     // Arg = nodo | (modo << 16), Payload = [x, y] de la puerta
                     case NetCmdType.RepairEdge: RepairEdge(c.Arg, c.Arg2); break;                           // Arg = tramo, Arg2 = servicio del tren de obras
                     case NetCmdType.FoundStation: FoundStation(c.Arg); break;                               // Arg = nodo
                     case NetCmdType.CancelWork: CancelWork(c.Arg, c.Arg2); break;                          // Arg = nodo, Arg2 = número de obra
@@ -548,7 +549,7 @@ namespace TBD.Net
         /// </summary>
         public int EffectiveWorkers(int node)
         {
-            if (WorkPaused(node)) return 0;
+            if (WorkPaused(node) || !Works.P.IsWorkTime(Tick % NetConst.DayTicks)) return 0;     // de noche se para toda la obra (Hugo, D-N59: 06:00 a 18:00)
             return Math.Max(0, Math.Min(Works.Workers[node], Stock[node, (int)Res.Personas] - Works.P.GarrisonMin));
         }
 
@@ -625,7 +626,7 @@ namespace TBD.Net
             {
                 if (!e.Debris || e.RepairSvc < 0) continue;
                 var sv = Services[e.RepairSvc];
-                if (!RepairInPosition(sv, e) || RepairBlocked(e)) continue;
+                if (!Works.P.IsWorkTime(Tick % NetConst.DayTicks) || !RepairInPosition(sv, e) || RepairBlocked(e)) continue;     // también de 06:00 a 18:00
                 int crew = Math.Min(sv.Cargo[(int)Res.Personas], Works.P.WorksCrew);
                 if (crew <= 0) continue;
                 e.RepairDone += crew;
