@@ -193,7 +193,9 @@ namespace TBD.Sim.Tests
             check(StepsToBuild(2, 300, ten, PieceKind.Sacos, 5000) == 1500, "10 m de sacos son 2 obrero·h: con 2 obreros se terminan en 1 h de juego (1.500 ticks) exactos");
             check(StepsToBuild(4, 300, ten, PieceKind.Sacos, 5000) == 750, "con 4 obreros, en la mitad (750 ticks): con más obreros va más rápida");
             check(StepsToBuild(8, 300, ten, PieceKind.Sacos, 5000) == 750, "4 es el máximo por pieza: con 8 obreros en una sola pieza no va más rápida");
-            check(quiet >= 0 && StepsToBuild(6, 1, ten, PieceKind.Sacos, 5000, quiet) == 3000, "los obreros se limitan a la población del nodo: con 1 persona, 3.000 ticks");
+            check(quiet >= 0 && StepsToBuild(6, 13, ten, PieceKind.Sacos, 5000, quiet) == 3000, "los obreros se limitan a la población del nodo menos la guarnición mínima (12): con 13 personas, 1 obrero, 3.000 ticks");
+            check(quiet >= 0 && StepsToBuild(6, 12, ten, PieceKind.Sacos, 4000, quiet) == -1 && StepsToBuild(6, 16, ten, PieceKind.Sacos, 5000, quiet) == 750, "con 12 personas (la guarnición) nadie construye; con 16 trabajan 4 (Marcos: nunca por debajo de la guarnición mínima)");
+            check(NetScenario.Mvp().Works.P.GarrisonMin == 12 && NetScenario.Mvp().Works.P.MaxWorkersPerPiece == 4, "la guarnición mínima (12) viene de balance_economia.csv y el máximo de obreros por pieza es 4");
             check(StepsToBuild(0, 300, ten, PieceKind.Sacos, 4000) == -1, "sin obreros asignados la obra no avanza");
             check(StepsToBuild(2, 0, ten, PieceKind.Sacos, 4000) == -1, "sin población en el nodo no trabaja nadie");
             check(StepsToBuild(4, 300, new[] { 0, 0 }, PieceKind.Anden, 5000) == 3750 && StepsToBuild(4, 300, new[] { 0, 0 }, PieceKind.Foco, 5000) == 750, "andén (10 obrero·h) con 4 obreros: 3.750 ticks; foco (2 obrero·h): 750");
@@ -229,6 +231,33 @@ namespace TBD.Sim.Tests
             wc.Push(new NetCommand { Tick = wc.Tick, Type = NetCmdType.CancelWork, Arg = Node, Arg2 = 77 }); wc.ApplyCommands();
             check(wc.Works.Count(Node) == 1, "cancelar una obra que no existe no hace nada");
 
+            // el máximo de obreros por pieza sale del CSV (obra_obreros_max_pieza) y las obras grandes lo suben (el puente del Jiloca lleva 8)
+            var p8 = ObrasParams.FromCsv(new CsvTable(File.ReadAllText(Path.Combine(BalanceTests.DataDirPublic(), "balance_construccion.csv")) + "\nobra_obreros_max_pieza;8;1;prueba\n"));
+            var st8 = new ObrasState(3, p8); st8.Add(0, st8.Preview(0, PieceKind.Sacos, ten, 900));
+            int ticks8 = 0; while (!st8.At(0)[0].Built && ticks8 < 5000) { st8.Advance(0, 8); ticks8++; }
+            check(p8.MaxWorkersPerPiece == 8 && st8.At(0)[0].MaxWorkers == 8 && ticks8 == 375, $"con el máximo en 8 (obra grande) 8 obreros terminan 10 m de sacos en {ticks8} ticks (375)");
+            var stOld = new ObrasState(3, p); stOld.Add(0, stOld.Preview(0, PieceKind.Sacos, ten, 900)); int t4 = 0; while (!stOld.At(0)[0].Built && t4 < 5000) { stOld.Advance(0, 8); t4++; }
+            check(t4 == 750, "con el máximo por defecto (4) las mismas 8 personas tardan 750 ticks");
+
+            // obra en pausa: nodo asediado o con la horda encima (Marcos)
+            var pz2 = WorldWithZone(900);
+            pz2.Push(Place(pz2.Tick, PieceKind.Sacos, 0, 0, 10_000, 0)); pz2.Push(new NetCommand { Tick = pz2.Tick, Type = NetCmdType.AssignWorkers, Arg = Node, Arg2 = 4 }); pz2.ApplyCommands();
+            for (int i = 0; i < 40; i++) pz2.Step();
+            int w0 = pz2.Works.At(Node)[0].WorkE4;
+            check(w0 > 0 && pz2.WorkActive(Node) && !pz2.WorkPaused(Node), "con el nodo en calma la obra avanza y está activa");
+            pz2.Director.Active.Add(new HiveDirector.Plan { Kind = HiveDirector.PlanKind.Asedio, Node = Node, Edge = -1, Cell = 0, StartTick = pz2.Tick, UntilTick = pz2.Tick + 10 * NetConst.DayTicks, Started = true });
+            for (int i = 0; i < 30; i++) pz2.Step();                                          // el estado del nodo se actualiza cada 15 ticks
+            int wMid = pz2.Works.At(Node)[0].WorkE4;
+            for (int i = 0; i < 300; i++) pz2.Step();
+            check(pz2.WorkPaused(Node) && !pz2.WorkActive(Node) && pz2.Works.At(Node)[0].WorkE4 == wMid, $"con el nodo asediado la obra se pausa y deja de estar activa (sin ruido, peso ni huella): {wMid} = {pz2.Works.At(Node)[0].WorkE4}");
+            check(pz2.Director.SiegeTargetWeight(pz2, Node) == pz2.Director.SiegeWeight(pz2, Node), "una obra pausada no pesa ×1,5 como objetivo");
+            pz2.Director.Active.Clear();
+            for (int i = 0; i < 40; i++) pz2.Step();
+            check(!pz2.WorkPaused(Node) && pz2.Works.At(Node)[0].WorkE4 > wMid, "cuando pasa el asedio la obra sigue donde se quedó");
+            var ph = NetScenario.Mvp(); ph.Works.Add(0, ph.Works.Preview(0, PieceKind.Sacos, ten, 900)); ph.Works.Workers[0] = 4;
+            ph.Graph.Nodes[0].HordeDensity = NetWorld.SiegeAt;
+            check(ph.WorkPaused(0) && !ph.WorkActive(0), "con la horda encima (densidad de asedio) la obra se pausa");
+
             // hash y repetición con las órdenes nuevas
             var ha = WorldWithZone(); var hb = WorldWithZone();
             foreach (var q in new[] { ha, hb })
@@ -260,6 +289,71 @@ namespace TBD.Sim.Tests
             long bad2 = NetScenario.Mvp().Tick + 2500;
             var r4 = NetGolden.Verify(gold2, (world, t) => { if (t == bad2) world.Works.Workers[Node] += 1; });
             check(!r4.Ok, $"un obrero de más a escondidas se detecta: {r4}");
+
+            // ================================================================== paso 3: ruido de obra en el director
+            Console.WriteLine("[17] Obras (hito 5, paso 3): sondeo de obra, peso del nodo y huella");
+            var dcsv = DirectorParams.Default.WithConstruccion(new CsvTable(File.ReadAllText(Path.Combine(BalanceTests.DataDirPublic(), "balance_construccion.csv"))));
+            var dd0 = DirectorParams.Default;
+            check(dcsv.WorkProbeMil == dd0.WorkProbeMil && dcsv.WorkProbeBudgetMil == dd0.WorkProbeBudgetMil && dcsv.WorkWeightMil == dd0.WorkWeightMil && dcsv.WorkHuellaMil == dd0.WorkHuellaMil && dd0.WorkProbeMil == 83,
+                $"el ruido de obra por defecto coincide con balance_construccion.csv (sondeo {dcsv.WorkProbeMil} ‰/h, {dcsv.WorkProbeBudgetMil} ‰ del presupuesto, peso {dcsv.WorkWeightMil} ‰, huella {dcsv.WorkHuellaMil} ‰)");
+            check(NetScenario.Mvp().Director.P.WorkProbeMil == 83, "el mundo carga el ruido de obra del CSV");
+
+            NetWorld WithWork(int node, int workers = 4)
+            {
+                var q = NetScenario.Mvp();
+                q.Works.Add(node, q.Works.Preview(node, PieceKind.Sacos, new[] { 0, 0, 50_000, 0 }, 900));
+                q.Works.Workers[node] = workers;
+                return q;
+            }
+            // huella: 0,5 por nodo con obra activa
+            var ctl = NetScenario.Mvp(); long h0Huella = ctl.Director.HuellaMil(ctl);
+            var q1 = WithWork(0); var q0 = WithWork(0, 0);
+            check(q1.Director.HuellaMil(q1) == h0Huella + 500 && q0.Director.HuellaMil(q0) == h0Huella, "una obra activa suma 0,5 a la huella; sin obreros no cuenta");
+            q1.Works.Add(0, q1.Works.Preview(0, PieceKind.Hesco, new[] { 0, 0, 30_000, 0 }, 900));
+            check(q1.Director.HuellaMil(q1) == h0Huella + 500, "partir la obra en varias órdenes no multiplica la huella (una por nodo)");
+            q1.Works.Add(2, q1.Works.Preview(2, PieceKind.Sacos, new[] { 0, 0, 10_000, 0 }, 900)); q1.Works.Workers[2] = 1;
+            check(q1.Director.HuellaMil(q1) == h0Huella + 1000, "dos nodos con obra suman 1,0");
+            // peso como objetivo de asedio: ×1,5
+            var qa = WithWork(0);
+            bool wOk = qa.Director.SiegeTargetWeight(qa, 0) == qa.Director.SiegeWeight(qa, 0) * 1500 / 1000;
+            for (int n = 0; n < qa.Graph.Nodes.Count; n++) if (n != 0 && qa.Director.SiegeTargetWeight(qa, n) != qa.Director.SiegeWeight(qa, n)) wOk = false;
+            check(wOk && qa.Director.SiegeWeight(qa, 0) > 0, $"el nodo con obra activa pesa ×1,5 como objetivo de asedio y los demás no ({qa.Director.SiegeWeight(qa, 0)} → {qa.Director.SiegeTargetWeight(qa, 0)})");
+            int hitsWork = 0, hitsCtl = 0; var qc = NetScenario.Mvp();
+            for (int k = 0; k < 4000; k++) { qa.Tick = 40 * NetConst.DayTicks + k * 37; qc.Tick = qa.Tick; if (qa.Director.DrawSiegeTarget(qa) == 0) hitsWork++; if (qc.Director.DrawSiegeTarget(qc) == 0) hitsCtl++; }
+            check(hitsWork > hitsCtl, $"con la obra el nodo sale más veces como objetivo: {hitsWork} contra {hitsCtl} de 4.000 sorteos");
+
+            // sondeo: tasa de 83 ‰ por hora de obra, nada sin obra
+            long Mass(NetWorld q) { return q.Field.Mass(); }
+            var pw = WithWork(0); var pc = NetScenario.Mvp();
+            long m0w = Mass(pw), m0c = Mass(pc);
+            for (int hr = 0; hr < 600; hr++)
+            {
+                pw.Tick = 3 * NetConst.DayTicks + hr * 1500; pc.Tick = pw.Tick;
+                pw.Director.Hourly(pw); pc.Director.Hourly(pc);
+            }
+            long rate = pw.Director.WorkProbes_Count;
+            check(pc.Director.WorkProbes_Count == 0 && rate >= 30 && rate <= 75, $"sin obra no hay sondeos; con una obra, unos 83 ‰ por hora: {rate} sondeos en 600 h (esperado ≈ 50)");
+            check(Mass(pw) == m0w + pw.InjectedTotal - pw.LostTotal - pw.RetiredTotal && Mass(pc) == m0c + pc.InjectedTotal - pc.LostTotal - pc.RetiredTotal, "la masa del campo se conserva con sondeos: masa = inicial + inyectada − bajas − retirada");
+            check(pw.Director.WorkProbes_Moved > 0 && pw.Director.WorkProbes_Moved <= pw.Director.WorkProbes_Asked, $"los sondeos mueven horda hacia el nodo: pidieron {pw.Director.WorkProbes_Asked} ‰ y movieron {pw.Director.WorkProbes_Moved} ‰");
+
+            // tamaño: 5 % del presupuesto del día (≈ 330 zombis el día 9)
+            var ps = WithWork(0); ps.Director.P.WorkProbeMil = 1000;
+            ps.Tick = 9 * NetConst.DayTicks; ps.Director.Hourly(ps);
+            long askZ = ps.Director.WorkProbes_Asked * NetWorld.ZombiesPerPermil;
+            long expectZ = ps.Director.DayZombies(9, ps.Director.HuellaMil(ps)) * 50 / 1000 / NetWorld.ZombiesPerPermil * NetWorld.ZombiesPerPermil;
+            check(ps.Director.WorkProbes_Count == 1 && askZ == expectZ && askZ >= 150 && askZ <= 450 && ps.Director.WorkProbes_Injected == ps.Director.WorkProbes_Asked, $"un sondeo del día 9 pide el 5 % del presupuesto del día: {askZ} zombis (D-N44: ≈ 330 con la huella de una partida avanzada) y llega como masa nueva");
+
+            // en la zona en detalle: la celda congelada no recibe masa
+            var pz = WithWork(0); pz.Director.P.WorkProbeMil = 1000;
+            pz.Push(new NetCommand { Tick = pz.Tick, Type = NetCmdType.Materialize, Arg = 0 }); pz.ApplyCommands();
+            long mz = Mass(pz);
+            for (int hr = 0; hr < 24; hr++) { pz.Tick = 5 * NetConst.DayTicks + hr * 1500; pz.Director.Hourly(pz); }
+            check(pz.Director.WorkProbes_Count == 24 && pz.Field.D[pz.Field.Frozen] == 0 && Mass(pz) == mz + pz.InjectedTotal - pz.LostTotal - pz.RetiredTotal, "con la zona del nodo materializada el sondeo no toca la celda congelada y la masa se conserva");
+
+            // determinismo
+            var da = WithWork(0); var db = WithWork(0);
+            foreach (var q in new[] { da, db }) for (int hr = 0; hr < 100; hr++) { q.Tick = 4 * NetConst.DayTicks + hr * 1500; q.Director.Hourly(q); }
+            check(da.Hash() == db.Hash() && da.Hash() != WithWork(0).Hash(), "dos mundos con la misma obra dan el mismo hash tras 100 horas de director");
         }
     }
 }

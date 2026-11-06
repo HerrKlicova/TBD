@@ -101,7 +101,9 @@ namespace TBD.Net
         {
             var d = Read("balance_director.csv"); var c = Read("balance_colmena.csv");
             var p = d == null ? DirectorParams.Default : DirectorParams.FromCsv(new CsvTable(d));
-            return c == null ? p : p.WithColmena(new CsvTable(c));
+            if (c != null) p = p.WithColmena(new CsvTable(c));
+            var k = Read("balance_construccion.csv");           // hito 5: ruido de obra
+            return k == null ? p : p.WithConstruccion(new CsvTable(k));
         }
 
         /// <summary>colmena_curva.csv: factor ×1000 por día. Null si no hay archivo (el director usa su aproximación lineal).</summary>
@@ -129,7 +131,9 @@ namespace TBD.Net
         public static ObrasParams Obras()
         {
             var t = Read("balance_construccion.csv");
-            return t == null ? ObrasParams.Default : ObrasParams.FromCsv(new CsvTable(t));
+            var p = t == null ? ObrasParams.Default : ObrasParams.FromCsv(new CsvTable(t));
+            var e = Read("balance_economia.csv");
+            return e == null ? p : p.WithEconomia(new CsvTable(e));
         }
 
         public static TBD.Sim.CombatParams Combat()

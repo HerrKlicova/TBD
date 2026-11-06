@@ -18,6 +18,7 @@ namespace TBD.Net
         public int PointUniqueMil, AttentionMil, RespiteMinH, RespiteMaxH;
         public int HuellaPersonMil, HuellaTrainMil, HuellaNodeMil, BigEveryDays, BigMultMil;
         public int H0, KHuellaMil, FirstSiegeDay, RetireDays;   // D-N36 (Hugo): presupuesto del día 0, huella, índice del primer asedio, días sin combatir antes de retirarse
+        public int WorkProbeMil, WorkProbeBudgetMil, WorkWeightMil, WorkHuellaMil;   // hito 5 (D-N44, balance_construccion.csv): sondeo de obra por hora (‰), su tamaño (‰ del presupuesto del día), peso del nodo como objetivo (‰) y huella de una obra de muros (‰)
         public int Ramp0Mil, Ramp1Mil, Ramp2Mil, Ramp3Mil;   // huella (Hugo) y gran ataque anunciado (autoguardado, §14)   // D-N34 (Lucía, medido por Hugo)
 
         public static DirectorParams Default => new DirectorParams
@@ -28,7 +29,7 @@ namespace TBD.Net
             BudgetCurveMil = 1360, SiegeShareMil = 600, SiegeDays = 2, WeightBase = 60, WeightInteriorMil = 1400, WeightNestMil = 2000, AmbushShareMil = 250, MaxSiegesStage1 = 1,
             PointUniqueMil = 1500, AttentionMil = 1500, RespiteMinH = 6, RespiteMaxH = 12,
             HuellaPersonMil = 10, HuellaTrainMil = 500, HuellaNodeMil = 400, BigEveryDays = 7, BigMultMil = 2000,
-            H0 = 1550, KHuellaMil = 160, FirstSiegeDay = 1, RetireDays = 6, Ramp0Mil = 150, Ramp1Mil = 350, Ramp2Mil = 650, Ramp3Mil = 850,
+            H0 = 1550, KHuellaMil = 160, FirstSiegeDay = 1, RetireDays = 6, WorkProbeMil = 83, WorkProbeBudgetMil = 50, WorkWeightMil = 1500, WorkHuellaMil = 500, Ramp0Mil = 150, Ramp1Mil = 350, Ramp2Mil = 650, Ramp3Mil = 850,
         };
 
         /// <summary>Añade los valores de D-N33 que Hugo puso en balance_colmena.csv.</summary>
@@ -48,6 +49,15 @@ namespace TBD.Net
             p.H0 = (int)c.PositiveValue("H0_zombis_dia"); p.KHuellaMil = (int)c.Value("k_huella"); p.FirstSiegeDay = (int)c.Value("dia_primer_asedio");
             p.Ramp0Mil = (int)c.Value("rampa_dia0"); p.Ramp1Mil = (int)c.Value("rampa_dia1"); p.Ramp2Mil = (int)c.Value("rampa_dia2"); p.Ramp3Mil = (int)c.Value("rampa_dia3");
             p.RetireDays = (int)c.TryValue("zombis_retirada_dias", 6);   // opcional: Hugo aún no lo puso en el CSV
+            return p;
+        }
+
+        /// <summary>Añade los valores de D-N44 (hito 5) que Hugo puso en balance_construccion.csv: el ruido de obra.</summary>
+        public DirectorParams WithConstruccion(CsvTable c)
+        {
+            var p = this;
+            p.WorkProbeMil = (int)c.Value("obra_sondeo_permil_hora"); p.WorkProbeBudgetMil = (int)c.Value("obra_sondeo_permil_presupuesto_dia");
+            p.WorkWeightMil = (int)c.Value("obra_peso_asedio_permil"); p.WorkHuellaMil = (int)c.Value("obra_huella_muros_permil");
             return p;
         }
 
@@ -122,6 +132,13 @@ namespace TBD.Net
             return wt;
         }
 
+        /// <summary>Peso del nodo como objetivo de asedio: el de siempre, ×1,5 mientras tenga una obra activa (el ruido de obra atrae a la Colmena, D-N44).</summary>
+        public long SiegeTargetWeight(NetWorld w, int n)
+        {
+            long wt = SiegeWeight(w, n);
+            return w.WorkActive(n) ? wt * P.WorkWeightMil / 1000 : wt;
+        }
+
         /// <summary>Sorteo del objetivo con la semilla del tick, probabilidad proporcional al peso al cuadrado (D-N33). -1 si no hay.</summary>
         public int DrawSiegeTarget(NetWorld w)
         {
@@ -130,7 +147,7 @@ namespace TBD.Net
             for (int n = 0; n < sq.Length; n++)
             {
                 if (n == w.ActiveZoneNode || Active.Exists(p => p.Kind == PlanKind.Asedio && p.Node == n)) continue;
-                long wt = SiegeWeight(w, n);
+                long wt = SiegeTargetWeight(w, n);
                 sq[n] = wt * wt; total += sq[n];
             }
             if (total <= 0) return -1;
@@ -195,14 +212,16 @@ namespace TBD.Net
         }
 
         /// <summary>
-        /// Huella del jugador (modelo de Hugo): población (en unidades de 10) × 0,01 + trenes × 0,5 + nodos con gente × 0,4 (+ obras, aún sin modelar en S0).
+        /// Huella del jugador (modelo de Hugo): población (en unidades de 10) × 0,01 + trenes × 0,5 + nodos con gente × 0,4 (+ obras: 0,5 por nodo con obra de muros activa; el puente y las obras grandes, 1,5, llegan con el paso 4).
         /// Es lo que hace crecer la presión de la Colmena con el tamaño del jugador. En milésimas.
         /// </summary>
         public long HuellaMil(NetWorld w)
         {
             long pop = 0; int held = 0;
             for (int n = 0; n < w.Graph.Nodes.Count; n++) { long p = Math.Max(0, w.Stock[n, (int)Res.Personas]); pop += p; if (p > 0) held++; }
-            return pop / PersonsPerHugoUnit * P.HuellaPersonMil + (long)w.Services.Count * P.HuellaTrainMil + (long)held * P.HuellaNodeMil;
+            int building = 0;
+            for (int n = 0; n < w.Graph.Nodes.Count; n++) if (w.WorkActive(n)) building++;       // hito 5: una huella por nodo con obra activa (partir una obra en varias no la multiplica)
+            return pop / PersonsPerHugoUnit * P.HuellaPersonMil + (long)w.Services.Count * P.HuellaTrainMil + (long)held * P.HuellaNodeMil + (long)building * P.WorkHuellaMil;
         }
 
         /// <summary>
@@ -299,6 +318,39 @@ namespace TBD.Net
             return (HordeField.H - 1) * HordeField.W + x;
         }
 
+        public long WorkProbes_Count, WorkProbes_Moved, WorkProbes_Asked, WorkProbes_Injected;   // estadísticas del sondeo de obra (no entran en el hash)
+
+        /// <summary>
+        /// Sondeo de obra (D-N44, Hugo): cada hora, cada nodo con una obra activa tiene un 83 ‰ de recibir un sondeo: el 5 % del presupuesto del
+        /// día (unos 330 zombis el día 9 en el modelo de Hugo) llega como masa NUEVA (Inject, igual que el presupuesto) y se concentra en su celda con
+        /// Gather: la masa del campo cambia solo por lo inyectado. Sorteo por semilla, tick y nodo, sin estado. Si la celda del nodo es la de la zona en detalle (congelada), la horda
+        /// se concentra en una celda vecina. Devuelve lo movido, en ‰ de densidad.
+        /// </summary>
+        long WorkProbes(NetWorld w, long day)
+        {
+            long ask = DayZombies(day, HuellaMil(w)) * P.WorkProbeBudgetMil / 1000 / NetWorld.ZombiesPerPermil;
+            if (ask <= 0) return 0;
+            long moved = 0;
+            for (int n = 0; n < w.Graph.Nodes.Count; n++)
+            {
+                if (!w.WorkActive(n)) continue;
+                if ((long)(NetWorld.Mix(0x0B5E0UL ^ Seed ^ (ulong)w.Tick ^ ((ulong)(uint)n << 40)) % 1000UL) >= P.WorkProbeMil) continue;
+                var nd = w.Graph.Nodes[n];
+                int cell = nd.YMeters * HordeField.W + nd.XMeters;
+                if (cell == w.Field.Frozen)
+                {
+                    int cx = nd.XMeters, cy = nd.YMeters;
+                    cell = cx > 0 ? cell - 1 : cx < HordeField.W - 1 ? cell + 1 : cy > 0 ? cell - HordeField.W : cell + HordeField.W;
+                }
+                long inj = Inject(w, ask);
+                BudgetTotal += inj;
+                int m = Gather(w, cell, (int)inj);
+                moved += m;
+                WorkProbes_Count++; WorkProbes_Asked += ask; WorkProbes_Moved += m; WorkProbes_Injected += inj;
+            }
+            return moved;
+        }
+
         public long[] Curve;                          // colmena_curva.csv (si no se carga, una aproximación lineal)
 
         /// <summary>Una hora de juego: caducan los planes, se elige la acción de mayor utilidad y se ejecuta.</summary>
@@ -355,6 +407,7 @@ namespace TBD.Net
             bool big = day >= 2 && P.BigEveryDays > 0 && day % P.BigEveryDays == 0;     // gran ataque anunciado: el asedio golpea ×2 (se suma al presupuesto)
             long siegeFlow = big ? siegeShare * P.BigMultMil / 1000 : siegeShare;
             long ambushShare = rest * P.AmbushShareMil / 1000, drift = rest - ambushShare;
+            long probeMoved = WorkProbes(w, day);                             // hito 5: el ruido de obra es masa nueva aparte del presupuesto (Hugo, D-N44)
             int started = 0;
             foreach (var pl in Active) if (pl.Kind == PlanKind.Asedio && pl.Started) started++;
             if (started > 0)
@@ -369,6 +422,7 @@ namespace TBD.Net
             }
             else drift += siegeShare;                                       // D-N34: sin asedio, esa masa vuelve a la deriva y presiona por peso
             Inject(w, hb + (siegeFlow - siegeShare) * (started > 0 ? 1 : 0));        // D-N33 (Mak, A): masa nueva al campo, lejos del objetivo
+            BudgetUsedToday += probeMoved;
             long dm = Drift(w, drift); BudgetUsedToday += dm; DriftMovedTotal += dm; BudgetTotal += hb + (siegeFlow - siegeShare) * (started > 0 ? 1 : 0);
             _ambushBank += ambushShare;
 
