@@ -269,7 +269,7 @@ namespace TBD.View
             if (_worldCam == null || _worldA == null) return;
             float pxPerM = _worldCam.pixelHeight / (2f * Mathf.Max(0.01f, _worldCam.orthographicSize));
             float bodyPx = 0.8f * pxPerM;                                          // anchura de hombros del zombi en el búfer
-            bool lod = RenderAssets.LodOn ? bodyPx < 20f : bodyPx < 16f;           // entra a menos de 16 px (Lucía, D-N61), sale a más de 20
+            bool lod = RenderAssets.LodOn ? bodyPx < 10f : bodyPx < 8f;            // entra a menos de 8 px (Eugenio quiere figuras, no manchas: el sprite grande aguanta más), sale a más de 10
             if (lod != RenderAssets.LodOn) { RenderAssets.LodOn = lod; RenderAssets.LodVersion++; }
             if (Time.unscaledTime < _massNext) return;
             _massNext = Time.unscaledTime + 0.2f;
@@ -1011,6 +1011,27 @@ namespace TBD.View
             return m;
         }
 
+        /// <summary>Figura de zombi de pie, una sola malla (torso, cabeza, brazos adelantados y piernas): provisional, para que la horda se lea como figuras y proyecte sombra. Mira a +Z; el origen está en los pies.</summary>
+        static Mesh BuildZombieFigure()
+        {
+            var parts = new System.Collections.Generic.List<CombineInstance>();
+            void Add(PrimitiveType t, Vector3 pos, Vector3 scale, Quaternion? rot = null)
+            {
+                var g = GameObject.CreatePrimitive(t); var mf = g.GetComponent<MeshFilter>();
+                var ci = new CombineInstance { mesh = mf.sharedMesh, transform = Matrix4x4.TRS(pos, rot ?? Quaternion.identity, scale) };
+                parts.Add(ci); Destroy(g);
+            }
+            Add(PrimitiveType.Cube, new Vector3(0f, 1.15f, 0f), new Vector3(0.5f, 0.7f, 0.3f));                       // torso
+            Add(PrimitiveType.Sphere, new Vector3(0f, 1.72f, 0.02f), new Vector3(0.3f, 0.32f, 0.3f));                   // cabeza
+            Add(PrimitiveType.Cube, new Vector3(-0.13f, 0.4f, 0f), new Vector3(0.18f, 0.8f, 0.2f));                     // piernas
+            Add(PrimitiveType.Cube, new Vector3(0.13f, 0.4f, 0f), new Vector3(0.18f, 0.8f, 0.2f));
+            Add(PrimitiveType.Cube, new Vector3(-0.32f, 1.3f, 0.32f), new Vector3(0.12f, 0.12f, 0.7f));                 // brazos adelantados
+            Add(PrimitiveType.Cube, new Vector3(0.32f, 1.3f, 0.32f), new Vector3(0.12f, 0.12f, 0.7f));
+            var m = new Mesh { name = "Zombi (figura provisional)" };
+            m.CombineMeshes(parts.ToArray(), true, true);
+            return m;
+        }
+
         void SetupVisualAssets()
         {
             // Revisión de arte de Lucía (5-nov): suelo claro y cálido, tejado de terracota (antes era del color del suelo)
@@ -1030,6 +1051,7 @@ namespace TBD.View
             zl.SetFloat("_Cull", 0f); zl.SetFloat("_AlphaClip", 1f); zl.SetFloat("_Cutoff", 0.5f); zl.EnableKeyword("_ALPHATEST_ON"); zl.SetColor("_BaseColor", Color.white);
             var ztl = Resources.Load<Texture2D>("Icons/unidades/atlas_zombi_lod");
             if (ztl != null) zl.SetTexture("_BaseMap", ztl);
+            if (RenderAssets.FigureMode) { capsule = BuildZombieFigure(); zm = Mat("ffffff"); zl = zm; }
             RenderAssets.Set(capsule, zm, zl);              // el color por instancia es blanco (ZombieBaseColor); la máscara lo pone magenta
 
             // Luz direccional

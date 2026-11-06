@@ -71,7 +71,7 @@ namespace TBD.View
         {
             if (!RenderAssets.Ready || _query.IsEmptyIgnoreFilter) return;
 
-            var desc = new RenderMeshDescription(ShadowCastingMode.Off, false);
+            var desc = new RenderMeshDescription(FigureMode ? ShadowCastingMode.On : ShadowCastingMode.Off, FigureMode);
             var mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(RenderAssets.LodOn ? 1 : 0, 0);
             var scale = new PostTransformMatrix { Value = SpriteMatrix(RenderAssets.LodOn) };   // sprite de Bruno tumbado sobre el suelo
             var ents = _query.ToEntityArray(Allocator.Temp);
@@ -91,10 +91,13 @@ namespace TBD.View
             zs.Dispose();
         }
 
+        /// <summary>Eugenio (6-nov): los sprites cenitales tumbados se leían como papeles. Los zombis son figuras de pie (malla procedural provisional hasta el modelo de Teo), oscuras y con sombra del sol.</summary>
+        public static bool FigureMode = true;
         public const float SpriteMeters = 2.6f, LodMeters = 1.1f;     // lado del cuadrado: sprite de 32 px y sprite de masa de 8 px
 
         public static float4x4 SpriteMatrix(bool lod)
         {
+            if (FigureMode) return float4x4.identity;        // la figura 3D de pie no necesita girarse ni escalarse
             float m = lod ? LodMeters : SpriteMeters;
             return float4x4.TRS(float3.zero, quaternion.RotateX(1.5707964f), new float3(m, m, 1f));
         }               // lado del cuadrado de 32 px del zombi (hombros de unos 0,8 m)
@@ -115,11 +118,11 @@ namespace TBD.View
         // Los zombis llevan su color en el sprite (la textura): el color por instancia queda en blanco; solo la máscara lo cambia
         public static float4 ColorFor(uint id)
         {
-            return new float4(1f, 1f, 1f, 1f);
+            return FigureMode ? ColorForOld(id) : new float4(1f, 1f, 1f, 1f);
         }
 
         // (paleta anterior de cápsulas, sin uso)
-        static float4 ColorForOld(uint id)
+        public static float4 ColorForOld(uint id)
         {
             // Revisión de arte de Lucía (5-nov): zombis OSCUROS sobre suelo claro, para que la horda se lea de un vistazo
             switch (math.hash(new uint2(id, 5u)) & 3u)
@@ -160,7 +163,7 @@ namespace TBD.View
         protected override void OnUpdate()
         {
             int ver = RenderAssets.LodVersion + (RenderAssets.LodDebug ? 1000 : 0);
-            if (!RenderAssets.Ready || _applied == ver) return;
+            if (!RenderAssets.Ready || RenderAssets.FigureMode || _applied == ver) return;
             _applied = ver;
             var mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(RenderAssets.LodOn ? 1 : 0, 0);
             var post = new PostTransformMatrix { Value = RenderAttachSystem.SpriteMatrix(RenderAssets.LodOn) };
@@ -195,7 +198,7 @@ namespace TBD.View
                 float3 p = math.lerp(z.PrevPos, z.Pos, Alpha);
                 uint h = math.hash(new uint2(z.SimId, 29u));                  // rompe las filas: ±0,5 m y ±20° por id, nunca la posición simulada
                 float jx = ((h & 255u) / 255f - 0.5f), jz = (((h >> 8) & 255u) / 255f - 0.5f), jr = (((h >> 16) & 255u) / 255f - 0.5f) * 0.6981317f;
-                lt.Position = new float3(p.x + jx, p.y + 0.05f, p.z + jz);
+                lt.Position = new float3(p.x + jx, p.y + 0.02f, p.z + jz);
                 // orientación continua: se interpola por el camino corto
                 float d = z.Heading - z.PrevHeading;
                 d -= 6.2831853f * math.floor((d + 3.14159265f) / 6.2831853f);
