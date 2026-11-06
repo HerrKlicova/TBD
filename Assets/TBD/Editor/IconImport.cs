@@ -11,7 +11,7 @@ namespace TBD.EditorTools
     {
         void OnPreprocessTexture()
         {
-            if (!assetPath.StartsWith("Assets/TBD/Resources/Icons/") && !assetPath.StartsWith("Assets/TBD/Resources/Models/")) return;     // los modelos de Teo llevan una paleta de 32x16 (punto, sin compresión)
+            if (!assetPath.StartsWith("Assets/TBD/Resources/Icons/") && !assetPath.StartsWith("Assets/TBD/Resources/Models/") && !assetPath.StartsWith("Assets/TBD/Resources/Suelo/")) return;     // los modelos de Teo llevan una paleta de 32x16 (punto, sin compresión)
             var ti = (TextureImporter)assetImporter;
             ti.textureType = TextureImporterType.Default;
             ti.filterMode = FilterMode.Point;
@@ -19,8 +19,8 @@ namespace TBD.EditorTools
             ti.textureCompression = TextureImporterCompression.Uncompressed;
             ti.alphaIsTransparency = true;
             ti.npotScale = TextureImporterNPOTScale.None;
-            ti.isReadable = false;
-            ti.wrapMode = assetPath.Contains("/texturas/") ? TextureWrapMode.Repeat : TextureWrapMode.Clamp;   // las texturas de Bruno son tileables (Repeat)
+            ti.isReadable = assetPath.Contains("/Resources/Suelo/");        // el suelo de Sagunto se compone en CPU a partir de estas texturas
+            ti.wrapMode = assetPath.Contains("/texturas/") || assetPath.Contains("/Resources/Suelo/suelo_") ? TextureWrapMode.Repeat : TextureWrapMode.Clamp;   // las texturas de Bruno son tileables (Repeat)
         }
     }
 }
