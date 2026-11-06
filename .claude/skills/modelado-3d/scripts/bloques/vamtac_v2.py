@@ -23,7 +23,13 @@ ZB = 0.62        # bajo de la carrocería (altura libre 0,414 + chasis)
 
 
 def _semiancho(z):
-    # flanco vertical hasta 1,5 m y la cabina recogida arriba (la ficha da 2,444 con retrovisores plegados: casco 2,3)
+    # Por debajo de 1,1 m la caja se recoge a 0,8 m: es el hueco de los pasos de rueda, para que la rueda de 1,04 m se
+    # vea entera en el lateral (Lucía, 6-nov: tapada por el flanco medía 0,84 m y parecía un Humvee). Encima, flanco
+    # vertical hasta 1,5 m y la cabina recogida arriba (la ficha da 2,444 con retrovisores plegados: casco 2,3)
+    if z <= 1.1:
+        return 0.8
+    if z < 1.12:
+        return 0.8 + (1.15 - 0.8) * (z - 1.1) / 0.02
     if z <= 1.5:
         return 1.15
     return 1.15 + (1.02 - 1.15) * (z - 1.5) / (H - 1.5)
@@ -38,7 +44,7 @@ def construir(nombre="SM_V2_Vamtac", lod=0):
     # perfil lateral (delante = -Y): defensa, capó, parabrisas casi vertical, techo, caída de la caja trasera
     P = [(-Y0 + 0.25, ZB), (-Y0, 0.95), (-Y0 + 0.05, 1.35), (-Y0 + 0.45, 1.45), (-1.45, 1.5), (-1.25, H),
          (1.45, H), (Y0 - 0.25, 1.75), (Y0, 1.6), (Y0, ZB + 0.15), (Y0 - 0.3, ZB)]
-    t.perfil_extruido(P, _semiancho, cortes_z=(1.5,))
+    t.perfil_extruido(P, _semiancho, cortes_z=(1.1, 1.12, 1.5))
     if lod == 0:
         t.costuras(COSTURAS)
     # ruedas 335/80 R20 con la batalla de 3,90 m
