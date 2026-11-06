@@ -43,6 +43,7 @@ import build_armas  # noqa: E402
 import build_vfx_vehiculos  # noqa: E402
 import build_recursos_hud  # noqa: E402
 import build_como_jugar  # noqa: E402
+import build_tarjetas  # noqa: E402
 
 PIVOTE = [0.5, 0.53]
 
@@ -163,6 +164,7 @@ def prototipo_noche(out):
     build_vfx_vehiculos.exportar(out)                    # polvo en marcha, orugas, humo, fuego, explosión, calcinado
     build_recursos_hud.exportar(out)                     # P0: recursos (con pila y bajas), iconos de resultados, estrellas
     build_como_jugar.exportar(out)                       # teclas A S D E y estados del pelotón
+    build_tarjetas.exportar(out)                         # P1: retratos de tarjeta, 6 variantes por tipo
 
 
 if __name__ == "__main__":
