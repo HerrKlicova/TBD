@@ -4,7 +4,7 @@ El tren de mercancías descarrilado en la vía 2, al oeste: 3 o 4 tolvas volcada
 cereal: caja de costados rectos con dos tolvas en V debajo, plataformas en los testeros, topes y dos bogies.
 FOTO PENDIENTE (se la he pedido a Paula) y MEDIDAS SIN VERIFICAR (típicas): 14 m entre topes, caja de 12,2 × 3,0 m con el
 borde a 4,1 m sobre el carril, bogies con centros a ±4,8 m, batalla de 1,8 m y ruedas de 0,92 m.
-Colores: caja ocre de óxido 845c28 con costillas 7c3c18, bastidor y bogies 48403c, ruedas 283440 (nada de valores de la
+Colores (Lucía, 17:49: 845c28 es ocre de suelo, vetado en costados): caja de óxido 7c3c18 con costillas 543820, bastidor y bogies 48403c, ruedas 283440 (nada de valores de la
 horda), carga de grava 94948c. El vagón va a lo largo de Y (delante = −Y, +Z en Unity).
 Variantes (C2: un vagón volcado cae sobre su costado, girado sobre su eje largo y con los bogies a la vista):
 0 de pie (descarrilado, sin girar); 1 sobre el costado (90°); 2 recostado a 75° contra la carga; 3 sobre el costado con la
@@ -16,7 +16,8 @@ from taller import Taller
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 PIEZAS = ["casco", "costilla", "bastidor", "rueda", "carga"]
-COLORES = {"casco": "845c28", "costilla": "7c3c18", "bastidor": "48403c", "rueda": "283440", "carga": "94948c"}
+COLORES = {"casco": "7c3c18", "costilla": "543820", "bastidor": "48403c", "rueda": "283440", "carga": "94948c"}
+VALOR_PIEZAS = {"casco": ("b4a080", "7c3c18")}   # D-N57: arriba claro, costado de óxido (Lucía, 17:49)
 FACCION = "neutro"
 PRESUPUESTO = {0: (100, 2000), 1: (60, 900)}
 HX, LY, ZB = 1.5, 6.1, 4.1           # semiancho, semilargo de la caja y borde superior
@@ -58,8 +59,8 @@ def construir(nombre="SM_TolvaVolcada", lod=0):
     else:
         t.caja((0, 0, ZB - 0.15), (2 * HX - 0.2, 2 * LY - 0.3, 0.2), "carga")
     if v == 3:   # grava derramada por la boca: en coordenadas antes del giro de 90° (x -> -z, z -> x)
-        t.caja((1.25, 0, 5.2), (0.75, 2 * LY - 0.8, 2.3), "carga")
-        t.caja((1.5, 0.8, 6.8), (0.3, 2 * LY - 3.0, 1.4), "carga")
+        for h, d, ly in ((0.95, 1.1, 2 * LY - 1.0), (0.6, 2.1, 2 * LY - 2.4), (0.28, 3.2, 2 * LY - 4.4)):   # 3 escalones
+            t.caja((1.63 - h / 2 + 0.01 * d, 0.3 * (d - 1), 3.9 + (d + 0.2) / 2), (h, ly, d + 0.2), "carga")
     o = t.objeto(nombre, bisel=0)
     from mathutils import Matrix
     ang = {1: 90, 2: 75, 3: 90, 5: 180}.get(v, 0)
