@@ -90,7 +90,7 @@ namespace TBD.View
         int _gradeIndex;
         int _lastW, _lastH;
         float _orthoSize = 18f;
-        float _targetOrtho = 18f;
+        float _targetOrtho = 12f;
         float _yaw = 45f;                               // cámara libre: rotación, inclinación y zoom continuos
         float _pitch = 55f;                           // inclinación por defecto 55° (Lucía, D-N61); la cámara es ortográfica: el FOV no aplica
         Vector3 _focus = new Vector3(66f, 0f, 64f);
@@ -168,7 +168,7 @@ namespace TBD.View
                 siege = net.ActiveZoneTaken >= NetWorld.SiegeAt;
                 seed = (uint)(_zoneNode * 7919 + net.ActiveZoneSinceTick * 31 + 1);    // semilla del nodo y del tick (D-N07)
                 _orthoSize = 70f;                                                       // vuelo de cámara: de lejos a cerca
-                _targetOrtho = 18f;
+                _targetOrtho = 12f;
             }
             _fadeStart = Time.realtimeSinceStartup;
 
@@ -549,7 +549,7 @@ namespace TBD.View
                         if (Time.unscaledTime - _outNotchAt < 0.6f && _outNotchAt > 0f) { _outNotchAt = 0f; _outHintUntil = 0f; LeaveToMap(); }
                         else { _outNotchAt = Time.unscaledTime; _outHintUntil = Time.unscaledTime + 1.4f; _outHintPos = mouse.position.ReadValue(); }
                     }
-                    _targetOrtho = Mathf.Clamp(_targetOrtho * Mathf.Pow(0.85f, notches), 10f, 70f);
+                    _targetOrtho = Mathf.Clamp(_targetOrtho * Mathf.Pow(0.85f, notches), 6f, 70f);
                     _zoomAtCursor = true;
                 }
                 if (mouse.rightButton.isPressed && !_buildMode)

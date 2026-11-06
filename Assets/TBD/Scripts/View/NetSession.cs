@@ -26,6 +26,25 @@ namespace TBD.View
 
         float _acc;
 
+        public static string SavePath { get { return System.IO.Path.Combine(Application.persistentDataPath, "partida.tbd"); } }
+        public static bool HasSave { get { return System.IO.File.Exists(SavePath); } }
+
+        /// <summary>Guarda la red (NetSave) en partida.tbd. Devuelve false si no hay sesion.</summary>
+        public static bool SaveGame()
+        {
+            if (A == null) return false;
+            System.IO.File.WriteAllBytes(SavePath, NetSave.Save(A)); return true;
+        }
+
+        /// <summary>Carga partida.tbd en dos mundos nuevos (A y B) y los pone en la sesion. Lanza SaveException si el archivo no vale.</summary>
+        public static void LoadGame()
+        {
+            var data = System.IO.File.ReadAllBytes(SavePath);
+            var a = NetScenario.Mvp(false); NetSave.Load(data, a);
+            var b = NetScenario.Mvp(false); NetSave.Load(data, b);
+            Ensure(); A = a; B = b;
+        }
+
         public static void Ensure()
         {
             if (_instance != null) return;
@@ -75,6 +94,8 @@ namespace TBD.View
 
         void Update()
         {
+            var kb5 = UnityEngine.InputSystem.Keyboard.current;
+            if (kb5 != null && kb5.f5Key.wasPressedThisFrame) { bool ok = SaveGame(); Debug.Log(ok ? "[TBD] Partida guardada en " + SavePath : "[TBD] No hay partida que guardar"); }   // F5: guardado rapido
             _acc += Mathf.Min(Time.unscaledDeltaTime, 0.25f);
             const float step = 1f / NetConst.TickRate;
             while (_acc >= step)
