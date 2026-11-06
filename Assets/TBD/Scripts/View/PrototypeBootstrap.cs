@@ -271,8 +271,11 @@ namespace TBD.View
         // ---------------------------------------------------------------- prueba de rendimiento (D-N61): TBD.exe -stress10k
         // Entra solo en una emboscada, mete 10.000 zombis en la trinchera con el tren disparando, mide FPS 40 s y escribe Captures/stress_10k_fps.txt
         static readonly bool Stress = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k") >= 0 || System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k-sagunto") >= 0;
+        readonly System.Collections.Generic.List<float> _stressDt = new System.Collections.Generic.List<float>();      // tiempo de cada fotograma en ms (p99 y peor)
         bool _stressEmbarked; float _stressT0 = -1f, _stressNext; int _stressFrames; readonly System.Collections.Generic.List<float> _stressFps = new System.Collections.Generic.List<float>();
 
+        static float P99(System.Collections.Generic.List<float> l) { if (l.Count == 0) return 0f; var a = l.ToArray(); System.Array.Sort(a); return a[Mathf.Min(a.Length - 1, (int)(a.Length * 0.99f))]; }
+        static float Worst(System.Collections.Generic.List<float> l) { float w = 0f; foreach (var v in l) if (v > w) w = v; return w; }
         void StressTick()
         {
             if (_stressT0 < 0f) { _stressT0 = Time.realtimeSinceStartup; Application.targetFrameRate = -1; QualitySettings.vSyncCount = 0; }   // sin tope: queremos saber si pasa de 60
@@ -296,7 +299,7 @@ namespace TBD.View
                 }
                 _targetOrtho = 22f; _stressNext = Time.realtimeSinceStartup + 1f; _stressT0 = Time.realtimeSinceStartup; return;
             }
-            _stressFrames++;
+            _stressFrames++; _stressDt.Add(Time.unscaledDeltaTime * 1000f);
             if (Time.realtimeSinceStartup >= _stressNext)
             {
                 _stressFps.Add(_stressFrames); _stressFrames = 0; _stressNext += 1f;
@@ -306,7 +309,7 @@ namespace TBD.View
                     var net = _worldA.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<Zombie>()).CalculateEntityCount();
                     var ammo = _worldA.EntityManager.CreateEntityQuery(typeof(ZoneAmmo)).GetSingleton<ZoneAmmo>();
                     Directory.CreateDirectory(CaptureRoot);
-                    File.WriteAllText(Path.Combine(CaptureRoot, "stress_10k_fps.txt"), $"zombis al final {net}\nabatidos {ammo.Kills} disparos {ammo.ShotsFired}\nFPS medio {sum / arr.Length:0.0} mínimo {arr[0]:0} p5 {arr[2]:0} máximo {arr[arr.Length - 1]:0}\nresolución {Screen.width}x{Screen.height} factor 1/{_factor}\n");
+                    File.WriteAllText(Path.Combine(CaptureRoot, "stress_10k_fps.txt"), $"zombis al final {net}\nabatidos {ammo.Kills} disparos {ammo.ShotsFired}\nFPS medio {sum / arr.Length:0.0} mínimo {arr[0]:0} p5 {arr[2]:0} máximo {arr[arr.Length - 1]:0}\nresolución {Screen.width}x{Screen.height} factor 1/{_factor}\n\nfotograma p99 {P99(_stressDt):0.00} ms peor {Worst(_stressDt):0.00} ms\n");
                     Application.Quit();
                 }
             }
@@ -1536,7 +1539,7 @@ namespace TBD.View
         const float ChunkLoadR = 170f, ChunkKeepR = 300f;
         sealed class GroundSrc
         {
-            public Color32[] map, apis, labr, asf, rod, seca; public Color32[][] lisos; public Color32 mApis, mLabr, mAsf, mRod;
+            public Color32[] map, apis, labr, asf, rod, seca; public Color32[][] lisos; public Color32 mApis, mLabr, mAsf, mRod, mSeca;
         }
         sealed class GroundChunk { public int I, J; public Texture2D Day, Night; public Material Mat; public GameObject Go; public float Cx, Cz; }
         sealed class ChunkResult { public int I, J, W, H; public Color32[] Day, Night; public string Error; }
@@ -1564,7 +1567,7 @@ namespace TBD.View
             if (mapTex == null || mapTex.width != MapW || mapTex.height != MapH || gs.apis == null || gs.labr == null || gs.asf == null || gs.rod == null) { Debug.LogWarning("[TBD] Falta el mapa de zonas completo o alguna textura del suelo"); return; }
             gs.map = mapTex.GetPixels32();
             Color32 Mean(Color32[] a) { long r = 0, g = 0, b = 0; int n = 0; foreach (var c in a) if (c.a > 0) { r += c.r; g += c.g; b += c.b; n++; } return n == 0 ? new Color32(0, 0, 0, 0) : new Color32((byte)(r / n), (byte)(g / n), (byte)(b / n), 255); }
-            gs.mApis = Mean(gs.apis); gs.mLabr = Mean(gs.labr); gs.mAsf = Mean(gs.asf); gs.mRod = Mean(gs.rod);
+            gs.mApis = Mean(gs.apis); gs.mLabr = Mean(gs.labr); gs.mAsf = Mean(gs.asf); gs.mRod = Mean(gs.rod); gs.mSeca = gs.seca != null ? Mean(gs.seca) : gs.mApis;
             var mk = Resources.Load<Texture2D>("Suelo/sagunto_sin_vegetacion_1m"); _vegMask = mk != null && mk.width == MapW && mk.height == MapH ? mk.GetPixels32() : null;
             _gs = gs; _chunkRoot = new GameObject("Suelo por trozos (D-N67)").transform; _chunkRoot.SetParent(root, false);
             _chunks.Clear(); _chunkPending.Clear(); while (_chunkDone.TryDequeue(out _)) { } _vegQueue.Clear();
@@ -1730,9 +1733,17 @@ namespace TBD.View
                     bool lit = false;
                     foreach (float ly in lampY) { float dx = x - (Level.FortX0 - 7.5f), dz = z - ly; if (dx * dx + dz * dz < 11f * 11f) lit = true; }
                     if (lit) { night[idx] = c; continue; }
-                    Color32 mean = zone == 2 ? gs.mRod : zone == 4 ? gs.mAsf : zone == 5 ? gs.mLabr : zone == 9 ? water : zone == 8 ? cauce : gs.mApis;
+                    Color32 mean = zone == 2 ? gs.mRod : zone == 4 ? gs.mAsf : zone == 5 ? gs.mLabr : zone == 0 ? gs.mSeca : zone == 9 ? water : zone == 8 ? cauce : gs.mApis;
+                    // Lucia (D-N68): bajo la luna todo el suelo se ilumina como la tierra apisonada del recinto (huerta, asfalto, tierra seca y rodadas ~70 % hacia ella: la labrada, mas oscura,
+                    // caia en #303424, el valor de la horda). Bajo focos y farolas (pixeles «lit») se queda el color real; el balasto (via, transparente) no entra.
+                    Color32 tgt = mean;
+                    if (zone == 5 || zone == 4 || zone == 0 || zone == 2)
+                    {
+                        const float kl = 0.7f;
+                        mean = new Color32((byte)(mean.r + (gs.mApis.r - mean.r) * kl), (byte)(mean.g + (gs.mApis.g - mean.g) * kl), (byte)(mean.b + (gs.mApis.b - mean.b) * kl), 255);
+                    }
                     const float kn = 0.2f;
-                    night[idx] = SnapSub(new Color32((byte)(mean.r + (c.r - mean.r) * kn), (byte)(mean.g + (c.g - mean.g) * kn), (byte)(mean.b + (c.b - mean.b) * kn), 255));
+                    night[idx] = SnapSub(new Color32((byte)Mathf.Clamp(mean.r + (c.r - tgt.r) * kn, 0, 255), (byte)Mathf.Clamp(mean.g + (c.g - tgt.g) * kn, 0, 255), (byte)Mathf.Clamp(mean.b + (c.b - tgt.b) * kn, 0, 255), 255));
                 }
             return new ChunkResult { I = ci, J = cj, W = W, H = H, Day = day, Night = night };
         }
