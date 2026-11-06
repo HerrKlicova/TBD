@@ -1311,20 +1311,24 @@ namespace TBD.View
             // C3 (v1.3): viaducto de hormigón de Teo centrado en X 302,6 (86,2 m con aletas, carril a cota 0); cauce de X 265,6 a 340,8 con el lecho a −4,5 m, abierto en el faldón
             Box("Cauce del Palancia", new Vector3(303.2f, -4.75f, 64f), new Vector3(75.2f, 0.5f, 528f), dirt, root);
             for (float zc = -190f; zc < 320f; zc += 21f) Box("Caña", new Vector3(270f + (zc * 3 % 3) * 0.5f, -3.7f, zc), new Vector3(0.12f, 1.8f, 0.12f), grass, root);
-            AddQuad(dirt, new Vector3(265.6f, 0f, -200f), new Vector3(265.6f, 0f, 328f), new Vector3(271f, -4.5f, -200f), new Vector3(271f, -4.5f, 328f));       // orilla oeste
-            AddQuad(dirt, new Vector3(340.8f, 0f, 328f), new Vector3(340.8f, 0f, -200f), new Vector3(335.4f, -4.5f, 328f), new Vector3(335.4f, -4.5f, -200f));   // orilla este
+            AddQuad(dirt, new Vector3(265.6f, 0f, -200f), new Vector3(265.6f, 0f, 480f), new Vector3(271f, -4.5f, -200f), new Vector3(271f, -4.5f, 480f));       // orilla oeste
+            AddQuad(dirt, new Vector3(340.8f, 0f, 480f), new Vector3(340.8f, 0f, -200f), new Vector3(335.4f, -4.5f, 480f), new Vector3(335.4f, -4.5f, -200f));   // orilla este
             if (PlaceModel("puente_palancia", "SM_puente_palancia_LOD1", new Vector3(302.6f, 0f, ty), 0f, root) == null)
                 Box("Puente (reserva)", new Vector3(302.6f, 0.5f, ty), new Vector3(86f, 1f, 5f), concrete, root);
             Box("Tablero de la carretera", new Vector3(303.2f, -0.25f, 23f), new Vector3(75.2f, 0.5f, 7f), asphalt, root);      // la carretera vieja cruza el cauce por su propio tablero de ~75 m
             AddTruck(root, new Vector3(258f, 0f, 23f));                            // cabeza del atasco: camión cruzado a la entrada del tablero
             // P9: silueta del castillo de Teo al fondo, borde norte del faldón (900 x 210 m, sin simulación ni colisión; mirando al sur)
-            // cerro de Sagunto (D-N67, Lucía+Álvaro): girado 225° (paralelo al borde superior de la cámara más alejada), escala Y 0,5, centro (7,75; 267,75), fuera de la zona simulada (sagunto-nivel.md §8.3)
-            var castle = PlaceModel("castillo_sagunto", "SM_castillo_sagunto_reducido_LOD1", new Vector3(7.75f, 0f, 267.75f), 225f, root) ?? PlaceModel("castillo_sagunto", "SM_castillo_sagunto_LOD1", new Vector3(7.75f, 0f, 267.75f), 225f, root);
+            // cerro de Sagunto (D-N67, Lucía+Álvaro): girado 225° (paralelo al borde superior de la cámara más alejada), escala Y 0,5, centro (39,25; 361,25), huella 400x80 con el frente ~19 m tras el borde superior (Alvaro, adenda 5 de D-N68) (sagunto-nivel.md §8.3)
+            var castle = PlaceModel("castillo_sagunto", "SM_castillo_sagunto_reducido_LOD1", new Vector3(39.25f, 0f, 361.25f), 225f, root) ?? PlaceModel("castillo_sagunto", "SM_castillo_sagunto_LOD1", new Vector3(39.25f, 0f, 361.25f), 225f, root);
             if (castle != null) castle.transform.localScale = new Vector3(1f, 0.5f, 1f);
+            foreach (var sc in new[] { (-100f, 0), (112f, 1) })                                   // sierra de Teo detras del cerro, paralela al borde (x+z=500)
+            {
+                var sier = PlaceModel("fondo", "SM_sierra_fondo_v" + sc.Item2 + "_LOD1", new Vector3((500f + sc.Item1) * 0.5f, 0f, (500f - sc.Item1) * 0.5f), 225f, root);
+            }
             if (castle != null)                                                                                // lejanía: un escalón menos de contraste (tinte hacia el color del suelo), sin niebla real
                 foreach (var cr in castle.GetComponentsInChildren<MeshRenderer>()) cr.sharedMaterial.SetColor("_BaseColor", new Color(0.78f, 0.74f, 0.66f));
             // P6: calle de la Estación (X 56-62), paso a nivel Z 58-67 (cubre también el desvío de la vía 2) y carretera vieja (Z 20-26)
-            Box("Calle de la Estación", new Vector3(59f, 0.05f, -20f), new Vector3(6f, 0.06f, 360f), asphalt, root);          // de Z -200 a 160: cortada al pie del cerro (Álvaro §8.3)
+            Box("Calle de la Estación", new Vector3(59f, 0.05f, 43f), new Vector3(6f, 0.06f, 486f), asphalt, root);          // de Z -200 a 160: cortada al pie del cerro (Álvaro §8.3)
             for (int i = 0; i < 24; i++) Box("Grieta calle", new Vector3(57f + (i * 37 % 5), 0.09f, -150f + i * 21f), new Vector3(0.15f, 0.02f, 3.2f), crack, root);
             Box("Paso a nivel", new Vector3(59f, 0.1f, 62.5f), new Vector3(6f, 0.05f, 9f), rust, root);
             // paso a nivel de Teo (origen en el cruce de la calzada con el eje de las vías: X 59, Z 63,6), girado para que la caseta quede al oeste de la calle y al norte de la vía
@@ -1454,6 +1458,28 @@ namespace TBD.View
         public static bool SueloMuestra = true;
         Texture2D _groundDayTex, _groundNightTex; Material _groundMat;
 
+        /// <summary>Subpaleta del suelo (Lucia y Bruno): solo estos 17 colores. Sin negro, navy, slate, purple_grey, rosas, rojos, ambar ni los valores de la horda.</summary>
+        static readonly Color32[] SubPal = BuildSubPal();
+        static Color32[] BuildSubPal()
+        {
+            string[] hex = { "442c0c", "303424", "543820", "48403c", "50541c", "605c48", "845c28", "70784c", "6c7874", "847c34", "a86c50", "88885c", "94948c", "b4a080", "b8b8b8", "d4d0cc", "f0dc9c" };
+            var r = new Color32[hex.Length];
+            for (int i = 0; i < hex.Length; i++) r[i] = new Color32(System.Convert.ToByte(hex[i].Substring(0, 2), 16), System.Convert.ToByte(hex[i].Substring(2, 2), 16), System.Convert.ToByte(hex[i].Substring(4, 2), 16), 255);
+            return r;
+        }
+        /// <summary>Color mas cercano de la subpaleta del suelo (distancia ponderada por la vista); conserva el alfa.</summary>
+        static Color32 SnapSub(Color32 c)
+        {
+            int best = 0; float bd = float.MaxValue;
+            for (int i = 0; i < SubPal.Length; i++)
+            {
+                float dr = c.r - SubPal[i].r, dg = c.g - SubPal[i].g, db = c.b - SubPal[i].b;
+                float d = 0.30f * dr * dr + 0.59f * dg * dg + 0.11f * db * db;
+                if (d < bd) { bd = d; best = i; }
+            }
+            var o = SubPal[best]; o.a = c.a; return o;
+        }
+
         /// <summary>Ruido de valor de baja frecuencia en espacio de mundo (manchas de ~10-30 m), 0..1.</summary>
         static float MacroNoise(float x, float z)
         {
@@ -1559,7 +1585,7 @@ namespace TBD.View
                     if (c.a != 0 && zone != 9)                                                       // variación macro ~±3 L*: ruido de baja frecuencia (manchas de 10-30 m) antes del paso de paleta
                     {
                         float nz = MacroNoise(x, z); float k = 1f + 0.10f * (nz - 0.5f);
-                        c = new Color32((byte)Mathf.Clamp(c.r * k, 0, 255), (byte)Mathf.Clamp(c.g * k, 0, 255), (byte)Mathf.Clamp(c.b * k, 0, 255), c.a);
+                        c = SnapSub(new Color32((byte)Mathf.Clamp(c.r * k, 0, 255), (byte)Mathf.Clamp(c.g * k, 0, 255), (byte)Mathf.Clamp(c.b * k, 0, 255), c.a));   // ajustada a la subpaleta: nunca cae en purple_grey
                     }
                     pix[py * W + px] = c;
                 }
@@ -1584,7 +1610,7 @@ namespace TBD.View
                     int zone = ZoneAt(x, z, px, py);
                     Color32 mean = zone == 2 ? mRod : zone == 4 ? mAsf : zone == 5 ? mLabr : zone == 9 ? water : mApis;
                     float k = 0.2f;                                                         // 20 % del detalle
-                    pixNight[i] = new Color32((byte)(mean.r + (c.r - mean.r) * k), (byte)(mean.g + (c.g - mean.g) * k), (byte)(mean.b + (c.b - mean.b) * k), 255);
+                    pixNight[i] = SnapSub(new Color32((byte)(mean.r + (c.r - mean.r) * k), (byte)(mean.g + (c.g - mean.g) * k), (byte)(mean.b + (c.b - mean.b) * k), 255));
                 }
             _groundNightTex = new Texture2D(W, H, TextureFormat.RGBA32, false, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp, name = "Suelo muestra (noche)" };
             _groundNightTex.SetPixels32(pixNight); _groundNightTex.Apply(false, false); _groundDayTex = tex;
@@ -2056,7 +2082,7 @@ namespace TBD.View
                 Box("Suelo oeste", new Vector3(7.8f, -0.25f, 64f), new Vector3(515.6f, 0.5f, 528f), _mGround);      // X −250..265,6
                 Box("Suelo este", new Vector3(423.4f, -0.25f, 64f), new Vector3(165.2f, 0.5f, 528f), _mGround);     // X 340,8..506: el cauce del Palancia (X 265,6-340,8, lecho a −4,5 m) va en medio
             }
-            else Box("Suelo", new Vector3(128f, -0.25f, 64f), new Vector3(756f, 0.5f, 528f), _mGround);       // faldón (Álvaro P3): de X −250 a 506 y de Z −200 a 328, para que no se vea el vacío al alejar
+            else Box("Suelo", new Vector3(128f, -0.25f, 140f), new Vector3(756f, 0.5f, 680f), _mGround);       // faldón (Álvaro P3): de X −250 a 506 y de Z −200 a 328, para que no se vea el vacío al alejar
 
             if (_cutting) BuildCuttingTerrain();
             foreach (var s in _cutting ? new System.Collections.Generic.List<Solid>() : Level.CreateSolids())
