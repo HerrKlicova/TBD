@@ -806,8 +806,90 @@ namespace TBD.View
         }
 
         // ================================================================ interfaz nítida (capa 4)
+        // ---------------------------------------------------------------- construcción (Lucía, D-N61): superposición a resolución completa, tras el pixelado
+        Texture2D _px; GUIStyle _lblStyle;
+        static readonly Color Bone = new Color32(0xd4, 0xd0, 0xcc, 255), Amber = new Color32(0xe0, 0x8c, 0x30, 255), Tint = new Color32(0x70, 0x78, 0x4c, 255);
+
+        void FillRect(Rect r, Color c) { if (_px == null) { _px = new Texture2D(1, 1); _px.SetPixel(0, 0, Color.white); _px.Apply(); } var old = GUI.color; GUI.color = c.linear; GUI.DrawTexture(r, _px); GUI.color = old; }   // el proyecto va en espacio lineal: sin .linear los colores salen lavados
+
+        void DrawLine2(Vector2 a, Vector2 b, float w, Color c)
+        {
+            if (_px == null) { _px = new Texture2D(1, 1); _px.SetPixel(0, 0, Color.white); _px.Apply(); }
+            var d = b - a; float len = d.magnitude; if (len < 0.5f) return;
+            var m = GUI.matrix; var old = GUI.color; GUI.color = c.linear;
+            GUIUtility.RotateAroundPivot(Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg, a);
+            GUI.DrawTexture(new Rect(a.x, a.y - w * 0.5f, len, w), _px);
+            GUI.matrix = m; GUI.color = old;
+        }
+
+        Vector2 ToGui(Vector3 world) { var v = _worldCam.WorldToViewportPoint(world); return new Vector2(v.x * Screen.width, (1f - v.y) * Screen.height); }
+
+        void BuildOverlay()
+        {
+            if (!_buildMode || _zoneNode < 0 || _ambush || _worldCam == null || NetSession.A == null || Mouse.current == null) return;
+            var mp = Mouse.current.position.ReadValue();
+            var ray = _worldCam.ViewportPointToRay(new Vector3(mp.x / Screen.width, mp.y / Screen.height, 0f));
+            if (!new Plane(Vector3.up, Vector3.zero).Raycast(ray, out float tt)) return;
+            var cur = ray.GetPoint(tt); cur.x = Mathf.Clamp(cur.x, 2f, SimConst.WorldW - 2f); cur.z = Mathf.Clamp(cur.z, 2f, SimConst.WorldH - 2f); cur.y = 0.1f;
+            var net = NetSession.A; bool point = IsPoint(_workKind);
+            var pts = new System.Collections.Generic.List<int>();
+            Vector3 last = cur;
+            if (!point)
+            {
+                for (int i = 0; i + 1 < _wallPts.Count; i += 2) pts.Add(_wallPts[i]);   // se rehace abajo con pares x,y
+                pts.Clear();
+                for (int i = 0; i + 1 < _wallPts.Count; i += 2) { pts.Add(_wallPts[i]); pts.Add(_wallPts[i + 1]); }
+                if (_wallPts.Count >= 2) last = new Vector3(WorkOrigin.x + _wallPts[_wallPts.Count - 2] / 1000f, 0.1f, WorkOrigin.y + _wallPts[_wallPts.Count - 1] / 1000f);
+                else if (_hasWallStart) last = new Vector3(_wallStart.x, 0.1f, _wallStart.z);
+                if (_wallPts.Count == 0 && _hasWallStart) { pts.Add(ToLocalMm(_wallStart.x)); pts.Add(ToLocalMm(_wallStart.z, true)); }
+            }
+            pts.Add(ToLocalMm(cur.x)); pts.Add(ToLocalMm(cur.z, true));
+            WorkPlan plan; bool have = true;
+            if (!point && pts.Count < 4) { plan = default(WorkPlan); have = false; }
+            else plan = PreviewZone(net, _workKind, pts.ToArray());
+            bool ok = !have || plan.Ok;
+            Color line = ok ? Bone : Amber, tint = ok ? Tint : Amber;
+            if (point)
+            {
+                var c = ToGui(cur); float h = 14f;
+                FillRect(new Rect(c.x - h, c.y - h, h * 2, h * 2), new Color(tint.r, tint.g, tint.b, 1f));
+                FillRect(new Rect(c.x - h - 2, c.y - h - 2, h * 2 + 4, 2), line); FillRect(new Rect(c.x - h - 2, c.y + h, h * 2 + 4, 2), line);
+                FillRect(new Rect(c.x - h - 2, c.y - h, 2, h * 2), line); FillRect(new Rect(c.x + h, c.y - h, 2, h * 2), line);
+            }
+            else
+            {
+                // trazado: tramos ya pedidos con tinte plano y contorno de 2 px; línea de 1 px entre el último clic y el cursor
+                Vector3 prev = default(Vector3); bool first = true;
+                for (int i = 0; i + 1 < pts.Count; i += 2)
+                {
+                    var wpt = new Vector3(WorkOrigin.x + pts[i] / 1000f, 0.1f, WorkOrigin.y + pts[i + 1] / 1000f);
+                    if (!first)
+                    {
+                        Vector2 a = ToGui(prev), b2 = ToGui(wpt); var n = (b2 - a).normalized; var perp = new Vector2(-n.y, n.x) * 5f;
+                        DrawLine2(a, b2, 8f, tint);
+                        DrawLine2(a + perp, b2 + perp, 2f, line); DrawLine2(a - perp, b2 - perp, 2f, line);
+                    }
+                    prev = wpt; first = false;
+                }
+                DrawLine2(ToGui(last), ToGui(cur), 1f, Bone);
+            }
+            // etiqueta junto al cursor: caja #181c30 con borde #48403c
+            if (_lblStyle == null) { _lblStyle = new GUIStyle(GUI.skin.label) { richText = true, wordWrap = false }; _lblStyle.normal.textColor = Bone; }
+            _lblStyle.fontSize = Mathf.Max(12, Screen.height / 66);
+            string l1 = have ? (plan.Ok ? KindName(_workKind) + " · " + (plan.AllowedMm / 1000f).ToString("0.0") + " m · " + plan.CostU + " u" : KindName(_workKind)) : KindName(_workKind);
+            string l2 = null;
+            if (have && !plan.Ok) l2 = plan.Why != null && plan.Why.Contains("zombis") ? "Hay zombis cerca · 30 m" : plan.Why;
+            float lw = Mathf.Max(220f, _lblStyle.fontSize * 16f), lh = _lblStyle.fontSize * (l2 != null ? 3.4f : 2.0f);
+            var box = new Rect(mp.x + 24f, Screen.height - mp.y - lh - 8f, lw, lh);
+            FillRect(new Rect(box.x - 2, box.y - 2, box.width + 4, box.height + 4), new Color32(0x48, 0x40, 0x3c, 255));
+            FillRect(box, new Color32(0x18, 0x1c, 0x30, 255));
+            GUI.Label(new Rect(box.x + 6, box.y + 2, box.width - 8, _lblStyle.fontSize * 1.6f), l1, _lblStyle);
+            if (l2 != null) { var st2 = new GUIStyle(_lblStyle); st2.normal.textColor = Amber; GUI.Label(new Rect(box.x + 6, box.y + 2 + _lblStyle.fontSize * 1.5f, box.width - 8, _lblStyle.fontSize * 1.6f), l2, st2); }
+        }
+
         void OnGUI()
         {
+            BuildOverlay();
             if (_hudStyle == null)
             {
                 _panelTex = new Texture2D(1, 1);
