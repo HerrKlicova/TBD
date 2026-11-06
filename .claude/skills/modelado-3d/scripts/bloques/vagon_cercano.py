@@ -1,0 +1,176 @@
+"""Vagones para la VISTA CERCANA del tren (coordinador, 6-nov 23:38: al menos 5 variantes de pasaje y de mercancías, con
+las ventanillas aparte para iluminarlas). Teo, 6-nov-2026. TBD_VARIANTE % 6:
+  0 coche de viajeros            caja de bogies con fila de ventanillas, puertas en los extremos y fuelles de paso
+  1 coche de viajeros blindado   el mismo, con chapas soldadas sobre una ventanilla de cada dos (con mirilla) y sacos
+                                 en el techo, como la locomotora R1
+  2 vagón de tropa               el R2 aprobado (vagon_tropa_r2.py), con los colores de D-N80
+  3 plataforma con contenedor    plataforma de bogies con un contenedor de 40 pies (12,19 × 2,44 × 2,59 m, norma ISO)
+  4 cisterna                     cisterna de bogies con cúpula, pasarela y escalerillas
+  5 plataforma con dos de 20     dos contenedores de 20 pies (6,06 m) de distinto color
+Fuentes: coche de viajeros, SIN FOTO de un coche convencional (las R2 de Paula son de un Alvia, que es otro tren;
+pedidas a Paula como R14): caja de 23,5 × 2,9 m, techo a 4,0 m y ventanillas de 1,2 × 0,8 m, SIN VERIFICAR.
+Plataformas: R3_vagon_plataforma_2 (Rgs, CC BY-SA 4.0, Falk2) y las cotas de R3_rgs_cotas.md (19,9 m, batalla de bogie
+2,0 m). Contenedores: R4_vagon_portacontenedores_2 (Lgnss, CC BY-SA, Falk2): bastidor de vigas sin piso, contenedor
+con chapa ondulada vertical y puertas en un testero. Cisterna: R4_vagon_cisterna_1 («Vagones con biodiésel», Commons):
+cuerpo cilíndrico largo con fondos abombados, cúpula arriba en el centro, escalerilla y pasarela; 14,5 m entre topes
+SIN VERIFICAR.
+Colores (D-N80: nada propio por debajo de #48403c): laterales 50541c y techo b8b8b8 (D-N42, como la locomotora),
+bastidor, ruedas y metal 48403c, cristales 60546c, puertas y chapas 605c48, contenedores 6c7874 / 847c34 / 605c48 (sin
+el azul real: 404460 es el rim de las unidades propias), cisterna 94948c (acero).
+Las ventanillas (pieza «ventana») salen en el hijo «Ventanillas», con el mismo origen que el vagón, para que Marcos
+les dé emisión de noche. Jerarquía: SM_…_LODn └─ Ventanillas (solo en 0, 1 y la locomotora). Mira a +Z en Unity.
+"""
+import math
+import os
+from taller import Taller
+from montaje import marcar_piezas, separar_piezas
+import vagon_tropa_r2 as R2
+
+VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
+ASPECTO = VAR % 6
+PIEZAS = ["casco", "bastidor", "rueda", "ventana", "puerta", "fuelle", "metal", "sacos", "chapa", "tablero",
+          "contenedor", "contenedor2", "cisterna", "carga", "optica"]
+COLORES = {"casco": "50541c", "bastidor": "48403c", "rueda": "48403c", "ventana": "60546c", "puerta": "605c48",
+           "fuelle": "48403c", "metal": "48403c", "sacos": "847c34", "chapa": "605c48", "tablero": "605c48",
+           "contenedor": "6c7874", "contenedor2": "847c34", "cisterna": "94948c", "carga": "88885c",
+           "optica": "60546c"}
+if ASPECTO == 5:
+    COLORES = dict(COLORES, contenedor="605c48")
+ABAJO_CASCO = "50541c"
+L_MIN = 28.0
+# techo b8b8b8 en los coches (D-N42, como la locomotora); canto del parapeto en 70784c en el de tropa (Lucía, R2)
+VALOR_PIEZAS = {"casco": (("70784c" if ASPECTO == 2 else "b8b8b8"), "50541c", "50541c")}
+VENTANILLAS = {"Ventanillas": ["ventana"]}
+# Normales inclinadas hacia arriba, como el soldado: con la luz casi cenital del juego los costados verticales (casi
+# todo lo que se ve de un contenedor o de una caja de 23 m) caían a media luz, a valores de la horda. El de tropa es el
+# R2 aprobado y se queda como estaba.
+NORMALES_ARRIBA = ASPECTO != 2
+NORMALES_INCLINACION = 1.0
+PRESUPUESTO = {0: (300, 4000), 1: (150, 2000)}
+
+
+def _chasis(t, fino, L, bogie, zt=1.25, ancho=2.9, piso=True):
+    """Bastidor, topes y dos bogies de dos ejes (batalla 2,0 m, ruedas de 0,92 m)."""
+    y0 = L / 2
+    if piso:
+        t.caja((0, 0, zt - 0.15), (ancho, L - 1.4, 0.3), "tablero")
+    t.caja((0, 0, zt - 0.5), (2.4, L - 1.4, 0.4), "bastidor")
+    for s in (-1, 1):
+        t.caja((0, s * (y0 - 0.6), zt - 0.35), (ancho, 0.3, 0.5), "bastidor")
+        for x in (-0.9, 0.9):
+            t.cilindro((x, s * (y0 - 0.2), 1.06), 0.2, 0.4, "Y", 8, "metal")      # topes
+        yb = s * bogie
+        for x in (-1.0, 1.0):
+            t.caja((x, yb, 0.6), (0.2, 2.8, 0.35), "bastidor")
+        for e in (-1.0, 1.0):
+            for x in (-0.83, 0.83):
+                t.cilindro((x, yb + e, 0.46), 0.46, 0.13, "X", 12, "rueda")
+
+
+def _coche(t, fino, blindado):
+    L, y0, zb, zr = 23.5, 11.75, 1.15, 4.0
+    _chasis(t, fino, L, 8.3, zt=zb, piso=False)
+
+    def semiancho(z):
+        return 1.45 if z <= 3.5 else 1.45 - 0.55 * (z - 3.5) / (zr - 3.5)
+    t.perfil_extruido([(-y0 + 0.4, zb), (-y0 + 0.4, zr), (y0 - 0.4, zr), (y0 - 0.4, zb)], semiancho, cortes_z=(3.5,))
+    xs = 1.45
+    # ventanillas: 9 por costado entre las plataformas de las puertas
+    ys = [-7.6 + k * 1.9 for k in range(9)]
+    for s in (-1, 1):
+        for k, y in enumerate(ys):
+            tapada = blindado and k % 2 == 0
+            if tapada:
+                t.caja((s * (xs + 0.03), y, 2.55), (0.06, 1.35, 0.95), "chapa")
+                t.caja((s * (xs + 0.065), y, 2.7), (0.02, 0.6, 0.08), "ventana")      # mirilla (se enciende)
+            else:
+                t.caja((s * (xs + 0.005), y, 2.55), (0.03, 1.2, 0.8), "ventana")
+                if fino:
+                    t.caja((s * (xs + 0.02), y, 2.55), (0.02, 0.05, 0.8), "metal")    # parteluz
+        # puertas en los extremos con su ventanilla
+        for e in (-1, 1):
+            y = e * (y0 - 1.45)
+            t.caja((s * (xs + 0.02), y, 2.15), (0.04, 0.9, 1.95), "puerta")
+            t.caja((s * (xs + 0.045), y, 2.65), (0.02, 0.45, 0.55), "ventana")
+            if fino:
+                t.caja((s * (xs + 0.03), y, zb - 0.15), (0.12, 0.7, 0.06), "metal")   # estribo
+    # fuelles de paso en los testeros
+    for e in (-1, 1):
+        t.caja((0, e * (y0 - 0.2), 2.5), (1.2, 0.45, 2.2), "fuelle")
+    if fino:
+        for e in (-1, 1):                                                            # ventiladores del techo
+            for y in (-5.0, 0.0, 5.0):
+                t.cilindro((0, y + e * 0.0, zr + 0.06), 0.28, 0.12, "Z", 10, "metal")
+    if blindado:
+        for e in (-1, 1):                                                            # nidos de sacos en el techo
+            for x in (-0.55, 0.55):
+                t.caja((x, e * 8.5, zr + 0.15), (0.4, 1.6, 0.3), "sacos")
+            t.caja((0, e * 9.2, zr + 0.15), (1.2, 0.35, 0.3), "sacos")
+        for y in (-3.0, 4.0):                                                        # remiendos soldados
+            t.caja((1.49, y, 1.8), (0.03, 1.4, 0.6), "chapa")
+
+
+def _contenedor(t, fino, c, largo, pieza):
+    x, y, z0 = c
+    a, h = 2.44, 2.59
+    t.caja((x, y, z0 + h / 2), (a, largo, h), pieza)
+    if fino:                                    # chapa ondulada: nervios verticales en los costados, cada 0,6 m
+        n = int(largo / 0.6)
+        for k in range(1, n):
+            yy = y - largo / 2 + k * largo / n
+            for s in (-1, 1):
+                t.caja((x + s * (a / 2 + 0.015), yy, z0 + h / 2), (0.03, 0.08, h - 0.2), pieza)
+        for k in range(4):                      # barras de cierre de las puertas (testero trasero)
+            t.caja((x - 0.9 + k * 0.6, y + largo / 2 + 0.03, z0 + h / 2), (0.05, 0.05, h - 0.3), "metal")
+    t.caja((x, y, z0 + h + 0.02), (a - 0.1, largo - 0.1, 0.04), pieza)              # techo
+
+
+def _portacontenedores(t, fino, dos):
+    L = 19.9
+    _chasis(t, fino, L, 7.0, piso=False)
+    for x in (-1.2, 1.2):                       # largueros laterales del bastidor de vigas (sin piso)
+        t.caja((x, 0, 1.12), (0.25, L - 1.4, 0.3), "bastidor")
+    for k in range(5):
+        t.caja((0, -7.2 + k * 3.6, 1.12), (2.4, 0.25, 0.25), "bastidor")
+    if dos:
+        _contenedor(t, fino, (0, -3.15, 1.27), 6.06, "contenedor")
+        _contenedor(t, fino, (0, 3.15, 1.27), 6.06, "contenedor2")
+    else:
+        _contenedor(t, fino, (0, 0, 1.27), 12.19, "contenedor")
+
+
+def _cisterna(t, fino):
+    L = 14.5
+    _chasis(t, fino, L, 4.6, piso=False)
+    zc, r, lc = 2.75, 1.4, 11.4
+    t.cilindro((0, 0, zc), r, lc, "Y", 16, "cisterna")
+    for s in (-1, 1):                           # fondos abombados
+        t.cilindro((0, s * (lc / 2 + 0.25), zc), r, 0.5, "Y", 16, "cisterna", r2=r * 0.55) if s > 0 else \
+            t.cilindro((0, s * (lc / 2 + 0.25), zc), r * 0.55, 0.5, "Y", 16, "cisterna", r2=r)
+    t.cilindro((0, 0, zc + r + 0.1), 0.38, 0.35, "Z", 10, "cisterna")              # cúpula
+    for y in (-3.5, 3.5):                       # cunas de apoyo
+        t.caja((0, y, 1.45), (2.2, 0.4, 0.5), "bastidor")
+    if fino:
+        t.caja((0, 0, zc + r + 0.02), (0.6, 3.0, 0.04), "metal")                   # pasarela
+        for s in (-1, 1):
+            t.caja((s * 1.3, 0, 2.2), (0.04, 0.5, 2.0), "metal")                    # escalerillas
+            t.caja((s * (r - 0.1), 0, zc + 0.3), (0.04, 0.5, 1.4), "metal")
+            t.caja((s * 0.35, 0, zc + r + 0.5), (0.04, 3.0, 0.04), "metal")        # barandillas
+
+
+def construir(nombre="SM_Vagon", lod=0):
+    if ASPECTO == 2:
+        return marcar_piezas(R2.construir(nombre, lod))
+    t = Taller(PIEZAS)
+    fino = lod == 0
+    if ASPECTO in (0, 1):
+        _coche(t, fino, ASPECTO == 1)
+    elif ASPECTO in (3, 5):
+        _portacontenedores(t, fino, ASPECTO == 5)
+    else:
+        _cisterna(t, fino)
+    return marcar_piezas(t.objeto(nombre, bisel=0))
+
+
+def separar(o, lod):
+    return separar_piezas(o, VENTANILLAS)
