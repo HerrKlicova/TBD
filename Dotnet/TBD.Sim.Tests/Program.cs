@@ -150,6 +150,7 @@ namespace TBD.Sim.Tests
             DisparoIndiceTests.Run(Check);
             SaguntoInicioTests.Run(Check);
             GuardadoTests.Run(Check);
+            UnidadesTests.Run(Check);
             GoldenTests.Run(Check);
             Console.WriteLine($"\nResumen: {_pass} correctas, {_fail} fallos");
             return _fail == 0 ? 0 : 1;
