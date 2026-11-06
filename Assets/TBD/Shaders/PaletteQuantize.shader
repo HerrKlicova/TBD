@@ -11,7 +11,7 @@ Shader "Hidden/TBD/PaletteQuantize"
         _PaletteMix ("Mezcla con la paleta (0-1)", Range(0, 1)) = 1
         _OutlineStrength ("Intensidad del contorno (0-1)", Range(0, 1)) = 0.6
         _OutlineColor ("Color del contorno", Color) = (0.1098, 0.1255, 0.0471, 1)   // #1c200c (Lucía, 6-nov), en vez de casi negro
-        _OutlineThreshold ("Umbral del contorno", Range(0.02, 0.5)) = 0.16
+        _OutlineThreshold ("Umbral del contorno", Range(0.02, 0.5)) = 0.26   // más alto (Lucía, 6-nov): el contorno solo en saltos grandes de valor (silueta y base), el detalle interior se resuelve con valor
     }
     SubShader
     {

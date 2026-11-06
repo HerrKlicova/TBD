@@ -147,6 +147,7 @@ namespace TBD.Sim.Tests
             EstacionesTests.Run(Check);
             HorarioTests.Run(Check);
             TallerTests.Run(Check);
+            DisparoIndiceTests.Run(Check);
             SaguntoInicioTests.Run(Check);
             GoldenTests.Run(Check);
             Console.WriteLine($"\nResumen: {_pass} correctas, {_fail} fallos");
