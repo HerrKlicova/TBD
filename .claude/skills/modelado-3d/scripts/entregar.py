@@ -34,6 +34,7 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
     os.makedirs(out, exist_ok=True)
     inf = {"limpiar": ns["limpiar"](o)}
     colores = {**db.COLORES, **(getattr(db, "COLORES_LOD1", {}) if lod else {})}
+    permitir = tuple(permitir) + tuple(getattr(db, "PERMITIR", ()))   # excepciones de color del bloque (p. ej. 642030)
     r = ns["paleta_por_piezas"](o, colores, ruta_textura=os.path.join(out, "T_Paleta32.png"), permitir=permitir)
     m = r["mascaras"].get("casco")
     mc = r["mascaras"].get("costura")

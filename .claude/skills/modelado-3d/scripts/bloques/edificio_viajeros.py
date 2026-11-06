@@ -17,9 +17,12 @@ Las medidas siguen SIN VERIFICAR (estimadas a ojo con las fotos; no hay planos).
 from taller import Taller
 
 PIEZAS = ["fachada", "zocalo", "carpinteria", "tejado", "placa", "cornisa", "chimenea", "metal", "moldura"]
-COLORES = {"fachada": "b4a080", "zocalo": "605c48", "carpinteria": "283440", "tejado": "a86c50", "placa": "283440",
+COLORES = {"fachada": "d4d0cc", "zocalo": "605c48", "carpinteria": "543820", "tejado": "a86c50", "placa": "283440",
            "cornisa": "94948c", "chimenea": "605c48", "metal": "1c200c",
-           "moldura": "543820"}
+           "moldura": "642030"}
+# Lucía (17:25): la estación de Sagunt es blanca (cal d4d0cc, como la casa baja) con recercados, pilastras y frontón en
+# granate oscuro 642030 (no es el rojo de alerta 982420: entregar con --permitir 642030); carpintería en 543820.
+PERMITIR = ("642030",)
 FACCION = "neutro"
 PRESUPUESTO = {0: (200, 3500), 1: (100, 1800)}
 CUERPO = 7.0      # ancho del cuerpo central adelantado (foto 2)
@@ -102,7 +105,8 @@ def _fronton(t, y_frente, fondo, z, semiancho, alto):
     caras = []
     ys = (y_frente, y_frente + fondo)
     P = [[bm.verts.new((-semiancho, y, z)), bm.verts.new((semiancho, y, z)), bm.verts.new((0, y, z + alto))] for y in ys]
-    caras.append(bm.faces.new((P[0][0], P[0][2], P[0][1])))
+    frente = bm.faces.new((P[0][0], P[0][2], P[0][1]))      # cara del frontón al andén: marco granate (Lucía)
+    t._marcar([frente], "moldura")
     caras.append(bm.faces.new((P[1][0], P[1][1], P[1][2])))
     caras.append(bm.faces.new((P[0][0], P[0][1], P[1][1], P[1][0])))
     caras.append(bm.faces.new((P[0][1], P[0][2], P[1][2], P[1][1])))
