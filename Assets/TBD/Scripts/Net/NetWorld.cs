@@ -65,6 +65,32 @@ namespace TBD.Net
         public long LastDepartDay = -1;    // último día en que salió de alguna parada (informativo)
         public readonly List<long> DepartedDay = new List<long>();   // por parada: día de la última salida (no sale dos veces el mismo día)
 
+        public void SaveState(SaveWriter w)
+        {
+            Train.SaveState(w);
+            w.Int(Stops.Count);
+            foreach (var s in Stops) { w.Int(s.Node); w.Long(s.DepartAt); w.Ints(s.Transfer); }
+            w.Ints(Cargo);
+            w.Int(StopIndex); w.Bool(AtStop); w.Bool(Held); w.Bool(ScheduleEdited); w.Bool(WorksTrain); w.Int(HaltAt); w.Bool(Ambushed); w.Long(LastAmbushDay); w.Long(LastDepartDay);
+            w.Int(DepartedDay.Count); foreach (var d in DepartedDay) w.Long(d);
+        }
+
+        public static TrainService LoadState(SaveReader r)
+        {
+            var s = new TrainService { Train = RailTrain.LoadState(r) };
+            int n = r.Int();
+            if (n < 0 || n > r.Remaining) throw new SaveException(SaveError.Corrupt, "paradas no válidas");
+            for (int i = 0; i < n; i++) s.Stops.Add(new ScheduleStop { Node = r.Int(), DepartAt = r.Long(), Transfer = r.Ints() });
+            var cargo = r.Ints();
+            if (cargo == null || cargo.Length != s.Cargo.Length) throw new SaveException(SaveError.TopologyMismatch, "carga con otros recursos");
+            Array.Copy(cargo, s.Cargo, cargo.Length);
+            s.StopIndex = r.Int(); s.AtStop = r.Bool(); s.Held = r.Bool(); s.ScheduleEdited = r.Bool(); s.WorksTrain = r.Bool(); s.HaltAt = r.Int(); s.Ambushed = r.Bool(); s.LastAmbushDay = r.Long(); s.LastDepartDay = r.Long();
+            n = r.Int();
+            if (n < 0 || n > r.Remaining) throw new SaveException(SaveError.Corrupt, "días de salida no válidos");
+            for (int i = 0; i < n; i++) s.DepartedDay.Add(r.Long());
+            return s;
+        }
+
         public int CargoTotal() { int s = 0; for (int i = 0; i < Cargo.Length; i++) s += Cargo[i]; return s; }
     }
 
@@ -83,6 +109,23 @@ namespace TBD.Net
         public int[] S = new int[W * H];           // horda INICIAL: guarnición estática y paisaje. No se mueve ni la recluta el director (D-N37, Hugo y Mak); solo la zona la toca
         int[] _next = new int[W * H];
         long[] _pot = new long[W * H];
+
+        public void SaveState(SaveWriter w)
+        {
+            w.Ints(D); w.Ints(S); w.Int(Frozen);
+            w.Bools(_leash);                  // la correa se fijó al sembrar la horda inicial y no se puede deducir de lo que queda; «_block» sí sale del mapa y se rehace sola
+        }
+
+        public void LoadState(SaveReader r)
+        {
+            var d = r.Ints(); var s = r.Ints();
+            if (d == null || s == null || d.Length != W * H || s.Length != W * H) throw new SaveException(SaveError.TopologyMismatch, "la mancha de horda tiene otro tamaño");
+            D = d; S = s; Frozen = r.Int();
+            var l = r.Bools();
+            if (l != null && l.Length != W * H) throw new SaveException(SaveError.TopologyMismatch, "la correa de la horda tiene otro tamaño");
+            _leash = l; _block = null;
+            _next = new int[W * H]; _nextS = new int[W * H];       // búferes de trabajo: se vacían antes de usarse
+        }
 
         public int At(int x, int y)
         {
@@ -341,6 +384,78 @@ namespace TBD.Net
         readonly List<NetCommand> _queue = new List<NetCommand>();
 
         public const int SiegeAt = 500, ThreatAt = 150, CutAt = 850, NearAt = 250;
+
+        // ---------------------------------------------------------------- guardado y carga (Guardado.cs, GDD §14 y §17.3)
+        // Se guarda el estado completo entre dos ticks. NO se guardan: la configuración (mapa y CSV de balance, que pone el escenario), los datos de «este
+        // tick» para QA (Injections, Retirements, LostThisTick, RetiredThisTick, se vacían al empezar cada tick), el gancho ZoneDensity (lo enchufa la zona)
+        // ni los búferes de trabajo. Si cambias algo de aquí, sube NetSave.NetVersion y registra la migración (NetSave.NetMigrations).
+        public void SaveState(SaveWriter w)
+        {
+            w.Long(Tick); w.Int(Speed); w.Bool(Paused); w.Bool(AutoSlow); w.Bool(DirectorEnabled);
+            w.Long(InjectedTotal); w.Long(LostTotal); w.Long(RetiredTotal);
+            w.Int(ActiveZoneTakenS); w.Int(ActiveZoneNode); w.Int(ActiveZoneTaken); w.Long(ActiveZoneSinceTick); w.Int(ActiveZoneCell);
+            w.Bool(Encounter.Active); w.Int(Encounter.Service); w.Int(Encounter.Edge); w.Int(Encounter.Cell); w.Int(Encounter.Taken); w.Long(Encounter.ExpireTick);
+            w.Int(PendingAmbushes.Count); foreach (var e in PendingAmbushes) w.Int(e);
+            w.Int(_seq);
+            w.Int(_queue.Count);
+            foreach (var c in _queue) { w.Long(c.Tick); w.Byte((byte)c.Type); w.Int(c.Arg); w.Int(c.Arg2); w.Int(c.Seq); w.Ints(c.Payload); }
+            w.Ints(Attraction); w.Ints(BaseAttraction); w.Ints2(Stock);
+            Graph.SaveState(w);
+            w.Int(Services.Count); foreach (var s in Services) s.SaveState(w);
+            Field.SaveState(w);
+            Stations.SaveState(w);
+            Taller.SaveState(w);
+            Works.SaveState(w);
+            w.Bool(Traffic != null); if (Traffic != null) Traffic.SaveState(w);
+            w.Int(Intel.Count); foreach (var e in Intel) { w.Long(e.Tick); w.Str(e.Id); w.Strs(e.Vars); }
+            w.Int(Alerts == null ? -1 : Alerts.Count);
+            if (Alerts != null) foreach (var a in Alerts) { w.Int(a.Id); w.Byte((byte)a.Kind); w.Int(a.Priority); w.Long(a.EtaTicks); w.Int(a.Subject); w.Str(a.Text); }
+            Director.SaveState(w);
+        }
+
+        public void LoadState(SaveReader r)
+        {
+            Tick = r.Long(); Speed = r.Int(); Paused = r.Bool(); AutoSlow = r.Bool(); DirectorEnabled = r.Bool();
+            InjectedTotal = r.Long(); LostTotal = r.Long(); RetiredTotal = r.Long();
+            ActiveZoneTakenS = r.Int(); ActiveZoneNode = r.Int(); ActiveZoneTaken = r.Int(); ActiveZoneSinceTick = r.Long(); ActiveZoneCell = r.Int();
+            Encounter = new AmbushEncounter { Active = r.Bool(), Service = r.Int(), Edge = r.Int(), Cell = r.Int(), Taken = r.Int(), ExpireTick = r.Long() };
+            int n = r.Int();
+            if (n < 0 || n > r.Remaining) throw new SaveException(SaveError.Corrupt, "emboscadas pendientes no válidas");
+            PendingAmbushes.Clear(); for (int i = 0; i < n; i++) PendingAmbushes.Add(r.Int());
+            _seq = r.Int();
+            n = r.Int();
+            if (n < 0 || n > r.Remaining) throw new SaveException(SaveError.Corrupt, "cola de órdenes no válida");
+            _queue.Clear();
+            for (int i = 0; i < n; i++) _queue.Add(new NetCommand { Tick = r.Long(), Type = (NetCmdType)r.Byte(), Arg = r.Int(), Arg2 = r.Int(), Seq = r.Int(), Payload = r.Ints() });
+            ReadInto(r.Ints(), Attraction, "atracción"); ReadInto(r.Ints(), BaseAttraction, "atracción base");
+            r.Ints2Into(Stock);
+            Graph.LoadState(r);
+            n = r.Int();
+            if (n < 0 || n > r.Remaining) throw new SaveException(SaveError.Corrupt, "trenes no válidos");
+            Services.Clear(); for (int i = 0; i < n; i++) Services.Add(TrainService.LoadState(r));
+            Field.LoadState(r);
+            Stations.LoadState(r);
+            Taller.LoadState(r);
+            Works.LoadState(r);
+            bool hasTraffic = r.Bool();
+            if (hasTraffic != (Traffic != null)) throw new SaveException(SaveError.TopologyMismatch, "memoria de tráfico presente solo en uno de los dos");
+            if (hasTraffic) Traffic.LoadState(r);
+            n = r.Int();
+            if (n < 0 || n > r.Remaining) throw new SaveException(SaveError.Corrupt, "informe no válido");
+            Intel.Clear(); for (int i = 0; i < n; i++) Intel.Add(new IntelEntry { Tick = r.Long(), Id = r.Str(), Vars = r.Strs() });
+            n = r.Int();
+            if (n < -1 || n > r.Remaining) throw new SaveException(SaveError.Corrupt, "alertas no válidas");
+            if (n < 0) Alerts = null;
+            else { Alerts = new List<Alert>(n); for (int i = 0; i < n; i++) Alerts.Add(new Alert { Id = r.Int(), Kind = (AlertKind)r.Byte(), Priority = r.Int(), EtaTicks = r.Long(), Subject = r.Int(), Text = r.Str() }); }
+            Director.LoadState(r);
+            Injections.Clear(); Retirements.Clear(); LostThisTick = 0; RetiredThisTick = 0;      // datos de QA del tick: empiezan limpios
+        }
+
+        static void ReadInto(int[] src, int[] dst, string what)
+        {
+            if (src == null || src.Length != dst.Length) throw new SaveException(SaveError.TopologyMismatch, what + ": otro número de nodos");
+            Array.Copy(src, dst, dst.Length);
+        }
 
         public NetWorld(RailGraph g)
         {

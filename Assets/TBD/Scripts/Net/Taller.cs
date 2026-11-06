@@ -89,6 +89,24 @@ namespace TBD.Net
             for (int i = 0; i < g.Nodes.Count; i++) if (g.Nodes[i].Name == p.Node) { NodeIndex = i; break; }
         }
 
+        public void SaveState(SaveWriter w)
+        {
+            w.Int(Queue.Count);
+            foreach (var o in Queue) { w.Byte((byte)o.Kind); w.Int(o.PaidU); w.Int(o.PaidFuel); w.Int(o.PaidCrew); w.Long(o.NeedTicks); w.Long(o.DoneMilli); w.Bool(o.Waiting); }
+            w.Int(ChispasAt); w.Bool(ObrasOut); w.Bool(Tren3Done); w.Bool(ObrasDone); w.Int(Built);
+            w.Bool(P.Stage2);                    // la etapa 2 es progreso de la partida, no balance
+        }
+
+        public void LoadState(SaveReader r)
+        {
+            int n = r.Int();
+            if (n < 0 || n > r.Remaining) throw new SaveException(SaveError.Corrupt, "cola del taller no válida");
+            Queue.Clear();
+            for (int i = 0; i < n; i++) Queue.Add(new TallerOrder { Kind = (TallerKind)r.Byte(), PaidU = r.Int(), PaidFuel = r.Int(), PaidCrew = r.Int(), NeedTicks = r.Long(), DoneMilli = r.Long(), Waiting = r.Bool() });
+            ChispasAt = r.Int(); ObrasOut = r.Bool(); Tren3Done = r.Bool(); ObrasDone = r.Bool(); Built = r.Int();
+            P.Stage2 = r.Bool();
+        }
+
         /// <summary>Velocidad de un trabajo del taller en milésimas por tick: 1.000, o 1.000 + ChispasPermil en una rehabilitación con Chispas en el taller.</summary>
         public int RateMilli(TallerKind k)
         {

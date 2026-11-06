@@ -110,6 +110,39 @@ namespace TBD.Net
         int HoursAhead => P.AmbushLeadH;              // la emboscada se prepara 1-2 h antes (Lucía)
         public readonly long[] AttentionTicks = new long[64];   // por nodo: ticks de juego con zona en detalle hoy (memoria de atención)
 
+        public void SaveState(SaveWriter w)
+        {
+            w.Int(Active.Count);
+            foreach (var p in Active) { w.Byte((byte)p.Kind); w.Int(p.Edge); w.Int(p.Node); w.Int(p.Cell); w.Long(p.UntilTick); w.Int(p.Moved); w.Int(p.Train); w.Long(p.StartTick); w.Bool(p.Started); w.Int(p.Lost); }
+            w.Long(BudgetUsedToday); w.Long(_budgetDay); w.Long(_lastSiegeTick); w.Long(_respiteUntil); w.Long(_ambushBank); w.Bool(_anySiege);
+            w.Longs(LastSeenTick); w.Longs(AttentionTicks);
+            w.Long(SiegeMovedTotal); w.Long(DriftMovedTotal); w.Long(AmbushMovedTotal); w.Long(BudgetTotal);
+            w.Bool(IgnoreAttention); w.ULong(Seed);
+            w.Long(_carryZombies); w.Longs(_injectedByDay);
+            w.Long(WorkProbes_Count); w.Long(WorkProbes_Moved); w.Long(WorkProbes_Asked); w.Long(WorkProbes_Paid);
+        }
+
+        public void LoadState(SaveReader r)
+        {
+            int n = r.Int();
+            if (n < 0 || n > r.Remaining) throw new SaveException(SaveError.Corrupt, "planes de la Colmena no válidos");
+            Active.Clear();
+            for (int i = 0; i < n; i++)
+                Active.Add(new Plan { Kind = (PlanKind)r.Byte(), Edge = r.Int(), Node = r.Int(), Cell = r.Int(), UntilTick = r.Long(), Moved = r.Int(), Train = r.Int(), StartTick = r.Long(), Started = r.Bool(), Lost = r.Int() });
+            BudgetUsedToday = r.Long(); _budgetDay = r.Long(); _lastSiegeTick = r.Long(); _respiteUntil = r.Long(); _ambushBank = r.Long(); _anySiege = r.Bool();
+            ReadInto(r.Longs(), LastSeenTick, "atención"); ReadInto(r.Longs(), AttentionTicks, "ticks de atención");
+            SiegeMovedTotal = r.Long(); DriftMovedTotal = r.Long(); AmbushMovedTotal = r.Long(); BudgetTotal = r.Long();
+            IgnoreAttention = r.Bool(); Seed = r.ULong();
+            _carryZombies = r.Long(); ReadInto(r.Longs(), _injectedByDay, "inyectado por día");
+            WorkProbes_Count = r.Long(); WorkProbes_Moved = r.Long(); WorkProbes_Asked = r.Long(); WorkProbes_Paid = r.Long();
+        }
+
+        static void ReadInto(long[] src, long[] dst, string what)
+        {
+            if (src == null || src.Length != dst.Length) throw new SaveException(SaveError.TopologyMismatch, what + ": otra longitud");
+            Array.Copy(src, dst, dst.Length);
+        }
+
         static readonly string[] InteriorNodes = { "Segorbe", "Barracas", "Teruel", "Caminreal", "Calamocha", "Cariñena", "Zaragoza" };
         const string NestNode = "Valencia", UniqueNode = "Castellón";   // nido (D-N33) y única fuente de combustible (D-N34, OB-1)
 
