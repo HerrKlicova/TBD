@@ -36,6 +36,7 @@ namespace TBD.View
         public static bool Ready;
         /// <summary>D-N61: a poco zoom cada zombi se dibuja con el sprite de masa de 8 px (con histéresis, la decide PrototypeBootstrap).</summary>
         public static bool LodOn;
+        public static bool LodDebug;                      // tiñe el LOD de magenta para comprobar que el cambio ocurre (reflexión desde el Editor)
         public static int LodVersion;
 
         public static void Set(Mesh mesh, Material material, Material lodMaterial)
@@ -158,12 +159,14 @@ namespace TBD.View
 
         protected override void OnUpdate()
         {
-            if (!RenderAssets.Ready || _applied == RenderAssets.LodVersion) return;
-            _applied = RenderAssets.LodVersion;
+            int ver = RenderAssets.LodVersion + (RenderAssets.LodDebug ? 1000 : 0);
+            if (!RenderAssets.Ready || _applied == ver) return;
+            _applied = ver;
             var mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(RenderAssets.LodOn ? 1 : 0, 0);
             var post = new PostTransformMatrix { Value = RenderAttachSystem.SpriteMatrix(RenderAssets.LodOn) };
-            foreach (var (m, p) in SystemAPI.Query<RefRW<MaterialMeshInfo>, RefRW<PostTransformMatrix>>().WithAll<Zombie>())
-            { m.ValueRW = mmi; p.ValueRW = post; }
+            var tint = RenderAssets.LodOn && RenderAssets.LodDebug ? new float4(1f, 0.2f, 1f, 1f) : new float4(1f, 1f, 1f, 1f);
+            foreach (var (m, p, c) in SystemAPI.Query<RefRW<MaterialMeshInfo>, RefRW<PostTransformMatrix>, RefRW<ZombieBaseColor>>().WithAll<Zombie>())
+            { m.ValueRW = mmi; p.ValueRW = post; c.ValueRW.Value = tint; }
         }
     }
 

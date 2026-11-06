@@ -260,7 +260,7 @@ namespace TBD.View
 
         // ================================================================ bucle
         // ---------------------------------------------------------------- la horda como mancha (D-N61, Lucía): LOD de masa y sombra bajo la horda
-        Texture2D _massTex; Color32[] _massPix; float[] _massCnt; GameObject _massQuad; float _massNext;
+        float[] _massTmp; Texture2D _massTex; Color32[] _massPix; float[] _massCnt; GameObject _massQuad; float _massNext;
         const int MassRes = 2;                  // metros por texel de la sombra de masa
 
         /// <summary>LOD con histéresis según los píxeles por metro del búfer pixelado, y sombra de masa (suelo más oscuro bajo la densidad).</summary>
@@ -269,7 +269,7 @@ namespace TBD.View
             if (_worldCam == null || _worldA == null) return;
             float pxPerM = _worldCam.pixelHeight / (2f * Mathf.Max(0.01f, _worldCam.orthographicSize));
             float bodyPx = 0.8f * pxPerM;                                          // anchura de hombros del zombi en el búfer
-            bool lod = RenderAssets.LodOn ? bodyPx < 10f : bodyPx < 8f;            // entra a menos de 8 px, sale a más de 10
+            bool lod = RenderAssets.LodOn ? bodyPx < 20f : bodyPx < 16f;           // entra a menos de 16 px (Lucía, D-N61), sale a más de 20
             if (lod != RenderAssets.LodOn) { RenderAssets.LodOn = lod; RenderAssets.LodVersion++; }
             if (Time.unscaledTime < _massNext) return;
             _massNext = Time.unscaledTime + 0.2f;
@@ -297,14 +297,27 @@ namespace TBD.View
                 if (cx >= 0 && cx < w && cz >= 0 && cz < h) _massCnt[cz * w + cx] += 1f;
             }
             zs.Dispose();
+            // kernel gaussiano de unos 6 m (sigma 3 m = 1,5 texels, radio 4 texels), separable; densidad en zombis/m²
+            const int R = 4; const float sg = 1.5f;
+            var k = new float[2 * R + 1]; float ks = 0f;
+            for (int i = -R; i <= R; i++) { k[i + R] = Mathf.Exp(-i * i / (2f * sg * sg)); ks += k[i + R]; }
+            for (int i = 0; i < k.Length; i++) k[i] /= ks;
+            if (_massTmp == null || _massTmp.Length != _massCnt.Length) _massTmp = new float[_massCnt.Length];
             for (int y = 0; y < h; y++)
                 for (int x = 0; x < w; x++)
                 {
-                    float sum = 0f; int n = 0;                                      // desenfoque 3x3: la mancha no es una cuadrícula
-                    for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++)
-                    { int xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue; sum += _massCnt[yy * w + xx]; n++; }
-                    float dens = Mathf.Clamp01(sum / n / 1.5f);                     // 1,5 zombis por texel de 2x2 m = lo más denso
-                    _massPix[y * w + x] = new Color32(0, 0, 0, (byte)(dens * 0.45f * 255f));   // multiplicar por ~0,6 en lo más denso
+                    float a = 0f;
+                    for (int i = -R; i <= R; i++) { int xx = x + i; if (xx >= 0 && xx < w) a += _massCnt[y * w + xx] * k[i + R]; }
+                    _massTmp[y * w + x] = a;
+                }
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    float a = 0f;
+                    for (int i = -R; i <= R; i++) { int yy = y + i; if (yy >= 0 && yy < h) a += _massTmp[yy * w + x] * k[i + R]; }
+                    float dens = a / (MassRes * MassRes);                           // zombis por m²
+                    float al = Mathf.Clamp01((dens - 0.2f) / 0.8f) * 0.55f;         // 0 bajo 0,2/m²; 0,55 a partir de 1/m²
+                    _massPix[y * w + x] = new Color32(0, 0, 0, (byte)(al * 255f));
                 }
             _massTex.SetPixels32(_massPix); _massTex.Apply(false);
         }
@@ -1013,7 +1026,8 @@ namespace TBD.View
             var zt = Resources.Load<Texture2D>("Icons/unidades/atlas_zombi_andar");
             if (zt != null) zm.SetTexture("_BaseMap", zt);
             zm.SetFloat("_Cull", 0f); zm.SetFloat("_AlphaClip", 1f); zm.SetFloat("_Cutoff", 0.5f); zm.EnableKeyword("_ALPHATEST_ON");
-            var zl = new Material(zm);                      // LOD de masa: atlas de 8 px (D-N61)
+            var zl = new Material(zm) { shader = Shader.Find("Universal Render Pipeline/Unlit") };   // LOD de masa: atlas de 8 px (D-N61), unlit: los colores exactos de la paleta
+            zl.SetFloat("_Cull", 0f); zl.SetFloat("_AlphaClip", 1f); zl.SetFloat("_Cutoff", 0.5f); zl.EnableKeyword("_ALPHATEST_ON"); zl.SetColor("_BaseColor", Color.white);
             var ztl = Resources.Load<Texture2D>("Icons/unidades/atlas_zombi_lod");
             if (ztl != null) zl.SetTexture("_BaseMap", ztl);
             RenderAssets.Set(capsule, zm, zl);              // el color por instancia es blanco (ZombieBaseColor); la máscara lo pone magenta
