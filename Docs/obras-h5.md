@@ -96,3 +96,7 @@ Solo se acepta con la **zona del nodo materializada** (`ActiveZoneNode == nodo`)
 ## Horario de obra (Hugo, D-N59)
 - **Todas las obras trabajan de 06:00 a 18:00** (`obra_hora_inicio` 6 y `obra_hora_fin` 18; 12 h al día, el `horas_obra_dia` del modelo) y de noche se paran: obras de muros y piezas (`EffectiveWorkers`) y reparaciones de tramo y puente. Una obra a medias a las 18:00 se queda congelada y sigue a las 06:00 sin perder progreso.
 - Una obra parada de noche **no cuenta como activa** (`WorkActive`): no hay sondeo de obra ni peso ×1,5 ni huella de 0,5 mientras no se trabaja. *Esto lo deduje yo: Hugo no lo dijo; si la Colmena debe oír la obra aunque pare de noche, es una línea en `EffectiveWorkers`.*
+
+### Horario de un tren (SetSchedule)
+`NetWorld.SetSchedule(tren, datos)` sustituye las paradas de un tren parado: seis enteros por parada `[nodo, hora de salida, munición, combustible, materiales, personas]`. Tiene que incluir el nodo donde está el tren, de 1 a 12 paradas, sin dos seguidas en el mismo nodo. Entra en el hash solo si el jugador lo ha puesto. Es lo que permite mover un tren recién salido del taller y cargar los materiales del tren de obras.
+

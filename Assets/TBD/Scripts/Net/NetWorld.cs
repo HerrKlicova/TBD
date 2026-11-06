@@ -29,7 +29,7 @@ namespace TBD.Net
     }
 
     // ================================================================== órdenes
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, SetSchedule = 19 }
 
     public struct NetCommand
     {
@@ -57,6 +57,7 @@ namespace TBD.Net
         public int StopIndex;              // parada en la que está o hacia la que va
         public bool AtStop = true;         // esperando en la parada StopIndex
         public bool Held;                  // retenido por el jugador
+        public bool ScheduleEdited;        // el jugador le ha puesto horario (SetSchedule): entra en el hash con sus paradas y cargas
         public bool WorksTrain;            // tren de obras (hito 5): con materiales y obreros a bordo repara tramos cortados por escombros
         public int HaltAt = -1;            // «detener en el emplazamiento» (hito 5): nodo donde el tren para al llegar (-1 = ninguno)
         public bool Ambushed;              // detenido por una emboscada hasta que se resuelva (zona o expiración)
@@ -391,6 +392,7 @@ namespace TBD.Net
                     case NetCmdType.ConsumeAmmo: ConsumeAmmo(c.Arg, c.Arg2); break;
                     case NetCmdType.AssignWorkers: AssignWorkers(c.Arg, c.Arg2); break;                    // Arg = nodo, Arg2 = obreros
                     case NetCmdType.HaltAtSite: HaltAtSite(c.Arg, c.Arg2); break;                           // Arg = emplazamiento (-1 cancela), Arg2 = servicio
+                    case NetCmdType.SetSchedule: SetSchedule(c.Arg, c.Payload); break;       // Arg = tren, Payload = [nodo, hora de salida (ticks), 4 cargas] por parada
                     case NetCmdType.SetGate: if (c.Payload != null && c.Payload.Length == 2 && (c.Arg & 0xFFFF) == ActiveZoneNode) Works.SetGateMode(c.Arg & 0xFFFF, c.Payload[0], c.Payload[1], c.Arg >> 16); break;     // Arg = nodo | (modo << 16), Payload = [x, y] de la puerta
                     case NetCmdType.RepairEdge: RepairEdge(c.Arg, c.Arg2); break;                           // Arg = tramo, Arg2 = servicio del tren de obras
                     case NetCmdType.FoundStation: FoundStation(c.Arg); break;                               // Arg = nodo
@@ -438,6 +440,46 @@ namespace TBD.Net
                 left -= take;
             }
             Stock[node, (int)Res.Municion] = Math.Max(0, Stock[node, (int)Res.Municion] - left);
+        }
+
+        // ---------------------------------------------------------------- horario de un tren (hito 5: un tren recién fabricado o rehabilitado no se mueve sin él)
+        public const int MaxScheduleStops = 12;
+        public const int MaxScheduleTransfer = 1000;
+
+        /// <summary>
+        /// «Poner horario»: sustituye las paradas de un tren que está parado en una parada. data = por cada parada seis enteros
+        /// [nodo, hora de salida en ticks del día, carga de munición, de combustible, de materiales y de personas] (+ carga en el tren, − descarga en la estación).
+        /// El horario tiene que incluir el nodo donde está el tren (de ahí sale: es su parada actual); dos paradas seguidas, contando el cierre, no pueden ser el mismo nodo.
+        /// Si no vale, no cambia nada.
+        /// </summary>
+        public ScheduleResult SetSchedule(int service, int[] data)
+        {
+            if (service < 0 || service >= Services.Count) return ScheduleResult.TrenInexistente;
+            var s = Services[service];
+            if (!s.AtStop || s.Ambushed || s.StopIndex < 0 || s.StopIndex >= s.Stops.Count) return ScheduleResult.NoEstaParado;
+            int stride = 2 + NetConst.ResCount;
+            if (data == null || data.Length == 0 || data.Length % stride != 0 || data.Length / stride > MaxScheduleStops) return ScheduleResult.HorarioInvalido;
+            int n = data.Length / stride, cur = s.Stops[s.StopIndex].Node, newIndex = -1;
+            for (int k = 0; k < n; k++)
+            {
+                int node = data[k * stride], at = data[k * stride + 1];
+                if (node < 0 || node >= Graph.Nodes.Count || at < 0 || at >= NetConst.DayTicks) return ScheduleResult.HorarioInvalido;
+                if (n > 1 && node == data[((k + 1) % n) * stride]) return ScheduleResult.HorarioInvalido;
+                for (int r = 0; r < NetConst.ResCount; r++) if (Math.Abs(data[k * stride + 2 + r]) > MaxScheduleTransfer) return ScheduleResult.HorarioInvalido;
+                if (newIndex < 0 && node == cur) newIndex = k;
+            }
+            if (newIndex < 0) return ScheduleResult.NoIncluyeParadaActual;
+            s.Stops.Clear();
+            for (int k = 0; k < n; k++)
+            {
+                var tr = new int[NetConst.ResCount];
+                for (int r = 0; r < NetConst.ResCount; r++) tr[r] = data[k * stride + 2 + r];
+                s.Stops.Add(new ScheduleStop { Node = data[k * stride], DepartAt = data[k * stride + 1], Transfer = tr });
+            }
+            s.StopIndex = newIndex;
+            s.DepartedDay.Clear();                                    // horario nuevo: ninguna parada cuenta como ya salida hoy
+            s.ScheduleEdited = true;
+            return ScheduleResult.Ok;
         }
 
         // ---------------------------------------------------------------- obras (hito 5)
@@ -947,6 +989,14 @@ namespace TBD.Net
                 for (int k = 0; k < s.DepartedDay.Count; k++) h += Mix(((ulong)(uint)t.Id << 52) ^ ((ulong)(uint)k << 40) ^ (ulong)(s.DepartedDay[k] + 1));
                 h += Mix(((ulong)(uint)t.Id << 4) ^ (s.AtStop ? 1UL : 0UL) ^ (s.Held ? 2UL : 0UL));
             }
+            foreach (var sv in Services)                                          // horarios puestos por el jugador (los del escenario no cambian y no entran)
+                if (sv.ScheduleEdited)
+                    for (int k = 0; k < sv.Stops.Count; k++)
+                    {
+                        var st = sv.Stops[k];
+                        h += Mix(0x5C4ED0UL ^ ((ulong)(uint)sv.Train.Id << 40) ^ ((ulong)(uint)k << 32) ^ ((ulong)(uint)st.Node << 16) ^ (ulong)st.DepartAt);
+                        for (int r3 = 0; r3 < NetConst.ResCount; r3++) h += Mix(0x5C4ED1UL ^ ((ulong)(uint)sv.Train.Id << 40) ^ ((ulong)(uint)k << 32) ^ ((ulong)r3 << 24) ^ (ulong)(uint)(st.Transfer == null ? 0 : st.Transfer[r3]));
+                    }
             foreach (var sv in Services) if (sv.WorksTrain) h += Mix(0x70B5UL ^ ((ulong)(uint)sv.Train.Id << 32));
             foreach (var sv in Services) if (sv.HaltAt >= 0) h += Mix(0x4A17UL ^ ((ulong)(uint)sv.Train.Id << 32) ^ (ulong)(uint)(sv.HaltAt + 1));
             r.Trains = h;
