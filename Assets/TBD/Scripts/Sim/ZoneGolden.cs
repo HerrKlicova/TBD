@@ -135,6 +135,9 @@ namespace TBD.Sim
         /// <summary>Crea un mundo propio, mete el guion en la cola de órdenes y avanza tick a tick.</summary>
         static void Play(Setup s, List<SimCommand> script, Func<long, ulong, ulong[], bool> onTick, Action<EntityManager, Entity, long> tamper)
         {
+            // N-040 (Sara): la zona solo es determinista con Burst (FloatMode.Deterministic). Sin Burst, la repetición no vale.
+            if (!Unity.Burst.BurstCompiler.IsEnabled)
+                throw new InvalidOperationException("La repetición dorada de zona exige Burst activado (Jobs > Burst > Enable Compilation)");
             var world = new World("TBD_Golden");
             try
             {

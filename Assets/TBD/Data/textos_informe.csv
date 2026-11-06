@@ -1,0 +1,20 @@
+id;fuente;es;en
+TR-1;Mora;Ha aprendido que el {tren} pasa por {tramo} hacia las {hora}.;It has learned that {train} passes {segment} around {time}.
+TR-2;Ibarra;Se concentra en el km {km} de {tramo}. Calculo {n} en {minutos} min.;Massing at km {km} on {segment}. I count {n}, {minutes} min out.
+TR-3;tras el ataque;Nos esperaban en {punto}. Sabían a qué hora pasábamos.;They were waiting at {point}. They knew when we'd pass.
+TR-4;Mora;Han cortado la vía en el km {km} de {tramo}. Escombros. Hace falta el tren de obras.;Track cut at km {km} on {segment}. Debris. We need the work train.
+TR-5;Mora;Ha olvidado tu horario de {tramo}.;It has forgotten your {segment} schedule.
+TR-6;Mora;Ha aprendido tu horario automático. Los trenes que no piensan son fáciles de cazar.;It has learned your automatic schedule. Trains that don't think are easy prey.
+AT-1;tras el ataque;Sabe dónde estás. Atacó {nodo_b} mientras defendías {nodo_a}.;It knows where you are. It hit {node_b} while you held {node_a}.
+AT-2;Mora;Vuelve a hacerlo. Cuanto más tiempo pasas en un sitio, más solo dejas el resto.;It's doing it again. The longer you stay in one place, the more you leave the rest alone.
+OB-1;Mora;Ha entendido que sin {nodo} tus trenes se paran.;It has understood that without {node} your trains stop.
+OB-2;Mora;Va a por la gente. {nodo} tiene {poblacion} personas y la Colmena lo sabe.;It's going for the people. {node} holds {population} and the Hive knows it.
+ES-1;Ibarra;Una manada sigue al {tren} desde {nodo}.;A pack is tailing {train} from {node}.
+ES-2;Ibarra;{nodo}, asediada. Cuento {n}. La pila contra el muro sube.;{node} under siege. I count {n}. The pile against the wall is rising.
+ES-3;Ibarra;Se retiran de {nodo}. Han dejado {muertos} muertos.;They're pulling back from {node}. {dead} left behind.
+ES-4;Mora;La Colmena es más grande que hace {dias} días.;The Hive is larger than it was {days} days ago.
+CK-1;Mora;Algunos de los que echamos ayer… ya no son de los nuestros.;Some of the ones we turned away yesterday… aren't ours anymore.
+CK-2;Mora;Brote dentro de {nodo}. Venía con los de ayer.;Outbreak inside {node}. It came in with yesterday's group.
+TO-1;Bolea;Comandante, aquí abajo no hay balas para siempre. En Zaragoza, sí.;Commander, there aren't bullets down here forever. In Zaragoza, there are.
+TO-2;informe;La Colmena crece más rápido que tu red.;The Hive is growing faster than your network.
+TO-3;Reig;Al ritmo de hoy, Sagunto aguanta {dias} días.;At today's rate, Sagunto holds for {days} days.

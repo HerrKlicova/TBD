@@ -617,9 +617,36 @@ namespace TBD.View
                 GUI.Label(new Rect(20, y, pw - 20, 30), $"<color={col}>●</color> {al.Text}", _small); y += _small.fontSize * 1.5f;
             }
             if (_a.Alerts.Count == 0) { GUI.Label(new Rect(20, y, pw, 30), "<color=#808080>sin alertas</color>", _small); }
+            DrawIntel();
             GUI.Label(new Rect(16, Screen.height - _small.fontSize * 2.4f, Screen.width, 30),
                 "WASD mover · Q E girar · R F inclinar · rueda zoom (a menos de 2 km de una estación se entra en la zona) · J ir a la alerta · Espacio pausa · 1/2/3 velocidad · F9 captura", _small);
             NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart);
+        }
+
+        // ---------------------------------------------------------------- informe de inteligencia (hito 4)
+        IntelTexts _texts;
+
+        void DrawIntel()
+        {
+            if (_texts == null)
+            {
+                try { _texts = new IntelTexts(System.IO.File.ReadAllText(System.IO.Path.Combine(Application.dataPath, "TBD", "Data", "textos_informe.csv"))); }
+                catch { return; }
+            }
+            int n = Mathf.Min(4, _a.Intel.Count);
+            float w = Mathf.Min(560, Screen.width * 0.45f);
+            float h = _small.fontSize * (2.2f + n * 1.6f);
+            float x = Screen.width - w - 8, y = 8;
+            GUI.Box(new Rect(x, y, w, h), GUIContent.none, _panel);
+            GUI.Label(new Rect(x + 10, y + 4, w, 30), "<b>INFORME DE INTELIGENCIA</b>" + (n == 0 ? "  <color=#808080>sin novedades</color>" : ""), _small);
+            y += _small.fontSize * 1.8f;
+            for (int i = _a.Intel.Count - n; i < _a.Intel.Count; i++)
+            {
+                var e = _a.Intel[i];
+                string text = _texts.Format(e, "es", out var src);
+                GUI.Label(new Rect(x + 12, y, w - 20, 40), $"<color=#C8B890>{NetConst.Clock(e.Tick)} · {src}</color> · {text}", _small);
+                y += _small.fontSize * 1.6f;
+            }
         }
 
         void Capture()

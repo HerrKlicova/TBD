@@ -67,6 +67,9 @@ namespace TBD.Sim
 
         static void Play(long netTicks, Func<long, ulong, ulong, ulong[], bool> onTick)
         {
+            // N-040 (Sara): la zona solo es determinista con Burst (FloatMode.Deterministic). Sin Burst, la repetición no vale.
+            if (!Unity.Burst.BurstCompiler.IsEnabled)
+                throw new InvalidOperationException("La repetición dorada de zona exige Burst activado (Jobs > Burst > Enable Compilation)");
             var net = NetScenario.Mvp();
             long start = net.Tick;
             int visit = 0;
@@ -120,7 +123,7 @@ namespace TBD.Sim
                     if (net.Tick % 300 == 0)
                     {
                         var s = net.Systems();
-                        sys = new[] { s.Control, s.Field, s.Trains, s.Stock, s.Edges };
+                        sys = new[] { s.Control, s.Field, s.Trains, s.Stock, s.Edges, s.Memory };
                     }
                     if (!onTick(net.Tick, net.Hash(), zh, sys)) return;
                 }

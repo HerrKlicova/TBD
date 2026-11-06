@@ -205,6 +205,8 @@ namespace TBD.Net
         public long ActiveZoneSinceTick = -1;
         public int ActiveZoneCell = -1;             // celda de la mancha de la que salió la horda (y a la que vuelve)
         public List<Alert> Alerts = new List<Alert>();
+        public TrafficMemory Traffic;                    // hito 4: memoria de tráfico de la Colmena
+        public readonly List<IntelEntry> Intel = new List<IntelEntry>();   // informe de inteligencia (entradas en orden de tick)
         readonly List<NetCommand> _queue = new List<NetCommand>();
 
         public const int SiegeAt = 500, ThreatAt = 150, CutAt = 850, NearAt = 250;
@@ -215,6 +217,7 @@ namespace TBD.Net
             Attraction = new int[g.Nodes.Count];
             BaseAttraction = new int[g.Nodes.Count];
             Stock = new int[g.Nodes.Count, NetConst.ResCount];
+            Traffic = new TrafficMemory(g.Edges.Count, TrafficParams.Default);
         }
 
         public static ulong Mix(ulong h)
@@ -351,6 +354,8 @@ namespace TBD.Net
                 UpdateFromField();
             }
             Tick++;
+            if (Tick % NetConst.DayTicks == 0 && Traffic != null)
+                Traffic.Decay((e, slot) => Intel.Add(new IntelEntry { Tick = Tick, Id = "TR-5", Vars = new[] { "tramo", EdgeName(Graph.Edges[e]) } }));
             if (Tick % NetConst.FieldEvery == 0)
             {
                 var prev = Alerts;
@@ -388,6 +393,7 @@ namespace TBD.Net
                 s.LastDepartDay = day;
                 t.SetRoute(route);
                 t.Go();
+                PassEdge(s, t.CurrentEdge(Graph));                    // entra en el primer tramo: la Colmena lo apunta
                 s.AtStop = false;
                 s.StopIndex = next;
                 return;
@@ -402,10 +408,24 @@ namespace TBD.Net
             int legBefore = t.Leg;
             t.Step(Graph);
             if (t.Leg != legBefore && t.Leg < t.Route.Count) MakeNoise(t.Route[t.Leg]);
+            if (t.Leg != legBefore && t.State != RailTrainState.Llegado) PassEdge(s, t.CurrentEdge(Graph));
             if (t.State == RailTrainState.Llegado)
             {
                 MakeNoise(s.Stops[s.StopIndex].Node);
                 s.AtStop = true;
+            }
+        }
+
+        string EdgeName(RailEdge e) { return Graph.Nodes[e.A].Name + "–" + Graph.Nodes[e.B].Name; }
+
+        /// <summary>Un tren entra en un tramo: suma a la memoria de tráfico; si la franja cruza el aviso, entrada TR-1 en el informe.</summary>
+        void PassEdge(TrainService s, RailEdge e)
+        {
+            if (e == null || Traffic == null) return;
+            if (Traffic.OnPass(e.Id, Tick))
+            {
+                string hora = NetConst.Clock(Tick / 1500 * 1500);             // la hora en punto: «hacia las 08:00»
+                Intel.Add(new IntelEntry { Tick = Tick, Id = "TR-1", Vars = new[] { "tren", "Tren " + s.Train.Name, "tramo", EdgeName(e), "hora", hora } });
             }
         }
 
@@ -478,11 +498,11 @@ namespace TBD.Net
         /// <summary>Hash por sistema (repetición dorada, D3 de Sara): control, mancha, trenes, existencias y vías.</summary>
         public struct SystemHashes
         {
-            public ulong Control, Field, Trains, Stock, Edges;
-            public ulong Total => Control + Field + Trains + Stock + Edges;
+            public ulong Control, Field, Trains, Stock, Edges, Memory;
+            public ulong Total => Control + Field + Trains + Stock + Edges + Memory;
         }
 
-        public static readonly string[] SystemNames = { "control", "mancha", "trenes", "existencias", "vias" };
+        public static readonly string[] SystemNames = { "control", "mancha", "trenes", "existencias", "vias", "memoria" };
 
         public SystemHashes Systems()
         {
@@ -511,6 +531,7 @@ namespace TBD.Net
             h = 0;
             foreach (var e in Graph.Edges) h += Mix(((ulong)(uint)e.Id << 8) ^ (ulong)e.State);
             r.Edges = h;
+            r.Memory = (Traffic != null ? Traffic.Hash() : 0) + Mix(0x1E7E1UL ^ (ulong)(uint)Intel.Count);
             return r;
         }
 

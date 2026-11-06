@@ -119,7 +119,7 @@ namespace TBD.Net
             if (!expected.TryGetValue(next, out var f)) return "?";
             while (w.Tick < next) w.Step();
             var s = w.Systems();
-            return Culprit(f, new[] { s.Control, s.Field, s.Trains, s.Stock, s.Edges });
+            return Culprit(f, new[] { s.Control, s.Field, s.Trains, s.Stock, s.Edges, s.Memory });
         }
 
         /// <summary>Avanza «ticks» ticks aplicando el guion; en cada tick llama a «onTick» con el hash (y los sistemas cada 300 ticks).</summary>
@@ -138,7 +138,7 @@ namespace TBD.Net
                 if (w.Tick % SystemEvery == 0)
                 {
                     var s = w.Systems();
-                    sys = new[] { s.Control, s.Field, s.Trains, s.Stock, s.Edges };
+                    sys = new[] { s.Control, s.Field, s.Trains, s.Stock, s.Edges, s.Memory };
                 }
                 if (!onTick(w.Tick, w.Hash(), sys)) return;
             }

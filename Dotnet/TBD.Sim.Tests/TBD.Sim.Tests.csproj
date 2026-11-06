@@ -21,6 +21,8 @@
     <Compile Include="BalanceTests.cs" />
     <Compile Include="CombatTests.cs" />
     <Compile Include="GoldenTests.cs" />
+    <Compile Include="HiveTests.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Net\Hive.cs" Link="Net\Hive.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\NetGolden.cs" Link="Net\NetGolden.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Balance.cs" Link="Net\Balance.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\NetWorld.cs" Link="Net\NetWorld.cs" />
