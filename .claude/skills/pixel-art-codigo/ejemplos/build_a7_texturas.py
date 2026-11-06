@@ -67,105 +67,97 @@ def tono(rampa, v):
     return rampa[min(len(rampa) - 1, max(0, int(v * len(rampa))))]
 
 
+# Material de suelo (Lucía, 6-nov): dentro de cada textura, ΔL* de 12 como máximo salvo las juntas.
+# El protagonismo es de la horda y la tropa, no del suelo. JUNTAS lista lo que no cuenta.
+DL_MAX = 12
+JUNTAS = {
+    "balasto": {"olive_shadow"},
+    "hormigon": {"grey_brown"},
+    "ladrillo": {"olive_grey"},
+    "tierra": set(),
+    "asfalto": {"olive_black"},
+}
+
+
 def balasto():
-    """Piedra partida de vía: cantos de 4-7 px, cada uno de un gris o pardo, juntas oscuras."""
+    """Piedra partida en el valor más oscuro de la escena (#48403c, D-N42): cantos en gris pardo,
+    algo de pizarra, alguna piedra clara suelta y huecos oscuros."""
     s = Sprite(T, T)
     pts = semillas(110, 7)
-    piedra = ["grey_brown", "olive_grey", "concrete", "concrete", "olive_grey", "grey_brown", "concrete_light"]
     for y in range(T):
         for x in range(T):
             d1, d2, k = voronoi(x + .5, y + .5, pts)
             if d2 - d1 < 0.8:
-                s.set(x, y, "olive_shadow")          # hueco entre piedras
-            else:
-                v = _h(k, 9, 7) * 0.8 + fbm(x, y, 3, (8, 4)) * 0.2
-                s.set(x, y, tono(piedra, v))
+                s.set(x, y, "olive_shadow")          # hueco entre piedras (junta)
+                continue
+            v = _h(k, 9, 7)
+            c = "grey_brown" if v < 0.80 else "slate" if v < 0.91 else "olive_grey"   # neutro: sin azules ni rojos fuertes
+            s.set(x, y, c)
     return s
 
 
 def hormigon():
-    """Losa de hormigón: grano fino de dos grises, manchas de humedad suaves, poros y una junta."""
+    """Losa de hormigón: moteado fino y suave de dos grises y la junta de losa."""
     s = Sprite(T, T)
     for y in range(T):
         for x in range(T):
-            v = fbm(x, y, 11, (8, 4, 2))             # grano fino, sin manchas grandes
-            m = fbm(x, y, 13, (32, 16))
-            g = _h(x, y, 12)
-            c = "concrete_light" if v > 0.62 else "concrete"
-            if m < 0.30 and v < 0.5:
-                c = "olive_grey"                     # humedad, salpicada y floja
-            if g > 0.975:
-                c = "grey_brown"                     # poro
+            v = fbm(x, y, 11, (4, 2))
+            c = "concrete_light" if v > 0.68 else "concrete"   # sin poros oscuros: ΔL* ≤ 12
             s.set(x, y, c)
-    for i in range(T):                               # junta de dilatación, en el borde: casa al repetir
+    for i in range(T):                               # junta de losa, en el borde: casa al repetir
         s.set(i, 0, "grey_brown")
         s.set(0, i, "grey_brown")
     return s
 
 
 def ladrillo():
-    """Aparejo a soga de 16x8 (llaga de 1 px). Terracota apagada y algún ocre, sin naranja."""
+    """Aparejo a soga de 16x8 (llaga de 1 px). Terracota tirando a marrón, lejos del rojo de peligro."""
     s = Sprite(T, T)
-    piezas = ["rose_brown", "rose", "rose", "rose_brown", "rose", "grey_brown"]
     for y in range(T):
         fila = y // 8
         off = 8 if fila % 2 else 0
         for x in range(T):
             xx = (x + off) % T
             if y % 8 == 7 or xx % 16 == 15:
-                s.set(x, y, "olive_grey")             # mortero
+                s.set(x, y, "olive_grey")             # mortero (junta)
                 continue
             k = (xx // 16) + fila * 4
-            base = tono(piezas, _h(k, 3, 21))
-            g = fbm(x, y, 22, (8, 4))
+            base = "rose" if _h(k, 3, 21) > 0.62 else "rose_brown"
             c = base
-            if g < 0.30:                               # desgaste, sin brillos (albedo plano)
-                c = {"rose": "rose_brown", "rose_brown": "grey_brown", "grey_brown": "olive_shadow"}.get(base, base)
-            elif _h(x, y, 23) > 0.96:
-                c = "grey_brown"                       # picadura
+            if base == "rose" and (fbm(x, y, 22, (8, 4)) < 0.32 or _h(x, y, 23) > 0.95):
+                c = "rose_brown"                      # desgaste y picadura
             s.set(x, y, c)
     return s
 
 
 def tierra():
-    """Tierra batida: pardos con manchas de ocre seco, algo de hierba muerta y chinas."""
+    """Tierra ocre, el color del suelo del mundo (zona y llano del mapa): moteado fino, polvo seco
+    en gris oliva y alguna china."""
     s = Sprite(T, T)
     for y in range(T):
         for x in range(T):
             v = fbm(x, y, 31, (8, 4, 2))
             w = fbm(x, y, 37, (16, 8, 4))
-            c = tono(["brown_dark", "brown", "brown", "brown", "rose_brown"], v)
-            if w > 0.70 and v > 0.45:
+            c = "ochre_dark"
+            if v < 0.40 or (w > 0.66 and v < 0.55):
                 c = "olive_grey"                     # polvo seco
-            elif w < 0.27 and v < 0.55:
-                c = "olive_dark"                     # hierba muerta
-            g = _h(x, y, 33)
-            if g > 0.985:
+            if _h(x, y, 33) > 0.985:
                 c = "concrete"                       # china
-            elif g > 0.97:
-                c = "grey_brown"
             s.set(x, y, c)
     return s
 
 
 def asfalto():
-    """Asfalto gastado: negro azulado con árido claro salpicado, parches y una grieta fina."""
+    """Asfalto gastado: ruido fino oscuro, árido en pizarra y una grieta fina."""
     s = Sprite(T, T)
     for y in range(T):
         for x in range(T):
             v = fbm(x, y, 41, (4, 2))
-            m = fbm(x, y, 44, (32, 16))
-            c = "grey_brown" if v > 0.40 else "olive_shadow"
-            if m > 0.68 and v > 0.6:
-                c = "olive_grey"                     # rodada gastada
-            g = _h(x, y, 42)
-            if g > 0.975:
-                c = "slate"
-            elif g > 0.965:
-                c = "concrete"
+            c = "grey_brown" if v > 0.42 else "olive_shadow"
+            if _h(x, y, 42) > 0.97:
+                c = "slate"                          # árido
             s.set(x, y, c)
-    # Grieta fina que cruza el borde (envuelve al repetir).
-    x = 20.0
+    x = 20.0                                         # grieta que envuelve al repetir (junta)
     for y in range(T):
         x += (ruido(0, y, 8, 43) - 0.5) * 2.2
         s.set(int(x) % T, y, "olive_black")
@@ -183,7 +175,7 @@ def mosaico(s, n=3):
     return t
 
 
-def info(s):
+def info(s, nombre):
     from pixelvm import _lab_l
     cols = {}
     for y in range(T):
@@ -191,9 +183,12 @@ def info(s):
             p = s.px[x, y][:3]
             cols[p] = cols.get(p, 0) + 1
     fuera = [c for c in cols if c + (255,) not in PAL.values()]
+    jun = {PAL[k][:3] for k in JUNTAS[nombre]}
     ls = [_lab_l(c) for c, n in cols.items() for _ in range(n)]
-    med = sum(ls) / len(ls)
-    return f"{len(cols)} colores, L* medio {med:.0f}, rango {min(ls):.0f}-{max(ls):.0f}" + \
+    lm = [_lab_l(c) for c in cols if c not in jun]
+    dl = max(lm) - min(lm)
+    estado = "OK" if dl <= DL_MAX and not fuera else "AVISO"
+    return f"{estado}: {len(cols)} colores, L* medio {sum(ls) / len(ls):.0f}, ΔL* sin juntas {dl:.1f}" + \
         (f", FUERA DE PALETA {fuera}" if fuera else "")
 
 
@@ -204,7 +199,7 @@ if __name__ == "__main__":
     for n, s in zip(nombres, texs):
         s.save(OUT / f"tex_{n}_64.png")
         mosaico(s).save(OUT / f"tex_{n}_mosaico3x3.png", scale=2)
-        print(n, info(s))
+        print(n, info(s, n))
     hoja = Image.new("RGBA", (len(texs) * (T * 2 + 8) * 2 + 8, T * 2 * 2 + 16), PAL["navy"])
     for i, s in enumerate(texs):
         hoja.paste(mosaico(s, 2).img.resize((T * 4, T * 4), Image.NEAREST), (8 + i * (T * 4 + 8), 8))
