@@ -796,7 +796,7 @@ namespace TBD.View
         // F10 = empieza/para una grabación de fotogramas; el GIF se monta con scripts/capturas/hacer_gif.py de
         // mr-mak-workspace. Todo se guarda en <proyecto>/Captures/, fuera de Git.
         /// <summary>Las capturas de Shift+F9 salen a resolución completa del juego (la normal del F9 es a mitad de tamaño). Máscara: zombis #FF00FF, tren #00FFFF.</summary>
-        const int MaskSuperSize = 4;
+        static int MaskSuperSize = 1;        // captura normal con máscara a la misma resolución (el supersize cambia la exposición: Lucía, D-N61)
         bool _recording;
         bool _capturing;
         float _recTimer;
@@ -1173,17 +1173,18 @@ namespace TBD.View
         /// </summary>
         void BuildCuttingTerrain()
         {
-            var bank = Mat("8a7650");                                // un solo albedo para todo el terreno
+            var bank = Mat("8a7650");                                // llano de arriba (L* 64-68 en captura normal)
+            var slope = Mat("766444");                               // taludes: L* 52-56 (medido: con el albedo del llano salían a 66)
             float hb = 0.7f, hp = CuttingLevel.Depth;                // altura de la base de la rampa y del llano de arriba
             float yb = Level.TrackY + CuttingLevel.HalfBottom;       // 72,5: pie del talud norte
             float yc = yb + (hp - hb) / 0.84f;                       // pendiente 0,84 m por metro: pasa por la mitad de los escalones
             float x0 = CuttingLevel.X0, x1 = CuttingLevel.X1;
             // norte
-            AddQuad(bank, new Vector3(x0, hb, yb), new Vector3(x1, hb, yb), new Vector3(x0, hp, yc), new Vector3(x1, hp, yc));              // talud
+            AddQuad(slope, new Vector3(x0, hb, yb), new Vector3(x1, hb, yb), new Vector3(x0, hp, yc), new Vector3(x1, hp, yc));              // talud
             AddQuad(bank, new Vector3(x0, hp, yc), new Vector3(x1, hp, yc), new Vector3(x0, hp, SimConst.WorldH), new Vector3(x1, hp, SimConst.WorldH));  // llano de arriba
             // sur (simétrico respecto de la vía)
             float ys = Level.TrackY - CuttingLevel.HalfBottom, ysc = ys - (hp - hb) / 0.84f;
-            AddQuad(bank, new Vector3(x1, hb, ys), new Vector3(x0, hb, ys), new Vector3(x1, hp, ysc), new Vector3(x0, hp, ysc));
+            AddQuad(slope, new Vector3(x1, hb, ys), new Vector3(x0, hb, ys), new Vector3(x1, hp, ysc), new Vector3(x0, hp, ysc));
             AddQuad(bank, new Vector3(x1, hp, ysc), new Vector3(x0, hp, ysc), new Vector3(x1, hp, 0f), new Vector3(x0, hp, 0f));
             // las cabeceras de la trinchera (paredes verticales en X0 y X1)
             AddQuad(bank, new Vector3(x0, 0f, yb), new Vector3(x0, 0f, SimConst.WorldH), new Vector3(x0, hp, yb), new Vector3(x0, hp, SimConst.WorldH));
@@ -1191,13 +1192,15 @@ namespace TBD.View
             AddQuad(bank, new Vector3(x0, 0f, 0f), new Vector3(x0, 0f, ys), new Vector3(x0, hp, 0f), new Vector3(x0, hp, ys));
             AddQuad(bank, new Vector3(x1, 0f, ys), new Vector3(x1, 0f, 0f), new Vector3(x1, hp, ys), new Vector3(x1, hp, 0f));
             // fondo: el valor más oscuro de la escena (balasto #48403c); el tren se lee contra él
-            var floor = Box("Fondo de la trinchera", new Vector3((x0 + x1) * 0.5f, 0.02f, Level.TrackY), new Vector3(x1 - x0, 0.04f, CuttingLevel.HalfBottom * 2f), Mat("48403c"));
+            // fondo de la trinchera: L* 38-42 (#605c48, v2 del desmonte aprobada por Lucía); el balasto #48403c (L* 26-30) solo en la franja de ~4 m bajo la vía
+            Box("Fondo de la trinchera", new Vector3((x0 + x1) * 0.5f, 0.02f, Level.TrackY), new Vector3(x1 - x0, 0.04f, CuttingLevel.HalfBottom * 2f), Mat("282419"));
+            var floor = Box("Balasto", new Vector3((x0 + x1) * 0.5f, 0.03f, Level.TrackY), new Vector3(x1 - x0, 0.04f, 4f), Mat("48403c"));
             var tb = Resources.Load<Texture2D>("Icons/texturas/tex_balasto_64");        // balasto de Bruno, tileable (regla 13): una repetición cada 4 m
             if (tb != null)
             {
                 var fm = floor.GetComponent<MeshRenderer>().material;
-                fm.SetTexture("_BaseMap", tb); fm.SetColor("_BaseColor", Color.white);
-                fm.SetTextureScale("_BaseMap", new Vector2((x1 - x0) / 4f, CuttingLevel.HalfBottom * 2f / 4f));
+                fm.SetTexture("_BaseMap", tb); fm.SetColor("_BaseColor", new Color(0.9f, 0.9f, 0.9f));   // L* 28-32 en captura normal
+                fm.SetTextureScale("_BaseMap", new Vector2((x1 - x0) / 4f, 1f));
             }
             // oclusión ambiental falsa: una banda más oscura al pie de cada talud (20-30 % según la profundidad)
             Box("Sombra del pie norte", new Vector3((x0 + x1) * 0.5f, 0.03f, yb + 1f), new Vector3(x1 - x0, 0.03f, 2f), Mat("342e2a"));
@@ -1414,64 +1417,14 @@ namespace TBD.View
 
         static int ToLocalMm(float v, bool z = false) { return (int)Mathf.Round((v - (z ? WorkOrigin.y : WorkOrigin.x)) * 1000f); }
 
-        const int TrackGapMm = 1600;        // semiancho del hueco de vía (3,2 m): ningún muro libre lo ocupa; la puerta va ahí
-
-        /// <summary>
-        /// Parte la polilínea (mm locales al nodo; la vía es y = 0) en trozos que no entran en la franja de la vía: un muro nunca cruza la vía ni los
-        /// vagones. Cada trozo sale como una obra (es una orden de red, con su coste exacto). Devuelve cuántos tramos se han recortado.
-        /// </summary>
-        static System.Collections.Generic.List<int[]> SplitAroundTrack(int[] pts, out int clipped)
-        {
-            clipped = 0;
-            var result = new System.Collections.Generic.List<int[]>();
-            var cur = new System.Collections.Generic.List<int>();
-            void Flush() { if (cur.Count >= 4) result.Add(cur.ToArray()); cur.Clear(); }
-            for (int i = 0; i + 3 < pts.Length; i += 2)
-            {
-                long x0 = pts[i], y0 = pts[i + 1], x1 = pts[i + 2], y1 = pts[i + 3];
-                // intervalo del segmento (t en 0..1000) fuera de |y| < gap
-                long tIn = -1, tOut = -1;                                         // entrada y salida de la franja
-                if (System.Math.Min(y0, y1) < TrackGapMm && System.Math.Max(y0, y1) > -TrackGapMm && y0 != y1)
-                {
-                    long ta = (-TrackGapMm - y0) * 1000 / (y1 - y0), tb = (TrackGapMm - y0) * 1000 / (y1 - y0);
-                    tIn = System.Math.Max(0, System.Math.Min(ta, tb)); tOut = System.Math.Min(1000, System.Math.Max(ta, tb));
-                    if (tIn >= tOut) { tIn = -1; }
-                }
-                else if (y0 == y1 && System.Math.Abs(y0) < TrackGapMm) { tIn = 0; tOut = 1000; }
-                if (tIn < 0)                                                      // no toca la franja: se queda entero
-                {
-                    if (cur.Count == 0) { cur.Add((int)x0); cur.Add((int)y0); }
-                    cur.Add((int)x1); cur.Add((int)y1);
-                    continue;
-                }
-                clipped++;
-                int ax = (int)(x0 + (x1 - x0) * tIn / 1000), ay = (int)(y0 + (y1 - y0) * tIn / 1000);
-                int bx = (int)(x0 + (x1 - x0) * tOut / 1000), by = (int)(y0 + (y1 - y0) * tOut / 1000);
-                if (tIn > 0) { if (cur.Count == 0) { cur.Add((int)x0); cur.Add((int)y0); } cur.Add(ax); cur.Add(ay); }
-                Flush();
-                if (tOut < 1000) { cur.Add(bx); cur.Add(by); cur.Add((int)x1); cur.Add((int)y1); }
-            }
-            Flush();
-            return result;
-        }
-
         void FinishWall()
         {
             if (_wallPts.Count < 4) { _wallPts.Clear(); return; }
-            int clipped;
-            var parts = SplitAroundTrack(_wallPts.ToArray(), out clipped);
-            if (parts.Count == 0) { _workMsg = "El muro cae sobre la vía: la vía queda libre (pon una puerta con H)."; _wallPts.Clear(); return; }
-            int stock = NetSession.A.Stock[_zoneNode, (int)Res.Materiales], totalU = 0; long totalMm = 0; bool cut = false;
-            foreach (var part in parts)
-            {
-                var plan = NetSession.A.Works.Preview(_zoneNode, _workKind, part, stock - totalU);
-                if (!plan.Ok) { cut = true; continue; }
-                totalU += plan.CostU; totalMm += plan.AllowedMm; cut |= plan.Cut;
-                NetSession.PushPayload(NetCmdType.PlaceWork, _zoneNode | ((int)_workKind << 16), part);
-            }
-            _workMsg = totalU > 0
-                ? $"Obra pedida: {totalMm / 1000f:0.0} m de {(_workKind == PieceKind.Sacos ? "sacos" : "HESCO")}, {totalU} u" + (cut ? " (se corta por falta de materiales)" : "") + (clipped > 0 ? " · el muro deja libre el hueco de la vía (3,2 m): ahí va la puerta" : "")
-                : "No se puede construir: faltan materiales o el muro es demasiado corto";
+            // la red (PR #12 de Nacho) conoce la vía: envía la polilínea entera y añade las puertas de vía donde el muro cruza
+            var plan = NetSession.A.Works.Preview(_zoneNode, _workKind, _wallPts.ToArray(), NetSession.A.Stock[_zoneNode, (int)Res.Materiales]);
+            if (!plan.Ok) { _workMsg = "No se puede construir: " + plan.Why; _wallPts.Clear(); return; }
+            NetSession.PushPayload(NetCmdType.PlaceWork, _zoneNode | ((int)_workKind << 16), _wallPts.ToArray());
+            _workMsg = $"Obra pedida: {plan.AllowedMm / 1000f:0.0} m de {(_workKind == PieceKind.Sacos ? "sacos" : "HESCO")}, {plan.CostU} u" + (plan.Cut ? " (se corta por falta de materiales)" : "");
             _wallPts.Clear();
         }
 
@@ -1486,12 +1439,12 @@ namespace TBD.View
                 var w = pieces[i];
                 if (!w.IsWall)
                 {
-                    if (!IsPoint(w.Kind)) continue;                                   // depósito y andén: sin dibujo aún
+                    if (!IsPoint(w.Kind) && !w.IsGate) continue;                      // depósito y andén: sin dibujo aún
                     if (w.Built && !_workBuilt[i])
                     {
                         if (_workVisuals[i] != null) Destroy(_workVisuals[i]);
-                        var c = new Vector3(WorkOrigin.x + w.X0 / 1000f, 0f, WorkOrigin.y + w.Y0 / 1000f);
-                        _workVisuals[i] = PieceSprite(w.Kind, c, 1f);
+                        var c = new Vector3(WorkOrigin.x + (w.IsGate ? (w.X0 + w.X1) * 0.5f : w.X0) / 1000f, 0f, WorkOrigin.y + (w.IsGate ? (w.Y0 + w.Y1) * 0.5f : w.Y0) / 1000f);
+                        _workVisuals[i] = PieceSprite(w.Kind, c, 1f);          // la puerta de vía va abierta al tren: sin sólido que bloquee
                         if (w.Kind == PieceKind.Puerta || w.Kind == PieceKind.Nido)   // bloquean a la horda: un tramo corto de muro
                         {
                             float half = w.Kind == PieceKind.Puerta ? 1.2f : 0.8f;
@@ -1507,7 +1460,7 @@ namespace TBD.View
                         _workBuilt[i] = true;
                     }
                     else if (!w.Built && _workVisuals[i] == null)
-                        _workVisuals[i] = PieceSprite(w.Kind, new Vector3(WorkOrigin.x + w.X0 / 1000f, 0f, WorkOrigin.y + w.Y0 / 1000f), 0.5f);   // fantasma: la mitad de tamaño
+                        _workVisuals[i] = PieceSprite(w.Kind, new Vector3(WorkOrigin.x + (w.IsGate ? (w.X0 + w.X1) * 0.5f : w.X0) / 1000f, 0f, WorkOrigin.y + (w.IsGate ? (w.Y0 + w.Y1) * 0.5f : w.Y0) / 1000f), 0.5f);   // fantasma: la mitad de tamaño
                     continue;
                 }
                 if (w.Built && !_workBuilt[i])
@@ -1532,7 +1485,7 @@ namespace TBD.View
         /// <summary>Sprite de Bruno (puerta, nido, foco; 32 px, vista cenital, miran a +Y) tumbado sobre el suelo, con filtro de punto.</summary>
         GameObject PieceSprite(PieceKind k, Vector3 pos, float scale)
         {
-            string n = k == PieceKind.Puerta ? "puerta" : k == PieceKind.Nido ? "nido" : "foco";
+            string n = k == PieceKind.Puerta || k == PieceKind.PuertaVia ? "puerta" : k == PieceKind.Nido ? "nido" : "foco";
             var tex = Resources.Load<Texture2D>("Icons/prototipo/vm_mundo_" + n + "_32");
             var go = GameObject.CreatePrimitive(PrimitiveType.Quad); go.name = "Pieza " + n; Destroy(go.GetComponent<Collider>());
             go.transform.SetParent(transform, false);
