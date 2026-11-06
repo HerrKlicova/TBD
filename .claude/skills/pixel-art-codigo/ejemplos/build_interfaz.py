@@ -246,6 +246,39 @@ def orden_emplazar():
     return s
 
 
+def _vehiculo(s, x0):
+    """Caja de vagón o blindado de 15x14 en oliva con la puerta oscura en el centro y dos ruedas."""
+    s.rect(x0, 6, 15, 14, "olive")
+    s.hline(x0, x0 + 14, 6, "olive_light")
+    s.vline(x0, 7, 19, "olive_light")
+    s.hline(x0, x0 + 14, 19, "olive_dark")
+    s.vline(x0 + 14, 7, 19, "olive_dark")
+    s.rect(x0 + 4, 9, 7, 10, "olive_shadow")             # puerta abierta
+    for x in (x0 + 3, x0 + 11):
+        s.ellipse(x - 2, 19, x + 2, 23, "slate_dark")
+        s.set(x, 21, "concrete")
+
+
+def orden_embarcar():
+    """Embarcar: flecha gruesa que ENTRA por la puerta del vehículo (vehículo a la derecha)."""
+    import build_a3 as a3
+    s = Sprite()
+    _vehiculo(s, 16)
+    a3.flecha_der(s, 1, 12, 23, 5)
+    s.outline()
+    return s
+
+
+def orden_desembarcar():
+    """Desembarcar: el vehículo a la izquierda y la flecha gruesa que SALE de su puerta hacia fuera."""
+    import build_a3 as a3
+    s = Sprite()
+    _vehiculo(s, 1)
+    a3.flecha_der(s, 8, 12, 24, 5)
+    s.outline()
+    return s
+
+
 # --- Señalización horizontal (Álvaro y Lucía, plan §4: «Escala») ---------------------------
 def linea_central():
     """Línea central discontinua de carretera: 3 m de trazo y 3 m de hueco, 0,15 m de ancho → 64x2 en
@@ -442,6 +475,9 @@ def piezas():
         p[f"ui_alerta_{n}"] = (alerta_slot(n), 4)
     for b in ("efectivos", "municion", "combustible", "baja"):
         p[f"ui_barra_{b}"] = (barra(b), 1)
+    import build_maquetas as bm                          # D-N74
+    p["ui_cartel_oleada"] = (bm.cartel_oleada(), 6)
+    p["ui_barra_recarga"] = (bm.barra_recarga(), 1)
     for c in CALIENTE:
         p[f"ui_cursor_{c}"] = (cursor(c), 0)
     return p
@@ -452,7 +488,7 @@ def ordenes():
     import build_a3 as a3
     from pixelvm import reduce_16
     o = {"mover": orden_mover_icono(), "atacar": orden_atacar_icono(), "mantener": a3.aguantar(),
-         "emplazar": orden_emplazar(), "embarcar": a3.embarcar(), "desembarcar": a3.desplegar()}
+         "emplazar": orden_emplazar(), "embarcar": orden_embarcar(), "desembarcar": orden_desembarcar()}
     return {n: (s, reduce_16(s)) for n, s in o.items()}
 
 
@@ -464,6 +500,8 @@ def exportar(out):
         meta[n] = {"size": [s.w, s.h], "slice": [sl] * 4}
         if n.startswith("ui_cursor_"):
             meta[n]["hotspot"] = CALIENTE[n[10:]]
+    meta["ui_indicador_entrada"] = {"size": [64, 24], "frames": 2, "frameSize": [32, 24], "fps": 4, "loop": True,
+                                    "nota": "mira a la derecha; se gira hacia la entrada activa fuera de cuadro; placa de 16x12 en 1,6 para «O1»–«O4»"}
     for nombre, fn in (("mover", orden_mover), ("atacar", orden_atacar)):
         hoja = Image.new("RGBA", (64, 16), (0, 0, 0, 0))
         for f in range(4):
