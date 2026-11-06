@@ -200,6 +200,9 @@ namespace TBD.Net
 
         // ---- zona en detalle (hito 3, D-N05): 1 por mil de densidad = 10 zombis
         public const int ZombiesPerPermil = 10;
+        public long InjectedTotal, LostTotal;
+        public readonly List<Injection> Injections = new List<Injection>();   // lo inyectado en ESTE tick (celda y cantidad), para QA (Sara); no entra en el hash
+        public long LostThisTick;       // masa(t) = masa(t-1) + inyectada − bajas, exacto en enteros (D-N33, Mak)
         public int ActiveZoneNode = -1;             // nodo con zona materializada (-1 = ninguna; el MVP admite una)
         public int ActiveZoneTaken;                 // densidad (por mil) que salió de la mancha al materializar
         public long ActiveZoneSinceTick = -1;
@@ -334,6 +337,9 @@ namespace TBD.Net
         {
             if (node != ActiveZoneNode) return;
             int i = ActiveZoneCell;
+            LostThisTick += Math.Max(0, ActiveZoneTaken - Math.Max(0, returnPermil));
+            LostTotal += Math.Max(0, ActiveZoneTaken - Math.Max(0, returnPermil));   // las bajas de la zona salen de la masa; si vuelve más de lo que salió (refuerzos) cuenta como inyectado
+            InjectedTotal += Math.Max(0, Math.Max(0, returnPermil) - ActiveZoneTaken);
             Field.D[i] += Math.Max(0, returnPermil);
             ActiveZoneCell = -1;
             Field.Frozen = -1;
@@ -345,6 +351,7 @@ namespace TBD.Net
         // ---------------------------------------------------------------- un tick
         public void Step()
         {
+            Injections.Clear(); LostThisTick = 0;
             ApplyCommands();                 // en cada tick, no al ritmo de los fotogramas (QA Q5)
             if (Paused) return;
             for (int s = 0; s < Services.Count; s++) StepService(Services[s]);

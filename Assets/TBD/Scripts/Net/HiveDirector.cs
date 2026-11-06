@@ -59,6 +59,8 @@ namespace TBD.Net
         }
     }
 
+    public struct Injection { public int Cell, Amount; }
+
     public sealed class HiveDirector
     {
         public enum PlanKind : byte { Emboscada = 0, Corte = 1, Asedio = 2, Caza = 3 }
@@ -171,6 +173,62 @@ namespace TBD.Net
             return pop / PersonsPerHugoUnit * P.HuellaPersonMil + (long)w.Services.Count * P.HuellaTrainMil + (long)held * P.HuellaNodeMil;
         }
 
+        /// <summary>
+        /// D-N33 (Mak, A): el presupuesto de la hora entra en el campo como masa NUEVA, nunca sobre el objetivo: en el nido de Valencia
+        /// (si no es el objetivo) y en la celda del borde del campo más cercana a cada nodo, repartido por peso. Después se mueve como siempre.
+        /// Devuelve lo inyectado de verdad (una celda llena no admite más). La masa del campo cambia solo por esto y por las bajas (NetWorld.LostTotal).
+        /// </summary>
+        long Inject(NetWorld w, long amount)
+        {
+            if (amount <= 0) return 0;
+            int nodes = w.Graph.Nodes.Count;
+            long total = 0;
+            var wt = new long[nodes];
+            for (int n = 0; n < nodes; n++) { wt[n] = SiegeWeight(w, n); total += wt[n]; }
+            if (total <= 0) return 0;
+            long done = 0, given = 0;
+            for (int n = 0; n < nodes; n++)
+            {
+                long part = n == nodes - 1 ? amount - given : amount * wt[n] / total;
+                given += part;
+                if (part <= 0) continue;
+                var nd = w.Graph.Nodes[n];
+                int cell = BorderCell(nd.XMeters, nd.YMeters);
+                if (cell == w.Field.Frozen || NearPlayerNode(w, cell)) continue;      // ni en una zona en detalle ni a menos de ~10 km de un nodo del jugador (Lucía, D-N35)
+                int add = (int)Math.Min(part, HordeField.Max - w.Field.D[cell]);
+                if (add <= 0) continue;
+                w.Field.D[cell] += add; done += add;
+                w.Injections.Add(new Injection { Cell = cell, Amount = add });
+            }
+            w.InjectedTotal += done;
+            return done;
+        }
+
+        const int KeepOutCells = 3;       // ~10 km: una celda del campo ronda los 3-4 km (aproximado: el mapa es de memoria)
+
+        static bool NearPlayerNode(NetWorld w, int cell)
+        {
+            int cx = cell % HordeField.W, cy = cell / HordeField.W;
+            for (int n = 0; n < w.Graph.Nodes.Count; n++)
+            {
+                if (w.Stock[n, (int)Res.Personas] <= 0) continue;
+                var nd = w.Graph.Nodes[n];
+                if (Math.Abs(nd.XMeters - cx) <= KeepOutCells && Math.Abs(nd.YMeters - cy) <= KeepOutCells) return true;
+            }
+            return false;
+        }
+
+        /// <summary>Celda del borde del campo más cercana a (x, y); empates: izquierda, derecha, arriba, abajo.</summary>
+        static int BorderCell(int x, int y)
+        {
+            int dl = x, dr = HordeField.W - 1 - x, du = y, dd = HordeField.H - 1 - y;
+            int m = Math.Min(Math.Min(dl, dr), Math.Min(du, dd));
+            if (dl == m) return y * HordeField.W;
+            if (dr == m) return y * HordeField.W + HordeField.W - 1;
+            if (du == m) return x;
+            return (HordeField.H - 1) * HordeField.W + x;
+        }
+
         public long[] Curve;                          // colmena_curva.csv (si no se carga, una aproximación lineal)
 
         /// <summary>Una hora de juego: caducan los planes, se elige la acción de mayor utilidad y se ejecuta.</summary>
@@ -231,6 +289,7 @@ namespace TBD.Net
                 }
             }
             else drift += siegeShare;                                       // D-N34: sin asedio, esa masa vuelve a la deriva y presiona por peso
+            Inject(w, hb + (siegeFlow - siegeShare) * (started > 0 ? 1 : 0));        // D-N33 (Mak, A): masa nueva al campo, lejos del objetivo
             long dm = Drift(w, drift); BudgetUsedToday += dm; DriftMovedTotal += dm; BudgetTotal += hb + (siegeFlow - siegeShare) * (started > 0 ? 1 : 0);
             _ambushBank += ambushShare;
 
@@ -353,26 +412,34 @@ namespace TBD.Net
         {
             var f = w.Field;
             int tx = target % HordeField.W, ty = target / HordeField.W;
-            var cand = new List<int>();
-            for (int y = ty - 8; y <= ty + 8; y++)
-                for (int x = tx - 8; x <= tx + 8; x++)
-                {
-                    if (x < 0 || y < 0 || x >= HordeField.W || y >= HordeField.H) continue;
-                    int c = y * HordeField.W + x;
-                    if (c == target || c == f.Frozen || f.D[c] <= 0) continue;
-                    cand.Add(c);
-                }
-            cand.Sort((p, q) => f.D[p] != f.D[q] ? f.D[q].CompareTo(f.D[p]) : p.CompareTo(q));
             int room = HordeField.Max - f.D[target];
             int moved = 0;
-            foreach (int c in cand)
+            int prev = 0;
+            // la horda converge por anillos (8, 16, 32 y 64 celdas): primero lo cercano; si no basta, viene de más lejos (D-N35: la masa nueva entra por los bordes)
+            foreach (int radius in new[] { 8, 16, 32, 64 })
             {
                 if (moved >= want || moved >= room) break;
-                int take = Math.Min(f.D[c] / 2, Math.Min(want - moved, room - moved));
-                if (take <= 0) continue;
-                f.D[c] -= take;
-                f.D[target] += take;
-                moved += take;
+                var cand = new List<int>();
+                for (int y = ty - radius; y <= ty + radius; y++)
+                    for (int x = tx - radius; x <= tx + radius; x++)
+                    {
+                        if (x < 0 || y < 0 || x >= HordeField.W || y >= HordeField.H) continue;
+                        if (Math.Max(Math.Abs(x - tx), Math.Abs(y - ty)) <= prev) continue;
+                        int c = y * HordeField.W + x;
+                        if (c == target || c == f.Frozen || f.D[c] <= 0) continue;
+                        cand.Add(c);
+                    }
+                prev = radius;
+                cand.Sort((p, q) => f.D[p] != f.D[q] ? f.D[q].CompareTo(f.D[p]) : p.CompareTo(q));
+                foreach (int c in cand)
+                {
+                    if (moved >= want || moved >= room) break;
+                    int take = Math.Min(f.D[c] / 2, Math.Min(want - moved, room - moved));
+                    if (take <= 0) continue;
+                    f.D[c] -= take;
+                    f.D[target] += take;
+                    moved += take;
+                }
             }
             return moved;
         }

@@ -89,7 +89,8 @@ namespace TBD.Sim.Tests
                     }
                 }
                 foreach (var e in wd.Intel) if (e.Id != "TR-1" && e.Id != "TR-5") events.Add(NetConst.Clock(e.Tick) + " d" + (e.Tick / NetConst.DayTicks + 1) + " " + e.Id);
-                check(wd.Field.Mass() == mass0, $"el director no crea zombis: la masa de la mancha se conserva en 6 días ({mass0} → {wd.Field.Mass()})");
+                check(wd.Field.Mass() + (wd.ActiveZoneNode >= 0 ? wd.ActiveZoneTaken : 0) == mass0 + wd.InjectedTotal - wd.LostTotal, $"masa(t) = masa(0) + inyectada − bajas, exacto en enteros, en 6 días ({mass0} + {wd.InjectedTotal} − {wd.LostTotal} = {wd.Field.Mass()})");
+                check(wd.InjectedTotal > 0, "el director inyecta el presupuesto como masa nueva (D-N33, Mak)");
                 check(!siegeDay1, "el director no asedia el día 1 (D-N08)");
                 check(siegeLater, "desde el día 2 el director lanza asedios (como mucho uno a la vez en la etapa 1)");
                 check(ambushOrCut, "con el horario fijo, el director prepara emboscadas o cortes en los tramos que ha aprendido");
@@ -152,7 +153,7 @@ namespace TBD.Sim.Tests
                 check(maxAt == 1 && starts.Count >= 6, $"desde el día 2 hay asedio por calendario, uno a la vez en la etapa 1 ({starts.Count} asedios en 20 días)");
                 check(gapsOk && ends.Count > 0, $"entre asedios, un respiro de 6-12 h más el aviso de 3 h (huecos: {gaps.Trim()})");
                 check(targets.Count >= 2, $"el objetivo se sortea por peso² y no es siempre el mismo ({string.Join(", ", tl)})");
-                check(wc.Field.Mass() == NetScenario.Mvp().Field.Mass(), "el reparto por peso (deriva) tampoco crea zombis en 20 días");
+                check(wc.Field.Mass() == NetScenario.Mvp().Field.Mass() + wc.InjectedTotal - wc.LostTotal, $"el reparto por peso (deriva) solo mueve masa: lo único que entra es lo inyectado ({wc.InjectedTotal}) en 20 días");
             }
 
             // ---- D-N33 (Mak): reparto de objetivos con 200 semillas, jugador quieto en Sagunto y sin atención, a ±8 puntos del modelo de Hugo
@@ -204,6 +205,27 @@ namespace TBD.Sim.Tests
                     check(warns.Exists(x => x.Contains("balance_director.csv")) && wm.Director.P.SiegeWarnH == DirectorParams.Default.SiegeWarnH, "si falta un CSV se avisa y se usan los valores por defecto");
                 }
                 finally { TBD.Net.BalanceSource.Reader = reader; TBD.Net.BalanceSource.Warn = warnPrev; TBD.Net.BalanceSource.Missing.Clear(); }
+            }
+
+            // ---- D-N35 (Lucía, Sara): lo inyectado solo cae en celdas del borde, nunca en el objetivo, en una zona en detalle ni a menos de ~10 km de un nodo del jugador
+            {
+                var wi = NetScenario.Mvp();
+                bool edgeOnly = true, notTarget = true, awayFromPlayer = true; int count = 0; long sum = 0;
+                for (long t = 0; t < 4L * NetConst.DayTicks; t++)
+                {
+                    wi.Step();
+                    foreach (var inj in wi.Injections)
+                    {
+                        count++; sum += inj.Amount;
+                        int x = inj.Cell % HordeField.W, y = inj.Cell / HordeField.W;
+                        if (x != 0 && y != 0 && x != HordeField.W - 1 && y != HordeField.H - 1) edgeOnly = false;
+                        foreach (var pl in wi.Director.Active) if (pl.Kind == HiveDirector.PlanKind.Asedio && pl.Cell == inj.Cell) notTarget = false;
+                        for (int n = 0; n < wi.Graph.Nodes.Count; n++)
+                            if (wi.Stock[n, (int)Res.Personas] > 0 && Math.Abs(wi.Graph.Nodes[n].XMeters - x) <= 3 && Math.Abs(wi.Graph.Nodes[n].YMeters - y) <= 3) awayFromPlayer = false;
+                    }
+                }
+                check(count > 0 && edgeOnly && notTarget && awayFromPlayer, $"lo inyectado solo cae en celdas del borde, lejos del objetivo y de los nodos del jugador ({count} inyecciones, {sum} por mil en 4 días)");
+                check(sum == wi.InjectedTotal, "el contador por tick de lo inyectado suma lo mismo que el total del mundo");
             }
 
             // ---- medición para Hugo: zombis que mueve el director cada día (asedio, deriva, emboscada), días 1-20, a un CSV si TBD_DUMP_DIR existe
