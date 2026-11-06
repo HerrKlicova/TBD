@@ -96,3 +96,7 @@ Solo se acepta con la **zona del nodo materializada** (`ActiveZoneNode == nodo`)
 ## Horario de obra (Hugo, D-N59)
 - **Todas las obras trabajan de 06:00 a 18:00** (`obra_hora_inicio` 6 y `obra_hora_fin` 18; 12 h al día, el `horas_obra_dia` del modelo) y de noche se paran: obras de muros y piezas (`EffectiveWorkers`) y reparaciones de tramo y puente. Una obra a medias a las 18:00 se queda congelada y sigue a las 06:00 sin perder progreso.
 - Una obra parada de noche **no cuenta como activa** (`WorkActive`): no hay sondeo de obra ni peso ×1,5 ni huella de 0,5 mientras no se trabaja. *Esto lo deduje yo: Hugo no lo dijo; si la Colmena debe oír la obra aunque pare de noche, es una línea en `EffectiveWorkers`.*
+
+### El taller (paso 5)
+`Taller.cs`: cola de encargos del taller de Sagunto. `OrderTrain(tipo)` cobra con las existencias del taller y no cobra nada si falla (materiales, combustible, dotación de 8 obreros en el tren de obras, máximo de trenes, rehabilitación ya hecha). Un encargo a la vez, 24 h al día: tren nuevo 3 días, rehabilitar 36 h. Chispas (`SetChispas`) acelera un 25 % las rehabilitaciones y las reparaciones de vía y puente, no la fabricación. El tren nace en Sagunto con una sola parada; el tren de obras sale con 8 obreros a bordo. `CancelTrainOrder(i)` devuelve lo cobrado (empezado, el 50 % de lo que falta). Pendiente: poner horario y carga a un tren nuevo (no hay orden de horario) y el aviso «tren listo» (sin texto).
+
