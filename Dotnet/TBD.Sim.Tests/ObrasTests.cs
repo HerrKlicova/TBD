@@ -634,15 +634,20 @@ namespace TBD.Sim.Tests
 
             // mantenimiento (Hugo): una estación abastecida no se degrada y una vacía sí
             var m = Built(2); m.Services.Clear();                  // sin trenes: nadie carga ni descarga el almacén durante la prueba
-            check(m.Works.MaintenanceU(Node) == 1, $"el mantenimiento de un día es ceil(1 % de Σ(coste × vida)) = 1 u para 20 u construidas: {m.Works.MaintenanceU(Node)}");
-            m.Tick = 3 * NetConst.DayTicks - 1; m.Step();
+            check(m.Works.MaintenanceU(Node) == 1, $"el techo del mantenimiento de un día es ceil(1 % de Σ(coste × vida)) = 1 u para 20 u construidas: {m.Works.MaintenanceU(Node)}");
+            // lo que se cobra es el 1 % exacto con remanente (adenda de D-N63): 20 u cuestan 0,2 u al día, es decir 1 u cada 5 días
+            for (int k = 3; k <= 6; k++) { m.Tick = k * NetConst.DayTicks - 1; m.Step(); }
             bool intact = true; foreach (var x in m.Works.At(Node)) if (x.Built && x.LifeMil != 1000) intact = false;
-            check(intact && m.Stock[Node, (int)Res.Materiales] == 1, "con reservas se paga el mantenimiento (1 u) y la vida no baja");
-            m.Tick = 4 * NetConst.DayTicks - 1; m.Step();
-            check(m.Stock[Node, (int)Res.Materiales] == 0, "el segundo día se paga con la última u");
-            m.Tick = 5 * NetConst.DayTicks - 1; m.Step();
+            check(intact && m.Stock[Node, (int)Res.Materiales] == 2 && m.Works.MaintRem[Node] == 4 * 20L * 10_000 * 1000 * 10, "20 u construidas cuestan 0,2 u al día: tras 4 días no se ha cobrado nada, la vida no baja y el remanente guarda 0,8 u");
+            m.Tick = 7 * NetConst.DayTicks - 1; m.Step();
+            check(m.Stock[Node, (int)Res.Materiales] == 1 && m.Works.MaintRem[Node] == 0, "el quinto día se cobra la primera u entera y el remanente queda a cero");
+            for (int k = 8; k <= 12; k++) { m.Tick = k * NetConst.DayTicks - 1; m.Step(); }
+            check(m.Stock[Node, (int)Res.Materiales] == 0, "otros cinco días, y se paga con la última u");
+            intact = true; foreach (var x in m.Works.At(Node)) if (x.Built && x.LifeMil != 1000) intact = false;
+            check(intact, "con reservas la vida no baja");
+            m.Tick = 13 * NetConst.DayTicks - 1; m.Step();
             bool worn = true; foreach (var x in m.Works.At(Node)) if (x.Built && x.LifeMil != 990) worn = false;
-            check(worn && m.Stock[Node, (int)Res.Materiales] == 0, "sin reservas no se puede pagar: se aplica la caída del 1 % (1000 → 990 ‰) y no se cobra nada");
+            check(worn && m.Stock[Node, (int)Res.Materiales] == 0, "sin reservas no se puede cubrir ni la fracción: se aplica la caída del 1 % (1000 → 990 ‰) y no se cobra nada");
             // el mantenimiento usa la misma Σ que el nivel: ni el depósito ni lo que está fuera del perímetro de 60 m cuestan nada
             var dp = Built(2); dp.Services.Clear();
             dp.Push(Place(dp.Tick, PieceKind.Deposito, 1000, 1000)); dp.Push(Place(dp.Tick, PieceKind.Hesco, 100_000, 0, 150_000, 0)); dp.ApplyCommands();
@@ -669,7 +674,7 @@ namespace TBD.Sim.Tests
             check(dep2 == 1000, "tampoco se desgasta el depósito cuando la estación no puede pagar el mantenimiento");
             var d20 = Built(1000); d20.Services.Clear();
             for (int d = 1; d <= 20; d++) { d20.Tick = d * NetConst.DayTicks - 1; d20.Step(); }
-            check(d20.Stock[Node, (int)Res.Materiales] == 980 && d20.Works.At(Node)[0].LifeMil == 1000, "abastecida 20 días: paga 1 u al día (980 u quedan) y conserva el 100 % de vida");
+            check(d20.Stock[Node, (int)Res.Materiales] == 996 && d20.Works.At(Node)[0].LifeMil == 1000, "abastecida 20 días: paga 0,2 u al día, 4 u en total (996 u quedan), y conserva el 100 % de vida");
             var sinObras = Mvp0(); sinObras.Services.Clear(); sinObras.Tick = 3 * NetConst.DayTicks - 1; int hs0 = sinObras.Stock[0, (int)Res.Materiales];
             sinObras.Step();
             check(sinObras.Stock[0, (int)Res.Materiales] == hs0, "sin obras el mantenimiento no cobra nada");
