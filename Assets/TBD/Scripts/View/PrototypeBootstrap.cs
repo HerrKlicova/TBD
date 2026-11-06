@@ -1739,7 +1739,7 @@ namespace TBD.View
                     Color32 tgt = mean;
                     if (zone == 5 || zone == 4 || zone == 0 || zone == 2)
                     {
-                        const float kl = 0.7f;
+                        float kl = zone == 4 ? 0.85f : 0.7f;                                     // asfalto 85 % (Sara midio 6,6 con el 70 %); el resto 70 %
                         mean = new Color32((byte)(mean.r + (gs.mApis.r - mean.r) * kl), (byte)(mean.g + (gs.mApis.g - mean.g) * kl), (byte)(mean.b + (gs.mApis.b - mean.b) * kl), 255);
                     }
                     const float kn = 0.2f;
