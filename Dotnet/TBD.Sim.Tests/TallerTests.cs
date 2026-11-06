@@ -10,7 +10,7 @@ namespace TBD.Sim.Tests
     {
         static NetWorld World(bool chispas = false)
         {
-            var w = NetScenario.Mvp(); w.Services.Clear();            // sin trenes del escenario: no tocan las existencias de Sagunto
+            var w = NetScenario.Mvp(false); w.Services.Clear();            // sin trenes del escenario: no tocan las existencias de Sagunto
             if (!chispas) w.Taller.ChispasAt = -2;                    // sin Chispas: plazos del CSV tal cual
             return w;
         }
@@ -22,7 +22,7 @@ namespace TBD.Sim.Tests
         public static void Run(Action<bool, string> check)
         {
             Console.WriteLine("[24] El taller fabrica y rehabilita trenes (hito 5, paso 5)");
-            var d = NetScenario.Mvp();
+            var d = NetScenario.Mvp(false);
             check(d.Taller.NodeIndex >= 0 && d.Taller.P.Node == "Sagunto" && d.Taller.Hash() == 0, "el taller está en Sagunto y, sin encargos y con Chispas en el taller, su hash vale 0 (los goldens no se mueven)");
             var p = d.Taller.P;
             check(p.TrainU == 120 && p.TrainFuel == 30 && p.TrainCrew == 10 && p.Tren3U == 60 && p.Tren3Fuel == 15 && p.ObrasU == 20 && p.ObrasFuel == 5 && p.ObrasCrew == 8 && p.TrainDays == 3 && p.RehabHours == 36 && p.MaxTrains == 4 && p.MaxTrainsStage2 == 6,
@@ -99,7 +99,7 @@ namespace TBD.Sim.Tests
             check(wq.Services.Count == 2 && wq.Taller.Queue.Count == 0 && wq.Taller.Built == 2, "y a los 6 días salen los dos trenes");
 
             // máximo de trenes: 4 en la demo, 6 en la etapa 2 (cuentan los que ruedan y los encargados)
-            var wm = NetScenario.Mvp(); wm.Taller.ChispasAt = -2;
+            var wm = NetScenario.Mvp(false); wm.Taller.ChispasAt = -2;
             check(wm.Services.Count == 2 && wm.OrderTrain(TallerKind.RehabTren3) == TallerResult.Ok && wm.OrderTrain(TallerKind.RehabObras) == TallerResult.Ok, "con 2 trenes se pueden encargar el Tren 3 y el de obras");
             int mm = wm.Stock[Sag(wm), (int)Res.Materiales];
             check(wm.OrderTrain(TallerKind.Carga) == TallerResult.MaximoTrenes && wm.Stock[Sag(wm), (int)Res.Materiales] == mm, "el quinto tren (2 + 2 encargados = 4) se rechaza en la demo, sin cobrar");
@@ -145,10 +145,10 @@ namespace TBD.Sim.Tests
             check(hc.Hash() != hdd.Hash(), "dónde está Chispas entra en el hash");
             string gold = NetGolden.Record(new List<NetCommand>
             {
-                new NetCommand { Tick = NetScenario.Mvp().Tick + 100, Type = NetCmdType.OrderTrain, Arg = (int)TallerKind.RehabTren3 },
-                new NetCommand { Tick = NetScenario.Mvp().Tick + 200, Type = NetCmdType.SetChispas, Arg = 1 },
-                new NetCommand { Tick = NetScenario.Mvp().Tick + 300, Type = NetCmdType.CancelTrainOrder, Arg = 0 },
-                new NetCommand { Tick = NetScenario.Mvp().Tick + 400, Type = NetCmdType.OrderTrain, Arg = (int)TallerKind.Carga }
+                new NetCommand { Tick = NetScenario.Mvp(false).Tick + 100, Type = NetCmdType.OrderTrain, Arg = (int)TallerKind.RehabTren3 },
+                new NetCommand { Tick = NetScenario.Mvp(false).Tick + 200, Type = NetCmdType.SetChispas, Arg = 1 },
+                new NetCommand { Tick = NetScenario.Mvp(false).Tick + 300, Type = NetCmdType.CancelTrainOrder, Arg = 0 },
+                new NetCommand { Tick = NetScenario.Mvp(false).Tick + 400, Type = NetCmdType.OrderTrain, Arg = (int)TallerKind.Carga }
             }, 3000);
             var res = NetGolden.Verify(gold);
             check(res.Ok && gold.Contains(";16;") && gold.Contains(";17;") && gold.Contains(";18;"), $"las órdenes del taller se graban y se reproducen igual: {res}");
@@ -156,7 +156,7 @@ namespace TBD.Sim.Tests
             // Chispas a bordo del tren de obras acelera las reparaciones de vía (36.000 obrero·ticks → 28.800: 3.600 ticks con 8 obreros)
             NetWorld Rep(bool onTrain, out RailEdge edge)
             {
-                var r = NetScenario.Mvp(); r.Tick = NetConst.Hours(8); r.Taller.ChispasAt = onTrain ? 0 : -1;
+                var r = NetScenario.Mvp(false); r.Tick = NetConst.Hours(8); r.Taller.ChispasAt = onTrain ? 0 : -1;
                 var sv = r.Services[0]; sv.WorksTrain = true; sv.AtStop = true; sv.StopIndex = 0;
                 sv.Cargo[(int)Res.Materiales] = 20; sv.Cargo[(int)Res.Personas] = 8;
                 int node = sv.Stops[0].Node; edge = null;

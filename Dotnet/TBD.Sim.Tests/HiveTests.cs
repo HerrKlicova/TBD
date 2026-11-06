@@ -46,7 +46,7 @@ namespace TBD.Sim.Tests
             check(sp.M[0, 1] == 200 && sp.M[0, 2] == 100 && sp.M[0, 0] == 100, $"el paso suma 200 en su franja y derrama 100 a las vecinas ({sp.M[0, 0]}/{sp.M[0, 1]}/{sp.M[0, 2]})");
 
             // la partida: el horario fijo del tren 2 (Sagunto 07:00) acaba en el informe, y al retenerlo unos días se olvida
-            var w = NetScenario.Mvp();
+            var w = NetScenario.Mvp(false);
             var texts = new IntelTexts(File.ReadAllText(Path.Combine(dir, "textos_informe.csv")));
             int learnedDay = -1;
             for (int day = 0; day < 8 && learnedDay < 0; day++)
@@ -74,7 +74,7 @@ namespace TBD.Sim.Tests
 
             // ---- director (hito 4, parte 2): conserva la masa, sin asedios el día 1, asedio desde el día 2, castigo al horario fijo
             {
-                var wd = NetScenario.Mvp();
+                var wd = NetScenario.Mvp(false);
                 long mass0 = wd.Field.Mass();
                 bool siegeDay1 = false, siegeLater = false, ambushOrCut = false;
                 var events = new System.Collections.Generic.List<string>();
@@ -100,7 +100,7 @@ namespace TBD.Sim.Tests
 
             // ---- D-N32: cada asedio se anuncia 3 h antes («Horda hacia X en 3 h») y el primero empieza entre las 10:00 y las 16:00 del día 2
             {
-                var wf = NetScenario.Mvp();
+                var wf = NetScenario.Mvp(false);
                 long warnTick = -1, startTick = -1;
                 for (long t = 0; t < 3L * NetConst.DayTicks && startTick < 0; t++)
                 {
@@ -122,12 +122,12 @@ namespace TBD.Sim.Tests
                     && dc.AmbushPerMem == dd.AmbushPerMem && dc.CutPerMem == dd.CutPerMem && dc.MaxSiegesStage1 == dd.MaxSiegesStage1
                     && dc.PointUniqueMil == dd.PointUniqueMil && dc.AttentionMil == dd.AttentionMil && dc.RespiteMinH == dd.RespiteMinH && dc.RespiteMaxH == dd.RespiteMaxH,
                     $"balance_colmena.csv (D-N33/34) coincide con el director: curva ×{dc.BudgetCurveMil}‰, asedio {dc.SiegeShareMil}‰ y {dc.SiegeDays} días, respiro {dc.RespiteMinH}-{dc.RespiteMaxH} h");
-                Console.WriteLine($"         presupuesto del día (zombis, sin ruido de semilla): día 0 {NetScenario.Mvp().Director.DayZombies(0, 2000)}, día 1 {NetScenario.Mvp().Director.DayZombies(1, 2000)}, día 10 {NetScenario.Mvp().Director.DayZombies(10, 5000)}");
+                Console.WriteLine($"         presupuesto del día (zombis, sin ruido de semilla): día 0 {NetScenario.Mvp(false).Director.DayZombies(0, 2000)}, día 1 {NetScenario.Mvp(false).Director.DayZombies(1, 2000)}, día 10 {NetScenario.Mvp(false).Director.DayZombies(10, 5000)}");
             }
 
             // ---- D-N33/D-N34: asedio por calendario (siempre uno desde el primero, salvo el respiro de 6-12 h), objetivo sorteado por peso²
             {
-                var wc = NetScenario.Mvp();
+                var wc = NetScenario.Mvp(false);
                 var starts = new System.Collections.Generic.List<long>();
                 var ends = new System.Collections.Generic.List<long>();
                 var targets = new System.Collections.Generic.Dictionary<string, int>();
@@ -153,14 +153,14 @@ namespace TBD.Sim.Tests
                 check(maxAt == 1 && starts.Count >= 6, $"desde el día 2 hay asedio por calendario, uno a la vez en la etapa 1 ({starts.Count} asedios en 20 días)");
                 check(gapsOk && ends.Count > 0, $"entre asedios, un respiro de 6-12 h más el aviso de 3 h (huecos: {gaps.Trim()})");
                 check(targets.Count >= 2, $"el objetivo se sortea por peso² y no es siempre el mismo ({string.Join(", ", tl)})");
-                check(wc.Field.Mass() == NetScenario.Mvp().Field.Mass() + wc.InjectedTotal - wc.LostTotal - wc.RetiredTotal, $"el reparto por peso (deriva) solo mueve masa: entra lo inyectado ({wc.InjectedTotal}) y sale lo retirado ({wc.RetiredTotal}) en 20 días");
+                check(wc.Field.Mass() == NetScenario.Mvp(false).Field.Mass() + wc.InjectedTotal - wc.LostTotal - wc.RetiredTotal, $"el reparto por peso (deriva) solo mueve masa: entra lo inyectado ({wc.InjectedTotal}) y sale lo retirado ({wc.RetiredTotal}) en 20 días");
             }
 
             // ---- D-N33 (Mak): reparto de objetivos con 200 semillas, jugador quieto en Sagunto y sin atención, a ±8 puntos del modelo de Hugo
             {
                 var refs = new System.Collections.Generic.Dictionary<string, int> { { "Valencia", 28 }, { "Castellón", 17 }, { "Teruel", 11 }, { "Segorbe", 7 }, { "Barracas", 7 } };
                 var cnt = new System.Collections.Generic.Dictionary<string, int>();
-                var ws = NetScenario.Mvp();
+                var ws = NetScenario.Mvp(false);
                 int sagi = ws.Graph.Nodes.FindIndex(n => n.Name == "Sagunto");
                 ws.Push(new NetCommand { Tick = ws.Tick, Type = NetCmdType.Materialize, Arg = sagi });
                 ws.Step();
@@ -196,12 +196,12 @@ namespace TBD.Sim.Tests
                 {
                     TBD.Net.BalanceSource.Warn = warns.Add;
                     TBD.Net.BalanceSource.Reader = f => { var t = reader(f); return f == "balance_colmena.csv" ? t.Replace("asedio_dura_dias;2;", "asedio_dura_dias;3;").Replace("memoria_trafico_tope;1200;", "memoria_trafico_tope;900;") : t; };
-                    var wc2 = NetScenario.Mvp();
+                    var wc2 = NetScenario.Mvp(false);
                     check(wc2.Director.P.SiegeDays == 3 && wc2.Traffic.P.Cap == 900, $"cambiar un CSV (asedio_dura_dias, memoria_trafico_tope) cambia el mundo: {wc2.Director.P.SiegeDays} días de asedio, tope {wc2.Traffic.P.Cap}");
                     check(wc2.Director.Curve != null && wc2.Director.Curve.Length >= 401 && wc2.Director.Curve[1] == 1078, "el director usa la curva de colmena_curva.csv, no la aproximación lineal");
                     TBD.Net.BalanceSource.Missing.Clear(); warns.Clear();
                     TBD.Net.BalanceSource.Reader = f => f == "balance_director.csv" ? null : reader(f);
-                    var wm = NetScenario.Mvp();
+                    var wm = NetScenario.Mvp(false);
                     check(warns.Exists(x => x.Contains("balance_director.csv")) && wm.Director.P.SiegeWarnH == DirectorParams.Default.SiegeWarnH, "si falta un CSV se avisa y se usan los valores por defecto");
                 }
                 finally { TBD.Net.BalanceSource.Reader = reader; TBD.Net.BalanceSource.Warn = warnPrev; TBD.Net.BalanceSource.Missing.Clear(); }
@@ -209,7 +209,7 @@ namespace TBD.Sim.Tests
 
             // ---- D-N35 (Lucía, Sara): lo inyectado solo cae en celdas del borde, nunca en el objetivo, en una zona en detalle ni a menos de ~10 km de un nodo del jugador
             {
-                var wi = NetScenario.Mvp();
+                var wi = NetScenario.Mvp(false);
                 bool edgeOnly = true, notTarget = true, awayFromPlayer = true; int count = 0; long sum = 0;
                 for (long t = 0; t < 4L * NetConst.DayTicks; t++)
                 {
@@ -230,7 +230,7 @@ namespace TBD.Sim.Tests
 
             // ---- presupuesto del director sin jugador y sin ruido (curva pura) contra la tabla esperada de Hugo, días 0-9 (±5 %); estación indexada con el día desde 0
             {
-                var wb = NetScenario.Mvp();
+                var wb = NetScenario.Mvp(false);
                 wb.Director.Noise = null;
                 long[] hugo = { 232, 821, 1685, 2421, 3108, 3366, 3617, 6171, 4081, 4285 };    // día 7 con el gran ataque ×2 (solo de asedio, 0,6 de la parte)
                 bool okB = true; string txt = "";
@@ -247,7 +247,7 @@ namespace TBD.Sim.Tests
 
             // ---- D-N37b: la horda inicial deriva dentro de una correa de 2 celdas, nunca entra en un nodo y es finita
             {
-                var wl2 = NetScenario.Mvp();
+                var wl2 = NetScenario.Mvp(false);
                 var born = new System.Collections.Generic.List<int>();
                 for (int i = 0; i < wl2.Field.S.Length; i++) if (wl2.Field.S[i] > 0) born.Add(i);
                 long s0 = wl2.Field.StaticMass();
@@ -274,7 +274,7 @@ namespace TBD.Sim.Tests
 
             // ---- D-N39 (Sara): en 10 días, la horda inicial a tiro de la vía nunca pasa de 1.500 grupos
             {
-                var w10 = NetScenario.Mvp();
+                var w10 = NetScenario.Mvp(false);
                 long worst = 0; long born10 = w10.Field.LeashedMassNearTrack(w10.Graph, 1);
                 for (int day = 0; day < 10; day++)
                 {
@@ -285,7 +285,7 @@ namespace TBD.Sim.Tests
 
             // ---- emboscada materializada: un tren cae en una emboscada preparada, se detiene con la horda del punto, y se resuelve por orden o por expiración
             {
-                var we = NetScenario.Mvp();
+                var we = NetScenario.Mvp(false);
                 int ei = we.Graph.Edges.FindIndex(e => e.Ambush.Count > 0);
                 var edge = we.Graph.Edges[ei];
                 // preparamos a mano lo que haría el director: una emboscada en ese tramo con horda en su punto
@@ -307,7 +307,7 @@ namespace TBD.Sim.Tests
                 check(started, "un tren que cae en una emboscada preparada se detiene y la horda del punto sale del campo (encuentro)");
                 check(!we.Encounter.Active && !sv.Ambushed && we.LostTotal == takenAmb - 150 && we.Field.D[cell] > 0, $"ResolveAmbush devuelve los supervivientes (150 ‰), pierde las bajas ({we.LostTotal} ‰) y libera el tren");
                 // expiración
-                var we2 = NetScenario.Mvp();
+                var we2 = NetScenario.Mvp(false);
                 var edge2 = we2.Graph.Edges[we2.Graph.Edges.FindIndex(e => e.Ambush.Count > 0)];
                 int cell2 = (we2.Graph.Nodes[edge2.A].YMeters + we2.Graph.Nodes[edge2.B].YMeters) / 2 * HordeField.W + (we2.Graph.Nodes[edge2.A].XMeters + we2.Graph.Nodes[edge2.B].XMeters) / 2;
                 we2.Field.D[cell2] = 400;
@@ -330,7 +330,7 @@ namespace TBD.Sim.Tests
 
             // ---- estados de manada (Lucía §3): un asedio que pierde más del 50 % de su fuerza se retira y deja respiro
             {
-                var wl = NetScenario.Mvp();
+                var wl = NetScenario.Mvp(false);
                 for (long t = 0; t < 2L * NetConst.DayTicks && !wl.Director.Active.Exists(p => p.Kind == HiveDirector.PlanKind.Asedio && p.Started); t++) wl.Step();
                 int idx = wl.Director.Active.FindIndex(p => p.Kind == HiveDirector.PlanKind.Asedio && p.Started);
                 var spl = wl.Director.Active[idx]; spl.Moved = 400; wl.Director.Active[idx] = spl;
@@ -349,7 +349,7 @@ namespace TBD.Sim.Tests
 
             // ---- D-N36 (Mak, 4): los zombis sin combatir vuelven a los nidos: la masa sobre la inicial nunca supera lo inyectado en los últimos 6 días
             {
-                var wr = NetScenario.Mvp();
+                var wr = NetScenario.Mvp(false);
                 long baseMass = wr.Field.Mass(); long static0 = wr.Field.StaticMass();
                 var perDay = new long[21];
                 bool capOk = true; long worst = 0; long retiredSeen = 0; bool tickCounters = true;
@@ -385,7 +385,7 @@ namespace TBD.Sim.Tests
                     for (int q = 0; q < 21; q++) perDay[q] = new System.Collections.Generic.List<long>();
                     for (int sd = 0; sd < seeds; sd++)
                     {
-                        var wsd = NetScenario.Mvp();
+                        var wsd = NetScenario.Mvp(false);
                         wsd.Director.Seed = (ulong)(sd + 1) * 0x9E3779B97F4A7C15UL;
                         long prevS = 0, prevB = 0, sumS = 0, sumB = 0;
                         for (int q = 0; q < 21; q++)
@@ -401,7 +401,7 @@ namespace TBD.Sim.Tests
                     long medS = siegeTot[siegeTot.Count / 2], medN = netTot[netTot.Count / 2];
                     // D-N39 (Hugo): el total esperado depende de la huella fija del jugador (pob/100 + 0,5 trenes + 0,4 nodos + 1,5 obras);
                     // se compara con la fila de la huella de este escenario, redondeada a la unidad
-                    var h0w = NetScenario.Mvp();
+                    var h0w = NetScenario.Mvp(false);
                     long huellaMil = h0w.Director.HuellaMil(h0w);
                     var refTab = new CsvTable(File.ReadAllText(Path.Combine(dump2 ?? ".", "referencia_total_por_huella.csv")));
                     string[] tr = null; long bestGap = long.MaxValue;
@@ -424,7 +424,7 @@ namespace TBD.Sim.Tests
 
             // ---- medición para Hugo: zombis que mueve el director cada día (asedio, deriva, emboscada), días 1-20, a un CSV si TBD_DUMP_DIR existe
             {
-                var wm2 = NetScenario.Mvp();
+                var wm2 = NetScenario.Mvp(false);
                 var sb2 = new System.Text.StringBuilder("dia;zombis_asedio;presupuesto_zombis;deriva_zombis;emboscada_zombis;asedios_activos;objetivos\n");
                 long pb = 0, ps = 0, pd = 0, pa = 0; long totalSiege = 0;
                 int zpp = NetWorld.ZombiesPerPermil;
@@ -454,7 +454,7 @@ namespace TBD.Sim.Tests
 
             // ---- memoria de atención: más de 6 h en una zona hace que el director asedie OTRO nodo (AT-1)
             {
-                var wa = NetScenario.Mvp();
+                var wa = NetScenario.Mvp(false);
                 for (long t = 0; t < NetConst.DayTicks; t++) wa.Step();                 // día 1 entero (sin asedios)
                 int sag = wa.Graph.Nodes.FindIndex(n => n.Name == "Sagunto");
                 var cas = wa.Graph.Nodes.Find(n => n.Name == "Castellón");

@@ -70,7 +70,7 @@ namespace TBD.Sim
             // N-040 (Sara): la zona solo es determinista con Burst (FloatMode.Deterministic). Sin Burst, la repetición no vale.
             if (!Unity.Burst.BurstCompiler.IsEnabled)
                 throw new InvalidOperationException("La repetición dorada de zona exige Burst activado (Jobs > Burst > Enable Compilation)");
-            var net = NetScenario.Mvp();
+            var net = NetScenario.Mvp(false);      // G4 no depende del muro de partida de Sagunto (D-N63): su archivo se queda como está
             long start = net.Tick;
             int visit = 0;
             World zw = null;
