@@ -29,7 +29,7 @@ namespace TBD.Net
     }
 
     // ================================================================== órdenes
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11 }
 
     public struct NetCommand
     {
@@ -385,6 +385,8 @@ namespace TBD.Net
                     case NetCmdType.ResolveAmbush: ResolveAmbush(c.Arg & 0xFF, c.Arg2, false, c.Arg >> 8); break;       // Arg = servicio | (munición gastada en u) << 8
                     case NetCmdType.Dematerialize: Dematerialize(c.Arg, c.Arg2); break;
                     case NetCmdType.ConsumeAmmo: ConsumeAmmo(c.Arg, c.Arg2); break;
+                    case NetCmdType.AssignWorkers: AssignWorkers(c.Arg, c.Arg2); break;                    // Arg = nodo, Arg2 = obreros
+                    case NetCmdType.CancelWork: CancelWork(c.Arg, c.Arg2); break;                          // Arg = nodo, Arg2 = número de obra
                     case NetCmdType.PlaceWork: PlaceWork(c.Arg & 0xFFFF, (PieceKind)(c.Arg >> 16), c.Payload); break;       // Arg = nodo | (PieceKind << 16)
                     case NetCmdType.TrainGo:
                         if (c.Arg >= 0 && c.Arg < Services.Count)
@@ -442,8 +444,32 @@ namespace TBD.Net
             var plan = Works.Preview(node, kind, pts, Stock[node, (int)Res.Materiales]);
             if (!plan.Ok) return plan;
             Stock[node, (int)Res.Materiales] -= plan.CostU;
-            Works.Add(node, plan);
+            plan.Id = Works.Add(node, plan);
             return plan;
+        }
+
+        /// <summary>«Asignar obreros»: población del nodo que trabaja en sus obras. Se limita a la población que hay en cada tick; no se gasta.</summary>
+        public void AssignWorkers(int node, int workers)
+        {
+            if (node < 0 || node >= Graph.Nodes.Count) return;
+            Works.Workers[node] = Math.Max(0, Math.Min(workers, 10_000));
+        }
+
+        /// <summary>Cancela una obra: recupera el 100 % si no ha empezado y el 50 % si sí (D-N44).</summary>
+        public void CancelWork(int node, int id)
+        {
+            if (node < 0 || node >= Graph.Nodes.Count) return;
+            Stock[node, (int)Res.Materiales] += Works.Cancel(node, id);
+        }
+
+        /// <summary>Un tick de obra en cada nodo con obreros: trabajan los asignados que quepan en la población del nodo.</summary>
+        void AdvanceWorks()
+        {
+            for (int n = 0; n < Works.Workers.Length; n++)
+            {
+                int w = Math.Min(Works.Workers[n], Stock[n, (int)Res.Personas]);
+                if (w > 0) Works.Advance(n, w);
+            }
         }
 
         // ---------------------------------------------------------------- zonas en detalle
@@ -499,6 +525,7 @@ namespace TBD.Net
             ApplyCommands();                 // en cada tick, no al ritmo de los fotogramas (QA Q5)
             if (Paused) return;
             for (int s = 0; s < Services.Count; s++) StepService(Services[s]);
+            AdvanceWorks();
             if (ActiveZoneNode >= 0 && ActiveZoneNode < Director.AttentionTicks.Length) { Director.AttentionTicks[ActiveZoneNode]++; Director.LastSeenTick[ActiveZoneNode] = Tick; }   // memoria de atención
             if (Encounter.Active && Tick >= Encounter.ExpireTick) ResolveAmbush(Encounter.Service, Encounter.Taken, true);   // nadie respondió: la horda se dispersa y el tren pierde carga
             if (DirectorEnabled && Tick % 1500 == 0) Director.Hourly(this);       // una vez por hora de juego
