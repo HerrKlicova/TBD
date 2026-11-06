@@ -33,6 +33,10 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
     m = r["mascaras"]["casco"]
     mc = r["mascaras"].get("costura", np.zeros_like(m))
     inf["valor_partido"] = ns["valor_partido"](o, claro=claro, costado=costado, alisar=0, suavizar=0, mascara=m | mc)
+    for pieza, (cl, co) in getattr(db, "VALOR_PIEZAS", {}).items():   # p. ej. la torre del LOD1 en olive_light
+        mp = r["mascaras"].get(pieza)
+        if mp is not None and mp.any():
+            inf["valor_" + pieza] = ns["valor_partido"](o, claro=cl, costado=co, alisar=0, suavizar=0, mascara=mp)
     if mc.any():
         inf["costuras"] = ns["costuras_por_valor"](o, mc)
     inf["faccion"] = ns["marcar_faccion"](o, "propio")

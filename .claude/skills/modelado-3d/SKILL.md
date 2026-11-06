@@ -113,6 +113,12 @@ Ejemplo completo: `scripts/bloques/dragon_v5.py` (2.432 tris, auditoría OK, 9 c
 menos de 1 px parpadea al girar y entre 1 y 2 px el contorno lo vuelve una línea negra; (3) al menos 2 px de superficie
 entre dos detalles; (4) nada que salga de la silueta con menos de 3×3 px; (5) lo que no llega va fuera o como cambio de
 valor plano, sin geometría ni contorno (escotillas, juntas, lamas). Los cañones se engordan a 2 px en el LOD1.
+(6) torres y superestructuras en un solo bloque, con su propio claro para separarse del techo (Dragón: `VALOR_PIEZAS =
+{"torre": ("88885c", "50541c")}` en el módulo del bloque, que `entregar.py` aplica tras el casco); visores como mancha
+clara de 2×2 (bone d4d0cc). (7) Las ruedas deben asomar bajo el costado: si el flanco las tapa en la vista RTS, en el
+LOD1 se sacan unos 10 cm (desviación consciente de la medida). Las líneas oscuras que quedan dentro de la torre no son
+contorno interior sino sus caras en sombra: con umbral 0,25, 0,6 o solo silueta la vista sale igual. El contorno
+definitivo lo pone el shader de Unity (Marcos), no el render de comprobación.
 
 **Atajo (nube, sin el PC de Eugenio)**: `scripts/bloques/taller.py` (caja, cilindro, perfil extruido con bandas planas,
 costuras, LOD con `fino`) para escribir el bloque, y `scripts/entregar.py <modulo> <salida> --fotos 34.jpg:caja

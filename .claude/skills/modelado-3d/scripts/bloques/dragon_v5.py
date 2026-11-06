@@ -15,7 +15,7 @@ Delante = -Y. Cada pieza lleva su material (casco, goma, llanta, optica, foco, m
 import bpy, bmesh, math
 from mathutils import Vector, Matrix
 
-PIEZAS = ["casco", "goma", "llanta", "optica", "foco", "metal", "carga", "costura"]
+PIEZAS = ["casco", "goma", "llanta", "optica", "foco", "metal", "carga", "costura", "torre", "visor"]
 COLORES = {  # muestreados de las fotos y llevados a la paleta de 32 (sin rojos ni ámbar)
     "casco": "50541c",   # verde OTAN del Dragón -> oliva oscuro (costados D-N57; el techo pasa a b4a080)
     "goma": "303424",    # neumático negro -> el gris más oscuro sin caer al negro del contorno
@@ -25,7 +25,11 @@ COLORES = {  # muestreados de las fotos y llevados a la paleta de 32 (sin rojos 
     "metal": "1c200c",   # mástiles, antenas, ganchos, asas y cañón
     "carga": "847c34",   # redes y bolsas de carga del glacis (oliva amarillento)
     "costura": "50541c", # provisional: costuras_por_valor() las oscurece 5-12 de L* sobre su panel
+    "torre": "88885c",   # solo LOD1: techo de la torre en olive_light para que se separe del techo beige (Bruno)
+    "visor": "d4d0cc",   # solo LOD1: visor del tirador como mancha clara de 2x2 px (bone, Bruno)
 }
+# Valor partido propio por pieza (además del casco): pieza -> (claro, costado). entregar.py lo aplica.
+VALOR_PIEZAS = {"torre": ("88885c", "50541c")}
 
 # Costuras de la chapa medidas en el lateral del Piranha V (mismo casco; SIN VERIFICAR en el Dragón): juntas verticales
 # de los paneles del flanco a 1,7 / 3,1 / 4,7 / 6,1 m del morro, y la junta longitudinal del techo y el glacis (frontal
@@ -171,13 +175,21 @@ def construir(nombre="SM_VCR_Dragon_v5", lod=0):
         t.costuras(COSTURAS, ancho=0.06)
     # --- ruedas: ejes medidos en el lateral (desde el morro 1,56 / 2,99 / 4,52 / 6,08 m)
     for y in (-2.44, -1.01, 0.52, 2.08):
-        for x in (-1.22, 1.22):
+        # LOD1: ruedas 10 cm más afuera para que la mitad baja asome bajo el costado a 48 px (Bruno, 6-nov: «las tuyas
+        # quedan escondidas bajo el costado»). Desviación consciente de la medida real a favor de la lectura
+        for x in ((-1.22, 1.22) if lod == 0 else (-1.32, 1.32)):
             t.neumatico((x, y, 0.68), buje=lod == 0)
     # --- torre RCWS 30 mm (3/4 y frontal): base, cuerpo con frente inclinado, mantelete, cañón con bocacha
     tz = HULL_Z
-    t.caja((0.25, 0.1, tz + 0.12), (1.8, 1.9, 0.24), bisel=True)
-    t.caja((0.25, 0.15, tz + 0.52), (1.5, 1.6, 0.56), inclinar=0.3, bisel=True)
-    t.caja((0.25, -0.75, tz + 0.5), (0.5, 0.4, 0.38))
+    if lod == 0:
+        t.caja((0.25, 0.1, tz + 0.12), (1.8, 1.9, 0.24), bisel=True)
+        t.caja((0.25, 0.15, tz + 0.52), (1.5, 1.6, 0.56), inclinar=0.3, bisel=True)
+        t.caja((0.25, -0.75, tz + 0.5), (0.5, 0.4, 0.38))
+    else:
+        # LOD1 (Lucía y Bruno, 6-nov): la torre es un solo bloque de unos 9x6 px, sin base ni mantelete, para que se
+        # lea como una masa limpia y no como una maraña de líneas; el visor queda como una mancha clara de 2x2 px
+        t.caja((0.25, 0.12, tz + 0.4), (1.7, 1.8, 0.8), "torre", inclinar=0.3, bisel=True)
+        t.caja((0.85, 0.5, tz + 0.86), (0.36, 0.36, 0.12), "visor")
     # cañón: en el LOD1 engordado a ~2 px (0,3 m) para que no parpadee al girar (regla de Bruno, 6-nov)
     t.cilindro((0.25, -2.1, tz + 0.52), 0.065 if lod == 0 else 0.15, 2.5, "Y", 8, "metal")
     fino.cilindro((0.25, -3.3, tz + 0.52), 0.1, 0.22, "Y", 8, "metal")
