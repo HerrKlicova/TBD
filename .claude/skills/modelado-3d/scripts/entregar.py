@@ -27,7 +27,8 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
     exec(open(p, encoding="utf-8").read(), ns)
     sys.path.insert(0, os.path.join(AQUI, "bloques"))
     db = importlib.import_module(modulo)
-    nombre = "SM_%s_LOD%d" % (modulo, lod)
+    var = os.environ.get("TBD_VARIANTE")   # variantes (Eugenio 6-nov: al menos 5 por estructura); el bloque la lee
+    nombre = "SM_%s%s_LOD%d" % (modulo, "_v%s" % var if var else "", lod)
     o = db.construir(nombre, lod=lod)
     out = os.path.join(salida, "lod%d" % lod)
     os.makedirs(out, exist_ok=True)
