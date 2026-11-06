@@ -936,7 +936,8 @@ def valor_partido(obj, claro="b4a080", costado=None, umbral_arriba=0.7, oscurece
             "colores_usados": len(usados), "hex": [hexes[i] for i in usados]}
 
 
-def costuras_por_valor(obj, mascara, paso=(5.0, 12.0), paleta=None, excluir=PROHIBIDOS_OBJETO):
+def costuras_por_valor(obj, mascara, paso=(5.0, 12.0), paleta=None, excluir=PROHIBIDOS_OBJETO, tono_max=25.0,
+                       holgura=2.0):
     """Chapa sin ruido (regla de Lucía del 6-nov): las caras de `mascara` (tiras de costura entre paneles, sacadas de
     las fotos) toman el color de sus caras vecinas que no son costura, oscurecido entre paso[0] y paso[1] de L* con el
     tono más parecido de la paleta. Así la diferencia interna no pasa de 12, como en los suelos. Llamar después de
@@ -979,12 +980,18 @@ def costuras_por_valor(obj, mascara, paso=(5.0, 12.0), paleta=None, excluir=PROH
     for k in np.where(mascara)[0]:
         i = int(ref[k]) if ref[k] >= 0 else int(idx[k])
         if i not in cache:
-            cand = np.where(permit & (lab[:, 0] <= lab[i, 0] - paso[0]) & (lab[:, 0] >= lab[i, 0] - paso[1]))[0]
-            if len(cand):
-                d = ((lab[cand, 1:] - lab[i, 1:]) ** 2).sum(1)
-                cache[i] = int(cand[d.argmin()])
-            else:
-                cache[i] = i  # sin vecino válido en la paleta: la costura no se marca (mejor que meter ruido)
+            # misma familia de tono (±tono_max grados de matiz): que el oliva no derive al óxido (Lucía, 6-nov).
+            # Si la paleta no tiene ese paso dentro de paso[1], se admite hasta paso[1] + holgura
+            matiz = np.degrees(np.arctan2(lab[:, 2], lab[:, 1]))
+            dm = np.abs((matiz - matiz[i] + 180) % 360 - 180)
+            familia = permit & ((dm <= tono_max) | (np.hypot(lab[:, 1], lab[:, 2]) < 8))
+            cache[i] = i  # sin vecino válido en la paleta: la costura no se marca (mejor que meter ruido)
+            for tope in (paso[1], paso[1] + holgura):
+                cand = np.where(familia & (lab[:, 0] <= lab[i, 0] - paso[0]) & (lab[:, 0] >= lab[i, 0] - tope))[0]
+                if len(cand):
+                    d = ((lab[cand, 1:] - lab[i, 1:]) ** 2).sum(1)
+                    cache[i] = int(cand[d.argmin()])
+                    break
         nuevo[k] = cache[i]
         cambiadas += int(cache[i] != i)
     _poner_indices(obj, nuevo)

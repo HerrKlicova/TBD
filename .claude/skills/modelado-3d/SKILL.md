@@ -115,7 +115,7 @@ Ejemplo completo: `scripts/bloques/dragon_v5.py` (2.432 tris, auditoría OK, 9 c
    nunca con líneas negras. Dragón: LOD0 2.432 tris y LOD1 1.844, los dos OK.
 6. **Chapa desde las fotos**: juntas de los paneles medidas en las fotos (`COSTURAS` en el script del bloque), cortadas
    en el casco como tiras de 6 cm (`Taller.costuras`) y oscurecidas sobre su panel entre 5 y 12 de L* con
-   `costuras_por_valor(obj, mascara)` (Dragón: b4a080→88885c, 50541c→543820). **Solo en el LOD0**: probado en el LOD1 a
+   `costuras_por_valor(obj, mascara)` en la misma familia de tono (±25° de matiz; Lucía: el oliva no puede derivar al óxido). Dragón: b4a080→88885c y 50541c→303424 (13,4 de L*, la paleta no tiene un oliva más cerca; se admite con 2 de holgura). **Solo en el LOD0**: probado en el LOD1 a
    48 px con tiras de 6 y 20 cm, y salen motas sueltas. Por la misma razón, en el LOD1 tampoco van las placas planas del
    techo (menos de 10 cm de alto). Los remaches no se modelan porque miden menos de 1 px.
    Contorno interior del LOD1 a 0,25 (Lucía: que solo marque la base de la torre).
