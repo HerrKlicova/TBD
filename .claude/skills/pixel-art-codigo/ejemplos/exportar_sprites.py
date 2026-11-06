@@ -29,6 +29,7 @@ import build_taller  # noqa: E402
 import build_a2  # noqa: E402
 import build_sagunto  # noqa: E402
 import build_decals  # noqa: E402
+import build_suelo_sagunto  # noqa: E402
 
 PIVOTE = [0.5, 0.53]
 
@@ -113,6 +114,18 @@ def ambientacion_sagunto(out):
             getattr(build_decals, t)(v).save(out / f"decal_{t}_{v + 1}_32.png")
 
 
+
+def suelo_sagunto(out):
+    """D-N67, capas A y B: 6 texturas de suelo de 64x64 (téxel 0,1 m) y el atlas de decals de suelo."""
+    b = build_suelo_sagunto
+    for n in b.TEXTURAS:
+        getattr(b, n)().save(out / f"suelo_{n}_64.png")
+    at, rects = b.atlas()
+    at.save(out / "atlas_decals_suelo.png")
+    (out / "atlas_decals_suelo.json").write_text(json.dumps({"meta": {"viaMuerta": {
+        "celda": [b.C, b.C], "texel_m": 0.1, "rects": rects}}}, indent=1))
+
+
 if __name__ == "__main__":
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "sprites_exportados")
     out.mkdir(parents=True, exist_ok=True)
@@ -123,4 +136,5 @@ if __name__ == "__main__":
     iconos_taller(out)
     aviso_ambar(out)
     ambientacion_sagunto(out)
+    suelo_sagunto(out)
     print("atlas en", out.resolve())
