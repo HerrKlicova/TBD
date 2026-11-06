@@ -845,11 +845,13 @@ def _poner_indices(obj, idx):
 
 def valor_partido(obj, claro="b4a080", costado=None, umbral_arriba=0.7, oscurecer=12.0, paleta=None, suavizar=3,
                   alisar=25,
-                  excluir=PROHIBIDOS_OBJETO):
+                  excluir=PROHIBIDOS_OBJETO, mascara=None):
     """D-N57 + regla 1 de Iris: valor partido horneado en el albedo. Caras que miran arriba (normal z > umbral) al
     color claro de la paleta (b4a080 por defecto, decisión de Lucía: 94948c es la camisa de los zombis; con claro=None se elige por el tono dominante); costados
     oscurecidos (al color de paleta más parecido con L* al menos `oscurecer` por debajo, o a `costado` si se da, p. ej.
-    50541c oliva oscuro para tropa); caras de abajo, un paso más oscuras. Requiere paleta_desde_original()."""
+    50541c oliva oscuro para tropa); caras de abajo, un paso más oscuras. Requiere paleta_desde_original().
+    mascara: array booleano por cara; solo esas caras se repintan (p. ej. el casco y la torre, no la goma de las
+    ruedas ni las ópticas de paleta_por_piezas)."""
     pal = cargar_paleta() if paleta is None else paleta
     hexes = ["%02x%02x%02x" % tuple(int(x) for x in c) for c in pal]
     lab = _srgb_a_lab(pal)
@@ -915,6 +917,8 @@ def valor_partido(obj, claro="b4a080", costado=None, umbral_arriba=0.7, oscurece
     nuevo = idx.copy()
     i_cost = hexes.index(costado.lower().lstrip("#")) if costado else None
     for k in range(len(idx)):
+        if mascara is not None and not mascara[k]:
+            continue
         if clase[k] == 1:
             nuevo[k] = i_claro
         elif clase[k] == -1:
@@ -925,7 +929,8 @@ def valor_partido(obj, claro="b4a080", costado=None, umbral_arriba=0.7, oscurece
     _poner_indices(obj, nuevo)
     usados = sorted(set(int(i) for i in nuevo))
     return {"claro": claro, "costado": costado or "oscurecido por cara",
-            "caras_arriba": int((clase == 1).sum()), "caras_costado": int((clase == 0).sum()),
+            "caras_arriba": int(((clase == 1) & (True if mascara is None else np.asarray(mascara))).sum()),
+            "caras_costado": int(((clase == 0) & (True if mascara is None else np.asarray(mascara))).sum()),
             "colores_usados": len(usados), "hex": [hexes[i] for i in usados]}
 
 
@@ -1111,6 +1116,34 @@ def paleta_uniforme(obj, color="50541c", paleta=None, ruta_textura=None, celda_p
     _png(ruta_textura, tex)
     _material_paleta(obj, ruta_textura)
     return {"color": color, "textura": ruta_textura}
+
+
+def paleta_por_piezas(obj, colores, por_defecto="50541c", paleta=None, ruta_textura=None, celda_px=4,
+                      excluir=PROHIBIDOS_OBJETO):
+    """Albedo plano por pieza: cada cara toma el color de paleta asignado al nombre de su material de origen
+    (p. ej. {"casco": "50541c", "goma": "303424", "llanta": "70784c", "optica": "181c30", "foco": "f0dc9c"}).
+    Los colores salen de las fotos de referencia llevados a la paleta de 32 y sin rojos ni ámbar.
+    Deja un solo material con el atlas (como paleta_uniforme) y devuelve la máscara de cada pieza para
+    valor_partido(mascara=...)."""
+    pal = cargar_paleta() if paleta is None else paleta
+    hexes = ["%02x%02x%02x" % tuple(int(x) for x in c) for c in pal]
+    for h in list(colores.values()) + [por_defecto]:
+        h = h.lower().lstrip("#")
+        if h not in hexes:
+            raise ValueError("%s no está en la paleta de 32" % h)
+        if h in (excluir or ()):
+            raise ValueError("%s prohibido en objetos (familia roja o ámbar)" % h)
+    me = obj.data
+    nombres = [m.name.split(".")[0] if m else "" for m in me.materials]
+    mi = np.zeros(len(me.polygons), dtype=np.int64)
+    me.polygons.foreach_get("material_index", mi)
+    pieza = np.array([nombres[i] if i < len(nombres) else "" for i in mi])
+    idx = np.array([hexes.index(colores.get(n, por_defecto).lower().lstrip("#")) for n in pieza])
+    ruta = paleta_uniforme(obj, por_defecto, paleta=pal, ruta_textura=ruta_textura, celda_px=celda_px)["textura"]
+    _poner_indices(obj, idx)
+    obj.data.polygons.foreach_set("material_index", np.zeros(len(me.polygons), dtype=np.int32))
+    mascaras = {n: pieza == n for n in set(pieza)}
+    return {"textura": ruta, "piezas": {n: int(m.sum()) for n, m in mascaras.items()}, "mascaras": mascaras}
 
 
 def _material_paleta(obj, ruta):

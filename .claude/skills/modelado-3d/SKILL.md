@@ -59,6 +59,7 @@ result = {"veredicto": inf["auditoria"]["veredicto"], "intentos": inf["diezmar_i
 | `medir_legibilidad(obj)` | ΔL* de D-N57 contra la trinchera (#48403c) y el llano ocre (#845c28, confirmado por Lucía): 20 % más claro del interior y contorno, sin luz y con la paleta al 65 % |
 | `vista_pixelada(obj, png, vista="rts")` | Imita el shader: 128 px ×3, luz arriba a la izquierda, paleta al 65 %, contorno de 1 px. Es una **aproximación**: manda la captura de Unity |
 | `paleta_uniforme(obj, "50541c")` | Un solo color de la paleta en el atlas: para bloques hechos en Blender, antes de `valor_partido` |
+| `paleta_por_piezas(obj, colores)` | Color de paleta por material de origen (piezas); devuelve las máscaras para `valor_partido(mascara=…)` |
 | `vistas_para_hunyuan(obj, carpeta)` | front/left/back/right en RGBA desde un bloque hecho en Blender |
 | `exportar_unity(obj, ruta)` | FBX: 1 u = 1 m, −Z adelante, Y arriba, transformaciones horneadas, normales por cara |
 
@@ -91,6 +92,22 @@ result = {"veredicto": inf["auditoria"]["veredicto"], "intentos": inf["diezmar_i
   las proporciones reales) y `vistas_para_hunyuan()`, o una hoja de vistas de Pixelab.
 - **(no verificado)** qué lado es «left»: según Tencent es el frente girado 90° en sentido horario visto desde arriba.
   Probar antes de un lote con una pieza asimétrica; si sale espejada, intercambiar left y right.
+
+## PASO OBLIGATORIO en todos los modelos: detalle y textura desde las fotos reales (Eugenio, 6-nov)
+Ningún modelo se entrega como bloque liso ni con un solo color. Para cada pieza:
+1. **Fotos de Paula** (`C:\Dev\mr-mak-workspace\referencias-reales\<categoria>\` y su `manifest.json`): mirar todas
+   antes de modelar y apuntar en la cabecera del script **qué detalle sale de qué foto** (y lo que es de un modelo
+   parecido, como el casco del Piranha V para el Dragón).
+2. **Detalle en la geometría**, lo que se ve en las fotos y aguanta el pixelado: escotillas, periscopios, visores,
+   rejillas, focos, retrovisores, ganchos, cajas, redes. Piezas finas de menos de ~6 cm de grosor (antenas, cables)
+   salen como trazos sueltos a tamaño de juego: engordarlas o quitarlas, y decirlo.
+3. **Color por pieza** desde las fotos, llevado a la paleta: cada pieza con su material (`casco`, `goma`, `llanta`,
+   `optica`, `foco`, `metal`, `carga`…) → `paleta_por_piezas(obj, COLORES)` → `valor_partido(obj, costado=…,
+   alisar=0, mascara=mascaras["casco"])`. Las ruedas, de goma oscura (303424) y separadas del casco; sin rojos ni ámbar.
+   Así se cumplen las reglas de Iris: albedo horneado, beige de la paleta, contorno por script y marcador de rim.
+4. **Entrega con captura junto a la foto real**: foto, versión anterior y nueva en 3/4, a tamaño de juego y en lateral
+   (ejemplo: `capturas/dragon_v3_v5_foto.png`).
+Ejemplo completo: `scripts/bloques/dragon_v5.py` (2.432 tris, auditoría OK, 9 colores).
 
 ## Vehículos con pocas fotos: bloque con medidas reales (estándar de Lucía, 6-nov)
 Cuando solo hay una o dos fotos, Hunyuan con una imagen inventa la parte que no ve y deja la chapa ondulada (manchas
