@@ -7,8 +7,9 @@ las ventanillas aparte para iluminarlas). Teo, 6-nov-2026. TBD_VARIANTE % 6:
   3 plataforma con contenedor    plataforma de bogies con un contenedor de 40 pies (12,19 × 2,44 × 2,59 m, norma ISO)
   4 cisterna                     cisterna de bogies con cúpula, pasarela y escalerillas
   5 plataforma con dos de 20     dos contenedores de 20 pies (6,06 m) de distinto color
-Fuentes: coche de viajeros, SIN FOTO de un coche convencional (las R2 de Paula son de un Alvia, que es otro tren;
-pedidas a Paula como R14): caja de 23,5 × 2,9 m, techo a 4,0 m y ventanillas de 1,2 × 0,8 m, SIN VERIFICAR.
+Fuentes: coche de viajeros, fotos R14 de Paula (serie 10000 en 3/4 y serie 9000 de lateral): techo abovedado, unas
+11 ventanillas por costado, puerta con ventanilla en cada extremo y fuelle de paso negro. Cotas SIN VERIFICAR: caja de
+23,5 × 2,9 m, techo a 4,0 m y ventanillas de 1,05 × 0,8 m.
 Plataformas: R3_vagon_plataforma_2 (Rgs, CC BY-SA 4.0, Falk2) y las cotas de R3_rgs_cotas.md (19,9 m, batalla de bogie
 2,0 m). Contenedores: R4_vagon_portacontenedores_2 (Lgnss, CC BY-SA, Falk2): bastidor de vigas sin piso, contenedor
 con chapa ondulada vertical y puertas en un testero. Cisterna: R4_vagon_cisterna_1 («Vagones con biodiésel», Commons):
@@ -71,20 +72,25 @@ def _coche(t, fino, blindado):
     L, y0, zb, zr = 23.5, 11.75, 1.15, 4.0
     _chasis(t, fino, L, 8.3, zt=zb, piso=False)
 
-    def semiancho(z):
-        return 1.45 if z <= 3.5 else 1.45 - 0.55 * (z - 3.5) / (zr - 3.5)
-    t.perfil_extruido([(-y0 + 0.4, zb), (-y0 + 0.4, zr), (y0 - 0.4, zr), (y0 - 0.4, zb)], semiancho, cortes_z=(3.5,))
+    def semiancho(z):                     # techo abovedado (R14: coche de la serie 10000 en 3/4)
+        if z <= 3.5:
+            return 1.45
+        if z <= 3.82:
+            return 1.45 - 0.2 * (z - 3.5) / 0.32
+        return 1.25 - 0.45 * (z - 3.82) / (zr - 3.82)
+    t.perfil_extruido([(-y0 + 0.4, zb), (-y0 + 0.4, zr), (y0 - 0.4, zr), (y0 - 0.4, zb)], semiancho,
+                      cortes_z=(3.5, 3.82))
     xs = 1.45
-    # ventanillas: 9 por costado entre las plataformas de las puertas
-    ys = [-7.6 + k * 1.9 for k in range(9)]
+    # ventanillas: 11 por costado entre las plataformas de las puertas (R14_coche_convencional_1/_2)
+    ys = [-8.0 + k * 1.6 for k in range(11)]
     for s in (-1, 1):
         for k, y in enumerate(ys):
             tapada = blindado and k % 2 == 0
             if tapada:
-                t.caja((s * (xs + 0.03), y, 2.55), (0.06, 1.35, 0.95), "chapa")
+                t.caja((s * (xs + 0.03), y, 2.55), (0.06, 1.2, 0.95), "chapa")
                 t.caja((s * (xs + 0.065), y, 2.7), (0.02, 0.6, 0.08), "ventana")      # mirilla (se enciende)
             else:
-                t.caja((s * (xs + 0.005), y, 2.55), (0.03, 1.2, 0.8), "ventana")
+                t.caja((s * (xs + 0.005), y, 2.55), (0.03, 1.05, 0.8), "ventana")
                 if fino:
                     t.caja((s * (xs + 0.02), y, 2.55), (0.02, 0.05, 0.8), "metal")    # parteluz
         # puertas en los extremos con su ventanilla

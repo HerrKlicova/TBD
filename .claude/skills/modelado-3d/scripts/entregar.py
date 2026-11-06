@@ -103,12 +103,33 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
         o["tbd_normales_arriba"] = 1
         inf["normales_arriba"] = True
     u = getattr(db, "UMBRAL_CONTORNO", {}).get(lod, 0.25 if lod else 0.06)
+    ov = o
+    md = r["mascaras"].get("disco")
+    if md is not None and md.any():
+        # el disco del rotor en marcha (Lucía, 23:29) va en el FBX, pero en las vistas tapaba el aparato entero: se
+        # dibuja la copia sin él, con las palas (el rotor parado)
+        import bmesh
+        ov = o.copy()
+        ov.data = o.data.copy()
+        bpy.context.scene.collection.objects.link(ov)
+        b_ = bmesh.new()
+        b_.from_mesh(ov.data)
+        b_.faces.ensure_lookup_table()
+        bmesh.ops.delete(b_, geom=[f for f in b_.faces if md[f.index]], context="FACES")
+        b_.to_mesh(ov.data)
+        b_.free()
+        o.hide_render = True
+        o.hide_set(True)
     for suelo, hx in SUELOS:
-        ns["vista_pixelada"](o, os.path.join(out, "%s_rts.png" % suelo), vista="rts", fondo=hx, umbral_contorno=u)
-        ns["vista_pixelada"](o, os.path.join(out, "%s_juego.png" % suelo), vista="rts", res=px, ampliar=384 // px,
+        ns["vista_pixelada"](ov, os.path.join(out, "%s_rts.png" % suelo), vista="rts", fondo=hx, umbral_contorno=u)
+        ns["vista_pixelada"](ov, os.path.join(out, "%s_juego.png" % suelo), vista="rts", res=px, ampliar=384 // px,
                              fondo=hx, umbral_contorno=u)
     for v in ("izquierda", "frente"):
-        ns["vista_pixelada"](o, os.path.join(out, "%s.png" % v), vista=v, fondo=SUELOS[0][1], umbral_contorno=u)
+        ns["vista_pixelada"](ov, os.path.join(out, "%s.png" % v), vista=v, fondo=SUELOS[0][1], umbral_contorno=u)
+    if ov is not o:
+        bpy.data.objects.remove(ov, do_unlink=True)
+        o.hide_render = False
+        o.hide_set(False)
     if hasattr(db, "rig"):   # personajes con esqueleto (soldado): armature + clips como tomas del FBX
         arm = db.rig(o, lod)
         inf["rig"] = {"huesos": [b.name for b in arm.data.bones],
