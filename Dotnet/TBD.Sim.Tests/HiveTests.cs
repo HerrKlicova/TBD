@@ -163,6 +163,11 @@ namespace TBD.Sim.Tests
                 int sagi = ws.Graph.Nodes.FindIndex(n => n.Name == "Sagunto");
                 ws.Push(new NetCommand { Tick = ws.Tick, Type = NetCmdType.Materialize, Arg = sagi });
                 ws.Step();
+                // población de la mediana del día 10 del modelo de Hugo, en unidades de 10 personas (Mak/Hugo)
+                foreach (var kv in new System.Collections.Generic.Dictionary<string, int> { { "Valencia", 34 }, { "Castellón", 35 }, { "Teruel", 26 }, { "Segorbe", 10 }, { "Barracas", 9 }, { "Sagunto", 38 } })
+                    ws.Stock[ws.Graph.Nodes.FindIndex(n => n.Name == kv.Key), (int)Res.Personas] = kv.Value * 10;
+                string wts = ""; for (int n = 0; n < ws.Graph.Nodes.Count; n++) wts += ws.Graph.Nodes[n].Name + "=" + ws.Director.SiegeWeight(ws, n) + " ";
+                Console.WriteLine("         pesos con la población de Hugo: " + wts.Trim());
                 ws.Director.IgnoreAttention = true;
                 const int N = 200;
                 for (int seed = 0; seed < N; seed++)
