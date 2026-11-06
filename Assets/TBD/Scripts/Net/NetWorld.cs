@@ -29,7 +29,7 @@ namespace TBD.Net
     }
 
     // ================================================================== órdenes
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14 }
 
     public struct NetCommand
     {
@@ -57,6 +57,7 @@ namespace TBD.Net
         public int StopIndex;              // parada en la que está o hacia la que va
         public bool AtStop = true;         // esperando en la parada StopIndex
         public bool Held;                  // retenido por el jugador
+        public bool WorksTrain;            // tren de obras (hito 5): con materiales y obreros a bordo repara tramos cortados por escombros
         public int HaltAt = -1;            // «detener en el emplazamiento» (hito 5): nodo donde el tren para al llegar (-1 = ninguno)
         public bool Ambushed;              // detenido por una emboscada hasta que se resuelva (zona o expiración)
         public long LastAmbushDay = -1;    // como mucho una emboscada por tren y día (D-N39)
@@ -390,6 +391,7 @@ namespace TBD.Net
                     case NetCmdType.ConsumeAmmo: ConsumeAmmo(c.Arg, c.Arg2); break;
                     case NetCmdType.AssignWorkers: AssignWorkers(c.Arg, c.Arg2); break;                    // Arg = nodo, Arg2 = obreros
                     case NetCmdType.HaltAtSite: HaltAtSite(c.Arg, c.Arg2); break;                           // Arg = emplazamiento (-1 cancela), Arg2 = servicio
+                    case NetCmdType.RepairEdge: RepairEdge(c.Arg, c.Arg2); break;                           // Arg = tramo, Arg2 = servicio del tren de obras
                     case NetCmdType.FoundStation: FoundStation(c.Arg); break;                               // Arg = nodo
                     case NetCmdType.CancelWork: CancelWork(c.Arg, c.Arg2); break;                          // Arg = nodo, Arg2 = número de obra
                     case NetCmdType.PlaceWork: PlaceWork(c.Arg & 0xFFFF, (PieceKind)(c.Arg >> 16), c.Payload); break;       // Arg = nodo | (PieceKind << 16)
@@ -566,6 +568,73 @@ namespace TBD.Net
             }
         }
 
+        // ------------------------------------------------------------------ reparar un tramo (hito 5, paso 4)
+        /// <summary>Deja un tramo en escombros (un corte de emboscada, o el puente volado del Acto III con bridge = true: 80 u y 192 obrero·h).</summary>
+        public void DestroyEdge(int edge, bool bridge = false)
+        {
+            var e = Graph.Edges[edge];
+            e.Debris = true; e.State = EdgeState.Cortada; e.RepairSvc = -1; e.RepairDone = 0;
+            e.RepairU = bridge ? Works.P.BridgeU : 0;
+            e.RepairNeed = bridge ? Works.P.BridgeNeedTicks : 0;
+        }
+
+        int EdgeRepairU(RailEdge e) { return e.RepairU > 0 ? e.RepairU : Works.P.RepairU; }
+        long EdgeRepairNeed(RailEdge e) { return e.RepairNeed > 0 ? e.RepairNeed : Works.P.RepairNeedTicks; }
+
+        /// <summary>El tren de obras está donde puede trabajar: parado antes del corte, dentro del tramo o en uno de sus extremos.</summary>
+        bool RepairInPosition(TrainService sv, RailEdge e)
+        {
+            if (sv.Train.State == RailTrainState.Detenido && sv.Train.CurrentEdge(Graph) == e) return true;
+            return TrainAtNode(sv, e.A) || TrainAtNode(sv, e.B);
+        }
+
+        /// <summary>La obra se para si la horda está sobre el tramo (HordeAtMm ≥ 0) o encima de uno de sus nodos (densidad de asedio).</summary>
+        bool RepairBlocked(RailEdge e)
+        {
+            return e.HordeAtMm >= 0 || Graph.Nodes[e.A].HordeDensity >= SiegeAt || Graph.Nodes[e.B].HordeDensity >= SiegeAt;
+        }
+
+        /// <summary>
+        /// Orden «reparar»: un tren de obras en posición, con los materiales (5 u; el puente, 80) y los obreros (8) a bordo, sin horda encima.
+        /// Gasta los materiales de la carga y retiene el tren mientras dura la obra.
+        /// </summary>
+        public RepairResult RepairEdge(int edge, int service)
+        {
+            if (edge < 0 || edge >= Graph.Edges.Count || !Graph.Edges[edge].Debris) return RepairResult.SinEscombros;
+            var e = Graph.Edges[edge];
+            if (e.RepairSvc >= 0) return RepairResult.YaEnObra;
+            if (service < 0 || service >= Services.Count || !Services[service].WorksTrain) return RepairResult.SinTrenDeObras;
+            var sv = Services[service];
+            if (!RepairInPosition(sv, e)) return RepairResult.TrenLejos;
+            if (sv.Cargo[(int)Res.Materiales] < EdgeRepairU(e) || sv.Cargo[(int)Res.Personas] < Works.P.WorksCrew) return RepairResult.SinCarga;
+            if (RepairBlocked(e)) return RepairResult.HordeEncima;
+            sv.Cargo[(int)Res.Materiales] -= EdgeRepairU(e);
+            e.RepairU = EdgeRepairU(e); e.RepairNeed = EdgeRepairNeed(e);       // lo pagado y lo pedido quedan fijos
+            e.RepairSvc = service; e.RepairDone = 0;
+            sv.Held = true;
+            return RepairResult.Ok;
+        }
+
+        /// <summary>
+        /// Cada tick, cada reparación en curso avanza con los obreros que quedan a bordo (como mucho 8) mientras el tren siga en posición y
+        /// no haya horda encima. Al terminar, el tramo vuelve a existir y el tren se libera.
+        /// </summary>
+        void AdvanceRepairs()
+        {
+            foreach (var e in Graph.Edges)
+            {
+                if (!e.Debris || e.RepairSvc < 0) continue;
+                var sv = Services[e.RepairSvc];
+                if (!RepairInPosition(sv, e) || RepairBlocked(e)) continue;
+                int crew = Math.Min(sv.Cargo[(int)Res.Personas], Works.P.WorksCrew);
+                if (crew <= 0) continue;
+                e.RepairDone += crew;
+                if (e.RepairDone < e.RepairNeed) continue;
+                e.Debris = false; e.State = EdgeState.Ok; e.RepairSvc = -1; e.RepairDone = 0; e.RepairNeed = 0; e.RepairU = 0;
+                sv.Held = false;
+            }
+        }
+
         void AdvanceWorks()
         {
             for (int n = 0; n < Works.Workers.Length; n++)
@@ -634,6 +703,7 @@ namespace TBD.Net
             if (Paused) return;
             for (int s = 0; s < Services.Count; s++) StepService(Services[s]);
             AdvanceWorks();
+            AdvanceRepairs();
             if (ActiveZoneNode >= 0 && ActiveZoneNode < Director.AttentionTicks.Length) { Director.AttentionTicks[ActiveZoneNode]++; Director.LastSeenTick[ActiveZoneNode] = Tick; }   // memoria de atención
             if (Encounter.Active && Tick >= Encounter.ExpireTick) ResolveAmbush(Encounter.Service, Encounter.Taken, true);   // nadie respondió: la horda se dispersa y el tren pierde carga
             if (DirectorEnabled && Tick % 1500 == 0) Director.Hourly(this);       // una vez por hora de juego
@@ -837,7 +907,7 @@ namespace TBD.Net
                 }
                 e.HordeAtMm = best >= NearAt ? bestAt : -1;
                 if (best >= CutAt) e.State = EdgeState.Cortada;              // la horda está sobre la vía
-                else if (e.State == EdgeState.Cortada && !Director.Active.Exists(p => p.Kind == HiveDirector.PlanKind.Corte && p.Edge == e.Id))
+                else if (e.State == EdgeState.Cortada && !e.Debris && !Director.Active.Exists(p => p.Kind == HiveDirector.PlanKind.Corte && p.Edge == e.Id))
                     e.State = EdgeState.Ok;  // PROTOTIPO: se despeja sola si no es un corte del director (las obras llegan en el hito 5)
             }
         }
@@ -876,6 +946,7 @@ namespace TBD.Net
                 for (int k = 0; k < s.DepartedDay.Count; k++) h += Mix(((ulong)(uint)t.Id << 52) ^ ((ulong)(uint)k << 40) ^ (ulong)(s.DepartedDay[k] + 1));
                 h += Mix(((ulong)(uint)t.Id << 4) ^ (s.AtStop ? 1UL : 0UL) ^ (s.Held ? 2UL : 0UL));
             }
+            foreach (var sv in Services) if (sv.WorksTrain) h += Mix(0x70B5UL ^ ((ulong)(uint)sv.Train.Id << 32));
             foreach (var sv in Services) if (sv.HaltAt >= 0) h += Mix(0x4A17UL ^ ((ulong)(uint)sv.Train.Id << 32) ^ (ulong)(uint)(sv.HaltAt + 1));
             r.Trains = h;
             h = 0;
@@ -888,7 +959,11 @@ namespace TBD.Net
             h += Stations.Hash();
             r.Stock = h;
             h = 0;
-            foreach (var e in Graph.Edges) h += Mix(((ulong)(uint)e.Id << 8) ^ (ulong)e.State);
+            foreach (var e in Graph.Edges)
+            {
+                h += Mix(((ulong)(uint)e.Id << 8) ^ (ulong)e.State);
+                if (e.Debris) h += Mix(Mix(0xDEB215UL ^ ((ulong)(uint)e.Id << 40) ^ ((ulong)(uint)(e.RepairSvc + 1) << 32)) ^ (ulong)e.RepairDone) + Mix((ulong)e.RepairNeed ^ ((ulong)(uint)e.RepairU << 48));
+            }
             r.Edges = h;
             r.Memory = (Traffic != null ? Traffic.Hash() : 0) + Mix(0x1E7E1UL ^ (ulong)(uint)Intel.Count) + Director.Hash();
             foreach (int pa in PendingAmbushes) r.Memory += Mix(0xA3B05UL ^ (ulong)(uint)pa);

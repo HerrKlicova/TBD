@@ -493,7 +493,7 @@ namespace TBD.Net
                 case PlanKind.Corte:
                 {
                     var e = w.Graph.Edges[best.Edge];
-                    e.State = EdgeState.Cortada;
+                    e.State = EdgeState.Cortada; e.Debris = true;       // escombros: hasta que el tren de obras los repare (hito 5), no se despeja sola
                     w.Intel.Add(new IntelEntry { Tick = w.Tick, Id = "TR-4", Vars = new[] { "km", (e.Ambush[0].KmMm / 1_000_000L).ToString(), "tramo", Name(w, e) } });
                     break;
                 }

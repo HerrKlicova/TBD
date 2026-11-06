@@ -122,6 +122,101 @@ namespace TBD.Sim.Tests
             string gold = NetGolden.Record(new List<NetCommand> { new NetCommand { Tick = NetScenario.Mvp().Tick + 100, Type = NetCmdType.FoundStation, Arg = nules } }, 1500);
             var res = NetGolden.Verify(gold);
             check(res.Ok && gold.Contains(";12;" + nules + ";0\n"), $"la orden FoundStation se graba y se reproduce igual: {res}");
+
+            RunReparar(check);
+        }
+
+        static void RunReparar(Action<bool, string> check)
+        {
+            Console.WriteLine("[20] Reparar un tramo cortado por escombros con el tren de obras (hito 5, paso 4)");
+            // montaje: el tren 0, marcado como tren de obras, parado en su primera parada; el tramo es uno que sale de ese nodo
+            NetWorld Setup(out TrainService sv, out RailEdge edge, int mats = 20, int people = 8)
+            {
+                var w = NetScenario.Mvp();
+                sv = w.Services[0]; sv.WorksTrain = true; sv.AtStop = true; sv.StopIndex = 0;
+                sv.Cargo[(int)Res.Materiales] = mats; sv.Cargo[(int)Res.Personas] = people;
+                int node = sv.Stops[0].Node; edge = null;
+                foreach (var e in w.Graph.Edges) if (e.A == node || e.B == node) { edge = e; break; }
+                foreach (var n in w.Graph.Nodes) n.HordeDensity = 0;
+                w.DestroyEdge(edge.Id);
+                return w;
+            }
+
+            var w0 = Setup(out var sv0, out var e0);
+            check(e0.Debris && e0.State == EdgeState.Cortada && w0.Works.P.RepairU == 5 && w0.Works.P.WorksCrew == 8 && w0.Works.P.RepairNeedTicks == 36_000, "un tramo en escombros está cortado; reparar cuesta 5 u y 3 h con 8 obreros (36.000 obrero·ticks)");
+            for (int i = 0; i < 6000; i++) w0.Step();
+            check(e0.Debris && e0.State == EdgeState.Cortada, "los escombros no se despejan solos (los cortes por densidad sí)");
+
+            // rechazos: no cambian nada
+            var w1 = Setup(out var sv1, out var e1);
+            check(w1.RepairEdge(e1.Id + 100, 0) == RepairResult.SinEscombros && w1.RepairEdge(-1, 0) == RepairResult.SinEscombros, "un tramo que no existe no se repara");
+            sv1.WorksTrain = false;
+            check(w1.RepairEdge(e1.Id, 0) == RepairResult.SinTrenDeObras && w1.RepairEdge(e1.Id, 99) == RepairResult.SinTrenDeObras, "sin tren de obras (marcador) no se repara");
+            sv1.WorksTrain = true; sv1.Cargo[(int)Res.Materiales] = 4;
+            check(w1.RepairEdge(e1.Id, 0) == RepairResult.SinCarga, "con 4 u de materiales no se repara");
+            sv1.Cargo[(int)Res.Materiales] = 20; sv1.Cargo[(int)Res.Personas] = 7;
+            check(w1.RepairEdge(e1.Id, 0) == RepairResult.SinCarga, "con 7 obreros a bordo no se repara");
+            sv1.Cargo[(int)Res.Personas] = 8; sv1.AtStop = false; sv1.Train.State = RailTrainState.EnMarcha;
+            check(w1.RepairEdge(e1.Id, 0) == RepairResult.TrenLejos, "un tren en marcha o lejos del tramo no repara");
+            sv1.AtStop = true; sv1.Train.State = RailTrainState.Parado; w1.Graph.Nodes[e1.A].HordeDensity = 600;
+            check(w1.RepairEdge(e1.Id, 0) == RepairResult.HordeEncima, "con la horda encima no se repara");
+            w1.Graph.Nodes[e1.A].HordeDensity = 0;
+            check(sv1.Cargo[(int)Res.Materiales] == 20 && e1.RepairSvc == -1, "los rechazos no gastan materiales ni empiezan la obra");
+
+            // la reparación: 5 u de la carga, el tren retenido, 3 h (4.500 ticks) con 8 obreros
+            var w2 = Setup(out var sv2, out var e2); ulong hBefore = w2.Hash();
+            check(w2.RepairEdge(e2.Id, 0) == RepairResult.Ok && sv2.Cargo[(int)Res.Materiales] == 15 && sv2.Held && e2.RepairSvc == 0 && w2.Hash() != hBefore, "la orden gasta 5 u de la carga, retiene el tren y cambia el hash");
+            check(w2.RepairEdge(e2.Id, 0) == RepairResult.YaEnObra, "no se puede empezar dos veces");
+            int t2 = 0; while (e2.Debris && t2 < 20_000) { w2.Step(); t2++; }
+            check(!e2.Debris && e2.State == EdgeState.Ok && t2 == 4_500 && !sv2.Held && sv2.Cargo[(int)Res.Personas] == 8, $"8 obreros reparan el tramo en 3 h (4.500 ticks): {t2}; el tramo vuelve a existir y el tren se libera");
+
+            // menos obreros, más lenta
+            var w3 = Setup(out var sv3, out var e3, 20, 16);
+            w3.RepairEdge(e3.Id, 0); int t3 = 0; while (e3.Debris && t3 < 20_000) { w3.Step(); t3++; }
+            check(t3 == 4_500, $"el máximo son 8 obreros: con 16 a bordo tarda lo mismo ({t3})");
+            var w4 = Setup(out var sv4, out var e4, 20, 8);
+            w4.RepairEdge(e4.Id, 0); for (int i = 0; i < 2250; i++) w4.Step();
+            sv4.Cargo[(int)Res.Personas] = 4;                                           // la mitad de los obreros muere
+            int t4 = 2250; while (e4.Debris && t4 < 20_000) { w4.Step(); t4++; }
+            check(t4 == 2250 + 4500, $"si mueren obreros va más lenta: 2.250 ticks con 8 y el resto con 4 = {t4} (6.750)");
+
+            // si el tren se va, la obra espera
+            var w5 = Setup(out var sv5, out var e5);
+            w5.RepairEdge(e5.Id, 0); for (int i = 0; i < 100; i++) w5.Step();
+            long done5 = e5.RepairDone; sv5.AtStop = false; sv5.Train.State = RailTrainState.EnMarcha;
+            sv5.Held = true; sv5.Train.Route = new List<int> { e5.A, e5.B }; sv5.Train.Leg = 0; sv5.Train.OffsetMm = e5.LengthMm / 2;
+            for (int i = 0; i < 50; i++) w5.Step();
+            check(done5 == 800 && e5.RepairDone == done5 && e5.Debris, $"si el tren sale de posición la obra se para y espera ({e5.RepairDone} obrero·ticks)");
+
+            // el puente: 80 u y 192 obrero·h = 36.000 ticks con 8 obreros
+            var w6 = Setup(out var sv6, out var e6, 79, 8); w6.DestroyEdge(e6.Id, true);
+            check(w6.RepairEdge(e6.Id, 0) == RepairResult.SinCarga, "el puente pide 80 u (puente_jiloca_materiales): con 79 no se empieza");
+            sv6.Cargo[(int)Res.Materiales] = 80;
+            check(w6.RepairEdge(e6.Id, 0) == RepairResult.Ok && sv6.Cargo[(int)Res.Materiales] == 0, "con 80 u se empieza y se pagan todas");
+            int t6 = 0; while (e6.Debris && t6 < 100_000) { w6.Step(); t6++; }
+            check(w6.Works.P.BridgeU == 80 && w6.Works.P.BridgeDays == 2 && t6 == 72_000 && !e6.Debris, $"el puente son puente_jiloca_dias = 2 días del CSV de Hugo: con 8 obreros, 72.000 ticks: {t6}");
+
+            // determinismo: dos mundos con la misma reparación dan el mismo hash en cada punto
+            var wa = Setup(out var sva, out var ea); var wb = Setup(out var svb, out var eb);
+            wa.RepairEdge(ea.Id, 0); wb.RepairEdge(eb.Id, 0);
+            bool same = true; for (int i = 0; i < 3000; i++) { wa.Step(); wb.Step(); if (wa.Hash() != wb.Hash()) same = false; }
+            check(same, "dos mundos con la misma reparación dan el mismo hash en 3.000 ticks");
+
+            // la orden por la cola de órdenes se graba y se reproduce igual; los cortes de densidad (sin escombros) no cambian nada
+            string gold = NetGolden.Record(new List<NetCommand> { new NetCommand { Tick = NetScenario.Mvp().Tick + 100, Type = NetCmdType.RepairEdge, Arg = 0, Arg2 = 0 } }, 1500);
+            var res = NetGolden.Verify(gold);
+            check(res.Ok && gold.Contains(";14;0;0"), $"la orden RepairEdge se graba y se reproduce igual (sin escombros no hace nada): {res}");
+            var wn = NetScenario.Mvp(); ulong hn = wn.Hash(); wn.Graph.Edges[0].State = EdgeState.Cortada;
+            for (int i = 0; i < 4000; i++) wn.Step();
+            check(!wn.Graph.Edges[0].Debris && wn.Graph.Edges[0].State == EdgeState.Ok, "un corte de densidad sin escombros sigue despejándose solo");
+
+            // el director marca escombros en sus cortes (TR-4)
+            var wd = NetScenario.Mvp(); wd.Tick = 5 * NetConst.DayTicks;
+            for (int e = 0; e < wd.Graph.Edges.Count; e++) for (int sl = 0; sl < wd.Traffic.P.Slots; sl++) wd.Traffic.M[e, sl] = wd.Traffic.P.Cut + 100;
+            for (int hr = 0; hr < 48; hr++) { wd.Tick = 5 * NetConst.DayTicks + hr * 1500; wd.Director.Hourly(wd); }
+            int debris = 0; RailEdge de = null; foreach (var e in wd.Graph.Edges) if (e.Debris) { debris++; de = e; }
+            check(debris > 0 && de.State == EdgeState.Cortada, $"un corte del director deja escombros (tramos con escombros: {debris})");
+            if (de != null) { for (int i = 0; i < 6000; i++) wd.Step(); check(de.Debris && de.State == EdgeState.Cortada, "y siguen ahí tras 6.000 ticks aunque el plan del director caduque"); }
         }
     }
 }
