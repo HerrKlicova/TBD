@@ -113,16 +113,8 @@ namespace TBD.View
         bool _hasTrain = true;
         long _ammoUnitsAtStart;
 
-        static CombatParams LoadCombatParams()
-        {
-            try
-            {
-                string path = System.IO.Path.Combine(Application.dataPath, "TBD", "Data", "balance_combate.csv");
-                if (System.IO.File.Exists(path)) return CombatParamsCsv.Load(System.IO.File.ReadAllText(path));
-            }
-            catch (System.Exception e) { Debug.LogWarning("[TBD] balance_combate.csv no se pudo leer: " + e.Message); }
-            return CombatParams.Default;      // en una compilación el CSV irá a StreamingAssets (pendiente)
-        }    // lo que tardó en crearse la horda de la zona (para Lucía: ¿basta un vuelo de 0,8 s?)
+        static CombatParams LoadCombatParams() { return BalanceSource.Combat(); }
+        // lo que tardó en crearse la horda de la zona (para Lucía: ¿basta un vuelo de 0,8 s?)
 
         IEnumerator Start()
         {

@@ -63,6 +63,57 @@ namespace TBD.Net
         }
     }
 
+    /// <summary>
+    /// De dónde salen los CSV de balance. Unity pone el lector al arrancar (Editor: Assets/TBD/Data; compilación: StreamingAssets/Data);
+    /// los tests de dotnet, la carpeta de datos del repositorio. Sin lector, o con un archivo que falta, se usan los valores por defecto del
+    /// código (que una prueba vigila que coincidan con los CSV) y se avisa por «Warn».
+    /// </summary>
+    public static class BalanceSource
+    {
+        public static Func<string, string> Reader;      // nombre de archivo → texto, o null si no existe
+        public static Action<string> Warn;
+        public static readonly List<string> Missing = new List<string>();
+
+        public static string Read(string file)
+        {
+            string text = null;
+            try { text = Reader != null ? Reader(file) : null; }
+            catch (Exception e) { Warn?.Invoke("[TBD] " + file + " no se pudo leer: " + e.Message); }
+            if (text == null) { if (!Missing.Contains(file)) { Missing.Add(file); Warn?.Invoke("[TBD] falta " + file + ": se usan los valores por defecto del código"); } }
+            return text;
+        }
+
+        public static TrafficParams Traffic()
+        {
+            var t = Read("balance_colmena.csv");
+            return t == null ? TrafficParams.Default : TrafficParams.FromCsv(new CsvTable(t));
+        }
+
+        public static DirectorParams Director()
+        {
+            var d = Read("balance_director.csv"); var c = Read("balance_colmena.csv");
+            var p = d == null ? DirectorParams.Default : DirectorParams.FromCsv(new CsvTable(d));
+            return c == null ? p : p.WithColmena(new CsvTable(c));
+        }
+
+        /// <summary>colmena_curva.csv: factor ×1000 por día. Null si no hay archivo (el director usa su aproximación lineal).</summary>
+        public static long[] Curve()
+        {
+            var t = Read("colmena_curva.csv");
+            if (t == null) return null;
+            var table = new CsvTable(t);
+            var curve = new long[table.Rows.Count];
+            foreach (var r in table.Rows) { int d = (int)CsvTable.Int(r[0]); if (d >= 0 && d < curve.Length) curve[d] = CsvTable.Int(r[1]); }
+            return curve;
+        }
+
+        public static TBD.Sim.CombatParams Combat()
+        {
+            var t = Read("balance_combate.csv");
+            return t == null ? TBD.Sim.CombatParams.Default : CombatParamsCsv.Load(t);
+        }
+    }
+
     /// <summary>Carga los parámetros del combate de la zona desde balance_combate.csv (decisión de Mak: Hugo los ajusta sin tocar C#).</summary>
     public static class CombatParamsCsv
     {

@@ -630,8 +630,9 @@ namespace TBD.View
         {
             if (_texts == null)
             {
-                try { _texts = new IntelTexts(System.IO.File.ReadAllText(System.IO.Path.Combine(Application.dataPath, "TBD", "Data", "textos_informe.csv"))); }
-                catch { return; }
+                var tx = BalanceSource.Read("textos_informe.csv");
+                if (tx == null) return;
+                try { _texts = new IntelTexts(tx); } catch { return; }
             }
             int n = Mathf.Min(4, _a.Intel.Count);
             float w = Mathf.Min(560, Screen.width * 0.45f);

@@ -107,14 +107,17 @@ namespace TBD.Net
         /// Peso de un nodo como objetivo de asedio (D-N33/D-N34): (base + población) × interior × nido × punto único × atención,
         /// los multiplicadores en «por mil». Entero.
         /// </summary>
+        const int PersonsPerHugoUnit = 10;
+        public bool IgnoreAttention;                // solo pruebas: sin el peso de atención
+        public ulong Seed;                          // semilla de la partida (0 por defecto)
         public long SiegeWeight(NetWorld w, int n)
         {
             var nd = w.Graph.Nodes[n];
-            long wt = P.WeightBase + Math.Max(0, w.Stock[n, (int)Res.Personas]);
+            long wt = P.WeightBase + Math.Max(0, w.Stock[n, (int)Res.Personas]) / PersonsPerHugoUnit;   // el modelo de Hugo cuenta la población en unidades de 10 personas (Valencia 30 = 300)
             if (Array.IndexOf(InteriorNodes, nd.Name) >= 0) wt = wt * P.WeightInteriorMil / 1000;
             if (nd.Name == NestNode) wt = wt * P.WeightNestMil / 1000;
             if (nd.Name == UniqueNode) wt = wt * P.PointUniqueMil / 1000;
-            if (n < LastSeenTick.Length && w.Tick - LastSeenTick[n] > NetConst.Hours(P.AttentionHours)) wt = wt * P.AttentionMil / 1000;
+            if (!IgnoreAttention && n < LastSeenTick.Length && w.Tick - LastSeenTick[n] > NetConst.Hours(P.AttentionHours)) wt = wt * P.AttentionMil / 1000;
             return wt;
         }
 
@@ -130,7 +133,7 @@ namespace TBD.Net
                 sq[n] = wt * wt; total += sq[n];
             }
             if (total <= 0) return -1;
-            long r = (long)(NetWorld.Mix(0x51E6EUL ^ (ulong)w.Tick ^ ((ulong)(_lastSiegeTick + 1_000_000) << 20)) % (ulong)total);
+            long r = (long)(NetWorld.Mix(0x51E6EUL ^ Seed ^ (ulong)w.Tick ^ ((ulong)(_lastSiegeTick + 1_000_000) << 20)) % (ulong)total);
             for (int n = 0; n < sq.Length; n++) { if (r < sq[n]) return n; r -= sq[n]; }
             return -1;
         }
@@ -183,12 +186,11 @@ namespace TBD.Net
                 var pl = Active[i];
                 if (pl.Kind != PlanKind.Asedio || pl.Started || w.Tick < pl.StartTick) continue;
                 pl.Started = true;
-                pl.Moved = Gather(w, pl.Cell, P.SiegeDensity);            // recluta inicial desde la deriva (la masa no cambia)
-                BudgetUsedToday += pl.Moved;
+                pl.Moved = 0;                                             // D-N33 (Mak, escala de Hugo): no hay reclutamiento inicial; el asedio recluta dentro de la curva, hora a hora
                 pl.UntilTick = w.Tick + (long)P.SiegeDays * NetConst.DayTicks;
                 Active[i] = pl;
                 var nd = w.Graph.Nodes[pl.Node];
-                w.Intel.Add(new IntelEntry { Tick = w.Tick, Id = "ES-2", Vars = new[] { "nodo", nd.Name, "n", (pl.Moved * NetWorld.ZombiesPerPermil).ToString() } });
+                w.Intel.Add(new IntelEntry { Tick = w.Tick, Id = "ES-2", Vars = new[] { "nodo", nd.Name, "n", (HourlyBudgetPermil(w.Tick / NetConst.DayTicks, Curve, P.BudgetCurveMil) * P.SiegeShareMil / 1000 * 24 * P.SiegeDays * NetWorld.ZombiesPerPermil).ToString() } });   // «hasta n»: lo que el presupuesto le deja reclutar en sus días
                 int focus = AttentionNode(w);
                 if (focus >= 0 && focus != pl.Node)
                     w.Intel.Add(new IntelEntry { Tick = w.Tick, Id = "AT-1", Vars = new[] { "nodo_b", nd.Name, "nodo_a", w.Graph.Nodes[focus].Name } });

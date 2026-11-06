@@ -155,6 +155,52 @@ namespace TBD.Sim.Tests
                 check(wc.Field.Mass() == NetScenario.Mvp().Field.Mass(), "el reparto por peso (deriva) tampoco crea zombis en 20 días");
             }
 
+            // ---- D-N33 (Mak): reparto de objetivos con 200 semillas, jugador quieto en Sagunto y sin atención, a ±8 puntos del modelo de Hugo
+            {
+                var refs = new System.Collections.Generic.Dictionary<string, int> { { "Valencia", 28 }, { "Castellón", 17 }, { "Teruel", 11 }, { "Segorbe", 7 }, { "Barracas", 7 } };
+                var cnt = new System.Collections.Generic.Dictionary<string, int>();
+                var ws = NetScenario.Mvp();
+                int sagi = ws.Graph.Nodes.FindIndex(n => n.Name == "Sagunto");
+                ws.Push(new NetCommand { Tick = ws.Tick, Type = NetCmdType.Materialize, Arg = sagi });
+                ws.Step();
+                ws.Director.IgnoreAttention = true;
+                const int N = 200;
+                for (int seed = 0; seed < N; seed++)
+                {
+                    ws.Director.Seed = (ulong)seed * 0x9E3779B97F4A7C15UL + 1;
+                    int t = ws.Director.DrawSiegeTarget(ws);
+                    string nm = t >= 0 ? ws.Graph.Nodes[t].Name : "-";
+                    cnt[nm] = cnt.TryGetValue(nm, out int c) ? c + 1 : 1;
+                }
+                bool okDist = true; string rep = "";
+                foreach (var kv in refs)
+                {
+                    int pct = (cnt.TryGetValue(kv.Key, out int c2) ? c2 : 0) * 100 / N;
+                    rep += $"{kv.Key} {pct}% (Hugo {kv.Value}%) ";
+                    if (Math.Abs(pct - kv.Value) > 8) okDist = false;
+                }
+                check(okDist, "el objetivo del asedio con 200 semillas sale a ±8 puntos del modelo de Hugo: " + rep.Trim());
+            }
+
+            // ---- los CSV mandan: un valor cambiado se nota en el mundo, y un archivo que falta avisa y usa los valores por defecto
+            {
+                var reader = TBD.Net.BalanceSource.Reader; var warnPrev = TBD.Net.BalanceSource.Warn;
+                var warns = new System.Collections.Generic.List<string>();
+                try
+                {
+                    TBD.Net.BalanceSource.Warn = warns.Add;
+                    TBD.Net.BalanceSource.Reader = f => { var t = reader(f); return f == "balance_colmena.csv" ? t.Replace("asedio_dura_dias;2;", "asedio_dura_dias;3;").Replace("memoria_trafico_tope;1200;", "memoria_trafico_tope;900;") : t; };
+                    var wc2 = NetScenario.Mvp();
+                    check(wc2.Director.P.SiegeDays == 3 && wc2.Traffic.P.Cap == 900, $"cambiar un CSV (asedio_dura_dias, memoria_trafico_tope) cambia el mundo: {wc2.Director.P.SiegeDays} días de asedio, tope {wc2.Traffic.P.Cap}");
+                    check(wc2.Director.Curve != null && wc2.Director.Curve.Length >= 401 && wc2.Director.Curve[1] == 1078, "el director usa la curva de colmena_curva.csv, no la aproximación lineal");
+                    TBD.Net.BalanceSource.Missing.Clear(); warns.Clear();
+                    TBD.Net.BalanceSource.Reader = f => f == "balance_director.csv" ? null : reader(f);
+                    var wm = NetScenario.Mvp();
+                    check(warns.Exists(x => x.Contains("balance_director.csv")) && wm.Director.P.SiegeWarnH == DirectorParams.Default.SiegeWarnH, "si falta un CSV se avisa y se usan los valores por defecto");
+                }
+                finally { TBD.Net.BalanceSource.Reader = reader; TBD.Net.BalanceSource.Warn = warnPrev; TBD.Net.BalanceSource.Missing.Clear(); }
+            }
+
             // ---- parámetros del director en su CSV (Hugo los calibra sin tocar C#)
             {
                 var dp = DirectorParams.FromCsv(new CsvTable(File.ReadAllText(Path.Combine(dir, "balance_director.csv"))));

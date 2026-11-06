@@ -152,3 +152,6 @@ crashlytics-build.properties
 
 # QA Q4: el proyecto de pruebas fuera de Unity sí va al repositorio (los .csproj de Unity se regeneran y siguen ignorados)
 !Dotnet/**/*.csproj
+# Copia de los CSV de balance que hace BalanceBuildCopy antes de compilar (la fuente es Assets/TBD/Data)
+/Assets/StreamingAssets/Data/
+/Assets/StreamingAssets/Data.meta

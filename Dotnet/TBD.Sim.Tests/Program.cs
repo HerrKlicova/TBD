@@ -118,6 +118,8 @@ namespace TBD.Sim.Tests
 
         static int Main()
         {
+            string dataDir = BalanceTests.DataDirPublic();           // el mismo lector que Unity, apuntando a la carpeta de datos del repositorio
+            TBD.Net.BalanceSource.Reader = f => { var path = System.IO.Path.Combine(dataDir, f); return System.IO.File.Exists(path) ? System.IO.File.ReadAllText(path) : null; };
             Console.WriteLine("Pruebas de la lógica pura de la simulación (fuera de Unity, con shims mínimos)\n");
             TestSolidMath();
             TestFlow();

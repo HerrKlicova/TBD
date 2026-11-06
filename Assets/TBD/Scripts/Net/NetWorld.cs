@@ -220,7 +220,9 @@ namespace TBD.Net
             Attraction = new int[g.Nodes.Count];
             BaseAttraction = new int[g.Nodes.Count];
             Stock = new int[g.Nodes.Count, NetConst.ResCount];
-            Traffic = new TrafficMemory(g.Edges.Count, TrafficParams.Default);
+            Traffic = new TrafficMemory(g.Edges.Count, BalanceSource.Traffic());
+            Director.P = BalanceSource.Director();
+            Director.Curve = BalanceSource.Curve();
         }
 
         public static ulong Mix(ulong h)
