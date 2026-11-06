@@ -155,3 +155,7 @@ crashlytics-build.properties
 # Copia de los CSV de balance que hace BalanceBuildCopy antes de compilar (la fuente es Assets/TBD/Data)
 /Assets/StreamingAssets/Data/
 /Assets/StreamingAssets/Data.meta
+
+# generados por el paquete de pruebas de rendimiento de Unity
+/Assets/Resources/PerformanceTestRun*
+/Assets/Resources.meta
