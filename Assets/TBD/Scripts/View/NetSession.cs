@@ -50,6 +50,7 @@ namespace TBD.View
                 var edge = w.Graph.Edges[ei];
                 int cell = (w.Graph.Nodes[edge.A].YMeters + w.Graph.Nodes[edge.B].YMeters) / 2 * HordeField.W + (w.Graph.Nodes[edge.A].XMeters + w.Graph.Nodes[edge.B].XMeters) / 2;
                 var sv = w.Services[0];
+                for (int r = 0; r < NetConst.ResCount; r++) if (sv.Cargo[r] < 100) sv.Cargo[r] = 100;       // solo prueba: con munición el tren puede disparar
                 sv.Ambushed = true; sv.AtStop = false; sv.Train.SetRoute(w.Graph.ShortestPath(edge.A, edge.B)); sv.Train.Stop();
                 w.Encounter = new NetWorld.AmbushEncounter { Active = true, Service = 0, Edge = ei, Cell = cell, Taken = 300, ExpireTick = w.Tick + NetWorld.AmbushWaitTicks };
             }

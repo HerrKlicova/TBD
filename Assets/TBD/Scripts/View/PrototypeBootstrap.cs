@@ -268,12 +268,13 @@ namespace TBD.View
         // ---------------------------------------------------------------- prueba de rendimiento (D-N61): TBD.exe -stress10k
         // Entra solo en una emboscada, mete 10.000 zombis en la trinchera con el tren disparando, mide FPS 40 s y escribe Captures/stress_10k_fps.txt
         static readonly bool Stress = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k") >= 0;
-        float _stressT0 = -1f, _stressNext; int _stressFrames; readonly System.Collections.Generic.List<float> _stressFps = new System.Collections.Generic.List<float>();
+        bool _stressEmbarked; float _stressT0 = -1f, _stressNext; int _stressFrames; readonly System.Collections.Generic.List<float> _stressFps = new System.Collections.Generic.List<float>();
 
         void StressTick()
         {
             if (_stressT0 < 0f) { _stressT0 = Time.realtimeSinceStartup; Application.targetFrameRate = -1; QualitySettings.vSyncCount = 0; }   // sin tope: queremos saber si pasa de 60
             float t = Time.realtimeSinceStartup - _stressT0;
+            if (t >= 1f && !_stressEmbarked) { _stressEmbarked = true; Push(CmdType.EmbarkSquad); }       // el pelotón a bordo dispara con el tren parado (D-N27)
             if (t < 3f) return;
             if (_stressFrames == 0 && _stressNext == 0f)
             {
