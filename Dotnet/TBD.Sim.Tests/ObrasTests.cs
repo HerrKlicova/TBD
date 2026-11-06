@@ -430,6 +430,11 @@ namespace TBD.Sim.Tests
             m.Tick = 5 * NetConst.DayTicks - 1; m.Step();
             bool worn = true; foreach (var x in m.Works.At(Node)) if (x.Built && x.LifeMil != 990) worn = false;
             check(worn && m.Stock[Node, (int)Res.Materiales] == 0, "sin reservas no se puede pagar: se aplica la caída del 1 % (1000 → 990 ‰) y no se cobra nada");
+            // el mantenimiento usa la misma Σ que el nivel: ni el depósito ni lo que está fuera del perímetro de 60 m cuestan nada
+            var dp = Built(2); dp.Services.Clear();
+            dp.Push(Place(dp.Tick, PieceKind.Deposito, 1000, 1000)); dp.Push(Place(dp.Tick, PieceKind.Hesco, 100_000, 0, 150_000, 0)); dp.ApplyCommands();
+            dp.Works.CompleteAll(Node);
+            check(dp.Works.MaintenanceU(Node) == 1, $"el depósito y un muro a más de 60 m del andén no suman al mantenimiento (siguen en 1 u): {dp.Works.MaintenanceU(Node)}");
             var d20 = Built(1000); d20.Services.Clear();
             for (int d = 1; d <= 20; d++) { d20.Tick = d * NetConst.DayTicks - 1; d20.Step(); }
             check(d20.Stock[Node, (int)Res.Materiales] == 980 && d20.Works.At(Node)[0].LifeMil == 1000, "abastecida 20 días: paga 1 u al día (980 u quedan) y conserva el 100 % de vida");

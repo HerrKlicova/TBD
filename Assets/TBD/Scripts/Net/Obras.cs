@@ -324,7 +324,7 @@ namespace TBD.Net
         }
 
         /// <summary>
-        /// Mantenimiento de un día (Hugo, #8): ceil(WearDayMil ‰ de Σ(CostE4 × vida)) de lo construido, en u de materiales del almacén.
+        /// Mantenimiento de un día (Hugo, #8): ceil(WearDayMil ‰ de Σ(CostE4 × vida)) con la misma Σ que el nivel de fortificación, en u de materiales del almacén.
         /// Si la estación puede pagarlo no hay desgaste; si no, se aplica WearDay (la caída geométrica).
         /// </summary>
         public int MaintenanceU(int node)
@@ -332,7 +332,7 @@ namespace TBD.Net
             var l = _byNode[node];
             if (l == null || P.WearDayMil <= 0) return 0;
             long value = 0;                                              // E4 × ‰
-            foreach (var w in l) if (w.Built) value += (long)w.CostE4 * w.LifeMil;
+            foreach (var w in l) if (Obras.CountsForLevel(P, w)) value += (long)w.CostE4 * w.LifeMil;     // la misma Σ que el nivel (Hugo): piezas defensivas en pie dentro del perímetro, sin el depósito
             long den = 1000L * 1000L * 10_000L;
             return (int)((value * P.WearDayMil + den - 1) / den);
         }
