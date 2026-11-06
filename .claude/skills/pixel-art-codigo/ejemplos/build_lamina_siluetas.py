@@ -13,9 +13,10 @@ from PIL import Image, ImageDraw
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from pixelvm import PAL  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import build_a7_texturas  # noqa: E402
 
 OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "out_siluetas")
-A7 = Path("/mnt/project-files/docs/arte/pixel-codigo/a7")
 ALTURAS = [6, 8, 10, 12, 16, 20]
 CUERPO = PAL["olive_black"][:3]            # #1c200c, un solo valor para la horda
 CABEZA_LUZ = PAL["olive_shadow"][:3]       # 1 px de luz en la nuca desde 16 px (sigue siendo oscuro)
@@ -96,7 +97,7 @@ def sombra(m, h, largo, dx=0.85, dy=0.53):
 def suelo(nombre, w, h):
     if nombre == "olivo":
         return Image.new("RGB", (w, h), PAL["olive"][:3])
-    t = Image.open(A7 / f"tex_{nombre}_64.png").convert("RGB")
+    t = getattr(build_a7_texturas, nombre)().img.convert("RGB")     # siempre del código de A7
     im = Image.new("RGB", (w, h))
     for x in range(0, w, 64):
         for y in range(0, h, 64):
@@ -137,23 +138,43 @@ def panel(nombre, hora, paso=0, w=132, h=40):
             px[x, y] = gradua(c, hora)
     pies = 27
     xs = [4, 16, 30, 46, 66, 92]
+    figs = []
     for hh, x0 in zip(ALTURAS, xs):
-        m = silueta(hh, paso)
-        largo = p["largo"]
         dxy = (0.85, 0.53)
-        if hora == "noche":                         # la sombra la hace el foco: sale hacia fuera de él
-            vx = x0 - foco[0]
-            dxy = (-0.85, 0.53) if vx < 0 else (0.85, 0.53)
-        for (sx, sy) in sombra(m, hh, largo, *dxy):
-            X, Y = x0 + sx, pies + sy
-            if 0 <= X < w and 0 <= Y < h:
-                c = px[X, Y]
-                px[X, Y] = cercano(tuple(a * (1 - p["op"]) for a in c))
+        if hora == "noche":                         # sombra radial desde el foco (Lucía)
+            vx, vy = x0 + 1 - foco[0], pies - foco[1]
+            n = max(1e-6, (vx * vx + vy * vy) ** 0.5)
+            dxy = (vx / n, vy / n)
+        figs.append((x0, pies, hh, silueta(hh, paso), dxy))
+    pinta(base, figs, hora)
+    return base
+
+
+LARGO_LOD_ATARDECER = 2.0
+
+
+def largo_de(hora, hh):
+    """2,5× al atardecer solo desde 12 px; la mancha LOD (< 12 px) va a 2× (Lucía, revisión de D-N61)."""
+    return LARGO_LOD_ATARDECER if hora == "atardecer" and hh < 12 else HORAS[hora]["largo"]
+
+
+def pinta(base, figs, hora):
+    """Primero todas las sombras como un solo conjunto (no se acumulan: donde se cruzan no oscurecen
+    más, máximo y no suma) y después todas las figuras por encima."""
+    px = base.load()
+    w, h = base.size
+    op = HORAS[hora]["op"]
+    sombra_total = set()
+    for x0, pies, hh, m, dxy in figs:
+        sombra_total |= {(x0 + sx, pies + sy) for sx, sy in sombra(m, hh, largo_de(hora, hh), *dxy)}
+    for X, Y in sombra_total:
+        if 0 <= X < w and 0 <= Y < h:
+            px[X, Y] = cercano(tuple(a * (1 - op) for a in px[X, Y]))
+    for x0, pies, hh, m, _ in figs:
         for (x, y), c in m.items():
             X, Y = x0 + x, pies - (hh - 1) + y
             if 0 <= X < w and 0 <= Y < h:
                 px[X, Y] = c
-    return base
 
 
 def masa(nombre, hora, n=60, w=132, h=60, seed=3):
@@ -165,24 +186,17 @@ def masa(nombre, hora, n=60, w=132, h=60, seed=3):
     for y in range(h):
         for x in range(w):
             px[x, y] = gradua(px[x, y], hora) if hora != "noche" else px[x, y]
-    p = HORAS[hora]
     pos = []
     while len(pos) < n:
         x, y = rnd.randrange(2, w - 6), rnd.randrange(10, h - 2)
         if all(abs(x - a) > 3 or abs(y - b) > 2 for a, b in pos):
             pos.append((x, y))
     pos.sort(key=lambda t: t[1])
+    figs = []
     for x0, pies in pos:
         hh = rnd.choice((8, 8, 6))
-        m = silueta(hh, rnd.randrange(2))
-        for (sx, sy) in sombra(m, hh, p["largo"]):
-            X, Y = x0 + sx, pies + sy
-            if 0 <= X < w and 0 <= Y < h:
-                px[X, Y] = cercano(tuple(a * (1 - p["op"]) for a in px[X, Y]))
-        for (x, y), c in m.items():
-            X, Y = x0 + x, pies - (hh - 1) + y
-            if 0 <= X < w and 0 <= Y < h:
-                px[X, Y] = c
+        figs.append((x0, pies, hh, silueta(hh, rnd.randrange(2)), (0.85, 0.53)))
+    pinta(base, figs, hora)
     return base
 
 
@@ -217,9 +231,14 @@ if __name__ == "__main__":
             gr.paste(fig.resize((96, 176), Image.NEAREST), (8 + k * 96, 4 + f * 176), fig.resize((96, 176), Image.NEAREST))
     gr.save(OUT / "siluetas_x8.png")
     # prueba de masa LOD (6–8 px) con aire, en los tres suelos de día y al atardecer, a x3
-    mh = Image.new("RGB", (3 * (132 * 3 + G) + G, 2 * (60 * 3 + G) + G), PAL["navy"][:3])
-    for i, s in enumerate(suelos):
-        for j, hora in enumerate(("dia", "atardecer")):
-            mh.paste(masa(s, hora).resize((396, 180), Image.NEAREST), (G + i * (396 + G), G + j * (180 + G)))
+    filas = [("dia", 2.0), ("atardecer", 2.0), ("atardecer", 1.5)]   # comparación 2× / 1,5× al atardecer
+    mh = Image.new("RGB", (3 * (132 * 3 + G) + G + 90, len(filas) * (60 * 3 + G) + G), PAL["navy"][:3])
+    dm = ImageDraw.Draw(mh)
+    for j, (hora, lg) in enumerate(filas):
+        LARGO_LOD_ATARDECER = lg
+        dm.text((G, G + j * (180 + G) + 80), f"{hora} {lg}x" if hora == "atardecer" else "dia 1.5x", fill=PAL["bone"][:3])
+        for i, s in enumerate(suelos):
+            mh.paste(masa(s, hora).resize((396, 180), Image.NEAREST), (90 + G + i * (396 + G), G + j * (180 + G)))
+    LARGO_LOD_ATARDECER = 2.0
     mh.save(OUT / "prueba_masa_lod.png")
     print("ok", OUT)
