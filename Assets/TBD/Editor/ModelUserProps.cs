@@ -14,6 +14,7 @@ namespace TBD.EditorTools
         {
             if (!assetPath.StartsWith("Assets/TBD/Resources/Models/")) return;
             var mi = (ModelImporter)assetImporter;
+            if (assetPath.Contains("/Models/Suelo/")) mi.importNormals = ModelImporterNormals.Import;   // matas y piedras de Teo: normales horneadas hacia arriba (D-N67)
             mi.importBlendShapes = false;
             mi.importCameras = false;
             mi.importLights = false;

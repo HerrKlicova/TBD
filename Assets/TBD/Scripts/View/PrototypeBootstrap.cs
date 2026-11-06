@@ -776,6 +776,7 @@ namespace TBD.View
         void ApplyGrade(int index)
         {
             _gradeIndex = index;
+            if (_groundMat != null && _groundDayTex != null) _groundMat.SetTexture("_BaseMap", index == 2 ? _groundNightTex : _groundDayTex);
             if (_vignette != null) _vignette.intensity.Override(index == 2 ? 0f : 0.28f);        // de noche sin viñeta: la paleta la cuantizaba en anillos concéntricos (Lucía)
             switch (index)
             {
@@ -1317,11 +1318,13 @@ namespace TBD.View
             Box("Tablero de la carretera", new Vector3(303.2f, -0.25f, 23f), new Vector3(75.2f, 0.5f, 7f), asphalt, root);      // la carretera vieja cruza el cauce por su propio tablero de ~75 m
             AddTruck(root, new Vector3(258f, 0f, 23f));                            // cabeza del atasco: camión cruzado a la entrada del tablero
             // P9: silueta del castillo de Teo al fondo, borde norte del faldón (900 x 210 m, sin simulación ni colisión; mirando al sur)
-            var castle = PlaceModel("castillo_sagunto", "SM_castillo_sagunto_LOD1", new Vector3(130f, 0f, 330f), 180f, root);
+            // cerro de Sagunto (D-N67, Lucía+Álvaro): girado 225° (paralelo al borde superior de la cámara más alejada), escala Y 0,5, centro (7,75; 267,75), fuera de la zona simulada (sagunto-nivel.md §8.3)
+            var castle = PlaceModel("castillo_sagunto", "SM_castillo_sagunto_reducido_LOD1", new Vector3(7.75f, 0f, 267.75f), 225f, root) ?? PlaceModel("castillo_sagunto", "SM_castillo_sagunto_LOD1", new Vector3(7.75f, 0f, 267.75f), 225f, root);
+            if (castle != null) castle.transform.localScale = new Vector3(1f, 0.5f, 1f);
             if (castle != null)                                                                                // lejanía: un escalón menos de contraste (tinte hacia el color del suelo), sin niebla real
                 foreach (var cr in castle.GetComponentsInChildren<MeshRenderer>()) cr.sharedMaterial.SetColor("_BaseColor", new Color(0.78f, 0.74f, 0.66f));
             // P6: calle de la Estación (X 56-62), paso a nivel Z 58-67 (cubre también el desvío de la vía 2) y carretera vieja (Z 20-26)
-            Box("Calle de la Estación", new Vector3(59f, 0.05f, 64f), new Vector3(6f, 0.06f, 528f), asphalt, root);
+            Box("Calle de la Estación", new Vector3(59f, 0.05f, -20f), new Vector3(6f, 0.06f, 360f), asphalt, root);          // de Z -200 a 160: cortada al pie del cerro (Álvaro §8.3)
             for (int i = 0; i < 24; i++) Box("Grieta calle", new Vector3(57f + (i * 37 % 5), 0.09f, -150f + i * 21f), new Vector3(0.15f, 0.02f, 3.2f), crack, root);
             Box("Paso a nivel", new Vector3(59f, 0.1f, 62.5f), new Vector3(6f, 0.05f, 9f), rust, root);
             // paso a nivel de Teo (origen en el cruce de la calzada con el eje de las vías: X 59, Z 63,6), girado para que la caseta quede al oeste de la calle y al norte de la vía
@@ -1449,11 +1452,60 @@ namespace TBD.View
         /// con luz (responde al día y a la noche) y recorte por alfa, sobre las calles y la carretera de primitivas.
         /// </summary>
         public static bool SueloMuestra = true;
+        Texture2D _groundDayTex, _groundNightTex; Material _groundMat;
+
+        /// <summary>Ruido de valor de baja frecuencia en espacio de mundo (manchas de ~10-30 m), 0..1.</summary>
+        static float MacroNoise(float x, float z)
+        {
+            float N(int ix, int iz) { return (Unity.Mathematics.math.hash(new Unity.Mathematics.int2(ix * 73 + 19, iz * 41 + 5)) & 1023u) / 1023f; }
+            float Oct(float sc, int sd) { float fx = x / sc + sd * 7.3f, fz = z / sc - sd * 3.1f; int ix = Mathf.FloorToInt(fx), iz = Mathf.FloorToInt(fz); float tx = fx - ix, tz = fz - iz; tx = tx * tx * (3f - 2f * tx); tz = tz * tz * (3f - 2f * tz); return Mathf.Lerp(Mathf.Lerp(N(ix, iz + sd), N(ix + 1, iz + sd), tx), Mathf.Lerp(N(ix, iz + 1 + sd), N(ix + 1, iz + 1 + sd), tx), tz); }
+            return Mathf.Clamp01(0.65f * Oct(24f, 0) + 0.35f * Oct(11f, 3));
+        }
+
+        /// <summary>Grietas como decals sueltos (Bruno): asfalto 1 cada ~80 m² (atlas de 8 de 6,4 m) y tierra seca 1 cada ~60 m² (atlas de 4). Semilla fija por celda de 1 m, giro de 90° y espejo al azar.</summary>
+        void ScatterCracks(Transform root, Color32[] map, int mw, int mh, float X0, float Z0)
+        {
+            var atA = Resources.Load<Texture2D>("Suelo/atlas_grietas_asfalto"); var atT = Resources.Load<Texture2D>("Suelo/atlas_grietas_tierra");
+            if (atA == null || atT == null) return;
+            var holder = new GameObject("Grietas (decals)").transform; holder.SetParent(root, false);
+            var cache = new System.Collections.Generic.Dictionary<long, Material>();
+            Material CrackMat(Texture2D at, int idx, bool mir)
+            {
+                long key = at.GetInstanceID() * 64L + idx * 2 + (mir ? 1 : 0);
+                if (cache.TryGetValue(key, out var mm)) return mm;
+                int cols = at.width / 64, rows = at.height / 64; int cc = idx % cols, rr = idx / cols;
+                mm = Mat("ffffff"); mm.SetTexture("_BaseMap", at);
+                mm.SetTextureScale("_BaseMap", new Vector2((mir ? -1f : 1f) / cols, 1f / rows));
+                mm.SetTextureOffset("_BaseMap", new Vector2((cc + (mir ? 1 : 0)) / (float)cols, (rows - 1 - rr) / (float)rows));
+                mm.SetFloat("_Surface", 0f); mm.SetFloat("_AlphaClip", 1f); mm.SetFloat("_Cutoff", 0.5f); mm.EnableKeyword("_ALPHATEST_ON");
+                cache[key] = mm; return mm;
+            }
+            int count = 0;
+            for (int cz = 0; cz < mh; cz++)
+                for (int cx = 0; cx < mw; cx++)
+                {
+                    int zone = map[(mh - 1 - cz) * mw + cx].r;
+                    bool asph = zone == 4, dirt = zone == 0;
+                    if (!asph && !dirt) continue;
+                    uint h = Unity.Mathematics.math.hash(new Unity.Mathematics.int2(cx * 53 + 101, cz * 29 + 13));
+                    if (((h & 1023u) / 1023f) >= (asph ? 1f / 80f : 1f / 60f)) continue;
+                    var at = asph ? atA : atT; int n = (at.width / 64) * (at.height / 64);
+                    int idx = (int)((h >> 10) % (uint)n); bool mir = ((h >> 20) & 1u) != 0u; float yaw = ((h >> 21) & 3u) * 90f;
+                    float x = X0 + cx + 0.5f + (((h >> 23) & 15u) / 15f - 0.5f), z = Z0 + cz + 0.5f + (((h >> 27) & 15u) / 15f - 0.5f);
+                    var go = GameObject.CreatePrimitive(PrimitiveType.Quad); go.name = "Grieta"; Destroy(go.GetComponent<Collider>());
+                    go.transform.SetParent(holder, false); go.transform.position = new Vector3(x, asph ? 0.13f : 0.11f, z);
+                    go.transform.rotation = Quaternion.Euler(90f, yaw, 0f); go.transform.localScale = new Vector3(6.4f, 6.4f, 1f);
+                    var mr = go.GetComponent<MeshRenderer>(); mr.sharedMaterial = CrackMat(at, idx, mir); mr.shadowCastingMode = ShadowCastingMode.Off;
+                    count++;
+                }
+            Debug.Log("[TBD] Grietas de la muestra: " + count + " decals");
+        }
 
         void BuildGroundSample(Transform root)
         {
             var mapTex = Resources.Load<Texture2D>("Suelo/sagunto_muestra_zonas_1m");
             Color32[] Px(string n) { var t = Resources.Load<Texture2D>("Suelo/" + n); return t != null ? t.GetPixels32() : null; }
+            var seca = Px("suelo_seca_64"); var lisos = new Color32[4][]; for (int li = 0; li < 4; li++) lisos[li] = Px("suelo_asfalto_liso_" + (li + 1) + "_64");
             var apis = Px("suelo_apisonada_64"); var labr = Px("suelo_labrada_64"); var asf = Px("suelo_asfalto_64"); var rod = Px("suelo_rodadas_64");
             if (mapTex == null || apis == null || labr == null || asf == null || rod == null) { Debug.LogWarning("[TBD] Falta algún archivo de la muestra del suelo"); return; }
             var map = mapTex.GetPixels32(); int mw = mapTex.width, mh = mapTex.height;                   // 75 x 65
@@ -1485,7 +1537,18 @@ namespace TBD.View
                     {
                         case 3: c = new Color32(0, 0, 0, 0); break;                                     // vía: transparente (balasto existente)
                         case 2: c = rod[v * 64 + u]; break;                                              // glacis: tierra pisada con rodadas
-                        case 4: c = asf[v * 64 + u]; break;                                              // calle y carretera: asfalto agrietado
+                        case 4:                                                                          // calle y carretera: una de las 4 teselas lisas por celda de 6,4 m (hash), con giro de 90° y espejo por hash
+                        {
+                            int ccx = Mathf.FloorToInt(x / 6.4f), ccz = Mathf.FloorToInt(z / 6.4f);
+                            uint hh = Unity.Mathematics.math.hash(new Unity.Mathematics.int2(ccx * 31 + 7, ccz * 17 + 3));
+                            var tile = lisos[(int)(hh & 3u)] ?? asf; int tu = u, tv = v;
+                            int rot = (int)((hh >> 2) & 3u); bool mir = ((hh >> 4) & 1u) != 0u;
+                            for (int rr = 0; rr < rot; rr++) { int nt = tu; tu = 63 - tv; tv = nt; }
+                            if (mir) tu = 63 - tu;
+                            c = tile[tv * 64 + tu];
+                            break;
+                        }
+                        case 0: c = (seca != null ? seca : apis)[v * 64 + u]; break;                     // descampado: tierra seca con solo motas (las grietas van como decals)                                              // calle y carretera: asfalto agrietado
                         case 5: c = labr[v * 64 + u]; break;                                             // huerta: tierra labrada (surcos a lo largo de X, como las hileras de naranjos)
                         case 9:                                                                          // acequia: agua #6c7874 con borde de un téxel en #94948c
                             c = water;
@@ -1493,10 +1556,38 @@ namespace TBD.View
                             break;
                         default: c = apis[v * 64 + u]; break;                                            // recinto, descampados, pueblo, solar: tierra apisonada
                     }
+                    if (c.a != 0 && zone != 9)                                                       // variación macro ~±3 L*: ruido de baja frecuencia (manchas de 10-30 m) antes del paso de paleta
+                    {
+                        float nz = MacroNoise(x, z); float k = 1f + 0.10f * (nz - 0.5f);
+                        c = new Color32((byte)Mathf.Clamp(c.r * k, 0, 255), (byte)Mathf.Clamp(c.g * k, 0, 255), (byte)Mathf.Clamp(c.b * k, 0, 255), c.a);
+                    }
                     pix[py * W + px] = c;
                 }
             var tex = new Texture2D(W, H, TextureFormat.RGBA32, false, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp, name = "Suelo muestra" };
             tex.SetPixels32(pix); tex.Apply(false, false);
+            // noche (Lucía, D-N67 adenda 3): bajo la luna la gravilla y el tramado se cuantizan en «nieve»; el detalle se deja en un 20 % (mezcla con el color medio de la zona), y al 100 % en los charcos de luz
+            // de los focos del muro oeste (centro a ~7,5 m del muro, radio ~11 m). Es una aproximación en CPU (no por la luz que recibe cada píxel).
+            var meanByZone = new System.Collections.Generic.Dictionary<int, Color32>();
+            Color32 Mean(Color32[] a) { long r = 0, g = 0, b = 0; int n = 0; foreach (var c in a) if (c.a > 0) { r += c.r; g += c.g; b += c.b; n++; } return n == 0 ? new Color32(0, 0, 0, 0) : new Color32((byte)(r / n), (byte)(g / n), (byte)(b / n), 255); }
+            Color32 mApis = Mean(apis), mLabr = Mean(labr), mAsf = Mean(asf), mRod = Mean(rod);
+            var pixNight = new Color32[pix.Length];
+            float[] lampY = { Level.FortY0 + 6f, (Level.GateY0 + Level.GateY1) * 0.5f, Level.FortY1 - 6f };
+            for (int py = 0; py < H; py++)
+                for (int px = 0; px < W; px++)
+                {
+                    var c = pix[py * W + px]; int i = py * W + px;
+                    if (c.a == 0) { pixNight[i] = c; continue; }
+                    float x = X0 + (px + 0.5f) * Texel, z = Z0 + (py + 0.5f) * Texel;
+                    bool lit = false;
+                    foreach (float ly in lampY) { float dx = x - (Level.FortX0 - 7.5f), dz = z - ly; if (dx * dx + dz * dz < 11f * 11f) lit = true; }
+                    if (lit) { pixNight[i] = c; continue; }
+                    int zone = ZoneAt(x, z, px, py);
+                    Color32 mean = zone == 2 ? mRod : zone == 4 ? mAsf : zone == 5 ? mLabr : zone == 9 ? water : mApis;
+                    float k = 0.2f;                                                         // 20 % del detalle
+                    pixNight[i] = new Color32((byte)(mean.r + (c.r - mean.r) * k), (byte)(mean.g + (c.g - mean.g) * k), (byte)(mean.b + (c.b - mean.b) * k), 255);
+                }
+            _groundNightTex = new Texture2D(W, H, TextureFormat.RGBA32, false, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp, name = "Suelo muestra (noche)" };
+            _groundNightTex.SetPixels32(pixNight); _groundNightTex.Apply(false, false); _groundDayTex = tex;
             var go = GameObject.CreatePrimitive(PrimitiveType.Quad); go.name = "Suelo muestra (D-N67)"; Destroy(go.GetComponent<Collider>());
             go.transform.SetParent(root, false);
             go.transform.position = new Vector3(X0 + mw * 0.5f, 0.1f, Z0 + mh * 0.5f);
@@ -1505,7 +1596,9 @@ namespace TBD.View
             var m = Mat("ffffff"); m.SetTexture("_BaseMap", tex); m.SetColor("_BaseColor", Color.white);
             m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON");
             var mr = go.GetComponent<MeshRenderer>(); mr.sharedMaterial = m; mr.shadowCastingMode = ShadowCastingMode.Off;
+            _groundMat = m; m.SetTexture("_BaseMap", _gradeIndex == 2 ? _groundNightTex : _groundDayTex);
             ScatterGround(root, map, mw, mh, X0, Z0);
+            ScatterCracks(root, map, mw, mh, X0, Z0);
         }
 
         /// <summary>
@@ -1515,44 +1608,48 @@ namespace TBD.View
         void ScatterGround(Transform root, Color32[] map, int mw, int mh, float X0, float Z0)
         {
             var mat = Mat("ffffff"); var pal = Resources.Load<Texture2D>("Models/Suelo/T_Paleta32"); if (pal != null) mat.SetTexture("_BaseMap", pal); mat.enableInstancing = true;
-            var meshes = new System.Collections.Generic.List<Mesh>();
-            foreach (var n in new[] { "matas_v0", "matas_v1", "matas_v2", "piedras_v0", "piedras_v1" })
+            var cacheM = new System.Collections.Generic.Dictionary<string, Mesh>();
+            Mesh GetMesh(string kind, int v)                                                             // SM_suelo_<tipo>_v<n>_LOD1 (Normals = Import, sin colisión ni sombra)
             {
-                var g = Resources.Load<GameObject>("Models/Suelo/SM_suelo_" + n + "_LOD1"); var mf = g != null ? g.GetComponentInChildren<MeshFilter>() : null;
-                meshes.Add(mf != null ? mf.sharedMesh : null);
+                string key = kind + "_v" + v; if (cacheM.TryGetValue(key, out var m)) return m;
+                var g = Resources.Load<GameObject>("Models/Suelo/SM_suelo_" + key + "_LOD1"); var mf = g != null ? g.GetComponentInChildren<MeshFilter>() : null;
+                m = mf != null ? mf.sharedMesh : null; cacheM[key] = m; return m;
             }
-            if (meshes[0] == null) return;
-            // exclusiones: almacén de naranjas (X 40-51, Z 30-51), zona de la puerta oeste y el paso a nivel (X 52-76, Z 54-73), recinto y vías (zonas 1 y 3 salvo la franja al pie de los muros)
+            if (GetMesh("matas", 0) == null || System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sincapac") >= 0) return;   // -sincapac: medida de rendimiento sin la capa C
+            // exclusiones: almacén de naranjas (X 40-51, Z 30-51), zona de la puerta oeste y el paso a nivel (X 52-76, Z 54-73)
             bool Excluded(float x, float z) { return (x > 39.5f && x < 51.5f && z > 29.5f && z < 51.5f) || (x > 52f && x < 76f && z > 54f && z < 73f); }
-            // densidad por zona (por 100 m²) y tipo: 0 descampado 12 (seca y cardo), 6 pisado 8 (seca), 2 glacis 3 (solo piedras), 4 calle 3 (verde), 5 huerta 10 (verde), 9 acequia 12 (verde), 1 recinto 4 cerca de los muros
-            int count = 0; var holder = new GameObject("Capa C (matas y piedras)").transform; holder.SetParent(root, false);
+            // densidad por zona (por 100 m2): 0 descampado 20, 6 pisado 8, 2 glacis 3, 4 calle 3 (basura y hierba en bordes), 5 huerta 10, 9 acequia 12, 1 recinto 8 junto a los muros (D-N67, ronda 2 de Lucia)
+            int count = 0; var holder = new GameObject("Capa C (matas, piedras, canas, basura, escombros)").transform; holder.SetParent(root, false);
             for (int cz = 0; cz < mh; cz++)
                 for (int cx = 0; cx < mw; cx++)
                 {
-                    int zone = map[(mh - 1 - cz) * mw + cx].r;                                  // fila 0 de GetPixels32 = abajo: Z 5 es la fila 0
-                    float dens = zone == 0 ? 12f : zone == 6 ? 8f : zone == 2 ? 3f : zone == 4 ? 3f : zone == 5 ? 10f : zone == 9 ? 12f : zone == 7 || zone == 10 ? 8f : 0f;
-                    if (zone == 1)                                                              // recinto: solo a menos de 2 m del pie de los muros (vecino de otra zona en 2 celdas)
+                    int zone = map[(mh - 1 - cz) * mw + cx].r;
+                    float dens = zone == 0 ? 20f : zone == 6 ? 8f : zone == 2 ? 3f : zone == 4 ? 3f : zone == 5 ? 10f : zone == 9 ? 12f : zone == 7 || zone == 10 ? 8f : 0f;
+                    if (zone == 1)
                     {
                         bool edge = false;
                         for (int dz = -2; dz <= 2 && !edge; dz++) for (int dx = -2; dx <= 2 && !edge; dx++) { int ox = Mathf.Clamp(cx + dx, 0, mw - 1), oz = Mathf.Clamp(cz + dz, 0, mh - 1); if (map[(mh - 1 - oz) * mw + ox].r != 1) edge = true; }
-                        dens = edge ? 4f : 0f;
+                        dens = edge ? 8f : 0f;
                     }
                     if (dens <= 0f) continue;
                     float x = X0 + cx + 0.5f, z = Z0 + cz + 0.5f;
                     uint h = Unity.Mathematics.math.hash(new Unity.Mathematics.int2(cx * 7 + 11, cz * 13 + 5));
-                    if (((h & 1023u) / 1023f) >= dens / 100f) continue;                         // por cada 100 m² (celda = 1 m²): probabilidad dens / 100
+                    if (((h & 1023u) / 1023f) >= dens / 100f) continue;
                     float jx = ((h >> 10) & 255u) / 255f, jz = ((h >> 18) & 255u) / 255f; x += jx - 0.5f; z += jz - 0.5f;
                     if (Excluded(x, z)) continue;
-                    int kind;                                                                   // 0-2 matas, 3-4 piedras
-                    if (zone == 2) kind = 3 + (int)((h >> 26) & 1u);
-                    else if (zone == 0) kind = ((h >> 26) & 3u) == 0 ? 2 : 0;                   // seca y algún cardo
-                    else if (zone == 6) kind = 0;
-                    else kind = 1;                                                              // hierba verde (lindes, grietas, bordes de acequia)
-                    if (meshes[kind] == null) continue;
-                    var o = new GameObject(kind < 3 ? "Mata" : "Piedra"); o.transform.SetParent(holder, false);
-                    o.transform.position = new Vector3(x, 0.1f, z); o.transform.rotation = Quaternion.Euler(0f, (h >> 4) % 360u, 0f);
-                    float sc = 0.8f + 0.4f * (((h >> 14) & 255u) / 255f); o.transform.localScale = Vector3.one * (kind >= 3 ? Mathf.Min(sc, 1f) : sc);
-                    o.AddComponent<MeshFilter>().sharedMesh = meshes[kind];
+                    uint h2 = Unity.Mathematics.math.hash(new Unity.Mathematics.int2(cx * 19 + 3, cz * 23 + 17)); int pick = (int)(h2 % 100u), v = (int)((h2 >> 8) % 5u);
+                    string kind; float scale = 0.8f + 0.4f * (((h >> 14) & 255u) / 255f);
+                    if (zone == 2) { if (pick < 35) { kind = "escombros"; scale = Mathf.Min(scale, 1f); } else { kind = "piedras"; if (v == 2) v = 0; scale = Mathf.Min(scale, 1f); } }
+                    else if (zone == 9) { kind = pick < 55 ? "canas" : "matas"; if (kind == "matas") scale *= 1.5f; }
+                    else if (zone == 5) { if (pick < 25) { kind = "piedras"; v = 2; scale = Mathf.Min(scale, 1f); } else { kind = "matas"; scale *= 1.5f; } }
+                    else if (zone == 4) { if (pick < 40) { kind = "basura"; scale = Mathf.Min(scale, 1f); } else { kind = "matas"; v = 1; scale *= 1.5f; } }
+                    else if (zone == 6) { if (pick < 12) { kind = "basura"; scale = Mathf.Min(scale, 1f); } else { kind = "matas"; scale *= 1.5f; } }
+                    else if (zone == 0 && x > 160f && pick < 20) { kind = "lentisco"; scale = Mathf.Min(scale, 1f); }
+                    else { kind = "matas"; scale *= 1.5f; }
+                    var mesh = GetMesh(kind, v); if (mesh == null) continue;
+                    var o = new GameObject(kind); o.transform.SetParent(holder, false);
+                    o.transform.position = new Vector3(x, 0.1f, z); o.transform.rotation = Quaternion.Euler(0f, (h >> 4) % 360u, 0f); o.transform.localScale = Vector3.one * scale;
+                    o.AddComponent<MeshFilter>().sharedMesh = mesh;
                     var r = o.AddComponent<MeshRenderer>(); r.sharedMaterial = mat; r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false;
                     count++;
                 }
@@ -1567,7 +1664,19 @@ namespace TBD.View
             go.transform.SetParent(root, false); go.transform.position = new Vector3(pos.x, 0.12f, pos.z);
             go.transform.rotation = Quaternion.Euler(90f, yaw, 0f); go.transform.localScale = new Vector3(3.2f * scale, 3.2f * scale, 1f);
             var m = Mat("ffffff");
-            m.SetTexture("_BaseMap", tex); m.SetTextureScale("_BaseMap", new Vector2(0.25f, 1f / 3f)); m.SetTextureOffset("_BaseMap", new Vector2(col * 0.25f, (2 - row) / 3f));
+            m.SetTexture("_BaseMap", tex); m.SetTextureScale("_BaseMap", new Vector2(0.25f, 32f / 112f)); m.SetTextureOffset("_BaseMap", new Vector2(col * 0.25f, (112f - 32f * (row + 1)) / 112f));   // atlas 128x112 (Bruno)
+            m.SetFloat("_Surface", 0f); m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON");
+            go.GetComponent<MeshRenderer>().sharedMaterial = m;
+        }
+
+        /// <summary>Rodada larga del atlas de Bruno (fila inferior: 64 x 16 px = 6,4 x 0,4 m), en la direccion de la marcha (eje X).</summary>
+        void RutDecal(Transform root, int idx, Vector3 pos)
+        {
+            var tex = Resources.Load<Texture2D>("Suelo/atlas_decals_suelo"); if (tex == null) return;
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad); go.name = "Rodada larga"; Destroy(go.GetComponent<Collider>());
+            go.transform.SetParent(root, false); go.transform.position = new Vector3(pos.x, 0.115f, pos.z);
+            go.transform.rotation = Quaternion.Euler(90f, 0f, 0f); go.transform.localScale = new Vector3(6.4f, 0.4f, 1f);
+            var m = Mat("ffffff"); m.SetTexture("_BaseMap", tex); m.SetTextureScale("_BaseMap", new Vector2(0.5f, 16f / 112f)); m.SetTextureOffset("_BaseMap", new Vector2(idx * 0.5f, 0f));
             m.SetFloat("_Surface", 0f); m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON");
             go.GetComponent<MeshRenderer>().sharedMaterial = m;
         }
@@ -1578,10 +1687,10 @@ namespace TBD.View
             float Yaw(float x, float z) { return (Unity.Mathematics.math.hash(new Unity.Mathematics.int2((int)(x * 10f), (int)(z * 10f))) % 360u); }
             // asfalto: charco (fila 0, cols 0-1) y aceite (fila 0, cols 2-3) en la calle de la Estación (X 56-62) y la carretera (Z 20-26)
             var asph = new[] { (59f, 33f, 0), (58.8f, 48f, 2), (60.5f, 56f, 1), (30f, 23f, 3), (46f, 22.5f, 0), (74f, 23.5f, 2), (88f, 22f, 1), (59.5f, 14f, 3) };
-            foreach (var d in asph) AtlasDecal(root, d.Item3, 0, new Vector3(d.Item1, 0f, d.Item2), Yaw(d.Item1, d.Item2));
+            foreach (var d in asph) AtlasDecal(root, d.Item3, 0, new Vector3(d.Item1, 0f, d.Item2), Yaw(d.Item1, d.Item2), d.Item3 < 2 ? 1.3f : 1f);   // charcos 2-3 m
             // glacis: rodadas (fila 1, cols 0-1) al oeste del almacén y junto al muro
             var rods = new[] { (28f, 58f, 0), (34f, 44f, 1), (26f, 34f, 0), (36f, 28f, 1), (70f, 40f, 1), (80f, 36f, 0) };
-            foreach (var d in rods) AtlasDecal(root, d.Item3, 1, new Vector3(d.Item1, 0f, d.Item2), Yaw(d.Item1, d.Item2));
+            foreach (var d in rods) { RutDecal(root, d.Item3, new Vector3(d.Item1, 0f, d.Item2)); RutDecal(root, 1 - d.Item3, new Vector3(d.Item1 + 6.4f, 0f, d.Item2)); }   // rodadas largas 6,4 x 0,4 m a lo largo de X; dos seguidas empalman en 12,8 m
             // huerta del sur (Z < 20): dos hileras de naranjos a lo largo de X (fuera de la acequia Z 9-11 y de la calle X 55-63) y hojarasca bajo cada tercer árbol
             int n = 0;
             foreach (float z in new[] { 6.5f, 16.5f })
@@ -1590,7 +1699,7 @@ namespace TBD.View
                     if (x > 54f && x < 64f) continue;
                     var tp = new Vector3(x, 0f, z);
                     PlaceVariant("naranjo", tp, Yaw(x, z), root);
-                    if ((n++ % 3) == 0) AtlasDecal(root, 2 + (n % 2), 2, tp, Yaw(z, x), 1.1f);       // hojarasca (fila 2, cols 2-3)
+                    if ((n++ % 3) == 0) AtlasDecal(root, 2 + (n % 2), 2, tp, Yaw(z, x), 1f);       // hojarasca (fila 2, cols 2-3)
                 }
         }
 
