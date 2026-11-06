@@ -1542,22 +1542,29 @@ namespace TBD.View
             // Tren: locomotora y tres vagones. Deuda de arte (Lucía): techos claros (#b8b8b8) sobre laterales verde oliva (#50541c) y contorno
             // oscuro de 1 px; la locomotora lleva una franja ámbar (#e08c30) en el frontal. El techo claro se lee sobre el fondo oscuro.
             var olive = Mat("50541c"); var roofLight = Mat("b8b8b8"); var amberMat = Mat("e08c30"); var outline = Mat("1c1812");
-            _trainParts = new Transform[4];
-            _trainParts[0] = Box("Locomotora", Vector3.zero, new Vector3(4f, 2.2f, 1.8f), olive).transform;
-            for (int i = 1; i < 4; i++)
-                _trainParts[i] = Box("Vagón " + i, Vector3.zero, new Vector3(4.6f, 2f, 1.8f), olive).transform;
-            for (int i = 0; i < 4; i++)
+            // Tren a escala real (Lucía, 6-nov): locomotora R1 (24 m) y dos vagones de tropa R2 (19,9 m), modelos de Teo (LOD1) de cara a +X;
+            // si faltan los modelos, las cajas de siempre. El sólido de la simulación mide 64 m (TrainRear 61,5 + TrainFront 2,5).
+            _trainParts = new Transform[3];
+            string[] trainModels = { "Models/R1/SM_R1_Locomotora_LOD1", "Models/R2/SM_R2_VagonTropa_LOD1", "Models/R2/SM_R2_VagonTropa_LOD1" };
+            string[] trainTex = { "Models/R1/T_Paleta32", "Models/R2/T_Paleta32", "Models/R2/T_Paleta32" };
+            for (int i = 0; i < 3; i++)
             {
-                var t = _trainParts[i];
-                Vector3 sz = t.localScale;
-                // techo claro: una losa fina sobre el cuerpo (en espacio local del cuerpo, que está escalado)
-                var roof = Box("Techo", Vector3.zero, Vector3.one, roofLight, t); roof.transform.localPosition = new Vector3(0f, 0.5f, 0f); roof.transform.localScale = new Vector3(0.92f, 0.06f, 0.82f);
-                // contorno: un cuerpo algo mayor y más bajo, oscuro, que asoma 1 px por los lados
-                var line = Box("Contorno", Vector3.zero, Vector3.one, outline, t); line.transform.localPosition = new Vector3(0f, -0.02f, 0f); line.transform.localScale = new Vector3(1.06f, 0.96f, 1.12f);
-                if (i == 0)
+                var root = new GameObject(i == 0 ? "Locomotora" : "Vagón " + i);
+                root.transform.SetParent(transform, false);
+                var prefab = Resources.Load<GameObject>(trainModels[i]); var tex = Resources.Load<Texture2D>(trainTex[i]);
+                if (prefab != null && tex != null)
                 {
-                    var stripe = Box("Franja ámbar", Vector3.zero, Vector3.one, amberMat, t); stripe.transform.localPosition = new Vector3(0.5f, 0.05f, 0f); stripe.transform.localScale = new Vector3(0.04f, 0.5f, 1.02f);
+                    var inst = Instantiate(prefab, root.transform);
+                    inst.transform.localPosition = Vector3.zero; inst.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);   // el modelo mira a +Z; el tren, a +X
+                    var mat = Mat("ffffff"); mat.SetTexture("_BaseMap", tex); mat.SetColor("_BaseColor", Color.white);
+                    foreach (var r in inst.GetComponentsInChildren<MeshRenderer>()) { r.sharedMaterial = mat; r.shadowCastingMode = ShadowCastingMode.On; }
                 }
+                else
+                {
+                    var box = Box("Caja", Vector3.zero, new Vector3(i == 0 ? 24f : 19.9f, 2.5f, 3f), Mat("50541c"), root.transform);
+                    box.transform.localPosition = new Vector3(0f, 1.25f, 0f);
+                }
+                _trainParts[i] = root.transform;
             }
         }
 
@@ -1572,7 +1579,7 @@ namespace TBD.View
         }
 
         // ---------------------------------------------------------------- obras de la red en la zona (hito 5)
-        static readonly Vector2 WorkOrigin = new Vector2(85f, Level.TrackY);        // el andén (0,0) de las obras del nodo, en metros de la zona
+        static readonly Vector2 WorkOrigin = new Vector2((Level.FortX0 + Level.FortX1) * 0.5f, Level.TrackY);   // andén centrado en el recinto (Hugo): las esquinas quedan a ~47 m, dentro del radio de 60 m        // el andén (0,0) de las obras del nodo, en metros de la zona
         readonly System.Collections.Generic.List<int> _wallPts = new System.Collections.Generic.List<int>();   // polilínea en curso, mm locales al nodo
         PieceKind _workKind = PieceKind.Sacos;
         readonly System.Collections.Generic.List<GameObject> _workVisuals = new System.Collections.Generic.List<GameObject>();   // una por pieza de la red
@@ -1899,10 +1906,10 @@ namespace TBD.View
             float ty = Level.TrackY;
             foreach (var part in _trainParts) part.gameObject.SetActive(info.HasTrain);   // sin tren de la red en el andén, no hay tren
             // el tren avanza hacia +x; la locomotora va delante
-            float x = train.X + 0.5f;
-            _trainParts[0].position = new Vector3(x, 1.3f, ty);
-            for (int i = 1; i < 4; i++)
-                _trainParts[i].position = new Vector3(x - 2.3f - i * 5.0f + 2.5f, 1.2f, ty);
+            float x = train.X;                                                    // el sólido va de X − 61,5 a X + 2,5
+            _trainParts[0].position = new Vector3(x + 2.5f - 12.015f, 0f, ty);    // locomotora: 24,03 m con el frente en X + 2,5
+            _trainParts[1].position = new Vector3(x + 2.5f - 24.03f - 9.95f, 0f, ty);
+            _trainParts[2].position = new Vector3(x + 2.5f - 24.03f - 19.9f - 9.95f, 0f, ty);
             if (_gate != null) _gate.SetActive(!info.GateOpen);
         }
     }

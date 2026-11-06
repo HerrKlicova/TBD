@@ -78,11 +78,12 @@ namespace TBD.Sim
             em.SetComponentData(root, info);
         }
 
-        /// <summary>Hueco k (0-20) de los vagones: 7 por vagón, a los dos lados.</summary>
+        /// <summary>Hueco k (0-20) de los vagones de tropa: 11 y 10, a los dos lados.</summary>
         public static float2 SlotOf(int k)
         {
-            int wagon = k / 7, j = k % 7;
-            return new float2(Det.Mm(-4300 - wagon * 5000 + (j - 3) * 600), Det.Mm(j % 2 == 0 ? -550 : 550));   // enteros (determinista en IL2CPP)
+            // tren a escala real: dos vagones R2 de tropa de 19,9 m detrás de la locomotora de 24 m (centros a -31,5 y -51,4 m de X): 11 huecos en el primero y 10 en el segundo
+            int wagon = k / 11, j = k % 11;
+            return new float2(Det.Mm(-31500 - wagon * 19900 + (j - 5) * 1200), Det.Mm(j % 2 == 0 ? -550 : 550));   // enteros (determinista en IL2CPP)
         }
 
         static int SlotIndex(float2 slot)
