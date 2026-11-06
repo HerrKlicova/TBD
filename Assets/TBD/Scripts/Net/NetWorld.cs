@@ -636,6 +636,7 @@ namespace TBD.Net
                 UpdateFromField();
             }
             Tick++;
+            if (Tick % NetConst.DayTicks == 0) for (int n = 0; n < Works.Nodes; n++) Works.WearDay(n);     // desgaste diario de lo construido (Hugo, 1 %)
             if (Tick % NetConst.DayTicks == 0 && Traffic != null)
                 Traffic.Decay((e, slot) => Intel.Add(new IntelEntry { Tick = Tick, Id = "TR-5", Vars = new[] { "tramo", EdgeName(Graph.Edges[e]) } }));
             if (Tick % NetConst.FieldEvery == 0)

@@ -39,6 +39,7 @@ namespace TBD.Net
         public int MaxVertices;          // tope de vértices de una polilínea
         public int MaxWorkersPerPiece;   // obreros que pueden trabajar a la vez en una misma pieza (obra_obreros_max_pieza; las obras grandes lo suben)
         public int GarrisonMin;          // personas que nunca trabajan: el retén (obras_guarnicion_minima de balance_construccion.csv, 6; NO la guarnicion_minima de 12 de la producción, D-N59)
+        public int WearDayMil;           // desgaste diario de lo construido (‰ de la vida, fort_desgaste_dia de balance_economia.csv, 10)
         public int CancelStartedMil;     // lo que se recupera al cancelar una obra ya empezada (‰); si no ha empezado, el 100 %
         public int HSacos10, HHesco10, HPuerta, HNido, HFoco, HDeposito, HAnden;   // obra en obrero·h (por 10 m en los muros)
         public int CoordLimitMm;         // |coordenada| máxima (evita desbordes)
@@ -52,7 +53,7 @@ namespace TBD.Net
                     SacosPer10m = 2, HescoPer10m = 6, PuertaU = 6, NidoU = 8, FocoU = 2, AndenU = 6, DepositoU = 5,
                     ModuleMm = 10_000, MinWallMm = 1_000, PerimeterMm = 60_000, LevelDivU = 30, LevelMaxMil = 5_000,
                     MaxPieces = 2_000, MaxVertices = 32, CoordLimitMm = 2_000_000,
-                    MaxWorkersPerPiece = 4, GarrisonMin = 6, CancelStartedMil = 500,
+                    MaxWorkersPerPiece = 4, GarrisonMin = 6, WearDayMil = 10, CancelStartedMil = 500,
                     HSacos10 = 2, HHesco10 = 4, HPuerta = 4, HNido = 6, HFoco = 2, HDeposito = 8, HAnden = 10
                 };
             }
@@ -84,7 +85,7 @@ namespace TBD.Net
         }
 
         /// <summary>Añade los u por nivel de fortificación de balance_economia.csv (fort_materiales_por_nivel, 30; D-N59: sustituye a nivel_u_por_nivel).</summary>
-        public ObrasParams WithEconomia(CsvTable e) { var d = this; d.LevelDivU = (int)e.TryValue("fort_materiales_por_nivel", d.LevelDivU); BalanceMath.Positive(d.LevelDivU, "fort_materiales_por_nivel"); return d; }
+        public ObrasParams WithEconomia(CsvTable e) { var d = this; d.LevelDivU = (int)e.TryValue("fort_materiales_por_nivel", d.LevelDivU); d.WearDayMil = (int)e.TryValue("fort_desgaste_dia", d.WearDayMil); BalanceMath.Positive(d.LevelDivU, "fort_materiales_por_nivel"); return d; }
 
         public int PricePer10m(PieceKind k) { return k == PieceKind.Sacos ? SacosPer10m : HescoPer10m; }
 
@@ -301,6 +302,36 @@ namespace TBD.Net
             var l = At(node);
             foreach (var w in plan.Pieces) { var x = w; x.Id = id; l.Add(x); }
             return id;
+        }
+
+        /// <summary>
+        /// Desgaste de un día: cada pieza construida pierde WearDayMil ‰ de su vida actual (mínimo 1 ‰, redondeo al más cercano).
+        /// Las piezas sin terminar no se gastan. Una pieza a 0 ‰ queda destruida y se quita (la interfaz pone los escombros). Devuelve cuántas se destruyen.
+        /// </summary>
+        public int WearDay(int node)
+        {
+            var l = _byNode[node];
+            if (l == null || P.WearDayMil <= 0) return 0;
+            int destroyed = 0;
+            for (int i = l.Count - 1; i >= 0; i--)
+            {
+                var w = l[i];
+                if (!w.Built) continue;
+                int loss = Math.Max(1, (int)(((long)w.LifeMil * P.WearDayMil + 500) / 1000));
+                if (w.LifeMil <= loss) { l.RemoveAt(i); destroyed++; } else { w.LifeMil -= loss; l[i] = w; }
+            }
+            return destroyed;
+        }
+
+        /// <summary>Daño de combate a una pieza construida (la pila, los pesados; lo llamará la zona). Devuelve true si la pieza queda destruida (y se quita).</summary>
+        public bool Damage(int node, int index, int lifeMil)
+        {
+            var l = _byNode[node];
+            if (l == null || index < 0 || index >= l.Count || !l[index].Built || lifeMil <= 0) return false;
+            var w = l[index];
+            if (w.LifeMil <= lifeMil) { l.RemoveAt(index); return true; }
+            w.LifeMil -= lifeMil; l[index] = w;
+            return false;
         }
 
         /// <summary>Hay una obra en marcha: obreros asignados y alguna pieza sin terminar. Es lo que atrae a la Colmena (sondeo de obra, D-N44).</summary>
