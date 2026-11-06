@@ -4,7 +4,7 @@ Encargo de Mak (00:26). Cámara según Marcos: ortográfica 3/4, yaw ≈ 90° (d
 ortho 7 a 1080p (≈ 13 px/m), sigue al tren, que va a +X a 20 m/s. Vía, traviesas y postes son geometría real,
 así que no hay bucle de UV. Locomotora diésel: no hay pantógrafo; en su lugar va el humo del escape.
   chispas_rueda        32x32, bucle de 4   chispas en el contacto de la rueda con el carril (frenada y curvas)
-  humo_diesel          24x48, bucle de 8   bocanadas del escape que suben y se quedan atrás (el tren va a +X)
+  humo_diesel          24x48, 8 f, una vez UNA bocanada suelta; Marcos las emite en el mundo y se quedan atrás
   destello_faro        32x32, bucle de 2   destello ADITIVO en el mundo sobre el faro (la luz es un spot real)
   luz_ventanilla       16x8, bucle de 2    resplandor de una ventanilla, ADITIVO; el f 1 es el parpadeo de un fluorescente
   polvo_hojas          48x48, 8 f, una vez remolino de polvo y hojas que levanta el tren al pasar (espacio de mundo)
@@ -46,20 +46,21 @@ def chispas_rueda(f):
 
 
 def humo_diesel(f):
-    """Escape en (14, 44). Cinco bocanadas que nacen, suben, crecen y se van a la izquierda (atrás del tren).
-    Las jóvenes en olive_grey con borde grey_brown; al envejecer, concrete con tramado que se deshilacha."""
+    """UNA bocanada suelta (D-N84, Lucía): nace en el escape (12, 36), crece, se aplana y se deshilacha.
+    No es una columna hecha: Marcos la emite en espacio del mundo cada ~0,15 s y, como el tren va a +X a 20 m/s,
+    las bocanadas se quedan atrás y se tienden en horizontal solas. Joven en olive_grey con borde grey_brown."""
     s = Sprite(24, 48)
-    for k in range(5):
-        t = ((f + k * 1.6) % 8) / 8                     # edad de la bocanada, 0–1, cíclica
-        x = 14 - t * 12 + (_h(k, 0, 831) - .5) * 3
-        y = 44 - t * 40
-        r = 2.5 + t * 7
-        dens = 1 - t * .7
-        if t < .45:
-            blob(s, x, y, r, "olive_grey", dens, borde="grey_brown")
+    t = f / 7
+    x = 12 - t * 2
+    y = 36 - t * 10
+    r = 2.5 + t * 7
+    dens = 1 - t * .8
+    for (dx, dy, fr) in ((0, 0, 1), (-r * .6, 1, .7), (r * .5, 1.5, .6)):    # tres lóbulos que se separan
+        if t < .4:
+            blob(s, x + dx, y + dy * t * 3, r * fr, "olive_grey", dens, borde="grey_brown")
         else:
-            blob(s, x, y, r, "grey_brown", dens * .8)
-            blob(s, x + 1, y - 1, r * .55, "olive_grey", dens * .6)
+            blob(s, x + dx, y + dy * t * 3, r * fr, "grey_brown", dens * .85)
+            blob(s, x + dx + 1, y + dy * t * 3 - 1, r * fr * .5, "olive_grey", dens * .6)
     return s
 
 
@@ -168,7 +169,7 @@ def decal_via_hierba(v):
 EFECTOS = {
     #  nombre             (función, fotogramas, (w, h), bucle, pivote, aditivo)
     "chispas_rueda": (chispas_rueda, 4, (32, 32), True, (0.5, 0.62), False),
-    "humo_diesel": (humo_diesel, 8, (24, 48), True, (0.58, 0.92), False),
+    "humo_diesel": (humo_diesel, 8, (24, 48), False, (0.5, 0.75), False),
     "destello_faro": (destello_faro, 2, (32, 32), True, (0.5, 0.5), True),
     "luz_ventanilla": (luz_ventanilla, 2, (16, 8), True, (0.5, 0.5), True),
     "polvo_hojas": (polvo_hojas, 8, (48, 48), False, (0.6, 0.75), False),

@@ -38,6 +38,7 @@ import build_vfx_combate  # noqa: E402
 import build_maquetas  # noqa: E402
 import build_horda_color  # noqa: E402
 import build_vfx_tren  # noqa: E402
+import build_parallax_tren  # noqa: E402
 
 PIVOTE = [0.5, 0.53]
 
@@ -153,6 +154,7 @@ def prototipo_noche(out):
     build_maquetas.exportar(out)                         # D-N78: cartel, indicador, recarga, estrellas y ratón
     build_horda_color.exportar(out)                      # D-N80: LUT de color de la horda y rampa de sangre
     build_vfx_tren.exportar(out)                         # vista cercana del tren: chispas, faro, ventanillas, polvo
+    build_parallax_tren.exportar(out)                    # fondo del tren: cielo, sierra y colinas, día y noche
 
 
 if __name__ == "__main__":
