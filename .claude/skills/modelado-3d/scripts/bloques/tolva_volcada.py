@@ -2,7 +2,8 @@
 
 El tren de mercancías descarrilado en la vía 2, al oeste: 3 o 4 tolvas volcadas. Tolva de cuatro ejes para áridos o
 cereal: caja de costados rectos con dos tolvas en V debajo, plataformas en los testeros, topes y dos bogies.
-FOTO PENDIENTE (se la he pedido a Paula) y MEDIDAS SIN VERIFICAR (típicas): 14 m entre topes, caja de 12,2 × 3,0 m con el
+Fotos G1 de Paula (Commons: tolvas TT1 de Renfe Mercancías, verdes, de costado y en 3/4). MEDIDAS SIN VERIFICAR (Paula no
+ha encontrado la longitud entre topes en ninguna ficha) (típicas): 14 m entre topes, caja de 12,2 × 3,0 m con el
 borde a 4,1 m sobre el carril, bogies con centros a ±4,8 m, batalla de 1,8 m y ruedas de 0,92 m.
 Colores (Lucía, 17:49: 845c28 es ocre de suelo, vetado en costados): caja de óxido 7c3c18 con costillas 543820, bastidor y bogies 48403c, ruedas 283440 (nada de valores de la
 horda), carga de grava 94948c. El vagón va a lo largo de Y (delante = −Y, +Z en Unity).
@@ -16,8 +17,8 @@ from taller import Taller
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 PIEZAS = ["casco", "costilla", "bastidor", "rueda", "carga"]
-COLORES = {"casco": "7c3c18", "costilla": "543820", "bastidor": "48403c", "rueda": "283440", "carga": "94948c"}
-VALOR_PIEZAS = {"casco": ("b4a080", "7c3c18")}   # D-N57: arriba claro, costado de óxido (Lucía, 17:49)
+COLORES = {"casco": "50541c", "costilla": "543820", "bastidor": "48403c", "rueda": "283440", "carga": "94948c"}
+VALOR_PIEZAS = {"casco": ("70784c", "50541c")}   # verde de las TT1 de Renfe de las fotos G1 (antes óxido 7c3c18)
 FACCION = "neutro"
 PRESUPUESTO = {0: (100, 2000), 1: (60, 900)}
 HX, LY, ZB = 1.5, 6.1, 4.1           # semiancho, semilargo de la caja y borde superior
@@ -30,7 +31,7 @@ def construir(nombre="SM_TolvaVolcada", lod=0):
     # caja con las dos tolvas en V (perfil lateral y-z extruido en X)
     P = [(-LY, ZB), (LY, ZB), (LY, 2.3), (2.6, 1.3), (1.6, 1.3), (0.4, 2.0), (-0.4, 2.0), (-1.6, 1.3), (-2.6, 1.3),
          (-LY, 2.3)]
-    t.perfil_extruido(P, lambda z: HX, pieza="casco")
+    t.perfil_extruido(P, lambda z: HX if z >= 3.0 else HX - (3.0 - z) * 0.25, cortes_z=(3.0,), pieza="casco")   # G1: costados que se estrechan hacia abajo
     # borde superior y costillas verticales en los costados
     for sx in (-1, 1):
         t.caja((sx * (HX + 0.06), 0, ZB - 0.12), (0.14, 2 * LY + 0.1, 0.24), "costilla")
