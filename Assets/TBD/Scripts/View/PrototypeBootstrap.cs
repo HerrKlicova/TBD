@@ -777,6 +777,8 @@ namespace TBD.View
             var ents = q.ToEntityArray(Allocator.Persistent);                 // Persistent: cruza fotogramas (Temp se libera al acabar el fotograma)
             var mat = RenderAssets.ZombieMaterial;
             var lit = mat.shader;
+            var zTex = mat.GetTexture("_BaseMap");
+            mat.SetTexture("_BaseMap", null);                                 // sin textura: la silueta del sprite sale magenta puro
             mat.shader = Shader.Find("Universal Render Pipeline/Unlit");
             var magenta = new Unity.Mathematics.float4(1f, 0f, 1f, 1f);       // #FF00FF también en espacio lineal
             for (int i = 0; i < ents.Length; i++) em.SetComponentData(ents[i], new ZombieBaseColor { Value = magenta });
@@ -816,6 +818,7 @@ namespace TBD.View
             Destroy(cyan);
             ents.Dispose();
             mat.shader = lit;
+            mat.SetTexture("_BaseMap", zTex);
             _paletteMix = mix;
             _quadMat.SetFloat("_PaletteMix", mix);
             _quadMat.SetFloat("_OutlineStrength", outline);
@@ -948,10 +951,15 @@ namespace TBD.View
             _mSleeper = Mat("442c0c"); _mTrain = Mat("303424"); _mWagon = Mat("605c48"); _mGate = Mat("7c3c18");
 
             // Zombi: cápsula de Unity (escalada a 0,5 x 1,8 m en RenderAttachSystem)
-            var tmp = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            // Zombi: cuadrado de 1 m (primitiva Quad) con el atlas de andar de Bruno (6 variantes de ropa x 4 fotogramas); el recorte va por instancia
+            var tmp = GameObject.CreatePrimitive(PrimitiveType.Quad);
             Mesh capsule = tmp.GetComponent<MeshFilter>().sharedMesh;
             Destroy(tmp);
-            RenderAssets.Set(capsule, Mat("ffffff"));       // el color real va por instancia (ZombieBaseColor)
+            var zm = Mat("ffffff");
+            var zt = Resources.Load<Texture2D>("Icons/unidades/atlas_zombi_andar");
+            if (zt != null) zm.SetTexture("_BaseMap", zt);
+            zm.SetFloat("_Cull", 0f); zm.SetFloat("_AlphaClip", 1f); zm.SetFloat("_Cutoff", 0.5f); zm.EnableKeyword("_ALPHATEST_ON");
+            RenderAssets.Set(capsule, zm);                  // el color por instancia es blanco (ZombieBaseColor); la máscara lo pone magenta
 
             // Luz direccional
             // Sol bajo (unos 32°), cálido, con sombras proyectadas; la luz ambiente fría tiñe las sombras de azul (revisión de Lucía)
@@ -1536,7 +1544,19 @@ namespace TBD.View
         // ---------------------------------------------------------------- tropas (solo presentación)
         readonly System.Collections.Generic.Dictionary<uint, Transform> _soldierViews = new System.Collections.Generic.Dictionary<uint, Transform>();
         readonly System.Collections.Generic.HashSet<uint> _seenSoldiers = new System.Collections.Generic.HashSet<uint>();
-        Material _mSoldier, _mGunner;
+        Material _mSoldier, _mGunner, _mSoldierSprite;
+        readonly System.Collections.Generic.Dictionary<uint, Vector3> _soldierPrev = new System.Collections.Generic.Dictionary<uint, Vector3>();
+        MaterialPropertyBlock _soldierBlockV; MaterialPropertyBlock _soldierBlock { get { return _soldierBlockV ?? (_soldierBlockV = new MaterialPropertyBlock()); } }
+
+        Material SoldierSpriteMat()
+        {
+            if (_mSoldierSprite != null) return _mSoldierSprite;
+            var m = Mat("ffffff");
+            var t = Resources.Load<Texture2D>("Icons/unidades/atlas_fusilero");
+            if (t != null) m.SetTexture("_BaseMap", t);
+            m.SetFloat("_Cull", 0f); m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON");
+            return _mSoldierSprite = m;
+        }
         EntityQuery _soldierQuery;
 
         void UpdateSoldierVisuals()
@@ -1553,17 +1573,27 @@ namespace TBD.View
                 _seenSoldiers.Add(s.SimId);
                 if (!_soldierViews.TryGetValue(s.SimId, out var tr))
                 {
-                    var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                    var go = GameObject.CreatePrimitive(PrimitiveType.Quad);       // fusilero de Bruno (32 px, cenital) tumbado sobre el suelo
                     go.name = "Soldado " + s.SimId;
                     Destroy(go.GetComponent<Collider>());
                     go.transform.SetParent(transform, false);
-                    go.transform.localScale = new Vector3(0.55f, 0.9f, 0.55f);
-                    go.GetComponent<Renderer>().sharedMaterial = s.Kind == SoldierKind.MachineGun ? _mGunner : _mSoldier;
+                    go.transform.localScale = new Vector3(2.0f, 2.0f, 1f);
+                    go.GetComponent<Renderer>().sharedMaterial = SoldierSpriteMat();
                     tr = go.transform;
                     _soldierViews[s.SimId] = tr;
                 }
-                tr.position = new Vector3(s.Pos.x, s.Pos.y + 0.9f, s.Pos.z);
-                tr.rotation = Quaternion.Euler(0f, s.Heading * Mathf.Rad2Deg, 0f);
+                tr.position = new Vector3(s.Pos.x, s.Pos.y + 0.07f, s.Pos.z);
+                tr.rotation = Quaternion.Euler(0f, s.Heading * Mathf.Rad2Deg, 0f) * Quaternion.Euler(90f, 0f, 0f);
+                // andar mientras se mueve (la posición cambia), disparo el fotograma del tiro; todo solo presentación
+                bool moving = _soldierPrev.TryGetValue(s.SimId, out var pp) && ((Vector3)(pp - (Vector3)s.Pos)).sqrMagnitude > 1e-6f;
+                _soldierPrev[s.SimId] = (Vector3)s.Pos;
+                int cdNow = s.Kind == SoldierKind.MachineGun ? _combat.MgCooldown : _combat.RifleCooldown;
+                float col = moving ? Mathf.Floor(Time.time * 8f) % 4f : 0f;
+                float row = 1f;                                                   // en la textura la fila 0 (andar) va arriba: v = 0,5
+                var mpb = _soldierBlock; tr.GetComponent<Renderer>().GetPropertyBlock(mpb);
+                bool firing = s.Cooldown > 0 && s.Cooldown >= cdNow - 6;
+                mpb.SetVector("_BaseMap_ST", firing ? new Vector4(0.25f, 0.5f, 0.25f * (s.Cooldown % 3), 0f) : new Vector4(0.25f, 0.5f, 0.25f * col, 0.5f));
+                tr.GetComponent<Renderer>().SetPropertyBlock(mpb);
                 // acaba de disparar: fogonazo y trazadora en la capa de efectos HD (solo vista)
                 int cd = s.Kind == SoldierKind.MachineGun ? _combat.MgCooldown : _combat.RifleCooldown;
                 if (s.Cooldown == cd && _fx != null)
