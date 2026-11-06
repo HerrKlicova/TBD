@@ -24,7 +24,7 @@ namespace TBD.Sim
         /// </summary>
         /// <param name="combat">Parámetros de combate (de balance_combate.csv).</param>
         /// <param name="ammoShots">Munición del tren para esta zona, en disparos equivalentes.</param>
-        public static Entity Populate(EntityManager em, int zombies, bool siege, uint seed, CombatParams combat, long ammoShots, bool hasTrain, ZoneKind kind = ZoneKind.Station)
+        public static Entity Populate(EntityManager em, int zombies, bool siege, uint seed, CombatParams combat, long ammoShots, bool hasTrain, ZoneKind kind = ZoneKind.Station, bool perimeter = true)
         {
             bool cutting = kind == ZoneKind.Cutting;
             if (cutting) hasTrain = true;                                   // la emboscada siempre es sobre un tren
@@ -51,7 +51,8 @@ namespace TBD.Sim
             em.AddBuffer<SimCommand>(root);
 
             var solids = em.GetBuffer<Solid>(root);
-            foreach (var s in cutting ? CuttingLevel.CreateSolids() : Level.CreateSolids()) solids.Add(s);
+            // perimeter = false: zona de la red (Sagunto con sus piezas ya construidas, D-N63): los muros y la puerta salen de Works.Snapshot (los pone la vista con BuildWall), no del perímetro fijo
+            foreach (var s in cutting ? CuttingLevel.CreateSolids() : Level.CreateSolids()) { if (!perimeter && !cutting && s.Kind == 0) continue; solids.Add(s); }
             if (hasTrain) solids.Add(Level.TrainSolid(cutting ? CuttingLevel.TrainX : Level.TrainMinX));   // D-N27: el tren empieza parado, así que es muro
 
             SolidIndex.Rebuild(solids, em.GetBuffer<SolidBucketStart>(root), em.GetBuffer<SolidBucketRef>(root));

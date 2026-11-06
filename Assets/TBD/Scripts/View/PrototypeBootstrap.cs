@@ -118,6 +118,7 @@ namespace TBD.View
         // lo que tardó en crearse la horda de la zona (para Lucía: ¿basta un vuelo de 0,8 s?)
 
         bool _cutting, _ambush;               // zona de emboscada en un desmonte (D-N38)
+        bool _netZone;                        // zona de la red (Sagunto): los muros salen de las piezas de las obras, no del perímetro fijo (D-N63)
         int _ambushService = -1, _ambushEdge = -1;
 
         IEnumerator Start()
@@ -125,6 +126,7 @@ namespace TBD.View
             Application.targetFrameRate = -1;        // el mapa limita a 60; en la zona se mide sin tope
             _cutting = NetSession.PendingAmbush && NetSession.A != null && NetSession.A.Encounter.Active;
             NetSession.PendingAmbush = false;
+            _netZone = !_cutting && NetSession.PendingZoneNode >= 0 && NetSession.A != null;
             if (_cutting) _focus = new Vector3(CuttingLevel.LocoX - 10f, 0f, Level.TrackY);
             SetupVisualAssets();
             SetupLevelObjects();
@@ -191,7 +193,7 @@ namespace TBD.View
             _worldA = World.DefaultGameObjectInjectionWorld;
             _groupA = SimWorldSetup.CreateSystems(_worldA);
             var kind = _cutting ? ZoneKind.Cutting : ZoneKind.Station;
-            _rootA = SimWorldSetup.Populate(_worldA.EntityManager, zombies, siege, seed, _combat, shots, hasTrain, kind);
+            _rootA = SimWorldSetup.Populate(_worldA.EntityManager, zombies, siege, seed, _combat, shots, hasTrain, kind, !_netZone);
             sw.Stop();
             LastMaterializeMs = sw.Elapsed.TotalMilliseconds;
             Debug.Log($"[TBD] Zona {(_zoneNode >= 0 ? NetSession.A.Graph.Nodes[_zoneNode].Name : "suelta")}: {zombies} zombis ({(siege ? "asedio" : "deriva")}) creados en {LastMaterializeMs:0.0} ms");
@@ -199,7 +201,7 @@ namespace TBD.View
 
             _worldB = new World("TBD_SimB");
             _groupB = SimWorldSetup.CreateSystems(_worldB);
-            _rootB = SimWorldSetup.Populate(_worldB.EntityManager, zombies, siege, seed, _combat, shots, hasTrain, kind);
+            _rootB = SimWorldSetup.Populate(_worldB.EntityManager, zombies, siege, seed, _combat, shots, hasTrain, kind, !_netZone);
         }
 
         void OnDestroy()
@@ -759,6 +761,7 @@ namespace TBD.View
             _bloom.highQualityFiltering.Override(true);
 
             var vig = profile.Add<Vignette>(true);
+            _vignette = vig;
             vig.intensity.Override(0.28f);
             vig.smoothness.Override(0.6f);
 
@@ -767,9 +770,12 @@ namespace TBD.View
             ApplyGrade(0);
         }
 
+        Vignette _vignette;
+
         void ApplyGrade(int index)
         {
             _gradeIndex = index;
+            if (_vignette != null) _vignette.intensity.Override(index == 2 ? 0f : 0.28f);        // de noche sin viñeta: la paleta la cuantizaba en anillos concéntricos (Lucía)
             switch (index)
             {
                 case 0:  // día cálido mediterráneo
@@ -1519,6 +1525,7 @@ namespace TBD.View
             if (_cutting) BuildCuttingTerrain();
             foreach (var s in _cutting ? new System.Collections.Generic.List<Solid>() : Level.CreateSolids())
             {
+                if (_netZone && s.Kind == 0) continue;                       // los muros de la zona de la red los dibuja SyncWorks desde las piezas
                 if (s.Kind == 1)
                 {
                     var c = (s.A + s.B) * 0.5f;
