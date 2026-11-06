@@ -8,7 +8,8 @@ nada de valores de la horda, rojo ni ámbar. Sin colisión ni sombra (las pone M
 Cada hoja es un tetraedro cerrado (4 triángulos), así la malla es estanca con muy pocos triángulos.
 Las hojas van muy abiertas (de 20° a 45° sobre el suelo): con la luz del juego, una hoja casi vertical se oscurece
 hasta L* 21, el mismo valor que el cuerpo del zombi (medido en la primera prueba). Abiertas, quedan en su color.
-Variantes (TBD_VARIANTE): 0 hierba seca; 1 hierba verde; 2 cardo seco.
+Variantes (TBD_VARIANTE): 0 hierba seca; 1 hierba verde; 2 cardo seco; 3 grama (rastrera, en estrella, 0,08 m de
+alto: bordillos, grietas y lindes); 4 hierba de espigas (H1: tallos finos con la espiga pajiza, hasta 0,4 m).
 El LOD1 lleva menos hojas (a 0,17 m/px una hoja suelta no llega a 1 px; lo que se lee es la mancha).
 """
 import math, os, random
@@ -22,7 +23,7 @@ FACCION = "neutro"
 PRESUPUESTO = {0: (1, 60), 1: (1, 40)}
 UMBRAL_CONTORNO = {0: 9.0, 1: 9.0}
 NORMALES_ARRIBA = True   # normales horneadas hacia arriba (Lucía, §8): la misma luz que el suelo
-TIPOS = ("hierba_seca", "hierba_verde", "cardo")
+TIPOS = ("hierba_seca", "hierba_verde", "cardo", "grama", "espigas")
 
 
 def hoja(t, base, punta, ancho, pieza, giro=0.0):
@@ -54,6 +55,27 @@ def mata(t, tipo, cx=0.0, cy=0.0, semilla=1, lod=0, escala=1.0):
             else:
                 pieza = "acento" if i % 5 == 4 else ("punta" if i % 7 == 6 else "hierba_v")
             hoja(t, b, p, 0.08 * e, pieza, giro=a)
+        return n
+    if tipo == "grama":                                       # rastrera: estolones en estrella pegados al suelo
+        n = 12 if lod == 0 else 8
+        for i in range(n):
+            a = i * 2 * math.pi / n + R.uniform(-0.25, 0.25)
+            L = R.uniform(0.25, 0.45) * e
+            b = (cx + 0.03 * math.cos(a), cy + 0.03 * math.sin(a), -0.01)
+            p = (cx + L * math.cos(a), cy + L * math.sin(a), R.uniform(0.04, 0.08) * e)
+            hoja(t, b, p, 0.1 * e, "hierba_v" if i % 3 else ("acento" if i % 2 else "hierba"), giro=a)
+        return n
+    if tipo == "espigas":                                     # tallos abiertos con espiga pajiza en la punta
+        n = 9 if lod == 0 else 6
+        for i in range(n):
+            a = i * 2.39996 + R.uniform(-0.3, 0.3)
+            h = R.uniform(0.22, 0.38) * e
+            caida = R.uniform(0.18, 0.3) * e
+            b = (cx, cy, -0.01)
+            p = (cx + caida * math.cos(a), cy + caida * math.sin(a), h)
+            hoja(t, b, p, 0.06 * e, "hierba" if i % 2 else "hierba_v", giro=a)
+            if i % 3 == 0 and lod == 0 or i % 3 == 0 and i < 6:
+                _octaedro(t, (p[0], p[1], p[2] + 0.02 * e), 0.03 * e, "punta")
         return n
     # cardo: roseta de hojas pinchudas tumbadas, dos o tres tallos y cabezuelas secas
     nh = 6 if lod == 0 else 4
@@ -88,5 +110,5 @@ def _octaedro(t, c, r, pieza):
 
 def construir(nombre="SM_Mata", lod=0):
     t = Taller(PIEZAS)
-    mata(t, TIPOS[VAR % 3], semilla=3, lod=lod)
-    return t.objeto(nombre + "_" + TIPOS[VAR % 3], bisel=0)
+    mata(t, TIPOS[VAR % 5], semilla=3, lod=lod)
+    return t.objeto(nombre + "_" + TIPOS[VAR % 5], bisel=0)
