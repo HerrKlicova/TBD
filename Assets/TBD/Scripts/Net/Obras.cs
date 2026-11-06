@@ -39,6 +39,8 @@ namespace TBD.Net
         public int MaxVertices;          // tope de vértices de una polilínea
         public int MaxWorkersPerPiece;   // obreros que pueden trabajar a la vez en una misma pieza (obra_obreros_max_pieza; las obras grandes lo suben)
         public int GarrisonMin;          // personas que nunca trabajan: el retén (obras_guarnicion_minima de balance_construccion.csv, 6; NO la guarnicion_minima de 12 de la producción, D-N59)
+        public int RepairU, RepairHours, WorksCrew;     // reparar un tramo: 5 u y 3 h con el tren de obras y 8 obreros a bordo (reparar_tramo_u, tren_obras_obreros)
+        public int BridgeU, BridgeObreroH;              // el puente del Jiloca: 80 u y 192 obrero·h (puente_jiloca_obreros_h)
         public int WearDayMil;           // desgaste diario de lo construido (‰ de la vida, fort_desgaste_dia de balance_economia.csv, 10)
         public int CancelStartedMil;     // lo que se recupera al cancelar una obra ya empezada (‰); si no ha empezado, el 100 %
         public int HSacos10, HHesco10, HPuerta, HNido, HFoco, HDeposito, HAnden;   // obra en obrero·h (por 10 m en los muros)
@@ -53,7 +55,7 @@ namespace TBD.Net
                     SacosPer10m = 2, HescoPer10m = 6, PuertaU = 6, NidoU = 8, FocoU = 2, AndenU = 6, DepositoU = 5,
                     ModuleMm = 10_000, MinWallMm = 1_000, PerimeterMm = 60_000, LevelDivU = 30, LevelMaxMil = 5_000,
                     MaxPieces = 2_000, MaxVertices = 32, CoordLimitMm = 2_000_000,
-                    MaxWorkersPerPiece = 4, GarrisonMin = 6, WearDayMil = 10, CancelStartedMil = 500,
+                    MaxWorkersPerPiece = 4, GarrisonMin = 6, RepairU = 5, RepairHours = 3, WorksCrew = 8, BridgeU = 80, BridgeObreroH = 192, WearDayMil = 10, CancelStartedMil = 500,
                     HSacos10 = 2, HHesco10 = 4, HPuerta = 4, HNido = 6, HFoco = 2, HDeposito = 8, HAnden = 10
                 };
             }
@@ -74,6 +76,8 @@ namespace TBD.Net
             d.MinWallMm = (int)t.TryValue("muro_minimo_mm", d.MinWallMm);
             d.PerimeterMm = (int)t.TryValue("perimetro_mm", d.PerimeterMm);
             d.GarrisonMin = (int)t.TryValue("obras_guarnicion_minima", d.GarrisonMin);
+            d.RepairU = (int)t.TryValue("reparar_tramo_u", d.RepairU); d.RepairHours = (int)t.TryValue("reparar_tramo_h", d.RepairHours); d.WorksCrew = (int)t.TryValue("tren_obras_obreros", d.WorksCrew);
+            d.BridgeU = (int)t.TryValue("puente_jiloca_u", d.BridgeU); d.BridgeObreroH = (int)t.TryValue("puente_jiloca_obreros_h", d.BridgeObreroH);
             d.CancelStartedMil = (int)t.TryValue("cancelar_obra_empezada_permil", d.CancelStartedMil);
             d.MaxWorkersPerPiece = (int)t.TryValue("obra_obreros_max_pieza", d.MaxWorkersPerPiece);
             d.HSacos10 = (int)t.TryValue("obra_sacos_h_por_10m", d.HSacos10); d.HHesco10 = (int)t.TryValue("obra_hesco_h_por_10m", d.HHesco10);
@@ -86,6 +90,9 @@ namespace TBD.Net
 
         /// <summary>Añade los u por nivel de fortificación de balance_economia.csv (fort_materiales_por_nivel, 30; D-N59: sustituye a nivel_u_por_nivel).</summary>
         public ObrasParams WithEconomia(CsvTable e) { var d = this; d.LevelDivU = (int)e.TryValue("fort_materiales_por_nivel", d.LevelDivU); d.WearDayMil = (int)e.TryValue("fort_desgaste_dia", d.WearDayMil); BalanceMath.Positive(d.LevelDivU, "fort_materiales_por_nivel"); return d; }
+
+        /// <summary>Trabajo de reparar un tramo normal, en obrero·ticks (1 obrero·h = 1.500 ticks): 3 h con 8 obreros = 24 obrero·h.</summary>
+        public long RepairNeedTicks { get { return (long)RepairHours * WorksCrew * 1500; } }
 
         public int PricePer10m(PieceKind k) { return k == PieceKind.Sacos ? SacosPer10m : HescoPer10m; }
 

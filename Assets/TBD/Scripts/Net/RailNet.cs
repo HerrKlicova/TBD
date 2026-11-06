@@ -27,6 +27,11 @@ namespace TBD.Net
         public EdgeState State;
         public long HordeAtMm = -1;           // posición de la horda más cercana medida desde A; -1 = ninguna
         public readonly List<AmbushPoint> Ambush = new List<AmbushPoint>();   // puntos de emboscada del tramo (D-N16 de Lucía, para la Colmena del hito 4)
+        public bool Debris;                   // escombros por una emboscada con corte (TR-4): la vía no existe hasta que el tren de obras la repara (hito 5)
+        public int RepairSvc = -1;            // servicio del tren de obras que la está reparando (-1 = nadie)
+        public long RepairDone;               // avance de la reparación, en obrero·ticks
+        public long RepairNeed;               // trabajo total de la reparación en obrero·ticks (0 = el de un tramo normal)
+        public int RepairU;                   // materiales de la reparación (0 = los de un tramo normal)
         public long HordeSpeedMmPerTick = 1333; // horda común a 2 km/h de juego con 2,4 s por tick (decisión D-N11 de Lucía); los rápidos, 6 km/h
     }
 
