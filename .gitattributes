@@ -12,3 +12,4 @@
 
 # QA Q12: finales de línea normalizados (evita diffs de miles de líneas por cambios de CRLF)
 * text=auto
+*.golden -text
