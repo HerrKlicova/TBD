@@ -381,6 +381,7 @@ namespace TBD.View
         {
             if (_worldA == null) return;                 // la zona aún espera a la orden Materialize
             UpdateHordePresentation();
+            UpdateGroundStreaming();
             HandleInput();
 
             if (!_paused)
@@ -777,6 +778,7 @@ namespace TBD.View
         {
             _gradeIndex = index;
             if (_groundMat != null && _groundDayTex != null) _groundMat.SetTexture("_BaseMap", index == 2 ? _groundNightTex : _groundDayTex);
+            SetChunksGrade(index);
             if (_vignette != null) _vignette.intensity.Override(index == 2 ? 0f : 0.28f);        // de noche sin viñeta: la paleta la cuantizaba en anillos concéntricos (Lucía)
             switch (index)
             {
@@ -1213,7 +1215,7 @@ namespace TBD.View
             var root = new GameObject("Ambientación de Sagunto").transform; root.SetParent(transform, false);
             float ty = Level.TrackY;
             BuildSaguntoWorld(root);
-            if (SueloMuestra) BuildGroundSample(root);
+            if (SueloMuestra) { if (SueloPorTrozos) BuildGroundStreamer(root); else BuildGroundSample(root); }
             if (SueloMuestra) BuildGroundSampleProps(root);
             Material M(string hex) { return Mat(hex); }
             var curb = M("94948c"); var slab = M("605c48"); var line = M("f0dc9c"); var tin = M("94948c"); var iron = M("283440");
@@ -1510,7 +1512,7 @@ namespace TBD.View
             for (int cz = 0; cz < mh; cz++)
                 for (int cx = 0; cx < mw; cx++)
                 {
-                    int zone = map[(mh - 1 - cz) * mw + cx].r;
+                    int zone = map[cz * mw + cx].r;
                     bool asph = zone == 4, dirt = zone == 0;
                     if (!asph && !dirt) continue;
                     uint h = Unity.Mathematics.math.hash(new Unity.Mathematics.int2(cx * 53 + 101, cz * 29 + 13));
@@ -1525,6 +1527,186 @@ namespace TBD.View
                     count++;
                 }
             Debug.Log("[TBD] Grietas de la muestra: " + count + " decals");
+        }
+
+        // ---------------------------------------------------------------- suelo de Sagunto por trozos (D-N67, Eugenio lo aprobo: «te apruebo todo»)
+        // El mapa de zonas de Alvaro (756 x 680 m, 1 px = 1 m, X -250..506, Z -200..480) se compone en trozos de 75 m a 0,1 m/px. Cada trozo se calcula en un hilo (solo
+        // arrays, sin API de Unity), se sube a la GPU en el hilo principal (1 por fotograma como maximo) y se descarga al alejarse el foco de la camara.
+        const int MapW = 756, MapH = 680; const float MapX0 = -250f, MapZ0 = -200f; const int ChunkM = 75;
+        const float ChunkLoadR = 170f, ChunkKeepR = 300f;
+        sealed class GroundSrc
+        {
+            public Color32[] map, apis, labr, asf, rod, seca; public Color32[][] lisos; public Color32 mApis, mLabr, mAsf, mRod;
+        }
+        sealed class GroundChunk { public int I, J; public Texture2D Day, Night; public Material Mat; public GameObject Go; public float Cx, Cz; }
+        sealed class ChunkResult { public int I, J, W, H; public Color32[] Day, Night; public string Error; }
+        GroundSrc _gs; Color32[] _vegMask; Transform _chunkRoot;
+        readonly System.Collections.Generic.Dictionary<int, GroundChunk> _chunks = new System.Collections.Generic.Dictionary<int, GroundChunk>();
+        readonly System.Collections.Generic.HashSet<int> _chunkPending = new System.Collections.Generic.HashSet<int>();
+        readonly System.Collections.Concurrent.ConcurrentQueue<ChunkResult> _chunkDone = new System.Collections.Concurrent.ConcurrentQueue<ChunkResult>();
+        public static bool SueloPorTrozos = true;
+
+        int VegMask(float x, float z)
+        {
+            if (_vegMask == null) return 0;
+            int xi = Mathf.FloorToInt(x - MapX0), zi = Mathf.FloorToInt(z - MapZ0);
+            if (xi < 0 || zi < 0 || xi >= MapW || zi >= MapH) return 0;
+            return _vegMask[zi * MapW + xi].r;
+        }
+
+        void BuildGroundStreamer(Transform root)
+        {
+            Color32[] Px(string n) { var t = Resources.Load<Texture2D>("Suelo/" + n); return t != null ? t.GetPixels32() : null; }
+            var mapTex = Resources.Load<Texture2D>("Suelo/sagunto_zonas_1m_completo");
+            var gs = new GroundSrc { apis = Px("suelo_apisonada_64"), labr = Px("suelo_labrada_64"), asf = Px("suelo_asfalto_64"), rod = Px("suelo_rodadas_64"), seca = Px("suelo_seca_64"), lisos = new Color32[4][] };
+            for (int li = 0; li < 4; li++) gs.lisos[li] = Px("suelo_asfalto_liso_" + (li + 1) + "_64");
+            if (mapTex == null || mapTex.width != MapW || mapTex.height != MapH || gs.apis == null || gs.labr == null || gs.asf == null || gs.rod == null) { Debug.LogWarning("[TBD] Falta el mapa de zonas completo o alguna textura del suelo"); return; }
+            gs.map = mapTex.GetPixels32();
+            Color32 Mean(Color32[] a) { long r = 0, g = 0, b = 0; int n = 0; foreach (var c in a) if (c.a > 0) { r += c.r; g += c.g; b += c.b; n++; } return n == 0 ? new Color32(0, 0, 0, 0) : new Color32((byte)(r / n), (byte)(g / n), (byte)(b / n), 255); }
+            gs.mApis = Mean(gs.apis); gs.mLabr = Mean(gs.labr); gs.mAsf = Mean(gs.asf); gs.mRod = Mean(gs.rod);
+            var mk = Resources.Load<Texture2D>("Suelo/sagunto_sin_vegetacion_1m"); _vegMask = mk != null && mk.width == MapW && mk.height == MapH ? mk.GetPixels32() : null;
+            _gs = gs; _chunkRoot = new GameObject("Suelo por trozos (D-N67)").transform; _chunkRoot.SetParent(root, false);
+            _chunks.Clear(); _chunkPending.Clear(); while (_chunkDone.TryDequeue(out _)) { }
+        }
+
+        static int ChunkKey(int i, int j) { return j * 64 + i; }
+
+        void UpdateGroundStreaming()
+        {
+            if (_gs == null) return;
+            if (_chunkRoot == null) { _gs = null; _chunks.Clear(); _chunkPending.Clear(); return; }           // la zona se ha destruido
+            // 1) subir a la GPU el trozo terminado (1 por fotograma)
+            if (_chunkDone.TryDequeue(out var res))
+            {
+                _chunkPending.Remove(ChunkKey(res.I, res.J));
+                if (res.Error != null) Debug.LogWarning("[TBD] Trozo de suelo " + res.I + "," + res.J + ": " + res.Error);
+                else FinishChunk(res);
+            }
+            // 2) cargar los cercanos al foco (mas cercanos primero, hasta 2 hilos a la vez) y descargar los lejanos
+            float fx = _focus.x, fz = _focus.z; int started = 0;
+            int cols = (MapW + ChunkM - 1) / ChunkM, rows = (MapH + ChunkM - 1) / ChunkM;
+            int bestI = -1, bestJ = -1; float bestD = float.MaxValue;
+            if (_chunkPending.Count < 2)
+                for (int j = 0; j < rows; j++)
+                    for (int i = 0; i < cols; i++)
+                    {
+                        int key = ChunkKey(i, j); if (_chunks.ContainsKey(key) || _chunkPending.Contains(key)) continue;
+                        float cx = MapX0 + i * ChunkM + ChunkM * 0.5f, cz = MapZ0 + j * ChunkM + ChunkM * 0.5f; float d = Mathf.Sqrt((cx - fx) * (cx - fx) + (cz - fz) * (cz - fz));
+                        if (d < ChunkLoadR && d < bestD) { bestD = d; bestI = i; bestJ = j; }
+                    }
+            if (bestI >= 0 && started == 0)
+            {
+                int ci = bestI, cj = bestJ; _chunkPending.Add(ChunkKey(ci, cj)); var gs = _gs;
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try { var r = ComposeChunk(gs, ci, cj); _chunkDone.Enqueue(r); }
+                    catch (System.Exception e) { _chunkDone.Enqueue(new ChunkResult { I = ci, J = cj, Error = e.Message }); }
+                });
+            }
+            System.Collections.Generic.List<int> drop = null;
+            foreach (var kv in _chunks)
+            {
+                var c = kv.Value; float d = Mathf.Sqrt((c.Cx - fx) * (c.Cx - fx) + (c.Cz - fz) * (c.Cz - fz));
+                if (d > ChunkKeepR) { if (drop == null) drop = new System.Collections.Generic.List<int>(); drop.Add(kv.Key); }
+            }
+            if (drop != null)
+                foreach (int k in drop) { var c = _chunks[k]; if (c.Day != null) Destroy(c.Day); if (c.Night != null) Destroy(c.Night); if (c.Mat != null) Destroy(c.Mat); if (c.Go != null) Destroy(c.Go); _chunks.Remove(k); }
+        }
+
+        void FinishChunk(ChunkResult r)
+        {
+            float X0 = MapX0 + r.I * ChunkM, Z0 = MapZ0 + r.J * ChunkM;
+            var day = new Texture2D(r.W, r.H, TextureFormat.RGBA32, false, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp, name = "Suelo " + r.I + "," + r.J };
+            day.SetPixels32(r.Day); day.Apply(false, true);
+            var night = new Texture2D(r.W, r.H, TextureFormat.RGBA32, false, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp, name = "Suelo noche " + r.I + "," + r.J };
+            night.SetPixels32(r.Night); night.Apply(false, true);
+            float w = r.W * 0.1f, h = r.H * 0.1f;
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad); go.name = "Trozo de suelo " + r.I + "," + r.J; Destroy(go.GetComponent<Collider>());
+            var holder = new GameObject("Trozo " + r.I + "," + r.J); holder.transform.SetParent(_chunkRoot, false); go.transform.SetParent(holder.transform, false);
+            go.transform.position = new Vector3(X0 + w * 0.5f, 0.1f, Z0 + h * 0.5f); go.transform.rotation = Quaternion.Euler(90f, 0f, 0f); go.transform.localScale = new Vector3(w, h, 1f);
+            var m = Mat("ffffff"); m.SetColor("_BaseColor", Color.white); m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON");
+            m.SetTexture("_BaseMap", _gradeIndex == 2 ? night : day);
+            var mr = go.GetComponent<MeshRenderer>(); mr.sharedMaterial = m; mr.shadowCastingMode = ShadowCastingMode.Off;
+            _chunks[ChunkKey(r.I, r.J)] = new GroundChunk { I = r.I, J = r.J, Day = day, Night = night, Mat = m, Go = holder, Cx = X0 + w * 0.5f, Cz = Z0 + h * 0.5f };
+            // vegetacion y grietas del trozo (mapa recortado: fila 0 = Z0, convencion de GetPixels32)
+            int xi0 = r.I * ChunkM, zi0 = r.J * ChunkM, mw = Mathf.Min(ChunkM, MapW - xi0), mh = Mathf.Min(ChunkM, MapH - zi0);
+            var sub = new Color32[mw * mh];
+            for (int zz = 0; zz < mh; zz++) System.Array.Copy(_gs.map, (zi0 + zz) * MapW + xi0, sub, zz * mw, mw);
+            ScatterGround(holder.transform, sub, mw, mh, X0, Z0);
+            ScatterCracks(holder.transform, sub, mw, mh, X0, Z0);
+        }
+
+        void SetChunksGrade(int index)
+        {
+            foreach (var c in _chunks.Values) if (c.Mat != null) c.Mat.SetTexture("_BaseMap", index == 2 ? c.Night : c.Day);
+        }
+
+        /// <summary>Compone un trozo (day y night) a 0,1 m/px. Solo lee _gs y metodos estaticos: se ejecuta en un hilo.</summary>
+        static ChunkResult ComposeChunk(GroundSrc gs, int ci, int cj)
+        {
+            int xi0 = ci * ChunkM, zi0 = cj * ChunkM, mw = Mathf.Min(ChunkM, MapW - xi0), mh = Mathf.Min(ChunkM, MapH - zi0);
+            float X0 = MapX0 + xi0, Z0 = MapZ0 + zi0; const float Texel = 0.1f; int W = mw * 10, H = mh * 10;
+            var map = gs.map; var apis = gs.apis; var labr = gs.labr; var asf = gs.asf; var rod = gs.rod; var seca = gs.seca; var lisos = gs.lisos;
+            var water = new Color32(0x6c, 0x78, 0x74, 255); var waterEdge = new Color32(0x94, 0x94, 0x8c, 255); var cauce = new Color32(0x60, 0x5c, 0x48, 255);
+            int[,] bayer = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 } };
+            int ZoneAt(float x, float z, int ix, int iy)
+            {
+                float mx = x - MapX0 - 0.5f, mz = z - MapZ0 - 0.5f;
+                int x0 = Mathf.FloorToInt(mx), z0 = Mathf.FloorToInt(mz); float fx = mx - x0, fz = mz - z0;
+                int Id(int cx, int cz) { cx = Mathf.Clamp(cx, 0, MapW - 1); cz = Mathf.Clamp(cz, 0, MapH - 1); return map[cz * MapW + cx].r; }
+                int a = Id(x0, z0), b = Id(x0 + 1, z0), c2 = Id(x0, z0 + 1), d = Id(x0 + 1, z0 + 1);
+                float wa = (1 - fx) * (1 - fz), wb = fx * (1 - fz), wc = (1 - fx) * fz;
+                float t = (bayer[iy & 3, ix & 3] + 0.5f) / 16f;
+                if (t < wa) return a; if (t < wa + wb) return b; if (t < wa + wb + wc) return c2; return d;
+            }
+            var day = new Color32[W * H]; var night = new Color32[W * H];
+            float[] lampY = { Level.FortY0 + 6f, (Level.GateY0 + Level.GateY1) * 0.5f, Level.FortY1 - 6f };
+            for (int py = 0; py < H; py++)
+                for (int px = 0; px < W; px++)
+                {
+                    float x = X0 + (px + 0.5f) * Texel, z = Z0 + (py + 0.5f) * Texel; int gx = xi0 * 10 + px, gz = zi0 * 10 + py;
+                    int zone = ZoneAt(x, z, gx, gz);
+                    int u = ((int)Mathf.Floor(x * 10f)) & 63, v = ((int)Mathf.Floor(z * 10f)) & 63;
+                    Color32 c;
+                    switch (zone)
+                    {
+                        case 3: c = new Color32(0, 0, 0, 0); break;
+                        case 2: c = rod[v * 64 + u]; break;
+                        case 4:
+                        {
+                            int ccx = Mathf.FloorToInt(x / 6.4f), ccz = Mathf.FloorToInt(z / 6.4f);
+                            uint hh = Unity.Mathematics.math.hash(new Unity.Mathematics.int2(ccx * 31 + 7, ccz * 17 + 3));
+                            var tile = lisos[(int)(hh & 3u)] ?? asf; int tu = u, tv = v;
+                            int rot = (int)((hh >> 2) & 3u); bool mir = ((hh >> 4) & 1u) != 0u;
+                            for (int rr = 0; rr < rot; rr++) { int nt = tu; tu = 63 - tv; tv = nt; }
+                            if (mir) tu = 63 - tu;
+                            c = tile[tv * 64 + tu];
+                            break;
+                        }
+                        case 0: c = (seca != null ? seca : apis)[v * 64 + u]; break;
+                        case 5: c = labr[v * 64 + u]; break;
+                        case 8: c = cauce; break;
+                        case 9:
+                            c = water;
+                            if (ZoneAt(x + Texel, z, gx + 1, gz) != 9 || ZoneAt(x - Texel, z, gx - 1, gz) != 9 || ZoneAt(x, z + Texel, gx, gz + 1) != 9 || ZoneAt(x, z - Texel, gx, gz - 1) != 9) c = waterEdge;
+                            break;
+                        default: c = apis[v * 64 + u]; break;
+                    }
+                    if (c.a != 0 && zone != 9 && zone != 8)
+                    {
+                        float nz = MacroNoise(x, z); float k = 1f + 0.10f * (nz - 0.5f);
+                        c = SnapSub(new Color32((byte)Mathf.Clamp(c.r * k, 0, 255), (byte)Mathf.Clamp(c.g * k, 0, 255), (byte)Mathf.Clamp(c.b * k, 0, 255), c.a));
+                    }
+                    int idx = py * W + px; day[idx] = c;
+                    if (c.a == 0) { night[idx] = c; continue; }
+                    bool lit = false;
+                    foreach (float ly in lampY) { float dx = x - (Level.FortX0 - 7.5f), dz = z - ly; if (dx * dx + dz * dz < 11f * 11f) lit = true; }
+                    if (lit) { night[idx] = c; continue; }
+                    Color32 mean = zone == 2 ? gs.mRod : zone == 4 ? gs.mAsf : zone == 5 ? gs.mLabr : zone == 9 ? water : zone == 8 ? cauce : gs.mApis;
+                    const float kn = 0.2f;
+                    night[idx] = SnapSub(new Color32((byte)(mean.r + (c.r - mean.r) * kn), (byte)(mean.g + (c.g - mean.g) * kn), (byte)(mean.b + (c.b - mean.b) * kn), 255));
+                }
+            return new ChunkResult { I = ci, J = cj, W = W, H = H, Day = day, Night = night };
         }
 
         void BuildGroundSample(Transform root)
@@ -1649,12 +1831,12 @@ namespace TBD.View
             for (int cz = 0; cz < mh; cz++)
                 for (int cx = 0; cx < mw; cx++)
                 {
-                    int zone = map[(mh - 1 - cz) * mw + cx].r;
+                    int zone = map[cz * mw + cx].r;
                     float dens = zone == 0 ? 20f : zone == 6 ? 8f : zone == 2 ? 3f : zone == 4 ? 3f : zone == 5 ? 10f : zone == 9 ? 12f : zone == 7 || zone == 10 ? 8f : 0f;
                     if (zone == 1)
                     {
                         bool edge = false;
-                        for (int dz = -2; dz <= 2 && !edge; dz++) for (int dx = -2; dx <= 2 && !edge; dx++) { int ox = Mathf.Clamp(cx + dx, 0, mw - 1), oz = Mathf.Clamp(cz + dz, 0, mh - 1); if (map[(mh - 1 - oz) * mw + ox].r != 1) edge = true; }
+                        for (int dz = -2; dz <= 2 && !edge; dz++) for (int dx = -2; dx <= 2 && !edge; dx++) { int ox = Mathf.Clamp(cx + dx, 0, mw - 1), oz = Mathf.Clamp(cz + dz, 0, mh - 1); if (map[oz * mw + ox].r != 1) edge = true; }
                         dens = edge ? 8f : 0f;
                     }
                     if (dens <= 0f) continue;
@@ -1663,9 +1845,11 @@ namespace TBD.View
                     if (((h & 1023u) / 1023f) >= dens / 100f) continue;
                     float jx = ((h >> 10) & 255u) / 255f, jz = ((h >> 18) & 255u) / 255f; x += jx - 0.5f; z += jz - 0.5f;
                     if (Excluded(x, z)) continue;
+                    int vm = VegMask(x, z); if (vm == 255) continue;                      // mascara de Alvaro: 255 sin vegetacion, 128 glacis (nada de mas de 0,3 m)
                     uint h2 = Unity.Mathematics.math.hash(new Unity.Mathematics.int2(cx * 19 + 3, cz * 23 + 17)); int pick = (int)(h2 % 100u), v = (int)((h2 >> 8) % 5u);
                     string kind; float scale = 0.8f + 0.4f * (((h >> 14) & 255u) / 255f);
-                    if (zone == 2) { if (pick < 35) { kind = "escombros"; scale = Mathf.Min(scale, 1f); } else { kind = "piedras"; if (v == 2) v = 0; scale = Mathf.Min(scale, 1f); } }
+                    if (vm == 128 && zone != 2) { /* glacis sin mas de 0,3 m: se trata como glacis */ }
+                    if (zone == 2 || vm == 128) { if (pick < 35 || vm == 128) { kind = "escombros"; scale = Mathf.Min(scale, 1f); } else { kind = "piedras"; if (v == 2) v = 0; scale = Mathf.Min(scale, 1f); } }
                     else if (zone == 9) { kind = pick < 55 ? "canas" : "matas"; if (kind == "matas") scale *= 1.5f; }
                     else if (zone == 5) { if (pick < 25) { kind = "piedras"; v = 2; scale = Mathf.Min(scale, 1f); } else { kind = "matas"; scale *= 1.5f; } }
                     else if (zone == 4) { if (pick < 40) { kind = "basura"; scale = Mathf.Min(scale, 1f); } else { kind = "matas"; v = 1; scale *= 1.5f; } }
