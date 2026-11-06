@@ -17,8 +17,8 @@ from taller import Taller
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 PIEZAS = ["casco", "costilla", "bastidor", "rueda", "carga"]
-COLORES = {"casco": "50541c", "costilla": "543820", "bastidor": "48403c", "rueda": "283440", "carga": "94948c"}
-VALOR_PIEZAS = {"casco": ("70784c", "50541c")}   # verde de las TT1 de Renfe de las fotos G1 (antes óxido 7c3c18)
+COLORES = {"casco": "7c3c18", "costilla": "543820", "bastidor": "48403c", "rueda": "283440", "carga": "94948c"}
+VALOR_PIEZAS = {"casco": ("b4a080", "7c3c18")}   # óxido (Lucía, 18:14: el verde de las TT1 se lee militar); la forma, de G1
 FACCION = "neutro"
 PRESUPUESTO = {0: (100, 2000), 1: (60, 900)}
 HX, LY, ZB = 1.5, 6.1, 4.1           # semiancho, semilargo de la caja y borde superior
