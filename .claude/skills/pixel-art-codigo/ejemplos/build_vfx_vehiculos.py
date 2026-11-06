@@ -12,7 +12,7 @@ Lo nuevo:
   fuego_vehiculo    32x32, bucle de 8     llamas sobre el vehículo ardiendo. SIN ámbar: se queda en pantalla
                                          (regla de Lucía); crema en el núcleo, beige, ocre y óxido
   explosion_vehiculo 128x128, 12 f, una vez destello, bola de fuego (ámbar transitorio), piezas y humo que sube
-  decal_calcinado   64x64, 2 variantes    mancha quemada bajo el armazón destruido
+  decal_calcinado   64x64, 2 variantes    mancha quemada bajo el armazón destruido (grises; hollín solo al centro)
 Humo en grises del suelo (nada por debajo de L* 20, que es de la horda).
 """
 import json
@@ -93,13 +93,15 @@ def fuego_vehiculo(f):
     for y in range(4, base + 1):
         for x in range(2, 30):
             dx = abs(x + .5 - 16) / 14
-            alto = (base - y) / 22
+            lengua = .75 + .45 * _h(int(x // 5), f, 991)    # cada lengua cambia de altura por fotograma
+            alto = (base - y) / (22 * lengua)
             forma = (1 - dx * dx) - alto * 1.1
             n = ruido(x, y + f * 4, 8, 21, per=32) * .6 + ruido(x, y + f * 4, 4, 22, per=32) * .4
             v = forma + (n - .5) * .8
             if v <= .05:
                 continue
-            c = "cream" if v > .82 else "beige" if v > .58 else "ochre_dark" if v > .3 else "rust"
+            nucleo = .74 if f % 2 == 0 else .9               # el núcleo crema parpadea
+            c = "cream" if v > nucleo else "beige" if v > .58 else "ochre_dark" if v > .3 else "rust"
             s.set(x, y, c)
     for k in range(4):                             # pavesas
         y = int((base - 6 - _h(k, 0, 990) * 20 - f * 4) % 26) + 2
@@ -150,19 +152,22 @@ def explosion_vehiculo(f):
 
 
 def decal_calcinado(v):
-    """Mancha quemada en planta: centro brown_dark tramado, aro de ceniza grey_brown y restos sueltos."""
+    """Mancha quemada en planta (D-N87): grey_brown y olive_grey tramados, aro de ceniza y restos sueltos;
+    el hollín olive_shadow solo en una mancha pequeña del centro. Nada de 442c0c (es de la horda)."""
     s = Sprite(64, 64)
     for y in range(64):
         for x in range(64):
             d = math.hypot((x + .5 - 32) / 28, (y + .5 - 32) / 22)
             d += (ruido(x, y, 8, 1000 + v) - .5) * .35
-            if d < .55 and tramado(x, y, .9):
-                s.set(x, y, "olive_shadow" if _h(x, y, 1002 + v) > .7 else "brown_dark")
+            if d < .2 and tramado(x, y, .8):
+                s.set(x, y, "olive_shadow")              # hollín del centro
+            elif d < .55 and tramado(x, y, .9):
+                s.set(x, y, "olive_grey" if _h(x, y, 1002 + v) > .65 else "grey_brown")
             elif d < .85 and tramado(x, y, (.85 - d) * 2.2):
-                s.set(x, y, "grey_brown")
+                s.set(x, y, "olive_grey")
     for k in range(14):
         x, y = int(10 + _h(k, v, 1003) * 44), int(12 + _h(k, v, 1004) * 40)
-        s.set(x, y, "olive_grey" if k % 2 else "olive_dark")
+        s.set(x, y, "concrete" if k % 2 else "olive_dark")
     return s
 
 

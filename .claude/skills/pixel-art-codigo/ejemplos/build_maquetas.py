@@ -306,6 +306,11 @@ def pantalla_final(victoria, estrellas=2):
     if victoria:                                        # de 1 a 3 estrellas; con derrota no hay
         for k in range(3):
             pega(im, estrella(k < estrellas), W // 2 - 30 + k * 20, y0 + 32)
+    import build_a1 as a1
+    import build_recursos_hud as rh                     # aquí dentro: rh importa estrella de este módulo
+    from pixelvm import reduce_16
+    iconos = [rh.zombis_16(), reduce_16(rh.bajas()), reduce_16(a1.municion()), reduce_16(a1.municion()),
+              reduce_16(a1.combustible()), rh.amanecer_16() if victoria else rh.caida_16()]
     ty = y0 + (56 if victoria else 40)
     for i, (k, v) in enumerate(RESULTADOS[victoria]):
         y = ty + i * 18
@@ -313,7 +318,8 @@ def pantalla_final(victoria, estrellas=2):
             for xx in range(x0 + 8, x0 + pw - 8):
                 for yy in range(y - 2, y + 13):
                     px[xx, yy] = PAL["slate_dark"]
-        texto(im, (x0 + 14, y), k, 9, "beige", sombra=False)
+        pega(im, iconos[i], x0 + 12, y - 2)              # icono de la fila (build_recursos_hud)
+        texto(im, (x0 + 32, y), k, 9, "beige", sombra=False)
         d = ImageDraw.Draw(im)
         d.fontmode = "1"
         ancho = d.textlength(v, font=_f(9))

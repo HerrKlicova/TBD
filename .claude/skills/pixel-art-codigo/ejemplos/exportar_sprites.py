@@ -41,6 +41,7 @@ import build_vfx_tren  # noqa: E402
 import build_parallax_tren  # noqa: E402
 import build_armas  # noqa: E402
 import build_vfx_vehiculos  # noqa: E402
+import build_recursos_hud  # noqa: E402
 
 PIVOTE = [0.5, 0.53]
 
@@ -159,6 +160,7 @@ def prototipo_noche(out):
     build_parallax_tren.exportar(out)                    # fondo del tren: cielo, sierra y colinas, día y noche
     build_armas.exportar(out)                            # iconos del HUD y VFX de disparo e impacto por arma
     build_vfx_vehiculos.exportar(out)                    # polvo en marcha, orugas, humo, fuego, explosión, calcinado
+    build_recursos_hud.exportar(out)                     # P0: recursos (con pila y bajas), iconos de resultados, estrellas
 
 
 if __name__ == "__main__":
