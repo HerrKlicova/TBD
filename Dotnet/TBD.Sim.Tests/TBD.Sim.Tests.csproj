@@ -23,6 +23,7 @@
     <Compile Include="GoldenTests.cs" />
     <Compile Include="HiveTests.cs" />
     <Compile Include="ObrasTests.cs" />
+    <Compile Include="PerfGate.cs" />
     <Compile Include="EstacionesTests.cs" />
     <Compile Include="HorarioTests.cs" />
     <Compile Include="TallerTests.cs" />
