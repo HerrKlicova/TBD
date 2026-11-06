@@ -1240,21 +1240,27 @@ namespace TBD.View
             Box("Almacén cuerpo", wc + new Vector3(0f, 2.6f, 0f), new Vector3(16f, 5f, 8f), M("94948c"), root);
             Box("Almacén tejado", wc + new Vector3(0f, 5.4f, 0f), new Vector3(16.8f, 0.5f, 8.8f), wood, root);
             // postes de catenaria cada 50 m a lo largo de toda la vía (dentro y fuera), a 3,6 m del eje; sin colisión
-            for (float x = 10f; x < SimConst.WorldW - 5f; x += 50f)       // el modelo deja la vía hacia su -X: girado 90° la vía queda al norte (+Z)
+            for (float x = -240f; x <= 500f; x += 50f)                    // postes de X −240 a 500 (Álvaro C9); el modelo deja la vía hacia su -X: girado 90° la vía queda al norte (+Z)
                 if (PlaceModel("poste_catenaria", "SM_poste_catenaria_LOD1", new Vector3(x, 0f, ty - 3.6f), 90f, root) == null)
                     Box("Poste", new Vector3(x, 4f, ty - 3.6f), new Vector3(0.25f, 8f, 0.25f), iron, root);
             // el pueblo fuera de los muros, al norte (lado contrario a la llegada de la horda por el oeste): dos manzanas de casas bajas encaladas (8 x 7 m, con colisión
             // de caja), un bloque de pisos al este y naranjos en hileras detrás (sin colisión). Casas con la fachada a +Z del modelo girada hacia el sur.
-            var houses = new System.Collections.Generic.List<Vector3>();
-            for (int i = 0; i < 10; i++) if (i != 4 && i != 7) houses.Add(new Vector3(76f + i * 8f, 0f, 97f));      // hilera norte de casas entre medianeras, con dos solares demolidos
-            for (int i = 0; i < 10; i++) if (i != 2 && i != 6) houses.Add(new Vector3(76f + i * 8f, 0f, 109f));
-            foreach (int gi in new[] { 4, 7 })                                                                      // solares con escombros junto al muro (casas que el Mando demolió)
-                for (int k = 0; k < 4; k++) Box("Escombro", new Vector3(76f + gi * 8f + (k % 2) * 3f - 1.5f, 0.4f, 96f + (k / 2) * 3f), new Vector3(2.2f, 0.8f + 0.2f * k, 1.8f), M("605c48"), root);
-            foreach (var hp in houses)
+            // pueblo (Álvaro §7c): casa de pueblo de Teo 6 x 10 m (fachada a +Z), hilera delantera en Z 103 (giro 0°) y trasera en Z 120 (giro 180°), 12 casas cada 6 m entre X 75 y 141;
+            // huecos en la 5.ª y 9.ª de la delantera (solares) y la 4.ª de la trasera (callejón); calle de Z 108 a 115; variante por hash de posición, alero ±0,3-0,8 m, una caja 6x10 de colisión por casa
+            var houses = new System.Collections.Generic.List<Vector3>(); var houseYaw = new System.Collections.Generic.List<float>();
+            for (int i = 0; i < 12; i++) if (i != 4 && i != 8) { houses.Add(new Vector3(75f + i * 6f, 0f, 103f)); houseYaw.Add(0f); }
+            for (int i = 0; i < 12; i++) if (i != 3) { houses.Add(new Vector3(75f + i * 6f, 0f, 120f)); houseYaw.Add(180f); }
+            foreach (int gi in new[] { 4, 8 })                                                                      // solares con escombros junto al muro
+                for (int k = 0; k < 4; k++) Box("Escombro", new Vector3(75f + gi * 6f + (k % 2) * 2.4f - 1.2f, 0.4f, 100f + (k / 2) * 4f), new Vector3(2.2f, 0.8f + 0.2f * k, 1.8f), M("605c48"), root);
+            for (int hi = 0; hi < houses.Count; hi++)
             {
-                if (PlaceVariant("casa_baja", hp, 180f, root) == null) Box("Casa", hp + new Vector3(0f, 2f, 0f), new Vector3(8f, 4f, 7f), wall, root);
-                foreach (float dz in new[] { -2.5f, 0f, 2.5f })
-                    Push(CmdType.BuildWall, 4500, new Unity.Mathematics.float2(hp.x - 3f, hp.z + dz), new Unity.Mathematics.float2(hp.x + 3f, hp.z + dz));
+                var hp = houses[hi];
+                uint hh = Unity.Mathematics.math.hash(new Unity.Mathematics.int2((int)(hp.x * 10f), (int)(hp.z * 10f)));
+                var hgo = PlaceVariant("casa_pueblo", hp, houseYaw[hi], root);
+                if (hgo == null) Box("Casa", hp + new Vector3(0f, 2.5f, 0f), new Vector3(6f, 5f, 10f), wall, root);
+                else hgo.transform.localScale = new Vector3(1f, 0.94f + 0.12f * ((hh & 255u) / 255f), 1f);                 // alero a distinta altura (±0,3-0,8 m sobre ~6,5 m)
+                foreach (float dx in new[] { -2f, 0f, 2f })                                                         // caja 6 x 10: tres segmentos de 2 m de grosor a lo largo de Z
+                    Push(CmdType.BuildWall, 6000, new Unity.Mathematics.float2(hp.x + dx, hp.z - 4f), new Unity.Mathematics.float2(hp.x + dx, hp.z + 4f));
             }
             var blk = new Vector3(174f, 0f, 82f);                                                 // P2 (Álvaro): apartado de la vía, fachada larga hacia ella
             if (PlaceVariant("bloque_pisos", blk, 270f, root) == null) Box("Bloque", blk + new Vector3(0f, 7f, 0f), new Vector3(10f, 14f, 14f), wall, root);
@@ -1262,7 +1268,7 @@ namespace TBD.View
                 Push(CmdType.BuildWall, 14500, new Unity.Mathematics.float2(blk.x + dx, blk.z - 6f), new Unity.Mathematics.float2(blk.x + dx, blk.z + 6f));
             for (int row = 0; row < 2; row++)
                 for (int i = 0; i < 14; i++)
-                    PlaceVariant("naranjo", new Vector3(80f + i * 5f + (row == 1 ? 2.5f : 0f), 0f, 121f + row * 4f), (i * 53 + row * 17) % 360, root);
+                    PlaceVariant("naranjo", new Vector3(80f + i * 5f + (row == 1 ? 2.5f : 0f), 0f, 131f + row * 4f), (i * 53 + row * 17) % 360, root);
             // colisión: solo edificio y almacén (cuatro segmentos de 2 m de grosor cada uno cubren el solar completo)
             foreach (float z in new[] { 75.5f, 77.5f, 79.5f, 81.5f, 83.3f })                    // huella de 20 x 9 m del edificio de Teo
                 Push(CmdType.BuildWall, 11000, new Unity.Mathematics.float2(96.5f, z), new Unity.Mathematics.float2(115.5f, z));
@@ -1271,72 +1277,130 @@ namespace TBD.View
         }
 
         /// <summary>
-        /// Resto del plano de Álvaro (docs/niveles/sagunto-nivel.md), todo con primitivas y SIN colisión (la sim no lo conoce): puerta de vía este solo visual,
-        /// paso superior al oeste, puente del Palancia al este, calle de la Estación con paso a nivel, carretera vieja con el atasco, mercancías descarrilado
-        /// en la vía 2 y barricada. Paleta: asfalto #6c7874 con grietas #48403c (la textura A7 de Bruno llegará aparte); nada rojo ni ámbar de alerta.
+        /// Resto del plano de Álvaro (docs/niveles/sagunto-nivel.md v1.2), sin colisión (la sim no lo conoce): puerta de vía este solo visual, paso superior de
+        /// Teo al oeste (X = −20) con terraplenes al 12 %, puente de Teo al este (X = 280) sobre un cauce de 28 m y 7 m de hondo, calle de la Estación con paso a nivel,
+        /// carretera vieja con el atasco, vía 2 con desvío, mercancías descarrilado, barricada. Asfalto #6c7874 con grietas #48403c; nada rojo ni ámbar de alerta.
         /// </summary>
         void BuildSaguntoWorld(Transform root)
         {
             float ty = Level.TrackY;
             Material M(string hex) { return Mat(hex); }
             var asphalt = M("6c7874"); var crack = M("48403c"); var concrete = M("94948c"); var dark = M("283440"); var rust = M("605c48"); var bone = M("d4d0cc");
-            var dirt = M("b4a080"); var gate = M("7c3c18");
-            // P4: puerta de vía este, cerrada y solo visual: dos jambas y el dintel sobre la vía (la vía pasa por debajo de las hojas, no las cruza)
+            var dirt = M("b4a080"); var gate = M("7c3c18"); var grass = M("88885c");
+            // P4: puerta de vía este, cerrada y solo visual
             float gx = Level.FortX1;
             Box("Puerta este jamba S", new Vector3(gx, 1.6f, ty - 3.0f), new Vector3(1.4f, 3.2f, 0.8f), concrete, root);
             Box("Puerta este jamba N", new Vector3(gx, 1.6f, ty + 3.0f), new Vector3(1.4f, 3.2f, 0.8f), concrete, root);
             Box("Puerta este dintel", new Vector3(gx, 3.5f, ty), new Vector3(1.4f, 0.6f, 6.8f), concrete, root);
             Box("Puerta este hoja S", new Vector3(gx, 1.8f, ty - 1.4f), new Vector3(0.3f, 2.4f, 2.6f), gate, root);
             Box("Puerta este hoja N", new Vector3(gx, 1.8f, ty + 1.4f), new Vector3(0.3f, 2.4f, 2.6f), gate, root);
-            // P5: paso superior de carretera al oeste (X 18-26, tablero a 6 m sobre la vía, estribos a ±17 m del eje) con coches encima
-            Box("Paso superior tablero", new Vector3(22f, 5.9f, ty), new Vector3(8f, 0.9f, 44f), concrete, root);
-            Box("Paso superior pretil O", new Vector3(18.2f, 6.7f, ty), new Vector3(0.4f, 0.7f, 44f), concrete, root);
-            Box("Paso superior pretil E", new Vector3(25.8f, 6.7f, ty), new Vector3(0.4f, 0.7f, 44f), concrete, root);
-            foreach (float dz in new[] { -17f, 17f })
-                Box("Paso superior estribo", new Vector3(22f, 2.8f, ty + dz), new Vector3(8.4f, 5.6f, 5f), concrete, root);
-            for (int i = 0; i < 4; i++) AddCar(root, new Vector3(20.6f + (i % 2) * 2.8f, 6.4f, ty - 10f + i * 6f), 90f, i == 2 ? "283440" : "605c48", false);   // atasco de los que huían
-            // P5: puente del Palancia al este (X 222-250): cauce casi seco, dos vigas de celosía simplificadas y el tablero
-            Box("Cauce del Palancia", new Vector3(236f, 0.03f, 64f), new Vector3(28f, 0.04f, 528f), dirt, root);
-            Box("Puente tablero", new Vector3(236f, 1.0f, ty), new Vector3(28f, 0.5f, 4.4f), concrete, root);
-            foreach (float dz in new[] { -2.1f, 2.1f })
-            {
-                Box("Puente viga", new Vector3(236f, 3.2f, ty + dz), new Vector3(28f, 0.5f, 0.4f), dark, root);
-                for (int k = 0; k <= 7; k++) Box("Puente montante", new Vector3(223f + k * 3.7f, 2.1f, ty + dz), new Vector3(0.3f, 2.2f, 0.3f), dark, root);
-            }
-            foreach (float px in new[] { 222.5f, 249.5f }) Box("Puente estribo", new Vector3(px, 0.6f, ty), new Vector3(1.6f, 1.2f, 5f), concrete, root);
-            // P6: calle de la Estación (X 56-62) con paso a nivel sobre la vía, y carretera vieja (Z 20-26) con el atasco hacia el este
+            // C3: paso superior de Teo en X = −20 (deck a 8,3 m) con terraplenes al 12 %: norte hasta Z ≈ 150 y sur hasta Z ≈ −22; la carretera vieja pasa por un hueco de 10 m con losa
+            float px = -20f;
+            if (PlaceModel("paso_superior", "SM_paso_superior_LOD1", new Vector3(px, 0f, ty), 0f, root) == null)
+                Box("Paso superior (reserva)", new Vector3(px, 7.8f, ty), new Vector3(8f, 1f, 34f), concrete, root);
+            float zn0 = ty + 16.9f, zs0 = ty - 16.9f;                       // extremos del tablero del modelo (33,77 m)
+            Wedge(root, new Vector3(px, 0f, zn0), new Vector3(px, 0f, zn0 + 69.2f), 16.4f, 8.3f, grass);                 // norte: 8,3 m a 12 % = 69,2 m
+            Wedge(root, new Vector3(px, 0f, zs0), new Vector3(px, 0f, zs0 - 19.6f), 16.4f, 8.3f, grass, 8.3f - 0.12f * 19.6f);   // sur, tramo alto hasta el hueco de la carretera (Z 28)
+            Box("Losa sobre la carretera", new Vector3(px, 5.4f, 23f), new Vector3(16.4f, 0.7f, 10f), concrete, root);
+            Wedge(root, new Vector3(px, 0f, 18f), new Vector3(px, 0f, 18f - 39.6f), 16.4f, 4.75f, grass);   // sur, tramo bajo desde el hueco hasta Z ≈ −22
+            // C3 (v1.3): viaducto de hormigón de Teo centrado en X 302,6 (86,2 m con aletas, carril a cota 0); cauce de X 265,6 a 340,8 con el lecho a −4,5 m, abierto en el faldón
+            Box("Cauce del Palancia", new Vector3(303.2f, -4.75f, 64f), new Vector3(75.2f, 0.5f, 528f), dirt, root);
+            for (float zc = -190f; zc < 320f; zc += 21f) Box("Caña", new Vector3(270f + (zc * 3 % 3) * 0.5f, -3.7f, zc), new Vector3(0.12f, 1.8f, 0.12f), grass, root);
+            AddQuad(dirt, new Vector3(265.6f, 0f, -200f), new Vector3(265.6f, 0f, 328f), new Vector3(271f, -4.5f, -200f), new Vector3(271f, -4.5f, 328f));       // orilla oeste
+            AddQuad(dirt, new Vector3(340.8f, 0f, 328f), new Vector3(340.8f, 0f, -200f), new Vector3(335.4f, -4.5f, 328f), new Vector3(335.4f, -4.5f, -200f));   // orilla este
+            if (PlaceModel("puente_palancia", "SM_puente_palancia_LOD1", new Vector3(302.6f, 0f, ty), 0f, root) == null)
+                Box("Puente (reserva)", new Vector3(302.6f, 0.5f, ty), new Vector3(86f, 1f, 5f), concrete, root);
+            Box("Tablero de la carretera", new Vector3(303.2f, -0.25f, 23f), new Vector3(75.2f, 0.5f, 7f), asphalt, root);      // la carretera vieja cruza el cauce por su propio tablero de ~75 m
+            AddTruck(root, new Vector3(258f, 0f, 23f));                            // cabeza del atasco: camión cruzado a la entrada del tablero
+            // P6: calle de la Estación (X 56-62), paso a nivel Z 58-67 (cubre también el desvío de la vía 2) y carretera vieja (Z 20-26)
             Box("Calle de la Estación", new Vector3(59f, 0.05f, 64f), new Vector3(6f, 0.06f, 528f), asphalt, root);
             for (int i = 0; i < 24; i++) Box("Grieta calle", new Vector3(57f + (i * 37 % 5), 0.09f, -150f + i * 21f), new Vector3(0.15f, 0.02f, 3.2f), crack, root);
-            Box("Paso a nivel", new Vector3(59f, 0.1f, ty), new Vector3(6f, 0.05f, 4.6f), rust, root);
+            Box("Paso a nivel", new Vector3(59f, 0.1f, 62.5f), new Vector3(6f, 0.05f, 9f), rust, root);
             Box("Caseta del paso a nivel", new Vector3(63.5f, 1.5f, ty + 5f), new Vector3(2.6f, 3f, 2.6f), concrete, root);
-            Box("Barrera rota", new Vector3(59f, 1.0f, ty - 2.6f), new Vector3(0.15f, 0.15f, 3.2f), bone, root).transform.rotation = Quaternion.Euler(0f, 0f, 25f);
+            Box("Barrera rota", new Vector3(59f, 1.0f, 57.4f), new Vector3(0.15f, 0.15f, 3.2f), bone, root).transform.rotation = Quaternion.Euler(0f, 0f, 25f);
             Box("Carretera vieja", new Vector3(128f, 0.05f, 23f), new Vector3(756f, 0.06f, 6f), asphalt, root);
             for (int i = 0; i < 60; i++) Box("Grieta carretera", new Vector3(-240f + i * 12.5f + (i * 7 % 5), 0.09f, 21.5f + (i * 3 % 4)), new Vector3(2.5f, 0.02f, 0.15f), crack, root);
-            for (int i = 0; i < 13; i++)                                                                            // atasco: coches apuntando al este, uno quemado y una ambulancia sin cruz
+            // C5: atasco irregular, más junto hacia la cabeza (este), giros de ±25°, alguno en el carril contrario o fuera del asfalto, puertas abiertas
+            float ax = 70f;
+            for (int i = 0; i < 18; i++)
             {
-                float cx = 70f + i * 9f + (i * 5 % 3); bool burned = i == 6, amb = i == 9;
-                AddCar(root, new Vector3(cx, 0f, 23f + (i % 2 == 0 ? -1.2f : 1.2f)), (i * 7 % 9) - 4f, burned ? "1c1812" : amb ? "d4d0cc" : (i % 3 == 0 ? "283440" : i % 3 == 1 ? "605c48" : "94948c"), amb);
+                uint hh = Unity.Mathematics.math.hash(new Unity.Mathematics.int2(i, 77));
+                float gap = Mathf.Lerp(13f, 5.2f, i / 17f) + (hh & 3u) * 0.6f;
+                ax += gap; if (ax > 250f) break;
+                float lane = ((hh >> 4) & 7u) == 0 ? 25.2f : ((hh >> 4) & 7u) == 1 ? 17.8f : 23f + (((hh >> 8) & 255u) / 255f - 0.5f) * 3.6f;     // algunos fuera del asfalto
+                float yaw = (((hh >> 12) & 255u) / 255f - 0.5f) * 50f + (((hh >> 20) & 7u) == 0 ? 180f : 0f);                                             // algunos al revés
+                bool burned = i == 7, amb = i == 11;
+                string col = burned ? "1c1812" : amb ? "d4d0cc" : (i % 3 == 0 ? "283440" : i % 3 == 1 ? "605c48" : "94948c");
+                AddCar(root, new Vector3(ax, 0f, lane), yaw, col, amb, (hh & 1u) == 0);
             }
-            // mercancías descarrilado en la vía 2 (paralela al sur, sin uso) al oeste: tres vagones tolva volcados
-            Box("Vía 2 raíl A", new Vector3(55f, 0.12f, ty - 5.7f), new Vector3(90f, 0.1f, 0.12f), _mRail, root);
-            Box("Vía 2 raíl B", new Vector3(55f, 0.12f, ty - 4.3f), new Vector3(90f, 0.1f, 0.12f), _mRail, root);
-            for (int i = 0; i < 3; i++)
+            // C1: vía 2 de X −250 a 50 y desvío en diagonal entre X 50 y 64, antes de la puerta, para unirse a la vía 1
+            foreach (float dz in new[] { -0.7f, 0.7f })
             {
-                var hop = Box("Tolva volcada", new Vector3(34f + i * 11f, 1.4f, ty - 5f + (i - 1) * 0.8f), new Vector3(9f, 2.6f, 3f), rust, root);
-                hop.transform.rotation = Quaternion.Euler(0f, i * 9f - 9f, 28f * (i % 2 == 0 ? 1 : -1));
+                Box("Vía 2 raíl", new Vector3(-100f, 0.12f, ty - 5f + dz), new Vector3(300f, 0.1f, 0.12f), _mRail, root);
+                var diag = Box("Vía 2 desvío raíl", new Vector3(57f, 0.12f, ty - 2.5f + dz * 0.9f), new Vector3(14.9f, 0.1f, 0.12f), _mRail, root);
+                diag.transform.rotation = Quaternion.Euler(0f, -19.65f, 0f);
             }
-            // barricada civil rota a la entrada del pueblo y un autobús cruzado (por encima del paso a nivel, al norte)
+            Box("Vía 2 balasto", new Vector3(-100f, 0.03f, ty - 5f), new Vector3(300f, 0.04f, 3.4f), crack, root);
+            for (int x = -250; x < 50; x += 2) Box("Vía 2 traviesa", new Vector3(x, 0.05f, ty - 5f), new Vector3(0.4f, 0.08f, 2f), _mSleeper, root);
+            // C2 (v1.4): tolvas volcadas de Teo (el vuelco y el origen en el suelo vienen en la malla: solo X y yaw) sobre la vía 2, Z 59,5, de 14 m cada una:
+            // v0 de pie y descarrilada en X 35 (yaw 0), v2 recostada en X 20 (yaw +8°) y v3 sobre el costado, con grava, en X 5 (yaw −12°); cajas giradas si faltan los modelos
+            var hops = new[] { (35f, 0f, 0), (20f, 8f, 2), (5f, -12f, 3) };
+            foreach (var hp in hops)
+            {
+                var hpos = new Vector3(hp.Item1, 0f, 59.5f);
+                var hg = hp.Item3 == 0 ? PlaceModel("tolva_volcada", "SM_tolva_volcada_LOD1", hpos, hp.Item2, root)
+                                       : PlaceModel("tolva_volcada/v" + hp.Item3, "SM_tolva_volcada_v" + hp.Item3 + "_LOD1", hpos, hp.Item2, root);
+                if (hg == null) Box("Tolva volcada", hpos + new Vector3(0f, 1.7f, 0f), new Vector3(14f, 2.6f, 3f), rust, root).transform.rotation = Quaternion.Euler(hp.Item3 == 0 ? 0f : 80f, hp.Item2, 0f);
+            }
+            // barricada civil rota a la entrada del pueblo y un autobús cruzado
             Box("Autobús cruzado", new Vector3(59f, 1.5f, 92f), new Vector3(11f, 3f, 2.6f), concrete, root).transform.rotation = Quaternion.Euler(0f, 74f, 0f);
             for (int i = 0; i < 5; i++) Box("Mueble barricada", new Vector3(53f + i * 2.3f, 0.7f, 88.5f + (i % 2) * 1.6f), new Vector3(1.8f, 1.4f, 1.2f), i % 2 == 0 ? rust : dark, root).transform.rotation = Quaternion.Euler(0f, i * 31f, 0f);
         }
 
-        void AddCar(Transform root, Vector3 pos, float yawDeg, string hex, bool ambulance)
+        /// <summary>Terraplén: cuña de ancho w (en X) que baja de la altura h en el extremo a (borde con el puente) a hEnd en el extremo b, con la cara superior inclinada.</summary>
+        void Wedge(Transform root, Vector3 a, Vector3 b, float w, float h, Material m, float hEnd = 0f)
+        {
+            float hw = w * 0.5f;
+            var v = new Vector3[] { new Vector3(a.x - hw, 0f, a.z), new Vector3(a.x + hw, 0f, a.z), new Vector3(a.x - hw, h, a.z), new Vector3(a.x + hw, h, a.z),
+                                    new Vector3(b.x - hw, 0f, b.z), new Vector3(b.x + hw, 0f, b.z), new Vector3(b.x - hw, hEnd, b.z), new Vector3(b.x + hw, hEnd, b.z) };
+            var tri = new int[] { 2, 3, 7, 2, 7, 6,  2, 6, 4, 2, 4, 0,  3, 5, 7, 3, 1, 5,  0, 4, 5, 0, 5, 1,  2, 0, 1, 2, 1, 3,  6, 7, 5, 6, 5, 4 };
+            var verts = new System.Collections.Generic.List<Vector3>(); var tris = new System.Collections.Generic.List<int>();
+            for (int i = 0; i < tri.Length; i++) { verts.Add(v[tri[i]]); tris.Add(i); }                        // vértices sin compartir: sombreado plano
+            var go = new GameObject("Terraplén"); go.transform.SetParent(root, false);
+            var mesh = new Mesh { vertices = verts.ToArray(), triangles = tris.ToArray() }; mesh.RecalculateNormals();
+            go.AddComponent<MeshFilter>().sharedMesh = mesh; go.AddComponent<MeshRenderer>().sharedMaterial = m;
+            var back = new GameObject("Terraplén (cara trasera)"); back.transform.SetParent(root, false);                  // doble cara: no depende del sentido de los triángulos
+            var tb = new System.Collections.Generic.List<int>(); for (int i = 0; i < tris.Count; i += 3) { tb.Add(i); tb.Add(i + 2); tb.Add(i + 1); }
+            var m2 = new Mesh { vertices = verts.ToArray(), triangles = tb.ToArray() }; m2.RecalculateNormals();
+            back.AddComponent<MeshFilter>().sharedMesh = m2; back.AddComponent<MeshRenderer>().sharedMaterial = m;
+        }
+
+        void Quad(Transform root, Material m, Vector3 a, Vector3 b, Vector3 c, Vector3 d)
+        {
+            var go = new GameObject("Orilla"); go.transform.SetParent(root, false);
+            var mesh = new Mesh { vertices = new[] { a, b, c, d }, triangles = new[] { 0, 2, 1, 1, 2, 3, 0, 1, 2, 1, 3, 2 } }; mesh.RecalculateNormals();
+            go.AddComponent<MeshFilter>().sharedMesh = mesh; go.AddComponent<MeshRenderer>().sharedMaterial = m;
+        }
+
+        void AddTruck(Transform root, Vector3 pos)
+        {
+            var body = Box("Camión caja", pos + new Vector3(0f, 1.9f, 0f), new Vector3(8f, 2.4f, 2.5f), Mat("94948c"), root); body.transform.rotation = Quaternion.Euler(0f, 78f, 0f);
+            var cab = Box("Camión cabina", pos + body.transform.rotation * new Vector3(5.2f, -0.3f, 0f), new Vector3(2.2f, 2.0f, 2.4f), Mat("283440"), root); cab.transform.rotation = body.transform.rotation;
+        }
+
+        void AddCar(Transform root, Vector3 pos, float yawDeg, string hex, bool ambulance, bool doorOpen = false)
         {
             var body = Box(ambulance ? "Ambulancia" : "Coche", pos + new Vector3(0f, 0.7f, 0f), new Vector3(4.2f, 1.2f, 1.8f), Mat(hex), root);
             body.transform.rotation = Quaternion.Euler(0f, yawDeg, 0f);
             var cab = Box("Cabina", pos + new Vector3(-0.2f, 1.5f, 0f), new Vector3(2.2f, 0.7f, 1.6f), Mat(ambulance ? "94948c" : "283440"), root);
             cab.transform.rotation = body.transform.rotation; cab.transform.position = body.transform.position + body.transform.rotation * new Vector3(-0.2f, 0.9f, 0f);
             if (ambulance) { var strip = Box("Franja ambulancia", pos + new Vector3(0f, 0.75f, 0f), new Vector3(4.3f, 0.25f, 1.85f), Mat("283440"), root); strip.transform.rotation = body.transform.rotation; }
+            if (doorOpen)                                                                                       // puerta abierta: una hoja fina girada hacia fuera
+            {
+                var door = Box("Puerta abierta", pos, new Vector3(1.3f, 0.9f, 0.1f), Mat(hex), root);
+                door.transform.rotation = body.transform.rotation * Quaternion.Euler(0f, 55f, 0f);
+                door.transform.position = body.transform.position + body.transform.rotation * new Vector3(0.9f, 0.4f, 1.4f);
+            }
         }
 
         void SetupVisualAssets()
@@ -1687,6 +1751,11 @@ namespace TBD.View
         void SetupLevelObjects()
         {
             if (_cutting) Box("Suelo", new Vector3(SimConst.WorldW * 0.5f, -0.25f, SimConst.WorldH * 0.5f), new Vector3(SimConst.WorldW, 0.5f, SimConst.WorldH), _mGround);
+            else if (_netZone)
+            {
+                Box("Suelo oeste", new Vector3(7.8f, -0.25f, 64f), new Vector3(515.6f, 0.5f, 528f), _mGround);      // X −250..265,6
+                Box("Suelo este", new Vector3(423.4f, -0.25f, 64f), new Vector3(165.2f, 0.5f, 528f), _mGround);     // X 340,8..506: el cauce del Palancia (X 265,6-340,8, lecho a −4,5 m) va en medio
+            }
             else Box("Suelo", new Vector3(128f, -0.25f, 64f), new Vector3(756f, 0.5f, 528f), _mGround);       // faldón (Álvaro P3): de X −250 a 506 y de Z −200 a 328, para que no se vea el vacío al alejar
 
             if (_cutting) BuildCuttingTerrain();
