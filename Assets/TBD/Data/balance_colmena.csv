@@ -26,11 +26,13 @@ interdiccion_por_H;120;1000;
 interdiccion_H_ref;3000;1;
 interdiccion_max;370;1000;
 asedio_horas_tren;6;1;horas de un tren por asedio defendido
-memoria_trafico_inc;200;1;por paso de tren en su franja (validado, D-N18)
+memoria_trafico_inc;200;1;un paso por tren, tramo, franja y día (D-N31), dos trenes distintos sí suman
+memoria_trafico_tope;1200;1;D-N31: tope por franja, olvidar nunca cuesta más de 8 días
 memoria_trafico_derrame;500;1000;a cada franja vecina
 memoria_trafico_decae_dia;850;1000;
 memoria_trafico_franjas;6;1;de 4 h
 memoria_umbral_aviso;400;1;
+memoria_umbral_olvido;300;1;D-N31: histéresis, el aviso se apaga por debajo de 300
 memoria_umbral_emboscada;600;1;
 memoria_umbral_corte;850;1;
 memoria_atencion_horas_dia;6;1;horas de juego acumuladas en una zona

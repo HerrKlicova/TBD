@@ -8,8 +8,8 @@ namespace TBD.Net
 
     public struct TrafficParams
     {
-        public int Inc, SpillMil, DecayMil, Slots, Warn, Ambush, Cut;
-        public static TrafficParams Default => new TrafficParams { Inc = 200, SpillMil = 500, DecayMil = 850, Slots = 6, Warn = 400, Ambush = 600, Cut = 850 };
+        public int Inc, SpillMil, DecayMil, Slots, Warn, Ambush, Cut, Cap, Forget;
+        public static TrafficParams Default => new TrafficParams { Inc = 200, SpillMil = 500, DecayMil = 850, Slots = 6, Warn = 400, Ambush = 600, Cut = 850, Cap = 1200, Forget = 300 };
 
         public static TrafficParams FromCsv(CsvTable colmena)
         {
@@ -18,6 +18,7 @@ namespace TBD.Net
                 Inc = (int)colmena.Value("memoria_trafico_inc"), SpillMil = (int)colmena.Value("memoria_trafico_derrame"),
                 DecayMil = (int)colmena.Value("memoria_trafico_decae_dia"), Slots = (int)colmena.PositiveValue("memoria_trafico_franjas"),
                 Warn = (int)colmena.Value("memoria_umbral_aviso"), Ambush = (int)colmena.Value("memoria_umbral_emboscada"), Cut = (int)colmena.Value("memoria_umbral_corte"),
+                Cap = (int)colmena.PositiveValue("memoria_trafico_tope"), Forget = (int)colmena.Value("memoria_umbral_olvido"),
             };
         }
     }
@@ -33,7 +34,7 @@ namespace TBD.Net
     /// <summary>
     /// Memoria de tráfico: por tramo y franja de 4 h, valor entero (0-1000 en la práctica; puede pasar un poco tras un paso). Cada paso de un tren suma Inc en su franja y derrama un
     /// SpillMil/1000 a las dos franjas vecinas (así alternar 06:00 y 07:00 no engaña). Cada medianoche decae ×DecayMil/1000.
-    /// Al cruzar el umbral de aviso (400) hacia arriba sale TR-1 en el informe; al bajar de él, TR-5 («ha olvidado»).
+    /// Al cruzar el umbral de aviso (400) hacia arriba sale TR-1 en el informe; al bajar del de olvido (300), TR-5 («ha olvidado»).
     /// </summary>
     public sealed class TrafficMemory
     {
@@ -51,10 +52,17 @@ namespace TBD.Net
 
         public int SlotOf(long tick) { return (int)(tick % NetConst.DayTicks / SlotTicks); }
 
+        // D-N31: un solo paso por tren, tramo, franja y día (dos trenes distintos sí suman). Se guarda (día, tren, tramo, franja).
+        readonly HashSet<long> _passedToday = new HashSet<long>();
+        long _passDay = -1;
+
         /// <summary>Un tren pasa por el tramo «edge» en el tick dado. Devuelve true si la franja acaba de cruzar el aviso.</summary>
-        public bool OnPass(int edge, long tick)
+        public bool OnPass(int edge, long tick, int trainId = -1)
         {
             int s = SlotOf(tick);
+            long day = tick / NetConst.DayTicks;
+            if (day != _passDay) { _passDay = day; _passedToday.Clear(); }
+            if (trainId >= 0 && !_passedToday.Add(((long)(trainId & 0xFFFF) << 32) | ((long)(edge & 0xFFFF) << 8) | (long)s)) return false;
             Add(edge, s, P.Inc);
             int spill = P.Inc * P.SpillMil / 1000;
             Add(edge, (s + 1) % P.Slots, spill);
@@ -63,9 +71,9 @@ namespace TBD.Net
             return false;
         }
 
-        // Sin tope en 1000: el modelo validado de Hugo (P3) llega a 868 tras pasar de 1022 antes del decaimiento. Con +200 diarios la
-        // asíntota es 200 / (1 - 0,85) ≈ 1333 justo después de pasar. Tope de seguridad de 100.000 para que nunca desborde.
-        void Add(int e, int s, int v) { M[e, s] = Math.Min(100000, M[e, s] + v); }
+        // D-N31 (Lucía y Hugo, aprobado por Mak): tope de 1.200 por franja. Sin tope, con 3 trenes la memoria llegaría a ~3.400 y
+        // tardaría 14-15 días en olvidar; con 1.200 baja de 300 en 8 días como mucho. P3 no cambia (su máximo es 1.022).
+        void Add(int e, int s, int v) { M[e, s] = Math.Min(P.Cap, M[e, s] + v); }
 
         /// <summary>Decaimiento de medianoche. Llama a «forgot(edge, slot)» por cada franja que baja del aviso.</summary>
         public void Decay(Action<int, int> forgot)
@@ -74,13 +82,13 @@ namespace TBD.Net
                 for (int s = 0; s < P.Slots; s++)
                 {
                     M[e, s] = M[e, s] * P.DecayMil / 1000;
-                    if (_known[e, s] && M[e, s] < P.Warn) { _known[e, s] = false; forgot?.Invoke(e, s); }
+                    if (_known[e, s] && M[e, s] < P.Forget) { _known[e, s] = false; forgot?.Invoke(e, s); }   // histéresis D-N31: olvida por debajo de 300
                 }
         }
 
         public ulong Hash()
         {
-            ulong h = 0x7EAF1CUL;
+            ulong h = 0x7EAF1CUL ^ ((ulong)_passedToday.Count << 40) ^ (ulong)(_passDay + 1);
             for (int e = 0; e < M.GetLength(0); e++)
                 for (int s = 0; s < P.Slots; s++)
                     if (M[e, s] != 0 || _known[e, s]) h += NetWorld.Mix(((ulong)(uint)e << 40) ^ ((ulong)(uint)s << 32) ^ (ulong)(uint)M[e, s] ^ (_known[e, s] ? 1UL << 20 : 0UL));

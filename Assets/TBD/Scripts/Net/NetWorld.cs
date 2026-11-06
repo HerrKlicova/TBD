@@ -207,6 +207,9 @@ namespace TBD.Net
         public List<Alert> Alerts = new List<Alert>();
         public TrafficMemory Traffic;                    // hito 4: memoria de tráfico de la Colmena
         public readonly List<IntelEntry> Intel = new List<IntelEntry>();   // informe de inteligencia (entradas en orden de tick)
+        public HiveDirector Director = new HiveDirector();               // hito 4: decide una vez por hora de juego
+        public bool DirectorEnabled = true;
+        public readonly List<int> PendingAmbushes = new List<int>();      // tramos con emboscada preparada (TR-3 cuando el tren cae en ella)
         readonly List<NetCommand> _queue = new List<NetCommand>();
 
         public const int SiegeAt = 500, ThreatAt = 150, CutAt = 850, NearAt = 250;
@@ -343,6 +346,7 @@ namespace TBD.Net
             ApplyCommands();                 // en cada tick, no al ritmo de los fotogramas (QA Q5)
             if (Paused) return;
             for (int s = 0; s < Services.Count; s++) StepService(Services[s]);
+            if (DirectorEnabled && Tick % 1500 == 0) Director.Hourly(this);       // una vez por hora de juego
             if (Tick % NetConst.FieldEvery == 0)
             {
                 for (int n = 0; n < Attraction.Length; n++)
@@ -360,6 +364,14 @@ namespace TBD.Net
             {
                 var prev = Alerts;
                 Alerts = AlertEngine.Evaluate(Graph, Trains(), Tick);
+                foreach (var sv in Services)
+                {
+                    var ce = sv.AtStop ? null : sv.Train.CurrentEdge(Graph);
+                    if (ce == null || !PendingAmbushes.Contains(ce.Id) || ce.HordeAtMm < 0) continue;
+                    PendingAmbushes.Remove(ce.Id);
+                    string punto = ce.Ambush.Count > 0 ? ce.Ambush[0].Name : Graph.Nodes[ce.A].Name + "–" + Graph.Nodes[ce.B].Name;
+                    Intel.Add(new IntelEntry { Tick = Tick, Id = "TR-3", Vars = new[] { "punto", punto } });
+                }
                 // D-N11: una alerta crítica nueva baja el tiempo a x1 (se puede desactivar). Sale del estado: es determinista.
                 if (AutoSlow && Speed > 1)
                     foreach (var al in Alerts)
@@ -422,7 +434,7 @@ namespace TBD.Net
         void PassEdge(TrainService s, RailEdge e)
         {
             if (e == null || Traffic == null) return;
-            if (Traffic.OnPass(e.Id, Tick))
+            if (Traffic.OnPass(e.Id, Tick, s.Train.Id))
             {
                 string hora = NetConst.Clock(Tick / 1500 * 1500);             // la hora en punto: «hacia las 08:00»
                 Intel.Add(new IntelEntry { Tick = Tick, Id = "TR-1", Vars = new[] { "tren", "Tren " + s.Train.Name, "tramo", EdgeName(e), "hora", hora } });
@@ -466,6 +478,8 @@ namespace TBD.Net
                 // una densidad alta es «amenazada», por alta que sea.
                 n.State = d >= ThreatAt ? NodeState.Amenazada : NodeState.Segura;
             }
+            foreach (var pl in Director.Active)                                   // asedio real (director, desde el día 2)
+                if (pl.Kind == HiveDirector.PlanKind.Asedio) Graph.Nodes[pl.Node].State = NodeState.Asediada;
             foreach (var e in Graph.Edges)
             {
                 var a = Graph.Nodes[e.A];
@@ -482,7 +496,8 @@ namespace TBD.Net
                 }
                 e.HordeAtMm = best >= NearAt ? bestAt : -1;
                 if (best >= CutAt) e.State = EdgeState.Cortada;              // la horda está sobre la vía
-                else if (e.State == EdgeState.Cortada) e.State = EdgeState.Ok;  // PROTOTIPO: se despeja sola (las obras llegan en el hito 5)
+                else if (e.State == EdgeState.Cortada && !Director.Active.Exists(p => p.Kind == HiveDirector.PlanKind.Corte && p.Edge == e.Id))
+                    e.State = EdgeState.Ok;  // PROTOTIPO: se despeja sola si no es un corte del director (las obras llegan en el hito 5)
             }
         }
 
@@ -531,7 +546,8 @@ namespace TBD.Net
             h = 0;
             foreach (var e in Graph.Edges) h += Mix(((ulong)(uint)e.Id << 8) ^ (ulong)e.State);
             r.Edges = h;
-            r.Memory = (Traffic != null ? Traffic.Hash() : 0) + Mix(0x1E7E1UL ^ (ulong)(uint)Intel.Count);
+            r.Memory = (Traffic != null ? Traffic.Hash() : 0) + Mix(0x1E7E1UL ^ (ulong)(uint)Intel.Count) + Director.Hash();
+            foreach (int pa in PendingAmbushes) r.Memory += Mix(0xA3B05UL ^ (ulong)(uint)pa);
             return r;
         }
 
