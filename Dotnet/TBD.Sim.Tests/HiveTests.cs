@@ -94,6 +94,88 @@ namespace TBD.Sim.Tests
                 check(siegeLater, "desde el día 2 el director lanza asedios (como mucho uno a la vez en la etapa 1)");
                 check(ambushOrCut, "con el horario fijo, el director prepara emboscadas o cortes en los tramos que ha aprendido");
                 Console.WriteLine("         informe del director en 6 días: " + string.Join(" | ", events.GetRange(0, Math.Min(8, events.Count))));
+                check(wd.Intel.Exists(e => e.Id == "ES-1"), "un tren que sale de una estación amenazada lleva una manada detrás (caza, ES-1)");
+            }
+
+            // ---- D-N32: cada asedio se anuncia 3 h antes («Horda hacia X en 3 h») y el primero empieza entre las 10:00 y las 16:00 del día 2
+            {
+                var wf = NetScenario.Mvp();
+                long warnTick = -1, startTick = -1;
+                for (long t = 0; t < 3L * NetConst.DayTicks && startTick < 0; t++)
+                {
+                    wf.Step();
+                    if (warnTick < 0 && wf.Alerts.Exists(a => a.Text.StartsWith("Horda hacia"))) warnTick = wf.Tick;
+                    if (wf.Intel.Exists(e => e.Id == "ES-2")) startTick = wf.Tick;
+                }
+                long tod = startTick % NetConst.DayTicks;
+                check(warnTick > 0 && startTick - warnTick >= NetConst.Hours(3) - NetConst.FieldEvery, $"el asedio se avisa con 3 h ({NetConst.Clock(warnTick)} → {NetConst.Clock(startTick)})");
+                check(startTick / NetConst.DayTicks == 1 && tod >= NetConst.Hours(10) && tod <= NetConst.Hours(16), $"el primer asedio cae de día, el día 2 entre las 10:00 y las 16:00 (día {startTick / NetConst.DayTicks + 1}, {NetConst.Clock(startTick)})");
+            }
+
+            // ---- D-N33/D-N34: los valores de Hugo en balance_colmena.csv coinciden con los del director
+            {
+                var dc = DirectorParams.Default.WithColmena(new CsvTable(File.ReadAllText(Path.Combine(dir, "balance_colmena.csv"))));
+                var dd = DirectorParams.Default;
+                check(dc.BudgetCurveMil == dd.BudgetCurveMil && dc.SiegeShareMil == dd.SiegeShareMil && dc.SiegeDays == dd.SiegeDays && dc.WeightBase == dd.WeightBase
+                    && dc.WeightInteriorMil == dd.WeightInteriorMil && dc.WeightNestMil == dd.WeightNestMil && dc.AmbushShareMil == dd.AmbushShareMil
+                    && dc.AmbushPerMem == dd.AmbushPerMem && dc.CutPerMem == dd.CutPerMem && dc.MaxSiegesStage1 == dd.MaxSiegesStage1
+                    && dc.PointUniqueMil == dd.PointUniqueMil && dc.AttentionMil == dd.AttentionMil && dc.RespiteMinH == dd.RespiteMinH && dc.RespiteMaxH == dd.RespiteMaxH,
+                    $"balance_colmena.csv (D-N33/34) coincide con el director: curva ×{dc.BudgetCurveMil}‰, asedio {dc.SiegeShareMil}‰ y {dc.SiegeDays} días, respiro {dc.RespiteMinH}-{dc.RespiteMaxH} h");
+                Console.WriteLine($"         presupuesto por hora (‰ de densidad): día 1 {HiveDirector.HourlyBudgetPermil(0, null, 1360)}, día 2 {HiveDirector.HourlyBudgetPermil(1, null, 1360)}, día 3 {HiveDirector.HourlyBudgetPermil(2, null, 1360)}, día 20 {HiveDirector.HourlyBudgetPermil(19, null, 1360)}");
+            }
+
+            // ---- D-N33/D-N34: asedio por calendario (siempre uno desde el primero, salvo el respiro de 6-12 h), objetivo sorteado por peso²
+            {
+                var wc = NetScenario.Mvp();
+                var starts = new System.Collections.Generic.List<long>();
+                var ends = new System.Collections.Generic.List<long>();
+                var targets = new System.Collections.Generic.Dictionary<string, int>();
+                bool prev = false; int maxAt = 0;
+                for (long t = 0; t < 20L * NetConst.DayTicks; t++)
+                {
+                    wc.Step();
+                    int n = 0; HiveDirector.Plan cur = default;
+                    foreach (var pl in wc.Director.Active) if (pl.Kind == HiveDirector.PlanKind.Asedio && pl.Started) { n++; cur = pl; }
+                    maxAt = Math.Max(maxAt, n);
+                    if (n > 0 && !prev) { starts.Add(wc.Tick); string nm = wc.Graph.Nodes[cur.Node].Name; targets[nm] = targets.TryGetValue(nm, out int c) ? c + 1 : 1; }
+                    if (n == 0 && prev) ends.Add(wc.Tick);
+                    prev = n > 0;
+                }
+                bool gapsOk = true; string gaps = "";
+                for (int i = 0; i < ends.Count && i + 1 < starts.Count; i++)
+                {
+                    long g = starts[i + 1] - ends[i];
+                    gaps += (g / NetConst.Hours(1)) + "h ";
+                    if (g < NetConst.Hours(6) || g > NetConst.Hours(12) + NetConst.Hours(3) + NetConst.Hours(1)) gapsOk = false;   // respiro + aviso de 3 h (+1 h de granularidad)
+                }
+                var tl = new System.Collections.Generic.List<string>(); foreach (var kv in targets) tl.Add(kv.Key + " " + kv.Value);
+                check(maxAt == 1 && starts.Count >= 6, $"desde el día 2 hay asedio por calendario, uno a la vez en la etapa 1 ({starts.Count} asedios en 20 días)");
+                check(gapsOk && ends.Count > 0, $"entre asedios, un respiro de 6-12 h más el aviso de 3 h (huecos: {gaps.Trim()})");
+                check(targets.Count >= 2, $"el objetivo se sortea por peso² y no es siempre el mismo ({string.Join(", ", tl)})");
+                check(wc.Field.Mass() == NetScenario.Mvp().Field.Mass(), "el reparto por peso (deriva) tampoco crea zombis en 20 días");
+            }
+
+            // ---- parámetros del director en su CSV (Hugo los calibra sin tocar C#)
+            {
+                var dp = DirectorParams.FromCsv(new CsvTable(File.ReadAllText(Path.Combine(dir, "balance_director.csv"))));
+                var dd = DirectorParams.Default;
+                check(dp.SiegeWarnH == 3 && dp.FirstSiegeFromH == 10 && dp.FirstSiegeToH == 16 && dp.SiegePerPerson == dd.SiegePerPerson && dp.SiegeCooldownH == dd.SiegeCooldownH && dp.HuntPerHour == dd.HuntPerHour && dp.AttentionHours == dd.AttentionHours,
+                    "balance_director.csv carga y coincide con los valores por defecto del director");
+            }
+
+            // ---- memoria de atención: más de 6 h en una zona hace que el director asedie OTRO nodo (AT-1)
+            {
+                var wa = NetScenario.Mvp();
+                for (long t = 0; t < NetConst.DayTicks; t++) wa.Step();                 // día 1 entero (sin asedios)
+                int sag = wa.Graph.Nodes.FindIndex(n => n.Name == "Sagunto");
+                var cas = wa.Graph.Nodes.Find(n => n.Name == "Castellón");
+                wa.Field.D[cas.YMeters * HordeField.W + cas.XMeters] = 300;             // Castellón amenazada (con gente): objetivo posible
+                wa.Push(new NetCommand { Tick = wa.Tick, Type = NetCmdType.Materialize, Arg = sag });
+                bool at1 = false;
+                // el escenario empieza a las 05:30: el primer asedio (10:00) llega con 4,5 h de atención; el siguiente, ya con más de 6 h
+                for (long t = 0; t < 4L * NetConst.DayTicks && !at1; t++) { wa.Step(); at1 = wa.Intel.Exists(e => e.Id == "AT-1"); }
+                var ae = wa.Intel.Find(e => e.Id == "AT-1");
+                check(at1, at1 ? $"tras más de 6 h en la zona de Sagunto, el director ataca otro nodo: AT-1 {ae.Vars[1]} mientras defendías {ae.Vars[3]}" : $"AT-1 no aparece en 4 días con el jugador en Sagunto (zona {wa.ActiveZoneNode}, atención {wa.Director.AttentionTicks[sag]}, ES-2 {wa.Intel.FindAll(e => e.Id == "ES-2").Count}, foco {wa.Director.AttentionNode(wa)})");
             }
         }
     }

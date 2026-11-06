@@ -12,8 +12,20 @@ rampa_dia1;500;1000;
 rampa_dia2;800;1000;primer asedio anunciado
 exposicion_interior;1400;1000;
 sigma_ataque;300;1000;ruido lognormal, semilla del lockstep
-asedio_fraccion_H;450;1000;
-asedio_mult;1800;1000;
+asedio_fraccion_H;600;1000;D-N33: parte del presupuesto del director para los asedios activos, el resto, a los demás nodos por peso
+asedio_mult;1000;1000;D-N33: 1000, porque la masa se conserva
+director_presupuesto_curva;1360;1000;D-N33: presupuesto diario = curva x 1,36 desde el día 2, repartir /24 por hora, la interdicción usa la curva sin x1,36
+asedio_dura_dias;2;1;D-N33: un asedio sigue 2 días, luego, nuevo objetivo (es el enfriamiento de 2 días)
+director_peso_nodo_base;60;1;D-N33: peso = (60 + población) x interior x nido, sorteo con la semilla del tick y probabilidad proporcional a peso al cuadrado, no el máximo
+director_peso_interior;1400;1000;D-N33
+director_peso_punto_unico;1500;1000;D-N34: Castellón, única fuente de combustible (OB-1)
+director_peso_atencion;1500;1000;D-N34: nodos sin presencia del jugador en más de 6 h de juego (AT-1)
+asedio_respiro_min_h;6;1;D-N34: horas sin asedio nuevo en esa rama tras terminar uno, sorteo 6–12 con la semilla
+asedio_respiro_max_h;12;1;D-N34: la masa del respiro vuelve a la deriva y se reparte por peso, no desaparece
+director_peso_nido_valencia;2000;1000;D-N33
+emboscada_fraccion;250;1000;D-N33: de la parte que no va a asedios, emboscada si 600 <= memoria < 850
+emboscada_utilidad_x_memoria;2;1;D-N33: prototipo de Marcos, solo compite con el corte, nunca con el asedio
+corte_utilidad_x_memoria;3;1;D-N33: corte si la memoria >= 850, 3 > 2, así que siempre gana a la emboscada
 asedio_grande_cada_dias;7;1;
 asedio_grande_mult;2000;1000;
 asedios_max_etapa1;1;1;D-N08

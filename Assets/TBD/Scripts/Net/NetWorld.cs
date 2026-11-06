@@ -346,6 +346,7 @@ namespace TBD.Net
             ApplyCommands();                 // en cada tick, no al ritmo de los fotogramas (QA Q5)
             if (Paused) return;
             for (int s = 0; s < Services.Count; s++) StepService(Services[s]);
+            if (ActiveZoneNode >= 0 && ActiveZoneNode < Director.AttentionTicks.Length) { Director.AttentionTicks[ActiveZoneNode]++; Director.LastSeenTick[ActiveZoneNode] = Tick; }   // memoria de atención
             if (DirectorEnabled && Tick % 1500 == 0) Director.Hourly(this);       // una vez por hora de juego
             if (Tick % NetConst.FieldEvery == 0)
             {
@@ -364,6 +365,13 @@ namespace TBD.Net
             {
                 var prev = Alerts;
                 Alerts = AlertEngine.Evaluate(Graph, Trains(), Tick);
+                foreach (var pl in Director.Active)                                  // aviso de asedio: «Horda en 3 h» (Mak, D-N32)
+                {
+                    if (pl.Kind != HiveDirector.PlanKind.Asedio || pl.Started) continue;
+                    long eta = pl.StartTick - Tick;
+                    Alerts.Add(new Alert { Id = (5 << 24) ^ pl.Node, Kind = AlertKind.HordaCercaDelTren, Priority = 1, EtaTicks = eta, Subject = pl.Node,
+                        Text = "Horda hacia " + Graph.Nodes[pl.Node].Name + " en " + AlertEngine.EtaMinutes(eta) / 60 + " h " + AlertEngine.EtaMinutes(eta) % 60 + " min (" + NetConst.Clock(pl.StartTick) + ")" });
+                }
                 foreach (var sv in Services)
                 {
                     var ce = sv.AtStop ? null : sv.Train.CurrentEdge(Graph);
@@ -406,6 +414,7 @@ namespace TBD.Net
                 t.SetRoute(route);
                 t.Go();
                 PassEdge(s, t.CurrentEdge(Graph));                    // entra en el primer tramo: la Colmena lo apunta
+                if (DirectorEnabled) Director.OnDeparture(this, Services.IndexOf(s), stop.Node);   // ¿una manada lo sigue? (caza)
                 s.AtStop = false;
                 s.StopIndex = next;
                 return;
@@ -479,7 +488,7 @@ namespace TBD.Net
                 n.State = d >= ThreatAt ? NodeState.Amenazada : NodeState.Segura;
             }
             foreach (var pl in Director.Active)                                   // asedio real (director, desde el día 2)
-                if (pl.Kind == HiveDirector.PlanKind.Asedio) Graph.Nodes[pl.Node].State = NodeState.Asediada;
+                if (pl.Kind == HiveDirector.PlanKind.Asedio && pl.Started) Graph.Nodes[pl.Node].State = NodeState.Asediada;
             foreach (var e in Graph.Edges)
             {
                 var a = Graph.Nodes[e.A];

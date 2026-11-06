@@ -1,0 +1,17 @@
+clave;valor;escala;nota
+utilidad_asedio_por_persona;4;1;PROTOTIPO (Marcos), para que Hugo calibre: valor de un nodo por persona
+utilidad_emboscada_por_memoria;2;1;PROTOTIPO: utilidad = memoria × esto
+utilidad_corte_por_memoria;3;1;PROTOTIPO: utilidad = memoria × esto (con memoria ≥ umbral de corte)
+asedio_densidad;600;1;por mil de densidad que concentra un asedio
+emboscada_densidad;250;1;por mil que concentra una emboscada
+asedio_enfriamiento_horas;48;1;horas entre dos asedios nuevos
+asedio_duracion_horas;18;1;
+emboscada_antelacion_horas;2;1;la emboscada se prepara 1-2 h antes (Lucía)
+atencion_horas_dia;6;1;horas de juego en una zona que disparan «sabe dónde estás» (Lucía, balance_colmena)
+atencion_bonus;400;1;utilidad extra de asediar OTRO nodo cuando salta la atención
+caza_densidad_hora;80;1;por mil que la manada mueve cada hora tras el tren
+caza_duracion_horas;3;1;
+caza_umbral_densidad;150;1;densidad del nodo de salida para que una manada siga al tren (amenazada)
+asedio_aviso_horas;3;1;aviso «Horda en 3 h» antes de cada asedio (Mak, D-N32)
+primer_asedio_desde_h;10;1;D-N32 (Lucía): el primer asedio de la partida empieza de día
+primer_asedio_hasta_h;16;1;D-N32
