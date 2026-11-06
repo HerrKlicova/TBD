@@ -120,8 +120,10 @@ namespace TBD.Sim.Tests
             }
             int levelZone = (int)Math.Min(uE4 / 300_000, p.LevelMaxMil);
             check(levelZone == wl.Works.LevelMil(Node), $"S0 = S2: el nivel recalculado desde los sólidos de la zona ({levelZone} ‰) es el del S0 ({wl.Works.LevelMil(Node)} ‰); {solids} sólidos");
-            var back = WorldWithZone(); back.Works.Restore(Node, zone);
-            check(back.Works.Hash() == wl.Works.Hash() && back.Works.LevelMil(Node) == wl.Works.LevelMil(Node), "materializar y desmaterializar (copiar y devolver) no cambia el hash ni el nivel");
+            ulong hBefore = wl.Works.Hash(); int lBefore = wl.Works.LevelMil(Node);
+            wl.Works.Restore(Node, new List<WorkPiece>()); check(wl.Works.Count(Node) == 0 && wl.Works.LevelMil(Node) == 0, "la zona recoge las piezas (Snapshot) y el nodo queda vacío mientras tanto");
+            wl.Works.Restore(Node, zone);
+            check(wl.Works.Hash() == hBefore && wl.Works.LevelMil(Node) == lBefore, "materializar y desmaterializar (copiar y devolver) no cambia el hash ni el nivel");
             check(Obras.HeightMm(PieceKind.Hesco) == 2100 && Obras.HeightMm(PieceKind.Sacos) == 1200, "alturas de la pieza: sacos 1,2 m, HESCO 2,1 m");
 
             // ---- hash
@@ -158,6 +160,106 @@ namespace TBD.Sim.Tests
             long badTick = NetScenario.Mvp().Tick + 2000;
             var res2 = NetGolden.Verify(gold, (world, t) => { if (t == badTick && world.Works.Count(Node) > 0) { var l = world.Works.At(Node); var x = l[0]; x.LifeMil -= 1; l[0] = x; } });
             check(!res2.Ok, $"un solo ‰ de vida cambiado a escondidas se detecta: {res2}");
+
+            // ================================================================== paso 2: obreros, avance y cancelar
+            Console.WriteLine("[16] Obras (hito 5, paso 2): asignar obreros, avance de la obra y cancelar");
+            check(csv.CancelStartedMil == 500, "cancelar una obra empezada devuelve el 50 % (cancelar_obra_empezada_permil del CSV de Hugo)");
+
+            // un nodo sin paradas en ningún horario: los trenes no cargan su población durante la prueba
+            int quiet = -1;
+            for (int n = 0; n < NetScenario.Mvp().Graph.Nodes.Count && quiet < 0; n++)
+            {
+                bool stops = false; foreach (var sv in NetScenario.Mvp().Services) foreach (var st in sv.Stops) if (st.Node == n) stops = true;
+                if (!stops) quiet = n;
+            }
+            int StepsToBuild(int workers, int people, int[] pts, PieceKind k, int maxSteps, int node = Node)
+            {
+                var q = NetScenario.Mvp();
+                q.Stock[node, (int)Res.Materiales] = 900;
+                q.Push(new NetCommand { Tick = q.Tick, Type = NetCmdType.Materialize, Arg = node }); q.ApplyCommands();
+                q.Stock[node, (int)Res.Personas] = people;
+                q.Push(new NetCommand { Tick = q.Tick, Type = NetCmdType.PlaceWork, Arg = node | ((int)k << 16), Payload = pts });
+                q.Push(new NetCommand { Tick = q.Tick, Type = NetCmdType.AssignWorkers, Arg = node, Arg2 = workers });
+                q.ApplyCommands();
+                for (int i = 1; i <= maxSteps; i++)
+                {
+                    q.Step();
+                    bool all = true; foreach (var x in q.Works.At(node)) if (!x.Built) all = false;
+                    if (all) return i;
+                }
+                return -1;
+            }
+            int[] ten = { 0, 0, 10_000, 0 };
+            check(StepsToBuild(2, 300, ten, PieceKind.Sacos, 5000) == 1500, "10 m de sacos son 2 obrero·h: con 2 obreros se terminan en 1 h de juego (1.500 ticks) exactos");
+            check(StepsToBuild(4, 300, ten, PieceKind.Sacos, 5000) == 750, "con 4 obreros, en la mitad (750 ticks): con más obreros va más rápida");
+            check(StepsToBuild(8, 300, ten, PieceKind.Sacos, 5000) == 750, "4 es el máximo por pieza: con 8 obreros en una sola pieza no va más rápida");
+            check(quiet >= 0 && StepsToBuild(6, 1, ten, PieceKind.Sacos, 5000, quiet) == 3000, "los obreros se limitan a la población del nodo: con 1 persona, 3.000 ticks");
+            check(StepsToBuild(0, 300, ten, PieceKind.Sacos, 4000) == -1, "sin obreros asignados la obra no avanza");
+            check(StepsToBuild(2, 0, ten, PieceKind.Sacos, 4000) == -1, "sin población en el nodo no trabaja nadie");
+            check(StepsToBuild(4, 300, new[] { 0, 0 }, PieceKind.Anden, 5000) == 3750 && StepsToBuild(4, 300, new[] { 0, 0 }, PieceKind.Foco, 5000) == 750, "andén (10 obrero·h) con 4 obreros: 3.750 ticks; foco (2 obrero·h): 750");
+            int ring = StepsToBuild(8, 300, Square(18750), PieceKind.Sacos, 20000);
+            check(ring >= 5625 && ring <= 5640, $"150 m de sacos (30 obrero·h) con 8 obreros: unas 3,75 h de juego, {ring} ticks");
+
+            var wo = WorldWithZone(900);
+            wo.Push(Place(wo.Tick, PieceKind.Hesco, Square(18750)));
+            wo.Push(new NetCommand { Tick = wo.Tick, Type = NetCmdType.AssignWorkers, Arg = Node, Arg2 = 12 }); wo.ApplyCommands();
+            check(wo.Works.IsActive(Node) && !wo.Works.IsActive(1), "una obra con obreros está activa (es lo que atrae a la Colmena); otro nodo no");
+            int built0 = 0; for (int i = 0; i < 3000; i++) wo.Step();
+            foreach (var x in wo.Works.At(Node)) if (x.Built) built0++;
+            int lvl = wo.Works.LevelMil(Node);
+            check(built0 > 0 && built0 < 16 && lvl > 0 && lvl < 3000, $"a mitad de obra solo cuenta lo terminado: {built0} de 16 módulos, nivel {lvl} ‰ de 3.000");
+            while (wo.Works.IsActive(Node)) wo.Step();
+            check(wo.Works.LevelMil(Node) == 3000 && !wo.Works.IsActive(Node), $"terminada la obra, el nivel de los 150 m de HESCO es el de D-N44 (nivel 3): {wo.Works.LevelMil(Node)} ‰");
+
+            // cancelar: 100 % si no ha empezado, 50 % si ya hay trabajo hecho; lo terminado se queda
+            var wc = WorldWithZone(900);
+            wc.Push(Place(wc.Tick, PieceKind.Hesco, 0, 0, 100_000, 0)); wc.ApplyCommands();           // 60 u
+            check(wc.Stock[Node, (int)Res.Materiales] == 840 && wc.Works.Count(Node) == 10, "100 m de HESCO: 60 u y 10 módulos");
+            wc.Push(new NetCommand { Tick = wc.Tick, Type = NetCmdType.CancelWork, Arg = Node, Arg2 = 0 }); wc.ApplyCommands();
+            check(wc.Stock[Node, (int)Res.Materiales] == 900 && wc.Works.Count(Node) == 0, "cancelar una obra sin empezar devuelve el 100 % (60 u)");
+            wc.Push(Place(wc.Tick, PieceKind.Hesco, 0, 0, 100_000, 0)); wc.Push(new NetCommand { Tick = wc.Tick, Type = NetCmdType.AssignWorkers, Arg = Node, Arg2 = 4 }); wc.ApplyCommands();
+            for (int i = 0; i < 10; i++) wc.Step();
+            wc.Push(new NetCommand { Tick = wc.Tick, Type = NetCmdType.CancelWork, Arg = Node, Arg2 = 1 }); wc.ApplyCommands();
+            check(wc.Stock[Node, (int)Res.Materiales] == 870 && wc.Works.Count(Node) == 0, $"cancelar una obra ya empezada devuelve el 50 % (30 de 60 u): quedan {wc.Stock[Node, (int)Res.Materiales]} u");
+            wc.Push(Place(wc.Tick, PieceKind.Sacos, 0, 0, 20_000, 0)); wc.ApplyCommands();            // obra 2: dos módulos, 4 u
+            while (wc.Works.At(Node)[0].Built == false) wc.Step();                                   // 4 obreros terminan el primero y empiezan el segundo
+            int before = wc.Stock[Node, (int)Res.Materiales], pieces = wc.Works.Count(Node);
+            wc.Push(new NetCommand { Tick = wc.Tick, Type = NetCmdType.CancelWork, Arg = Node, Arg2 = 2 }); wc.ApplyCommands();
+            check(wc.Works.Count(Node) == 1 && wc.Works.At(Node)[0].Built && wc.Stock[Node, (int)Res.Materiales] == before + 1 && pieces == 2, $"al cancelar, lo ya terminado se queda y del resto vuelve el 50 % (1 de 2 u): quedan {wc.Works.Count(Node)} pieza y {wc.Stock[Node, (int)Res.Materiales]} u");
+            wc.Push(new NetCommand { Tick = wc.Tick, Type = NetCmdType.CancelWork, Arg = Node, Arg2 = 77 }); wc.ApplyCommands();
+            check(wc.Works.Count(Node) == 1, "cancelar una obra que no existe no hace nada");
+
+            // hash y repetición con las órdenes nuevas
+            var ha = WorldWithZone(); var hb = WorldWithZone();
+            foreach (var q in new[] { ha, hb })
+            {
+                q.Push(Place(q.Tick, PieceKind.Hesco, Square(18750))); q.Push(new NetCommand { Tick = q.Tick, Type = NetCmdType.AssignWorkers, Arg = Node, Arg2 = 9 }); q.ApplyCommands();
+                for (int i = 0; i < 1500; i++) q.Step();
+            }
+            check(ha.Hash() == hb.Hash() && ha.Works.Workers[Node] == 9, "dos mundos con las mismas órdenes y 1.500 ticks de obra dan el mismo hash");
+            var fresh = WorldWithZone(); fresh.Push(Place(fresh.Tick, PieceKind.Hesco, Square(18750))); fresh.ApplyCommands();
+            ulong hNo = fresh.Works.Hash();
+            fresh.Push(new NetCommand { Tick = fresh.Tick, Type = NetCmdType.AssignWorkers, Arg = Node, Arg2 = 1 }); fresh.ApplyCommands();
+            check(fresh.Works.Hash() != hNo, "asignar un solo obrero cambia el hash");
+            for (int i = 0; i < 20; i++) fresh.Step();
+            ulong hW = fresh.Works.Hash(); var fp = fresh.Works.At(Node); var f0 = fp[0]; f0.WorkE4 -= 1; fp[0] = f0;
+            check(fresh.Works.Hash() != hW, "1/10.000 de obrero·tick de trabajo cambia el hash");
+
+            var script2 = new List<NetCommand>
+            {
+                new NetCommand { Tick = T(0.1), Type = NetCmdType.Materialize, Arg = Node },
+                Place(T(0.2), PieceKind.Hesco, Square(18750)),
+                new NetCommand { Tick = T(0.3), Type = NetCmdType.AssignWorkers, Arg = Node, Arg2 = 10 },
+                Place(T(0.4), PieceKind.Sacos, 0, 0, 30_000, 0),
+                new NetCommand { Tick = T(0.8), Type = NetCmdType.CancelWork, Arg = Node, Arg2 = 1 },
+                new NetCommand { Tick = T(1.2), Type = NetCmdType.AssignWorkers, Arg = Node, Arg2 = 0 },
+            };
+            string gold2 = NetGolden.Record(script2, 3000);
+            var r3 = NetGolden.Verify(gold2);
+            check(r3.Ok && gold2.Contains(";10;" + Node + ";10\n") && gold2.Contains(";11;" + Node + ";1\n"), $"grabar y reproducir asignar obreros y cancelar: {r3}");
+            long bad2 = NetScenario.Mvp().Tick + 2500;
+            var r4 = NetGolden.Verify(gold2, (world, t) => { if (t == bad2) world.Works.Workers[Node] += 1; });
+            check(!r4.Ok, $"un obrero de más a escondidas se detecta: {r4}");
         }
     }
 }

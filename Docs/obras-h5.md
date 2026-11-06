@@ -28,10 +28,17 @@ recorriendo la polilínea desde el primer vértice. Menos de `muro_minimo_mm` (1
 `NetCommand.Payload` es nuevo; `NetGolden` lo guarda como quinto campo opcional (los .golden antiguos se siguen leyendo).
 Solo se acepta con la **zona del nodo materializada** (`ActiveZoneNode == nodo`).
 
+## Obreros, avance y cancelar (paso 2)
+- `NetCmdType.AssignWorkers = 10` (`Arg` = nodo, `Arg2` = obreros) y `CancelWork = 11` (`Arg` = nodo, `Arg2` = número de obra; una orden `PlaceWork` = una obra, y `WorkPlan.Id` lo devuelve).
+- Cada tick, en cada nodo, trabajan `min(obreros asignados, población del nodo)`. Se reparten por obra (la más antigua primero), como mucho **4 por pieza**; cada obrero aporta 1 obrero·tick (1 obrero·h = 1.500 ticks).
+- Trabajo de una pieza (`NeedE4`, en 1/10.000 de obrero·tick): sacos 2 obrero·h por 10 m, HESCO 4 por 10 m, puerta 4, nido 6, foco 2, depósito 8, andén 10. Un muro de 10 m de sacos con 2 obreros: 1.500 ticks exactos.
+- `ObrasState.IsActive(nodo)` = hay obreros asignados y alguna pieza sin terminar. Es lo que usará el director para el sondeo de obra.
+- Cancelar: 100 % de lo pagado si nadie ha empezado; 50 % (`cancelar_obra_empezada_permil`, ya en el CSV) si hay trabajo hecho o piezas terminadas. Lo terminado se queda.
+- `ObrasState.CompleteAll` sigue ahí solo como atajo de pruebas.
+
 ## Lo que queda para los pasos siguientes
-- Orden «asignar obreros» y avance de la obra: hoy `ObrasState.CompleteAll` (provisional) es lo único que marca piezas como construidas.
-- Cancelar (100 % / 50 %), daño y desgaste diario (1 %), terreno asegurado (rejilla de densidad de la zona).
+- Daño y desgaste diario (1 %), terreno asegurado (rejilla de densidad de la zona).
 - Sondeo de obra en el director (83 ‰/h, 5 % del presupuesto, nodo ×1,5) y huella 0,5.
 - Valores que no están en `balance_construccion.csv` y viven en el código con `TryValue`: `muro_modulo_mm` (10.000), `muro_minimo_mm` (1.000),
-  `perimetro_mm` (60.000), `nivel_u_por_nivel` (30). Alturas: sacos 1.200, HESCO y puerta 2.100, nido y andén 1.500 mm.
+  `perimetro_mm` (60.000), `nivel_u_por_nivel` (30), `obra_max_obreros_por_pieza` (4) y las horas de obra de cada pieza (`obra_sacos_h_por_10m` 2, `obra_hesco_h_por_10m` 4, `obra_puerta_h` 4, `obra_nido_h` 6, `obra_foco_h` 2, `obra_deposito_h` 8, `obra_anden_h` 10; salen de `diseno-hito5.md` §2). Alturas: sacos 1.200, HESCO y puerta 2.100, nido y andén 1.500 mm.
 - Integración en la zona (Marcos): leer `Works.Snapshot(nodo)` al materializar y devolver con `Works.Restore(nodo, piezas)` al salir.
