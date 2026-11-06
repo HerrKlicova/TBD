@@ -33,7 +33,7 @@ namespace TBD.View
         public static Mesh ZombieMesh;
         public static Material ZombieMaterial, ZombieLodMaterial;
         public static Material[] Materials;               // una por camisa del zombi de Teo (meshes[i] con materials[i])
-        public static int Variants = 1;
+        public static int Variants = 1, MeshVariants = 1;      // camisas (materiales) y siluetas (mallas) del zombi de Teo
         public static RenderMeshArray Array;
         public static bool Ready;
         /// <summary>D-N61: a poco zoom cada zombi se dibuja con el sprite de masa de 8 px (con histéresis, la decide PrototypeBootstrap).</summary>
@@ -45,7 +45,7 @@ namespace TBD.View
         public static void SetVariants(Mesh[] meshes, Material[] materials)
         {
             ZombieMesh = meshes[0]; ZombieMaterial = materials[0]; ZombieLodMaterial = materials[0];
-            Materials = materials; Variants = materials.Length;
+            Materials = materials; Variants = materials.Length; MeshVariants = meshes.Length;
             Array = new RenderMeshArray(materials, meshes);
             Ready = true;
         }
@@ -93,7 +93,13 @@ namespace TBD.View
             for (int i = 0; i < ents.Length; i++)
             {
                 var e = ents[i];
-                if (teo) { int v = (int)(math.hash(new uint2(zs[i].SimId, 41u)) % (uint)RenderAssets.Variants); mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(v, v); }   // camisa por hash del id
+                if (teo)                                                                                          // camisa y silueta por hash del id (sembrado, solo presentación)
+                {
+                    uint hv = math.hash(new uint2(zs[i].SimId, 41u));
+                    mmi = MaterialMeshInfo.FromRenderMeshArrayIndices((int)(hv % (uint)RenderAssets.Variants), (int)((hv >> 8) % (uint)RenderAssets.MeshVariants));
+                    float sy = 0.95f + 0.10f * (((hv >> 16) & 255u) / 255f);                                     // altura ±5 % por instancia
+                    scale = new PostTransformMatrix { Value = float4x4.Scale(1f, sy, 1f) };
+                }
                 RenderMeshUtility.AddComponents(e, em, desc, RenderAssets.Array, mmi);
                 var lt = LocalTransform.FromPositionRotation(new float3(zs[i].Pos.x, zs[i].Pos.y + 0.05f, zs[i].Pos.z), quaternion.RotateY(zs[i].Heading));
                 if (em.HasComponent<LocalTransform>(e)) em.SetComponentData(e, lt); else em.AddComponentData(e, lt);

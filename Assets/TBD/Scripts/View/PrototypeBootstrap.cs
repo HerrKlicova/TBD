@@ -1186,6 +1186,16 @@ namespace TBD.View
         /// bloquean a la horda (segmentos de BuildWall en los dos mundos); el resto es decorado. Nada ocupa la vía ni el hueco de la puerta.
         /// </summary>
         /// <summary>Instancia un modelo de Teo (LOD1, paleta con filtro de punto) de cara a +Z girado yaw grados; null si falta.</summary>
+        /// <summary>Variante determinista de una pieza de Sagunto (base + v1..v5) según su posición: carpeta/archivo para PlaceModel.</summary>
+        GameObject PlaceVariant(string pieza, Vector3 pos, float yaw, Transform parent)
+        {
+            int k = (int)(math_hash((int)(pos.x * 10f), (int)(pos.z * 10f)) % 6u);
+            if (k == 0) return PlaceModel(pieza, "SM_" + pieza + "_LOD1", pos, yaw, parent);
+            return PlaceModel(pieza + "/v" + k, "SM_" + pieza + "_v" + k + "_LOD1", pos, yaw, parent);
+        }
+
+        static uint math_hash(int a, int b) { return Unity.Mathematics.math.hash(new Unity.Mathematics.int2(a, b)); }
+
         GameObject PlaceModel(string folder, string file, Vector3 pos, float yaw, Transform parent)
         {
             var prefab = Resources.Load<GameObject>("Models/Sagunto/" + folder + "/" + file); var tex = Resources.Load<Texture2D>("Models/Sagunto/" + folder + "/T_Paleta32");
@@ -1239,17 +1249,17 @@ namespace TBD.View
             for (int i = 0; i < 3; i++) houses.Add(new Vector3(94f + i * 11f, 0f, 109f));
             foreach (var hp in houses)
             {
-                if (PlaceModel("casa_baja", "SM_casa_baja_LOD1", hp, 180f, root) == null) Box("Casa", hp + new Vector3(0f, 2f, 0f), new Vector3(8f, 4f, 7f), wall, root);
+                if (PlaceVariant("casa_baja", hp, 180f, root) == null) Box("Casa", hp + new Vector3(0f, 2f, 0f), new Vector3(8f, 4f, 7f), wall, root);
                 foreach (float dz in new[] { -2.5f, 0f, 2.5f })
                     Push(CmdType.BuildWall, 4500, new Unity.Mathematics.float2(hp.x - 3f, hp.z + dz), new Unity.Mathematics.float2(hp.x + 3f, hp.z + dz));
             }
             var blk = new Vector3(172f, 0f, 70f);
-            if (PlaceModel("bloque_pisos", "SM_bloque_pisos_LOD1", blk, 270f, root) == null) Box("Bloque", blk + new Vector3(0f, 7f, 0f), new Vector3(10f, 14f, 14f), wall, root);
+            if (PlaceVariant("bloque_pisos", blk, 270f, root) == null) Box("Bloque", blk + new Vector3(0f, 7f, 0f), new Vector3(10f, 14f, 14f), wall, root);
             foreach (float dx in new[] { -4f, -2f, 0f, 2f, 4f })                                   // bloque de 14 x 10 m girado: largo a lo largo de z
                 Push(CmdType.BuildWall, 14500, new Unity.Mathematics.float2(blk.x + dx, blk.z - 6f), new Unity.Mathematics.float2(blk.x + dx, blk.z + 6f));
             for (int row = 0; row < 2; row++)
                 for (int i = 0; i < 14; i++)
-                    PlaceModel("naranjo", "SM_naranjo_LOD1", new Vector3(80f + i * 5f + (row == 1 ? 2.5f : 0f), 0f, 121f + row * 4f), (i * 53 + row * 17) % 360, root);
+                    PlaceVariant("naranjo", new Vector3(80f + i * 5f + (row == 1 ? 2.5f : 0f), 0f, 121f + row * 4f), (i * 53 + row * 17) % 360, root);
             // colisión: solo edificio y almacén (cuatro segmentos de 2 m de grosor cada uno cubren el solar completo)
             foreach (float z in new[] { 75.5f, 77.5f, 79.5f, 81.5f, 83.3f })                    // huella de 20 x 9 m del edificio de Teo
                 Push(CmdType.BuildWall, 11000, new Unity.Mathematics.float2(96.5f, z), new Unity.Mathematics.float2(115.5f, z));
@@ -1280,16 +1290,21 @@ namespace TBD.View
             {
                 // zombi de cerca de Teo (D-N61): tres camisas, LOD1 de 168-192 triángulos, paleta 32x16 con filtro de punto; si faltan, la figura procedural
                 var teoMeshes = new System.Collections.Generic.List<Mesh>(); var teoMats = new System.Collections.Generic.List<Material>();
-                foreach (var camisa in new[] { "camisa_303424", "camisa_283440", "camisa_442c0c" })
+                foreach (var camisa in new[] { "camisa_303424", "camisa_283440", "camisa_442c0c" })                       // tres paletas de camisa (mismo UV en todas las siluetas)
                 {
-                    var go = Resources.Load<GameObject>("Models/Zombi/" + camisa + "/SM_zombi_fino_LOD1");
                     var tex = Resources.Load<Texture2D>("Models/Zombi/" + camisa + "/T_Paleta32");
-                    var mf = go != null ? go.GetComponentInChildren<MeshFilter>() : null;
-                    if (mf == null || tex == null) continue;
+                    if (tex == null) continue;
                     var mat = Mat("ffffff"); mat.SetTexture("_BaseMap", tex); mat.SetColor("_BaseColor", Color.white);
-                    teoMeshes.Add(mf.sharedMesh); teoMats.Add(mat);
+                    teoMats.Add(mat);
                 }
-                if (teoMeshes.Count == 3) RenderAssets.SetVariants(teoMeshes.ToArray(), teoMats.ToArray());
+                for (int vi = 1; vi <= 7; vi++)                                                                          // siluetas v1-v7 (v6 corpulenta, v7 baja de 1,63 m)
+                {
+                    var go = Resources.Load<GameObject>("Models/ZombiVar/v" + vi + "/SM_zombi_fino_v" + vi + "_LOD1");
+                    var mf = go != null ? go.GetComponentInChildren<MeshFilter>() : null;
+                    if (mf != null) teoMeshes.Add(mf.sharedMesh);
+                }
+                if (teoMeshes.Count == 0) { var g0 = Resources.Load<GameObject>("Models/Zombi/camisa_303424/SM_zombi_fino_LOD1"); if (g0 != null) teoMeshes.Add(g0.GetComponentInChildren<MeshFilter>().sharedMesh); }
+                if (teoMats.Count == 3 && teoMeshes.Count > 0) RenderAssets.SetVariants(teoMeshes.ToArray(), teoMats.ToArray());
                 else { capsule = BuildZombieFigure(); zm = Mat("ffffff"); zl = zm; RenderAssets.Set(capsule, zm, zl); }
             }
             else RenderAssets.Set(capsule, zm, zl);              // el color por instancia es blanco (ZombieBaseColor); la máscara lo pone magenta
