@@ -462,12 +462,35 @@ namespace TBD.Net
             Stock[node, (int)Res.Materiales] += Works.Cancel(node, id);
         }
 
-        /// <summary>Un tick de obra en cada nodo con obreros: trabajan los asignados que quepan en la población del nodo.</summary>
+        /// <summary>
+        /// La obra se pausa si el nodo está asediado o perdido, o tiene la horda encima (densidad de asedio) (Marcos, 6-nov). Sale del estado
+        /// del nodo, que sale del campo: no añade estado al hash.
+        /// </summary>
+        public bool WorkPaused(int node)
+        {
+            var nd = Graph.Nodes[node];
+            return nd.State == NodeState.Asediada || nd.State == NodeState.Perdida || nd.HordeDensity >= SiegeAt;
+        }
+
+        /// <summary>
+        /// Obreros que trabajan de verdad en el nodo: los asignados, sin dejar nunca la población por debajo de la guarnición mínima (12) y
+        /// ninguno mientras la obra esté pausada.
+        /// </summary>
+        public int EffectiveWorkers(int node)
+        {
+            if (WorkPaused(node)) return 0;
+            return Math.Max(0, Math.Min(Works.Workers[node], Stock[node, (int)Res.Personas] - Works.P.GarrisonMin));
+        }
+
+        /// <summary>Obra activa = hay trabajo pendiente y trabaja alguien. Es lo que hace ruido (sondeo), pesa en el asedio y suma huella.</summary>
+        public bool WorkActive(int node) { return Works.IsActive(node) && EffectiveWorkers(node) > 0; }
+
+        /// <summary>Un tick de obra en cada nodo con obreros efectivos.</summary>
         void AdvanceWorks()
         {
             for (int n = 0; n < Works.Workers.Length; n++)
             {
-                int w = Math.Min(Works.Workers[n], Stock[n, (int)Res.Personas]);
+                int w = EffectiveWorkers(n);
                 if (w > 0) Works.Advance(n, w);
             }
         }

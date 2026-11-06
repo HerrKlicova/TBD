@@ -20,6 +20,7 @@ namespace TBD.Net
         public int CostE4;               // lo pagado, en 1/10.000 de u
         public int LifeMil;              // 0..1000
         public bool Built;               // false = obra en marcha o fantasma pagado; solo lo construido cuenta para el nivel
+        public int MaxWorkers;           // obreros que pueden trabajar a la vez en esta pieza (el valor del CSV; el puente del Jiloca lleva 8)
         public int Id;                   // número de la obra (una orden = una obra) dentro del nodo; cancelar actúa sobre una obra entera
         public int NeedE4;               // trabajo necesario, en 1/10.000 de obrero·tick (1 obrero·h = 1.500 obrero·ticks)
         public int WorkE4;               // trabajo hecho (mismas unidades)
@@ -36,7 +37,8 @@ namespace TBD.Net
         public int LevelMaxMil;          // nivel máximo en ‰
         public int MaxPieces;            // tope de piezas por nodo
         public int MaxVertices;          // tope de vértices de una polilínea
-        public int MaxWorkersPerPiece;   // obreros que pueden trabajar a la vez en una misma pieza
+        public int MaxWorkersPerPiece;   // obreros que pueden trabajar a la vez en una misma pieza (obra_obreros_max_pieza; las obras grandes lo suben)
+        public int GarrisonMin;          // personas que no pueden ser obreros: la guarnición mínima del nodo (balance_economia.csv, 12)
         public int CancelStartedMil;     // lo que se recupera al cancelar una obra ya empezada (‰); si no ha empezado, el 100 %
         public int HSacos10, HHesco10, HPuerta, HNido, HFoco, HDeposito, HAnden;   // obra en obrero·h (por 10 m en los muros)
         public int CoordLimitMm;         // |coordenada| máxima (evita desbordes)
@@ -50,7 +52,7 @@ namespace TBD.Net
                     SacosPer10m = 2, HescoPer10m = 6, PuertaU = 6, NidoU = 8, FocoU = 2, AndenU = 6, DepositoU = 5,
                     ModuleMm = 10_000, MinWallMm = 1_000, PerimeterMm = 60_000, LevelDivU = 30, LevelMaxMil = 5_000,
                     MaxPieces = 2_000, MaxVertices = 32, CoordLimitMm = 2_000_000,
-                    MaxWorkersPerPiece = 4, CancelStartedMil = 500,
+                    MaxWorkersPerPiece = 4, GarrisonMin = 12, CancelStartedMil = 500,
                     HSacos10 = 2, HHesco10 = 4, HPuerta = 4, HNido = 6, HFoco = 2, HDeposito = 8, HAnden = 10
                 };
             }
@@ -72,14 +74,17 @@ namespace TBD.Net
             d.PerimeterMm = (int)t.TryValue("perimetro_mm", d.PerimeterMm);
             d.LevelDivU = (int)t.TryValue("nivel_u_por_nivel", d.LevelDivU);
             d.CancelStartedMil = (int)t.TryValue("cancelar_obra_empezada_permil", d.CancelStartedMil);
-            d.MaxWorkersPerPiece = (int)t.TryValue("obra_max_obreros_por_pieza", d.MaxWorkersPerPiece);
+            d.MaxWorkersPerPiece = (int)t.TryValue("obra_obreros_max_pieza", d.MaxWorkersPerPiece);
             d.HSacos10 = (int)t.TryValue("obra_sacos_h_por_10m", d.HSacos10); d.HHesco10 = (int)t.TryValue("obra_hesco_h_por_10m", d.HHesco10);
             d.HPuerta = (int)t.TryValue("obra_puerta_h", d.HPuerta); d.HNido = (int)t.TryValue("obra_nido_h", d.HNido);
             d.HFoco = (int)t.TryValue("obra_foco_h", d.HFoco); d.HDeposito = (int)t.TryValue("obra_deposito_h", d.HDeposito); d.HAnden = (int)t.TryValue("obra_anden_h", d.HAnden);
-            BalanceMath.Positive(d.MaxWorkersPerPiece, "obra_max_obreros_por_pieza");
+            BalanceMath.Positive(d.MaxWorkersPerPiece, "obra_obreros_max_pieza");
             BalanceMath.Positive(d.ModuleMm, "muro_modulo_mm"); BalanceMath.Positive(d.LevelDivU, "nivel_u_por_nivel");
             return d;
         }
+
+        /// <summary>Añade la guarnición mínima de balance_economia.csv (personas que no pueden dejar su puesto para construir).</summary>
+        public ObrasParams WithEconomia(CsvTable e) { var d = this; d.GarrisonMin = (int)e.TryValue("guarnicion_minima", d.GarrisonMin); return d; }
 
         public int PricePer10m(PieceKind k) { return k == PieceKind.Sacos ? SacosPer10m : HescoPer10m; }
 
@@ -203,7 +208,7 @@ namespace TBD.Net
                         Kind = kind,
                         X0 = (int)(ax + dx * prev / segLen[s]), Y0 = (int)(ay + dy * prev / segLen[s]),
                         X1 = (int)(ax + dx * t / segLen[s]), Y1 = (int)(ay + dy * t / segLen[s]),
-                        CostE4 = (int)(price * mlen), LifeMil = 1000, Built = false, NeedE4 = p.WorkE4(kind, mlen)
+                        CostE4 = (int)(price * mlen), LifeMil = 1000, Built = false, NeedE4 = p.WorkE4(kind, mlen), MaxWorkers = p.MaxWorkersPerPiece
                     };
                     plan.Pieces.Add(piece);
                     plan.CostE4 += piece.CostE4;
@@ -225,7 +230,7 @@ namespace TBD.Net
             if (x > p.CoordLimitMm || x < -p.CoordLimitMm || y > p.CoordLimitMm || y < -p.CoordLimitMm) { plan.Why = "fuera de la zona"; return plan; }
             if (pieceRoom < 1) { plan.Why = "demasiadas piezas en el nodo"; return plan; }
             if (stockU < u) { plan.Cut = true; plan.Why = "faltan materiales"; return plan; }
-            plan.Pieces.Add(new WorkPiece { Kind = kind, X0 = x, Y0 = y, X1 = x, Y1 = y, CostE4 = u * 10_000, LifeMil = 1000, Built = false, NeedE4 = p.WorkE4(kind, 0) });
+            plan.Pieces.Add(new WorkPiece { Kind = kind, X0 = x, Y0 = y, X1 = x, Y1 = y, CostE4 = u * 10_000, LifeMil = 1000, Built = false, NeedE4 = p.WorkE4(kind, 0), MaxWorkers = p.MaxWorkersPerPiece });
             plan.CostE4 = u * 10_000L;
             plan.CostU = u;
             plan.Ok = true;
@@ -317,7 +322,7 @@ namespace TBD.Net
             {
                 var w = l[i];
                 if (w.Built) continue;
-                int take = Math.Min(workers, P.MaxWorkersPerPiece);
+                int take = Math.Min(workers, w.MaxWorkers > 0 ? w.MaxWorkers : P.MaxWorkersPerPiece);
                 workers -= take;
                 long total = w.WorkE4 + (long)take * 10_000;
                 if (total >= w.NeedE4) { w.WorkE4 = w.NeedE4; w.Built = true; done++; } else w.WorkE4 = (int)total;
@@ -374,7 +379,7 @@ namespace TBD.Net
                     ulong b = ((ulong)(uint)w.X1 << 32) | (uint)w.Y1;
                     ulong c = (ulong)(uint)w.CostE4 | ((ulong)(uint)w.LifeMil << 32) | ((ulong)w.Kind << 52) | (w.Built ? 1UL << 60 : 0UL);
                     ulong d = (ulong)(uint)w.NeedE4 | ((ulong)(uint)w.WorkE4 << 32);
-                    h += NetWorld.Mix(NetWorld.Mix(NetWorld.Mix(NetWorld.Mix(0x0B2A5UL ^ ((ulong)(uint)n << 40) ^ (ulong)(uint)i) ^ a) ^ b) ^ NetWorld.Mix(c) ^ NetWorld.Mix(d ^ ((ulong)(uint)w.Id << 20)));
+                    h += NetWorld.Mix(NetWorld.Mix(NetWorld.Mix(NetWorld.Mix(0x0B2A5UL ^ ((ulong)(uint)n << 40) ^ (ulong)(uint)i) ^ a) ^ b) ^ NetWorld.Mix(c) ^ NetWorld.Mix(d ^ ((ulong)(uint)w.Id << 20) ^ ((ulong)(uint)w.MaxWorkers << 44)));
                 }
             }
             for (int n = 0; n < Workers.Length; n++)
