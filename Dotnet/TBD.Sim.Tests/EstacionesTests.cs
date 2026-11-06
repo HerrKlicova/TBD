@@ -80,6 +80,44 @@ namespace TBD.Sim.Tests
             for (int i = 0; i < 300; i++) { da.Step(); db.Step(); }
             check(da.Stations.Founded[sa] && da.Hash() == db.Hash(), "la orden FoundStation, aplicada en dos mundos, da el mismo hash 300 ticks después");
 
+            // «detener en el emplazamiento» (Mak, 6-nov): el tren para justo en el nodo al llegar y, con la carga, se funda
+            var wh = NetScenario.Mvp(); int hs = -1;
+            for (int i = 0; i < wh.Services.Count && hs < 0; i++)
+                for (int k = 0; k < wh.Services[i].Stops.Count && hs < 0; k++)
+                {
+                    var rt = wh.Graph.ShortestPath(wh.Services[i].Stops[k].Node, wh.Services[i].Stops[(k + 1) % wh.Services[i].Stops.Count].Node);
+                    if (rt.Contains(nules)) hs = i;
+                }
+            check(hs >= 0, "algún tren del horario pasa por Nules (si no, no se podría parar ahí)");
+            var svh = wh.Services[hs];
+            wh.Push(new NetCommand { Tick = wh.Tick, Type = NetCmdType.HaltAtSite, Arg = nules, Arg2 = hs }); wh.ApplyCommands();
+            check(svh.HaltAt == nules, "la orden anota el emplazamiento donde debe parar el tren");
+            int guard = 0; while (!svh.Held && guard++ < 3 * NetConst.DayTicks) wh.Step();
+            check(svh.Held && svh.Train.State == RailTrainState.Parado && svh.Train.Route[svh.Train.Leg] == nules && svh.Train.OffsetMm == 0 && svh.HaltAt == -1 && wh.TrainAtNode(svh, nules),
+                $"el tren para justo en Nules (en {guard} ticks, a {svh.Train.OffsetMm} mm del nodo) y queda retenido");
+            svh.Cargo[(int)Res.Materiales] = 30; svh.Cargo[(int)Res.Personas] = 12; wh.Graph.Nodes[nules].HordeDensity = 0;
+            check(wh.FoundStation(nules) == FoundResult.Ok && wh.StationKindOf(nules) == StationKind.Apeadero, "con la carga, desde el tren parado en Nules se funda la estación del día 3");
+            wh.Push(new NetCommand { Tick = wh.Tick, Type = NetCmdType.TrainGo, Arg = hs }); wh.ApplyCommands();
+            for (int i = 0; i < 200; i++) wh.Step();
+            check(!svh.Held && svh.Train.State == RailTrainState.EnMarcha && (svh.Train.Leg > 0 || svh.Train.OffsetMm > 0), "TrainGo lo suelta y sigue su ruta");
+            var wn = NetScenario.Mvp(); ulong hBase = wn.Hash();
+            wn.Push(new NetCommand { Tick = wn.Tick, Type = NetCmdType.HaltAtSite, Arg = wn.Graph.Nodes[0].Id, Arg2 = 0 }); wn.ApplyCommands();
+            check(wn.Services[0].HaltAt == -1 && wn.Hash() == hBase, "detener en un nodo que no es emplazamiento se ignora");
+            wn.Push(new NetCommand { Tick = wn.Tick, Type = NetCmdType.HaltAtSite, Arg = nules, Arg2 = 0 }); wn.ApplyCommands();
+            bool pending = wn.Services[0].HaltAt == nules && wn.Hash() != hBase;
+            wn.Push(new NetCommand { Tick = wn.Tick, Type = NetCmdType.HaltAtSite, Arg = -1, Arg2 = 0 }); wn.ApplyCommands();
+            check(pending && wn.Services[0].HaltAt == -1 && wn.Hash() == hBase, "la parada pendiente entra en el hash mientras está, y la orden con nodo −1 la cancela");
+
+            // un emplazamiento sin fundar no cuenta para el peso del director ni para la huella (Mak, 6-nov)
+            var wp = NetScenario.Mvp();
+            check(wp.Director.SiegeWeight(wp, nules) == 0 && wp.Director.SiegeTargetWeight(wp, nules) == 0, "sin fundar, Nules pesa 0 como objetivo y para la deriva");
+            int picks = 0; for (int k = 0; k < 4000; k++) { wp.Tick = 40 * NetConst.DayTicks + k * 37; if (wp.Director.DrawSiegeTarget(wp) == nules) picks++; }
+            check(picks == 0, "el director no sortea un emplazamiento sin fundar como objetivo de asedio (0 de 4.000)");
+            long hu0 = wp.Director.HuellaMil(wp); wp.Stock[nules, (int)Res.Personas] = 50;
+            check(wp.Director.HuellaMil(wp) == hu0, "la gente de un emplazamiento sin fundar no suma a la huella");
+            wp.Stations.Founded[nules] = true;
+            check(wp.Director.SiegeWeight(wp, nules) > 0 && wp.Director.HuellaMil(wp) > hu0, "una vez fundado, pesa y suma a la huella como cualquier nodo");
+
             // la orden con Nules sin tren se rechaza, y la repetición dorada con esa orden sigue idéntica
             string gold = NetGolden.Record(new List<NetCommand> { new NetCommand { Tick = NetScenario.Mvp().Tick + 100, Type = NetCmdType.FoundStation, Arg = nules } }, 1500);
             var res = NetGolden.Verify(gold);
