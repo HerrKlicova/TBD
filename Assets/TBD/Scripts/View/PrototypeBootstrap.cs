@@ -1202,13 +1202,22 @@ namespace TBD.View
 
         static uint math_hash(int a, int b) { return Unity.Mathematics.math.hash(new Unity.Mathematics.int2(a, b)); }
 
+        readonly System.Collections.Generic.Dictionary<string, Material> _teoMats = new System.Collections.Generic.Dictionary<string, Material>();
+
+        /// <summary>Variante v0..v5 de una pieza de Teo con ficheros planos (SM_pieza_vK_LOD1 en la carpeta), elegida por hash de la posicion.</summary>
+        GameObject PlaceFlat(string folder, string pieza, Vector3 pos, float yaw, Transform parent)
+        {
+            int k = (int)(math_hash((int)(pos.x * 10f), (int)(pos.z * 10f)) % 6u);
+            return PlaceModel(folder, "SM_" + pieza + "_v" + k + "_LOD1", pos, yaw, parent);
+        }
+
         GameObject PlaceModel(string folder, string file, Vector3 pos, float yaw, Transform parent)
         {
             var prefab = Resources.Load<GameObject>("Models/Sagunto/" + folder + "/" + file); var tex = Resources.Load<Texture2D>("Models/Sagunto/" + folder + "/T_Paleta32");
             if (prefab == null || tex == null) return null;
             var inst = Instantiate(prefab, parent); inst.name = file;
             inst.transform.position = pos; inst.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
-            var mat = Mat("ffffff"); mat.SetTexture("_BaseMap", tex); mat.SetColor("_BaseColor", Color.white);
+            if (!_teoMats.TryGetValue(folder, out var mat) || mat == null) { mat = Mat("ffffff"); mat.SetTexture("_BaseMap", tex); mat.SetColor("_BaseColor", Color.white); mat.enableInstancing = true; _teoMats[folder] = mat; }   // un material por carpeta
             foreach (var r in inst.GetComponentsInChildren<MeshRenderer>()) { r.sharedMaterial = mat; r.shadowCastingMode = ShadowCastingMode.On; }
             return inst;
         }
@@ -1246,9 +1255,18 @@ namespace TBD.View
             }
             // almacén con muelle al otro lado de la vía, hacia el fondo del recinto (x 127-143, z 50-58)
             Vector3 wc = new Vector3(135f, 0f, 54f);
-            Box("Almacén muelle", wc + new Vector3(0f, 0.55f, 4.2f), new Vector3(16f, 1.1f, 2.4f), plinth, root);
-            Box("Almacén cuerpo", wc + new Vector3(0f, 2.6f, 0f), new Vector3(16f, 5f, 8f), M("94948c"), root);
-            Box("Almacén tejado", wc + new Vector3(0f, 5.4f, 0f), new Vector3(16.8f, 0.5f, 8.8f), wood, root);
+            // pieza 7 de Teo: 18 x 8 m sobre un muelle de 1,1 m, rampa en +X, via en +Z a 7,5 m del centro. Solo visual (la colision de cajas pide tocar la simulacion y los goldens).
+            if (PlaceFlat("muelle_mercancias", "muelle_mercancias", new Vector3(135f, 0f, ty - 7.5f), 0f, root) == null)
+            {
+                Box("Almacén muelle", wc + new Vector3(0f, 0.55f, 4.2f), new Vector3(16f, 1.1f, 2.4f), plinth, root);
+                Box("Almacén cuerpo", wc + new Vector3(0f, 2.6f, 0f), new Vector3(16f, 5f, 8f), M("94948c"), root);
+                Box("Almacén tejado", wc + new Vector3(0f, 5.4f, 0f), new Vector3(16.8f, 0.5f, 8.8f), wood, root);
+            }
+            // pieza 8 de Teo: senal de via (origen al pie del mastil, mira a +Z, la via queda a 2,2 m en +X), topera en el eje y poste kilometrico.
+            // La via corre a lo largo de X: giro 270 -> +X local pasa a +Z mundo (la via al norte) y la senal mira a -X, hacia el tren que llega del oeste.
+            PlaceFlat("senales", "senal_via", new Vector3(24f, 0f, ty - 2.2f), 270f, root);
+            PlaceFlat("senales", "poste_km", new Vector3(96f, 0f, ty + 2.2f), 90f, root);     // al norte de la via, mirando a +X
+            PlaceFlat("senales", "topera", new Vector3(50f, 0f, ty - 5f), 270f, root);        // fin de la via 2 (sale de X -250 a 50)
             // postes de catenaria cada 50 m a lo largo de toda la vía (dentro y fuera), a 3,6 m del eje; sin colisión
             for (float x = -240f; x <= 500f; x += 50f)                    // postes de X −240 a 500 (Álvaro C9); el modelo deja la vía hacia su -X: girado 90° la vía queda al norte (+Z)
                 if (PlaceModel("poste_catenaria", "SM_poste_catenaria_LOD1", new Vector3(x, 0f, ty - 3.6f), 90f, root) == null)
@@ -1331,7 +1349,7 @@ namespace TBD.View
                 var sier = PlaceModel("fondo", "SM_sierra_fondo_v" + sc.Item2 + "_LOD1", new Vector3((500f + sc.Item1) * 0.5f, 0f, (500f - sc.Item1) * 0.5f), 225f, root);
             }
             if (castle != null)                                                                                // lejanía: un escalón menos de contraste (tinte hacia el color del suelo), sin niebla real
-                foreach (var cr in castle.GetComponentsInChildren<MeshRenderer>()) cr.sharedMaterial.SetColor("_BaseColor", new Color(0.78f, 0.74f, 0.66f));
+                foreach (var cr in castle.GetComponentsInChildren<MeshRenderer>()) { var cm = new Material(cr.sharedMaterial); cm.SetColor("_BaseColor", new Color(0.78f, 0.74f, 0.66f)); cr.sharedMaterial = cm; }
             // P6: calle de la Estación (X 56-62), paso a nivel Z 58-67 (cubre también el desvío de la vía 2) y carretera vieja (Z 20-26)
             Box("Calle de la Estación", new Vector3(59f, 0.05f, 43f), new Vector3(6f, 0.06f, 486f), asphalt, root);          // de Z -200 a 160: cortada al pie del cerro (Álvaro §8.3)
             for (int i = 0; i < 24; i++) Box("Grieta calle", new Vector3(57f + (i * 37 % 5), 0.09f, -150f + i * 21f), new Vector3(0.15f, 0.02f, 3.2f), crack, root);
