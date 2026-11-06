@@ -100,7 +100,7 @@ JUNTAS = {
 
 def balasto():
     """Piedra partida en el valor más oscuro de la escena (#48403c, D-N42): cantos en gris pardo,
-    algo de pizarra, alguna piedra clara suelta y huecos oscuros."""
+    alguna piedra clara suelta y huecos oscuros."""
     s = Sprite(T, T)
     pts = semillas(110, 7)
     for y in range(T):
@@ -110,7 +110,7 @@ def balasto():
                 s.set(x, y, "olive_shadow")          # hueco entre piedras (junta)
                 continue
             v = _h(k, 9, 7)
-            c = "grey_brown" if v < 0.80 else "slate" if v < 0.91 else "olive_grey"   # neutro: sin azules ni rojos fuertes
+            c = "grey_brown" if v < 0.91 else "olive_grey"   # sin piedras frías: el slate se leía como charco (Lucía, 6-nov)
             s.set(x, y, c)
     return s
 
