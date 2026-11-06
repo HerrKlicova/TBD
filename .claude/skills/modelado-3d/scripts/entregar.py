@@ -41,12 +41,13 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
         mc = np.zeros_like(m) if mc is None else mc
         inf["valor_partido"] = ns["valor_partido"](o, claro=claro, costado=costado, alisar=0, suavizar=0,
                                                    mascara=m | mc)
-    for pieza, (cl, co) in getattr(db, "VALOR_PIEZAS", {}).items():   # p. ej. la torre del LOD1 en olive_light
+    for pieza, vp in getattr(db, "VALOR_PIEZAS", {}).items():   # p. ej. la torre del LOD1 en olive_light
+        cl, co, ab = (tuple(vp) + (None,))[:3]   # tercer valor opcional: color de las caras de abajo
         mp = r["mascaras"].get(pieza)
         if mp is not None and mp.any():
             pc = (co,) if getattr(db, "FACCION", "propio") == "zombi" else ()   # el zombi es dueño de sus grises
             inf["valor_" + pieza] = ns["valor_partido"](o, claro=cl, costado=co, alisar=0, suavizar=0, mascara=mp,
-                                                        permitir_costado=pc)
+                                                        permitir_costado=pc, abajo=ab)
     if mc is not None and mc.any():
         inf["costuras"] = ns["costuras_por_valor"](o, mc)
     inf["faccion"] = ns["marcar_faccion"](o, getattr(db, "FACCION", "propio"))

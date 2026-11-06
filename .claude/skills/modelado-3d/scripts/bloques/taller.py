@@ -62,11 +62,11 @@ class Taller:
         self._casco |= nuevas
         return nuevas
 
-    def caja(self, c, s, pieza="casco", rot_z=0.0, inclinar=None, bisel=False, cuña=None, rot_x=0.0):
+    def caja(self, c, s, pieza="casco", rot_z=0.0, inclinar=None, bisel=False, cuña=None, rot_x=0.0, rot_y=0.0):
         """Caja centrada en c de tamaño s. inclinar: la arista superior delantera retrocede esa distancia.
         cuña: la cara delantera (-Y) se estrecha en X hasta ese factor (proas, arados)."""
         r = bmesh.ops.create_cube(self.bm, size=1.0)
-        R = Matrix.Rotation(rot_z, 3, "Z") @ Matrix.Rotation(rot_x, 3, "X")
+        R = Matrix.Rotation(rot_z, 3, "Z") @ Matrix.Rotation(rot_x, 3, "X") @ Matrix.Rotation(rot_y, 3, "Y")
         for v in r["verts"]:
             p = Vector((v.co.x * s[0], v.co.y * s[1], v.co.z * s[2]))
             if inclinar and p.z > 0 and p.y < 0:
@@ -87,6 +87,17 @@ class Taller:
                "Z": Matrix.Identity(3)}[eje]
         for v in res["verts"]:
             v.co = rot @ v.co + Vector(c)
+        caras = list({f for v in res["verts"] for f in v.link_faces})
+        self._marcar(caras, pieza)
+        return caras
+
+    def esfera(self, c, r, pieza="casco", sub=2):
+        """Icosfera centrada en c; r es un radio o (rx, ry, rz). sub=1 son 20 caras, sub=2 son 80. Las esferas que se
+        cruzan no comparten aristas, así que limpiar no las funde (copas de árbol por grumos)."""
+        rx, ry, rz = (r, r, r) if isinstance(r, (int, float)) else r
+        res = bmesh.ops.create_icosphere(self.bm, subdivisions=sub, radius=1.0)
+        for v in res["verts"]:
+            v.co = Vector((v.co.x * rx, v.co.y * ry, v.co.z * rz)) + Vector(c)
         caras = list({f for v in res["verts"] for f in v.link_faces})
         self._marcar(caras, pieza)
         return caras

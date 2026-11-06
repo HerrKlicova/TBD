@@ -851,13 +851,15 @@ def _poner_indices(obj, idx):
 
 def valor_partido(obj, claro="b4a080", costado=None, umbral_arriba=0.7, oscurecer=12.0, paleta=None, suavizar=3,
                   alisar=25,
-                  excluir=PROHIBIDOS_OBJETO, mascara=None, permitir_costado=()):
+                  excluir=PROHIBIDOS_OBJETO, mascara=None, permitir_costado=(), abajo=None):
     """D-N57 + regla 1 de Iris: valor partido horneado en el albedo. Caras que miran arriba (normal z > umbral) al
     color claro de la paleta (b4a080 por defecto, decisión de Lucía: 94948c es la camisa de los zombis; con claro=None se elige por el tono dominante); costados
     oscurecidos (al color de paleta más parecido con L* al menos `oscurecer` por debajo, o a `costado` si se da, p. ej.
     50541c oliva oscuro para tropa); caras de abajo, un paso más oscuras. Requiere paleta_desde_original().
     mascara: array booleano por cara; solo esas caras se repintan (p. ej. el casco y la torre, no la goma de las
-    ruedas ni las ópticas de paleta_por_piezas)."""
+    ruedas ni las ópticas de paleta_por_piezas).
+    abajo: color fijo para las caras que miran abajo (p. ej. la copa del naranjo, que no puede caer en el valor de la
+    horda: Lucía, 6-nov 16:55)."""
     pal = cargar_paleta() if paleta is None else paleta
     hexes = ["%02x%02x%02x" % tuple(int(x) for x in c) for c in pal]
     lab = _srgb_a_lab(pal)
@@ -931,7 +933,7 @@ def valor_partido(obj, claro="b4a080", costado=None, umbral_arriba=0.7, oscurece
             nuevo[k] = i_claro
         elif clase[k] == -1:
             base = i_cost if i_cost is not None else idx[k]
-            nuevo[k] = mas_oscuro(base, oscurecer + 8)
+            nuevo[k] = hexes.index(abajo.lower().lstrip("#")) if abajo else mas_oscuro(base, oscurecer + 8)
         else:
             nuevo[k] = i_cost if i_cost is not None else mas_oscuro(idx[k], oscurecer)
     _poner_indices(obj, nuevo)

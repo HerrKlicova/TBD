@@ -16,10 +16,25 @@ COLORES = dict(COLORES, objeto="442c0c")   # mochila, gorra, falda: un escalón 
 # Variantes de silueta (Eugenio, 6-nov: «son personas, tienen ropas y cosas»). TBD_VARIANTE: 0 base, 1 mochila,
 # 2 gorra, 3 chaqueta abierta con faldones, 4 falda o vestido, 5 un brazo caído. Combinadas con las 3 camisas por
 # instancia salen 18 personas distintas con 6 mallas: 6 lotes de instanciado, nada más.
+# Complexiones (Lucía, 6-nov 17:03: a 20 px la variedad que se nota es la de silueta): 6 corpulento (el zombi grueso
+# de zombi_cercano.py, aprobado antes) y 7 bajo (1,60 m). La escala de ±5 % en altura por instancia es de Unity.
+# Nada de niños.
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 
 
 def construir(nombre="SM_Zombi_Fino", lod=0):
+    if VAR == 6:   # corpulento: la malla gruesa aprobada, con las mismas piezas de material
+        import zombi_cercano
+        return zombi_cercano.construir(nombre, lod)
+    obj = _fino(nombre, lod)
+    if VAR == 7:   # bajo: 1,60 m (factor 0,914 en altura) y un poco más ancho para que se lea como otra persona
+        from mathutils import Matrix
+        obj.data.transform(Matrix.Diagonal((1.05, 1.0, 1.60 / 1.75, 1.0)))
+        obj.data.update()
+    return obj
+
+
+def _fino(nombre, lod):
     t = Taller(PIEZAS)
     cadera = 0.96
     largo = cadera - 0.04
@@ -50,9 +65,9 @@ def construir(nombre="SM_Zombi_Fino", lod=0):
     if VAR == 2:   # gorra con visera adelantada
         t.caja((0.0, -0.17, 1.765), (0.24, 0.24, 0.05), "objeto")
         t.caja((0.0, -0.32, 1.75), (0.18, 0.12, 0.02), "objeto")
-    if VAR == 3:   # chaqueta abierta: faldones que bajan por debajo de la cadera
-        for x in (-0.08, 0.08):
-            t.caja((x, -0.09, 0.95), (0.1, 0.03, 0.34), "camisa", rot_x=enc)
+    if VAR == 3:   # chaqueta abierta: faldones abiertos hacia los lados (Lucía: a 20 px tienen que ensanchar la cadera)
+        for x, ry in ((-0.19, 38), (0.19, -38)):
+            t.caja((x, -0.06, 0.92), (0.14, 0.05, 0.4), "camisa", rot_x=enc, rot_y=math.radians(ry))
     if VAR == 4:   # falda o vestido hasta la rodilla (tronco de cono)
         t.cilindro((0.0, 0.0, 0.72), 0.19, 0.5, "Z", 6, "objeto", r2=0.13)
     return t.objeto(nombre, bisel=0)
