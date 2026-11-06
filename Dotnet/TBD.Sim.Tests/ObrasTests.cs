@@ -382,6 +382,109 @@ namespace TBD.Sim.Tests
             var da = WithWork(0); var db = WithWork(0);
             foreach (var q in new[] { da, db }) for (int hr = 0; hr < 100; hr++) { q.Tick = 4 * NetConst.DayTicks + hr * 1500; q.Director.Hourly(q); }
             check(da.Hash() == db.Hash() && da.Hash() != WithWork(0).Hash(), "dos mundos con la misma obra dan el mismo hash tras 100 horas de director");
+
+            RunDesgaste(check);
+        }
+
+        static void RunDesgaste(Action<bool, string> check)
+        {
+            Console.WriteLine("[19] Obras (hito 5, paso 4): mantenimiento y desgaste diario (1 %) y daño");
+            var mvp = NetScenario.Mvp();
+            check(mvp.Works.P.WearDayMil == 10, "el desgaste diario viene de fort_desgaste_dia de balance_economia.csv (10 ‰)");
+
+            NetWorld Built(int reserve = 0)
+            {
+                var w = WorldWithZone();
+                w.Push(Place(w.Tick, PieceKind.Hesco, 0, 0, 30_000, 0)); w.Push(Place(w.Tick, PieceKind.Sacos, 0, 5_000, 10_000, 5_000));
+                w.ApplyCommands(); w.Works.CompleteAll(Node);
+                w.Push(Place(w.Tick, PieceKind.Sacos, 0, 9_000, 10_000, 9_000)); w.ApplyCommands();      // esta queda sin construir
+                w.Stock[Node, (int)Res.Materiales] = reserve;            // por defecto, una estación sin reservas: el mantenimiento no se puede pagar
+                return w;
+            }
+            var a = Built();
+            int pieces = a.Works.Count(Node); int lvl0 = a.Works.LevelMil(Node);
+            // empuja el reloj hasta justo antes del cambio de día
+            a.Tick = 3 * NetConst.DayTicks - 1;
+            a.Step();
+            bool wore = true; int unbuilt = 0;
+            foreach (var x in a.Works.At(Node)) { if (x.Built) wore &= x.LifeMil == 990; else { unbuilt++; wore &= x.LifeMil == 1000; } }
+            check(wore && unbuilt == 1 && a.Works.Count(Node) == pieces, "al cambiar de día, las piezas construidas pierden el 1 % (1000 → 990 ‰) y las sin terminar no se tocan");
+            int lvl1 = a.Works.LevelMil(Node);
+            check(lvl1 < lvl0 && lvl1 == (int)(((long)lvl0 * 990 + 500) / 1000) || Math.Abs(lvl1 - lvl0 * 0.99) < 2, $"el nivel de fortificación baja con la vida: {lvl0} ‰ → {lvl1} ‰");
+            a.Step();
+            bool once = true; foreach (var x in a.Works.At(Node)) if (x.Built && x.LifeMil != 990) once = false;
+            check(once, "el desgaste es una vez al día, no en cada tick");
+            for (int d = 0; d < 3; d++) { a.Tick = (4 + d) * NetConst.DayTicks - 1; a.Step(); }
+            int expect = 990; for (int d = 0; d < 3; d++) expect -= Math.Max(1, (expect * 10 + 500) / 1000);
+            bool seq = true; foreach (var x in a.Works.At(Node)) if (x.Built && x.LifeMil != expect) seq = false;
+            check(seq, $"tras 4 días la vida es {expect} ‰ (1 % de lo que queda cada día)");
+
+            // mantenimiento (Hugo): una estación abastecida no se degrada y una vacía sí
+            var m = Built(2); m.Services.Clear();                  // sin trenes: nadie carga ni descarga el almacén durante la prueba
+            check(m.Works.MaintenanceU(Node) == 1, $"el mantenimiento de un día es ceil(1 % de Σ(coste × vida)) = 1 u para 20 u construidas: {m.Works.MaintenanceU(Node)}");
+            m.Tick = 3 * NetConst.DayTicks - 1; m.Step();
+            bool intact = true; foreach (var x in m.Works.At(Node)) if (x.Built && x.LifeMil != 1000) intact = false;
+            check(intact && m.Stock[Node, (int)Res.Materiales] == 1, "con reservas se paga el mantenimiento (1 u) y la vida no baja");
+            m.Tick = 4 * NetConst.DayTicks - 1; m.Step();
+            check(m.Stock[Node, (int)Res.Materiales] == 0, "el segundo día se paga con la última u");
+            m.Tick = 5 * NetConst.DayTicks - 1; m.Step();
+            bool worn = true; foreach (var x in m.Works.At(Node)) if (x.Built && x.LifeMil != 990) worn = false;
+            check(worn && m.Stock[Node, (int)Res.Materiales] == 0, "sin reservas no se puede pagar: se aplica la caída del 1 % (1000 → 990 ‰) y no se cobra nada");
+            // el mantenimiento usa la misma Σ que el nivel: ni el depósito ni lo que está fuera del perímetro de 60 m cuestan nada
+            var dp = Built(2); dp.Services.Clear();
+            dp.Push(Place(dp.Tick, PieceKind.Deposito, 1000, 1000)); dp.Push(Place(dp.Tick, PieceKind.Hesco, 100_000, 0, 150_000, 0)); dp.ApplyCommands();
+            dp.Works.CompleteAll(Node);
+            check(dp.Works.MaintenanceU(Node) == 1, $"el depósito y un muro a más de 60 m del andén no suman al mantenimiento (siguen en 1 u): {dp.Works.MaintenanceU(Node)}");
+            // el depósito no se desgasta; los muros a más de 60 m sí, aunque la estación pague el mantenimiento (Hugo)
+            var fo = Built(50); fo.Services.Clear();
+            fo.Push(Place(fo.Tick, PieceKind.Deposito, 1000, 1000)); fo.Push(Place(fo.Tick, PieceKind.Hesco, 100_000, 0, 110_000, 0)); fo.ApplyCommands(); fo.Works.CompleteAll(Node);
+            fo.Stock[Node, (int)Res.Materiales] = 50;
+            check(fo.Works.P.OutsideWearMil == 10, "el desgaste fuera del perímetro viene de desgaste_fuera_perimetro_permil_dia del CSV de Hugo (10 ‰)");
+            for (int d = 1; d <= 20; d++) { fo.Tick = d * NetConst.DayTicks - 1; fo.Step(); }
+            int inside = -1, outside = -1, dep = -1;
+            foreach (var x in fo.Works.At(Node))
+            {
+                if (x.Kind == PieceKind.Deposito) dep = x.LifeMil;
+                else if (Math.Abs((x.X0 + x.X1) / 2) > 60_000) outside = x.LifeMil;
+                else if (x.Kind == PieceKind.Hesco && x.X0 == 0) inside = x.LifeMil;
+            }
+            check(inside == 1000 && dep == 1000 && outside >= 800 && outside <= 830, $"con el mantenimiento pagado 20 días: dentro 1000 ‰, depósito 1000 ‰ y el muro de fuera {outside} ‰ (~82 %)");
+            var fu = Built(0); fu.Services.Clear(); fu.Stock[Node, (int)Res.Materiales] = 10;
+            fu.Push(Place(fu.Tick, PieceKind.Deposito, 1000, 1000)); fu.ApplyCommands(); fu.Works.CompleteAll(Node); fu.Stock[Node, (int)Res.Materiales] = 0;
+            fu.Tick = 3 * NetConst.DayTicks - 1; fu.Step();
+            int dep2 = -1; foreach (var x in fu.Works.At(Node)) if (x.Kind == PieceKind.Deposito) dep2 = x.LifeMil;
+            check(dep2 == 1000, "tampoco se desgasta el depósito cuando la estación no puede pagar el mantenimiento");
+            var d20 = Built(1000); d20.Services.Clear();
+            for (int d = 1; d <= 20; d++) { d20.Tick = d * NetConst.DayTicks - 1; d20.Step(); }
+            check(d20.Stock[Node, (int)Res.Materiales] == 980 && d20.Works.At(Node)[0].LifeMil == 1000, "abastecida 20 días: paga 1 u al día (980 u quedan) y conserva el 100 % de vida");
+            var sinObras = NetScenario.Mvp(); sinObras.Services.Clear(); sinObras.Tick = 3 * NetConst.DayTicks - 1; int hs0 = sinObras.Stock[0, (int)Res.Materiales];
+            sinObras.Step();
+            check(sinObras.Stock[0, (int)Res.Materiales] == hs0, "sin obras el mantenimiento no cobra nada");
+
+            // determinismo y hash
+            var b = Built(); var c = Built();
+            foreach (var q in new[] { b, c }) { q.Tick = 3 * NetConst.DayTicks - 1; q.Step(); }
+            check(b.Hash() == c.Hash() && b.Hash() != Built().Hash(), "dos mundos con la misma obra dan el mismo hash tras el desgaste, distinto del de antes");
+
+            // sin obras no cambia nada: los goldens no se mueven
+            var e0 = NetScenario.Mvp(); e0.Tick = 3 * NetConst.DayTicks - 1; ulong h = e0.Hash(); long t = e0.Tick;
+            check(e0.Works.WearDay(0) == 0 && e0.Hash() == h, "sin obras el desgaste no cambia el hash");
+
+            // destrucción: una pieza a 0 ‰ se quita y la obra sigue
+            var z = Built(); int n0 = z.Works.Count(Node); int idx = -1;
+            for (int i = 0; i < z.Works.At(Node).Count; i++) if (z.Works.At(Node)[i].Built) { idx = i; break; }
+            bool half = !z.Works.Damage(Node, idx, 400) && z.Works.At(Node)[idx].LifeMil == 600;
+            check(half, "un daño de 400 ‰ deja la pieza a 600 ‰");
+            bool gone = z.Works.Damage(Node, idx, 600) && z.Works.Count(Node) == n0 - 1;
+            check(gone, "un daño que agota la vida destruye la pieza (se quita; la interfaz pone los escombros)");
+            int unb = -1; for (int i = 0; i < z.Works.At(Node).Count; i++) if (!z.Works.At(Node)[i].Built) unb = i;
+            check(!z.Works.Damage(Node, unb, 1000) && z.Works.Count(Node) == n0 - 1, "una pieza sin terminar no recibe daño");
+
+            // el desgaste a lo largo de 20 días deja la vida por encima del 80 % y el nivel acorde (Hugo: 1 %/día)
+            var y = Built();
+            for (int d = 1; d <= 20; d++) { y.Tick = d * NetConst.DayTicks - 1; y.Step(); }
+            int life = 0; foreach (var x in y.Works.At(Node)) if (x.Built) life = x.LifeMil;
+            check(life >= 800 && life <= 830, $"tras 20 días la pieza conserva ~82 % de vida: {life} ‰");
         }
     }
 }

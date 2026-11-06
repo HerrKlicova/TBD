@@ -554,6 +554,18 @@ namespace TBD.Net
         public bool WorkActive(int node) { return Works.IsActive(node) && EffectiveWorkers(node) > 0; }
 
         /// <summary>Un tick de obra en cada nodo con obreros efectivos.</summary>
+        /// <summary>Cada día, cada estación con obras paga el mantenimiento (MaintenanceU) de su almacén; si no puede, lo construido se desgasta (Hugo).</summary>
+        void WearAndMaintain()
+        {
+            for (int n = 0; n < Works.Nodes; n++)
+            {
+                int cost = Works.MaintenanceU(n);
+                bool paid = Stock[n, (int)Res.Materiales] >= cost;
+                if (paid) Stock[n, (int)Res.Materiales] -= cost;
+                Works.WearDay(n, paid);          // el depósito no se gasta y lo que está fuera del perímetro sí, pague o no la estación (Hugo)
+            }
+        }
+
         void AdvanceWorks()
         {
             for (int n = 0; n < Works.Workers.Length; n++)
@@ -636,6 +648,7 @@ namespace TBD.Net
                 UpdateFromField();
             }
             Tick++;
+            if (Tick % NetConst.DayTicks == 0) WearAndMaintain();     // mantenimiento diario de lo construido (Hugo, 1 %)
             if (Tick % NetConst.DayTicks == 0 && Traffic != null)
                 Traffic.Decay((e, slot) => Intel.Add(new IntelEntry { Tick = Tick, Id = "TR-5", Vars = new[] { "tramo", EdgeName(Graph.Edges[e]) } }));
             if (Tick % NetConst.FieldEvery == 0)
