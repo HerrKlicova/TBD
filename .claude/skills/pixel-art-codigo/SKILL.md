@@ -58,10 +58,13 @@ contacto, criticar con la lista de `referencias/criterios.md` y corregir. Mínim
 - 2–4 tonos por material. Más de 12 colores en un icono de 32 es una señal de alarma.
 - Si la reducción a 16 px no se lee, redibújala con `grid` (ver `poblacion_16` en `ejemplos/build_a1.py`).
 
-## Limpiar lo que sale de Pixelab
-`docs/arte/herramientas/pixel_post.py` (Iris) quita el fondo y reduce a la paleta. Para más control:
-`s = Sprite(32, 32); s.img = Image.open(png).convert("RGBA"); s.px = s.img.load(); s.lock_palette()`, y después
-`replace` para quitar rojos o unificar acentos y `check()` para validar.
+## Unificar lo que sale de Pixelab (una sola estética, Eugenio 6-nov)
+La familia por código es la referencia (regla de Iris en `docs/arte/regla-estetica-unica.md`). Todo PNG de Pixelab pasa por:
+`python scripts/unificar.py <png|carpeta> <salida> --sin-rojo` (sin `--sin-rojo` en lo que pueda llevar el rojo de peligro).
+Quita el fondo, lo lleva al tamaño real por bloques, cambia su contorno por el nuestro (1 px negro), lo fija a la paleta,
+quita las motas de difusión, lo limita a 11 colores y saca una hoja antes/después. Después, hoja de cohesión de Iris
+(`docs/arte/herramientas/cohesion_sheet.py`) y juicio de Lucía. **Límite honesto**: unifica paleta, contorno y ruido,
+pero no la luz ni el dibujo; si la luz no viene de arriba a la izquierda o el volumen es otro, se retoca o se descarta.
 
 ## Efectos de la fase D con pixelfx (aprobado por Eugenio el 6-nov)
 [pixelfx](https://github.com/patch-gg/pixelfx) (MIT, 244 efectos, solo Node, sin red) se clona aparte, **fuera del repo**:

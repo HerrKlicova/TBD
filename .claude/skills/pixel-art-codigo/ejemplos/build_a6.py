@@ -171,10 +171,34 @@ def artilleria_ferroviaria():
     return s
 
 
+NIDO16 = """
+.....hhh........
+....hbhhh.......
+....ooooomssssss
+....ooooommm....
+..ssssssssssa...
+.ssssssssssssa..
+.ttttttttttttt..
+sssssssssssssss.
+sssssssssssssss.
+ggggggggggggggg.
+"""
+
+
+def ametralladora_16():
+    """Nido a 16 px redibujado a mano con dos hiladas gruesas (Lucía: tres hiladas hacían ruido)."""
+    s = Sprite(16, 16)
+    s.grid(0, 3, NIDO16, {"h": "olive", "b": "bone", "o": "olive_grey", "m": "slate_dark", "s": "olive_yellow",
+                          "t": "beige", "g": "olive_grey", "a": "amber"})
+    s.outline()
+    return s
+
+
 if __name__ == "__main__":
     nombres = ["fusileros", "ametralladora", "blindado_8x8", "tren_blindado", "artilleria_ferroviaria"]
     s32 = [globals()[n]() for n in nombres]
     s16 = [reduce_16(s) for s in s32]
+    s16[1] = ametralladora_16()
     for n, a, b in zip(nombres, s32, s16):
         a.save(OUT / f"vm_unidades_{n}_32.png")
         b.save(OUT / f"vm_unidades_{n}_16.png")
