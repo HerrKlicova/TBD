@@ -23,12 +23,12 @@ OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "out_fusilero")
 
 CASCO, CASCO_L = "olive_light", "beige"
 TOP, LADO = "olive_light", "olive_dark"
-MOCHILA, PIERNA, BOTA = "olive_grey", "olive", "brown_dark"
+MOCHILA, MOCHILA_L, PIERNA, BOTA = "beige", "bone", "olive", "brown_dark"   # mochila: 2ª masa clara (Lucía)
 FUSIL, FUSIL_L = "olive_black", "slate_dark"
 RIM = "slate"
 
 APAGAR = {"beige": "olive_light", "olive_light": "olive", "olive": "olive_grey", "olive_dark": "olive_shadow",
-          "olive_grey": "grey_brown", "brown_dark": "olive_black", "tan": "rose_brown", "slate": "slate_dark",
+          "olive_grey": "grey_brown", "bone": "beige", "brown_dark": "olive_black", "tan": "rose_brown", "slate": "slate_dark",
           "slate_dark": "olive_shadow"}
 
 
@@ -53,7 +53,7 @@ def soldado(s, cx, cy, pie_i, pie_d, fusil="puerto", retro=0):
     s.rect(cx - 4, cy + 7 - pie_i, 3, 2, BOTA)
     s.rect(cx + 2, cy + 7 - pie_d, 3, 2, BOTA)
     s.rect(cx - 4, cy + 1, 9, 5, MOCHILA)                    # mochila (sur)
-    s.hline(cx - 3, cx + 3, cy + 1, "olive_light")
+    s.hline(cx - 3, cx + 3, cy + 1, MOCHILA_L)
     s.ellipse(cx - 7, cy - 3, cx + 7, cy + 3, LADO)          # hombros y chaleco
     s.ellipse(cx - 6, cy - 3, cx + 6, cy + 1, TOP)
     s.set(cx - 3, cy - 1, "olive")                           # cargadores
@@ -71,7 +71,7 @@ def soldado(s, cx, cy, pie_i, pie_d, fusil="puerto", retro=0):
         s.rect(cx + 1, cy - 8, 2, 2, "tan")
         s.rect(cx + 4, cy - 3, 2, 3, LADO)                   # brazo derecho, al hombro
     s.ellipse(cx - 3, cy - 6, cx + 3, cy, CASCO)             # casco (arriba, claro)
-    s.ellipse(cx - 2, cy - 5, cx + 1, cy - 2, CASCO_L)
+    s.ellipse(cx - 2, cy - 5, cx + 2, cy - 1, CASCO_L)       # centro claro amplio
     s.set(cx + 2, cy - 1, LADO)
 
 
@@ -115,7 +115,7 @@ def tendido(s, cx, y0, largo, abre):
     s.poly([(cx - 7, y0 + 6), (cx + 6, y0 + 6), (cx + 4, y0 + 6 + h), (cx - 5, y0 + 6 + h)], LADO)
     s.poly([(cx - 6, y0 + 6), (cx + 5, y0 + 6), (cx + 3, y0 + 4 + h), (cx - 4, y0 + 4 + h)], TOP)
     s.rect(cx - 4, y0 + 8, 8, 5, MOCHILA)
-    s.hline(cx - 3, cx + 3, y0 + 8, "olive_light")
+    s.hline(cx - 3, cx + 3, y0 + 8, MOCHILA_L)
     x1 = cx - 9 - abre
     for k in (0, 1):
         s.line(cx - 7 + k, y0 + 7, x1 + k, y0 + 1, LADO)
@@ -123,9 +123,8 @@ def tendido(s, cx, y0, largo, abre):
     s.rect(cx + 5, y0 + 9, 2, 3, LADO)
     s.ellipse(cx - 3, y0, cx + 2, y0 + 6, CASCO)
     s.ellipse(cx - 2, y0 + 1, cx, y0 + 3, CASCO_L)
-    if abre:                                                  # fusil caído al lado
-        s.line(cx + 8, y0 + 2, cx + 11, y0 + 13, FUSIL)
-        s.line(cx + 9, y0 + 2, cx + 12, y0 + 13, FUSIL_L)
+    if abre:                                                  # fusil debajo: solo asoma la culata
+        s.rect(cx + 4, y0 + 13, 3, 2, FUSIL)
 
 
 def muerte(f):
