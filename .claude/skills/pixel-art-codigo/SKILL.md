@@ -50,6 +50,7 @@ contacto, criticar con la lista de `referencias/criterios.md` y corregir. Mínim
   `lock_palette()` (para importar o limpiar PNG de Pixelab), `stamp(otro, x, y)`, `silhouette()`.
 - `RAMPAS`: oliva, acero, latón, madera, ocre, hueso, óxido y hormigón (de oscuro a claro).
 - `reduce_16(s32)`, `check(s, recurso=False)`, `contact_sheet(filas, ruta, scale, labels)`.
+- `s.limit_colors(10)`: deja 10 colores como mucho (regla 9). Nunca funde los `ACENTOS` (latón, franja ámbar #e08c30, rojo #982420); si no se puede bajar sin tocarlos, devuelve un aviso y se mira a mano.
 
 ## Hábitos que dan mejor resultado
 - Escribe la mitad de lo simétrico y usa `mirror_x()`; deja que `outline()` dibuje el contorno.
