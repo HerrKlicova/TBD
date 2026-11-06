@@ -4,7 +4,8 @@ Encargo: Eugenio (6-nov 23:03: «los soldados bien modelados… con sus armas»)
 §2): uniforme pixelado árido, casco COBAT-1, portaplacas, al menos 5 variantes y EL ARMA COMO PIEZA APARTE
 (arma_infanteria.py). Referencia: docs/arte/referencias/infanteria-et.md (Paula); fotos de referencias-reales/militar/
 cuando lleguen. Lo que no sale de foto va de memoria y está SIN VERIFICAR (chaleco, medidas).
-Colores (Lucía): valor partido con casco y hombros claros (b4a080, el arena del pixelado árido) y costados en 50541c.
+Colores (Lucía): valor partido con casco y hombros claros y costados más oscuros; desde el repaso con las fotos
+militares (23:29) el uniforme es boscoso liso (88885c / 70784c / 50541c) en vez de árido.
 Revisión de Lucía (23:17): en 3/4 las caras del pantalón que miran a la cámara caían en el valor de la horda; el
 uniforme lleva ahora los costados en 70784c (un escalón más) y el chaleco en 847c34, y las caras de abajo en 50541c.
 El portaplacas va en 605c48 (coyote, aprobado) para que el chaleco se lea sobre el uniforme. Piel a86c50, botas
@@ -34,7 +35,11 @@ PIEZAS = ["uniforme", "chaleco", "yelmo", "piel", "botas", "arma", "mochila", "e
 COLORES = {"uniforme": "88885c", "chaleco": "605c48", "yelmo": "88885c", "piel": "a86c50", "botas": "6c4038",
            "arma": "48403c", "mochila": "847c34", "equipo": "605c48", "tubo": "50541c"}
 # claro arriba, costado, abajo (fijo: nunca 442c0c, de la horda)
-VALOR_PIEZAS = {"uniforme": ("b4a080", "70784c", "50541c"), "yelmo": ("b4a080", "50541c", "50541c"),
+# Repaso con las fotos militares de Paula (Lucía, 23:29: «el uniforme se queda en el boscoso, pero en colores lisos»;
+# M1_soldado_1/_2, M2_casco_chaleco_1): boscoso en dos valores de verde, sin el arena del árido. Arriba 88885c (oliva
+# claro), costados 70784c (los de la revisión de las 23:17, que no caen en la horda con las normales inclinadas) y
+# abajo 50541c. El casco lleva funda boscosa: arriba 88885c y costados 50541c.
+VALOR_PIEZAS = {"uniforme": ("88885c", "70784c", "50541c"), "yelmo": ("88885c", "50541c", "50541c"),
                 "chaleco": ("b4a080", "847c34", "605c48")}
 FACCION = "propio"
 # Normales inclinadas hacia arriba (n + 1,0·Z, normalizada; se exportan en el FBX: Normals = Import). Con la luz del
@@ -145,6 +150,8 @@ def construir(nombre="SM_Soldado", lod=0):
     c.cilindro((0, -0.005, 1.725), 0.115, 0.04, "Z", 8, "yelmo", r2=0.065)
     if a == 1 and fino:
         c.caja((0, -0.13, 1.69), (0.13, 0.03, 0.03), "arma")                   # gafas sobre el casco
+    elif fino:
+        c.caja((0, -0.15, 1.70), (0.05, 0.03, 0.05), "arma")                   # soporte de visión nocturna (M2_1)
     if a == 4:
         c.cilindro((0, -0.005, 1.645), r + 0.006, 0.025, "Z", 8, "arma")       # cinta del casco
     # ---------------- brazos (un hueso; el arma va aparte)
