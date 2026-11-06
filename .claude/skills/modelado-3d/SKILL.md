@@ -58,6 +58,7 @@ result = {"veredicto": inf["auditoria"]["veredicto"], "intentos": inf["diezmar_i
 | `marcar_faccion(obj, "propio")` | Propiedades `tbd_faccion` y `tbd_rim` (1 solo en unidades propias) que viajan en el FBX para el marcador de rim del prefab |
 | `medir_legibilidad(obj)` | ΔL* de D-N57 contra la trinchera (#48403c) y el llano ocre (#845c28, confirmado por Lucía): 20 % más claro del interior y contorno, sin luz y con la paleta al 65 % |
 | `vista_pixelada(obj, png, vista="rts")` | Imita el shader: 128 px ×3, luz arriba a la izquierda, paleta al 65 %, contorno de 1 px. Es una **aproximación**: manda la captura de Unity |
+| `paleta_uniforme(obj, "50541c")` | Un solo color de la paleta en el atlas: para bloques hechos en Blender, antes de `valor_partido` |
 | `vistas_para_hunyuan(obj, carpeta)` | front/left/back/right en RGBA desde un bloque hecho en Blender |
 | `exportar_unity(obj, ruta)` | FBX: 1 u = 1 m, −Z adelante, Y arriba, transformaciones horneadas, normales por cara |
 
@@ -90,6 +91,26 @@ result = {"veredicto": inf["auditoria"]["veredicto"], "intentos": inf["diezmar_i
   las proporciones reales) y `vistas_para_hunyuan()`, o una hoja de vistas de Pixelab.
 - **(no verificado)** qué lado es «left»: según Tencent es el frente girado 90° en sentido horario visto desde arriba.
   Probar antes de un lote con una pieza asimétrica; si sale espejada, intercambiar left y right.
+
+## Vehículos con pocas fotos: bloque con medidas reales (estándar de Lucía, 6-nov)
+Cuando solo hay una o dos fotos, Hunyuan con una imagen inventa la parte que no ve y deja la chapa ondulada (manchas
+de luz en el techo, v3 del Dragón). El método estándar es este:
+1. **Ficha de medidas**: largo, ancho y alto de una fuente citada (Paula); el resto de cotas, estimadas de la foto y
+   marcadas **SIN VERIFICAR** en la cabecera del script.
+2. **Bloque en Blender por código** (`scripts/bloques/<pieza>_bloque.py`, función `construir()`): casco por perfil
+   lateral extruido, **chapas planas**, torre angulosa con cajas, ruedas en cilindros de 14 lados, bisel de 0,05 m.
+   Ejemplo: `dragon_bloque.py`, 2.404 triángulos y 8 × 3 × 3,26 m.
+3. `limpiar(obj)` **antes de colorear** (el bisel deja n-gons y vértices duplicados) → `paleta_uniforme(obj, "50541c")`
+   → `vistas_para_hunyuan(obj, carpeta)` → `valor_partido(obj, costado="50541c", alisar=0)`.
+   **`alisar=0` en los bloques**: el alisado de normales deforma una malla de pocas caras y el techo sale oscuro.
+4. Dos salidas que se comparan: **(a) el bloque tal cual** (ya está en presupuesto y con chapa limpia) y **(b) las 4
+   vistas por Hunyuan3D-2mv** + `procesar()`. Se queda la que mejor lea en la vista de juego; Lucía decide.
+- **Prueba del Dragón (6-nov, verificada)**: con 4 vistas lisas de un bloque, 2mv (FAST, 40.000 caras, 58 s) devuelve el
+  mismo bloque peor: ruedas fundidas en bultos, chapa ondulada y 0,25 m más alto. `procesar(..., color_unico="50541c")`
+  lo deja en 2.988 tris y OK, pero el **bloque tal cual lee mejor**. 2mv solo aporta si las vistas traen detalle
+  (fotos o vistas pintadas), no con un bloque liso.
+- **Orientación (verificada en esa prueba)**: la malla de 2mv sale girada 180° respecto al bloque (el cañón mira a +Y).
+  Girarla antes de exportar. **(no verificado)** si left y right van espejados: el bloque era casi simétrico.
 
 ## Añadir detalle sin romper el presupuesto
 - El pixelado de 1/3 se come todo lo que mida menos de ~3 px en pantalla: **el detalle va en la silueta y en bloques de

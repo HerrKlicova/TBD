@@ -1089,6 +1089,30 @@ def paleta_desde_original(obj, original=None, paleta=None, max_colores=10, suavi
             "textura": ruta_textura}
 
 
+def paleta_uniforme(obj, color="50541c", paleta=None, ruta_textura=None, celda_px=4):
+    """Atlas de paleta con todas las caras de un color (para bloques hechos en Blender, sin textura de origen).
+    Después se aplica valor_partido() igual que a una pieza de Hunyuan."""
+    pal = cargar_paleta() if paleta is None else paleta
+    hexes = ["%02x%02x%02x" % tuple(int(x) for x in c) for c in pal]
+    i = hexes.index(color.lower().lstrip("#"))
+    me = obj.data
+    capa = me.uv_layers.get("UV_paleta") or me.uv_layers.new(name="UV_paleta")
+    for otra in [c for c in me.uv_layers if c.name != "UV_paleta"]:
+        me.uv_layers.remove(otra)
+    me.uv_layers.active = me.uv_layers["UV_paleta"]
+    _poner_indices(obj, np.full(len(me.polygons), i))
+    filas = int(math.ceil(len(pal) / 8))
+    tex = np.zeros((filas * celda_px, 8 * celda_px, 4))
+    for k, c in enumerate(pal):
+        fy, fx = k // 8, k % 8
+        tex[fy * celda_px:(fy + 1) * celda_px, fx * celda_px:(fx + 1) * celda_px, :3] = c
+        tex[fy * celda_px:(fy + 1) * celda_px, fx * celda_px:(fx + 1) * celda_px, 3] = 255
+    ruta_textura = ruta_textura or os.path.join(bpy.app.tempdir or ".", "T_paleta32.png")
+    _png(ruta_textura, tex)
+    _material_paleta(obj, ruta_textura)
+    return {"color": color, "textura": ruta_textura}
+
+
 def _material_paleta(obj, ruta):
     mat = bpy.data.materials.get("MAT_Paleta32") or bpy.data.materials.new("MAT_Paleta32")
     mat.use_nodes = True
@@ -1158,8 +1182,10 @@ def importar(ruta):
 
 def procesar(ruta, salida, nombre=None, objetivo=3000, altura_m=None, voxel=True, max_colores=10,
              presupuesto=(1500, 4000), formato="FBX", faccion="neutro", partido=True, claro="b4a080", costado=None,
-             suelos=None, tipo=None, largo_m=None, alisar=0):
-    """Hunyuan (GLB denso) -> pieza de juego: importar, escalar, limpiar, (remallar), diezmar, paleta, auditar,
+             suelos=None, tipo=None, largo_m=None, alisar=0, color_unico=None):
+    """color_unico: hex de la paleta para salidas sin textura (p. ej. 4 vistas de un bloque): sustituye a
+    paleta_desde_original.
+    Hunyuan (GLB denso) -> pieza de juego: importar, escalar, limpiar, (remallar), diezmar, paleta, auditar,
     vistas y exportar. Devuelve el informe completo y lo guarda en <salida>/<nombre>_informe.json."""
     os.makedirs(salida, exist_ok=True)
     obj = importar(ruta)
@@ -1203,8 +1229,11 @@ def procesar(ruta, salida, nombre=None, objetivo=3000, altura_m=None, voxel=True
     bpy.data.meshes.remove(copia)
     inf["diezmar"] = intentos[-1]
     inf["diezmar_intentos"] = [(d["triangulos"], d["silueta_1px_min"], d["silueta_iou_min"]) for d in intentos]
-    inf["paleta"] = paleta_desde_original(obj, original=original, max_colores=max_colores,
-                                          ruta_textura=os.path.join(salida, "T_Paleta32.png"))
+    if color_unico:
+        inf["paleta"] = paleta_uniforme(obj, color_unico, ruta_textura=os.path.join(salida, "T_Paleta32.png"))
+    else:
+        inf["paleta"] = paleta_desde_original(obj, original=original, max_colores=max_colores,
+                                              ruta_textura=os.path.join(salida, "T_Paleta32.png"))
     if partido:
         # tipo: "militar" (vehículos y material propio) o "civil"; por defecto, militar si la facción es propia
         tipo = tipo or ("militar" if faccion == "propio" else "civil")
