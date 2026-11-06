@@ -22,3 +22,6 @@ OC-1;Llorens;Una obra se oye desde lejos. Mientras dure, {nodo} atrae a la Colme
 OC-2;Mora;El ruido de la obra en {nodo} los está trayendo. Calculo {n} en {minutos} min.;The noise at {node} is drawing them in. I count {n}, {minutes} min out.
 OC-3;tras el ataque;El ruido de la obra nos ha delatado. Hay contacto en {nodo}.;The construction gave us away. Contact at {node}.
 OC-4;Llorens;Obra parada en {nodo}. Hay que despejar la zona para seguir.;Work stopped at {node}. Clear the area to resume.
+TL-1;Chispas;El {tren} está listo. Cuando quiera, comandante.;The {train} is ready. Whenever you are, Commander.
+TL-2;Chispas;El {tren} está listo, pero me faltan {n} para la dotación.;The {train} is ready, but I'm {n} short for a crew.
+TL-3;Chispas;Paramos el {tren}. Recuperamos {u} u de materiales.;Work on the {train} stopped. We salvaged {u} u of materials.
