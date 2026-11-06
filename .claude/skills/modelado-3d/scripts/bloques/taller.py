@@ -107,6 +107,34 @@ class Taller:
                 if abs((f.calc_center_median() - co).dot(no)) < ancho / 2:
                     f.material_index = i_cost
 
+    def tejado(self, c, largo, fondo, alto, pieza="tejado", vuelo=0.0, aguas=4, grosor=0.0):
+        """Tejado sobre la caja de planta largo (X) x fondo (Y) con el alero a la altura c[2]. aguas=4: cuatro aguas
+        (cumbrera de largo-fondo); aguas=2: dos aguas con hastiales; aguas=1: una sola agua que sube hacia +Y.
+        vuelo: lo que sobresale el alero; grosor: canto del alero (0 = sin canto)."""
+        bm = self.bm
+        cx, cy, z = c
+        hx, hy = largo / 2 + vuelo, fondo / 2 + vuelo
+        V = lambda x, y, zz: bm.verts.new((cx + x, cy + y, zz))
+        b = [V(-hx, -hy, z), V(hx, -hy, z), V(hx, hy, z), V(-hx, hy, z)]
+        caras = []
+        if aguas == 1:
+            t = [V(-hx, hy, z + alto), V(hx, hy, z + alto)]
+            caras += [bm.faces.new((b[0], b[1], t[1], t[0])), bm.faces.new((b[1], b[2], t[1])),
+                      bm.faces.new((b[3], b[0], t[0])), bm.faces.new((b[2], b[3], t[0], t[1]))]
+        else:
+            r = max(0.0, hx - hy) if aguas == 4 else hx
+            t = [V(-r, 0, z + alto), V(r, 0, z + alto)]
+            caras += [bm.faces.new((b[0], b[1], t[1], t[0])), bm.faces.new((b[2], b[3], t[0], t[1]))]
+            if aguas == 4:
+                caras += [bm.faces.new((b[1], b[2], t[1])), bm.faces.new((b[3], b[0], t[0]))]
+            else:
+                caras += [bm.faces.new((b[1], b[2], t[1])), bm.faces.new((b[3], b[0], t[0]))]
+        caras.append(bm.faces.new(b[::-1]))   # cara de abajo (cierra la pieza)
+        if grosor:
+            self.caja((cx, cy, z - grosor / 2), (2 * hx, 2 * hy, grosor), pieza)
+        self._marcar(caras, pieza)
+        return caras
+
     def objeto(self, nombre, bisel=0.03):
         capa = self.bm.edges.layers.float.get("bevel_weight_edge") or self.bm.edges.layers.float.new("bevel_weight_edge")
         for f in self.biselar:

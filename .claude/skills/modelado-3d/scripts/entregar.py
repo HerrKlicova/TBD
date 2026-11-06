@@ -107,6 +107,10 @@ def captura(salida, fotos, titulo, px):
         F = ImageFont.load_default()
 
     def foto(spec):
+        if spec == "pendiente":
+            c = Image.new("RGB", (S, S), (72, 64, 60))
+            ImageDraw.Draw(c).text((S // 2 - 50, S // 2), "foto pendiente", fill=(235, 235, 235), font=F)
+            return c
         ruta, caja = spec.rsplit(":", 1)
         im = Image.open(ruta).convert("RGB").crop(tuple(int(v) for v in caja.split(",")))
         k = S / max(im.size)
@@ -145,7 +149,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("modulo")
     ap.add_argument("salida")
-    ap.add_argument("--fotos", nargs="+", required=True, help="ruta:x0,y0,x1,y1 (la primera 3/4, la última lateral)")
+    ap.add_argument("--fotos", nargs="+", default=["pendiente"],
+                    help="ruta:x0,y0,x1,y1 (la primera 3/4, la última lateral). Sin fotos, la columna dice «foto pendiente»: "
+                         "solo para adelantar el bloque con medidas; la entrega final lleva la foto (norma 3D)")
     ap.add_argument("--titulo", default="")
     ap.add_argument("--claro", default="b4a080")
     ap.add_argument("--costado", default="50541c")
