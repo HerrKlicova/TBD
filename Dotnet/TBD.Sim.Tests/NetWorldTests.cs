@@ -11,7 +11,7 @@ namespace TBD.Sim.Tests
         public static void Run(Action<bool, string> check)
         {
             // Sonda de ritmo (TBD_PROBE=1): cuántas estaciones están asediadas cada 3 h durante dos días.
-            if (Environment.GetEnvironmentVariable("TBD_PROBE") == "1") { var dw = NetScenario.Mvp(); for (int h=6;h<=48;h+=3){ while(dw.Tick<NetConst.Hours(h)){dw.ApplyCommands();dw.Step();} int sg=0, th=0; foreach(var n in dw.Graph.Nodes){ if(n.State==NodeState.Asediada) sg++; else if(n.State==NodeState.Amenazada) th++; } Console.WriteLine($"PROBE {NetConst.Clock(dw.Tick)} d{dw.Tick/NetConst.DayTicks+1}: asediadas {sg}, amenazadas {th}"); } }
+            if (Environment.GetEnvironmentVariable("TBD_PROBE") == "1") { var dw = NetScenario.Mvp(false); for (int h=6;h<=48;h+=3){ while(dw.Tick<NetConst.Hours(h)){dw.ApplyCommands();dw.Step();} int sg=0, th=0; foreach(var n in dw.Graph.Nodes){ if(n.State==NodeState.Asediada) sg++; else if(n.State==NodeState.Amenazada) th++; } Console.WriteLine($"PROBE {NetConst.Clock(dw.Tick)} d{dw.Tick/NetConst.DayTicks+1}: asediadas {sg}, amenazadas {th}"); } }
             // ---- QA Q2: el hash de la zona ve diferencias de 1 mm y de velocidad
             {
                 var z1 = TBD.Sim.Zombie.Create(7, new Unity.Mathematics.float2(50f, 60f), 0f);
@@ -24,7 +24,7 @@ namespace TBD.Sim.Tests
             Console.WriteLine("[10] Mundo S0 del hito 2: mancha, horarios, carga, tiempo y determinismo");
 
             // ---- la mancha conserva la masa y se mueve
-            var w = NetScenario.Mvp();
+            var w = NetScenario.Mvp(false);
             long m0 = w.Field.Mass();
             int[] before = new int[w.Field.D.Length]; for (int i = 0; i < before.Length; i++) before[i] = w.Field.D[i] + w.Field.S[i];
             for (int i = 0; i < 300; i++) w.Field.Step(w.Graph, w.Attraction);
@@ -36,14 +36,14 @@ namespace TBD.Sim.Tests
             check(maxCell <= HordeField.Max, $"ninguna celda pasa del tope ({maxCell})");
 
             // ---- ritmo de la Colmena (ajustado el 5-nov a petición de Eugenio: antes asediaba 4 estaciones antes de las 12:00)
-            w = NetScenario.Mvp();
+            w = NetScenario.Mvp(false);
             while (w.Tick < NetConst.Hours(12)) { w.ApplyCommands(); w.Step(); }
             int sieged = 0; foreach (var n in w.Graph.Nodes) if (n.State == NodeState.Asediada) sieged++;
             check(sieged <= 1, $"a las 12:00 del primer día hay como mucho una estación asediada ({sieged})");
 
             // ---- D-N08 (Lucía): el día 1 no hay asedios. Ningún nodo «asediado» ni alerta de asedio en todo el día 1
             {
-                var wd = NetScenario.Mvp();
+                var wd = NetScenario.Mvp(false);
                 bool any = false;
                 while (wd.Tick < NetConst.DayTicks)
                 {
@@ -55,7 +55,7 @@ namespace TBD.Sim.Tests
             }
 
             // ---- horarios: el tren 1 sale a las 06:00 de Valencia y llega a Sagunto con la carga
-            w = NetScenario.Mvp();
+            w = NetScenario.Mvp(false);
             var s1 = w.Services[0];
             long departTick = -1, arriveTick = -1;
             for (long t = 0; t < NetConst.DayTicks && arriveTick < 0; t++)
@@ -78,7 +78,7 @@ namespace TBD.Sim.Tests
             check(s1.CargoTotal() <= NetConst.TrainCapacity, "nunca se pasa de la capacidad del tren");
 
             // ---- un día completo: cada tren hace su servicio y la carga se conserva (tren + estaciones)
-            w = NetScenario.Mvp();
+            w = NetScenario.Mvp(false);
             long total0 = TotalGoods(w);
             for (long t = 0; t < 2 * NetConst.DayTicks; t++) { w.ApplyCommands(); w.Step(); }
             check(TotalGoods(w) == total0, $"en dos días no se crea ni se pierde carga ({total0} t)");
@@ -86,7 +86,7 @@ namespace TBD.Sim.Tests
             check(moved == w.Services.Count, $"los trenes vuelven a salir al día siguiente ({moved} de {w.Services.Count})");
 
             // ---- órdenes de tiempo: pausa, reanudar y velocidad
-            w = NetScenario.Mvp();
+            w = NetScenario.Mvp(false);
             long t0 = w.Tick;
             for (int i = 0; i < 10; i++) { w.ApplyCommands(); w.Step(); }
             w.Push(new NetCommand { Tick = w.Tick, Type = NetCmdType.Pause });
@@ -99,7 +99,7 @@ namespace TBD.Sim.Tests
             check(!w.Paused && w.Speed == 4 && w.Tick - t0 == 11, "reanudar y poner x4 se aplican aunque el reloj estuviera parado");
 
             // ---- retener un tren
-            w = NetScenario.Mvp();
+            w = NetScenario.Mvp(false);
             w.Push(new NetCommand { Tick = 0, Type = NetCmdType.TrainHold, Arg = 0 });
             for (long t = 0; t < NetConst.Hours(7); t++) { w.ApplyCommands(); w.Step(); }
             check(w.Services[0].AtStop && w.Services[0].StopIndex == 0, "un tren retenido no sale aunque llegue su hora");
@@ -108,7 +108,7 @@ namespace TBD.Sim.Tests
             check(!w.Services[0].AtStop, "al soltarlo sale (ya es su hora)");
 
             // ---- horda sobre la vía: corta, el tren se detiene y hay aviso
-            w = NetScenario.Mvp();
+            w = NetScenario.Mvp(false);
             var g = w.Graph;
             var e = g.FindEdge(w.Services[1].Stops[0].Node, IdOf(g, "Segorbe"));       // Sagunto–Segorbe, en la ruta del tren 2
             var a = g.Nodes[e.A]; var b = g.Nodes[e.B];
@@ -137,7 +137,7 @@ namespace TBD.Sim.Tests
 
             // ---- materializar y desmaterializar (hito 3): la masa sale de la mancha y vuelve con los vivos; las bajas se pierden
             {
-                var wz = NetScenario.Mvp();
+                var wz = NetScenario.Mvp(false);
                 int teruel = wz.Graph.Nodes.FindIndex(n => n.Name == "Teruel");
                 var tn = wz.Graph.Nodes[teruel];
                 wz.Field.D[tn.YMeters * HordeField.W + tn.XMeters] = 300;
@@ -160,7 +160,7 @@ namespace TBD.Sim.Tests
 
             // ---- materializar toma la celda más densa de las 3×3 del nodo (la que da su estado), aunque la del nodo esté vacía
             {
-                var wv = NetScenario.Mvp();
+                var wv = NetScenario.Mvp(false);
                 int sag = wv.Graph.Nodes.FindIndex(n => n.Name == "Sagunto");
                 var sn = wv.Graph.Nodes[sag];
                 int own = sn.YMeters * HordeField.W + sn.XMeters, nb = own + 1;
@@ -172,7 +172,7 @@ namespace TBD.Sim.Tests
 
             // ---- munición de una zona: carga del tren en el andén + estación; se gasta primero la del tren
             {
-                var wa = NetScenario.Mvp();
+                var wa = NetScenario.Mvp(false);
                 var sv = wa.Services[0];                                         // el tren 1 empieza en el andén de Valencia
                 int val = sv.Stops[0].Node;
                 sv.Cargo[(int)Res.Municion] = 30;
@@ -185,8 +185,8 @@ namespace TBD.Sim.Tests
             }
 
             // ---- determinismo: dos mundos con las mismas órdenes, mismo hash en cada tick
-            var w1 = NetScenario.Mvp();
-            var w2 = NetScenario.Mvp();
+            var w1 = NetScenario.Mvp(false);
+            var w2 = NetScenario.Mvp(false);
             bool same = true;
             var sw = Stopwatch.StartNew();
             for (long t = 0; t < NetConst.DayTicks; t++)

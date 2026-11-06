@@ -11,7 +11,7 @@ namespace TBD.Sim.Tests
         const int Node = 0;                       // Valencia en el escenario MVP: 900 u de materiales
 
         /// <summary>Mundo MVP a las 08:00 y sin vía para las pruebas de coste, nivel y obra, cuyos muros se trazan por el andén (y = 0): la franja de la vía se prueba en [21].</summary>
-        static NetWorld Mvp0() { var w = NetScenario.Mvp(); w.Works.P.TrackHalfMm = 0; w.Tick = NetConst.Hours(8); return w; }     // a las 08:00: en horario de obra (06:00–18:00); el escenario arranca a las 05:30
+        static NetWorld Mvp0() { var w = NetScenario.Mvp(false); w.Works.P.TrackHalfMm = 0; w.Tick = NetConst.Hours(8); return w; }     // a las 08:00: en horario de obra (06:00–18:00); el escenario arranca a las 05:30
 
         static NetWorld WorldWithZone(int materials = 900)
         {
@@ -161,7 +161,7 @@ namespace TBD.Sim.Tests
             string gold = NetGolden.Record(script, 3000);
             var res = NetGolden.Verify(gold);
             check(res.Ok && gold.Contains(";9;" + (Node | ((int)PieceKind.Hesco << 16)) + ";0;"), $"grabar y reproducir órdenes de obra: {res}");
-            long badTick = NetScenario.Mvp().Tick + 2000;
+            long badTick = NetScenario.Mvp(false).Tick + 2000;
             var res2 = NetGolden.Verify(gold, (world, t) => { if (t == badTick && world.Works.Count(Node) > 0) { var l = world.Works.At(Node); var x = l[0]; x.LifeMil -= 1; l[0] = x; } });
             check(!res2.Ok, $"un solo ‰ de vida cambiado a escondidas se detecta: {res2}");
 
@@ -295,7 +295,7 @@ namespace TBD.Sim.Tests
             string gold2 = NetGolden.Record(script2, 3000);
             var r3 = NetGolden.Verify(gold2);
             check(r3.Ok && gold2.Contains(";10;" + Node + ";10\n") && gold2.Contains(";11;" + Node + ";1\n"), $"grabar y reproducir asignar obreros y cancelar: {r3}");
-            long bad2 = NetScenario.Mvp().Tick + 2500;
+            long bad2 = NetScenario.Mvp(false).Tick + 2500;
             var r4 = NetGolden.Verify(gold2, (world, t) => { if (t == bad2) world.Works.Workers[Node] += 1; });
             check(!r4.Ok, $"un obrero de más a escondidas se detecta: {r4}");
 
@@ -442,7 +442,7 @@ namespace TBD.Sim.Tests
         static void RunHorario(Action<bool, string> check)
         {
             Console.WriteLine("[22] Horario de obra (06:00–18:00) y devolución exacta al cancelar (Hugo, D-N59)");
-            var mvp = NetScenario.Mvp();
+            var mvp = NetScenario.Mvp(false);
             check(mvp.Works.P.WorkStartHour == 6 && mvp.Works.P.WorkEndHour == 18 && mvp.Works.P.BridgeObreroH == 192 && mvp.Works.P.BridgeNeedTicks == 288_000, "el horario (obra_hora_inicio 6, obra_hora_fin 18) y las 192 obrero·h del puente vienen del CSV de Hugo");
             check(!mvp.Works.P.IsWorkTime(NetConst.Hours(5.99)) && mvp.Works.P.IsWorkTime(NetConst.Hours(6)) && mvp.Works.P.IsWorkTime(NetConst.Hours(17.99)) && !mvp.Works.P.IsWorkTime(NetConst.Hours(18)), "se trabaja de 06:00 (incluida) a 18:00 (excluida)");
 

@@ -14,7 +14,7 @@ namespace TBD.Sim.Tests
         /// <summary>Un tren recién salido del taller: parado en Sagunto con una sola parada y sin horario.</summary>
         static NetWorld WithParked(out int svIndex)
         {
-            var w = NetScenario.Mvp();
+            var w = NetScenario.Mvp(false);
             int sag = Id(w, "Sagunto");
             var s = new TrainService { Train = new RailTrain { Id = 3, Name = "3 Nuevo", SpeedMmPerTick = NetConst.TrainMmPerTick }, StopIndex = 0, AtStop = true };
             s.Stops.Add(new ScheduleStop { Node = sag, DepartAt = 0, Transfer = new int[NetConst.ResCount] });
@@ -42,7 +42,7 @@ namespace TBD.Sim.Tests
             check(w.Hash() == h0 && w.Services[si].Stops.Count == 1 && !w.Services[si].ScheduleEdited, "nada de lo rechazado cambia el estado ni el hash");
 
             // un tren en marcha no admite horario
-            var moving = NetScenario.Mvp(); moving.Services[0].AtStop = false;
+            var moving = NetScenario.Mvp(false); moving.Services[0].AtStop = false;
             check(moving.SetSchedule(0, Cat(Stop(moving.Services[0].Stops[0].Node, 100), Stop(sag == moving.Services[0].Stops[0].Node ? cas : sag, 200))) == ScheduleResult.NoEstaParado, "un tren en marcha no admite horario (hay que esperar a que pare)");
 
             // horario válido: sale a su hora y carga
@@ -62,7 +62,7 @@ namespace TBD.Sim.Tests
             check(w2.SetSchedule(s2, Cat(Stop(sag, 100))) == ScheduleResult.Ok && w2.Services[s2].Stops.Count == 1, "un horario de una sola parada es válido (el tren se queda aparcado)");
 
             // sin horario puesto, los goldens no se mueven: el hash de un mundo sin SetSchedule no incluye nada
-            var plain = NetScenario.Mvp(); var plain2 = NetScenario.Mvp();
+            var plain = NetScenario.Mvp(false); var plain2 = NetScenario.Mvp(false);
             check(plain.Hash() == plain2.Hash(), "sin SetSchedule el hash es el de siempre");
 
             // dos mundos con la misma orden: mismo hash; con otra distinta, otro
@@ -73,7 +73,7 @@ namespace TBD.Sim.Tests
             check(a.Hash() == b.Hash() && a.Hash() != c.Hash(), "mismo horario, mismo hash; una carga distinta (20 contra 21), otro");
 
             // grabación y repetición de la orden (el tren 0 del escenario cambia de horario)
-            var scn = NetScenario.Mvp(); int t0n = scn.Services[0].Stops[0].Node; int other = t0n == cas ? sag : cas;
+            var scn = NetScenario.Mvp(false); int t0n = scn.Services[0].Stops[0].Node; int other = t0n == cas ? sag : cas;
             string gold = NetGolden.Record(new List<NetCommand>
             {
                 new NetCommand { Tick = scn.Tick + 10, Type = NetCmdType.SetSchedule, Arg = 0, Payload = Cat(Stop(t0n, NetConst.Hours(6.5), mat: 10), Stop(other, NetConst.Hours(12))) }

@@ -27,6 +27,7 @@
     <Compile Include="EstacionesTests.cs" />
     <Compile Include="HorarioTests.cs" />
     <Compile Include="TallerTests.cs" />
+    <Compile Include="SaguntoInicioTests.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Hive.cs" Link="Net\Hive.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\HiveDirector.cs" Link="Net\HiveDirector.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\NetGolden.cs" Link="Net\NetGolden.cs" />

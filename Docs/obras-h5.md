@@ -107,3 +107,12 @@ La noche para el trabajo pero no la obra. `WorkInProgress` (encargada y sin acab
 
 ### El taller (paso 5)
 `Taller.cs`: cola de encargos del taller de Sagunto, un encargo a la vez y las 24 h (tren nuevo 3 días, rehabilitar 36 h). `OrderTrain(tipo)` cobra con las existencias del taller y no cobra nada si falla (materiales, combustible, libres por encima del retén, máximo de trenes, rehabilitación ya hecha). Un tren de servicio (nuevo o el Tren 3) toma 10 de tripulación al encargarse; el de obras no: sus 8 obreros son su tripulación y se descuentan al salir (si no hay, el tren espera en el taller, TL-2). `CancelTrainOrder(i)`: 100 % de lo pagado sin empezar, floor(50 %) empezado (TL-3). Chispas (`ChispasAt`: -2 no está, -1 taller, ≥ 0 tren) acelera un 25 % las rehabilitaciones en el taller y las reparaciones de vía y puente a bordo del tren de obras; no sale del taller hasta que ha rodado el tren de obras. El tren nace en Sagunto con una sola parada y TL-1; el horario lo pone `SetSchedule`.
+
+## Sagunto empieza con 120 u de muro construido (D-N63)
+`NetScenario.Mvp()` llama a `NetScenario.SagunteStart(w)`: coloca con `Obras.PlanWall`/`PlanPoint` y da por terminadas 36 piezas, sin cobrar (el stock del día 1 no se toca): 120,24 u, nivel 4.008 ‰.
+- Recinto de 86 × 41 m, en mm locales al nodo: X ±43.000, Y ±20.500, vía en y = 0, andén (0, 0) = (113; 64,5) en la zona (`Level`).
+- HESCO: frente oeste (4 módulos y la puerta de vía en la vía) y 14,5 m en cada ala, 66,8 m en total. Sacos: el resto, 180,8 m. Puerta peatonal en el este (X +43.000, Y -8.000), nidos en (-39.500, ±7.000) y focos en (-40.500, ±15.000) y (0, 18.500).
+- El muro este cruza la vía, así que `PlanWall` le pone su puerta de vía: hay **dos**; la del este queda **bloqueada cerrada** (`GateMode` 2).
+- `Mvp(false)` deja Sagunto sin obras: las pruebas de obras, taller, horario, estaciones, director y red parten de ahí. Pruebas: `SaguntoInicioTests.cs` ([27]); si Marcos cambia otra vez el recinto en `Level.cs`, las comprobaciones de medidas fallan.
+- Mantenimiento: 2 u al día de los materiales de Sagunto.
+

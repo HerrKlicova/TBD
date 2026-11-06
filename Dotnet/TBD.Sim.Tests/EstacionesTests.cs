@@ -12,7 +12,7 @@ namespace TBD.Sim.Tests
         {
             Console.WriteLine("[18] Fundar una estación (hito 5): emplazamientos, requisitos, nivel y hash");
 
-            var w0 = NetScenario.Mvp();
+            var w0 = NetScenario.Mvp(false);
             int nules = -1; foreach (var n in w0.Graph.Nodes) if (n.Name == "Nules") nules = n.Id;
             bool anyFounded = false; foreach (var f in w0.Stations.Founded) if (f) anyFounded = true;
             var sp = StationParams.FromCsv(new CsvTable(File.ReadAllText(Path.Combine(BalanceTests.DataDirPublic(), "balance_economia.csv"))));
@@ -25,7 +25,7 @@ namespace TBD.Sim.Tests
             // montaje: un tren parado en una parada de su horario, con la carga de fundar; el emplazamiento es ese nodo (la lista es configurable)
             NetWorld Setup(out TrainService sv, out int site, int mats = 30, int people = 12)
             {
-                var w = NetScenario.Mvp();
+                var w = NetScenario.Mvp(false);
                 sv = w.Services[0];
                 site = sv.Stops[0].Node;
                 w.Stations.P.Sites = new[] { w.Graph.Nodes[site].Name };
@@ -55,7 +55,7 @@ namespace TBD.Sim.Tests
             check(w1.FoundStation(s1) == FoundResult.YaFundada && w1.StationKindOf(s1) == StationKind.Apeadero && w1.Hash() != h1, "una estación fundada no se funda otra vez; es un apeadero y el hash cambia");
 
             // un tren detenido cerca del nodo en su tramo también vale (dentro del radio)
-            var wr = NetScenario.Mvp(); var edge = wr.Graph.Edges[0]; int rsite = edge.B;
+            var wr = NetScenario.Mvp(false); var edge = wr.Graph.Edges[0]; int rsite = edge.B;
             wr.Stations.P.Sites = new[] { wr.Graph.Nodes[rsite].Name };
             var rs = wr.Services[0]; rs.AtStop = false; rs.Train.Route = new List<int> { edge.A, edge.B }; rs.Train.Leg = 0; rs.Train.State = RailTrainState.Parado;
             rs.Cargo[(int)Res.Materiales] = 30; rs.Cargo[(int)Res.Personas] = 12; wr.Graph.Nodes[rsite].HordeDensity = 0;
@@ -81,7 +81,7 @@ namespace TBD.Sim.Tests
             check(da.Stations.Founded[sa] && da.Hash() == db.Hash(), "la orden FoundStation, aplicada en dos mundos, da el mismo hash 300 ticks después");
 
             // «detener en el emplazamiento» (Mak, 6-nov): el tren para justo en el nodo al llegar y, con la carga, se funda
-            var wh = NetScenario.Mvp(); int hs = -1;
+            var wh = NetScenario.Mvp(false); int hs = -1;
             for (int i = 0; i < wh.Services.Count && hs < 0; i++)
                 for (int k = 0; k < wh.Services[i].Stops.Count && hs < 0; k++)
                 {
@@ -100,7 +100,7 @@ namespace TBD.Sim.Tests
             wh.Push(new NetCommand { Tick = wh.Tick, Type = NetCmdType.TrainGo, Arg = hs }); wh.ApplyCommands();
             for (int i = 0; i < 200; i++) wh.Step();
             check(!svh.Held && svh.Train.State == RailTrainState.EnMarcha && (svh.Train.Leg > 0 || svh.Train.OffsetMm > 0), "TrainGo lo suelta y sigue su ruta");
-            var wn = NetScenario.Mvp(); ulong hBase = wn.Hash();
+            var wn = NetScenario.Mvp(false); ulong hBase = wn.Hash();
             wn.Push(new NetCommand { Tick = wn.Tick, Type = NetCmdType.HaltAtSite, Arg = wn.Graph.Nodes[0].Id, Arg2 = 0 }); wn.ApplyCommands();
             check(wn.Services[0].HaltAt == -1 && wn.Hash() == hBase, "detener en un nodo que no es emplazamiento se ignora");
             wn.Push(new NetCommand { Tick = wn.Tick, Type = NetCmdType.HaltAtSite, Arg = nules, Arg2 = 0 }); wn.ApplyCommands();
@@ -109,7 +109,7 @@ namespace TBD.Sim.Tests
             check(pending && wn.Services[0].HaltAt == -1 && wn.Hash() == hBase, "la parada pendiente entra en el hash mientras está, y la orden con nodo −1 la cancela");
 
             // un emplazamiento sin fundar no cuenta para el peso del director ni para la huella (Mak, 6-nov)
-            var wp = NetScenario.Mvp();
+            var wp = NetScenario.Mvp(false);
             check(wp.Director.SiegeWeight(wp, nules) == 0 && wp.Director.SiegeTargetWeight(wp, nules) == 0, "sin fundar, Nules pesa 0 como objetivo y para la deriva");
             int picks = 0; for (int k = 0; k < 4000; k++) { wp.Tick = 40 * NetConst.DayTicks + k * 37; if (wp.Director.DrawSiegeTarget(wp) == nules) picks++; }
             check(picks == 0, "el director no sortea un emplazamiento sin fundar como objetivo de asedio (0 de 4.000)");
@@ -119,7 +119,7 @@ namespace TBD.Sim.Tests
             check(wp.Director.SiegeWeight(wp, nules) > 0 && wp.Director.HuellaMil(wp) > hu0, "una vez fundado, pesa y suma a la huella como cualquier nodo");
 
             // la orden con Nules sin tren se rechaza, y la repetición dorada con esa orden sigue idéntica
-            string gold = NetGolden.Record(new List<NetCommand> { new NetCommand { Tick = NetScenario.Mvp().Tick + 100, Type = NetCmdType.FoundStation, Arg = nules } }, 1500);
+            string gold = NetGolden.Record(new List<NetCommand> { new NetCommand { Tick = NetScenario.Mvp(false).Tick + 100, Type = NetCmdType.FoundStation, Arg = nules } }, 1500);
             var res = NetGolden.Verify(gold);
             check(res.Ok && gold.Contains(";12;" + nules + ";0\n"), $"la orden FoundStation se graba y se reproduce igual: {res}");
 
@@ -132,7 +132,7 @@ namespace TBD.Sim.Tests
             // montaje: el tren 0, marcado como tren de obras, parado en su primera parada; el tramo es uno que sale de ese nodo
             NetWorld Setup(out TrainService sv, out RailEdge edge, int mats = 20, int people = 8)
             {
-                var w = NetScenario.Mvp(); w.Tick = NetConst.Hours(8);                 // en horario de obra (06:00–18:00)
+                var w = NetScenario.Mvp(false); w.Tick = NetConst.Hours(8);                 // en horario de obra (06:00–18:00)
                 sv = w.Services[0]; sv.WorksTrain = true; sv.AtStop = true; sv.StopIndex = 0;
                 sv.Cargo[(int)Res.Materiales] = mats; sv.Cargo[(int)Res.Personas] = people;
                 int node = sv.Stops[0].Node; edge = null;
@@ -203,15 +203,15 @@ namespace TBD.Sim.Tests
             check(same, "dos mundos con la misma reparación dan el mismo hash en 3.000 ticks");
 
             // la orden por la cola de órdenes se graba y se reproduce igual; los cortes de densidad (sin escombros) no cambian nada
-            string gold = NetGolden.Record(new List<NetCommand> { new NetCommand { Tick = NetScenario.Mvp().Tick + 100, Type = NetCmdType.RepairEdge, Arg = 0, Arg2 = 0 } }, 1500);
+            string gold = NetGolden.Record(new List<NetCommand> { new NetCommand { Tick = NetScenario.Mvp(false).Tick + 100, Type = NetCmdType.RepairEdge, Arg = 0, Arg2 = 0 } }, 1500);
             var res = NetGolden.Verify(gold);
             check(res.Ok && gold.Contains(";14;0;0"), $"la orden RepairEdge se graba y se reproduce igual (sin escombros no hace nada): {res}");
-            var wn = NetScenario.Mvp(); ulong hn = wn.Hash(); wn.Graph.Edges[0].State = EdgeState.Cortada;
+            var wn = NetScenario.Mvp(false); ulong hn = wn.Hash(); wn.Graph.Edges[0].State = EdgeState.Cortada;
             for (int i = 0; i < 4000; i++) wn.Step();
             check(!wn.Graph.Edges[0].Debris && wn.Graph.Edges[0].State == EdgeState.Ok, "un corte de densidad sin escombros sigue despejándose solo");
 
             // el director marca escombros en sus cortes (TR-4)
-            var wd = NetScenario.Mvp(); wd.Tick = 5 * NetConst.DayTicks;
+            var wd = NetScenario.Mvp(false); wd.Tick = 5 * NetConst.DayTicks;
             for (int e = 0; e < wd.Graph.Edges.Count; e++) for (int sl = 0; sl < wd.Traffic.P.Slots; sl++) wd.Traffic.M[e, sl] = wd.Traffic.P.Cut + 100;
             for (int hr = 0; hr < 48; hr++) { wd.Tick = 5 * NetConst.DayTicks + hr * 1500; wd.Director.Hourly(wd); }
             int debris = 0; RailEdge de = null; foreach (var e in wd.Graph.Edges) if (e.Debris) { debris++; de = e; }

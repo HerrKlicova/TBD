@@ -1181,7 +1181,7 @@ namespace TBD.Net
         /// Arranque del prototipo de red: la red del MVP, 3 trenes con horario diario y carga, existencias en las estaciones y tres
         /// manchas de horda. Todo fijo (sin azar): dos mundos creados así son idénticos.
         /// </summary>
-        public static NetWorld Mvp()
+        public static NetWorld Mvp(bool saguntoWalls = true)
         {
             var w = new NetWorld(RailNetSamples.Mvp());
             var g = w.Graph;
@@ -1217,8 +1217,65 @@ namespace TBD.Net
             w.Field.SeedStatic(42, 62, 300, 100);              // guarnición pegada a Barracas (700 ‰)
             w.Field.BlobStatic(61, 55, 5, 600);           // al norte de Castellón, tierra adentro (no en el mar)
             w.Field.BlobStatic(42, 44, 4, 500);                // paisaje: al este de Teruel, lejos de la vía
+            if (saguntoWalls) SagunteStart(w);     // D-N63: Sagunto empieza con 120 u de muro ya construidas
             w.Tick = NetConst.Hours(5.5);          // el prototipo arranca a las 05:30, media hora antes del primer tren
             return w;
+        }
+
+        // ---- D-N63 (Hugo, aprobada por Mak): el recinto de Sagunto empieza ya construido, 120 u, nivel 4,0
+        // Medidas del recinto a escala real del tren (Level.cs, 6903083): X 70 a 156 y Y 44 a 85, la vía en Y = 64,5 y el andén en el centro.
+        // Aquí, en mm locales al nodo (el andén es el (0, 0) y la vía es y = 0): X de -43.000 a +43.000 e Y de -20.500 a +20.500.
+        const int FortHalfX = 43_000, FortHalfY = 20_500, HescoWing = 14_500;
+
+        /// <summary>
+        /// Construye el muro de partida de Sagunto con las mismas funciones que las órdenes (Obras.PlanWall / PlanPoint), pero ya terminado y sin cobrar:
+        /// - Frente oeste (el que da a la horda y por donde entra la vía) en HESCO, con la puerta de vía que se pone sola donde el muro cruza la vía, y
+        ///   14,5 m de HESCO en cada ala (norte y sur) desde las esquinas del oeste. El lado oeste es el corto (41 m), no el largo de 90 m que supuso
+        ///   Hugo, así que el HESCO no llega a los 54 u: son ~40 u, y el total se mantiene en ~120 u / nivel 4,0 acortando las alas.
+        /// - El resto del perímetro, en sacos. El lado este también cruza la vía, así que lleva su propia puerta de vía (8 u, la regla de PlanWall),
+        ///   que queda bloqueada cerrada (GateMode 2): en la zona la vía acaba dentro del fuerte, y en automático los dos extremos se abrirían con el tren dentro.
+        /// - Una puerta peatonal en el lado este (el de la retaguardia), 2 nidos y 3 focos.
+        /// Coste total ≈ 120,2 u (nivel 4.008 ‰). No se descuenta del almacén: el stock del día 1 no se toca.
+        /// </summary>
+        public static void SagunteStart(NetWorld w)
+        {
+            int sag = -1; foreach (var n in w.Graph.Nodes) if (n.Name == "Sagunto") sag = n.Id;
+            if (sag < 0) return;
+            var P = w.Works.P;
+            const int Plenty = 1_000_000;                                    // existencias: las que haga falta, el muro de partida no se paga
+            void Wall(PieceKind k, params int[] pts)
+            {
+                var plan = Obras.PlanWall(P, k, pts, Plenty, Plenty);
+                if (!plan.Ok || plan.Cut) throw new InvalidOperationException("muro de partida de Sagunto: " + plan.Why);
+                w.Works.Add(sag, plan);
+                Finish(w, sag, plan);
+            }
+            void Point(PieceKind k, int x, int y)
+            {
+                var plan = Obras.PlanPoint(P, k, x, y, Plenty, Plenty);
+                if (!plan.Ok) throw new InvalidOperationException("pieza de partida de Sagunto: " + plan.Why);
+                w.Works.Add(sag, plan);
+                Finish(w, sag, plan);
+            }
+            int X = FortHalfX, Y = FortHalfY, A = HescoWing;
+            Wall(PieceKind.Hesco, -X, -Y, -X, Y);                            // frente oeste: de la esquina sur a la norte, la puerta de vía en el cruce con y = 0
+            Wall(PieceKind.Hesco, -X + A, Y, -X, Y);                         // ala norte (hacia el oeste)
+            Wall(PieceKind.Hesco, -X, -Y, -X + A, -Y);                       // ala sur
+            Wall(PieceKind.Sacos, -X + A, Y, X, Y);                          // norte, el resto
+            Wall(PieceKind.Sacos, X, Y, X, -Y);                              // este
+            Wall(PieceKind.Sacos, X, -Y, -X + A, -Y);                        // sur, el resto
+            Point(PieceKind.Puerta, X, -8_000);                              // puerta peatonal, en la retaguardia
+            Point(PieceKind.Nido, -X + 3_500, 7_000); Point(PieceKind.Nido, -X + 3_500, -7_000);          // dos nidos junto a la puerta de vía, por dentro
+            Point(PieceKind.Foco, -X + 2_500, 15_000); Point(PieceKind.Foco, -X + 2_500, -15_000); Point(PieceKind.Foco, 0, Y - 2_000);
+            var l = w.Works.At(sag);
+            for (int i = 0; i < l.Count; i++) if (l[i].IsGate && l[i].X0 > 0) { var g = l[i]; g.GateMode = 2; l[i] = g; }     // la puerta del este, bloqueada cerrada
+        }
+
+        /// <summary>Da por terminadas las piezas de un plan recién añadido (trabajo hecho = trabajo necesario).</summary>
+        static void Finish(NetWorld w, int node, WorkPlan plan)
+        {
+            var l = w.Works.At(node);
+            for (int i = l.Count - plan.Pieces.Count; i < l.Count; i++) { var p = l[i]; p.Built = true; p.WorkE4 = p.NeedE4; l[i] = p; }
         }
 
         static void Add(NetWorld w, int id, string name, params ScheduleStop[] stops)
