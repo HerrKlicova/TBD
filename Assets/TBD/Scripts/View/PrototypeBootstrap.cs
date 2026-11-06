@@ -1316,8 +1316,15 @@ namespace TBD.View
             Box("Calle de la Estación", new Vector3(59f, 0.05f, 64f), new Vector3(6f, 0.06f, 528f), asphalt, root);
             for (int i = 0; i < 24; i++) Box("Grieta calle", new Vector3(57f + (i * 37 % 5), 0.09f, -150f + i * 21f), new Vector3(0.15f, 0.02f, 3.2f), crack, root);
             Box("Paso a nivel", new Vector3(59f, 0.1f, 62.5f), new Vector3(6f, 0.05f, 9f), rust, root);
-            Box("Caseta del paso a nivel", new Vector3(63.5f, 1.5f, ty + 5f), new Vector3(2.6f, 3f, 2.6f), concrete, root);
-            Box("Barrera rota", new Vector3(59f, 1.0f, 57.4f), new Vector3(0.15f, 0.15f, 3.2f), bone, root).transform.rotation = Quaternion.Euler(0f, 0f, 25f);
+            // paso a nivel de Teo (origen en el cruce de la calzada con el eje de las vías: X 59, Z 63,6), girado para que la caseta quede al oeste de la calle y al norte de la vía
+            if (PlaceVariant("paso_a_nivel", new Vector3(59f, 0f, 63.6f), 90f, root) == null)
+            {
+                Box("Caseta del paso a nivel", new Vector3(51f, 1.5f, 72.6f), new Vector3(2.6f, 3f, 2.6f), concrete, root);
+                Box("Barrera rota", new Vector3(59f, 1.0f, 57.4f), new Vector3(0.15f, 0.15f, 3.2f), bone, root).transform.rotation = Quaternion.Euler(0f, 0f, 25f);
+            }
+            // almacén de naranjas de Teo (11 x 21 m, alero 5,5 m y cumbrera 7,5 m) en el solar del tejado de pruebas, girado 180° para que la fachada mire a la carretera vieja
+            if (PlaceVariant("almacen_naranjas", new Vector3(45.5f, 0f, 40.5f), 180f, root) == null)
+                Box("Almacén de naranjas (reserva)", new Vector3(45.5f, 3.2f, 40.5f), new Vector3(11f, 6.4f, 21f), M("94948c"), root);
             Box("Carretera vieja", new Vector3(128f, 0.05f, 23f), new Vector3(756f, 0.06f, 6f), asphalt, root);
             for (int i = 0; i < 60; i++) Box("Grieta carretera", new Vector3(-240f + i * 12.5f + (i * 7 % 5), 0.09f, 21.5f + (i * 3 % 4)), new Vector3(2.5f, 0.02f, 0.15f), crack, root);
             // C5: atasco irregular, más junto hacia la cabeza (este), giros de ±25°, alguno en el carril contrario o fuera del asfalto, puertas abiertas
@@ -1766,6 +1773,7 @@ namespace TBD.View
                 {
                     var c = (s.A + s.B) * 0.5f;
                     var size = s.B - s.A;
+                    if (_netZone && !_cutting) continue;                                // en Sagunto lo dibuja BuildSaguntoAmbience (almacén de naranjas de Teo)
                     Box(_cutting ? "Talud" : "Edificio", new Vector3(c.x, s.Height * 0.5f, c.y), new Vector3(size.x, s.Height, size.y), _cutting ? Mat(BankColor(s.Height)) : _mRoof);
                 }
                 else

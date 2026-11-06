@@ -354,7 +354,7 @@ namespace TBD.Sim
     {
         public const float TrackY = 64.5f;
         public const float WallH = 2.5f;
-        public const float RoofH = 4f;
+        public const float RoofH = 6.5f;      // el tejado de pruebas es la cubierta del almacén de naranjas de Teo (alero 5,5 m, cumbrera 7,5 m): sólido plano a 6,5 m (Mak, 6-nov)
         public const float WallHalf = 1f;                 // muro de 2 m de grosor
 
         public const float FortX0 = 70f, FortX1 = 156f, FortY0 = 44f, FortY1 = 85f;     // fuerte de Sagunto alargado a 86 m hacia el este (tren a escala real, Lucía 6-nov)
