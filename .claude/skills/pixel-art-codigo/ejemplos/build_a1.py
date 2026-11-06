@@ -264,7 +264,9 @@ if __name__ == "__main__":
     nombres = ["municion", "combustible", "materiales", "viveres", "poblacion"]
     s32 = [globals()[n]() for n in nombres]
     for s in s32:
-        s.limit_colors(10)   # regla de estética única: 6–10 colores por icono
+        aviso = s.limit_colors(10)   # regla de estética única: 6–10 colores; los acentos no se funden
+        if aviso:
+            print("AVISO limit_colors:", aviso)
     s16 = [reduce_16(s) for s in s32]
     s16[4] = poblacion_16()  # redibujado a mano: la reducción no se lee
     for n, a, b in zip(nombres, s32, s16):

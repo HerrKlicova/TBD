@@ -49,6 +49,8 @@ def _rgb(h):
 PAL = {k: _rgb(v) + (255,) for k, v in _HEX.items()}
 PALETA = [c[:3] for c in PAL.values()]
 # Colores prohibidos en iconos de recurso (D-N46: sin sangre, acento sin rojo).
+# Acentos con significado que la reducción de colores no toca: latón, franja ámbar y rojo de peligro.
+ACENTOS = {PAL[k][:3] for k in ("amber", "ochre_dark", "cream", "red_bright")}
 ROJOS = {PAL[k][:3] for k in ("maroon", "blood_dark", "wine", "red", "red_bright")}
 FONDO_UI = PAL["navy"]
 CONTORNO = PAL["black"]
@@ -228,9 +230,13 @@ class Sprite:
                 m = min(paleta, key=lambda p: (p[0] - r) ** 2 + (p[1] - g) ** 2 + (p[2] - b) ** 2)
                 self.px[i, j] = m + (255,)
 
-    def limit_colors(self, n=10):
+    def limit_colors(self, n=10, proteger=None):
         """Deja como mucho n colores (sin contar el contorno): los menos usados pasan al color usado
-        más cercano. Regla de estética única: 6–10 colores por icono."""
+        más cercano. Regla de estética única: 6–10 colores por icono.
+        Los acentos (ACENTOS: latón, franja ámbar, rojo de peligro) nunca se funden ni reciben
+        fusiones, aunque sean los menos usados: son pocos píxeles y llevan el significado (Lucía).
+        Si no se puede bajar a n sin tocarlos, no funde nada más de la cuenta y devuelve un aviso."""
+        prot = set(ACENTOS if proteger is None else proteger)
         cuenta = {}
         for j in range(self.h):
             for i in range(self.w):
@@ -238,14 +244,20 @@ class Sprite:
                 if p[3] and p != CONTORNO:
                     cuenta[p] = cuenta.get(p, 0) + 1
         if len(cuenta) <= n:
-            return
-        quedan = sorted(cuenta, key=cuenta.get, reverse=True)[:n]
-        mapa = {c: min(quedan, key=lambda q: sum((a - b) ** 2 for a, b in zip(c[:3], q[:3]))) for c in cuenta}
+            return None
+        fijos = [c for c in cuenta if c[:3] in prot]
+        resto = sorted((c for c in cuenta if c[:3] not in prot), key=cuenta.get, reverse=True)
+        hueco = n - len(fijos)
+        if hueco < 1:
+            return f"{len(cuenta)} colores y {len(fijos)} acentos: no baja a {n} sin fundir acentos, mirar a mano"
+        quedan = resto[:hueco]
+        mapa = {c: min(quedan, key=lambda q: sum((a - b) ** 2 for a, b in zip(c[:3], q[:3]))) for c in resto}
         for j in range(self.h):
             for i in range(self.w):
                 p = self.px[i, j]
-                if p[3] and p != CONTORNO:
+                if p in mapa:
                     self.px[i, j] = mapa[p]
+        return None
 
     def stamp(self, other, x, y):
         for j in range(other.h):

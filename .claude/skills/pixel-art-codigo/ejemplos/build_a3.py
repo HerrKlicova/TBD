@@ -204,7 +204,9 @@ if __name__ == "__main__":
     nombres = ["aguantar", "seguir", "retirarse", "desplegar", "embarcar", "escoltar"]
     s32 = [globals()[n]() for n in nombres]
     for s in s32:
-        s.limit_colors(10)   # regla de estética única: 6–10 colores por icono
+        aviso = s.limit_colors(10)   # regla de estética única: 6–10 colores; los acentos no se funden
+        if aviso:
+            print("AVISO limit_colors:", aviso)
     s16 = [reduce_16(s) for s in s32]
     for n, a, b in zip(nombres, s32, s16):
         a.save(OUT / f"vm_ordenes_{n}_32.png")

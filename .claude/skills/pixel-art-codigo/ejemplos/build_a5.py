@@ -109,7 +109,9 @@ if __name__ == "__main__":
     nombres = ["en_marcha", "detenido", "bajo_ataque", "obras"]
     s32 = [globals()[n]() for n in nombres]
     for s in s32:
-        s.limit_colors(10)   # regla de estética única: 6–10 colores por icono
+        aviso = s.limit_colors(10)   # regla de estética única: 6–10 colores; los acentos no se funden
+        if aviso:
+            print("AVISO limit_colors:", aviso)
     s16 = [reduce_16(s) for s in s32]
     # El marcador se voltea según el sentido de la marcha: se exportan las dos orientaciones
     # (en Unity basta con flipX del SpriteRenderer; los PNG _izq son por comodidad).
