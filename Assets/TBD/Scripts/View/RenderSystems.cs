@@ -36,6 +36,7 @@ namespace TBD.View
         public static bool Ready;
         /// <summary>D-N61: a poco zoom cada zombi se dibuja con el sprite de masa de 8 px (con histéresis, la decide PrototypeBootstrap).</summary>
         public static bool LodOn;
+        public static bool FigureMode { get { return RenderAttachSystem.FigureMode; } }
         public static bool LodDebug;                      // tiñe el LOD de magenta para comprobar que el cambio ocurre (reflexión desde el Editor)
         public static int LodVersion;
 
@@ -118,7 +119,11 @@ namespace TBD.View
         // Los zombis llevan su color en el sprite (la textura): el color por instancia queda en blanco; solo la máscara lo cambia
         public static float4 ColorFor(uint id)
         {
-            return FigureMode ? ColorForOld(id) : new float4(1f, 1f, 1f, 1f);
+            if (!FigureMode) return new float4(1f, 1f, 1f, 1f);
+            // D-N61 (Lucía): horda de un solo valor oscuro (#303424) con ±8 % de luminosidad por id, solo presentación
+            float k = 0.92f + 0.16f * ((math.hash(new uint2(id, 17u)) & 255u) / 255f);
+            var c = new Color(0x30 / 255f * k, 0x34 / 255f * k, 0x24 / 255f * k).linear;
+            return new float4(c.r, c.g, c.b, 1f);
         }
 
         // (paleta anterior de cápsulas, sin uso)
