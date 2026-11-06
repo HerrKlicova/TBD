@@ -413,7 +413,12 @@ namespace TBD.Sim.Tests
             long half = wn.Works.At(Node)[0].WorkE4;
             check(wn.Works.At(Node)[0].WorkE4 == 1500 * 10_000 && !wn.Works.At(Node)[0].Built, $"a las 18:00 la obra de 10 m de sacos con 2 obreros lleva la mitad: {half / 10_000} de 3.000 obrero·ticks");
             for (int i = 0; i < 17_999; i++) wn.Step();                                    // hasta las 05:59:59 del día siguiente
-            check(wn.Works.At(Node)[0].WorkE4 == half && !wn.WorkActive(Node), "de noche no avanza ni cuenta como obra activa (sin ruido para la Colmena)");
+            check(wn.Works.At(Node)[0].WorkE4 == half && !wn.WorkActive(Node), "de noche no avanza ni hace ruido (sin sondeo): no está trabajando");
+            check(wn.WorkInProgress(Node), "pero sigue EN CURSO (encargada y sin acabar): pesa ×1,5 en el asedio y suma huella también de noche (Hugo, D-N59 adenda 2)");
+            var wnDay = At(10); var wnNight = At(10); wnNight.Tick = NetConst.Hours(22);
+            check(wnDay.Director.SiegeTargetWeight(wnDay, Node) == wnNight.Director.SiegeTargetWeight(wnNight, Node) && wnDay.Director.HuellaMil(wnDay) == wnNight.Director.HuellaMil(wnNight), "el peso y la huella son los mismos de día y de noche");
+            wnNight.Works.Workers[Node] = 0;
+            check(wnNight.Director.SiegeTargetWeight(wnNight, Node) < wnDay.Director.SiegeTargetWeight(wnDay, Node) && wnDay.Director.SiegeTargetWeight(wnDay, Node) == wnDay.Director.SiegeWeight(wnDay, Node) * 3 / 2, "sin obreros asignados la obra no está en curso y vuelve el peso normal");
             wn.Step(); wn.Step();
             int t = 0; while (!wn.Works.At(Node)[0].Built && t < 5000) { wn.Step(); t++; }
             check(wn.Works.At(Node)[0].Built && t == 749, $"a las 06:00 sigue donde se quedó: la otra mitad en 750 ticks ({t + 2})");
