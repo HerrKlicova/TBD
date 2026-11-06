@@ -1,0 +1,105 @@
+---
+name: modelado-3d
+description: Pasar un modelo 3D (Hunyuan, TRELLIS, base CC0 o bloque hecho a mano) a pieza de juego de TBD en Blender. Úsala para limpiar, diezmar a 1.500–4.000 triángulos, verificar la malla (normales, manifold, escala, UV, origen), dar albedo plano con la paleta de 32, revisar con una vista pixelada y exportar a Unity, y para preparar las 4 vistas de Hunyuan3D-2mv.
+---
+
+# TBD · Modelado 3D con Claude en Blender
+
+Escrita el 6-nov-2026 (hilo «Investigar herramientas para modelar en 3D»). Lo marcado **(verificado)** se comprobó en código,
+documentación o en el Blender de Eugenio; lo marcado **(no verificado)** falta probarlo.
+
+## Qué hay instalado y dónde
+- **Blender 5.2.1 LTS** en el PC de Eugenio, con el **MCP oficial de Blender Lab** (extensión `mcp`, 26 herramientas:
+  `execute_blender_code`, resúmenes de escena, capturas, render y búsqueda en la API y el manual) **(verificado)**.
+  El modo de consola (`*_for_cli`) **no funciona todavía**: falta la variable `BLENDER_PATH` en el PC.
+- **Addon «Image to 3D» 1.0.3 (3DRedbox)** en `D:\3D ENGINES\`, con Hunyuan3D 2.1, **Hunyuan3D-2mv instalado**
+  (`hy_mv_ready() = True`) y TRELLIS.2. Pixal3D y Hi3D no están instalados **(verificado)**.
+- **`scripts/malla3d.py`** (esta skill): todo el repaso de la malla en un solo archivo, sin dependencias aparte de Blender
+  y numpy (que trae Blender). No usa la red ni gasta generaciones.
+
+## Flujo de una pieza (D-N54)
+1. **Generar** en el addon (panel N › Image to 3D). Para piezas clave, **con 4 vistas** (ver abajo).
+2. **Procesar** con `procesar()`: importa, limpia, escala a la altura real, remalla por vóxeles, diezmado con control de
+   silueta, albedo plano en paleta, valor partido (D-N57), facción, auditoría, legibilidad, vistas pixeladas y FBX. Deja `<nombre>_informe.json` y PNG de revisión.
+   Por defecto **remalla por vóxeles** (1/160 de la dimensión mayor) antes de diezmar: en la prueba con un GLB real de
+   Hunyuan dejó la malla estanca (0 aristas no manifold, 0 de borde) y veredicto OK, frente a 127 aristas de borde y
+   110 vértices duplicados sin vóxeles. Con `voxel=False` se conservan las UV originales.
+3. **Mirar las vistas** (`_rts.png` contra `_ORIGINAL_rts.png`). Si el veredicto es ERROR, no se exporta a Unity.
+4. **Detalle a mano** donde haga falta (ver «Añadir detalle»), y otra vez `auditar()`.
+5. **Unity**: Marcos importa el FBX con la textura `T_Paleta32.png` en filtro de punto y lo mira bajo el shader
+   (regla 13: captura de día y de noche).
+
+### Desde el MCP oficial (lo normal)
+```python
+import bpy
+ruta = r"C:/Dev/TBD/.claude/skills/modelado-3d/scripts/malla3d.py"
+ns = {"__file__": ruta, "__name__": "malla3d"}          # __file__ hace falta para encontrar la paleta
+exec(open(ruta, encoding="utf-8").read(), ns)
+inf = ns["procesar"](r"D:/3D ENGINES/output/loco.glb", r"C:/Dev/TBD/Assets/Art/_staging/loco",
+                     nombre="SM_Loco_S592", objetivo=3000, altura_m=4.2, faccion="propio")
+result = {"veredicto": inf["auditoria"]["veredicto"], "intentos": inf["diezmar_intentos"]}
+```
+- Trabajar en una **escena temporal** (`bpy.data.scenes.new`, `context.window.scene = tmp`) y borrarla al acabar, para no
+  tocar lo que Eugenio tenga abierto.
+- Un GLB de ~100.000 triángulos tarda 6–30 s; el MCP corta la espera a los 60 s, así que **una pieza por llamada**.
+
+### Funciones sueltas
+| Función | Para qué |
+|---|---|
+| `auditar(obj, presupuesto=(1500,4000), altura_m=None)` | Informe OK/AVISO/ERROR: triángulos, aristas no manifold y de borde, geometría suelta, caras degeneradas, n-gons, vértices duplicados, islas diminutas, islas con normales hacia dentro (volumen con signo), escala y rotación aplicadas, altura real, origen en la base, UV (fuera de 0–1, sin área, solape) y materiales |
+| `limpiar(obj)` | Aplica transformaciones, fusiona duplicados, quita sueltos, caras degeneradas e islas <1 % (las motas de Hunyuan), normales hacia fuera, triangula n-gons y lleva el origen al centro de la base |
+| `escalar_a_altura(obj, m)` | Hunyuan sale en un cubo de ~1 unidad: escala a la medida real. **Siempre después de `limpiar`** (las motas falsean la altura) |
+| `remallar_voxel(obj)` | Cierra agujeros y une piezas (malla estanca). Pierde las UV; el color se recupera de la original |
+| `diezmar(obj, objetivo=3000)` | Disolución planar de 2° + colapso con búsqueda binaria hasta ±4 % + separa aristas no manifold. Mide la **silueta en 4 vistas** con 1 px de tolerancia a 256 px; pasa con ≥ 0,985 (la IoU estricta queda como dato) |
+| `paleta_desde_original(obj, original)` | Albedo plano: 7 muestras por cara de la textura original, la paleta más repetida, tope de 10 colores, mayoría entre vecinas, UV a un atlas 8×4 (`T_Paleta32.png`, 32×16 px). **Excluye el rojo #982420 y el ámbar #e08c30** (regla 4) |
+| `valor_partido(obj, claro=None, costado=None)` | **D-N57**: caras de arriba al beige de la paleta (b4a080 cálido o 94948c neutro), costados un paso más oscuros (o un color fijo, p. ej. `costado="50541c"` oliva oscuro para tropa), bajos más oscuros aún. Horneado en el albedo, no depende de la luz de Unity |
+| `marcar_faccion(obj, "propio")` | Propiedades `tbd_faccion` y `tbd_rim` (1 solo en unidades propias) que viajan en el FBX para el marcador de rim del prefab |
+| `medir_legibilidad(obj)` | ΔL* de D-N57 contra la trinchera (#48403c) y el llano ocre (#845c28, **supuesto**): 20 % más claro del interior y contorno, sin luz y con la paleta al 65 % |
+| `vista_pixelada(obj, png, vista="rts")` | Imita el shader: 128 px ×3, luz arriba a la izquierda, paleta al 65 %, contorno de 1 px. Es una **aproximación**: manda la captura de Unity |
+| `vistas_para_hunyuan(obj, carpeta)` | front/left/back/right en RGBA desde un bloque hecho en Blender |
+| `exportar_unity(obj, ruta)` | FBX: 1 u = 1 m, −Z adelante, Y arriba, transformaciones horneadas, normales por cara |
+
+## Legibilidad D-N57 y reglas de Iris (`docs/arte/modelado-3d/encargo-modelos-hunyuan.md`)
+1. **Valor partido horneado en el albedo**: `procesar()` llama a `valor_partido()` por defecto (`partido=False` lo quita).
+2. **Beige de la paleta y contorno por script**: el claro sale siempre de la paleta (b4a080 o 94948c). El contorno de 1 px
+   lo pone el shader de Unity o `vista_pixelada()`, **nunca se pinta en la textura**.
+3. **Rim frío #404460 solo en unidades propias**: `procesar(..., faccion="propio")` para tropa y vehículos propios;
+   `"civil"`, `"zombi"` o `"neutro"` para el resto. En Unity, un AssetPostprocessor lee `tbd_rim` y pone el marcador en el
+   prefab (encargo para Marcos; **no verificado** que Unity reciba la propiedad del FBX).
+4. **Medida**: `medir_legibilidad()` da una primera lectura en Blender y entra en el veredicto. La que manda es
+   `cohesion_sheet.py --tipo modelo` sobre la captura de Unity (de día a mediodía; de noche, dentro del charco).
+- Prueba (carretilla de Hunyuan, 6-nov): 4 colores, beige arriba; ΔL* 39 contra la trinchera y 42 contra el llano
+  (el 20 % claro solo llega a 24,5 contra el llano; pasa por el contorno, como permite la fórmula de D-N57).
+
+## Hunyuan con 4 vistas (pregunta de Eugenio)
+- **Sí se puede (verificado)**: el modelo **Hunyuan3D-2mv** acepta un diccionario `{"front", "left", "back", "right"}`
+  (código de Tencent: `MVImageProcessorV2`, «view order: front, front clockwise 90, back, front clockwise 270»). Hunyuan 2.1
+  no tiene modelo multivista publicado.
+- **En el addon**: elegir el motor Hunyuan, poner la imagen principal (frente) y añadir **Back, Left y Right** con
+  «Add View». La forma sale de las 4 vistas; la textura la pinta Hunyuan desde la imagen principal (código del addon).
+- **Requisitos de las vistas**: el mismo objeto, la misma escala y la misma altura de cámara, de frente, sin perspectiva
+  fuerte, fondo liso o transparente. La forma más fiable de conseguirlas: un **bloque en Blender** (cajas y cilindros con
+  las proporciones reales) y `vistas_para_hunyuan()`, o una hoja de vistas de Pixelab.
+- **(no verificado)** qué lado es «left»: según Tencent es el frente girado 90° en sentido horario visto desde arriba.
+  Probar antes de un lote con una pieza asimétrica; si sale espejada, intercambiar left y right.
+
+## Añadir detalle sin romper el presupuesto
+- El pixelado de 1/3 se come todo lo que mida menos de ~3 px en pantalla: **el detalle va en la silueta y en bloques de
+  color**, no en relieve fino. Un faro, una escalerilla o un parachoques sí; tornillos y remaches, no.
+- Piezas añadidas: primitivas con pocos lados (cilindros de 8–12), unidas al objeto y con `limpiar()` después.
+- Bisel de 1 segmento solo en aristas largas de la silueta (ayuda al contorno por normales del shader).
+- Ruedas, ejes y torretas como objetos aparte si se van a mover, con el origen en su eje.
+- Si la pieza va justa de triángulos: quitar caras que nunca se ven (bajos, interiores) antes de diezmar.
+
+## Comprobaciones antes de dar una pieza por buena
+1. `auditar()` sin ERROR (los AVISO se explican en el informe).
+2. Silueta ≥ 0,985 (con 1 px de tolerancia) en las 4 vistas. Si no llega ni con 4.000 triángulos, la pieza es demasiado fina para el presupuesto:
+   simplificar a mano (barras más gruesas, menos piezas) en vez de subir el límite.
+3. Altura real dentro del ±15 % (tabla en `referencias/criterios.md`).
+4. Vista pixelada: silueta legible y colores de la familia (Lucía decide).
+5. Captura en Unity de día y de noche (regla 13).
+
+## Referencias
+- `referencias/criterios.md`: presupuestos, alturas reales y umbrales.
+- `referencias/externos.md`: herramientas externas evaluadas (qué se instaló, qué no y por qué).
+- `referencias/paleta_32.hex`: copia de `docs/arte/paleta_propuesta_32.hex`.
