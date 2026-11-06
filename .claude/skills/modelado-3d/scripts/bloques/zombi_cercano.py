@@ -32,6 +32,10 @@ COLORES_LOD1 = {"piel": COLORES["camisa"]}
 VALOR_PIEZAS = {}          # sin valor partido: todo oscuro
 # Legibilidad del zombi (Lucía): cuerpo medio contra el suelo, ΔL* >= 25 (no el 20 % más claro)
 LEGIBILIDAD = "cuerpo_medio"
+# D-N80 (Bruno): máscara de color por vértice para teñir cada instancia en el shader. R = camisa y brazos (y el roto),
+# G = pantalón, B = cabeza y manos (piel, pelo, nuca); el calzado y los objetos, a 0
+MASCARA_COLOR = {"camisa": (1, 0, 0), "roto": (1, 0, 0), "pantalon": (0, 1, 0),
+                 "piel": (0, 0, 1), "pelo": (0, 0, 1), "nuca": (0, 0, 1)}
 FACCION = "zombi"          # sin rim (regla 3 de Iris: el rim solo en unidades propias)
 PRESUPUESTO = {0: (100, 600), 1: (60, 300)}
 UMBRAL_CONTORNO = {1: 9.0}   # LOD1: contorno solo en la silueta (Bruno): a 20 px las líneas interiores lo ensucian   # instanciado masivo: el mínimo de 1500 de los vehículos no aplica

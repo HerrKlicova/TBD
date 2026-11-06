@@ -18,6 +18,27 @@ SUELOS = (("trinchera", (0x6e, 0x6a, 0x5a)), ("llano", (0x84, 0x5c, 0x28)))
 CLAVE_SUELO = {"trinchera": "fondo_trinchera", "llano": "llano_ocre"}
 
 
+
+def mascara_color(o, mascaras, mapa):
+    """Atributo de color «Col» por esquina (BYTE_COLOR; el FBX lo exporta y Unity lo lee como color de vértice): cada
+    cara toma el (r, g, b) de su pieza en `mapa`; las piezas que no están, negro. Alfa = 1."""
+    import numpy as np
+    n = len(o.data.polygons)
+    col = np.zeros((n, 4), dtype=np.float32)
+    col[:, 3] = 1.0
+    cuenta = {}
+    for pieza, rgb in mapa.items():
+        m = mascaras.get(pieza)
+        if m is not None and m.any():
+            col[np.asarray(m, dtype=bool), :3] = rgb
+            cuenta[pieza] = int(np.asarray(m).sum())
+    at = o.data.color_attributes.new("Col", "BYTE_COLOR", "CORNER")
+    tot = np.repeat(col, [p.loop_total for p in o.data.polygons], axis=0)
+    at.data.foreach_set("color", tot.ravel())
+    o.data.color_attributes.active_color = at
+    o.data.color_attributes.render_color_index = 0
+    return {"atributo": "Col", "caras_por_pieza": cuenta}
+
 def generar(modulo, salida, lod, claro, costado, permitir, px):
     import bpy
     import numpy as np
@@ -41,7 +62,7 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
     if m is not None:   # los bloques sin casco (p. ej. el zombi) solo usan VALOR_PIEZAS
         mc = np.zeros_like(m) if mc is None else mc
         inf["valor_partido"] = ns["valor_partido"](o, claro=claro, costado=costado, alisar=0, suavizar=0,
-                                                   mascara=m | mc)
+                                                   mascara=m | mc, abajo=getattr(db, "ABAJO_CASCO", None))
     for pieza, vp in getattr(db, "VALOR_PIEZAS", {}).items():   # p. ej. la torre del LOD1 en olive_light
         cl, co, ab = (tuple(vp) + (None,))[:3]   # tercer valor opcional: color de las caras de abajo
         mp = r["mascaras"].get(pieza)
@@ -49,8 +70,11 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
             pc = (co,) if getattr(db, "FACCION", "propio") == "zombi" else ()   # el zombi es dueño de sus grises
             inf["valor_" + pieza] = ns["valor_partido"](o, claro=cl, costado=co, alisar=0, suavizar=0, mascara=mp,
                                                         permitir_costado=pc, abajo=ab)
+    mv = getattr(db, "MASCARA_COLOR", None)   # D-N80 (Bruno): máscara de color por vértice para teñir por instancia
+    if mv:
+        inf["mascara_color"] = mascara_color(o, r["mascaras"], mv(lod) if callable(mv) else mv)
     if mc is not None and mc.any():
-        inf["costuras"] = ns["costuras_por_valor"](o, mc)
+        inf["costuras"] = ns["costuras_por_valor"](o, mc, suelo_L=getattr(db, "L_MIN", 0.0))
     inf["faccion"] = ns["marcar_faccion"](o, getattr(db, "FACCION", "propio"))
     a = ns["auditar"](o, presupuesto=getattr(db, "PRESUPUESTO", {}).get(lod, (500, 4000) if lod else (1500, 4000)))
     inf["veredicto"] = a["veredicto"]

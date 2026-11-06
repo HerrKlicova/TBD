@@ -8,7 +8,8 @@ como un trazo oscuro y fino con los brazos al frente. Delante = -Y en Blender (+
 """
 import math, os
 from taller import Taller
-from zombi_cercano import PIEZAS, CAMISAS, COLORES, COLORES_LOD1, VALOR_PIEZAS, FACCION, LEGIBILIDAD, UMBRAL_CONTORNO
+from zombi_cercano import PIEZAS, CAMISAS, COLORES, COLORES_LOD1, VALOR_PIEZAS, FACCION, LEGIBILIDAD, UMBRAL_CONTORNO, \
+    MASCARA_COLOR
 
 PRESUPUESTO = {0: (60, 400), 1: (60, 300)}
 PIEZAS = PIEZAS + ["objeto"]
@@ -20,6 +21,8 @@ COLORES = dict(COLORES, objeto="442c0c")   # mochila, gorra, falda: un escalón 
 # de zombi_cercano.py, aprobado antes) y 7 bajo (1,60 m). La escala de ±5 % en altura por instancia es de Unity.
 # Nada de niños.
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
+# la falda o vestido de la variante 4 (pieza «objeto») tiñe con el pantalón; los demás objetos se quedan a 0
+MASCARA_COLOR = dict(MASCARA_COLOR, objeto=(0, 1, 0)) if VAR == 4 else MASCARA_COLOR
 
 
 def construir(nombre="SM_Zombi_Fino", lod=0):

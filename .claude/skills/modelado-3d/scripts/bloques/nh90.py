@@ -16,22 +16,24 @@ PIEZAS ANIMABLES (FBX con jerarquía, mira a +Z en Unity):
   SM_NH90_LODn       fuselaje (origen en el suelo, bajo el mástil)
   ├─ RotorPrincipal  cubo y 4 palas; origen en el cubo; gira sobre su Y de Unity (la vertical). Sentido real: antihorario
   │                  visto desde arriba (SIN VERIFICAR para el NH90).
-  └─ RotorCola       cubo y 4 palas; origen en el cubo; gira sobre su X local (el eje lateral).
+  ├─ RotorCola       cubo y 4 palas; origen en el cubo; gira sobre su X local (el eje lateral).
+  └─ DiscoRotor      disco de una cara (16 lados, 94948c) para el rotor en marcha: se enciende por encima de cierta
+                     velocidad y entonces se ocultan las palas (Lucía, 23:29). Mira hacia arriba: una sola cara.
 Las MAG van fijas en el fuselaje (a 12–24 px no se ve si apuntan).
 """
 import math, os
 from montaje import Montaje, separar as _separar
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
-PIEZAS = ["casco", "mancha", "optica", "interior", "pala", "cubo", "goma", "metal", "arma"]
+PIEZAS = ["casco", "mancha", "optica", "interior", "pala", "cubo", "goma", "metal", "arma", "disco"]
 COLORES = {"casco": "50541c", "mancha": "845c28", "optica": "60546c", "interior": "48403c", "pala": "94948c",
-           "cubo": "845c28", "goma": "48403c", "metal": "605c48", "arma": "48403c"}
+           "cubo": "845c28", "goma": "48403c", "metal": "605c48", "arma": "48403c", "disco": "94948c"}
 VALOR_PIEZAS = {"casco": ("b4a080", "50541c", "50541c")}   # caras de abajo fijas: nunca 442c0c (horda)
 FACCION = "propio"
 PRESUPUESTO = {0: (300, 4000), 1: (200, 2500)}
 UMBRAL_CONTORNO = {0: 0.06, 1: 0.25}
-PARTES = ["fuselaje", "RotorPrincipal", "RotorCola"]
-PIV = {"RotorPrincipal": (0.0, -1.0, 4.6), "RotorCola": (0.42, 7.75, 4.55)}
+PARTES = ["fuselaje", "RotorPrincipal", "RotorCola", "DiscoRotor"]
+PIV = {"RotorPrincipal": (0.0, -1.0, 4.6), "RotorCola": (0.42, 7.75, 4.55), "DiscoRotor": (0.0, -1.0, 4.6)}
 # perfil de la cabina (x, z): casi cuadrado con las esquinas achaflanadas, normalizado a semiancho 1,5 y semialto 1,2
 PERFIL = [(-1.5, -0.85), (-1.15, -1.2), (1.15, -1.2), (1.5, -0.85), (1.5, 0.75), (1.1, 1.2), (-1.1, 1.2), (-1.5, 0.75)]
 
@@ -105,6 +107,15 @@ def construir(nombre="SM_NH90", lod=0):
         a = math.radians(20 + 90 * k)
         m.barra((tx + 0.08, ty + 0.2 * math.cos(a), tz + 0.2 * math.sin(a)),
                 (tx + 0.08, ty + 1.6 * math.cos(a), tz + 1.6 * math.sin(a)), 0.25, 0.06 if fino else 0.1, "pala")
+    # ---- disco del rotor en marcha (Lucía, 23:29): una sola cara de 16 lados a la altura del buje, en 94948c. Marcos
+    # lo muestra por encima de cierta velocidad (tramado al 25 % en el shader) y oculta entonces las palas
+    m.parte("DiscoRotor")
+    # En abanico (16 triángulos con vértice central): limpiar() borra las islas de menos de 4 caras y una cara suelta
+    # desaparecía del FBX. A la vista es la misma cara plana.
+    c0 = m.bm.verts.new((hx, hy, hz - 0.08))
+    vs = [m.bm.verts.new((hx + R * math.cos(2 * math.pi * k / 16), hy + R * math.sin(2 * math.pi * k / 16), hz - 0.08))
+          for k in range(16)]
+    m.t._marcar([m.bm.faces.new((c0, vs[k], vs[(k + 1) % 16])) for k in range(16)], "disco")
     return m.objeto(nombre)
 
 

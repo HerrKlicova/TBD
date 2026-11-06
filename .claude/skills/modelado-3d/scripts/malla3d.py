@@ -950,7 +950,7 @@ def valor_partido(obj, claro="b4a080", costado=None, umbral_arriba=0.7, oscurece
 
 
 def costuras_por_valor(obj, mascara, paso=(5.0, 12.0), paleta=None, excluir=PROHIBIDOS_OBJETO, tono_max=25.0,
-                       holgura=2.0):
+                       holgura=2.0, suelo_L=0.0):
     """Chapa sin ruido (regla de Lucía del 6-nov): las caras de `mascara` (tiras de costura entre paneles, sacadas de
     las fotos) toman el color de sus caras vecinas que no son costura, oscurecido entre paso[0] y paso[1] de L* con el
     tono más parecido de la paleta. Así la diferencia interna no pasa de 12, como en los suelos. Llamar después de
@@ -1000,7 +1000,8 @@ def costuras_por_valor(obj, mascara, paso=(5.0, 12.0), paleta=None, excluir=PROH
             familia = permit & ((dm <= tono_max) | (np.hypot(lab[:, 1], lab[:, 2]) < 8))
             cache[i] = i  # sin vecino válido en la paleta: la costura no se marca (mejor que meter ruido)
             for tope in (paso[1], paso[1] + holgura):
-                cand = np.where(familia & (lab[:, 0] <= lab[i, 0] - paso[0]) & (lab[:, 0] >= lab[i, 0] - tope))[0]
+                # suelo_L (D-N80, Bruno): ningún albedo propio bajo L* 28; si no hay paso por encima, no hay costura
+                cand = np.where(familia & (lab[:, 0] <= lab[i, 0] - paso[0]) & (lab[:, 0] >= max(lab[i, 0] - tope, suelo_L)))[0]
                 if len(cand):
                     d = ((lab[cand, 1:] - lab[i, 1:]) ** 2).sum(1)
                     cache[i] = int(cand[d.argmin()])
