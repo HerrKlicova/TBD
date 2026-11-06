@@ -596,6 +596,7 @@ namespace TBD.View
 
         // ================================================================ postproceso a resolución completa
         static readonly string[] GradeNames = { "día", "atardecer", "noche" };
+        Light _sun;
 
         void SetupPost()
         {
@@ -634,21 +635,32 @@ namespace TBD.View
                     _grade.colorFilter.Override(new Color(1f, 0.97f, 0.92f));   // día menos lavado: algo más de saturación cálida
                     _grade.postExposure.Override(0f);
                     _grade.saturation.Override(4f);
+                    SetLight(new Color(1f, 0.97f, 0.92f), 1.2f, new Color(0.30f, 0.36f, 0.52f));
                     SetFloodlights(0f);
                     break;
                 case 1:  // atardecer naranja
                     _grade.colorFilter.Override(new Color(1f, 0.8f, 0.62f));
                     _grade.postExposure.Override(0.1f);
                     _grade.saturation.Override(10f);
+                    SetLight(new Color(1f, 0.97f, 0.92f), 1.2f, new Color(0.30f, 0.36f, 0.52f));
                     SetFloodlights(12f);
                     break;
-                default: // noche casi monocroma
-                    _grade.colorFilter.Override(new Color(0.8f, 0.84f, 1f));    // noche de luna; los focos cálidos sacan a la horda del fondo
-                    _grade.postExposure.Override(-0.1f);
-                    _grade.saturation.Override(-10f);
+                default: // noche: el azul viene de la luna y del ambiente (#283440 a #404460) sobre el albedo ocre de siempre; la gradación
+                         // solo baja la saturación, sin teñir, para que el ámbar del foco siga siendo ámbar (no salmón)
+                    _grade.colorFilter.Override(Color.white);
+                    _grade.postExposure.Override(0.3f);
+                    _grade.saturation.Override(-15f);
+                    SetLight(new Color(0.42f, 0.50f, 0.78f), 0.7f, new Color(0.16f, 0.20f, 0.30f));
                     SetFloodlights(40f);
                     break;
             }
+        }
+
+        /// <summary>Sol (o luna) y luz ambiente de cada gradación: el tono de la hora va en la luz, no en un tinte de la imagen.</summary>
+        void SetLight(Color sunColor, float sunIntensity, Color ambient)
+        {
+            if (_sun != null) { _sun.color = sunColor; _sun.intensity = sunIntensity; }
+            RenderSettings.ambientLight = ambient;
         }
 
         // ================================================================ interfaz nítida (capa 4)
@@ -912,6 +924,7 @@ namespace TBD.View
             // Sol bajo (unos 32°), cálido, con sombras proyectadas; la luz ambiente fría tiñe las sombras de azul (revisión de Lucía)
             var sun = FindFirstObjectByType<Light>();
             if (sun == null) sun = new GameObject("Sol").AddComponent<Light>();
+            _sun = sun;
             sun.type = LightType.Directional;
             sun.transform.rotation = Quaternion.Euler(32f, -35f, 0f);
             sun.color = new Color(1f, 0.97f, 0.92f);          // casi neutro: el suelo ocre ya no vira a amarillo limón
@@ -1010,6 +1023,54 @@ namespace TBD.View
             return "ZONA " + net.Graph.Nodes[_zoneNode].Name.ToUpper();
         }
 
+        /// <summary>
+        /// Terreno del desmonte para la vista: talud continuo (rampa que pasa por la mitad de los escalones de la simulación), un solo
+        /// albedo oscurecido por la pendiente (lo hace la propia luz según la normal) y el fondo con el valor más oscuro de la escena.
+        /// La simulación sigue usando los cinco escalones; esto es solo presentación.
+        /// </summary>
+        void BuildCuttingTerrain()
+        {
+            var bank = Mat("8a7650");                                // un solo albedo para todo el terreno
+            float hb = 0.7f, hp = CuttingLevel.Depth;                // altura de la base de la rampa y del llano de arriba
+            float yb = Level.TrackY + CuttingLevel.HalfBottom;       // 72,5: pie del talud norte
+            float yc = yb + (hp - hb) / 0.84f;                       // pendiente 0,84 m por metro: pasa por la mitad de los escalones
+            float x0 = CuttingLevel.X0, x1 = CuttingLevel.X1;
+            // norte
+            AddQuad(bank, new Vector3(x0, hb, yb), new Vector3(x1, hb, yb), new Vector3(x0, hp, yc), new Vector3(x1, hp, yc));              // talud
+            AddQuad(bank, new Vector3(x0, hp, yc), new Vector3(x1, hp, yc), new Vector3(x0, hp, SimConst.WorldH), new Vector3(x1, hp, SimConst.WorldH));  // llano de arriba
+            // sur (simétrico respecto de la vía)
+            float ys = Level.TrackY - CuttingLevel.HalfBottom, ysc = ys - (hp - hb) / 0.84f;
+            AddQuad(bank, new Vector3(x1, hb, ys), new Vector3(x0, hb, ys), new Vector3(x1, hp, ysc), new Vector3(x0, hp, ysc));
+            AddQuad(bank, new Vector3(x1, hp, ysc), new Vector3(x0, hp, ysc), new Vector3(x1, hp, 0f), new Vector3(x0, hp, 0f));
+            // las cabeceras de la trinchera (paredes verticales en X0 y X1)
+            AddQuad(bank, new Vector3(x0, 0f, yb), new Vector3(x0, 0f, SimConst.WorldH), new Vector3(x0, hp, yb), new Vector3(x0, hp, SimConst.WorldH));
+            AddQuad(bank, new Vector3(x1, 0f, SimConst.WorldH), new Vector3(x1, 0f, yb), new Vector3(x1, hp, SimConst.WorldH), new Vector3(x1, hp, yb));
+            AddQuad(bank, new Vector3(x0, 0f, 0f), new Vector3(x0, 0f, ys), new Vector3(x0, hp, 0f), new Vector3(x0, hp, ys));
+            AddQuad(bank, new Vector3(x1, 0f, ys), new Vector3(x1, 0f, 0f), new Vector3(x1, hp, ys), new Vector3(x1, hp, 0f));
+            // fondo: el valor más oscuro de la escena (balasto #48403c); el tren se lee contra él
+            Box("Fondo de la trinchera", new Vector3((x0 + x1) * 0.5f, 0.02f, Level.TrackY), new Vector3(x1 - x0, 0.04f, CuttingLevel.HalfBottom * 2f), Mat("48403c"));
+            // oclusión ambiental falsa: una banda más oscura al pie de cada talud (20-30 % según la profundidad)
+            Box("Sombra del pie norte", new Vector3((x0 + x1) * 0.5f, 0.03f, yb + 1f), new Vector3(x1 - x0, 0.03f, 2f), Mat("342e2a"));
+            Box("Sombra del pie sur", new Vector3((x0 + x1) * 0.5f, 0.03f, ys - 1f), new Vector3(x1 - x0, 0.03f, 2f), Mat("342e2a"));
+        }
+
+        /// <summary>Un cuadrilátero con normal hacia arriba o hacia fuera (a, b abajo; c, d arriba), sin colisión.</summary>
+        void AddQuad(Material m, Vector3 a, Vector3 b, Vector3 c, Vector3 d)
+        {
+            var go = new GameObject("Terreno");
+            go.transform.SetParent(transform, false);
+            var mesh = new Mesh { vertices = new[] { a, b, c, d }, triangles = new[] { 0, 2, 1, 1, 2, 3 } };
+            mesh.RecalculateNormals();
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = m;
+            var dup = new GameObject("Terreno (cara de atrás)");                 // doble cara: no depende del sentido de los triángulos
+            dup.transform.SetParent(transform, false);
+            var back = new Mesh { vertices = mesh.vertices, triangles = new[] { 0, 1, 2, 1, 3, 2 } };
+            back.RecalculateNormals();
+            dup.AddComponent<MeshFilter>().sharedMesh = back;
+            dup.AddComponent<MeshRenderer>().sharedMaterial = m;
+        }
+
         /// <summary>Color de un escalón del talud: más oscuro cuanto más alto (para leer el relieve del desmonte).</summary>
         static string BankColor(float h)
         {
@@ -1022,7 +1083,8 @@ namespace TBD.View
         {
             Box("Suelo", new Vector3(SimConst.WorldW * 0.5f, -0.25f, SimConst.WorldH * 0.5f), new Vector3(SimConst.WorldW, 0.5f, SimConst.WorldH), _mGround);
 
-            foreach (var s in _cutting ? CuttingLevel.CreateSolids() : Level.CreateSolids())
+            if (_cutting) BuildCuttingTerrain();
+            foreach (var s in _cutting ? new System.Collections.Generic.List<Solid>() : Level.CreateSolids())
             {
                 if (s.Kind == 1)
                 {
@@ -1046,11 +1108,26 @@ namespace TBD.View
             for (int x = _cutting ? 2 : 12; x < (_cutting ? (int)SimConst.WorldW : 100); x += 2)
                 Box("Traviesa", new Vector3(x, 0.05f, ty), new Vector3(0.4f, 0.08f, 2f), _mSleeper);
 
-            // Tren: locomotora y tres vagones
+            // Tren: locomotora y tres vagones. Deuda de arte (Lucía): techos claros (#b8b8b8) sobre laterales verde oliva (#50541c) y contorno
+            // oscuro de 1 px; la locomotora lleva una franja ámbar (#e08c30) en el frontal. El techo claro se lee sobre el fondo oscuro.
+            var olive = Mat("50541c"); var roofLight = Mat("b8b8b8"); var amberMat = Mat("e08c30"); var outline = Mat("1c1812");
             _trainParts = new Transform[4];
-            _trainParts[0] = Box("Locomotora", Vector3.zero, new Vector3(4f, 2.2f, 1.8f), _mTrain).transform;
+            _trainParts[0] = Box("Locomotora", Vector3.zero, new Vector3(4f, 2.2f, 1.8f), olive).transform;
             for (int i = 1; i < 4; i++)
-                _trainParts[i] = Box("Vagón " + i, Vector3.zero, new Vector3(4.6f, 2f, 1.8f), _mWagon).transform;
+                _trainParts[i] = Box("Vagón " + i, Vector3.zero, new Vector3(4.6f, 2f, 1.8f), olive).transform;
+            for (int i = 0; i < 4; i++)
+            {
+                var t = _trainParts[i];
+                Vector3 sz = t.localScale;
+                // techo claro: una losa fina sobre el cuerpo (en espacio local del cuerpo, que está escalado)
+                var roof = Box("Techo", Vector3.zero, Vector3.one, roofLight, t); roof.transform.localPosition = new Vector3(0f, 0.5f, 0f); roof.transform.localScale = new Vector3(0.92f, 0.06f, 0.82f);
+                // contorno: un cuerpo algo mayor y más bajo, oscuro, que asoma 1 px por los lados
+                var line = Box("Contorno", Vector3.zero, Vector3.one, outline, t); line.transform.localPosition = new Vector3(0f, -0.02f, 0f); line.transform.localScale = new Vector3(1.06f, 0.96f, 1.12f);
+                if (i == 0)
+                {
+                    var stripe = Box("Franja ámbar", Vector3.zero, Vector3.one, amberMat, t); stripe.transform.localPosition = new Vector3(0.5f, 0.05f, 0f); stripe.transform.localScale = new Vector3(0.04f, 0.5f, 1.02f);
+                }
+            }
         }
 
         /// <summary>Muro como caja con posición, rotación, grosor y altura libres (de A a B).</summary>
