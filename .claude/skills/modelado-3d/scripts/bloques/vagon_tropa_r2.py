@@ -53,12 +53,12 @@ def construir(nombre="SM_R2_VagonTropa", lod=0):
     for s in (-1, 1):
         for x in (-1.0, 1.0):   # entre el hueco de acceso (0,5 m) y la cara interior del costado
             t.caja((x * (0.5 + 1.45 - EP) / 2, s * (9.25 - EP * 1.5), zc), (1.45 - EP - 0.5, EP, HP), bisel=True)
-    # aspilleras: ranuras oscuras a 1 m sobre el tablero, cada 1,15 m, en las dos caras
+    # aspilleras (solo LOD0; en el LOD1 eran el único ruido del canto, Lucía 6-nov): ranuras oscuras a 1 m sobre el tablero, cada 1,15 m, en las dos caras
     for x in (-1.0, 1.0):
         for k in range(14):
             y = -7.5 + k * 1.15
             for cara in (1, -1):
-                t.caja((x * (1.45 - EP / 2) + cara * (EP / 2 + 0.005), y, ZT + 1.0), (0.01, 0.45, 0.12), "optica")
+                fino.caja((x * (1.45 - EP / 2) + cara * (EP / 2 + 0.005), y, ZT + 1.0), (0.01, 0.45, 0.12), "optica")
     # teleros (montantes de la plataforma) por fuera de la chapa
     for x in (-1.0, 1.0):
         for k in range(9):
