@@ -1,11 +1,10 @@
-"""Almacén de naranjas (magatzem), nave de 11 × 21 m (encargada a dos aguas; azotea por la colisión) (Álvaro, sagunto-nivel.md §5). Teo, 6-nov-2026.
+"""Almacén de naranjas (magatzem), nave de 11 × 21 m a dos aguas (Álvaro, sagunto-nivel.md §5). Teo, 6-nov-2026.
 
 Fotos F4 de Paula (Commons, Alcàsser, l'Horta Sud; no es del Camp de Morvedre, pero es el mismo tipo): fachada encalada
 en el hastial con frontón ondulado que tapa el tejado y lleva un óculo, portón metálico grande, puertas pequeñas,
 ventana enrejada y zócalo gris. El frontón ondulado se hace a escalones (centro alto, dos hombros y dos remates):
 desde arriba, a 64 px, una curva y un escalón se ven igual.
-MEDIDAS: planta de 11 × 21 m (encargo de Álvaro). Azotea a 4,0 m con pretil de 0,7 m (cuadra con la colisión del
-tejado de pruebas, Level.RoofH = 4: no hay que tocar la simulación; Álvaro, 17:58). Frontón hasta 6,8 m, portón de 4 × 4,2 m, óculo de 1,2 m:
+MEDIDAS: planta de 11 × 21 m (encargo de Álvaro). Alero a 5,5 m, cumbrera a 7,5 m, portón de 4 × 4,2 m, óculo de 1,2 m:
 SIN VERIFICAR (típicas, estimadas sobre la foto). Colores: cal d4d0cc, zócalo 94948c, portones de chapa 6c7874,
 teja a86c50, rejas y óculo 48403c (nada de valores de la horda). Fachada a la calle = −Y (+Z en Unity).
 Se construye con la nave a lo largo de X y el hastial en −X, y al final se gira 90° para que la fachada mire a −Y.
@@ -23,7 +22,7 @@ COLORES = {"cal": _CAL[VAR % 6], "zocalo": "94948c", "porton": "6c7874", "tejado
            "madera": "845c28", "saco": "b4a080"}
 FACCION = "neutro"
 PRESUPUESTO = {0: (80, 1500), 1: (40, 700)}
-L, W, ALERO, CUMBRE = 21.0, 11.0, 3.8, 2.0   # azotea a 4,0 m = colisión del tejado de pruebas (Level.RoofH = 4)
+L, W, ALERO, CUMBRE = 21.0, 11.0, 5.5, 2.0
 
 
 def construir(nombre="SM_AlmacenNaranjas", lod=0):
@@ -33,18 +32,13 @@ def construir(nombre="SM_AlmacenNaranjas", lod=0):
     hx, hy = L / 2, W / 2
     t.caja((0, 0, ALERO / 2), (L, W, ALERO), "cal")
     t.caja((0, 0, 0.5), (L + 0.08, W + 0.08, 1.0), "zocalo")
-    # azotea de rasilla con la cara de arriba a 4,0 m (Álvaro, 17:58: la colisión es una caja plana de 4 m; así los
-    # zombis pisan justo la cubierta) y pretil bajo de cal en los costados y la trasera
-    if v == 2:   # azotea hundida: hueco oscuro de 4,6 m
-        for x0, x1 in ((-hx - 0.05, 0.0), (4.6, hx + 0.05)):
-            t.caja(((x0 + x1) / 2, 0, ALERO + 0.1), (x1 - x0, W + 0.1, 0.2), "tejado")
-        t.caja((2.3, 0, ALERO + 0.06), (4.7, W + 0.04, 0.12), "oscuro")
-        t.caja((2.3, -hy / 2, ALERO - 0.6), (3.6, 0.2, 1.6), "tejado", rot_x=0.9)
+    if v == 2:   # tejado hundido: el faldón sur partido, con hueco oscuro
+        t.tejado((-hx / 2 - 0.3, 0, ALERO), hx - 0.6, W, CUMBRE, "tejado", vuelo=0.3, aguas=2)
+        t.tejado((hx / 2 + 2.3, 0, ALERO), hx - 4.6, W, CUMBRE, "tejado", vuelo=0.3, aguas=2)
+        t.caja((2.0, 0, ALERO + 0.06), (4.7, W + 0.04, 0.12), "oscuro")   # tapa los cantos de la cal (nada de filo claro)
+        t.caja((2.0, -hy / 2, ALERO + 0.9), (3.6, 0.2, 1.6), "tejado", rot_x=0.9)
     else:
-        t.caja((0, 0, ALERO + 0.1), (L + 0.1, W + 0.1, 0.2), "tejado")
-    for s_ in (-1, 1):
-        t.caja((0.2, s_ * (hy - 0.12), ALERO + 0.45), (L - 0.3, 0.3, 0.7), "zocalo")   # pretil gris: nada de filo claro
-    t.caja((hx - 0.12, 0, ALERO + 0.45), (0.3, W - 0.6, 0.7), "zocalo")
+        t.tejado((0, 0, ALERO), L, W, CUMBRE, "tejado", vuelo=0.3, aguas=2)
     # frontón escalonado en el hastial (−X), de 0,4 m de grueso
     xf = -hx - 0.2
     for (ya, yb, z) in ((-1.6, 1.6, ALERO + CUMBRE + 1.0), (1.5, 4.0, ALERO + 1.7), (3.9, hy + 0.1, ALERO + 0.85)):
