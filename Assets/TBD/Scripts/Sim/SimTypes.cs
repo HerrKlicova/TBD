@@ -360,7 +360,7 @@ namespace TBD.Sim
         public const float FortX0 = 70f, FortX1 = 101f, FortY0 = 44f, FortY1 = 85f;
         public const float GateY0 = 62f, GateY1 = 67f;
         public const float RoofX0 = 40f, RoofX1 = 51f, RoofY0 = 30f, RoofY1 = 51f;
-        public const float TrainMinX = 74f, TrainMaxX = 98f;
+        public const float TrainMinX = 91f, TrainMaxX = 96.5f;       // el tren cabe entero dentro del fuerte (muros en X = 70 y 101): cola en 73,5 y locomotora en 93,5 (parado en el andén)
         public const byte GateId = 1;
         public const byte TrainId = 2;                    // D-N27: el tren parado es un muro móvil
         public const float TrainRear = 17.5f, TrainFront = 2.5f, TrainHalf = 1.0f, TrainH = 2.2f;
