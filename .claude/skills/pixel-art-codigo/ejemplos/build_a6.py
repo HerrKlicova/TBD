@@ -52,35 +52,47 @@ def fusileros():
     return s
 
 
+def saco(s, x, y, w=6):
+    """Saco terrero de w x 3 en caqui apagado: luz arriba, sombra abajo, extremos redondeados."""
+    s.rect(x, y, w, 3, "olive_yellow")
+    s.hline(x + 1, x + w - 2, y, "beige")
+    s.hline(x + 1, x + w - 2, y + 2, "olive_grey")
+    s.set(x, y, None)
+    s.set(x + w - 1, y, None)
+
+
 def ametralladora():
+    """Nido de ametralladora (diseno-hito5 §2): media luna de sacos en 3/4 con el casco y el
+    cañón asomando y la cinta de latón colgando por delante (Lucía, 6-nov)."""
     s = Sprite()
-    # Tirador tumbado detrás de una ametralladora sobre bípode, cinta de cartuchos a un lado.
-    # Cuerpo tendido (de izquierda a derecha: botas, piernas, torso, cabeza).
-    s.rect(1, 21, 4, 2, "brown_dark")                  # botas
-    s.rect(4, 20, 7, 3, "grey_brown")                  # piernas
-    s.hline(4, 10, 20, "olive_grey")
-    s.rect(10, 18, 8, 5, "olive_grey")                 # torso con chaleco
-    s.hline(10, 17, 18, "olive_light")
-    s.rect(12, 20, 3, 2, "olive_dark")                 # cargadores
-    s.set(11, 19, "bone")                              # parche
-    s.rect(9, 16, 5, 2, "olive_dark")                  # mochila sobre la espalda
-    s.ellipse(17, 14, 22, 18, "olive")                 # casco
-    s.hline(18, 20, 14, "bone")
-    s.hline(17, 22, 18, "olive_dark")
-    s.rect(20, 19, 2, 2, "tan")                        # cara pegada a la culata
-    s.rect(17, 21, 3, 2, "olive_grey")                 # brazo al guardamanos
-    # Ametralladora: culata, cajón, cañón largo y bípode.
-    s.rect(18, 19, 3, 2, "slate_dark")                 # culata
-    s.rect(21, 18, 5, 3, "slate_dark")                 # cajón de mecanismos
-    s.hline(21, 25, 18, "slate")
-    s.hline(26, 31, 19, "slate")                       # cañón
-    s.hline(26, 31, 20, "slate_dark")
-    s.line(27, 21, 25, 24, "slate")                    # bípode
-    s.line(28, 21, 30, 24, "slate")
-    s.line(23, 21, 21, 24, "amber")                    # cinta de cartuchos colgando
-    s.set(22, 22, "ochre_dark")
-    s.hline(0, 31, 25, "olive_shadow")                 # suelo
-    s.set(6, 21, "olive_light")                        # rodillera gastada
+    # Tirador detrás (casco y hombros) y el arma apoyada en los sacos.
+    s.rect(9, 11, 9, 5, "olive_grey")                  # hombros
+    s.hline(9, 17, 11, "olive_light")
+    s.ellipse(10, 5, 16, 11, "olive")                  # casco moderno
+    s.hline(12, 14, 5, "bone")
+    s.set(10, 8, "olive_light")
+    s.hline(10, 16, 11, "olive_dark")
+    s.rect(15, 10, 6, 3, "slate_dark")                 # cajón de mecanismos
+    s.hline(15, 20, 10, "slate")
+    s.hline(21, 30, 10, "slate")                       # cañón asomando a la derecha
+    s.hline(21, 30, 11, "slate_dark")
+    s.rect(29, 9, 2, 4, "slate_dark")                  # bocacha
+    # Media luna de sacos: tres hiladas en arco, la de abajo más ancha (vista en 3/4).
+    for k, x in enumerate(range(6, 26, 6)):
+        saco(s, x, 13 + (1 if k in (0, 3) else 0))
+    for k, x in enumerate(range(3, 29, 6)):
+        saco(s, x, 16 + (1 if k in (0, 4) else 0))
+    for k, x in enumerate(range(0, 32, 6)):
+        saco(s, x, 19 + (2 if k in (0, 5) else 1 if k in (1, 4) else 0), 6 if x < 30 else 2)
+    s.rect(4, 23, 24, 3, "olive_grey")                 # sombra del frente del nido
+    s.hline(4, 27, 23, "olive_yellow")
+    for x in range(6, 27, 6):
+        s.vline(x, 23, 25, "grey_brown")               # juntas
+    # Cinta de cartuchos de latón colgando sobre los sacos.
+    for j, x in enumerate((19, 19, 20, 20, 21, 21, 21)):
+        s.set(x, 13 + j, "amber" if j % 2 == 0 else "ochre_dark")
+    s.set(22, 18, "cream")
+    s.set(9, 18, "grey_brown")                         # saco rajado
     s.outline()
     return s
 
