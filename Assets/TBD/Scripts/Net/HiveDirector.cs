@@ -124,6 +124,7 @@ namespace TBD.Net
         public long SiegeWeight(NetWorld w, int n)
         {
             var nd = w.Graph.Nodes[n];
+            if (w.Stations.IsSite(n) && !w.Stations.Founded[n]) return 0;      // hito 5 (Mak, 6-nov): un emplazamiento sin fundar no cuenta (ni objetivo ni deriva)
             long wt = P.WeightBase + Math.Max(0, w.Stock[n, (int)Res.Personas]) / PersonsPerHugoUnit;   // el modelo de Hugo cuenta la población en unidades de 10 personas (Valencia 30 = 300)
             if (Array.IndexOf(InteriorNodes, nd.Name) >= 0) wt = wt * P.WeightInteriorMil / 1000;
             if (nd.Name == NestNode) wt = wt * P.WeightNestMil / 1000;
@@ -218,7 +219,7 @@ namespace TBD.Net
         public long HuellaMil(NetWorld w)
         {
             long pop = 0; int held = 0;
-            for (int n = 0; n < w.Graph.Nodes.Count; n++) { long p = Math.Max(0, w.Stock[n, (int)Res.Personas]); pop += p; if (p > 0) held++; }
+            for (int n = 0; n < w.Graph.Nodes.Count; n++) { if (w.Stations.IsSite(n) && !w.Stations.Founded[n]) continue; long p = Math.Max(0, w.Stock[n, (int)Res.Personas]); pop += p; if (p > 0) held++; }
             int building = 0;
             for (int n = 0; n < w.Graph.Nodes.Count; n++) if (w.WorkActive(n)) building++;       // hito 5: una huella por nodo con obra activa (partir una obra en varias no la multiplica)
             return pop / PersonsPerHugoUnit * P.HuellaPersonMil + (long)w.Services.Count * P.HuellaTrainMil + (long)held * P.HuellaNodeMil + (long)building * P.WorkHuellaMil;

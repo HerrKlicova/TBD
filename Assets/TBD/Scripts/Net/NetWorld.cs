@@ -29,7 +29,7 @@ namespace TBD.Net
     }
 
     // ================================================================== órdenes
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13 }
 
     public struct NetCommand
     {
@@ -57,6 +57,7 @@ namespace TBD.Net
         public int StopIndex;              // parada en la que está o hacia la que va
         public bool AtStop = true;         // esperando en la parada StopIndex
         public bool Held;                  // retenido por el jugador
+        public int HaltAt = -1;            // «detener en el emplazamiento» (hito 5): nodo donde el tren para al llegar (-1 = ninguno)
         public bool Ambushed;              // detenido por una emboscada hasta que se resuelva (zona o expiración)
         public long LastAmbushDay = -1;    // como mucho una emboscada por tren y día (D-N39)
         public long LastDepartDay = -1;    // último día en que salió de alguna parada (informativo)
@@ -388,6 +389,7 @@ namespace TBD.Net
                     case NetCmdType.Dematerialize: Dematerialize(c.Arg, c.Arg2); break;
                     case NetCmdType.ConsumeAmmo: ConsumeAmmo(c.Arg, c.Arg2); break;
                     case NetCmdType.AssignWorkers: AssignWorkers(c.Arg, c.Arg2); break;                    // Arg = nodo, Arg2 = obreros
+                    case NetCmdType.HaltAtSite: HaltAtSite(c.Arg, c.Arg2); break;                           // Arg = emplazamiento (-1 cancela), Arg2 = servicio
                     case NetCmdType.FoundStation: FoundStation(c.Arg); break;                               // Arg = nodo
                     case NetCmdType.CancelWork: CancelWork(c.Arg, c.Arg2); break;                          // Arg = nodo, Arg2 = número de obra
                     case NetCmdType.PlaceWork: PlaceWork(c.Arg & 0xFFFF, (PieceKind)(c.Arg >> 16), c.Payload); break;       // Arg = nodo | (PieceKind << 16)
@@ -459,6 +461,20 @@ namespace TBD.Net
         }
 
         // ---------------------------------------------------------------- fundar una estación (hito 5, diseno-hito5.md §4)
+        /// <summary>
+        /// «Detener en el emplazamiento» (Mak, 6-nov): el tren «service» para en cuanto llegue a ese nodo (justo en el nodo, retenido: TrainGo lo suelta).
+        /// Solo emplazamientos. node = -1 cancela. Si ya está parado en el nodo en una parada del horario, no hace falta nada.
+        /// </summary>
+        public void HaltAtSite(int node, int service)
+        {
+            if (service < 0 || service >= Services.Count) return;
+            var s = Services[service];
+            if (node < 0) { s.HaltAt = -1; return; }
+            if (node >= Graph.Nodes.Count || !Stations.IsSite(node)) return;
+            if (TrainAtNode(s, node)) return;
+            s.HaltAt = node;
+        }
+
         /// <summary>¿Está el tren parado en el nodo? En una parada del horario, o detenido a menos de StopRadiusMm del nodo en su tramo.</summary>
         public bool TrainAtNode(TrainService sv, int node)
         {
@@ -728,8 +744,13 @@ namespace TBD.Net
             t.Step(Graph);
             if (t.Leg != legBefore && t.Leg < t.Route.Count) MakeNoise(t.Route[t.Leg]);
             if (t.Leg != legBefore && t.State != RailTrainState.Llegado) PassEdge(s, t.CurrentEdge(Graph));
+            if (s.HaltAt >= 0 && t.Leg != legBefore && t.State == RailTrainState.EnMarcha && t.Leg < t.Route.Count && t.Route[t.Leg] == s.HaltAt)
+            {
+                t.OffsetMm = 0; t.Stop(); s.Held = true; s.HaltAt = -1;        // para justo en el nodo (la marcha sobrante del tick se pierde); TrainGo lo suelta
+            }
             if (t.State == RailTrainState.Llegado)
             {
+                if (s.HaltAt >= 0 && s.Stops[s.StopIndex].Node == s.HaltAt) s.HaltAt = -1;     // llegó a su parada: ya está en el nodo
                 MakeNoise(s.Stops[s.StopIndex].Node);
                 s.AtStop = true;
             }
@@ -842,6 +863,7 @@ namespace TBD.Net
                 for (int k = 0; k < s.DepartedDay.Count; k++) h += Mix(((ulong)(uint)t.Id << 52) ^ ((ulong)(uint)k << 40) ^ (ulong)(s.DepartedDay[k] + 1));
                 h += Mix(((ulong)(uint)t.Id << 4) ^ (s.AtStop ? 1UL : 0UL) ^ (s.Held ? 2UL : 0UL));
             }
+            foreach (var sv in Services) if (sv.HaltAt >= 0) h += Mix(0x4A17UL ^ ((ulong)(uint)sv.Train.Id << 32) ^ (ulong)(uint)(sv.HaltAt + 1));
             r.Trains = h;
             h = 0;
             for (int n = 0; n < Graph.Nodes.Count; n++)
