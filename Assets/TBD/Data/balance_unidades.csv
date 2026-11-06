@@ -1,0 +1,283 @@
+clave;valor;escala;nota
+unidades_version;1;1;D-N72 (Hugo, 6-nov noche): primera tabla jugable, los números son de juego, no de manual
+arma_fusil_cadencia_ticks;15;1;HK G36E (Paula: 750 disp./min de cadencia máxima), sin cambios, validado en P7: 2 disparos/s es tiro apuntado, no la cadencia cíclica
+arma_fusil_clase_municion;1;1;1 ligera, 2 pesada, 3 especial: en el MVP las tres salen del MISMO stock de munición (la economía tiene una sola), la clase es para la Colmena (tipo de muerte) y para separarlas más adelante
+arma_fusil_alcance_m;60;1;
+arma_fusil_alcance_min_m;0;1;
+arma_fusil_acierto_bocajarro_permil;210;1000;
+arma_fusil_acierto_pendiente_permil_m;3;1000;
+arma_fusil_acierto_minimo_permil;30;1000;
+arma_fusil_coste_disparos;1;1;disparos equivalentes por disparo (1 u = 2.000)
+arma_fusil_radio_mm;0;1;0 = tiro directo
+arma_fusil_letalidad_permil;0;1000;probabilidad de abatir a cada zombi dentro del radio
+arma_fusil_tope_bajas;1;1;
+arma_fusil_perforacion;0;1;zombis extra detrás del primero, al 50 %
+arma_fusil_despliegue_ticks;0;1;parado este tiempo antes de disparar, no dispara en marcha si > 0
+arma_fusil_vuelo_ticks;0;1;retardo hasta el impacto
+arma_ametralladora_ligera_cadencia_ticks;2;1;HK MG4E en marcha (Paula: alza hasta 1.000 m), sin cambios: el 60 % del fusil, como hoy
+arma_ametralladora_ligera_clase_municion;1;1;1 ligera, 2 pesada, 3 especial: en el MVP las tres salen del MISMO stock de munición (la economía tiene una sola), la clase es para la Colmena (tipo de muerte) y para separarlas más adelante
+arma_ametralladora_ligera_alcance_m;70;1;
+arma_ametralladora_ligera_alcance_min_m;0;1;
+arma_ametralladora_ligera_acierto_bocajarro_permil;126;1000;
+arma_ametralladora_ligera_acierto_pendiente_permil_m;2;1000;
+arma_ametralladora_ligera_acierto_minimo_permil;18;1000;
+arma_ametralladora_ligera_coste_disparos;1;1;disparos equivalentes por disparo (1 u = 2.000)
+arma_ametralladora_ligera_radio_mm;0;1;0 = tiro directo
+arma_ametralladora_ligera_letalidad_permil;0;1000;probabilidad de abatir a cada zombi dentro del radio
+arma_ametralladora_ligera_tope_bajas;1;1;
+arma_ametralladora_ligera_perforacion;0;1;zombis extra detrás del primero, al 50 %
+arma_ametralladora_ligera_despliegue_ticks;0;1;parado este tiempo antes de disparar, no dispara en marcha si > 0
+arma_ametralladora_ligera_vuelo_ticks;0;1;retardo hasta el impacto
+arma_ametralladora_emplazada_cadencia_ticks;2;1;HK MG4E sobre bípode, unos 1.000 m (Paula), la MG5 de 7,62 como mejora, ametralladores: 2 s para emplazarse, cono de 60 grados, perfora 1 en masa, quieta, no dispara en marcha
+arma_ametralladora_emplazada_clase_municion;1;1;1 ligera, 2 pesada, 3 especial: en el MVP las tres salen del MISMO stock de munición (la economía tiene una sola), la clase es para la Colmena (tipo de muerte) y para separarlas más adelante
+arma_ametralladora_emplazada_alcance_m;80;1;
+arma_ametralladora_emplazada_alcance_min_m;0;1;
+arma_ametralladora_emplazada_acierto_bocajarro_permil;300;1000;
+arma_ametralladora_emplazada_acierto_pendiente_permil_m;3;1000;
+arma_ametralladora_emplazada_acierto_minimo_permil;40;1000;
+arma_ametralladora_emplazada_coste_disparos;2;1;disparos equivalentes por disparo (1 u = 2.000)
+arma_ametralladora_emplazada_radio_mm;0;1;0 = tiro directo
+arma_ametralladora_emplazada_letalidad_permil;0;1000;probabilidad de abatir a cada zombi dentro del radio
+arma_ametralladora_emplazada_tope_bajas;1;1;
+arma_ametralladora_emplazada_perforacion;1;1;zombis extra detrás del primero, al 50 %
+arma_ametralladora_emplazada_despliegue_ticks;60;1;parado este tiempo antes de disparar, no dispara en marcha si > 0
+arma_ametralladora_emplazada_vuelo_ticks;0;1;retardo hasta el impacto
+arma_lanzagranadas_cadencia_ticks;180;1;HK AG36 de 40 mm, monotiro, hasta 350 m (Paula), tiro parabólico, solo si hay >= 6 zombis en el radio, si no el granadero usa su fusil
+arma_lanzagranadas_clase_municion;3;1;1 ligera, 2 pesada, 3 especial: en el MVP las tres salen del MISMO stock de munición (la economía tiene una sola), la clase es para la Colmena (tipo de muerte) y para separarlas más adelante
+arma_lanzagranadas_alcance_m;140;1;
+arma_lanzagranadas_alcance_min_m;15;1;
+arma_lanzagranadas_acierto_bocajarro_permil;0;1000;
+arma_lanzagranadas_acierto_pendiente_permil_m;0;1000;
+arma_lanzagranadas_acierto_minimo_permil;0;1000;
+arma_lanzagranadas_coste_disparos;40;1;disparos equivalentes por disparo (1 u = 2.000)
+arma_lanzagranadas_radio_mm;2500;1;0 = tiro directo
+arma_lanzagranadas_letalidad_permil;500;1000;probabilidad de abatir a cada zombi dentro del radio
+arma_lanzagranadas_tope_bajas;10;1;
+arma_lanzagranadas_perforacion;0;1;zombis extra detrás del primero, al 50 %
+arma_lanzagranadas_despliegue_ticks;0;1;parado este tiempo antes de disparar, no dispara en marcha si > 0
+arma_lanzagranadas_vuelo_ticks;20;1;retardo hasta el impacto
+arma_fusil_precision_cadencia_ticks;60;1;HK G28 semiautomático, 600 m precisos (Paula), la mejora es fusil_antimaterial, prioridad: el zombi más cercano al muro o el especial, muy eficiente por u y de poco caudal
+arma_fusil_precision_clase_municion;1;1;1 ligera, 2 pesada, 3 especial: en el MVP las tres salen del MISMO stock de munición (la economía tiene una sola), la clase es para la Colmena (tipo de muerte) y para separarlas más adelante
+arma_fusil_precision_alcance_m;160;1;
+arma_fusil_precision_alcance_min_m;0;1;
+arma_fusil_precision_acierto_bocajarro_permil;950;1000;
+arma_fusil_precision_acierto_pendiente_permil_m;1;1000;
+arma_fusil_precision_acierto_minimo_permil;600;1000;
+arma_fusil_precision_coste_disparos;3;1;disparos equivalentes por disparo (1 u = 2.000)
+arma_fusil_precision_radio_mm;0;1;0 = tiro directo
+arma_fusil_precision_letalidad_permil;0;1000;probabilidad de abatir a cada zombi dentro del radio
+arma_fusil_precision_tope_bajas;1;1;
+arma_fusil_precision_perforacion;1;1;zombis extra detrás del primero, al 50 %
+arma_fusil_precision_despliegue_ticks;0;1;parado este tiempo antes de disparar, no dispara en marcha si > 0
+arma_fusil_precision_vuelo_ticks;0;1;retardo hasta el impacto
+arma_fusil_antimaterial_cadencia_ticks;90;1;Barrett M95SP 12,7 mm, cerrojo, 1.800 m, cargador de 5 (Paula), D-N81: MEJORA de los tiradores, fuera de la noche, más lenta que el G28 (cerrojo), más alcance y perfora 2, bípode: 2 s de despliegue
+arma_fusil_antimaterial_clase_municion;1;1;1 ligera, 2 pesada, 3 especial: en el MVP las tres salen del MISMO stock de munición (la economía tiene una sola), la clase es para la Colmena (tipo de muerte) y para separarlas más adelante
+arma_fusil_antimaterial_alcance_m;200;1;
+arma_fusil_antimaterial_alcance_min_m;0;1;
+arma_fusil_antimaterial_acierto_bocajarro_permil;950;1000;
+arma_fusil_antimaterial_acierto_pendiente_permil_m;1;1000;
+arma_fusil_antimaterial_acierto_minimo_permil;650;1000;
+arma_fusil_antimaterial_coste_disparos;6;1;disparos equivalentes por disparo (1 u = 2.000)
+arma_fusil_antimaterial_radio_mm;0;1;0 = tiro directo
+arma_fusil_antimaterial_letalidad_permil;0;1000;probabilidad de abatir a cada zombi dentro del radio
+arma_fusil_antimaterial_tope_bajas;1;1;
+arma_fusil_antimaterial_perforacion;2;1;zombis extra detrás del primero, al 50 %
+arma_fusil_antimaterial_despliegue_ticks;60;1;parado este tiempo antes de disparar, no dispara en marcha si > 0
+arma_fusil_antimaterial_vuelo_ticks;0;1;retardo hasta el impacto
+arma_carga_zapador_cadencia_ticks;900;1;carga explosiva (Paula: sin dato), se coloca a <= 10 m y estalla a los 5 s, una cada 30 s por zapador con carga
+arma_carga_zapador_clase_municion;3;1;1 ligera, 2 pesada, 3 especial: en el MVP las tres salen del MISMO stock de munición (la economía tiene una sola), la clase es para la Colmena (tipo de muerte) y para separarlas más adelante
+arma_carga_zapador_alcance_m;10;1;
+arma_carga_zapador_alcance_min_m;0;1;
+arma_carga_zapador_acierto_bocajarro_permil;0;1000;
+arma_carga_zapador_acierto_pendiente_permil_m;0;1000;
+arma_carga_zapador_acierto_minimo_permil;0;1000;
+arma_carga_zapador_coste_disparos;200;1;disparos equivalentes por disparo (1 u = 2.000)
+arma_carga_zapador_radio_mm;4000;1;0 = tiro directo
+arma_carga_zapador_letalidad_permil;800;1000;probabilidad de abatir a cada zombi dentro del radio
+arma_carga_zapador_tope_bajas;40;1;
+arma_carga_zapador_perforacion;0;1;zombis extra detrás del primero, al 50 %
+arma_carga_zapador_despliegue_ticks;90;1;parado este tiempo antes de disparar, no dispara en marcha si > 0
+arma_carga_zapador_vuelo_ticks;150;1;retardo hasta el impacto
+arma_canon_30_cadencia_ticks;10;1;Mk44S de 30 mm del VCR Dragón (Paula: 200 disp./min, 3.000 m), explosivo: impacto directo más metralla en 1,5 m, apunta y dispara solo
+arma_canon_30_clase_municion;2;1;1 ligera, 2 pesada, 3 especial: en el MVP las tres salen del MISMO stock de munición (la economía tiene una sola), la clase es para la Colmena (tipo de muerte) y para separarlas más adelante
+arma_canon_30_alcance_m;220;1;
+arma_canon_30_alcance_min_m;0;1;
+arma_canon_30_acierto_bocajarro_permil;500;1000;
+arma_canon_30_acierto_pendiente_permil_m;1;1000;
+arma_canon_30_acierto_minimo_permil;200;1000;
+arma_canon_30_coste_disparos;15;1;disparos equivalentes por disparo (1 u = 2.000)
+arma_canon_30_radio_mm;1500;1;0 = tiro directo
+arma_canon_30_letalidad_permil;500;1000;probabilidad de abatir a cada zombi dentro del radio
+arma_canon_30_tope_bajas;4;1;
+arma_canon_30_perforacion;0;1;zombis extra detrás del primero, al 50 %
+arma_canon_30_despliegue_ticks;0;1;parado este tiempo antes de disparar, no dispara en marcha si > 0
+arma_canon_30_vuelo_ticks;0;1;retardo hasta el impacto
+arma_ametralladora_pesada_cadencia_ticks;3;1;Browning M2HB 12,7 mm (Paula: sin verificar), para el nido de ametralladora de la estación (pieza fija)
+arma_ametralladora_pesada_clase_municion;1;1;1 ligera, 2 pesada, 3 especial: en el MVP las tres salen del MISMO stock de munición (la economía tiene una sola), la clase es para la Colmena (tipo de muerte) y para separarlas más adelante
+arma_ametralladora_pesada_alcance_m;100;1;
+arma_ametralladora_pesada_alcance_min_m;0;1;
+arma_ametralladora_pesada_acierto_bocajarro_permil;300;1000;
+arma_ametralladora_pesada_acierto_pendiente_permil_m;2;1000;
+arma_ametralladora_pesada_acierto_minimo_permil;40;1000;
+arma_ametralladora_pesada_coste_disparos;3;1;disparos equivalentes por disparo (1 u = 2.000)
+arma_ametralladora_pesada_radio_mm;0;1;0 = tiro directo
+arma_ametralladora_pesada_letalidad_permil;0;1000;probabilidad de abatir a cada zombi dentro del radio
+arma_ametralladora_pesada_tope_bajas;1;1;
+arma_ametralladora_pesada_perforacion;1;1;zombis extra detrás del primero, al 50 %
+arma_ametralladora_pesada_despliegue_ticks;0;1;parado este tiempo antes de disparar, no dispara en marcha si > 0
+arma_ametralladora_pesada_vuelo_ticks;0;1;retardo hasta el impacto
+arma_ametralladora_puerta_cadencia_ticks;3;1;FN MAG 58 de 7,62 mm, 2 por aparato, 650-1.000 disp./min (Paula), montaje sin verificar, cada una dispara solo hacia su lado (sector de 180 grados), desde plataforma en vuelo acierta menos, alcance inclinado desde 30 m
+arma_ametralladora_puerta_clase_municion;1;1;1 ligera, 2 pesada, 3 especial: en el MVP las tres salen del MISMO stock de munición (la economía tiene una sola), la clase es para la Colmena (tipo de muerte) y para separarlas más adelante
+arma_ametralladora_puerta_alcance_m;120;1;
+arma_ametralladora_puerta_alcance_min_m;0;1;
+arma_ametralladora_puerta_acierto_bocajarro_permil;180;1000;
+arma_ametralladora_puerta_acierto_pendiente_permil_m;1;1000;
+arma_ametralladora_puerta_acierto_minimo_permil;30;1000;
+arma_ametralladora_puerta_coste_disparos;1;1;disparos equivalentes por disparo (1 u = 2.000)
+arma_ametralladora_puerta_radio_mm;0;1;0 = tiro directo
+arma_ametralladora_puerta_letalidad_permil;0;1000;probabilidad de abatir a cada zombi dentro del radio
+arma_ametralladora_puerta_tope_bajas;1;1;
+arma_ametralladora_puerta_perforacion;0;1;zombis extra detrás del primero, al 50 %
+arma_ametralladora_puerta_despliegue_ticks;0;1;parado este tiempo antes de disparar, no dispara en marcha si > 0
+arma_ametralladora_puerta_vuelo_ticks;0;1;retardo hasta el impacto
+arma_canon_30_heli_cadencia_ticks;5;1;cañón de 30 mm del Tigre (Paula A3), alternativa al NH90
+arma_canon_30_heli_clase_municion;2;1;1 ligera, 2 pesada, 3 especial: en el MVP las tres salen del MISMO stock de munición (la economía tiene una sola), la clase es para la Colmena (tipo de muerte) y para separarlas más adelante
+arma_canon_30_heli_alcance_m;200;1;
+arma_canon_30_heli_alcance_min_m;0;1;
+arma_canon_30_heli_acierto_bocajarro_permil;450;1000;
+arma_canon_30_heli_acierto_pendiente_permil_m;1;1000;
+arma_canon_30_heli_acierto_minimo_permil;200;1000;
+arma_canon_30_heli_coste_disparos;15;1;disparos equivalentes por disparo (1 u = 2.000)
+arma_canon_30_heli_radio_mm;1500;1;0 = tiro directo
+arma_canon_30_heli_letalidad_permil;500;1000;probabilidad de abatir a cada zombi dentro del radio
+arma_canon_30_heli_tope_bajas;4;1;
+arma_canon_30_heli_perforacion;0;1;zombis extra detrás del primero, al 50 %
+arma_canon_30_heli_despliegue_ticks;0;1;parado este tiempo antes de disparar, no dispara en marcha si > 0
+arma_canon_30_heli_vuelo_ticks;0;1;retardo hasta el impacto
+arma_cohetes_70_cadencia_ticks;600;1;cohetes de 70 mm del Tigre (Paula A3), salva cada 20 s, solo 2 salvas por salida
+arma_cohetes_70_clase_municion;3;1;1 ligera, 2 pesada, 3 especial: en el MVP las tres salen del MISMO stock de munición (la economía tiene una sola), la clase es para la Colmena (tipo de muerte) y para separarlas más adelante
+arma_cohetes_70_alcance_m;220;1;
+arma_cohetes_70_alcance_min_m;30;1;
+arma_cohetes_70_acierto_bocajarro_permil;0;1000;
+arma_cohetes_70_acierto_pendiente_permil_m;0;1000;
+arma_cohetes_70_acierto_minimo_permil;0;1000;
+arma_cohetes_70_coste_disparos;200;1;disparos equivalentes por disparo (1 u = 2.000)
+arma_cohetes_70_radio_mm;7000;1;0 = tiro directo
+arma_cohetes_70_letalidad_permil;600;1000;probabilidad de abatir a cada zombi dentro del radio
+arma_cohetes_70_tope_bajas;60;1;
+arma_cohetes_70_perforacion;0;1;zombis extra detrás del primero, al 50 %
+arma_cohetes_70_despliegue_ticks;0;1;parado este tiempo antes de disparar, no dispara en marcha si > 0
+arma_cohetes_70_vuelo_ticks;30;1;retardo hasta el impacto
+peloton_fusileros_personas;8;1;todoterreno: 2 escuadras de 4 (jefe, ametrallador MG4E, granadero con AG36 y fusilero), guarnición, escolta y línea
+peloton_fusileros_servidores;0;1;personas sin arma propia (cargadores)
+peloton_fusileros_arma_fusil;4;1;
+peloton_fusileros_arma_ametralladora_ligera;2;1;
+peloton_fusileros_arma_lanzagranadas;2;1;
+peloton_fusileros_velocidad_mm_s;2500;1;el zombi común va de 1,2 a 2,0 m/s
+peloton_fusileros_dotacion_municion_permil_u;1500;1000;munición que se lleva al desembarcar (sale del tren o de la estación)
+peloton_fusileros_materiales_u;0;1;equipo, una vez al formarlo
+peloton_fusileros_formacion_h;6;1;
+peloton_fusileros_etapa;1;1;prioridad de la noche P0
+peloton_fusileros_soldado_vida;100;1;igual que hoy (balance_combate)
+peloton_ametralladores_personas;4;1;emplazados, cono de fuego sostenido devastador contra masas, quietos y vulnerables por los flancos
+peloton_ametralladores_servidores;2;1;personas sin arma propia (cargadores)
+peloton_ametralladores_arma_ametralladora_emplazada;2;1;
+peloton_ametralladores_velocidad_mm_s;2200;1;el zombi común va de 1,2 a 2,0 m/s
+peloton_ametralladores_dotacion_municion_permil_u;2000;1000;munición que se lleva al desembarcar (sale del tren o de la estación)
+peloton_ametralladores_materiales_u;2;1;equipo, una vez al formarlo
+peloton_ametralladores_formacion_h;8;1;
+peloton_ametralladores_etapa;1;1;prioridad de la noche P0
+peloton_ametralladores_soldado_vida;100;1;igual que hoy (balance_combate)
+peloton_granaderos_personas;6;1;área con tiro parabólico (mínimo 15 m): rompen la pila contra el muro, con la horda suelta tiran de fusil
+peloton_granaderos_servidores;0;1;personas sin arma propia (cargadores)
+peloton_granaderos_arma_lanzagranadas;6;1;
+peloton_granaderos_velocidad_mm_s;2300;1;el zombi común va de 1,2 a 2,0 m/s
+peloton_granaderos_dotacion_municion_permil_u;2000;1000;munición que se lleva al desembarcar (sale del tren o de la estación)
+peloton_granaderos_materiales_u;3;1;equipo, una vez al formarlo
+peloton_granaderos_formacion_h;8;1;
+peloton_granaderos_etapa;1;1;prioridad de la noche P1
+peloton_granaderos_soldado_vida;100;1;igual que hoy (balance_combate)
+peloton_tiradores_personas;2;1;tirador y observador: alcance largo, especiales y grandes primero, casi no gastan
+peloton_tiradores_servidores;0;1;personas sin arma propia (cargadores)
+peloton_tiradores_arma_fusil_precision;1;1;
+peloton_tiradores_arma_fusil;1;1;
+peloton_tiradores_velocidad_mm_s;2500;1;el zombi común va de 1,2 a 2,0 m/s
+peloton_tiradores_dotacion_municion_permil_u;300;1000;munición que se lleva al desembarcar (sale del tren o de la estación)
+peloton_tiradores_materiales_u;1;1;equipo, una vez al formarlo
+peloton_tiradores_formacion_h;12;1;
+peloton_tiradores_etapa;1;1;prioridad de la noche P1
+peloton_tiradores_soldado_vida;100;1;igual que hoy (balance_combate)
+peloton_zapadores_personas;6;1;construyen y reparan obras al doble de velocidad (obra x2) y ponen cargas, 2 de los 6 llevan carga
+peloton_zapadores_servidores;0;1;personas sin arma propia (cargadores)
+peloton_zapadores_arma_fusil;6;1;
+peloton_zapadores_arma_carga_zapador;2;1;
+peloton_zapadores_velocidad_mm_s;2300;1;el zombi común va de 1,2 a 2,0 m/s
+peloton_zapadores_dotacion_municion_permil_u;1500;1000;munición que se lleva al desembarcar (sale del tren o de la estación)
+peloton_zapadores_materiales_u;2;1;equipo, una vez al formarlo
+peloton_zapadores_formacion_h;10;1;
+peloton_zapadores_etapa;1;1;prioridad de la noche P2
+peloton_zapadores_soldado_vida;100;1;igual que hoy (balance_combate)
+vehiculo_dragon_vida;4000;1;VCR 8x8 Dragón (Paula V1: 8 x 3 x 2,34 m, 30 t, torre de 30 mm)
+vehiculo_dragon_armadura;990;1000;‰ del daño de los zombis que se ignora
+vehiculo_dragon_vel_mm_s;12000;1;la horda casi no lo araña (armadura 99 %), lo que lo mata es quedarse encajado: con pila >= 3 delante se para, como el tren
+vehiculo_dragon_vel_horda_mm_s;4000;1;a través de horda suelta (>= 0,5 zombis/m²)
+vehiculo_dragon_acel_mm_s2;3000;1;
+vehiculo_dragon_giro_cdeg_s;4500;1;
+vehiculo_dragon_bloqueo_pila;3;1;pila delante a partir de la cual se para (= tapón del tren)
+vehiculo_dragon_plazas;8;1;
+vehiculo_dragon_municion_bordo;2000;1000;‰ de u
+vehiculo_dragon_comb_marcha_e4_s;200;10000;D-N76: E4 de u por segundo REAL en marcha (1,2 u/min), se cobra cada 30 ticks
+vehiculo_dragon_comb_ralenti_e4_s;60;10000;D-N76: parado con el motor encendido (0,36 u/min), apagado, 0
+vehiculo_dragon_deposito_u;8;1;D-N76: sale lleno del almacén al empezar, a cero se queda inmóvil y la torre sigue disparando
+vehiculo_dragon_repostar_s_por_u;2;1;junto al depósito o al tren, del almacén de Sagunto, un zapador lleva un bidón de 2 u (20 s)
+vehiculo_dragon_coste_mat;60;1;
+vehiculo_dragon_coste_comb;15;1;
+vehiculo_dragon_taller_dias;2;1;
+vehiculo_dragon_reparar_u_por_1000_vida;5;1;
+vehiculo_dragon_etapa;1;1;
+vehiculo_dragon_atropello_vel_min_mm_s;3000;1;por debajo solo empuja
+vehiculo_dragon_atropello_permil;500;1;probabilidad de abatir a cada zombi que pisa yendo a >= 3 m/s (empuja y atropella)
+vehiculo_dragon_arma_canon_30;1;1;
+vehiculo_dragon_arma_ametralladora_ligera;1;1;
+heli_nh90_vida;3000;1;NH90 de las FAMET (Paula A2)
+heli_nh90_armadura;900;1000;
+heli_nh90_vel_max_mm_s;45000;1;RECOMENDADO para el MVP: lleva un pelotón lejos de la vía y lo apoya. Solo se le puede tocar por debajo de 3 m
+heli_nh90_acel_mm_s2;5000;1;
+heli_nh90_fren_mm_s2;7000;1;
+heli_nh90_guinada_cdeg_s;6000;1;
+heli_nh90_subida_mm_s;6000;1;
+heli_nh90_bajada_mm_s;4000;1;
+heli_nh90_altura_crucero_mm;30000;1;
+heli_nh90_altura_contacto_mm;3000;1;por debajo, los zombis pueden agarrarlo (posado o embarcando)
+heli_nh90_inclinacion_max_cdeg;1500;1;cabeceo a aceleración máxima (centésimas de grado)
+heli_nh90_plazas;12;1;
+heli_nh90_municion_bordo;1000;1000;‰ de u
+heli_nh90_comb_vuelo_e4_s;270;10000;D-N76: E4 de u por segundo REAL en vuelo (1,62 u/min), se cobra cada 30 ticks
+heli_nh90_comb_suelo_e4_s;90;10000;D-N76: posado con los rotores girando (0,54 u/min), apagado, 0
+heli_nh90_deposito_u;6;1;D-N76: sale lleno, a cero baja en autorrotación a 4 m/s donde esté, aviso al 20 %
+heli_nh90_repostar_s_por_u;2;1;solo posado en el helipuerto
+heli_nh90_huella_salida;1500;1000;‰ de huella para la Colmena por salida (como una obra grande)
+heli_nh90_etapa;2;1;
+heli_nh90_arma_ametralladora_puerta;2;1;
+heli_tigre_vida;2500;1;EC665 Tigre HAD-E de las FAMET (Paula A3)
+heli_tigre_armadura;900;1000;
+heli_tigre_vel_max_mm_s;50000;1;alternativa de ataque: espectacular, pero no transporta
+heli_tigre_acel_mm_s2;6000;1;
+heli_tigre_fren_mm_s2;8000;1;
+heli_tigre_guinada_cdeg_s;7000;1;
+heli_tigre_subida_mm_s;7000;1;
+heli_tigre_bajada_mm_s;5000;1;
+heli_tigre_altura_crucero_mm;30000;1;
+heli_tigre_altura_contacto_mm;3000;1;por debajo, los zombis pueden agarrarlo (posado o embarcando)
+heli_tigre_inclinacion_max_cdeg;1800;1;cabeceo a aceleración máxima (centésimas de grado)
+heli_tigre_plazas;0;1;
+heli_tigre_municion_bordo;3000;1000;‰ de u
+heli_tigre_comb_vuelo_e4_s;270;10000;D-N76: E4 de u por segundo REAL en vuelo (1,62 u/min), se cobra cada 30 ticks
+heli_tigre_comb_suelo_e4_s;90;10000;D-N76: posado con los rotores girando (0,54 u/min), apagado, 0
+heli_tigre_deposito_u;6;1;D-N76: sale lleno, a cero baja en autorrotación a 4 m/s donde esté, aviso al 20 %
+heli_tigre_repostar_s_por_u;2;1;solo posado en el helipuerto
+heli_tigre_huella_salida;1500;1000;‰ de huella para la Colmena por salida (como una obra grande)
+heli_tigre_etapa;3;1;
+heli_tigre_arma_canon_30_heli;1;1;
+heli_tigre_arma_cohetes_70;1;1;
+heli_mvp_recomendado_nh90;1;1;1 = NH90, Lucía decide
