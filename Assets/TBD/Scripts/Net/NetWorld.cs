@@ -57,6 +57,7 @@ namespace TBD.Net
         public bool AtStop = true;         // esperando en la parada StopIndex
         public bool Held;                  // retenido por el jugador
         public bool Ambushed;              // detenido por una emboscada hasta que se resuelva (zona o expiración)
+        public long LastAmbushDay = -1;    // como mucho una emboscada por tren y día (D-N39)
         public long LastDepartDay = -1;    // último día en que salió de alguna parada (informativo)
         public readonly List<long> DepartedDay = new List<long>();   // por parada: día de la última salida (no sale dos veces el mismo día)
 
@@ -115,9 +116,25 @@ namespace TBD.Net
         public long StaticMass() { long m = 0; for (int i = 0; i < S.Length; i++) m += S[i]; return m; }
 
         /// <summary>Siembra una mancha redonda de horda ESTÁTICA (guarnición y paisaje; no la mueve el campo ni la recluta el director).</summary>
+        /// <summary>Guarnición: un núcleo de «core» en la celda y «ring» en las cuatro vecinas (horda estática con correa).</summary>
+        public void SeedStatic(int x, int y, int core, int ring)
+        {
+            S[y * W + x] += core;
+            if (x > 0) S[y * W + x - 1] += ring;
+            if (x < W - 1) S[y * W + x + 1] += ring;
+            if (y > 0) S[(y - 1) * W + x] += ring;
+            if (y < H - 1) S[(y + 1) * W + x] += ring;
+            MarkLeash();
+        }
+
         public void BlobStatic(int cx, int cy, int r, int value)
         {
             Blob(cx, cy, r, value, S);
+            MarkLeash();
+        }
+
+        void MarkLeash()
+        {
             if (_leash == null) _leash = new bool[W * H];
             for (int c = 0; c < S.Length; c++)                       // la correa: hasta LeashCells celdas de donde nació
             {
@@ -170,6 +187,18 @@ namespace TBD.Net
             if (_block == null)                                          // nunca entra en un nodo: las 3×3 de cada nodo quedan vedadas a la horda con correa
             {
                 _block = new bool[W * H];
+                foreach (var e in g.Edges)                              // a tiro de la vía (1 celda): la horda inicial puede irse pero no entrar (D-N39)
+                {
+                    var a = g.Nodes[e.A]; var b = g.Nodes[e.B];
+                    int steps = Math.Max(Math.Abs(b.XMeters - a.XMeters), Math.Abs(b.YMeters - a.YMeters)) * 2 + 1;
+                    for (int k = 0; k <= steps; k++)
+                    {
+                        int px = a.XMeters + (b.XMeters - a.XMeters) * k / steps, py = a.YMeters + (b.YMeters - a.YMeters) * k / steps;
+                        for (int y = py - 1; y <= py + 1; y++)
+                            for (int x = px - 1; x <= px + 1; x++)
+                                if (x >= 0 && y >= 0 && x < W && y < H) _block[y * W + x] = true;
+                    }
+                }
                 foreach (var node in g.Nodes)
                     for (int y = node.YMeters - 1; y <= node.YMeters + 1; y++)
                         for (int x = node.XMeters - 1; x <= node.XMeters + 1; x++)
@@ -300,7 +329,7 @@ namespace TBD.Net
         public struct AmbushEncounter { public bool Active; public int Service, Edge, Cell, Taken; public long ExpireTick; }
         public AmbushEncounter Encounter;
         public const long AmbushWaitTicks = 750;           // 30 min de juego (a 2,4 s por tick: 1.800 s)
-        public const int AmbushCargoLossMil = 300;         // carga que pierde el tren si no se resuelve (PROTOTIPO)
+        public const int AmbushCargoLossMil = 200;         // carga que pierde el tren si no se resuelve (D-N39, Hugo: 20 %)
         public readonly List<int> PendingAmbushes = new List<int>();      // tramos con emboscada preparada (TR-3 cuando el tren cae en ella)
         readonly List<NetCommand> _queue = new List<NetCommand>();
 
@@ -350,7 +379,7 @@ namespace TBD.Net
                     case NetCmdType.Resume: Paused = false; break;
                     case NetCmdType.TrainHold: if (c.Arg >= 0 && c.Arg < Services.Count) { Services[c.Arg].Held = true; Services[c.Arg].Train.Stop(); } break;
                     case NetCmdType.Materialize: Materialize(c.Arg); break;
-                    case NetCmdType.ResolveAmbush: ResolveAmbush(c.Arg, c.Arg2, false); break;
+                    case NetCmdType.ResolveAmbush: ResolveAmbush(c.Arg & 0xFF, c.Arg2, false, c.Arg >> 8); break;       // Arg = servicio | (munición gastada en u) << 8
                     case NetCmdType.Dematerialize: Dematerialize(c.Arg, c.Arg2); break;
                     case NetCmdType.ConsumeAmmo: ConsumeAmmo(c.Arg, c.Arg2); break;
                     case NetCmdType.TrainGo:
@@ -496,19 +525,21 @@ namespace TBD.Net
         void StartEncounter(TrainService sv, RailEdge ce)
         {
             if (Encounter.Active) return;                                  // MVP: un encuentro a la vez
+            if (sv.LastAmbushDay == Tick / NetConst.DayTicks) return;      // como mucho una emboscada por tren y día (D-N39)
             int cell = -1;
             foreach (var pl in Director.Active) if (pl.Kind == HiveDirector.PlanKind.Emboscada && pl.Edge == ce.Id) { cell = pl.Cell; break; }
             if (cell < 0) return;
             int taken = Field.D[cell];
             Field.D[cell] = 0;
             LostThisTick += 0;                                             // la masa no se pierde: vuelve al resolverse
+            sv.LastAmbushDay = Tick / NetConst.DayTicks;
             Encounter = new AmbushEncounter { Active = true, Service = Services.IndexOf(sv), Edge = ce.Id, Cell = cell, Taken = taken, ExpireTick = Tick + AmbushWaitTicks };
             sv.Ambushed = true; sv.Train.Stop();
             Field.Frozen = Field.Frozen >= 0 ? Field.Frozen : cell;        // la celda del encuentro no recibe masa mientras dura
         }
 
         /// <summary>Resuelve la emboscada: los supervivientes vuelven al campo, las bajas se pierden y el tren sigue.</summary>
-        void ResolveAmbush(int service, int survivorsPermil, bool expired)
+        void ResolveAmbush(int service, int survivorsPermil, bool expired, int ammoUsedUnits = 0)
         {
             if (!Encounter.Active || Encounter.Service != service) return;
             var enc = Encounter;
@@ -519,6 +550,7 @@ namespace TBD.Net
             if (Field.Frozen == enc.Cell) Field.Frozen = -1;
             var sv = Services[enc.Service];
             sv.Ambushed = false;
+            if (ammoUsedUnits > 0) sv.Cargo[(int)Res.Municion] = Math.Max(0, sv.Cargo[(int)Res.Municion] - ammoUsedUnits);   // la zona gastó munición del tren
             if (expired)                                                   // nadie respondió: la carga se resiente
                 for (int r = 0; r < NetConst.ResCount; r++) sv.Cargo[r] -= sv.Cargo[r] * AmbushCargoLossMil / 1000;
             sv.Train.CargoTonnes = sv.CargoTotal();
@@ -740,10 +772,10 @@ namespace TBD.Net
             Add(w, 2, "2 Montaña", Stop("Sagunto", 7, T(60, 40, 80, 20)), Stop("Teruel", 15, T(-60, -40, -80, -20)));
 
             // tres manchas: al oeste de Segorbe (interior), al norte de Castellón y al este de Teruel
-            // D-N37b: paisaje (lejos de la vía, no cuenta para el combate) y guarnición (a tiro de la vía: ~1.600 ‰, lo que paga el balance de Hugo)
+            // D-N37b: paisaje (lejos de la vía, no cuenta para el combate) y guarnición (a tiro de la vía: 1.400 ‰ (D-N39: como mucho 1.500), lo que paga el balance de Hugo)
             w.Field.BlobStatic(30, 74, 6, 550);                // paisaje: monte al oeste de Segorbe, lejos de la vía
-            w.Field.BlobStatic(58, 63, 1, 160);                // guarnición pegada a Castellón
-            w.Field.BlobStatic(42, 62, 1, 160);                // guarnición pegada a Barracas
+            w.Field.SeedStatic(58, 63, 300, 100);              // guarnición pegada a Castellón (700 ‰)
+            w.Field.SeedStatic(42, 62, 300, 100);              // guarnición pegada a Barracas (700 ‰)
             w.Field.BlobStatic(61, 55, 5, 600);           // al norte de Castellón, tierra adentro (no en el mar)
             w.Field.BlobStatic(42, 44, 4, 500);                // paisaje: al este de Teruel, lejos de la vía
             w.Tick = NetConst.Hours(5.5);          // el prototipo arranca a las 05:30, media hora antes del primer tren

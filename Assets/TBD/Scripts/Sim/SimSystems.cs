@@ -30,6 +30,13 @@ namespace TBD.Sim
             var em = state.EntityManager;
             var root = SystemAPI.GetSingletonEntity<ZoneTag>();
             uint tick = em.GetComponentData<SimClock>(root).Tick;
+            var zi = em.GetComponentData<ZoneInfo>(root);
+            if (zi.TrainWallDirty)                                           // el tren se paró solo (tope o tapón): vuelve a ser muro
+            {
+                zi.TrainWallDirty = false;
+                em.SetComponentData(root, zi);
+                SetTrainWall(em, root, em.GetComponentData<TrainState>(root).X);
+            }
 
             for (int guard = 0; guard < 64; guard++)
             {
@@ -113,6 +120,16 @@ namespace TBD.Sim
                     t.Speed = t.Speed > 0f ? 0f : SimConst.TrainSpeed;
                     em.SetComponentData(root, t);
                     SetTrainWall(em, root, t.Speed <= 0f ? t.X : float.NaN);     // D-N27: parado = muro; en marcha, sin muro
+                    break;
+                }
+                case CmdType.TrainDrive:
+                {
+                    if (!em.GetComponentData<ZoneInfo>(root).HasTrain) break;
+                    var t = em.GetComponentData<TrainState>(root);
+                    t.Dir = cmd.Arg < 0 ? -1 : 1;
+                    t.Speed = cmd.Arg == 0 ? 0f : SimConst.TrainSpeed;
+                    em.SetComponentData(root, t);
+                    SetTrainWall(em, root, t.Speed <= 0f ? t.X : float.NaN);
                     break;
                 }
                 case CmdType.BuildWall:
@@ -442,6 +459,24 @@ namespace TBD.Sim
             var t = SystemAPI.GetSingleton<TrainState>();
             if (t.Speed > 0f)
             {
+                var info = SystemAPI.GetSingleton<ZoneInfo>();
+                if (info.Kind == ZoneKind.Cutting)
+                {
+                    // desmonte: el tapón de cuerpos frena al tren hacia delante; en los topes se para (y vuelve a ser muro)
+                    var root = SystemAPI.GetSingletonEntity<ZoneTag>();
+                    var pile = SystemAPI.GetBuffer<CellPile>(root).Reinterpret<int>().AsNativeArray();
+                    float nx = t.X + t.Dir * t.Speed * SimConst.Dt;
+                    bool blocked = t.Dir > 0 && CuttingLevel.PlugBlocks(pile, t.X);
+                    if (blocked || nx >= info.TrainMax || nx <= info.TrainMin)
+                    {
+                        t.Speed = 0f;
+                        info.TrainWallDirty = true;
+                        SystemAPI.SetSingleton(info);
+                    }
+                    else t.X = nx;
+                    SystemAPI.SetSingleton(t);
+                    return;
+                }
                 t.X += t.Dir * t.Speed * SimConst.Dt;
                 if (t.X >= Level.TrainMaxX) { t.X = Level.TrainMaxX; t.Dir = -1; }
                 if (t.X <= Level.TrainMinX) { t.X = Level.TrainMinX; t.Dir = 1; }

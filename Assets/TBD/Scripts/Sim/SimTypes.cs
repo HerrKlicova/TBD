@@ -14,9 +14,10 @@ namespace TBD.Sim
         public const int TickRate = 30;                 // PROTOTIPO: 20-30 Hz
         public const float Dt = 1f / TickRate;
         public const float CellSize = 0.5f;             // metros por celda de la rejilla interna (ajustable)
-        public const int GridW = 256;
-        public const int GridH = 256;                   // zona de 128 x 128 m
-        public const float WorldSize = GridW * CellSize;
+        public const int GridW = 512;                   // zona de 256 x 128 m (D-N05); la vía va por el eje largo (X)
+        public const int GridH = 256;
+        public const float WorldW = GridW * CellSize;   // 256 m
+        public const float WorldH = GridH * CellSize;   // 128 m
 
         public const float Radius = 0.25f;              // radio de la cápsula de un zombi
         public const float Thick = 0.35f;               // altura que añade un zombi apilado
@@ -130,8 +131,14 @@ namespace TBD.Sim
         public float Alpha;                              // solo presentación: interpolación entre ticks (no entra en el hash)
     }
 
+    /// <summary>Tipo de zona: estación (fuerte con puerta) o desmonte de emboscada (D-N38).</summary>
+    public enum ZoneKind : byte { Station = 0, Cutting = 1 }
+
     public struct ZoneInfo : IComponentData
     {
+        public ZoneKind Kind;
+        public float TrainMin, TrainMax;                 // límites de la posición del tren dentro del mundo
+        public bool TrainWallDirty;                      // el tren se ha parado solo (tope o tapón): la CommandSystem le devuelve el muro
         public bool GateOpen;
         public bool ForceFlow;
         public int GoalCell;
@@ -283,6 +290,7 @@ namespace TBD.Sim
         DeploySquad = 5,                                 // hito 3: desembarca un pelotón (20 fusileros + 1 ametralladora) junto al tren
         EmbarkSquad = 6,                                 // hito 3 (D-N27): pelotón a bordo; dispara desde los vagones con el tren parado
         Reembark = 7,                                    // hito 3: los soldados a pie a menos de 20 m del tren vuelven a bordo
+        TrainDrive = 8,                                  // D-N38: Arg +1 adelante, -1 marcha atrás, 0 parar. Adelante lo frena el tapón de cuerpos
     }
 
     /// <summary>Todo lo que hace el jugador es una orden con número de tick (regla 2 del GDD §17.3).</summary>
@@ -293,6 +301,52 @@ namespace TBD.Sim
         public int Arg;
         public float2 P0;
         public float2 P1;
+    }
+
+    // ------------------------------------------------------------------ desmonte de emboscada (D-N38, Lucía)
+    /// <summary>
+    /// Zona de emboscada «desmonte»: trinchera en la vía, de X = 60 a 200, 7 m de profundidad y 16 m de fondo. Los taludes (~40°) son
+    /// cinco escalones de 1,4 m: el desnivel pasa de DropThreshold, así que los zombis bajan cayendo (caídas de §5.7). El tren queda con la
+    /// locomotora en X = 170 y el tapón de cuerpos delante (X 175-185). La horda sale de los dos bordes altos y de la vía por delante.
+    /// </summary>
+    public static class CuttingLevel
+    {
+        public const float X0 = 60f, X1 = 200f;
+        public const float Depth = 7f, HalfBottom = 8f, SlopeRun = 8.3f;
+        public const int Steps = 5;
+        public const float LocoX = 170f;                          // frente de la locomotora
+        public const float TrainX = LocoX - Level.TrainFront;     // «X» del tren (el sólido va de X - 17,5 a X + 2,5)
+        public const float PlugX0 = 175f, PlugX1 = 185f;
+        public const float FreeBack = 40f;                        // los primeros 40 m por detrás siempre quedan libres
+        public const float TrainMinX = Level.TrainRear, TrainMaxX = SimConst.WorldW - 8f;
+        public const int PlugBlocksPile = 3;                      // pila (3 x 0,35 = 1,05 m) a partir de la cual el tapón frena al tren
+
+        public static List<Solid> CreateSolids()
+        {
+            var list = new List<Solid>();
+            float ya = Level.TrackY - HalfBottom, yb = Level.TrackY + HalfBottom;
+            for (int k = 1; k <= Steps; k++)
+            {
+                float h = Depth * k / Steps;
+                float north = yb + SlopeRun * (k - 1) / Steps, south = ya - SlopeRun * (k - 1) / Steps;
+                list.Add(new Solid { A = new float2(X0, north), B = new float2(X1, SimConst.WorldH), Height = h, Kind = 1, Open = 0, Id = 0 });
+                list.Add(new Solid { A = new float2(X0, 0f), B = new float2(X1, south), Height = h, Kind = 1, Open = 0, Id = 0 });
+            }
+            return list;
+        }
+
+        /// <summary>¿Frena el tapón al tren? Sí si, delante de la locomotora, alguna celda de la vía tiene una pila de cuerpos a la altura de las ruedas.</summary>
+        public static bool PlugBlocks(Unity.Collections.NativeArray<int> pile, float trainX)
+        {
+            float front = trainX + Level.TrainFront;
+            for (float x = front + 0.5f; x <= front + 3f; x += 0.5f)
+                for (float y = Level.TrackY - 1f; y <= Level.TrackY + 1f; y += 0.5f)
+                {
+                    int2 c = Level.CellOf(new float2(x, y));
+                    if (pile[c.y * SimConst.GridW + c.x] >= PlugBlocksPile) return true;
+                }
+            return false;
+        }
     }
 
     // ------------------------------------------------------------------ nivel de prueba (metros)

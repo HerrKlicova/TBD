@@ -20,6 +20,7 @@ namespace TBD.View
 
         // paso entre escenas
         public static Texture2D TransitionFrame;       // último fotograma de la escena anterior (para el fundido)
+        public static bool PendingAmbush;              // se entra en la zona de la emboscada (el encuentro ya está activo en la red)
         public static int PendingZoneNode = -1;        // nodo al que se entra (la zona espera a que la orden Materialize se aplique)
         public static int ReturnFromNode = -1;         // nodo del que se sale (el mapa coloca la cámara ahí, a 2,5 km)
 

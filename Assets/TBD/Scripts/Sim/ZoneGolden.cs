@@ -19,7 +19,7 @@ namespace TBD.Sim
         public const int SystemEvery = 300;
         public static readonly string[] SystemNames = { "zombis", "pila", "solidos", "soldados", "municion", "tren_y_puerta" };
 
-        public struct Setup { public string Scenario; public int Zombies; public bool Siege; public uint Seed; public long AmmoShots; public bool HasTrain; public int Ticks; }
+        public struct Setup { public string Scenario; public int Zombies; public bool Siege; public uint Seed; public long AmmoShots; public bool HasTrain; public int Ticks; public ZoneKind Kind; }
 
         public struct Result
         {
@@ -40,6 +40,7 @@ namespace TBD.Sim
             sb.Append("semilla=").Append(s.Seed).Append('\n');
             sb.Append("municion=").Append(s.AmmoShots).Append('\n');
             sb.Append("tren=").Append(s.HasTrain ? 1 : 0).Append('\n');
+            if (s.Kind != ZoneKind.Station) sb.Append("tipo=").Append((int)s.Kind).Append('\n');          // solo las zonas que no son de estación (G1 y G2 siguen igual)
             sb.Append("ticks=").Append(s.Ticks).Append('\n');
             sb.Append("ORDENES\n");
             foreach (var c in script)
@@ -75,6 +76,7 @@ namespace TBD.Sim
                     case "semilla": s.Seed = uint.Parse(kv[1], CultureInfo.InvariantCulture); break;
                     case "municion": s.AmmoShots = long.Parse(kv[1], CultureInfo.InvariantCulture); break;
                     case "tren": s.HasTrain = kv[1] == "1"; break;
+                    case "tipo": s.Kind = (ZoneKind)int.Parse(kv[1], CultureInfo.InvariantCulture); break;
                     case "ticks": s.Ticks = int.Parse(kv[1], CultureInfo.InvariantCulture); break;
                 }
             }
@@ -143,7 +145,7 @@ namespace TBD.Sim
             {
                 var group = SimWorldSetup.CreateSystems(world);
                 var em = world.EntityManager;
-                var root = SimWorldSetup.Populate(em, s.Zombies, s.Siege, s.Seed, CombatParams.Default, s.AmmoShots, s.HasTrain);
+                var root = SimWorldSetup.Populate(em, s.Zombies, s.Siege, s.Seed, CombatParams.Default, s.AmmoShots, s.HasTrain, s.Kind);
                 var buf = em.GetBuffer<SimCommand>(root);
                 foreach (var c in script) buf.Add(c);
                 for (int k = 0; k < s.Ticks; k++)
@@ -197,6 +199,17 @@ namespace TBD.Sim
         };
 
         public static Setup G2() => new Setup { Scenario = "G2 zona con tropas: tren parado, a bordo, a pie, reembarcar", Zombies = 3000, Siege = true, Seed = 777u, AmmoShots = 20L * 2000, HasTrain = true, Ticks = 3000 };
+
+        public static Setup G5() => new Setup { Scenario = "G5 emboscada en el desmonte: tapón, tropa a bordo, marcha atrás y adelante", Zombies = 3000, Siege = false, Seed = 4242u, AmmoShots = 20L * 2000, HasTrain = true, Ticks = 2400, Kind = ZoneKind.Cutting };
+
+        public static List<SimCommand> ScriptG5() => new List<SimCommand>
+        {
+            new SimCommand { Tick = 20, Type = CmdType.EmbarkSquad },
+            new SimCommand { Tick = 600, Type = CmdType.TrainDrive, Arg = -1 },     // marcha atrás por la salida de emergencia
+            new SimCommand { Tick = 1000, Type = CmdType.TrainDrive, Arg = 0 },
+            new SimCommand { Tick = 1300, Type = CmdType.TrainDrive, Arg = 1 },     // adelante: lo frena el tapón
+            new SimCommand { Tick = 1800, Type = CmdType.TrainDrive, Arg = 0 },
+        };
 
         public static List<SimCommand> ScriptG2() => new List<SimCommand>
         {

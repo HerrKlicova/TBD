@@ -269,7 +269,18 @@ namespace TBD.Sim.Tests
                 check(!inNode && wl2.Field.StaticMass() == s0, $"la horda inicial no entra en un nodo y es finita: {wl2.Field.StaticMass()} ‰ de {s0} ‰ tras 600 pasos");
                 Console.WriteLine($"         masa inicial a tiro de la vía (1 celda): {wl2.Field.LeashedMassNearTrack(wl2.Graph, 1)} ‰ de {s0} ‰ (guarnición pagada por Hugo: ~1.250 ‰)");
                 long nearT = wl2.Field.LeashedMassNearTrack(wl2.Graph, 1);
-                check(nearBirth >= 700 && nearBirth <= 2500 && nearT <= 5000, $"a tiro de la vía hay una masa del orden de la guarnición pagada (700-2.500 ‰): {nearBirth} ‰ al nacer, {nearT} ‰ tras 600 pasos; el resto es paisaje");
+                check(nearBirth >= 700 && nearBirth <= 1500 && nearT <= nearBirth, $"a tiro de la vía hay una masa del orden de la guarnición pagada (700-1.500 ‰) y la deriva no la acumula: {nearBirth} ‰ al nacer, {nearT} ‰ tras 600 pasos; el resto es paisaje");
+            }
+
+            // ---- D-N39 (Sara): en 10 días, la horda inicial a tiro de la vía nunca pasa de 1.500 grupos
+            {
+                var w10 = NetScenario.Mvp();
+                long worst = 0; long born10 = w10.Field.LeashedMassNearTrack(w10.Graph, 1);
+                for (int day = 0; day < 10; day++)
+                {
+                    for (long t = 0; t < NetConst.DayTicks; t++) { w10.Step(); if (t % 1500 == 0) worst = Math.Max(worst, w10.Field.LeashedMassNearTrack(w10.Graph, 1)); }
+                }
+                check(worst <= 1500, $"en 10 días la horda inicial a tiro de la vía nunca pasa de 1.500 grupos ({worst} ‰, al nacer {born10} ‰)");
             }
 
             // ---- emboscada materializada: un tren cae en una emboscada preparada, se detiene con la horda del punto, y se resuelve por orden o por expiración
@@ -308,7 +319,13 @@ namespace TBD.Sim.Tests
                 for (long t = 0; t < 60 && !we2.Encounter.Active; t++) we2.Step();
                 long expAt = we2.Encounter.ExpireTick;
                 while (we2.Tick <= expAt + 1) we2.Step();
-                check(!we2.Encounter.Active && !sv2.Ambushed && sv2.Cargo[0] == 70 && we2.LostTotal == 0, $"si nadie responde en 30 min de juego la horda se dispersa sin bajas y el tren pierde el 30 % de la carga ({sv2.Cargo[0]} de 100)");
+                check(!we2.Encounter.Active && !sv2.Ambushed && sv2.Cargo[0] == 80 && we2.LostTotal == 0, $"si nadie responde en 30 min de juego la horda se dispersa sin bajas y el tren pierde el 20 % de la carga ({sv2.Cargo[0]} de 100)");
+                // como mucho una emboscada por tren y día: una segunda el mismo día no se materializa
+                we2.Field.D[cell2] = 400;
+                we2.PendingAmbushes.Add(edge2.Id);
+                sv2.AtStop = false; sv2.Train.SetRoute(we2.Graph.ShortestPath(edge2.A, edge2.B)); sv2.Train.Go();
+                for (long t = 0; t < 120; t++) we2.Step();
+                check(!we2.Encounter.Active, "como mucho una emboscada por tren y día (D-N39)");
             }
 
             // ---- estados de manada (Lucía §3): un asedio que pierde más del 50 % de su fuerza se retira y deja respiro
@@ -382,9 +399,15 @@ namespace TBD.Sim.Tests
                     }
                     siegeTot.Sort(); netTot.Sort();
                     long medS = siegeTot[siegeTot.Count / 2], medN = netTot[netTot.Count / 2];
-                    var refTab = new CsvTable(File.ReadAllText(Path.Combine(dump2 ?? ".", "referencia_asedios_d1_20.csv")));
-                    var tr = refTab.Rows.Find(r => r[0] == "total_1_20");
-                    long refN = CsvTable.Int(tr[refTab.Col("golpean_red_total_mediana")]), refS = CsvTable.Int(tr[refTab.Col("golpean_asedios_mediana")]);
+                    // D-N39 (Hugo): el total esperado depende de la huella fija del jugador (pob/100 + 0,5 trenes + 0,4 nodos + 1,5 obras);
+                    // se compara con la fila de la huella de este escenario, redondeada a la unidad
+                    var h0w = NetScenario.Mvp();
+                    long huellaMil = h0w.Director.HuellaMil(h0w);
+                    var refTab = new CsvTable(File.ReadAllText(Path.Combine(dump2 ?? ".", "referencia_total_por_huella.csv")));
+                    string[] tr = null; long bestGap = long.MaxValue;
+                    foreach (var rr in refTab.Rows) { long gap = Math.Abs(CsvTable.Int(rr[0]) - huellaMil); if (gap < bestGap) { bestGap = gap; tr = rr; } }
+                    long refN = CsvTable.Int(tr[refTab.Col("total_red_1_20")]), refS = CsvTable.Int(tr[refTab.Col("total_asedios_1_20_esperado")]);
+                    Console.WriteLine($"         huella del escenario {huellaMil / 1000.0:0.00} → fila {tr[0]}");
                     var csv = new System.Text.StringBuilder("dia;zombis_asedio_mediana;p10;p90\n");
                     for (int q = 0; q < 21; q++)
                     {

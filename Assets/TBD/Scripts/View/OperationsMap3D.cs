@@ -349,6 +349,15 @@ namespace TBD.View
             EnterZone(best);
         }
 
+        /// <summary>Entra en la zona de la emboscada del encuentro activo (el tren está parado con la horda delante).</summary>
+        public void EnterAmbush()
+        {
+            if (_entering || !_a.Encounter.Active) return;
+            _entering = true;
+            NetSession.PendingAmbush = true;
+            StartCoroutine(EnterRoutine());
+        }
+
         public void EnterZone(int node)
         {
             if (_entering) return;
@@ -508,6 +517,7 @@ namespace TBD.View
             if (kb.digit2Key.wasPressedThisFrame) Push(NetCmdType.SetSpeed, 2, 0);
             if (kb.digit3Key.wasPressedThisFrame) Push(NetCmdType.SetSpeed, 4, 0);
             if (kb.jKey.wasPressedThisFrame) JumpToAlert();
+            if (kb.enterKey.wasPressedThisFrame && _a.Encounter.Active && !_entering) EnterAmbush();     // D-N38: entrar en la emboscada
             if (kb.f3Key.wasPressedThisFrame) { NetSession.Check = false; NetSession.Desync = false; }
             if (kb.f9Key.wasPressedThisFrame) Capture();
 

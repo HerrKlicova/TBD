@@ -40,7 +40,7 @@ namespace TBD.View
             sb.Append("Repetición dorada · ").Append(Application.isEditor ? "Editor" : "compilación").Append(" · ")
               .Append(Application.unityVersion).Append(" · backend ").Append(ScriptingBackend()).Append('\n');
             string dir = Path.Combine(Application.streamingAssetsPath, "Golden");
-            foreach (var name in new[] { "G3_red.golden", "G1_zona.golden", "G2_tropas.golden", "G4_bucle.golden" })
+            foreach (var name in new[] { "G3_red.golden", "G1_zona.golden", "G2_tropas.golden", "G4_bucle.golden", "G5_desmonte.golden" })
             {
                 string path = Path.Combine(dir, name);
                 try

@@ -135,15 +135,16 @@ namespace TBD.Sim
     public static class SolidIndex
     {
         public const float BucketSize = 4f;
-        public const int BucketsPerSide = (int)(SimConst.WorldSize / BucketSize);   // 32
-        public const int BucketCount = BucketsPerSide * BucketsPerSide;
+        public const int BucketsX = (int)(SimConst.WorldW / BucketSize);   // 64
+        public const int BucketsY = (int)(SimConst.WorldH / BucketSize);   // 32
+        public const int BucketCount = BucketsX * BucketsY;
         const float Margin = SimConst.Radius + 0.25f;
 
         public static int BucketOf(float2 p)
         {
-            int bx = (int)math.clamp(math.floor(p.x / BucketSize), 0f, BucketsPerSide - 1f);
-            int by = (int)math.clamp(math.floor(p.y / BucketSize), 0f, BucketsPerSide - 1f);
-            return by * BucketsPerSide + bx;
+            int bx = (int)math.clamp(math.floor(p.x / BucketSize), 0f, BucketsX - 1f);
+            int by = (int)math.clamp(math.floor(p.y / BucketSize), 0f, BucketsY - 1f);
+            return by * BucketsX + bx;
         }
 
         static void Bounds(Solid s, out int x0, out int y0, out int x1, out int y1)
@@ -153,10 +154,10 @@ namespace TBD.Sim
             else { mn = math.min(s.A, s.B) - s.HalfThick; mx = math.max(s.A, s.B) + s.HalfThick; }
             mn = mn - Margin;
             mx = mx + Margin;
-            x0 = (int)math.clamp(math.floor(mn.x / BucketSize), 0f, BucketsPerSide - 1f);
-            y0 = (int)math.clamp(math.floor(mn.y / BucketSize), 0f, BucketsPerSide - 1f);
-            x1 = (int)math.clamp(math.floor(mx.x / BucketSize), 0f, BucketsPerSide - 1f);
-            y1 = (int)math.clamp(math.floor(mx.y / BucketSize), 0f, BucketsPerSide - 1f);
+            x0 = (int)math.clamp(math.floor(mn.x / BucketSize), 0f, BucketsX - 1f);
+            y0 = (int)math.clamp(math.floor(mn.y / BucketSize), 0f, BucketsY - 1f);
+            x1 = (int)math.clamp(math.floor(mx.x / BucketSize), 0f, BucketsX - 1f);
+            y1 = (int)math.clamp(math.floor(mx.y / BucketSize), 0f, BucketsY - 1f);
         }
 
         /// <summary>Reconstruye el índice (se llama solo cuando cambian los sólidos: al construir).</summary>
@@ -168,7 +169,7 @@ namespace TBD.Sim
                 int x0, y0, x1, y1;
                 Bounds(solids[i], out x0, out y0, out x1, out y1);
                 for (int y = y0; y <= y1; y++)
-                    for (int x = x0; x <= x1; x++) count[y * BucketsPerSide + x]++;
+                    for (int x = x0; x <= x1; x++) count[y * BucketsX + x]++;
             }
             start.ResizeUninitialized(BucketCount + 1);
             int total = 0;
@@ -187,7 +188,7 @@ namespace TBD.Sim
                 for (int y = y0; y <= y1; y++)
                     for (int x = x0; x <= x1; x++)
                     {
-                        int b = y * BucketsPerSide + x;
+                        int b = y * BucketsX + x;
                         refs[start[b].Value + fill[b]] = new SolidBucketRef { Value = i };
                         fill[b]++;
                     }
@@ -299,7 +300,7 @@ namespace TBD.Sim
 
         static float2 ClampWorld(float2 p)
         {
-            return math.clamp(p, new float2(0.5f, 0.5f), new float2(SimConst.WorldSize - 0.5f, SimConst.WorldSize - 0.5f));
+            return math.clamp(p, new float2(0.5f, 0.5f), new float2(SimConst.WorldW - 0.5f, SimConst.WorldH - 0.5f));
         }
 
         public static void Step(ref Zombie z, NativeArray<Solid> solids, NativeArray<int> bStart, NativeArray<int> bRefs,

@@ -63,6 +63,35 @@ namespace TBD.Sim.Tests
             check(p.Units <= 6.7, $"P7: la zona no gasta más de 6,7 u contra 2.000 comunes sin muros ({p.Units:0.00} u)");
             check(p.Kills >= 1000 && p.Kills <= 1300 && spk >= 4 && spk <= 6 && p.Units >= 2.5 && p.Units <= 3.9,
                 $"P7 en el rango de Hugo (D-N28): abatidos {p.Kills} (1.000-1.300), {spk:0.0} disparos por abatido (4-6), {p.Units:0.00} u (2,5-3,9)");
+
+            // ---- D-N38: desmonte de emboscada. La horda baja por los taludes cayendo, se acumula contra el tren y el tapón frena al tren
+            {
+                var solids = CuttingLevel.CreateSolids();
+                solids.Add(Level.TrainSolid(CuttingLevel.TrainX));
+                var wc = new MiniWorld(solids, CuttingLevel.LocoX, Level.TrackY);
+                wc.Spawn(300, 70f, 190f, 84f, 120f, CuttingLevel.Depth, 11u);       // borde alto norte
+                wc.Spawn(300, 70f, 190f, 8f, 44f, CuttingLevel.Depth, 22u);         // borde alto sur
+                wc.Spawn(100, 172f, 185f, Level.TrackY - 1f, Level.TrackY + 1f, 0f, 33u);   // el tapón
+                bool sawFall = false; int maxFall = 0;
+                int nearTrain = 0;
+                for (int t = 0; t < 1800; t++)
+                {
+                    wc.Tick1();
+                    int f = wc.Count(ZState.Fall);
+                    if (f > 0) sawFall = true;
+                    maxFall = Math.Max(maxFall, f);
+                }
+                foreach (var z in wc.Z) if (Math.Abs(z.Pos.x - CuttingLevel.LocoX) < 25f && Math.Abs(z.Pos.z - Level.TrackY) < 14f) nearTrain++;
+                int pileAhead = 0;
+                var pileArr = wc.Pile;
+                bool plug = CuttingLevel.PlugBlocks(pileArr, CuttingLevel.TrainX);
+                for (float x = 172f; x <= 186f; x += 0.5f) { var c = Level.CellOf(new float2(x, Level.TrackY)); pileAhead = Math.Max(pileAhead, pileArr[c.y * SimConst.GridW + c.x]); }
+                Console.WriteLine($"         desmonte: {wc.Z.Length} zombis, máximo cayendo a la vez {maxFall}, junto al tren {nearTrain}, pila máxima delante {pileAhead}, tapón {(plug ? "sí" : "no")}");
+                check(sawFall && maxFall > 20, $"en el desmonte la horda baja por los taludes cayendo (hasta {maxFall} a la vez)");
+                check(nearTrain > 300, $"la horda acaba junto al tren: {nearTrain} de {wc.Z.Length} a menos de 25 m");
+                check(plug, "el tapón de cuerpos delante de la locomotora la frena (pila a la altura de las ruedas)");
+                check(CuttingLevel.TrainMinX <= CuttingLevel.TrainX && CuttingLevel.TrainX < CuttingLevel.TrainMaxX && CuttingLevel.TrainX - Level.TrainRear >= 0f, "el tren cabe en el mundo de 256 m y tiene 40 m libres por detrás");
+            }
         }
     }
 }

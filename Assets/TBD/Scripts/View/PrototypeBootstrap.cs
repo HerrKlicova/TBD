@@ -116,9 +116,15 @@ namespace TBD.View
         static CombatParams LoadCombatParams() { return BalanceSource.Combat(); }
         // lo que tardó en crearse la horda de la zona (para Lucía: ¿basta un vuelo de 0,8 s?)
 
+        bool _cutting, _ambush;               // zona de emboscada en un desmonte (D-N38)
+        int _ambushService = -1, _ambushEdge = -1;
+
         IEnumerator Start()
         {
             Application.targetFrameRate = -1;        // el mapa limita a 60; en la zona se mide sin tope
+            _cutting = NetSession.PendingAmbush && NetSession.A != null && NetSession.A.Encounter.Active;
+            NetSession.PendingAmbush = false;
+            if (_cutting) _focus = new Vector3(CuttingLevel.LocoX - 10f, 0f, Level.TrackY);
             SetupVisualAssets();
             SetupLevelObjects();
             SetupCameras();
@@ -129,7 +135,16 @@ namespace TBD.View
             int zombies = SimWorldSetup.InitialZombies;
             bool siege = false;
             uint seed = SimWorldSetup.Seed;
-            if (NetSession.PendingZoneNode >= 0)
+            if (_cutting)
+            {
+                var enc = NetSession.A.Encounter;
+                _ambush = true; _ambushService = enc.Service; _ambushEdge = enc.Edge;
+                _zoneNode = NetSession.A.Graph.Edges[enc.Edge].A;                    // para colocar la cámara del mapa al volver
+                zombies = enc.Taken * NetWorld.ZombiesPerPermil;
+                seed = (uint)(enc.Cell * 7919 + enc.Edge * 131 + 1);
+                _orthoSize = 90f; _targetOrtho = 26f;
+            }
+            else if (NetSession.PendingZoneNode >= 0)
             {
                 // La orden Materialize se aplica en el siguiente tick de la red (también en pausa). Se espera a que esté; si en 10 s
                 // no ha llegado, se vuelve al mapa en vez de crear una zona vacía que perdería masa (QA Q13).
@@ -158,11 +173,12 @@ namespace TBD.View
             // o 20 u en el prototipo suelto.
             _combat = LoadCombatParams();
             long ammoUnits = 20;
-            if (_zoneNode >= 0) ammoUnits = NetSession.A.AmmoAvailableAt(_zoneNode);   // carga del tren en el andén + estación
+            if (_ambush) ammoUnits = NetSession.A.Services[_ambushService].Cargo[(int)Res.Municion];   // en la vía solo hay la munición del tren
+            else if (_zoneNode >= 0) ammoUnits = NetSession.A.AmmoAvailableAt(_zoneNode);   // carga del tren en el andén + estación
             _ammoUnitsAtStart = ammoUnits;
             long shots = ammoUnits * _combat.ShotsPerUnit;
             bool hasTrain = true;
-            if (_zoneNode >= 0)
+            if (_zoneNode >= 0 && !_ambush)
             {
                 hasTrain = false;
                 foreach (var sv in NetSession.A.Services)
@@ -173,7 +189,8 @@ namespace TBD.View
             var sw = System.Diagnostics.Stopwatch.StartNew();
             _worldA = World.DefaultGameObjectInjectionWorld;
             _groupA = SimWorldSetup.CreateSystems(_worldA);
-            _rootA = SimWorldSetup.Populate(_worldA.EntityManager, zombies, siege, seed, _combat, shots, hasTrain);
+            var kind = _cutting ? ZoneKind.Cutting : ZoneKind.Station;
+            _rootA = SimWorldSetup.Populate(_worldA.EntityManager, zombies, siege, seed, _combat, shots, hasTrain, kind);
             sw.Stop();
             LastMaterializeMs = sw.Elapsed.TotalMilliseconds;
             Debug.Log($"[TBD] Zona {(_zoneNode >= 0 ? NetSession.A.Graph.Nodes[_zoneNode].Name : "suelta")}: {zombies} zombis ({(siege ? "asedio" : "deriva")}) creados en {LastMaterializeMs:0.0} ms");
@@ -181,7 +198,7 @@ namespace TBD.View
 
             _worldB = new World("TBD_SimB");
             _groupB = SimWorldSetup.CreateSystems(_worldB);
-            _rootB = SimWorldSetup.Populate(_worldB.EntityManager, zombies, siege, seed, _combat, shots, hasTrain);
+            _rootB = SimWorldSetup.Populate(_worldB.EntityManager, zombies, siege, seed, _combat, shots, hasTrain, kind);
         }
 
         void OnDestroy()
@@ -213,6 +230,14 @@ namespace TBD.View
             int alive = _zombieQuery.CalculateEntityCount();
             var ammo = _worldA.EntityManager.GetComponentData<ZoneAmmo>(_rootA);
             int usedUnits = (int)((ammo.ShotsFired + _combat.ShotsPerUnit - 1) / _combat.ShotsPerUnit);   // redondeo hacia arriba: una caja empezada se gasta
+            if (_ambush)
+            {
+                // D-N38: la emboscada se resuelve en la red: vuelven los supervivientes, el tren sigue y la munición sale de su carga
+                NetSession.Push(TBD.Net.NetCmdType.ResolveAmbush, _ambushService | (usedUnits << 8), 0, alive / NetWorld.ZombiesPerPermil);
+                NetSession.ReturnFromNode = _zoneNode;
+                StartCoroutine(LeaveRoutine());
+                return;
+            }
             if (usedUnits > 0) NetSession.Push(TBD.Net.NetCmdType.ConsumeAmmo, _zoneNode, 0, usedUnits);
             // Diseño del hito 3 (Lucía): si se fuerza la salida, la tropa a pie se queda atrás. Hoy se pierde; cuando la tropa exista en
             // la red (S0) quedará como guarnición del nodo.
@@ -313,6 +338,12 @@ namespace TBD.View
             if (kb.digit1Key.wasPressedThisFrame) Push(CmdType.SpawnRoof, 500);
             if (kb.digit2Key.wasPressedThisFrame) Push(CmdType.ToggleGate);
             if (kb.digit3Key.wasPressedThisFrame) Push(CmdType.ToggleTrain);
+            if (_cutting)
+            {
+                if (kb.zKey.wasPressedThisFrame) Push(CmdType.TrainDrive, -1);      // marcha atrás: la salida de emergencia
+                if (kb.xKey.wasPressedThisFrame) Push(CmdType.TrainDrive, 1);       // adelante: lo frena el tapón
+                if (kb.cKey.wasPressedThisFrame) Push(CmdType.TrainDrive, 0);       // parar
+            }
             if (kb.digit4Key.wasPressedThisFrame) Push(CmdType.SpawnWest, 3000);
             if (kb.digit5Key.wasPressedThisFrame) FireVolley();
             if (kb.digit6Key.wasPressedThisFrame) Push(CmdType.EmbarkSquad);      // D-N27: pelotón a bordo, dispara con el tren parado
@@ -962,16 +993,15 @@ namespace TBD.View
 
         void SetupLevelObjects()
         {
-            float world = SimConst.WorldSize;
-            Box("Suelo", new Vector3(world * 0.5f, -0.25f, world * 0.5f), new Vector3(world, 0.5f, world), _mGround);
+            Box("Suelo", new Vector3(SimConst.WorldW * 0.5f, -0.25f, SimConst.WorldH * 0.5f), new Vector3(SimConst.WorldW, 0.5f, SimConst.WorldH), _mGround);
 
-            foreach (var s in Level.CreateSolids())
+            foreach (var s in _cutting ? CuttingLevel.CreateSolids() : Level.CreateSolids())
             {
                 if (s.Kind == 1)
                 {
                     var c = (s.A + s.B) * 0.5f;
                     var size = s.B - s.A;
-                    Box("Edificio", new Vector3(c.x, s.Height * 0.5f, c.y), new Vector3(size.x, s.Height, size.y), _mRoof);
+                    Box(_cutting ? "Talud" : "Edificio", new Vector3(c.x, s.Height * 0.5f, c.y), new Vector3(size.x, s.Height, size.y), _cutting ? _mGround : _mRoof);
                 }
                 else
                 {
@@ -983,9 +1013,10 @@ namespace TBD.View
 
             // Vía: dos raíles y traviesas, de oeste a este por el centro del fuerte
             float ty = Level.TrackY;
-            Box("Raíl A", new Vector3(55f, 0.12f, ty - 0.7f), new Vector3(90f, 0.1f, 0.12f), _mRail);
-            Box("Raíl B", new Vector3(55f, 0.12f, ty + 0.7f), new Vector3(90f, 0.1f, 0.12f), _mRail);
-            for (int x = 12; x < 100; x += 2)
+            float railX = _cutting ? SimConst.WorldW * 0.5f : 55f, railLen = _cutting ? SimConst.WorldW : 90f;
+            Box("Raíl A", new Vector3(railX, 0.12f, ty - 0.7f), new Vector3(railLen, 0.1f, 0.12f), _mRail);
+            Box("Raíl B", new Vector3(railX, 0.12f, ty + 0.7f), new Vector3(railLen, 0.1f, 0.12f), _mRail);
+            for (int x = _cutting ? 2 : 12; x < (_cutting ? (int)SimConst.WorldW : 100); x += 2)
                 Box("Traviesa", new Vector3(x, 0.05f, ty), new Vector3(0.4f, 0.08f, 2f), _mSleeper);
 
             // Tren: locomotora y tres vagones
@@ -1013,8 +1044,8 @@ namespace TBD.View
             var plane = new Plane(Vector3.up, Vector3.zero);
             if (!plane.Raycast(ray, out float t)) return;
             Vector3 pt = ray.GetPoint(t);
-            pt.x = Mathf.Clamp(pt.x, 2f, SimConst.WorldSize - 2f);
-            pt.z = Mathf.Clamp(pt.z, 2f, SimConst.WorldSize - 2f);
+            pt.x = Mathf.Clamp(pt.x, 2f, SimConst.WorldW - 2f);
+            pt.z = Mathf.Clamp(pt.z, 2f, SimConst.WorldH - 2f);
             pt.y = 0f;
             if (!_hasWallStart)
             {
