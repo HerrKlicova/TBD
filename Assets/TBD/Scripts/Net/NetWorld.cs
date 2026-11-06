@@ -463,7 +463,7 @@ namespace TBD.Net
 
         // ---------------------------------------------------------------- el taller fabrica trenes (hito 5, diseno-hito5.md §5)
         /// <summary>
-        /// Encargar un tren al taller. Paga con las existencias del nodo del taller (materiales, combustible y, si es un tren nuevo, su tripulación de 10);
+        /// Encargar un tren al taller. Paga con las existencias del nodo del taller (materiales, combustible y, salvo el tren de obras, su tripulación de 10);
         /// no cobra nada si falla. El tren de obras (rehabilitado o nuevo) solo comprueba que haya sus 8 obreros libres por encima del retén: se descuentan al salir (Hugo y Lucía).
         /// </summary>
         public TallerResult OrderTrain(TallerKind kind)
@@ -477,7 +477,7 @@ namespace TBD.Net
             if (Services.Count + Taller.Queue.Count >= p.MaxTrainsNow) return TallerResult.MaximoTrenes;
             int u = kind == TallerKind.RehabTren3 ? p.Tren3U : kind == TallerKind.RehabObras ? p.ObrasU : p.TrainU;
             int fuel = kind == TallerKind.RehabTren3 ? p.Tren3Fuel : kind == TallerKind.RehabObras ? p.ObrasFuel : p.TrainFuel;
-            int crew = rehab ? 0 : p.TrainCrew;
+            int crew = works ? 0 : p.TrainCrew;        // Hugo: todo tren de servicio (nuevo o el Tren 3 rehabilitado) toma 10; el de obras no: sus 8 obreros son su tripulación
             int n = Taller.NodeIndex;
             if (Stock[n, (int)Res.Materiales] < u) return TallerResult.SinMateriales;
             if (Stock[n, (int)Res.Combustible] < fuel) return TallerResult.SinCombustible;

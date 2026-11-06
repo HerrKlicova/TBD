@@ -31,7 +31,7 @@ namespace TBD.Sim.Tests
 
             // rehabilitar el Tren 3 (sin Chispas: 36 h)
             var w = World(); int m0 = S(w, Res.Materiales), f0 = S(w, Res.Combustible), p0 = S(w, Res.Personas);
-            check(w.OrderTrain(TallerKind.RehabTren3) == TallerResult.Ok && S(w, Res.Materiales) == m0 - 60 && S(w, Res.Combustible) == f0 - 15 && S(w, Res.Personas) == p0 && w.Taller.Queue.Count == 1, "rehabilitar el Tren 3 cuesta 60 u y 15 de combustible, sin gente");
+            check(w.OrderTrain(TallerKind.RehabTren3) == TallerResult.Ok && S(w, Res.Materiales) == m0 - 60 && S(w, Res.Combustible) == f0 - 15 && S(w, Res.Personas) == p0 - 10 && w.Taller.Queue.Count == 1, "rehabilitar el Tren 3 cuesta 60 u, 15 de combustible y 10 de tripulación (es un tren de servicio como los nuevos)");
             check(w.OrderTrain(TallerKind.RehabTren3) == TallerResult.YaRehabilitado, "el Tren 3 solo se rehabilita una vez");
             long rehab = NetConst.Hours(36);
             Steps(w, rehab - 1); bool before = w.Services.Count == 0;
@@ -67,7 +67,7 @@ namespace TBD.Sim.Tests
             int peopleBefore = S(wc, Res.Personas);
             Steps(wc, day3 - 1); bool nb2 = wc.Services.Count == 1; wc.Step();
             check(nb2 && wc.Services.Count == 2 && wc.Services[1].Train.Id == 2 && !wc.Services[1].WorksTrain, $"fabricar un tren tarda 3 días ({day3} ticks) aunque Chispas esté en el taller: no acelera la fabricación");
-            check(peopleBefore == 170 - 10 && S(wc, Res.Personas) == 160, "un tren nuevo toma 10 de tripulación de la población al encargarse");
+            check(peopleBefore == 170 - 10 - 10, "un tren nuevo toma 10 de tripulación de la población al encargarse (el Tren 3 ya había tomado otros 10)");
 
             // Chispas fuera del taller: no acelera las rehabilitaciones
             var wl = World(true); wl.Taller.ChispasAt = 0;              // en un tren (índice 0)
@@ -131,6 +131,10 @@ namespace TBD.Sim.Tests
             var wy = World(); wy.OrderTrain(TallerKind.Carga); Steps(wy, 1000); int pm = S(wy, Res.Materiales);
             wy.CancelTrainOrder(0);
             check(S(wy, Res.Materiales) == pm + 60 && S(wy, Res.Personas) == 170, "un tren nuevo empezado devuelve 60 de 120 u y la tripulación entera de 10");
+            var wz = World(); wz.OrderTrain(TallerKind.RehabTren3); wz.OrderTrain(TallerKind.Obras);
+            check(S(wz, Res.Personas) == 160, "el Tren 3 toma 10 de tripulación y un tren de obras (nuevo) no toma ninguna al encargarse: sus 8 obreros son su tripulación (Hugo)");
+            wz.CancelTrainOrder(0);
+            check(S(wz, Res.Personas) == 170, "cancelar el Tren 3 sin empezar devuelve sus 10 de tripulación");
 
             // órdenes: grabadas y repetidas igual; el hash cambia con el encargo y coincide entre mundos
             var ha = World(); var hb = World();
