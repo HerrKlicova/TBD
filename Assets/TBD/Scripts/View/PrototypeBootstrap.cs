@@ -92,7 +92,7 @@ namespace TBD.View
         float _orthoSize = 18f;
         float _targetOrtho = 18f;
         float _yaw = 45f;                               // cámara libre: rotación, inclinación y zoom continuos
-        float _pitch = 50f;
+        float _pitch = 55f;                           // inclinación por defecto 55° (Lucía, D-N61); la cámara es ortográfica: el FOV no aplica
         Vector3 _focus = new Vector3(66f, 0f, 64f);
         bool _buildMode;
         bool _hasWallStart;
