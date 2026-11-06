@@ -16,6 +16,7 @@ La tropa propia en hueso; la horda en sus valores (#1c200c con filo #303424); el
 """
 import json
 import math
+import os
 import sys
 from pathlib import Path
 
@@ -26,7 +27,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pixelvm import PAL, Sprite, reduce_16  # noqa: E402
 import build_a2 as a2  # noqa: E402
 
-ZONAS_PNG = Path("/home/claude/mr-mak-workspace/docs/niveles/sagunto_zonas_1m.png")   # repo hermano mr-mak-workspace
+# mr-mak-workspace va al lado del repo del juego (C:\Dev\TBD y C:\Dev\mr-mak-workspace); MRMAK lo cambia
+_MRMAK = Path(os.environ.get("MRMAK", Path(__file__).resolve().parents[4].parent / "mr-mak-workspace"))
+ZONAS_PNG = _MRMAK / "docs" / "niveles" / "sagunto_zonas_1m.png"
 
 
 def _badge(s, x0, y0):
@@ -256,7 +259,9 @@ def exportar(out):
         s32.img.save(out / f"ui_aviso_{n}_32.png")
         s16.img.save(out / f"ui_aviso_{n}_16.png")
         todo[f"aviso_{n}"] = [s32, s16]
-    if ZONAS_PNG.exists():
+    if not ZONAS_PNG.exists():
+        print(f"aviso: no encuentro {ZONAS_PNG}; el minimapa base no se genera (define MRMAK)")
+    else:
         b = minimapa_base()
         b.img.save(out / "ui_minimapa_base_sagunto.png")
         (out / "ui_minimapa_base_sagunto.json").write_text(json.dumps({"meta": {"viaMuerta": {
