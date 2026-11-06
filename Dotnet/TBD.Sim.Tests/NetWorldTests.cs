@@ -26,13 +26,13 @@ namespace TBD.Sim.Tests
             // ---- la mancha conserva la masa y se mueve
             var w = NetScenario.Mvp();
             long m0 = w.Field.Mass();
-            int[] before = (int[])w.Field.D.Clone();
+            int[] before = new int[w.Field.D.Length]; for (int i = 0; i < before.Length; i++) before[i] = w.Field.D[i] + w.Field.S[i];
             for (int i = 0; i < 300; i++) w.Field.Step(w.Graph, w.Attraction);
             long m1 = w.Field.Mass();
-            int changed = 0; for (int i = 0; i < before.Length; i++) if (before[i] != w.Field.D[i]) changed++;
+            int changed = 0; for (int i = 0; i < before.Length; i++) if (before[i] != w.Field.D[i] + w.Field.S[i]) changed++;
             check(m0 == m1, $"la mancha conserva la masa en 300 pasos ({m0} → {m1})");
-            check(changed > 500, $"la mancha se desplaza y se difunde ({changed} celdas cambian)");
-            int maxCell = 0; foreach (var d in w.Field.D) maxCell = Math.Max(maxCell, d);
+            check(changed > 300, $"la mancha se desplaza y se difunde ({changed} celdas cambian)");
+            int maxCell = 0; for (int q = 0; q < w.Field.D.Length; q++) maxCell = Math.Max(maxCell, w.Field.D[q] + w.Field.S[q]);
             check(maxCell <= HordeField.Max, $"ninguna celda pasa del tope ({maxCell})");
 
             // ---- ritmo de la Colmena (ajustado el 5-nov a petición de Eugenio: antes asediaba 4 estaciones antes de las 12:00)

@@ -42,6 +42,7 @@ namespace TBD.Net
             p.CutPerMem = (int)c.Value("corte_utilidad_x_memoria"); p.MaxSiegesStage1 = (int)c.PositiveValue("asedios_max_etapa1");
             p.PointUniqueMil = (int)c.Value("director_peso_punto_unico"); p.AttentionMil = (int)c.Value("director_peso_atencion");
             p.RespiteMinH = (int)c.Value("asedio_respiro_min_h"); p.RespiteMaxH = (int)c.Value("asedio_respiro_max_h");
+            p.SiegeWarnH = (int)c.TryValue("asedio_aviso_h", p.SiegeWarnH);           // D-N37: ahora en balance_colmena.csv
             p.HuellaPersonMil = (int)c.Value("huella_por_persona"); p.HuellaTrainMil = (int)c.Value("huella_por_tren"); p.HuellaNodeMil = (int)c.Value("huella_por_nodo");
             p.BigEveryDays = (int)c.TryValue("asedio_grande_cada_dias", p.BigEveryDays); p.BigMultMil = (int)c.TryValue("asedio_grande_mult", p.BigMultMil);   // opcionales: Hugo aún no los puso en el CSV
             p.H0 = (int)c.PositiveValue("H0_zombis_dia"); p.KHuellaMil = (int)c.Value("k_huella"); p.FirstSiegeDay = (int)c.Value("dia_primer_asedio");
@@ -83,6 +84,7 @@ namespace TBD.Net
             public int Train;          // caza: índice del servicio al que sigue
             public long StartTick;     // asedio: empieza tras el aviso de 3 h (Sara/Mak); hasta entonces solo es una amenaza anunciada
             public bool Started;
+            public int Lost;           // asedio: masa que ha perdido en combate (bajas de la zona de su nodo)
         }
 
         public readonly List<Plan> Active = new List<Plan>();
@@ -449,6 +451,23 @@ namespace TBD.Net
             return -1;
         }
 
+        /// <summary>
+        /// Estado de manada «asedio» (Lucía §3): sale cuando pierde más del 50 % de su fuerza. La fuerza es lo que lleva reclutado (Moved);
+        /// las bajas son las que deja la zona de su nodo al desmaterializar. Al terminar, esa masa vuelve a la deriva (respiro, D-N34).
+        /// </summary>
+        public void OnZoneLoss(NetWorld w, int node, int lost)
+        {
+            if (lost <= 0) return;
+            for (int i = 0; i < Active.Count; i++)
+            {
+                var pl = Active[i];
+                if (pl.Kind != PlanKind.Asedio || !pl.Started || pl.Node != node) continue;
+                pl.Lost += lost;
+                if ((long)pl.Lost * 2 > Math.Max(1, pl.Moved)) pl.UntilTick = w.Tick;        // se retira en la próxima hora
+                Active[i] = pl;
+            }
+        }
+
         /// <summary>Un tren sale de un nodo con horda cerca: una manada lo sigue (estado «caza», Lucía §3), con su entrada ES-1.</summary>
         public void OnDeparture(NetWorld w, int service, int fromNode)
         {
@@ -525,7 +544,7 @@ namespace TBD.Net
         {
             ulong h = NetWorld.Mix(0xD12EC7UL ^ (ulong)BudgetUsedToday ^ ((ulong)(uint)_budgetDay << 40)) + NetWorld.Mix((ulong)_respiteUntil ^ ((ulong)_ambushBank << 32)) + NetWorld.Mix((ulong)(_lastSiegeTick + 1_000_000) ^ (_anySiege ? 1UL << 62 : 0));
             foreach (var p in Active)
-                h += NetWorld.Mix(((ulong)p.Kind << 56) ^ ((ulong)(uint)(p.Edge + 1) << 40) ^ ((ulong)(uint)(p.Node + 1) << 28) ^ ((ulong)(uint)(p.Cell + 1) << 8) ^ (ulong)p.UntilTick ^ ((ulong)(uint)p.Moved << 20) ^ ((ulong)(uint)(p.Train + 1) << 50)) + NetWorld.Mix((ulong)p.StartTick ^ (p.Started ? 1UL << 63 : 0));
+                h += NetWorld.Mix(((ulong)p.Kind << 56) ^ ((ulong)(uint)(p.Edge + 1) << 40) ^ ((ulong)(uint)(p.Node + 1) << 28) ^ ((ulong)(uint)(p.Cell + 1) << 8) ^ (ulong)p.UntilTick ^ ((ulong)(uint)p.Moved << 20) ^ ((ulong)(uint)(p.Train + 1) << 50)) + NetWorld.Mix((ulong)p.StartTick ^ (p.Started ? 1UL << 63 : 0)) + NetWorld.Mix((ulong)(uint)p.Lost ^ 0x10557UL);
             for (int k = 0; k < _injectedByDay.Length; k++) if (_injectedByDay[k] != 0) h += NetWorld.Mix(((ulong)(uint)k << 56) ^ (ulong)_injectedByDay[k] ^ 0x1A7ECUL);
             h += NetWorld.Mix((ulong)_carryZombies ^ 0xCA77UL);
             for (int n = 0; n < LastSeenTick.Length; n++) if (LastSeenTick[n] != 0) h += NetWorld.Mix(((ulong)(uint)n << 52) ^ (ulong)LastSeenTick[n] ^ 0x5EE7UL);

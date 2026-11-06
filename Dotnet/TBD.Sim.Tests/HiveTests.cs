@@ -228,10 +228,112 @@ namespace TBD.Sim.Tests
                 check(sum == wi.InjectedTotal, "el contador por tick de lo inyectado suma lo mismo que el total del mundo");
             }
 
+            // ---- presupuesto del director sin jugador y sin ruido (curva pura) contra la tabla esperada de Hugo, días 0-9 (±5 %); estación indexada con el día desde 0
+            {
+                var wb = NetScenario.Mvp();
+                wb.Director.Noise = null;
+                long[] hugo = { 232, 821, 1685, 2421, 3108, 3366, 3617, 6171, 4081, 4285 };    // día 7 con el gran ataque ×2 (solo de asedio, 0,6 de la parte)
+                bool okB = true; string txt = "";
+                for (int day = 0; day < 10; day++)
+                {
+                    long z = wb.Director.DayZombies(day, 0);
+                    if (day == 7) z += z * wb.Director.P.SiegeShareMil / 1000 * (wb.Director.P.BigMultMil - 1000) / 1000;   // gran ataque: el asedio golpea ×2
+                    txt += z + "/" + hugo[day] + " ";
+                    if (Math.Abs(z - hugo[day]) * 100 > hugo[day] * 5) okB = false;
+                }
+                Console.WriteLine("         presupuesto sin ruido ni huella (mío/Hugo): " + txt.Trim());
+                check(okB, "el presupuesto diario con la curva pura coincide con la tabla de Hugo a ±5 % en los días 0 a 9");
+            }
+
+            // ---- D-N37b: la horda inicial deriva dentro de una correa de 2 celdas, nunca entra en un nodo y es finita
+            {
+                var wl2 = NetScenario.Mvp();
+                var born = new System.Collections.Generic.List<int>();
+                for (int i = 0; i < wl2.Field.S.Length; i++) if (wl2.Field.S[i] > 0) born.Add(i);
+                long s0 = wl2.Field.StaticMass();
+                long nearBirth = wl2.Field.LeashedMassNearTrack(wl2.Graph, 1);
+                bool inLeash = true, inNode = false; int moved = 0;
+                var before = (int[])wl2.Field.S.Clone();
+                for (int q = 0; q < 600; q++) wl2.Field.Step(wl2.Graph, wl2.Attraction);
+                for (int i = 0; i < wl2.Field.S.Length; i++)
+                {
+                    if (wl2.Field.S[i] != before[i]) moved++;
+                    if (wl2.Field.S[i] <= 0) continue;
+                    int cx = i % HordeField.W, cy = i / HordeField.W;
+                    bool ok = false;
+                    foreach (int b in born) if (Math.Abs(b % HordeField.W - cx) <= 2 && Math.Abs(b / HordeField.W - cy) <= 2) { ok = true; break; }
+                    if (!ok) inLeash = false;
+                    foreach (var nd in wl2.Graph.Nodes) if (Math.Abs(nd.XMeters - cx) <= 1 && Math.Abs(nd.YMeters - cy) <= 1 && before[i] == 0) inNode = true;
+                }
+                check(inLeash && moved > 100, $"la horda inicial deriva ({moved} celdas cambian) sin salir de su correa de 2 celdas");
+                check(!inNode && wl2.Field.StaticMass() == s0, $"la horda inicial no entra en un nodo y es finita: {wl2.Field.StaticMass()} ‰ de {s0} ‰ tras 600 pasos");
+                Console.WriteLine($"         masa inicial a tiro de la vía (1 celda): {wl2.Field.LeashedMassNearTrack(wl2.Graph, 1)} ‰ de {s0} ‰ (guarnición pagada por Hugo: ~1.250 ‰)");
+                long nearT = wl2.Field.LeashedMassNearTrack(wl2.Graph, 1);
+                check(nearBirth >= 700 && nearBirth <= 2500 && nearT <= 5000, $"a tiro de la vía hay una masa del orden de la guarnición pagada (700-2.500 ‰): {nearBirth} ‰ al nacer, {nearT} ‰ tras 600 pasos; el resto es paisaje");
+            }
+
+            // ---- emboscada materializada: un tren cae en una emboscada preparada, se detiene con la horda del punto, y se resuelve por orden o por expiración
+            {
+                var we = NetScenario.Mvp();
+                int ei = we.Graph.Edges.FindIndex(e => e.Ambush.Count > 0);
+                var edge = we.Graph.Edges[ei];
+                // preparamos a mano lo que haría el director: una emboscada en ese tramo con horda en su punto
+                int cell = (we.Graph.Nodes[edge.A].YMeters + we.Graph.Nodes[edge.B].YMeters) / 2 * HordeField.W + (we.Graph.Nodes[edge.A].XMeters + we.Graph.Nodes[edge.B].XMeters) / 2;
+                we.Field.D[cell] = 400;
+                we.Director.Active.Add(new HiveDirector.Plan { Kind = HiveDirector.PlanKind.Emboscada, Edge = edge.Id, Node = -1, Cell = cell, UntilTick = we.Tick + 100000 });
+                we.PendingAmbushes.Add(edge.Id);
+                // un tren en ese tramo, con la horda sobre la vía
+                var sv = we.Services[0];
+                sv.AtStop = false; sv.Train.SetRoute(we.Graph.ShortestPath(edge.A, edge.B)); sv.Train.Go();
+                edge.HordeAtMm = edge.LengthMm / 2;
+                for (long t = 0; t < 60 && !we.Encounter.Active; t++) we.Step();
+                bool started = we.Encounter.Active && we.Encounter.Taken > 300 && sv.Ambushed && we.Field.D[cell] == 0;
+                int takenAmb = we.Encounter.Taken;
+                long massBefore = we.Field.Mass();
+                long cargoBefore = sv.CargoTotal();
+                we.Push(new NetCommand { Tick = we.Tick, Type = NetCmdType.ResolveAmbush, Arg = 0, Arg2 = 150 });     // la zona devuelve 150 ‰ de 400
+                we.Step();
+                check(started, "un tren que cae en una emboscada preparada se detiene y la horda del punto sale del campo (encuentro)");
+                check(!we.Encounter.Active && !sv.Ambushed && we.LostTotal == takenAmb - 150 && we.Field.D[cell] > 0, $"ResolveAmbush devuelve los supervivientes (150 ‰), pierde las bajas ({we.LostTotal} ‰) y libera el tren");
+                // expiración
+                var we2 = NetScenario.Mvp();
+                var edge2 = we2.Graph.Edges[we2.Graph.Edges.FindIndex(e => e.Ambush.Count > 0)];
+                int cell2 = (we2.Graph.Nodes[edge2.A].YMeters + we2.Graph.Nodes[edge2.B].YMeters) / 2 * HordeField.W + (we2.Graph.Nodes[edge2.A].XMeters + we2.Graph.Nodes[edge2.B].XMeters) / 2;
+                we2.Field.D[cell2] = 400;
+                we2.Director.Active.Add(new HiveDirector.Plan { Kind = HiveDirector.PlanKind.Emboscada, Edge = edge2.Id, Node = -1, Cell = cell2, UntilTick = we2.Tick + 100000 });
+                we2.PendingAmbushes.Add(edge2.Id);
+                var sv2 = we2.Services[0]; sv2.AtStop = false; sv2.Train.SetRoute(we2.Graph.ShortestPath(edge2.A, edge2.B)); sv2.Train.Go();
+                for (int r = 0; r < NetConst.ResCount; r++) sv2.Cargo[r] = 100;
+                edge2.HordeAtMm = edge2.LengthMm / 2;
+                for (long t = 0; t < 60 && !we2.Encounter.Active; t++) we2.Step();
+                long expAt = we2.Encounter.ExpireTick;
+                while (we2.Tick <= expAt + 1) we2.Step();
+                check(!we2.Encounter.Active && !sv2.Ambushed && sv2.Cargo[0] == 70 && we2.LostTotal == 0, $"si nadie responde en 30 min de juego la horda se dispersa sin bajas y el tren pierde el 30 % de la carga ({sv2.Cargo[0]} de 100)");
+            }
+
+            // ---- estados de manada (Lucía §3): un asedio que pierde más del 50 % de su fuerza se retira y deja respiro
+            {
+                var wl = NetScenario.Mvp();
+                for (long t = 0; t < 2L * NetConst.DayTicks && !wl.Director.Active.Exists(p => p.Kind == HiveDirector.PlanKind.Asedio && p.Started); t++) wl.Step();
+                int idx = wl.Director.Active.FindIndex(p => p.Kind == HiveDirector.PlanKind.Asedio && p.Started);
+                var spl = wl.Director.Active[idx]; spl.Moved = 400; wl.Director.Active[idx] = spl;
+                int node = spl.Node; var nd = wl.Graph.Nodes[node];
+                wl.Field.D[nd.YMeters * HordeField.W + nd.XMeters] = 600;
+                wl.Push(new NetCommand { Tick = wl.Tick, Type = NetCmdType.Materialize, Arg = node });
+                wl.Step();
+                wl.Push(new NetCommand { Tick = wl.Tick, Type = NetCmdType.Dematerialize, Arg = node, Arg2 = 100 });    // de 600 vuelven 100: 500 bajas
+                wl.Step();
+                bool marked = wl.Director.Active.Exists(p => p.Kind == HiveDirector.PlanKind.Asedio && p.Node == node && p.Lost >= 400);
+                long hourEnd = (wl.Tick / 1500 + 1) * 1500 - wl.Tick;
+                for (long t = 0; t <= hourEnd; t++) wl.Step();
+                bool gone = !wl.Director.Active.Exists(p => p.Kind == HiveDirector.PlanKind.Asedio && p.Node == node);
+                                check(marked && gone, "un asedio que pierde más del 50 % de su fuerza se retira en la hora siguiente (estado de manada, Lucía §3)");
+            }
+
             // ---- D-N36 (Mak, 4): los zombis sin combatir vuelven a los nidos: la masa sobre la inicial nunca supera lo inyectado en los últimos 6 días
             {
                 var wr = NetScenario.Mvp();
-                long baseMass = wr.Field.Mass();
+                long baseMass = wr.Field.Mass(); long static0 = wr.Field.StaticMass();
                 var perDay = new long[21];
                 bool capOk = true; long worst = 0; long retiredSeen = 0; bool tickCounters = true;
                 for (int day = 0; day < 20; day++)
@@ -248,44 +350,52 @@ namespace TBD.Sim.Tests
                     if (extra > last6) { capOk = false; worst = Math.Max(worst, extra - last6); }
                 }
                 check(capOk, $"la masa nueva en el campo no supera lo inyectado en los últimos 6 días (peor exceso: {worst} por mil)");
+                check(wr.Field.StaticMass() == static0 && wr.InitialMassAlive == static0 && static0 > 0, $"el director no gasta la horda inicial: la guarnición y el paisaje siguen intactos tras 20 días ({static0} ‰ al empezar, {wr.InitialMassAlive} ‰ vivos)");
+                check(wr.InjectedTotal * 100 >= wr.Director.BudgetTotal * 98 && wr.InjectedTotal <= wr.Director.BudgetTotal, $"lo inyectado es el presupuesto del director, sin pérdidas por el camino: {wr.InjectedZombies} zombis inyectados de {wr.Director.BudgetTotal * NetWorld.ZombiesPerPermil} de presupuesto en 20 días");
                 check(retiredSeen == wr.RetiredTotal && wr.RetiredTotal > 0, $"el contador de retirados por tick suma el total ({wr.RetiredTotal} por mil retirados en 20 días)");
             }
 
-            // ---- mediana de varias semillas contra la referencia de Hugo (solo con TBD_SEEDS=n, tarda: n × 20 días de simulación)
+            // ---- mediana de varias semillas contra la referencia de Hugo (solo con TBD_SEEDS=n; tarda: n × 21 días de simulación)
+            // criterio D-N37: el total de los días 1-20 de golpes contra asedios y contra toda la red, a ±15 % de la referencia (fila total_1_20)
             {
                 string ns = Environment.GetEnvironmentVariable("TBD_SEEDS");
                 string dump2 = Environment.GetEnvironmentVariable("TBD_DUMP_DIR");
                 if (!string.IsNullOrEmpty(ns))
                 {
                     int seeds = int.Parse(ns);
-                    var per = new System.Collections.Generic.List<long>[20];
-                    for (int dd2 = 0; dd2 < 20; dd2++) per[dd2] = new System.Collections.Generic.List<long>();
+                    var siegeTot = new System.Collections.Generic.List<long>(); var netTot = new System.Collections.Generic.List<long>();
+                    var perDay = new System.Collections.Generic.List<long>[21];
+                    for (int q = 0; q < 21; q++) perDay[q] = new System.Collections.Generic.List<long>();
                     for (int sd = 0; sd < seeds; sd++)
                     {
                         var wsd = NetScenario.Mvp();
                         wsd.Director.Seed = (ulong)(sd + 1) * 0x9E3779B97F4A7C15UL;
-                        long prevS = 0;
-                        for (int dd2 = 0; dd2 < 20; dd2++)
+                        long prevS = 0, prevB = 0, sumS = 0, sumB = 0;
+                        for (int q = 0; q < 21; q++)
                         {
                             for (long t = 0; t < NetConst.DayTicks; t++) wsd.Step();
-                            per[dd2].Add((wsd.Director.SiegeMovedTotal - prevS) * NetWorld.ZombiesPerPermil);
-                            prevS = wsd.Director.SiegeMovedTotal;
+                            long ds = (wsd.Director.SiegeMovedTotal - prevS) * NetWorld.ZombiesPerPermil, db = (wsd.Director.BudgetTotal - prevB) * NetWorld.ZombiesPerPermil;
+                            perDay[q].Add(ds); prevS = wsd.Director.SiegeMovedTotal; prevB = wsd.Director.BudgetTotal;
+                            if (q >= 1) { sumS += ds; sumB += db; }
                         }
+                        siegeTot.Add(sumS); netTot.Add(sumB);
                     }
-                    var csv = new System.Text.StringBuilder("dia;zombis_asedio_mediana;p10;p90\n");
+                    siegeTot.Sort(); netTot.Sort();
+                    long medS = siegeTot[siegeTot.Count / 2], medN = netTot[netTot.Count / 2];
                     var refTab = new CsvTable(File.ReadAllText(Path.Combine(dump2 ?? ".", "referencia_asedios_d1_20.csv")));
-                    int within = 0, counted = 0; string det = "";
-                    for (int dd2 = 0; dd2 < 20; dd2++)
+                    var tr = refTab.Rows.Find(r => r[0] == "total_1_20");
+                    long refN = CsvTable.Int(tr[refTab.Col("golpean_red_total_mediana")]), refS = CsvTable.Int(tr[refTab.Col("golpean_asedios_mediana")]);
+                    var csv = new System.Text.StringBuilder("dia;zombis_asedio_mediana;p10;p90\n");
+                    for (int q = 0; q < 21; q++)
                     {
-                        per[dd2].Sort();
-                        long med = per[dd2][per[dd2].Count / 2], p10 = per[dd2][per[dd2].Count / 10], p90 = per[dd2][Math.Min(per[dd2].Count - 1, per[dd2].Count * 9 / 10)];
-                        csv.Append(dd2).Append(';').Append(med).Append(';').Append(p10).Append(';').Append(p90).Append('\n');
-                        long hug = CsvTable.Int(refTab.Rows[dd2][refTab.Col("golpean_asedios_mediana")]);
-                        if (dd2 >= 2 && hug > 0) { counted++; if (Math.Abs(med - hug) * 100 <= hug * 25) within++; det += $"d{dd2}:{med}/{hug} "; }
+                        perDay[q].Sort();
+                        csv.Append(q).Append(';').Append(perDay[q][perDay[q].Count / 2]).Append(';').Append(perDay[q][perDay[q].Count / 10]).Append(';').Append(perDay[q][Math.Min(perDay[q].Count - 1, perDay[q].Count * 9 / 10)]).Append('\n');
                     }
+                    csv.Append("total_1_20;").Append(medS).Append(';').Append(siegeTot[siegeTot.Count / 10]).Append(';').Append(siegeTot[Math.Min(siegeTot.Count - 1, siegeTot.Count * 9 / 10)]).Append('\n');
                     if (!string.IsNullOrEmpty(dump2)) File.WriteAllText(Path.Combine(dump2, "director_mediana_semillas.csv"), csv.ToString());
-                    Console.WriteLine($"         mediana de {seeds} semillas (mía/Hugo): {det.Trim()}");
-                    check(counted > 0, $"mediana de {seeds} semillas: {within} de {counted} días dentro de ±25 % de la referencia de Hugo");
+                    Console.WriteLine($"         {seeds} semillas, días 1-20: asedios {medS} (Hugo {refS}), toda la red {medN} (Hugo {refN})");
+                    check(Math.Abs(medS - refS) * 100 <= refS * 15, $"total de golpes contra asedios en los días 1-20: mediana {medS} frente a {refS} de Hugo (±15 %)");
+                    check(Math.Abs(medN - refN) * 100 <= refN * 15, $"total contra toda la red en los días 1-20: mediana {medN} frente a {refN} de Hugo (±15 %)");
                 }
             }
 

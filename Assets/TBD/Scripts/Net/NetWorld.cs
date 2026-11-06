@@ -29,7 +29,7 @@ namespace TBD.Net
     }
 
     // ================================================================== órdenes
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8 }
 
     public struct NetCommand
     {
@@ -56,6 +56,7 @@ namespace TBD.Net
         public int StopIndex;              // parada en la que está o hacia la que va
         public bool AtStop = true;         // esperando en la parada StopIndex
         public bool Held;                  // retenido por el jugador
+        public bool Ambushed;              // detenido por una emboscada hasta que se resuelva (zona o expiración)
         public long LastDepartDay = -1;    // último día en que salió de alguna parada (informativo)
         public readonly List<long> DepartedDay = new List<long>();   // por parada: día de la última salida (no sale dos veces el mismo día)
 
@@ -74,19 +75,64 @@ namespace TBD.Net
         public const int Max = 1000;
         public const int DriftStop = 500;          // la deriva no entra en celdas ya cargadas: la mancha se extiende en vez de concentrarse
         public int[] D = new int[W * H];
+        public int[] S = new int[W * H];           // horda INICIAL: guarnición estática y paisaje. No se mueve ni la recluta el director (D-N37, Hugo y Mak); solo la zona la toca
         int[] _next = new int[W * H];
         long[] _pot = new long[W * H];
 
         public int At(int x, int y)
         {
             if (x < 0 || y < 0 || x >= W || y >= H) return 0;
-            return D[y * W + x];
+            return D[y * W + x] + S[y * W + x];
         }
 
-        public long Mass() { long m = 0; for (int i = 0; i < D.Length; i++) m += D[i]; return m; }
+        public long Mass() { long m = 0; for (int i = 0; i < D.Length; i++) m += D[i] + S[i]; return m; }
+
+        /// <summary>
+        /// Masa de la horda inicial que queda a tiro de la vía (a menos de «cells» celdas de algún tramo): la que cuenta para el combate;
+        /// el resto es paisaje (D-N37b). En «por mil».
+        /// </summary>
+        public long LeashedMassNearTrack(RailGraph g, int cells)
+        {
+            var near = new bool[W * H];
+            foreach (var e in g.Edges)
+            {
+                var a = g.Nodes[e.A]; var b = g.Nodes[e.B];
+                int steps = Math.Max(Math.Abs(b.XMeters - a.XMeters), Math.Abs(b.YMeters - a.YMeters)) * 2 + 1;
+                for (int k = 0; k <= steps; k++)
+                {
+                    int px = a.XMeters + (b.XMeters - a.XMeters) * k / steps, py = a.YMeters + (b.YMeters - a.YMeters) * k / steps;
+                    for (int y = py - cells; y <= py + cells; y++)
+                        for (int x = px - cells; x <= px + cells; x++)
+                            if (x >= 0 && y >= 0 && x < W && y < H) near[y * W + x] = true;
+                }
+            }
+            long m = 0;
+            for (int i = 0; i < S.Length; i++) if (near[i]) m += S[i];
+            return m;
+        }
+
+        /// <summary>Masa de la horda inicial (guarnición y paisaje) que sigue viva, en «por mil». Solo la zona la toca; el director no (D-N37).</summary>
+        public long StaticMass() { long m = 0; for (int i = 0; i < S.Length; i++) m += S[i]; return m; }
+
+        /// <summary>Siembra una mancha redonda de horda ESTÁTICA (guarnición y paisaje; no la mueve el campo ni la recluta el director).</summary>
+        public void BlobStatic(int cx, int cy, int r, int value)
+        {
+            Blob(cx, cy, r, value, S);
+            if (_leash == null) _leash = new bool[W * H];
+            for (int c = 0; c < S.Length; c++)                       // la correa: hasta LeashCells celdas de donde nació
+            {
+                if (S[c] <= 0) continue;
+                int cx2 = c % W, cy2 = c / W;
+                for (int y = cy2 - LeashCells; y <= cy2 + LeashCells; y++)
+                    for (int x = cx2 - LeashCells; x <= cx2 + LeashCells; x++)
+                        if (x >= 0 && y >= 0 && x < W && y < H) _leash[y * W + x] = true;
+            }
+        }
 
         /// <summary>Siembra una mancha redonda (para el arranque y para las pruebas).</summary>
-        public void Blob(int cx, int cy, int r, int value)
+        public void Blob(int cx, int cy, int r, int value) { Blob(cx, cy, r, value, D); }
+
+        void Blob(int cx, int cy, int r, int value, int[] layer)
         {
             for (int y = cy - r; y <= cy + r; y++)
                 for (int x = cx - r; x <= cx + r; x++)
@@ -95,7 +141,7 @@ namespace TBD.Net
                     int dx = x - cx, dy = y - cy;
                     if (dx * dx + dy * dy > r * r) continue;
                     int i = y * W + x;
-                    D[i] = Math.Min(Max, D[i] + value * (r * r - (dx * dx + dy * dy) / 2) / (r * r));
+                    layer[i] = Math.Min(Max, layer[i] + value * (r * r - (dx * dx + dy * dy) / 2) / (r * r));
                 }
         }
 
@@ -121,23 +167,49 @@ namespace TBD.Net
                     _pot[y * W + x] = p;
                 }
 
-            Array.Clear(_next, 0, _next.Length);
+            if (_block == null)                                          // nunca entra en un nodo: las 3×3 de cada nodo quedan vedadas a la horda con correa
+            {
+                _block = new bool[W * H];
+                foreach (var node in g.Nodes)
+                    for (int y = node.YMeters - 1; y <= node.YMeters + 1; y++)
+                        for (int x = node.XMeters - 1; x <= node.XMeters + 1; x++)
+                            if (x >= 0 && y >= 0 && x < W && y < H) _block[y * W + x] = true;
+            }
+            var nd = StepLayer(D, _next, false);
+            _next = D; D = nd;
+            if (_leash != null)                                          // la horda inicial: deriva y reacciona al ruido, pero dentro de su correa (D-N37b)
+            {
+                var ns = StepLayer(S, _nextS, true);
+                _nextS = S; S = ns;
+            }
+        }
+
+        public const int LeashCells = 2;           // correa de la horda inicial: unos 7 km alrededor de donde nace (D-N37b)
+        bool[] _leash, _block;
+        int[] _nextS = new int[W * H];
+
+        bool Ok(int j, bool leashed) { return j != Frozen && (!leashed || (_leash[j] && !_block[j])); }
+
+        /// <summary>Un paso de difusión y deriva de una capa. La capa con correa solo se mueve a celdas de su correa y fuera de los nodos.</summary>
+        int[] StepLayer(int[] src, int[] next, bool leashed)
+        {
+            Array.Clear(next, 0, next.Length);
             for (int y = 0; y < H; y++)
                 for (int x = 0; x < W; x++)
                 {
                     int i = y * W + x;
-                    int d = D[i];
+                    int d = src[i];
                     if (d == 0) continue;
                     int keep = d;
-                    if (i == Frozen) { _next[i] += keep; continue; }
+                    if (i == Frozen) { next[i] += keep; continue; }
                     // difusión: 1/48 a cada vecino (nunca hacia la celda congelada)
                     int share = d / 48;
                     if (share > 0)
                     {
-                        if (x > 0 && i - 1 != Frozen) { _next[i - 1] += share; keep -= share; }
-                        if (x < W - 1 && i + 1 != Frozen) { _next[i + 1] += share; keep -= share; }
-                        if (y > 0 && i - W != Frozen) { _next[i - W] += share; keep -= share; }
-                        if (y < H - 1 && i + W != Frozen) { _next[i + W] += share; keep -= share; }
+                        if (x > 0 && Ok(i - 1, leashed)) { next[i - 1] += share; keep -= share; }
+                        if (x < W - 1 && Ok(i + 1, leashed)) { next[i + 1] += share; keep -= share; }
+                        if (y > 0 && Ok(i - W, leashed)) { next[i - W] += share; keep -= share; }
+                        if (y < H - 1 && Ok(i + W, leashed)) { next[i + W] += share; keep -= share; }
                     }
                     // deriva: 1/60 hacia el vecino de más potencial (orden fijo de vecinos en los empates), si no está ya cargado
                     int best = -1;
@@ -146,40 +218,40 @@ namespace TBD.Net
                     if (x < W - 1 && _pot[i + 1] > bp) { bp = _pot[i + 1]; best = i + 1; }
                     if (y > 0 && _pot[i - W] > bp) { bp = _pot[i - W]; best = i - W; }
                     if (y < H - 1 && _pot[i + W] > bp) { bp = _pot[i + W]; best = i + W; }
-                    if (best >= 0 && best != Frozen && D[best] < DriftStop)
+                    if (best >= 0 && Ok(best, leashed) && src[best] < DriftStop)
                     {
                         int move = d / 60;
-                        _next[best] += move;
+                        next[best] += move;
                         keep -= move;
                     }
-                    _next[i] += keep;
+                    next[i] += keep;
                 }
             // tope por celda: lo que sobra se queda (no se pierde masa); se reparte al vecino libre en orden fijo
-            for (int i = 0; i < _next.Length; i++)
+            for (int i = 0; i < next.Length; i++)
             {
-                if (_next[i] <= Max) continue;
-                int over = _next[i] - Max;
-                _next[i] = Max;
+                if (next[i] <= Max) continue;
+                int over = next[i] - Max;
+                next[i] = Max;
                 int x = i % W, y = i / W;
                 int[] nb = { x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, y > 0 ? i - W : -1, y < H - 1 ? i + W : -1 };
                 foreach (int j in nb)
                 {
-                    if (j < 0 || j == Frozen || over == 0) continue;
-                    int room = Max - _next[j];
+                    if (j < 0 || !Ok(j, leashed) || over == 0) continue;
+                    int room = Max - next[j];
                     if (room <= 0) continue;
                     int m = Math.Min(room, over);
-                    _next[j] += m;
+                    next[j] += m;
                     over -= m;
                 }
-                _next[i] += over;            // si no cabe en ningún vecino, se queda por encima del tope (raro)
+                next[i] += over;            // si no cabe en ningún vecino, se queda por encima del tope (raro)
             }
-            var t = D; D = _next; _next = t;
+            return next;
         }
 
         public ulong Hash()
         {
             ulong h = 0;
-            for (int i = 0; i < D.Length; i++) if (D[i] != 0) h += NetWorld.Mix(((ulong)i << 20) ^ (ulong)D[i]);
+            for (int i = 0; i < D.Length; i++) { if (D[i] != 0) h += NetWorld.Mix(((ulong)i << 20) ^ (ulong)D[i]); if (S[i] != 0) h += NetWorld.Mix(((ulong)i << 20) ^ (ulong)S[i] ^ 0x57A71CUL); }
             return h;
         }
     }
@@ -200,10 +272,17 @@ namespace TBD.Net
 
         // ---- zona en detalle (hito 3, D-N05): 1 por mil de densidad = 10 zombis
         public const int ZombiesPerPermil = 10;
-        public long InjectedTotal, LostTotal, RetiredTotal;
+        public long InjectedTotal, LostTotal, RetiredTotal;      // en «por mil» de densidad: 1 ‰ = ZombiesPerPermil (10) zombis
+        public long InjectedZombies => InjectedTotal * ZombiesPerPermil;        // todos los contadores de salida, en zombis individuales (decisión de Mak)
+        public long LostZombies => LostTotal * ZombiesPerPermil;
+        public long RetiredZombies => RetiredTotal * ZombiesPerPermil;
+        public long InjectedZombiesThisTick { get { long s = 0; foreach (var i in Injections) s += i.Amount; return s * ZombiesPerPermil; } }
+        public long RetiredZombiesThisTick => RetiredThisTick * ZombiesPerPermil;
+        public long InitialMassAlive => Field.StaticMass();      // la horda inicial que sigue viva (Sara: el director solo gasta masa inyectada)
         public readonly List<Injection> Injections = new List<Injection>();   // lo inyectado en ESTE tick (celda y cantidad), para QA (Sara); no entra en el hash
         public long LostThisTick, RetiredThisTick;
         public readonly List<Injection> Retirements = new List<Injection>();   // lo retirado en ESTE tick (celda y cantidad), para QA       // masa(t) = masa(t-1) + inyectada − bajas, exacto en enteros (D-N33, Mak)
+        public int ActiveZoneTakenS;                // de lo que sacó la zona, la parte que era guarnición
         public int ActiveZoneNode = -1;             // nodo con zona materializada (-1 = ninguna; el MVP admite una)
         public int ActiveZoneTaken;                 // densidad (por mil) que salió de la mancha al materializar
         public long ActiveZoneSinceTick = -1;
@@ -213,6 +292,15 @@ namespace TBD.Net
         public readonly List<IntelEntry> Intel = new List<IntelEntry>();   // informe de inteligencia (entradas en orden de tick)
         public HiveDirector Director = new HiveDirector();               // hito 4: decide una vez por hora de juego
         public bool DirectorEnabled = true;
+        /// <summary>
+        /// Emboscada materializada (hito 4): un tren cae en una emboscada preparada. La horda que el director juntó en el punto sale del campo
+        /// (queda en el encuentro) y el tren se detiene. Se resuelve con la orden ResolveAmbush (la zona devuelve los supervivientes) o,
+        /// si nadie responde en AmbushWaitTicks, por expiración: la horda se dispersa y el tren pierde parte de la carga.
+        /// </summary>
+        public struct AmbushEncounter { public bool Active; public int Service, Edge, Cell, Taken; public long ExpireTick; }
+        public AmbushEncounter Encounter;
+        public const long AmbushWaitTicks = 750;           // 30 min de juego (a 2,4 s por tick: 1.800 s)
+        public const int AmbushCargoLossMil = 300;         // carga que pierde el tren si no se resuelve (PROTOTIPO)
         public readonly List<int> PendingAmbushes = new List<int>();      // tramos con emboscada preparada (TR-3 cuando el tren cae en ella)
         readonly List<NetCommand> _queue = new List<NetCommand>();
 
@@ -262,6 +350,7 @@ namespace TBD.Net
                     case NetCmdType.Resume: Paused = false; break;
                     case NetCmdType.TrainHold: if (c.Arg >= 0 && c.Arg < Services.Count) { Services[c.Arg].Held = true; Services[c.Arg].Train.Stop(); } break;
                     case NetCmdType.Materialize: Materialize(c.Arg); break;
+                    case NetCmdType.ResolveAmbush: ResolveAmbush(c.Arg, c.Arg2, false); break;
                     case NetCmdType.Dematerialize: Dematerialize(c.Arg, c.Arg2); break;
                     case NetCmdType.ConsumeAmmo: ConsumeAmmo(c.Arg, c.Arg2); break;
                     case NetCmdType.TrainGo:
@@ -325,13 +414,14 @@ namespace TBD.Net
                 {
                     if (x < 0 || y < 0 || x >= HordeField.W || y >= HordeField.H) continue;
                     int c = y * HordeField.W + x;
-                    if (Field.D[c] > best) { best = Field.D[c]; i = c; }
+                    if (Field.D[c] + Field.S[c] > best) { best = Field.D[c] + Field.S[c]; i = c; }
                 }
             ActiveZoneCell = i;
             ActiveZoneNode = node;
-            ActiveZoneTaken = Field.D[i];
+            ActiveZoneTaken = Field.D[i] + Field.S[i];
+            ActiveZoneTakenS = Field.S[i];            // la parte de guarnición vuelve a su sitio como guarnición
             ActiveZoneSinceTick = Tick;
-            Field.D[i] = 0;
+            Field.D[i] = 0; Field.S[i] = 0;
             Field.Frozen = i;
         }
 
@@ -341,9 +431,11 @@ namespace TBD.Net
             if (node != ActiveZoneNode) return;
             int i = ActiveZoneCell;
             LostThisTick += Math.Max(0, ActiveZoneTaken - Math.Max(0, returnPermil));
-            LostTotal += Math.Max(0, ActiveZoneTaken - Math.Max(0, returnPermil));   // las bajas de la zona salen de la masa; si vuelve más de lo que salió (refuerzos) cuenta como inyectado
+            LostTotal += Math.Max(0, ActiveZoneTaken - Math.Max(0, returnPermil));
+            Director.OnZoneLoss(this, node, Math.Max(0, ActiveZoneTaken - Math.Max(0, returnPermil)));      // estado de manada «asedio»: pierde más del 50 % y se retira   // las bajas de la zona salen de la masa; si vuelve más de lo que salió (refuerzos) cuenta como inyectado
             InjectedTotal += Math.Max(0, Math.Max(0, returnPermil) - ActiveZoneTaken);
-            Field.D[i] += Math.Max(0, returnPermil);
+            int back = Math.Max(0, returnPermil), backS = Math.Min(back, ActiveZoneTakenS);
+            Field.S[i] += backS; Field.D[i] += back - backS;
             ActiveZoneCell = -1;
             Field.Frozen = -1;
             ActiveZoneNode = -1;
@@ -359,6 +451,7 @@ namespace TBD.Net
             if (Paused) return;
             for (int s = 0; s < Services.Count; s++) StepService(Services[s]);
             if (ActiveZoneNode >= 0 && ActiveZoneNode < Director.AttentionTicks.Length) { Director.AttentionTicks[ActiveZoneNode]++; Director.LastSeenTick[ActiveZoneNode] = Tick; }   // memoria de atención
+            if (Encounter.Active && Tick >= Encounter.ExpireTick) ResolveAmbush(Encounter.Service, Encounter.Taken, true);   // nadie respondió: la horda se dispersa y el tren pierde carga
             if (DirectorEnabled && Tick % 1500 == 0) Director.Hourly(this);       // una vez por hora de juego
             if (Tick % NetConst.FieldEvery == 0)
             {
@@ -389,6 +482,7 @@ namespace TBD.Net
                     var ce = sv.AtStop ? null : sv.Train.CurrentEdge(Graph);
                     if (ce == null || !PendingAmbushes.Contains(ce.Id) || ce.HordeAtMm < 0) continue;
                     PendingAmbushes.Remove(ce.Id);
+                    StartEncounter(sv, ce);
                     string punto = ce.Ambush.Count > 0 ? ce.Ambush[0].Name : Graph.Nodes[ce.A].Name + "–" + Graph.Nodes[ce.B].Name;
                     Intel.Add(new IntelEntry { Tick = Tick, Id = "TR-3", Vars = new[] { "punto", punto } });
                 }
@@ -397,6 +491,39 @@ namespace TBD.Net
                     foreach (var al in Alerts)
                         if (al.Priority == 0 && !prev.Exists(p => p.Id == al.Id)) { Speed = 1; break; }
             }
+        }
+
+        void StartEncounter(TrainService sv, RailEdge ce)
+        {
+            if (Encounter.Active) return;                                  // MVP: un encuentro a la vez
+            int cell = -1;
+            foreach (var pl in Director.Active) if (pl.Kind == HiveDirector.PlanKind.Emboscada && pl.Edge == ce.Id) { cell = pl.Cell; break; }
+            if (cell < 0) return;
+            int taken = Field.D[cell];
+            Field.D[cell] = 0;
+            LostThisTick += 0;                                             // la masa no se pierde: vuelve al resolverse
+            Encounter = new AmbushEncounter { Active = true, Service = Services.IndexOf(sv), Edge = ce.Id, Cell = cell, Taken = taken, ExpireTick = Tick + AmbushWaitTicks };
+            sv.Ambushed = true; sv.Train.Stop();
+            Field.Frozen = Field.Frozen >= 0 ? Field.Frozen : cell;        // la celda del encuentro no recibe masa mientras dura
+        }
+
+        /// <summary>Resuelve la emboscada: los supervivientes vuelven al campo, las bajas se pierden y el tren sigue.</summary>
+        void ResolveAmbush(int service, int survivorsPermil, bool expired)
+        {
+            if (!Encounter.Active || Encounter.Service != service) return;
+            var enc = Encounter;
+            int back = Math.Max(0, Math.Min(survivorsPermil, enc.Taken));
+            Field.D[enc.Cell] += back;
+            long lost = enc.Taken - back;
+            LostThisTick += lost; LostTotal += lost;
+            if (Field.Frozen == enc.Cell) Field.Frozen = -1;
+            var sv = Services[enc.Service];
+            sv.Ambushed = false;
+            if (expired)                                                   // nadie respondió: la carga se resiente
+                for (int r = 0; r < NetConst.ResCount; r++) sv.Cargo[r] -= sv.Cargo[r] * AmbushCargoLossMil / 1000;
+            sv.Train.CargoTonnes = sv.CargoTotal();
+            if (!sv.Held) sv.Train.Go();
+            Encounter = default;
         }
 
         List<RailTrain> Trains()
@@ -432,7 +559,7 @@ namespace TBD.Net
                 return;
             }
 
-            if (s.Held) return;
+            if (s.Held || s.Ambushed) return;
             if (t.State == RailTrainState.Detenido)
             {
                 var e = t.CurrentEdge(Graph);
@@ -569,6 +696,7 @@ namespace TBD.Net
             r.Edges = h;
             r.Memory = (Traffic != null ? Traffic.Hash() : 0) + Mix(0x1E7E1UL ^ (ulong)(uint)Intel.Count) + Director.Hash();
             foreach (int pa in PendingAmbushes) r.Memory += Mix(0xA3B05UL ^ (ulong)(uint)pa);
+            if (Encounter.Active) r.Memory += Mix(0xE9C0UL ^ ((ulong)(uint)Encounter.Cell << 32) ^ ((ulong)(uint)Encounter.Taken << 8) ^ (ulong)Encounter.ExpireTick ^ ((ulong)(uint)Encounter.Service << 56));
             return r;
         }
 
@@ -612,9 +740,12 @@ namespace TBD.Net
             Add(w, 2, "2 Montaña", Stop("Sagunto", 7, T(60, 40, 80, 20)), Stop("Teruel", 15, T(-60, -40, -80, -20)));
 
             // tres manchas: al oeste de Segorbe (interior), al norte de Castellón y al este de Teruel
-            w.Field.Blob(40, 66, 6, 550);
-            w.Field.Blob(61, 55, 5, 600);           // al norte de Castellón, tierra adentro (no en el mar)
-            w.Field.Blob(37, 46, 4, 500);
+            // D-N37b: paisaje (lejos de la vía, no cuenta para el combate) y guarnición (a tiro de la vía: ~1.600 ‰, lo que paga el balance de Hugo)
+            w.Field.BlobStatic(30, 74, 6, 550);                // paisaje: monte al oeste de Segorbe, lejos de la vía
+            w.Field.BlobStatic(58, 63, 1, 160);                // guarnición pegada a Castellón
+            w.Field.BlobStatic(42, 62, 1, 160);                // guarnición pegada a Barracas
+            w.Field.BlobStatic(61, 55, 5, 600);           // al norte de Castellón, tierra adentro (no en el mar)
+            w.Field.BlobStatic(42, 44, 4, 500);                // paisaje: al este de Teruel, lejos de la vía
             w.Tick = NetConst.Hours(5.5);          // el prototipo arranca a las 05:30, media hora antes del primer tren
             return w;
         }
