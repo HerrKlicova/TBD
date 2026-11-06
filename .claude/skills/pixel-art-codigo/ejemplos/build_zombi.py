@@ -132,14 +132,18 @@ def muerte(f):
 
 
 # Variantes de ropa (Lucía): 3 camisas x 2 pantalones, por sustitución de colores.
+# Lucía, 6-nov: la tercera camisa en gris piedra #94948c (no olive_light, que es de la tropa).
+# #94948c ya es la cara de arriba de "gris"; "piedra" se distingue por el costado frío (concrete).
+# El gris pardo queda solo para cadáveres (L* 28: vivo se perdería en balasto y asfalto).
 CAMISAS = {"gris": ("concrete_light", "purple_grey"), "beige": ("beige", "olive_grey"),
-           "pardo": ("grey_brown", "olive_shadow")}
+           "piedra": ("concrete_light", "concrete")}
+CAMISAS_CADAVER = {"pardo": ("grey_brown", "olive_shadow")}
 PANTALONES = {"pizarra": ("slate", "slate_dark"), "oliva": ("olive_grey", "grey_brown")}
 
 
 def vestir(s, camisa, pantalon, cadaver=False):
     v = s.copy()
-    (r, rs), (pi, pie) = CAMISAS[camisa], PANTALONES[pantalon]
+    (r, rs), (pi, pie) = {**CAMISAS, **CAMISAS_CADAVER}[camisa], PANTALONES[pantalon]
     remapear(v, {k: w for k, w in {ROPA: r, ROPA_S: rs, PIERNA: pi, PIE: pie}.items() if k != w})
     if cadaver:
         remapear(v, APAGAR)
@@ -186,5 +190,11 @@ if __name__ == "__main__":
             exportar(f"vm_zombi_{c}_{p}_muerte", vm, 8, False)
             filas.append(va + vm)
             etiquetas.append(f"{c}/{p}")
+    for c in CAMISAS_CADAVER:          # solo cadáver: muerte completa con esta ropa
+        for p in PANTALONES:
+            vm = [vestir(s, c, p, cadaver=k >= 3) for k, s in enumerate(m)]
+            exportar(f"vm_zombi_{c}_{p}_muerte", vm, 8, False)
+            filas.append([Sprite()] * 4 + vm)
+            etiquetas.append(f"{c}/{p} (cadáver)")
     contact_sheet(filas, OUT / "contacto_zombi.png", scale=5, labels=etiquetas)
     print("variantes:", len(filas))
