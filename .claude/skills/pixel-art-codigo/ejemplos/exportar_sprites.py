@@ -40,6 +40,7 @@ import build_horda_color  # noqa: E402
 import build_vfx_tren  # noqa: E402
 import build_parallax_tren  # noqa: E402
 import build_armas  # noqa: E402
+import build_vfx_vehiculos  # noqa: E402
 
 PIVOTE = [0.5, 0.53]
 
@@ -157,6 +158,7 @@ def prototipo_noche(out):
     build_vfx_tren.exportar(out)                         # vista cercana del tren: chispas, faro, ventanillas, polvo
     build_parallax_tren.exportar(out)                    # fondo del tren: cielo, sierra y colinas, día y noche
     build_armas.exportar(out)                            # iconos del HUD y VFX de disparo e impacto por arma
+    build_vfx_vehiculos.exportar(out)                    # polvo en marcha, orugas, humo, fuego, explosión, calcinado
 
 
 if __name__ == "__main__":

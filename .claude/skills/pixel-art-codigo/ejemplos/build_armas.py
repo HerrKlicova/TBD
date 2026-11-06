@@ -83,7 +83,7 @@ def icono_ag36():
 
 
 def icono_mg4e():
-    """MG4E: cajón largo con tapa, asa, caja de cinta debajo, bípode plegado hacia delante y cañón largo."""
+    """MG4E: cajón largo con tapa, asa, caja de cinta debajo, bípode abierto y cañón largo."""
     s = Sprite(48, 16)
     s.rect(12, 5, 20, 3, CUERPO)                 # cajón y tapa
     s.rect(14, 3, 10, 2, CUERPO)                 # tapa con mira
@@ -91,7 +91,7 @@ def icono_mg4e():
     s.vline(28, 3, 4, CUERPO)
     s.rect(32, 6, 13, 2, CUERPO)                 # cañón
     s.rect(45, 5, 2, 4, CUERPO)                  # apagallamas
-    s.line(33, 8, 42, 10, CUERPO)                # bípode plegado
+    s.line(39, 8, 36, 13, CUERPO); s.line(40, 8, 43, 13, CUERPO)   # bípode abierto (la seña de la MG4E, D-N86)
     s.rect(21, 8, 2, 2, CUERPO)                  # boca de alimentación
     s.rect(17, 10, 10, 4, CUERPO)                # caja de cinta de 200, separada del cajón
     s.poly([(12, 8), (14, 8), (13, 13), (11, 13)], CUERPO)   # pistolete
@@ -101,7 +101,7 @@ def icono_mg4e():
 
 
 def icono_g28():
-    """G28 (M7_g28_3): cañón largo, visor grande, culata regulable de color arena y bípode."""
+    """G28 (M7_g28_3): cañón largo, visor grande y culata regulable de color arena. Sin bípode (D-N86)."""
     s = Sprite(48, 16)
     s.rect(12, 6, 16, 3, CUERPO)                 # cajón
     s.rect(28, 6, 8, 2, CUERPO)                  # guardamanos largo
@@ -115,7 +115,6 @@ def icono_g28():
     s.rect(1, 5, 11, 3, CUERPO)                  # culata con carrillera
     s.rect(1, 8, 3, 4, CUERPO)
     s.rect(4, 4, 6, 1, CUERPO)
-    s.line(31, 8, 28, 13, CUERPO); s.line(32, 8, 35, 13, CUERPO)   # bípode abierto
     s = _fin(s)
     for x in range(2, 11):                      # culata arena como en la foto (tan, nunca ámbar)
         for y in range(4, 12):
