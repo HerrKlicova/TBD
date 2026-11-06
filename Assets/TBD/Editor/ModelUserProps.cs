@@ -1,0 +1,41 @@
+using UnityEditor;
+using UnityEngine;
+
+namespace TBD.EditorTools
+{
+    /// <summary>
+    /// Los FBX de Teo traen las propiedades de usuario tbd_faccion y tbd_rim (1 = propia). Unity las entrega en
+    /// OnPostprocessGameObjectWithUserProperties (con «Import Custom Properties» activado en el importador de modelos).
+    /// Si tbd_rim vale 1 se añade un RimMarker al objeto; el resultado queda en Library para poder comprobar que Unity las recibe.
+    /// </summary>
+    public class ModelUserProps : AssetPostprocessor
+    {
+        void OnPreprocessModel()
+        {
+            if (!assetPath.StartsWith("Assets/TBD/Resources/Models/")) return;
+            var mi = (ModelImporter)assetImporter;
+            mi.importBlendShapes = false;
+            mi.importCameras = false;
+            mi.importLights = false;
+        }
+
+        void OnPostprocessGameObjectWithUserProperties(GameObject g, string[] names, object[] values)
+        {
+            if (!assetPath.StartsWith("Assets/TBD/Resources/Models/")) return;
+            string faccion = ""; int rim = 0; var log = new System.Text.StringBuilder();
+            for (int i = 0; i < names.Length; i++)
+            {
+                log.Append(names[i]).Append('=').Append(values[i]).Append(';');
+                if (names[i] == "tbd_faccion") faccion = values[i] != null ? values[i].ToString() : "";
+                if (names[i] == "tbd_rim") { int.TryParse(values[i] != null ? values[i].ToString() : "0", out rim); }
+            }
+            System.IO.Directory.CreateDirectory("Library/TBD");
+            System.IO.File.AppendAllText("Library/TBD/userprops.log", assetPath + " | " + g.name + " | " + log + "\n");
+            if (rim == 1)
+            {
+                var m = g.GetComponent<TBD.View.RimMarker>() ?? g.AddComponent<TBD.View.RimMarker>();
+                m.Rim = 1; m.Faccion = faccion;
+            }
+        }
+    }
+}
