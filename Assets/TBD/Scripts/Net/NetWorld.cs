@@ -29,7 +29,7 @@ namespace TBD.Net
     }
 
     // ================================================================== órdenes
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19 }
 
     public struct NetCommand
     {
@@ -57,6 +57,7 @@ namespace TBD.Net
         public int StopIndex;              // parada en la que está o hacia la que va
         public bool AtStop = true;         // esperando en la parada StopIndex
         public bool Held;                  // retenido por el jugador
+        public bool ScheduleEdited;        // el jugador le ha puesto horario (SetSchedule): entra en el hash con sus paradas y cargas
         public bool WorksTrain;            // tren de obras (hito 5): con materiales y obreros a bordo repara tramos cortados por escombros
         public int HaltAt = -1;            // «detener en el emplazamiento» (hito 5): nodo donde el tren para al llegar (-1 = ninguno)
         public bool Ambushed;              // detenido por una emboscada hasta que se resuelva (zona o expiración)
@@ -298,6 +299,7 @@ namespace TBD.Net
         public readonly int[] BaseAttraction;
         public readonly int[,] Stock;              // por nodo y recurso
         public readonly StationState Stations;     // hito 5: qué emplazamientos están fundados (flag dentro del hash, sin nodos en caliente)
+        public readonly TallerState Taller;        // hito 5, paso 5: la cola del taller de Sagunto (dentro del hash, en «existencias»)
         public readonly ObrasState Works;          // hito 5: lo construido en cada nodo (dentro del hash, en «existencias»)
         public long Tick;
         public int Speed = 1;                       // 1, 2 o 4 ticks por paso de 1/30 s
@@ -348,6 +350,7 @@ namespace TBD.Net
             Stock = new int[g.Nodes.Count, NetConst.ResCount];
             Works = new ObrasState(g.Nodes.Count, BalanceSource.Obras());
             Stations = new StationState(g, BalanceSource.Stations());
+            Taller = new TallerState(g, BalanceSource.Taller());
             Traffic = new TrafficMemory(g.Edges.Count, BalanceSource.Traffic());
             Director.P = BalanceSource.Director();
             Director.Curve = BalanceSource.Curve();
@@ -391,6 +394,10 @@ namespace TBD.Net
                     case NetCmdType.ConsumeAmmo: ConsumeAmmo(c.Arg, c.Arg2); break;
                     case NetCmdType.AssignWorkers: AssignWorkers(c.Arg, c.Arg2); break;                    // Arg = nodo, Arg2 = obreros
                     case NetCmdType.HaltAtSite: HaltAtSite(c.Arg, c.Arg2); break;                           // Arg = emplazamiento (-1 cancela), Arg2 = servicio
+                    case NetCmdType.SetSchedule: SetSchedule(c.Arg, c.Payload); break;       // Arg = tren, Payload = [nodo, hora de salida (ticks), 4 cargas] por parada
+                    case NetCmdType.OrderTrain: OrderTrain((TallerKind)c.Arg); break;
+                    case NetCmdType.CancelTrainOrder: CancelTrainOrder(c.Arg); break;
+                    case NetCmdType.SetChispas: MoveChispas(c.Arg); break;       // Arg = 0 al taller, k > 0 al tren de índice k − 1
                     case NetCmdType.SetGate: if (c.Payload != null && c.Payload.Length == 2 && (c.Arg & 0xFFFF) == ActiveZoneNode) Works.SetGateMode(c.Arg & 0xFFFF, c.Payload[0], c.Payload[1], c.Arg >> 16); break;     // Arg = nodo | (modo << 16), Payload = [x, y] de la puerta
                     case NetCmdType.RepairEdge: RepairEdge(c.Arg, c.Arg2); break;                           // Arg = tramo, Arg2 = servicio del tren de obras
                     case NetCmdType.FoundStation: FoundStation(c.Arg); break;                               // Arg = nodo
@@ -440,6 +447,46 @@ namespace TBD.Net
             Stock[node, (int)Res.Municion] = Math.Max(0, Stock[node, (int)Res.Municion] - left);
         }
 
+        // ---------------------------------------------------------------- horario de un tren (hito 5: un tren recién fabricado o rehabilitado no se mueve sin él)
+        public const int MaxScheduleStops = 12;
+        public const int MaxScheduleTransfer = 1000;
+
+        /// <summary>
+        /// «Poner horario»: sustituye las paradas de un tren que está parado en una parada. data = por cada parada seis enteros
+        /// [nodo, hora de salida en ticks del día, carga de munición, de combustible, de materiales y de personas] (+ carga en el tren, − descarga en la estación).
+        /// El horario tiene que incluir el nodo donde está el tren (de ahí sale: es su parada actual); dos paradas seguidas, contando el cierre, no pueden ser el mismo nodo.
+        /// Si no vale, no cambia nada.
+        /// </summary>
+        public ScheduleResult SetSchedule(int service, int[] data)
+        {
+            if (service < 0 || service >= Services.Count) return ScheduleResult.TrenInexistente;
+            var s = Services[service];
+            if (!s.AtStop || s.Ambushed || s.StopIndex < 0 || s.StopIndex >= s.Stops.Count) return ScheduleResult.NoEstaParado;
+            int stride = 2 + NetConst.ResCount;
+            if (data == null || data.Length == 0 || data.Length % stride != 0 || data.Length / stride > MaxScheduleStops) return ScheduleResult.HorarioInvalido;
+            int n = data.Length / stride, cur = s.Stops[s.StopIndex].Node, newIndex = -1;
+            for (int k = 0; k < n; k++)
+            {
+                int node = data[k * stride], at = data[k * stride + 1];
+                if (node < 0 || node >= Graph.Nodes.Count || at < 0 || at >= NetConst.DayTicks) return ScheduleResult.HorarioInvalido;
+                if (n > 1 && node == data[((k + 1) % n) * stride]) return ScheduleResult.HorarioInvalido;
+                for (int r = 0; r < NetConst.ResCount; r++) if (Math.Abs(data[k * stride + 2 + r]) > MaxScheduleTransfer) return ScheduleResult.HorarioInvalido;
+                if (newIndex < 0 && node == cur) newIndex = k;
+            }
+            if (newIndex < 0) return ScheduleResult.NoIncluyeParadaActual;
+            s.Stops.Clear();
+            for (int k = 0; k < n; k++)
+            {
+                var tr = new int[NetConst.ResCount];
+                for (int r = 0; r < NetConst.ResCount; r++) tr[r] = data[k * stride + 2 + r];
+                s.Stops.Add(new ScheduleStop { Node = data[k * stride], DepartAt = data[k * stride + 1], Transfer = tr });
+            }
+            s.StopIndex = newIndex;
+            s.DepartedDay.Clear();                                    // horario nuevo: ninguna parada cuenta como ya salida hoy
+            s.ScheduleEdited = true;
+            return ScheduleResult.Ok;
+        }
+
         // ---------------------------------------------------------------- obras (hito 5)
         /// <summary>
         /// Paga y registra una obra en el nodo (solo con la zona del nodo materializada: se construye dentro de una zona en detalle).
@@ -449,11 +496,140 @@ namespace TBD.Net
         public WorkPlan PlaceWork(int node, PieceKind kind, int[] pts)
         {
             if (node < 0 || node >= Graph.Nodes.Count || node != ActiveZoneNode) return null;
-            var plan = Works.Preview(node, kind, pts, Stock[node, (int)Res.Materiales]);
+            var plan = PreviewWork(node, kind, pts);
             if (!plan.Ok) return plan;
             Stock[node, (int)Res.Materiales] -= plan.CostU;
             plan.Id = Works.Add(node, plan);
             return plan;
+        }
+
+        /// <summary>
+        /// Lo mismo que PlaceWork pero sin pagar ni registrar: es lo que enseña el fantasma. Además del coste y el corte, exige terreno asegurado
+        /// (sin zombis en pie a menos de SecureMm de la obra) cuando la zona ha enchufado su rejilla en ZoneDensity.
+        /// </summary>
+        public WorkPlan PreviewWork(int node, PieceKind kind, int[] pts)
+        {
+            var plan = Works.Preview(node, kind, pts, Stock[node, (int)Res.Materiales]);
+            if (!plan.Ok || ZoneDensity == null) return plan;
+            var view = ZoneDensity();
+            if (view != null && !Terreno.PlanSecure(view, plan, Works.P.SecureMm, out _, out _))
+            {
+                plan.Ok = false; plan.Why = "Hay zombis cerca: el terreno no está asegurado";
+            }
+            return plan;
+        }
+
+        /// <summary>
+        /// Enchufe de la zona (Marcos): devuelve la rejilla de densidad del tick en mm locales al nodo, o null si no hay zona. No entra en el hash:
+        /// la zona es determinista y el resultado depende solo de su estado. Sin enchufar (pruebas de la red, goldens) todo terreno vale.
+        /// </summary>
+        public Func<DensityView> ZoneDensity;
+        // ---------------------------------------------------------------- el taller fabrica trenes (hito 5, diseno-hito5.md §5)
+        /// <summary>
+        /// Encargar un tren al taller. Paga con las existencias del nodo del taller (materiales, combustible y, salvo el tren de obras, su tripulación de 10);
+        /// no cobra nada si falla. El tren de obras (rehabilitado o nuevo) solo comprueba que haya sus 8 obreros libres por encima del retén: se descuentan al salir (Hugo y Lucía).
+        /// </summary>
+        public TallerResult OrderTrain(TallerKind kind)
+        {
+            if (Taller.NodeIndex < 0) return TallerResult.NoHayTaller;
+            if (kind > TallerKind.RehabObras) return TallerResult.TipoInvalido;
+            var p = Taller.P;
+            bool rehab = kind == TallerKind.RehabTren3 || kind == TallerKind.RehabObras;
+            bool works = kind == TallerKind.RehabObras || kind == TallerKind.Obras;
+            if (kind == TallerKind.RehabTren3 && Taller.Tren3Done || kind == TallerKind.RehabObras && Taller.ObrasDone) return TallerResult.YaRehabilitado;
+            if (Services.Count + Taller.Queue.Count >= p.MaxTrainsNow) return TallerResult.MaximoTrenes;
+            int u = kind == TallerKind.RehabTren3 ? p.Tren3U : kind == TallerKind.RehabObras ? p.ObrasU : p.TrainU;
+            int fuel = kind == TallerKind.RehabTren3 ? p.Tren3Fuel : kind == TallerKind.RehabObras ? p.ObrasFuel : p.TrainFuel;
+            int crew = works ? 0 : p.TrainCrew;        // Hugo: todo tren de servicio (nuevo o el Tren 3 rehabilitado) toma 10; el de obras no: sus 8 obreros son su tripulación
+            int n = Taller.NodeIndex;
+            if (Stock[n, (int)Res.Materiales] < u) return TallerResult.SinMateriales;
+            if (Stock[n, (int)Res.Combustible] < fuel) return TallerResult.SinCombustible;
+            if (Stock[n, (int)Res.Personas] - Works.P.GarrisonMin < crew + (works ? p.ObrasCrew : 0)) return TallerResult.SinObreros;     // libres por encima del retén
+            Stock[n, (int)Res.Materiales] -= u; Stock[n, (int)Res.Combustible] -= fuel; Stock[n, (int)Res.Personas] -= crew;
+            if (kind == TallerKind.RehabTren3) Taller.Tren3Done = true;
+            if (kind == TallerKind.RehabObras) Taller.ObrasDone = true;
+            Taller.Queue.Add(new TallerOrder
+            {
+                Kind = kind, PaidU = u, PaidFuel = fuel, PaidCrew = crew,
+                NeedTicks = rehab ? NetConst.Hours(p.RehabHours) : (long)p.TrainDays * NetConst.DayTicks
+            });
+            return TallerResult.Ok;
+        }
+
+        /// <summary>
+        /// Cancelar un encargo de la cola (misma regla que las obras, D-N59, sobre lo pagado): sin empezar se devuelve el 100 %; empezado, floor(50 % de lo pagado).
+        /// La tripulación de un tren nuevo vuelve entera a la población. Un rehabilitado cancelado se puede volver a encargar. Si se había empezado, avisa (TL-3).
+        /// </summary>
+        public TallerResult CancelTrainOrder(int index)
+        {
+            if (index < 0 || index >= Taller.Queue.Count) return TallerResult.EncargoInexistente;
+            var o = Taller.Queue[index]; int n = Taller.NodeIndex;
+            long mil = o.Started ? Taller.P.CancelStartedMil : 1000;
+            int backU = (int)(o.PaidU * mil / 1000), backF = (int)(o.PaidFuel * mil / 1000);
+            Stock[n, (int)Res.Materiales] += backU; Stock[n, (int)Res.Combustible] += backF; Stock[n, (int)Res.Personas] += o.PaidCrew;
+            if (o.Kind == TallerKind.RehabTren3) Taller.Tren3Done = false;
+            if (o.Kind == TallerKind.RehabObras) Taller.ObrasDone = false;
+            Taller.Queue.RemoveAt(index);
+            if (o.Started) Intel.Add(new IntelEntry { Tick = Tick, Id = "TL-3", Vars = new[] { "tren", TrainName(o.Kind, NextTrainId()), "u", backU.ToString() } });
+            return TallerResult.Ok;
+        }
+
+        /// <summary>
+        /// Mover a Chispas: arg 0 = al taller, k &gt; 0 = al tren de índice k − 1. No puede salir del taller hasta que ha rodado el tren de obras (D-N45), y solo
+        /// se cambia de sitio con el tren de origen y el de destino parados en el taller.
+        /// </summary>
+        public TallerResult MoveChispas(int arg)
+        {
+            if (Taller.ChispasAt == -2) return TallerResult.ChispasNoEsta;
+            int to = arg <= 0 ? -1 : arg - 1;
+            if (to >= Services.Count) return TallerResult.TrenLejos;
+            if (to == Taller.ChispasAt) return TallerResult.Ok;
+            if (!Taller.ObrasOut) return TallerResult.ChispasBloqueado;
+            if (Taller.ChispasAt >= 0 && !ParkedAtTaller(Taller.ChispasAt)) return TallerResult.TrenLejos;
+            if (to >= 0 && !ParkedAtTaller(to)) return TallerResult.TrenLejos;
+            Taller.ChispasAt = to;
+            return TallerResult.Ok;
+        }
+
+        bool ParkedAtTaller(int service)
+        {
+            var s = Services[service];
+            return s.AtStop && s.StopIndex >= 0 && s.StopIndex < s.Stops.Count && s.Stops[s.StopIndex].Node == Taller.NodeIndex;
+        }
+
+        int NextTrainId() { int id = 1; foreach (var sv in Services) id = Math.Max(id, sv.Train.Id + 1); return id; }
+        static string TrainName(TallerKind k, int id) { return k == TallerKind.RehabTren3 ? id + " Reserva" : k == TallerKind.RehabObras || k == TallerKind.Obras ? id + " Obras" : k == TallerKind.Combate ? id + " Combate" : id + " Carga"; }
+
+        /// <summary>
+        /// El taller trabaja las 24 h en el primer encargo de la cola (Hugo: bajo techo, sin horario de obra). Chispas en el taller acelera solo las rehabilitaciones.
+        /// Un tren de obras terminado espera en el taller hasta que haya sus 8 obreros libres (TL-2); al salir se descuentan.
+        /// </summary>
+        void AdvanceTaller()
+        {
+            if (Taller.Queue.Count == 0) return;
+            var o = Taller.Queue[0]; int n = Taller.NodeIndex;
+            if (!o.Waiting)
+            {
+                o.DoneMilli += Taller.RateMilli(o.Kind);
+                if (o.DoneMilli < o.NeedTicks * 1000) { Taller.Queue[0] = o; return; }
+                o.DoneMilli = o.NeedTicks * 1000;
+            }
+            bool works = o.Kind == TallerKind.RehabObras || o.Kind == TallerKind.Obras;
+            int free = Stock[n, (int)Res.Personas] - Works.P.GarrisonMin;
+            if (works && free < Taller.P.ObrasCrew)
+            {
+                if (!o.Waiting) Intel.Add(new IntelEntry { Tick = Tick, Id = "TL-2", Vars = new[] { "tren", TrainName(o.Kind, NextTrainId()), "n", (Taller.P.ObrasCrew - Math.Max(0, free)).ToString() } });
+                o.Waiting = true; Taller.Queue[0] = o;
+                return;
+            }
+            Taller.Queue.RemoveAt(0);
+            int id = NextTrainId(); string name = TrainName(o.Kind, id);
+            var s = new TrainService { Train = new RailTrain { Id = id, Name = name, SpeedMmPerTick = NetConst.TrainMmPerTick }, StopIndex = 0, AtStop = true };
+            s.Stops.Add(new ScheduleStop { Node = n, DepartAt = 0, Transfer = new int[NetConst.ResCount] });
+            if (works) { s.WorksTrain = true; Stock[n, (int)Res.Personas] -= Taller.P.ObrasCrew; s.Cargo[(int)Res.Personas] = Taller.P.ObrasCrew; Taller.ObrasOut = true; }
+            Services.Add(s);
+            Taller.Built++;
+            Intel.Add(new IntelEntry { Tick = Tick, Id = "TL-1", Vars = new[] { "tren", name } });     // «El {tren} está listo. Cuando quiera, comandante.» (la escena de cámara es de la interfaz)
         }
 
         /// <summary>«Asignar obreros»: población del nodo que trabaja en sus obras. Se limita a la población que hay en cada tick; no se gasta.</summary>
@@ -549,12 +725,25 @@ namespace TBD.Net
         /// </summary>
         public int EffectiveWorkers(int node)
         {
-            if (WorkPaused(node) || !Works.P.IsWorkTime(Tick % NetConst.DayTicks)) return 0;     // de noche se para toda la obra (Hugo, D-N59: 06:00 a 18:00)
+            if (!Works.P.IsWorkTime(Tick % NetConst.DayTicks)) return 0;     // de noche se para toda la obra (Hugo, D-N59: 06:00 a 18:00)
+            return AssignedWorkers(node);
+        }
+
+        /// <summary>Obreros que quedan asignados a la obra sin tener en cuenta el horario: sin bajar de la guarnición mínima y ninguno si la horda la tiene parada.</summary>
+        int AssignedWorkers(int node)
+        {
+            if (WorkPaused(node)) return 0;
             return Math.Max(0, Math.Min(Works.Workers[node], Stock[node, (int)Res.Personas] - Works.P.GarrisonMin));
         }
 
-        /// <summary>Obra activa = hay trabajo pendiente y trabaja alguien. Es lo que hace ruido (sondeo), pesa en el asedio y suma huella.</summary>
-        public bool WorkActive(int node) { return Works.IsActive(node) && EffectiveWorkers(node) > 0; }
+        /// <summary>
+        /// Obra EN CURSO = encargada y sin acabar, con gente asignada, también de noche (Hugo, D-N59 adenda 2). Es lo que pesa en el asedio (×1,5) y suma huella:
+        /// los objetivos del asedio son persistentes, no cambian cada 12 h y encargar las obras al anochecer no borra la presión.
+        /// </summary>
+        public bool WorkInProgress(int node) { return Works.IsActive(node) && AssignedWorkers(node) > 0; }
+
+        /// <summary>Obra TRABAJANDO = en curso y dentro del horario (06:00–18:00). Es lo que hace ruido (sondeo) y avanza.</summary>
+        public bool WorkActive(int node) { return WorkInProgress(node) && EffectiveWorkers(node) > 0; }
 
         /// <summary>Un tick de obra en cada nodo con obreros efectivos.</summary>
         /// <summary>Cada día, cada estación con obras paga el mantenimiento (MaintenanceU) de su almacén; si no puede, lo construido se desgasta (Hugo).</summary>
@@ -610,7 +799,7 @@ namespace TBD.Net
             if (sv.Cargo[(int)Res.Materiales] < EdgeRepairU(e) || sv.Cargo[(int)Res.Personas] < Works.P.WorksCrew) return RepairResult.SinCarga;
             if (RepairBlocked(e)) return RepairResult.HordeEncima;
             sv.Cargo[(int)Res.Materiales] -= EdgeRepairU(e);
-            e.RepairU = EdgeRepairU(e); e.RepairNeed = EdgeRepairNeed(e);       // lo pagado y lo pedido quedan fijos
+            e.RepairU = EdgeRepairU(e); e.RepairNeed = Taller.ChispasAt == service ? Taller.Faster(EdgeRepairNeed(e)) : EdgeRepairNeed(e);       // lo pagado y lo pedido quedan fijos (Chispas: un 25 % más rápido)
             e.RepairSvc = service; e.RepairDone = 0;
             sv.Held = true;
             return RepairResult.Ok;
@@ -705,6 +894,7 @@ namespace TBD.Net
             for (int s = 0; s < Services.Count; s++) StepService(Services[s]);
             AdvanceWorks();
             AdvanceRepairs();
+            AdvanceTaller();
             if (ActiveZoneNode >= 0 && ActiveZoneNode < Director.AttentionTicks.Length) { Director.AttentionTicks[ActiveZoneNode]++; Director.LastSeenTick[ActiveZoneNode] = Tick; }   // memoria de atención
             if (Encounter.Active && Tick >= Encounter.ExpireTick) ResolveAmbush(Encounter.Service, Encounter.Taken, true);   // nadie respondió: la horda se dispersa y el tren pierde carga
             if (DirectorEnabled && Tick % 1500 == 0) Director.Hourly(this);       // una vez por hora de juego
@@ -947,6 +1137,14 @@ namespace TBD.Net
                 for (int k = 0; k < s.DepartedDay.Count; k++) h += Mix(((ulong)(uint)t.Id << 52) ^ ((ulong)(uint)k << 40) ^ (ulong)(s.DepartedDay[k] + 1));
                 h += Mix(((ulong)(uint)t.Id << 4) ^ (s.AtStop ? 1UL : 0UL) ^ (s.Held ? 2UL : 0UL));
             }
+            foreach (var sv in Services)                                          // horarios puestos por el jugador (los del escenario no cambian y no entran)
+                if (sv.ScheduleEdited)
+                    for (int k = 0; k < sv.Stops.Count; k++)
+                    {
+                        var st = sv.Stops[k];
+                        h += Mix(0x5C4ED0UL ^ ((ulong)(uint)sv.Train.Id << 40) ^ ((ulong)(uint)k << 32) ^ ((ulong)(uint)st.Node << 16) ^ (ulong)st.DepartAt);
+                        for (int r3 = 0; r3 < NetConst.ResCount; r3++) h += Mix(0x5C4ED1UL ^ ((ulong)(uint)sv.Train.Id << 40) ^ ((ulong)(uint)k << 32) ^ ((ulong)r3 << 24) ^ (ulong)(uint)(st.Transfer == null ? 0 : st.Transfer[r3]));
+                    }
             foreach (var sv in Services) if (sv.WorksTrain) h += Mix(0x70B5UL ^ ((ulong)(uint)sv.Train.Id << 32));
             foreach (var sv in Services) if (sv.HaltAt >= 0) h += Mix(0x4A17UL ^ ((ulong)(uint)sv.Train.Id << 32) ^ (ulong)(uint)(sv.HaltAt + 1));
             r.Trains = h;
@@ -958,6 +1156,7 @@ namespace TBD.Net
             }
             h += Works.Hash();
             h += Stations.Hash();
+            h += Taller.Hash();
             r.Stock = h;
             h = 0;
             foreach (var e in Graph.Edges)

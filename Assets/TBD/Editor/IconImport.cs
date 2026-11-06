@@ -11,7 +11,7 @@ namespace TBD.EditorTools
     {
         void OnPreprocessTexture()
         {
-            if (!assetPath.StartsWith("Assets/TBD/Resources/Icons/")) return;
+            if (!assetPath.StartsWith("Assets/TBD/Resources/Icons/") && !assetPath.StartsWith("Assets/TBD/Resources/Models/")) return;     // los modelos de Teo llevan una paleta de 32x16 (punto, sin compresión)
             var ti = (TextureImporter)assetImporter;
             ti.textureType = TextureImporterType.Default;
             ti.filterMode = FilterMode.Point;

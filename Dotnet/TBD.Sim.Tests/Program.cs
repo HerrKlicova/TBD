@@ -145,6 +145,8 @@ namespace TBD.Sim.Tests
             HiveTests.Run(Check);
             ObrasTests.Run(Check);
             EstacionesTests.Run(Check);
+            HorarioTests.Run(Check);
+            TallerTests.Run(Check);
             GoldenTests.Run(Check);
             Console.WriteLine($"\nResumen: {_pass} correctas, {_fail} fallos");
             return _fail == 0 ? 0 : 1;

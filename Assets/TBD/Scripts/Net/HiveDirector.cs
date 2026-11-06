@@ -137,7 +137,7 @@ namespace TBD.Net
         public long SiegeTargetWeight(NetWorld w, int n)
         {
             long wt = SiegeWeight(w, n);
-            return w.WorkActive(n) ? wt * P.WorkWeightMil / 1000 : wt;
+            return w.WorkInProgress(n) ? wt * P.WorkWeightMil / 1000 : wt;
         }
 
         /// <summary>Sorteo del objetivo con la semilla del tick, probabilidad proporcional al peso al cuadrado (D-N33). -1 si no hay.</summary>
@@ -221,7 +221,7 @@ namespace TBD.Net
             long pop = 0; int held = 0;
             for (int n = 0; n < w.Graph.Nodes.Count; n++) { if (w.Stations.IsSite(n) && !w.Stations.Founded[n]) continue; long p = Math.Max(0, w.Stock[n, (int)Res.Personas]); pop += p; if (p > 0) held++; }
             int building = 0;
-            for (int n = 0; n < w.Graph.Nodes.Count; n++) if (w.WorkActive(n)) building++;       // hito 5: una huella por nodo con obra activa (partir una obra en varias no la multiplica)
+            for (int n = 0; n < w.Graph.Nodes.Count; n++) if (w.WorkInProgress(n)) building++;       // hito 5: una huella por nodo con obra en curso (también de noche, Hugo D-N59 adenda 2) (partir una obra en varias no la multiplica)
             return pop / PersonsPerHugoUnit * P.HuellaPersonMil + (long)w.Services.Count * P.HuellaTrainMil + (long)held * P.HuellaNodeMil + (long)building * P.WorkHuellaMil;
         }
 

@@ -32,15 +32,27 @@ namespace TBD.View
     {
         public static Mesh ZombieMesh;
         public static Material ZombieMaterial, ZombieLodMaterial;
+        public static Material[] Materials;               // una por camisa del zombi de Teo (meshes[i] con materials[i])
+        public static int Variants = 1;
         public static RenderMeshArray Array;
         public static bool Ready;
         /// <summary>D-N61: a poco zoom cada zombi se dibuja con el sprite de masa de 8 px (con histéresis, la decide PrototypeBootstrap).</summary>
         public static bool LodOn;
+        public static bool FigureMode { get { return RenderAttachSystem.FigureMode; } }
         public static bool LodDebug;                      // tiñe el LOD de magenta para comprobar que el cambio ocurre (reflexión desde el Editor)
         public static int LodVersion;
 
+        public static void SetVariants(Mesh[] meshes, Material[] materials)
+        {
+            ZombieMesh = meshes[0]; ZombieMaterial = materials[0]; ZombieLodMaterial = materials[0];
+            Materials = materials; Variants = materials.Length;
+            Array = new RenderMeshArray(materials, meshes);
+            Ready = true;
+        }
+
         public static void Set(Mesh mesh, Material material, Material lodMaterial)
         {
+            Materials = new[] { material, lodMaterial };
             ZombieMesh = mesh;
             ZombieMaterial = material;
             ZombieLodMaterial = lodMaterial;
@@ -71,15 +83,17 @@ namespace TBD.View
         {
             if (!RenderAssets.Ready || _query.IsEmptyIgnoreFilter) return;
 
-            var desc = new RenderMeshDescription(ShadowCastingMode.Off, false);
+            var desc = new RenderMeshDescription(FigureMode ? ShadowCastingMode.On : ShadowCastingMode.Off, FigureMode);
             var mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(RenderAssets.LodOn ? 1 : 0, 0);
-            var scale = new PostTransformMatrix { Value = SpriteMatrix(RenderAssets.LodOn) };   // sprite de Bruno tumbado sobre el suelo
+            var scale = new PostTransformMatrix { Value = SpriteMatrix(RenderAssets.LodOn) };
+            bool teo = RenderAssets.Variants > 1;   // sprite de Bruno tumbado sobre el suelo
             var ents = _query.ToEntityArray(Allocator.Temp);
             var zs = _query.ToComponentDataArray<Zombie>(Allocator.Temp);
             var em = EntityManager;
             for (int i = 0; i < ents.Length; i++)
             {
                 var e = ents[i];
+                if (teo) { int v = (int)(math.hash(new uint2(zs[i].SimId, 41u)) % (uint)RenderAssets.Variants); mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(v, v); }   // camisa por hash del id
                 RenderMeshUtility.AddComponents(e, em, desc, RenderAssets.Array, mmi);
                 var lt = LocalTransform.FromPositionRotation(new float3(zs[i].Pos.x, zs[i].Pos.y + 0.05f, zs[i].Pos.z), quaternion.RotateY(zs[i].Heading));
                 if (em.HasComponent<LocalTransform>(e)) em.SetComponentData(e, lt); else em.AddComponentData(e, lt);
@@ -91,10 +105,13 @@ namespace TBD.View
             zs.Dispose();
         }
 
+        /// <summary>Eugenio (6-nov): los sprites cenitales tumbados se leían como papeles. Los zombis son figuras de pie (malla procedural provisional hasta el modelo de Teo), oscuras y con sombra del sol.</summary>
+        public static bool FigureMode = true;
         public const float SpriteMeters = 2.6f, LodMeters = 1.1f;     // lado del cuadrado: sprite de 32 px y sprite de masa de 8 px
 
         public static float4x4 SpriteMatrix(bool lod)
         {
+            if (FigureMode) return float4x4.identity;   // medido en Unity: el modelo de Teo (brazos a z medio +0,30) YA mira a +Z, como la simulación; no hace falta girarlo
             float m = lod ? LodMeters : SpriteMeters;
             return float4x4.TRS(float3.zero, quaternion.RotateX(1.5707964f), new float3(m, m, 1f));
         }               // lado del cuadrado de 32 px del zombi (hombros de unos 0,8 m)
@@ -115,11 +132,20 @@ namespace TBD.View
         // Los zombis llevan su color en el sprite (la textura): el color por instancia queda en blanco; solo la máscara lo cambia
         public static float4 ColorFor(uint id)
         {
-            return new float4(1f, 1f, 1f, 1f);
+            if (!FigureMode) return new float4(1f, 1f, 1f, 1f);
+            // D-N61 (Lucía): horda de un solo valor oscuro (#303424) con ±8 % de luminosidad por id, solo presentación
+            float k = 0.92f + 0.16f * ((math.hash(new uint2(id, 17u)) & 255u) / 255f);
+            if (RenderAssets.Variants > 1)                    // las tres camisas de Teo, teñidas hacia un solo valor oscuro (#303424 de media) con ±8 %
+            {
+                var tint = new Color(0.30f * k, 0.33f * k, 0.22f * k).linear;
+                return new float4(tint.r, tint.g, tint.b, 1f);
+            }
+            var c = new Color(0x30 / 255f * k, 0x34 / 255f * k, 0x24 / 255f * k).linear;
+            return new float4(c.r, c.g, c.b, 1f);
         }
 
         // (paleta anterior de cápsulas, sin uso)
-        static float4 ColorForOld(uint id)
+        public static float4 ColorForOld(uint id)
         {
             // Revisión de arte de Lucía (5-nov): zombis OSCUROS sobre suelo claro, para que la horda se lea de un vistazo
             switch (math.hash(new uint2(id, 5u)) & 3u)
@@ -160,7 +186,7 @@ namespace TBD.View
         protected override void OnUpdate()
         {
             int ver = RenderAssets.LodVersion + (RenderAssets.LodDebug ? 1000 : 0);
-            if (!RenderAssets.Ready || _applied == ver) return;
+            if (!RenderAssets.Ready || RenderAssets.FigureMode || _applied == ver) return;
             _applied = ver;
             var mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(RenderAssets.LodOn ? 1 : 0, 0);
             var post = new PostTransformMatrix { Value = RenderAttachSystem.SpriteMatrix(RenderAssets.LodOn) };
@@ -195,7 +221,7 @@ namespace TBD.View
                 float3 p = math.lerp(z.PrevPos, z.Pos, Alpha);
                 uint h = math.hash(new uint2(z.SimId, 29u));                  // rompe las filas: ±0,5 m y ±20° por id, nunca la posición simulada
                 float jx = ((h & 255u) / 255f - 0.5f), jz = (((h >> 8) & 255u) / 255f - 0.5f), jr = (((h >> 16) & 255u) / 255f - 0.5f) * 0.6981317f;
-                lt.Position = new float3(p.x + jx, p.y + 0.05f, p.z + jz);
+                lt.Position = new float3(p.x + jx, p.y + 0.02f, p.z + jz);
                 // orientación continua: se interpola por el camino corto
                 float d = z.Heading - z.PrevHeading;
                 d -= 6.2831853f * math.floor((d + 3.14159265f) / 6.2831853f);

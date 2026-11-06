@@ -50,7 +50,7 @@ Solo se acepta con la **zona del nodo materializada** (`ActiveZoneNode == nodo`)
 - Valores en `balance_construccion.csv` (ya estaban): `obra_sondeo_permil_hora`, `obra_sondeo_permil_presupuesto_dia`, `obra_peso_asedio_permil`, `obra_huella_muros_permil`.
 
 ## Lo que queda para los pasos siguientes
-- Daño y desgaste diario (1 %), terreno asegurado (rejilla de densidad de la zona).
+- Daño y desgaste diario (1 %).
 - `OC-2` (sondeo en camino, con visión) necesita un plazo de aviso antes de que llegue la masa: es un cambio de modelo con Hugo.
 - Valores que no están en `balance_construccion.csv` y viven en el código con `TryValue`: `muro_modulo_mm` (10.000), `muro_minimo_mm` (1.000),
   `perimetro_mm` (60.000), `obra_obreros_max_pieza` (4) y las horas de obra de cada pieza (`obra_sacos_h_por_10m` 2, `obra_hesco_h_por_10m` 4, `obra_puerta_h` 4, `obra_nido_h` 6, `obra_foco_h` 2, `obra_deposito_h` 8, `obra_anden_h` 10; salen de `diseno-hito5.md` §2). Desde D-N59 estas claves **ya están en `balance_construccion.csv`** (copia de Hugo en `Assets/TBD/Data`), y los u por nivel salen de `fort_materiales_por_nivel` de `balance_economia.csv` (la clave `nivel_u_por_nivel` ya no existe). Alturas: sacos 1.200, HESCO y puerta 2.100, nido y andén 1.500 mm.
@@ -96,3 +96,14 @@ Solo se acepta con la **zona del nodo materializada** (`ActiveZoneNode == nodo`)
 ## Horario de obra (Hugo, D-N59)
 - **Todas las obras trabajan de 06:00 a 18:00** (`obra_hora_inicio` 6 y `obra_hora_fin` 18; 12 h al día, el `horas_obra_dia` del modelo) y de noche se paran: obras de muros y piezas (`EffectiveWorkers`) y reparaciones de tramo y puente. Una obra a medias a las 18:00 se queda congelada y sigue a las 06:00 sin perder progreso.
 - Una obra parada de noche **no cuenta como activa** (`WorkActive`): no hay sondeo de obra ni peso ×1,5 ni huella de 0,5 mientras no se trabaja. *Esto lo deduje yo: Hugo no lo dijo; si la Colmena debe oír la obra aunque pare de noche, es una línea en `EffectiveWorkers`.*
+
+### Obra en curso y obra trabajando
+La noche para el trabajo pero no la obra. `WorkInProgress` (encargada y sin acabar, con obreros) cuenta para el peso ×1,5 del asedio y la huella, de día y de noche, para que los objetivos del asedio sean estables. `WorkActive` (en curso y dentro del horario) es lo que hace sondeo y avanza.
+
+### Terreno asegurado
+`PlaceWork` y `PreviewWork` exigen que no haya zombis en pie a menos de `SecureMm` (30 m) de ningún punto de la obra. La rejilla de densidad la ofrece la zona con `NetWorld.ZoneDensity` (`DensityView`: celdas en mm locales al nodo); sin zona enchufada todo vale. No entra en el hash. Pendiente del lado de la zona: construir la vista y enchufarla (Marcos).
+### Horario de un tren (SetSchedule)
+`NetWorld.SetSchedule(tren, datos)` sustituye las paradas de un tren parado: seis enteros por parada `[nodo, hora de salida, munición, combustible, materiales, personas]`. Tiene que incluir el nodo donde está el tren, de 1 a 12 paradas, sin dos seguidas en el mismo nodo. Entra en el hash solo si el jugador lo ha puesto. Es lo que permite mover un tren recién salido del taller y cargar los materiales del tren de obras.
+
+### El taller (paso 5)
+`Taller.cs`: cola de encargos del taller de Sagunto, un encargo a la vez y las 24 h (tren nuevo 3 días, rehabilitar 36 h). `OrderTrain(tipo)` cobra con las existencias del taller y no cobra nada si falla (materiales, combustible, libres por encima del retén, máximo de trenes, rehabilitación ya hecha). Un tren de servicio (nuevo o el Tren 3) toma 10 de tripulación al encargarse; el de obras no: sus 8 obreros son su tripulación y se descuentan al salir (si no hay, el tren espera en el taller, TL-2). `CancelTrainOrder(i)`: 100 % de lo pagado sin empezar, floor(50 %) empezado (TL-3). Chispas (`ChispasAt`: -2 no está, -1 taller, ≥ 0 tren) acelera un 25 % las rehabilitaciones en el taller y las reparaciones de vía y puente a bordo del tren de obras; no sale del taller hasta que ha rodado el tren de obras. El tren nace en Sagunto con una sola parada y TL-1; el horario lo pone `SetSchedule`.

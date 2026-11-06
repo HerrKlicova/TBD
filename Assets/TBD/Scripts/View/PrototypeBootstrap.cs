@@ -269,7 +269,7 @@ namespace TBD.View
             if (_worldCam == null || _worldA == null) return;
             float pxPerM = _worldCam.pixelHeight / (2f * Mathf.Max(0.01f, _worldCam.orthographicSize));
             float bodyPx = 0.8f * pxPerM;                                          // anchura de hombros del zombi en el búfer
-            bool lod = RenderAssets.LodOn ? bodyPx < 20f : bodyPx < 16f;           // entra a menos de 16 px (Lucía, D-N61), sale a más de 20
+            bool lod = RenderAssets.LodOn ? bodyPx < 10f : bodyPx < 8f;            // entra a menos de 8 px (Eugenio quiere figuras, no manchas: el sprite grande aguanta más), sale a más de 10
             if (lod != RenderAssets.LodOn) { RenderAssets.LodOn = lod; RenderAssets.LodVersion++; }
             if (Time.unscaledTime < _massNext) return;
             _massNext = Time.unscaledTime + 0.2f;
@@ -839,13 +839,9 @@ namespace TBD.View
             var em = _worldA.EntityManager;
             var q = em.CreateEntityQuery(typeof(Zombie), typeof(ZombieBaseColor));
             var ents = q.ToEntityArray(Allocator.Persistent);                 // Persistent: cruza fotogramas (Temp se libera al acabar el fotograma)
-            var mat = RenderAssets.ZombieMaterial;
-            var lit = mat.shader;
-            var zTex = mat.GetTexture("_BaseMap");
-            var lodMat = RenderAssets.ZombieLodMaterial; var lodTex = lodMat.GetTexture("_BaseMap"); var lodShader = lodMat.shader;
-            lodMat.SetTexture("_BaseMap", null); lodMat.shader = Shader.Find("Universal Render Pipeline/Unlit");
-            mat.SetTexture("_BaseMap", null);                                 // sin textura: la silueta del sprite sale magenta puro
-            mat.shader = Shader.Find("Universal Render Pipeline/Unlit");
+            var allMats = RenderAssets.Materials; var savedTex = new Texture[allMats.Length]; var savedShader = new Shader[allMats.Length];
+            for (int mi = 0; mi < allMats.Length; mi++)                         // sin textura y sin luz: la silueta del zombi sale magenta puro
+            { savedTex[mi] = allMats[mi].GetTexture("_BaseMap"); savedShader[mi] = allMats[mi].shader; allMats[mi].SetTexture("_BaseMap", null); allMats[mi].shader = Shader.Find("Universal Render Pipeline/Unlit"); }
             var magenta = new Unity.Mathematics.float4(1f, 0f, 1f, 1f);       // #FF00FF también en espacio lineal
             for (int i = 0; i < ents.Length; i++) em.SetComponentData(ents[i], new ZombieBaseColor { Value = magenta });
             float mix = _paletteMix;
@@ -883,9 +879,7 @@ namespace TBD.View
             for (int i = 0; i < trainRenderers.Count; i++) trainRenderers[i].sharedMaterials = trainMats[i];
             Destroy(cyan);
             ents.Dispose();
-            mat.shader = lit;
-            mat.SetTexture("_BaseMap", zTex);
-            lodMat.shader = lodShader; lodMat.SetTexture("_BaseMap", lodTex);
+            for (int mi = 0; mi < allMats.Length; mi++) { allMats[mi].shader = savedShader[mi]; allMats[mi].SetTexture("_BaseMap", savedTex[mi]); }
             _paletteMix = mix;
             _quadMat.SetFloat("_PaletteMix", mix);
             _quadMat.SetFloat("_OutlineStrength", outline);
@@ -1011,6 +1005,27 @@ namespace TBD.View
             return m;
         }
 
+        /// <summary>Figura de zombi de pie, una sola malla (torso, cabeza, brazos adelantados y piernas): provisional, para que la horda se lea como figuras y proyecte sombra. Mira a +Z; el origen está en los pies.</summary>
+        static Mesh BuildZombieFigure()
+        {
+            var parts = new System.Collections.Generic.List<CombineInstance>();
+            void Add(PrimitiveType t, Vector3 pos, Vector3 scale, Quaternion? rot = null)
+            {
+                var g = GameObject.CreatePrimitive(t); var mf = g.GetComponent<MeshFilter>();
+                var ci = new CombineInstance { mesh = mf.sharedMesh, transform = Matrix4x4.TRS(pos, rot ?? Quaternion.identity, scale) };
+                parts.Add(ci); Destroy(g);
+            }
+            Add(PrimitiveType.Cube, new Vector3(0f, 1.15f, 0f), new Vector3(0.5f, 0.7f, 0.3f));                       // torso
+            Add(PrimitiveType.Sphere, new Vector3(0f, 1.72f, 0.02f), new Vector3(0.3f, 0.32f, 0.3f));                   // cabeza
+            Add(PrimitiveType.Cube, new Vector3(-0.13f, 0.4f, 0f), new Vector3(0.18f, 0.8f, 0.2f));                     // piernas
+            Add(PrimitiveType.Cube, new Vector3(0.13f, 0.4f, 0f), new Vector3(0.18f, 0.8f, 0.2f));
+            Add(PrimitiveType.Cube, new Vector3(-0.32f, 1.3f, 0.32f), new Vector3(0.12f, 0.12f, 0.7f));                 // brazos adelantados
+            Add(PrimitiveType.Cube, new Vector3(0.32f, 1.3f, 0.32f), new Vector3(0.12f, 0.12f, 0.7f));
+            var m = new Mesh { name = "Zombi (figura provisional)" };
+            m.CombineMeshes(parts.ToArray(), true, true);
+            return m;
+        }
+
         void SetupVisualAssets()
         {
             // Revisión de arte de Lucía (5-nov): suelo claro y cálido, tejado de terracota (antes era del color del suelo)
@@ -1030,7 +1045,23 @@ namespace TBD.View
             zl.SetFloat("_Cull", 0f); zl.SetFloat("_AlphaClip", 1f); zl.SetFloat("_Cutoff", 0.5f); zl.EnableKeyword("_ALPHATEST_ON"); zl.SetColor("_BaseColor", Color.white);
             var ztl = Resources.Load<Texture2D>("Icons/unidades/atlas_zombi_lod");
             if (ztl != null) zl.SetTexture("_BaseMap", ztl);
-            RenderAssets.Set(capsule, zm, zl);              // el color por instancia es blanco (ZombieBaseColor); la máscara lo pone magenta
+            if (RenderAssets.FigureMode)
+            {
+                // zombi de cerca de Teo (D-N61): tres camisas, LOD1 de 168-192 triángulos, paleta 32x16 con filtro de punto; si faltan, la figura procedural
+                var teoMeshes = new System.Collections.Generic.List<Mesh>(); var teoMats = new System.Collections.Generic.List<Material>();
+                foreach (var camisa in new[] { "camisa_303424", "camisa_283440", "camisa_442c0c" })
+                {
+                    var go = Resources.Load<GameObject>("Models/Zombi/" + camisa + "/SM_zombi_cercano_LOD1");
+                    var tex = Resources.Load<Texture2D>("Models/Zombi/" + camisa + "/T_Paleta32");
+                    var mf = go != null ? go.GetComponentInChildren<MeshFilter>() : null;
+                    if (mf == null || tex == null) continue;
+                    var mat = Mat("ffffff"); mat.SetTexture("_BaseMap", tex); mat.SetColor("_BaseColor", Color.white);
+                    teoMeshes.Add(mf.sharedMesh); teoMats.Add(mat);
+                }
+                if (teoMeshes.Count == 3) RenderAssets.SetVariants(teoMeshes.ToArray(), teoMats.ToArray());
+                else { capsule = BuildZombieFigure(); zm = Mat("ffffff"); zl = zm; RenderAssets.Set(capsule, zm, zl); }
+            }
+            else RenderAssets.Set(capsule, zm, zl);              // el color por instancia es blanco (ZombieBaseColor); la máscara lo pone magenta
 
             // Luz direccional
             // Sol bajo (unos 32°), cálido, con sombras proyectadas; la luz ambiente fría tiñe las sombras de azul (revisión de Lucía)

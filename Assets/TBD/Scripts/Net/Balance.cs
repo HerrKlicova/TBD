@@ -136,6 +136,12 @@ namespace TBD.Net
             return e == null ? p : p.WithEconomia(new CsvTable(e));
         }
 
+        public static TallerParams Taller()
+        {
+            var e = Read("balance_economia.csv"); var c = Read("balance_construccion.csv");
+            return TallerParams.FromCsv(e == null ? null : new CsvTable(e), c == null ? null : new CsvTable(c));
+        }
+
         public static StationParams Stations()
         {
             var e = Read("balance_economia.csv");

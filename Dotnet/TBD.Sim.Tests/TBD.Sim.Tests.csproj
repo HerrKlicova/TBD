@@ -25,6 +25,8 @@
     <Compile Include="ObrasTests.cs" />
     <Compile Include="PerfGate.cs" />
     <Compile Include="EstacionesTests.cs" />
+    <Compile Include="HorarioTests.cs" />
+    <Compile Include="TallerTests.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Hive.cs" Link="Net\Hive.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\HiveDirector.cs" Link="Net\HiveDirector.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\NetGolden.cs" Link="Net\NetGolden.cs" />
@@ -32,6 +34,7 @@
     <Compile Include="..\..\Assets\TBD\Scripts\Net\NetWorld.cs" Link="Net\NetWorld.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Obras.cs" Link="Net\Obras.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Estaciones.cs" Link="Net\Estaciones.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Net\Taller.cs" Link="Net\Taller.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Relief.cs" Link="Net\Relief.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\RailNet.cs" Link="Net\RailNet.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Sim\SimTypes.cs" Link="Sim\SimTypes.cs" />
