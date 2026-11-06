@@ -15,7 +15,7 @@ Delante = -Y. Cada pieza lleva su material (casco, goma, llanta, optica, foco, m
 import bpy, bmesh, math
 from mathutils import Vector, Matrix
 
-PIEZAS = ["casco", "goma", "llanta", "optica", "foco", "metal", "carga"]
+PIEZAS = ["casco", "goma", "llanta", "optica", "foco", "metal", "carga", "costura"]
 COLORES = {  # muestreados de las fotos y llevados a la paleta de 32 (sin rojos ni ámbar)
     "casco": "50541c",   # verde OTAN del Dragón -> oliva oscuro (costados D-N57; el techo pasa a b4a080)
     "goma": "303424",    # neumático negro -> el gris más oscuro sin caer al negro del contorno
@@ -24,7 +24,14 @@ COLORES = {  # muestreados de las fotos y llevados a la paleta de 32 (sin rojos 
     "foco": "f0dc9c",    # faros encendidos del frontal (crema claro)
     "metal": "1c200c",   # mástiles, antenas, ganchos, asas y cañón
     "carga": "847c34",   # redes y bolsas de carga del glacis (oliva amarillento)
+    "costura": "50541c", # provisional: costuras_por_valor() las oscurece 5-12 de L* sobre su panel
 }
+
+# Costuras de la chapa medidas en el lateral del Piranha V (mismo casco; SIN VERIFICAR en el Dragón): juntas verticales
+# de los paneles del flanco a 1,7 / 3,1 / 4,7 / 6,1 m del morro, y la junta longitudinal del techo y el glacis (frontal
+# del Dragón). Los remaches no se modelan: miden menos de 1 px a cualquier zoom del juego.
+COSTURAS = [((0, -2.3, 0), (0, 1, 0)), ((0, -0.9, 0), (0, 1, 0)), ((0, 0.7, 0), (0, 1, 0)), ((0, 2.1, 0), (0, 1, 0)),
+            ((0, 0, 0), (1, 0, 0))]
 
 HULL_Z = 2.34
 
@@ -54,15 +61,45 @@ class Taller:
         P = [(-3.2, 0.45), (-3.75, 0.75), (-3.95, 1.17), (-4.0, 1.6), (-2.8, HULL_Z), (3.85, HULL_Z), (4.0, 2.2),
              (4.0, 1.17), (3.75, 0.75), (3.2, 0.45)]
         bm = self.bm
-        izq = [bm.verts.new((-_ancho(z), y, z)) for y, z in P]
-        der = [bm.verts.new((_ancho(z), y, z)) for y, z in P]
+        izq = [bm.verts.new((-1.0, y, z)) for y, z in P]
+        der = [bm.verts.new((1.0, y, z)) for y, z in P]
         n = len(P)
         caras = [bm.faces.new(izq[::-1]), bm.faces.new(der)]
         for i in range(n):
             j = (i + 1) % n
             caras.append(bm.faces.new((izq[i], izq[j], der[j], der[i])))
+        # cortes horizontales en los cambios de anchura y después la anchura por altura: así cada banda del flanco es
+        # plana (sin esto el flanco era un n-gono alabeado y la luz lo partía en triángulos de distinto tono)
+        for zc in (0.75, 1.17, 2.2):
+            geom = list(bm.verts) + list(bm.edges) + list(bm.faces)
+            bmesh.ops.bisect_plane(bm, geom=geom, plane_co=(0, 0, zc), plane_no=(0, 0, 1))
+        for v in bm.verts:
+            v.co.x = math.copysign(_ancho(v.co.z), v.co.x)
+        caras = list(bm.faces)
         self._marcar(caras, "casco")
         self.biselar.update(caras)
+        self.caras_casco = caras
+
+    def costuras(self, planos, ancho=0.06):
+        """Corta el casco con dos planos paralelos por junta y marca la tira de en medio como costura."""
+        bm = self.bm
+        for co, no in planos:
+            co, no = Vector(co), Vector(no)
+            for d in (-ancho / 2, ancho / 2):
+                caras = [f for f in bm.faces if f.is_valid and f.material_index == PIEZAS.index("casco")
+                         and f in self._casco_set()]
+                geom = list({v for f in caras for v in f.verts}) + list({e for f in caras for e in f.edges}) + caras
+                r = bmesh.ops.bisect_plane(bm, geom=geom, plane_co=co + no * d, plane_no=no)
+                self._casco_nuevo(r["geom"])
+            for f in self._casco_set():
+                if abs((f.calc_center_median() - co).dot(no)) < ancho / 2:
+                    f.material_index = PIEZAS.index("costura")
+
+    def _casco_set(self):
+        return {f for f in self._casco if f.is_valid}
+
+    def _casco_nuevo(self, geom):
+        self._casco |= {g for g in geom if isinstance(g, bmesh.types.BMFace)}
 
     def caja(self, c, s, pieza="casco", rot_z=0.0, inclinar=None, bisel=False):
         r = bmesh.ops.create_cube(self.bm, size=1.0)
@@ -121,10 +158,16 @@ class _Nada:
 def construir(nombre="SM_VCR_Dragon_v5", lod=0):
     """lod=0: de cerca, con todo el detalle. lod=1: tamaño de juego (regla de Lucía del 6-nov): solo piezas de
     0,4 m o más (unos 3 px): torre, escotillas, rampa, cajones, ruedas y faros. Fuera retrovisores, ganchos,
-    periscopios, redes, mástil, lanzafumígenos, asas y lamas."""
+    periscopios, redes, mástil, lanzafumígenos, asas y lamas, y también las placas planas del techo (escotillas de
+    tropa y del conductor, rejilla): miden menos de 10 cm de alto y sus cantos salen a 48 px como motas sueltas."""
     t = Taller()
     fino = t if lod == 0 else _Nada()
     t.casco()
+    t._casco = set(t.caras_casco)
+    # Costuras solo en el LOD0. Probado el 6-nov: en el LOD1 a 48 px, tanto con tiras de 6 cm como de 20 cm, la junta
+    # sale como motas sueltas (ruido), así que allí la chapa se queda en el valor partido limpio
+    if lod == 0:
+        t.costuras(COSTURAS, ancho=0.06)
     # --- ruedas: ejes medidos en el lateral (desde el morro 1,56 / 2,99 / 4,52 / 6,08 m)
     for y in (-2.44, -1.01, 0.52, 2.08):
         for x in (-1.22, 1.22):
@@ -152,17 +195,17 @@ def construir(nombre="SM_VCR_Dragon_v5", lod=0):
     # periscopios, dos escotillas de tropa y asas
     t.caja((-0.85, -0.85, tz + 0.04), (0.8, 0.8, 0.08))
     t.caja((-0.85, -1.22, tz + 0.45), (0.8, 0.06, 0.8))
-    t.cilindro((-0.75, -2.35, tz + 0.05), 0.32, 0.1, "Z", 10)
+    fino.cilindro((-0.75, -2.35, tz + 0.05), 0.32, 0.1, "Z", 10)
     for k in range(3):
         fino.caja((-0.75 + (k - 1) * 0.2, -2.78, tz + 0.08), (0.14, 0.1, 0.14))
         fino.caja((-0.75 + (k - 1) * 0.2, -2.835, tz + 0.09), (0.1, 0.01, 0.06), "optica")
     for x in (-0.6, 0.6):
-        t.caja((x, 2.6, tz + 0.04), (0.9, 1.2, 0.08))
+        fino.caja((x, 2.6, tz + 0.04), (0.9, 1.2, 0.08))
         fino.caja((x, 3.25, tz + 0.12), (0.5, 0.05, 0.08), "metal")
     for y in (1.1, 1.6):
         fino.caja((1.0, y, tz + 0.08), (0.45, 0.04, 0.06), "metal")
     # rejilla del motor (delante a la derecha): placa con lamas
-    t.caja((0.85, -1.9, tz + 0.03), (1.0, 1.0, 0.06))
+    fino.caja((0.85, -1.9, tz + 0.03), (1.0, 1.0, 0.06))
     for k in range(3):
         fino.caja((0.85, -2.25 + k * 0.3, tz + 0.08), (0.9, 0.12, 0.04), "metal")
     # mástil del visor del jefe (3/4: poste delante a la izquierda con caja negra arriba)
@@ -187,8 +230,8 @@ def construir(nombre="SM_VCR_Dragon_v5", lod=0):
     fino.caja((-0.95, -3.25, 2.0), (0.7, 0.3, 0.22), "carga")
     # --- costados: cajones de herramientas sobre el flanco, entre ruedas 3 y 4
     for s in (-1, 1):
-        t.caja((s * 1.53, 1.3, 1.65), (0.08, 1.6, 0.5))
-        t.caja((s * 1.53, -1.75, 1.75), (0.08, 0.9, 0.35))
+        t.caja((s * 1.58, 1.3, 1.65), (0.16, 1.6, 0.5))      # salen 16 cm: la tapa de arriba toma el claro y se lee
+        t.caja((s * 1.58, -1.75, 1.75), (0.16, 0.9, 0.35))
     # --- trasera: rampa con puerta, cajones en las esquinas y pilotos
     t.caja((0.0, 4.03, 1.3), (1.5, 0.06, 1.25))
     t.caja((0.35, 4.07, 1.4), (0.6, 0.03, 0.9))

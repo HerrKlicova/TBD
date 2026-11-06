@@ -113,8 +113,15 @@ Ejemplo completo: `scripts/bloques/dragon_v5.py` (2.432 tris, auditoría OK, 9 c
    El contorno de 1 px va solo en la silueta y en los grandes cambios de volumen (`vista_pixelada(...,
    umbral_contorno=0.15)`; en Unity es cosa del shader, **no verificado** allí). El detalle interior se dibuja con valor,
    nunca con líneas negras. Dragón: LOD0 2.432 tris y LOD1 1.844, los dos OK.
-6. **Textura de chapa desde las fotos** (paneles, remaches, líneas): cuantizada a la paleta y con una diferencia de L*
-   interna de 12 como máximo, como los suelos. **Pendiente**: el atlas de celdas planas todavía no la lleva.
+6. **Chapa desde las fotos**: juntas de los paneles medidas en las fotos (`COSTURAS` en el script del bloque), cortadas
+   en el casco como tiras de 6 cm (`Taller.costuras`) y oscurecidas sobre su panel entre 5 y 12 de L* con
+   `costuras_por_valor(obj, mascara)` (Dragón: b4a080→88885c, 50541c→543820). **Solo en el LOD0**: probado en el LOD1 a
+   48 px con tiras de 6 y 20 cm, y salen motas sueltas. Por la misma razón, en el LOD1 tampoco van las placas planas del
+   techo (menos de 10 cm de alto). Los remaches no se modelan porque miden menos de 1 px.
+   Contorno interior del LOD1 a 0,25 (Lucía: que solo marque la base de la torre).
+7. **Bloques**: `valor_partido(..., alisar=0, suavizar=0)`. La mayoría entre vecinas es para el ruido de Hunyuan; en un
+   bloque cortado se come los trozos pequeños de techo y flanco. Los flancos se cortan en bandas horizontales para que
+   sean planos: un n-gono alabeado sale con triángulos de distinto tono.
 
 ## Vehículos con pocas fotos: bloque con medidas reales (estándar de Lucía, 6-nov)
 Cuando solo hay una o dos fotos, Hunyuan con una imagen inventa la parte que no ve y deja la chapa ondulada (manchas

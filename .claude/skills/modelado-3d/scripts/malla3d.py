@@ -936,6 +936,63 @@ def valor_partido(obj, claro="b4a080", costado=None, umbral_arriba=0.7, oscurece
             "colores_usados": len(usados), "hex": [hexes[i] for i in usados]}
 
 
+def costuras_por_valor(obj, mascara, paso=(5.0, 12.0), paleta=None, excluir=PROHIBIDOS_OBJETO):
+    """Chapa sin ruido (regla de Lucía del 6-nov): las caras de `mascara` (tiras de costura entre paneles, sacadas de
+    las fotos) toman el color de sus caras vecinas que no son costura, oscurecido entre paso[0] y paso[1] de L* con el
+    tono más parecido de la paleta. Así la diferencia interna no pasa de 12, como en los suelos. Llamar después de
+    valor_partido()."""
+    pal = cargar_paleta() if paleta is None else paleta
+    hexes = ["%02x%02x%02x" % tuple(int(x) for x in c) for c in pal]
+    lab = _srgb_a_lab(pal)
+    permit = np.array([h not in (excluir or ()) and h not in COSTADOS_PROHIBIDOS for h in hexes])
+    idx = _indices_atlas(obj)
+    me = obj.data
+    mascara = np.asarray(mascara, dtype=bool)
+    arista_caras = {}
+    for pol in me.polygons:
+        for ek in pol.edge_keys:
+            arista_caras.setdefault(ek, []).append(pol.index)
+    # el color de referencia se propaga desde los paneles hacia dentro de la tira (varias pasadas)
+    ref = np.where(mascara, -1, idx)
+    for _ in range(6):
+        cambio = False
+        for pol in me.polygons:
+            k = pol.index
+            if not mascara[k] or ref[k] >= 0:
+                continue
+            cuenta = {}
+            for ek in pol.edge_keys:
+                for c in arista_caras[ek]:
+                    if c != k and ref[c] >= 0 and not mascara[c]:
+                        cuenta[ref[c]] = cuenta.get(ref[c], 0) + 1
+            if not cuenta:
+                for ek in pol.edge_keys:
+                    for c in arista_caras[ek]:
+                        if c != k and ref[c] >= 0:
+                            cuenta[ref[c]] = cuenta.get(ref[c], 0) + 1
+            if cuenta:
+                ref[k] = max(cuenta, key=cuenta.get)
+                cambio = True
+        if not cambio:
+            break
+    cache, nuevo, cambiadas = {}, idx.copy(), 0
+    for k in np.where(mascara)[0]:
+        i = int(ref[k]) if ref[k] >= 0 else int(idx[k])
+        if i not in cache:
+            cand = np.where(permit & (lab[:, 0] <= lab[i, 0] - paso[0]) & (lab[:, 0] >= lab[i, 0] - paso[1]))[0]
+            if len(cand):
+                d = ((lab[cand, 1:] - lab[i, 1:]) ** 2).sum(1)
+                cache[i] = int(cand[d.argmin()])
+            else:
+                cache[i] = i  # sin vecino válido en la paleta: la costura no se marca (mejor que meter ruido)
+        nuevo[k] = cache[i]
+        cambiadas += int(cache[i] != i)
+    _poner_indices(obj, nuevo)
+    return {"caras_costura": int(mascara.sum()), "marcadas": cambiadas,
+            "pares": {hexes[a]: hexes[b] for a, b in cache.items()},
+            "dL": {hexes[a]: round(float(lab[a, 0] - lab[b, 0]), 1) for a, b in cache.items()}}
+
+
 FACCIONES = ("propio", "civil", "zombi", "neutro")
 
 
