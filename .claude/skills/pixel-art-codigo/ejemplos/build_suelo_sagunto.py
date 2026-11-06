@@ -100,7 +100,21 @@ def asfalto():
 
 
 def balasto():
-    return a7.balasto()
+    """Balasto de Sagunto: el de A7 con más piedras claras (olive_grey, +11 L*) y un brillo suelto arriba a la
+    izquierda de cada canto, para que la horda (#1c200c) no desaparezca encima (Lucía, ronda completa).
+    El de A7 no cambia."""
+    s = Sprite(T, T)
+    pts = semillas(110, 7)
+    for y in range(T):
+        for x in range(T):
+            d1, d2, k = voronoi(x + .5, y + .5, pts)
+            if d2 - d1 < 0.8:
+                s.set(x, y, "olive_shadow")              # junta
+                continue
+            clara = _h(k, 9, 7) >= 0.72                  # 28 % de piedras claras (antes 9 %)
+            brillo = _h(x, y, 841) < 0.10 and d2 - d1 > 2.2   # motas sueltas de luz, lejos de la junta
+            s.set(x, y, "olive_grey" if clara or brillo else "grey_brown")
+    return s
 
 
 TEXTURAS = ["apisonada", "rodadas", "labrada", "seca", "asfalto", "balasto"]
@@ -179,6 +193,18 @@ def rodada(v):
     return s
 
 
+def rodada_larga(v):
+    """Rodada de 6,4 m × 0,4 m (§1B: 4–8 m de largo): banda de 4 px en #88885c, comida
+    por dentro, con un leve serpenteo. Celda de 64x16; dos seguidas dan 12,8 m."""
+    s = Sprite(2 * C, C // 2)
+    for x in range(2 * C):
+        yc = 6 + round(math.sin(x / 64 * math.pi * (1 + v)) * (2 + v))
+        for d in range(4):
+            if _h(x, d, 851 + v) > (0.10 if d in (0, 3) else 0.30):   # bordes casi continuos, dentro más comido
+                s.set(x, yc + d, "olive_light")
+    return s
+
+
 def grieta(v):
     """Grieta de firme en #605c48 (no en el valor de la horda): una línea quebrada con dos ramas."""
     s = Sprite(C, C)
@@ -221,7 +247,7 @@ DECALS = ["charco", "aceite", "rodada", "grieta", "papeles", "hojarasca"]
 
 
 def atlas():
-    at = Image.new("RGBA", (4 * C, 3 * C), (0, 0, 0, 0))
+    at = Image.new("RGBA", (4 * C, 3 * C + C // 2), (0, 0, 0, 0))
     rects = {}
     k = 0
     for n in DECALS:
@@ -230,6 +256,9 @@ def atlas():
             at.alpha_composite(globals()[n](v).img, (x, y))
             rects[f"{n}_{v + 1}"] = [x, y, C, C]
             k += 1
+    for v in (0, 1):                                     # rodadas largas: fila extra de 64x16, debajo
+        at.alpha_composite(rodada_larga(v).img, (v * 2 * C, 3 * C))
+        rects[f"rodada_larga_{v + 1}"] = [v * 2 * C, 3 * C, 2 * C, C // 2]
     return at, rects
 
 
