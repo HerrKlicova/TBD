@@ -432,7 +432,8 @@ namespace TBD.Sim.Tests
 
             // las piezas puntuales no ocupan la vía
             check(Obras.PlanPoint(p, PieceKind.Nido, 5000, 800, 900, 2000).Why == "la vía queda libre" && Obras.PlanPoint(p, PieceKind.Puerta, 0, 0, 900, 2000).Why == "la vía queda libre", "un nido o una puerta suelta en el gálibo de la vía se rechaza");
-            check(Obras.PlanPoint(p, PieceKind.Nido, 5000, 1600, 900, 2000).Ok && Obras.PlanPoint(p, PieceKind.Anden, 0, 0, 900, 2000).Ok, "pero sí a 1,6 m de la vía, y el andén fortificado va junto a la vía");
+            check(Obras.PlanPoint(p, PieceKind.Nido, 5000, 1600, 900, 2000).Ok && Obras.PlanPoint(p, PieceKind.Anden, 0, 1600, 900, 2000).Ok, "pero sí pegado al borde del gálibo (a 1,6 m de la vía)");
+            check(Obras.PlanPoint(p, PieceKind.Anden, 0, 0, 900, 2000).Why == "la vía queda libre" && Obras.PlanPoint(p, PieceKind.Deposito, 0, -1599, 900, 2000).Why == "la vía queda libre" && Obras.PlanPoint(p, PieceKind.Foco, 0, 1599, 900, 2000).Why == "la vía queda libre", "el andén fortificado tampoco invade el gálibo: está junto a la vía, no encima (Lucía)");
             check(!Obras.PlanPoint(p, PieceKind.PuertaVia, 0, 5000, 900, 2000).Ok, "la puerta de vía no se coloca a mano");
 
             // en el mundo: la orden paga muro y puerta, el nivel cuenta la puerta, el hash es el mismo en dos mundos
@@ -482,6 +483,8 @@ namespace TBD.Sim.Tests
             check(wr.Works.At(Node)[gr].GateProg == 0 && wr.Works.At(Node)[gr].Broken, "una puerta rota no se mueve");
             wr.Push(Place(wr.Tick, PieceKind.Hesco, 20_000, -10_000, 20_000, 10_000)); wr.ApplyCommands();
             int nGates = 0, nBroken = 0; foreach (var x in wr.Works.At(Node)) { if (x.IsGate) nGates++; if (x.Broken) nBroken++; }
+            WorkPiece reb = default; foreach (var x in wr.Works.At(Node)) if (x.IsGate) reb = x;
+            check(reb.X0 == bg.X0 && reb.Y0 == bg.Y0 && reb.X1 == bg.X1 && reb.Y1 == bg.Y1 && reb.CostE4 == 80_000 && reb.LifeMil == 1000 && !reb.Broken, "la puerta nueva conserva la posición exacta de la rota y cuesta lo de una nueva (8 u)");
             check(nGates == 1 && nBroken == 0 && wr.Works.Count(Node) == 5, $"se reconstruye encima: la puerta rota desaparece y entra la nueva ({nGates} puerta, {nBroken} rotas, {wr.Works.Count(Node)} piezas)");
 
             // el desgaste también la rompe, y se cancela con su obra

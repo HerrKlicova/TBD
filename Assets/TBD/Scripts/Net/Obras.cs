@@ -313,7 +313,7 @@ namespace TBD.Net
             if (u <= 0) { plan.Why = "no es una pieza puntual"; return plan; }
             if (x > p.CoordLimitMm || x < -p.CoordLimitMm || y > p.CoordLimitMm || y < -p.CoordLimitMm) { plan.Why = "fuera de la zona"; return plan; }
             if (pieceRoom < 1) { plan.Why = "demasiadas piezas en el nodo"; return plan; }
-            if (kind != PieceKind.Anden && p.TrackHalfMm > 0 && Math.Abs((long)y) < p.TrackHalfMm) { plan.Why = "la vía queda libre"; return plan; }     // la puerta de vía se pone sola donde un muro cruza la vía
+            if (p.TrackHalfMm > 0 && Math.Abs((long)y) < p.TrackHalfMm) { plan.Why = "la vía queda libre"; return plan; }     // la puerta de vía se pone sola donde un muro cruza la vía
             if (stockU < u) { plan.Cut = true; plan.Why = "faltan materiales"; return plan; }
             plan.Pieces.Add(new WorkPiece { Kind = kind, X0 = x, Y0 = y, X1 = x, Y1 = y, CostE4 = u * 10_000, LifeMil = 1000, Built = false, NeedE4 = p.WorkE4(kind, 0), MaxWorkers = p.MaxWorkersPerPiece });
             plan.CostE4 = u * 10_000L;
@@ -392,9 +392,10 @@ namespace TBD.Net
             foreach (var w in plan.Pieces)
             {
                 var x = w; x.Id = id;
-                if (x.IsGate)                                                    // se reconstruye encima de una puerta rota (a ≤ 3,2 m): la rota desaparece
+                if (x.IsGate)                                                    // se reconstruye encima de una puerta rota (a ≤ 3,2 m): la rota desaparece y la nueva conserva su posición exacta (no mueve el hueco)
                     for (int i = l.Count - 1; i >= 0; i--)
-                        if (l[i].IsGate && l[i].Broken && Math.Abs((long)(l[i].X0 + l[i].X1) / 2 - (x.X0 + x.X1) / 2) <= 2L * P.TrackHalfMm && Math.Abs((long)(l[i].Y0 + l[i].Y1) / 2 - (x.Y0 + x.Y1) / 2) <= 2L * P.TrackHalfMm) l.RemoveAt(i);
+                        if (l[i].IsGate && l[i].Broken && Math.Abs((long)(l[i].X0 + l[i].X1) / 2 - (x.X0 + x.X1) / 2) <= 2L * P.TrackHalfMm && Math.Abs((long)(l[i].Y0 + l[i].Y1) / 2 - (x.Y0 + x.Y1) / 2) <= 2L * P.TrackHalfMm)
+                        { x.X0 = l[i].X0; x.Y0 = l[i].Y0; x.X1 = l[i].X1; x.Y1 = l[i].Y1; l.RemoveAt(i); }
                 l.Add(x);
             }
             return id;
