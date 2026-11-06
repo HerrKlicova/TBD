@@ -47,5 +47,8 @@ def construir(nombre="SM_EdificioViajeros", lod=0):
             t.caja((xx, y, 5.5), (0.06, 1.2, 1.9), "carpinteria")
     # imposta entre plantas (solo LOD0) y placa del nombre sobre la puerta central
     fino.caja((0, 0, PLANTA), (LARGO + 0.16, FONDO + 0.16, 0.2), "cornisa")
-    t.caja((0, -hy - 0.06, 7.2), (4.0, 0.08, 0.8), "placa")
+    # banda oscura para los decals de Bruno (Lucía 16:51), vista desde el andén: a la izquierda la placa
+    # placa_sagunto_x2.png (72x22, 3,6 x 1,1 m, centro x=-0,8) y a la derecha el reloj reloj_fachada_24.png
+    # (1,1 x 1,1 m, centro x=+1,95); la banda va de x=-2,6 a 2,6 con el centro a 7,15 m de altura
+    t.caja((0, -hy - 0.06, 7.15), (5.2, 0.08, 1.1), "placa")
     return t.objeto(nombre, bisel=0)

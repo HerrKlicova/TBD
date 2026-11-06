@@ -10,8 +10,10 @@ La vía queda hacia -X.
 import math
 from taller import Taller
 
-PIEZAS = ["acero", "zapata", "aislador", "hilo"]
-COLORES = {"acero": "6c7874", "zapata": "94948c", "aislador": "1c200c", "hilo": "1c200c"}
+PIEZAS = ["acero", "zapata", "aislador", "hilo", "mensula"]
+COLORES = {"acero": "6c7874", "zapata": "94948c", "aislador": "1c200c", "hilo": "1c200c", "mensula": "6c7874"}
+# LOD1 (Lucía 16:51): la ménsula salía a cuadros claro y oscuro; va como barra sólida oscura de 2 px
+COLORES_LOD1 = {"mensula": "303424"}
 FACCION = "neutro"
 PRESUPUESTO = {0: (60, 800), 1: (30, 300)}
 UMBRAL_CONTORNO = {1: 9.0}
@@ -23,8 +25,8 @@ def construir(nombre="SM_PosteCatenaria", lod=0):
     g = 0.3 if lod == 0 else 0.36
     t.caja((0, 0, 0.25), (0.9, 0.9, 0.5), "zapata")
     t.caja((0, 0, 0.5 + 3.75), (g, g, 7.5), "acero")
-    gm = 0.14 if lod == 0 else 0.34
-    t.caja((-1.6, 0, 6.3), (3.2, gm, gm), "acero")                                # ménsula hacia la vía (-X)
+    gm = 0.14 if lod == 0 else 0.36
+    t.caja((-1.6, 0, 6.3), (3.2, gm, gm), "mensula")                                # ménsula hacia la vía (-X)
     a = math.atan2(1.0, 2.8)                                                        # tirante del mástil a la punta
     fino.caja((-1.4, 0, 6.8), (0.08, math.hypot(2.8, 1.0), 0.08), "acero", rot_x=-a, rot_z=math.pi / 2)
     for x in (-0.6, -3.0):
