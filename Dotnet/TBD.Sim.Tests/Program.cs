@@ -110,7 +110,7 @@ namespace TBD.Sim.Tests
     {
         static int _pass, _fail;
 
-        static void Check(bool ok, string msg)
+        internal static void Check(bool ok, string msg)
         {
             if (ok) { _pass++; Console.WriteLine("  ok     " + msg); }
             else { _fail++; Console.WriteLine("  FALLO  " + msg); }
@@ -120,6 +120,12 @@ namespace TBD.Sim.Tests
         {
             string dataDir = BalanceTests.DataDirPublic();           // el mismo lector que Unity, apuntando a la carpeta de datos del repositorio
             TBD.Net.BalanceSource.Reader = f => { var path = System.IO.Path.Combine(dataDir, f); return System.IO.File.Exists(path) ? System.IO.File.ReadAllText(path) : null; };
+            if (Environment.GetEnvironmentVariable("TBD_ONLY_PERF") == "1")       // solo las dos pruebas de coste, para repetirlas (criterio de Sara: 20 de 20 en verde con carga y 20 de 20 en rojo con TBD_PERF_INJECT=3)
+            {
+                TestPerfOnly();
+                Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos");
+                return _fail == 0 ? 0 : 1;
+            }
             Console.WriteLine("Pruebas de la lógica pura de la simulación (fuera de Unity, con shims mínimos)\n");
             TestSolidMath();
             TestFlow();
@@ -404,14 +410,19 @@ namespace TBD.Sim.Tests
             for (int t = 0; t < 300; t++) { plain.Tick1(); indexed.Tick1(); if (plain.Hash() != indexed.Hash()) { same = false; break; } }
             Check(same, "300 ticks con el índice dan el mismo hash que consultando todos los sólidos");
 
-            // coste con muchos muros
+            PerfIndexed(solids);
+        }
+
+        /// <summary>Un tick de 10.000 zombis con 307 sólidos y el índice espacial (y, solo para informar, sin índice). Se vigila con PerfGate, no con una media suelta.</summary>
+        static void PerfIndexed(List<Solid> solids)
+        {
+            int ns = solids.Count, bc = SolidIndex.BucketCount;
+            var allStart = new int[bc + 1]; var allRefs = new int[bc * ns];
+            for (int bk = 0; bk < bc; bk++) { allStart[bk] = bk * ns; for (int i = 0; i < ns; i++) allRefs[bk * ns + i] = i; }
+            allStart[bc] = bc * ns;
             var big = new MiniWorld(solids, 76f, 64.5f);
             big.Spawn(10000, 4f, 120f, 4f, 120f, 0f, 51u);
             for (int t = 0; t < 5; t++) big.Tick1();
-            var sw = Stopwatch.StartNew();
-            for (int t = 0; t < 30; t++) big.Tick1();
-            sw.Stop();
-            Console.WriteLine($"         10.000 zombis y {solids.Count} sólidos con índice: {sw.Elapsed.TotalMilliseconds / 30:0.00} ms por tick");
             var lin = new MiniWorld(solids, 76f, 64.5f);
             lin.BStart = new NativeArray<int>(allStart); lin.BRefs = new NativeArray<int>(allRefs);
             lin.Spawn(10000, 4f, 120f, 4f, 120f, 0f, 51u);
@@ -420,7 +431,7 @@ namespace TBD.Sim.Tests
             for (int t = 0; t < 5; t++) lin.Tick1();
             sw2.Stop();
             Console.WriteLine($"         lo mismo consultando todos los sólidos: {sw2.Elapsed.TotalMilliseconds / 5:0.00} ms por tick");
-            Check(sw.Elapsed.TotalMilliseconds / 30 < 33.0, $"con {solids.Count} sólidos un tick de 10.000 zombis cabe en el presupuesto ({sw.Elapsed.TotalMilliseconds / 30:0.00} ms, sin Burst)");
+            PerfGate.Verdict($"con {solids.Count} sólidos un tick de 10.000 zombis", () => big.Tick1(), 30, PerfGate.RatioIndexed);
         }
 
         // ------------------------------------------------------------------ separación entre agentes
@@ -476,23 +487,32 @@ namespace TBD.Sim.Tests
         }
 
         // ------------------------------------------------------------------ coste
+        static void TestPerfOnly()
+        {
+            uint seed = 99u;
+            float Next() { seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5; return (seed & 0xFFFFFF) / (float)0x1000000; }
+            var solids = Level.CreateSolids();                                // los mismos 307 sólidos que en [5c]
+            for (int i = 0; i < 300; i++)
+            {
+                var a = new float2(5f + Next() * 118f, 5f + Next() * 118f);
+                var b = new float2(math.clamp(a.x + (Next() - 0.5f) * 14f, 2f, 126f), math.clamp(a.y + (Next() - 0.5f) * 14f, 2f, 126f));
+                solids.Add(new Solid { A = a, B = b, HalfThick = 0.5f, Height = 2.5f, Kind = 0 });
+            }
+            PerfIndexed(solids);
+            TestPerf();
+        }
+
         static void TestPerf()
         {
             Console.WriteLine("[8] Coste (C# en Release, sin Burst: solo orientativo)");
             var w = new MiniWorld(Level.CreateSolids(), 76f, 64.5f);
             w.Spawn(10000, 4f, 60f, 8f, 120f, 0f, 31u);
             for (int t = 0; t < 10; t++) w.Tick1();
-            var sw = Stopwatch.StartNew();
-            const int ticks = 60;
-            for (int t = 0; t < ticks; t++) w.Tick1();
-            sw.Stop();
-            double ms = sw.Elapsed.TotalMilliseconds / ticks;
-            Console.WriteLine($"         10.000 zombis y 7 sólidos: {ms:0.00} ms por tick (presupuesto a 30 Hz: 33 ms)");
             var sw2 = Stopwatch.StartNew();
             w.Rebuild(76f, 64.5f);
             sw2.Stop();
             Console.WriteLine($"         recalcular el campo de flujo completo (65.536 celdas): {sw2.Elapsed.TotalMilliseconds:0.0} ms");
-            Check(ms < 33.0, $"un tick de 10.000 zombis cabe en el presupuesto incluso sin Burst ({ms:0.00} ms)");
+            PerfGate.Verdict("un tick de 10.000 zombis y 7 sólidos", () => w.Tick1(), 30, PerfGate.RatioSimple);
         }
     }
 }
