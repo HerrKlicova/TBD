@@ -43,14 +43,15 @@ Solo se acepta con la **zona del nodo materializada** (`ActiveZoneNode == nodo`)
 - **Obra activa** (`NetWorld.WorkActive`) = trabajo pendiente y obreros efectivos > 0 y sin pausa. Es lo que usa el director.
 
 ## Ruido de obra en el director (paso 3, D-N44)
-- **Sondeo**: cada hora, cada nodo con obra activa tiene un 83 ‰ de recibir un sondeo (sorteo por semilla, tick y nodo; sin estado). Trae el 5 % del presupuesto del día de la Colmena como **masa nueva** (`Inject`, como el presupuesto) y se concentra en el nodo con `Gather`. La masa del campo cambia solo por lo inyectado. Si la celda del nodo es la de la zona en detalle (congelada), la horda se concentra en una celda vecina.
+- **Sondeo**: cada hora, cada nodo con obra activa tiene un 83 ‰ de recibir un sondeo (sorteo por semilla, tick y nodo; sin estado). Trae el 5 % del presupuesto del día de la Colmena y se concentra en el nodo con `Gather`. **Va descontado, no es masa extra** (Hugo, aprobado por Mak): se paga con el 400 ‰ del presupuesto que no va a asedios, primero con la deriva de esa hora y después con lo que el canal de emboscada lleva ahorrado. Si no alcanza, el sondeo es más pequeño. El total de 20 días no cambia y la masa del campo no cambia. Si la celda del nodo es la de la zona en detalle (congelada), la horda se concentra en una celda vecina.
+- **Avisos** (textos de Lucía en `textos_informe.csv`): `OC-1` (primera obra activa de la partida, una sola vez), `OC-3` (llega un sondeo; el sondeo no tiene plazo, así que `OC-2` «en {minutos} min» no se usa todavía) y `OC-4` (la horda para la obra; una vez por parada).
 - **Peso**: `HiveDirector.SiegeTargetWeight` = peso × 1,5 con obra activa. Solo se usa para sortear el objetivo del asedio, no para la deriva.
 - **Huella**: +0,5 por nodo con obra activa (partir una obra en varias órdenes no la multiplica). El puente y las obras grandes (1,5) llegan con el paso 4.
 - Valores en `balance_construccion.csv` (ya estaban): `obra_sondeo_permil_hora`, `obra_sondeo_permil_presupuesto_dia`, `obra_peso_asedio_permil`, `obra_huella_muros_permil`.
 
 ## Lo que queda para los pasos siguientes
 - Daño y desgaste diario (1 %), terreno asegurado (rejilla de densidad de la zona).
-- Alerta o informe de inteligencia cuando llega un sondeo de obra (hace falta un texto de Lucía en `textos_informe.csv`).
+- `OC-2` (sondeo en camino, con visión) necesita un plazo de aviso antes de que llegue la masa: es un cambio de modelo con Hugo.
 - Valores que no están en `balance_construccion.csv` y viven en el código con `TryValue`: `muro_modulo_mm` (10.000), `muro_minimo_mm` (1.000),
   `perimetro_mm` (60.000), `nivel_u_por_nivel` (30), `obra_obreros_max_pieza` (4) y las horas de obra de cada pieza (`obra_sacos_h_por_10m` 2, `obra_hesco_h_por_10m` 4, `obra_puerta_h` 4, `obra_nido_h` 6, `obra_foco_h` 2, `obra_deposito_h` 8, `obra_anden_h` 10; salen de `diseno-hito5.md` §2). Alturas: sacos 1.200, HESCO y puerta 2.100, nido y andén 1.500 mm.
 - Integración en la zona (Marcos): leer `Works.Snapshot(nodo)` al materializar y devolver con `Works.Restore(nodo, piezas)` al salir.

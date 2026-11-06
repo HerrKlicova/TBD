@@ -249,11 +249,15 @@ namespace TBD.Sim.Tests
             for (int i = 0; i < 30; i++) pz2.Step();                                          // el estado del nodo se actualiza cada 15 ticks
             int wMid = pz2.Works.At(Node)[0].WorkE4;
             for (int i = 0; i < 300; i++) pz2.Step();
+            check(pz2.Intel.FindAll(e => e.Id == "OC-4").Count == 1, "OC-4: al parar la horda la obra avisa una sola vez, no en cada tick");
             check(pz2.WorkPaused(Node) && !pz2.WorkActive(Node) && pz2.Works.At(Node)[0].WorkE4 == wMid, $"con el nodo asediado la obra se pausa y deja de estar activa (sin ruido, peso ni huella): {wMid} = {pz2.Works.At(Node)[0].WorkE4}");
             check(pz2.Director.SiegeTargetWeight(pz2, Node) == pz2.Director.SiegeWeight(pz2, Node), "una obra pausada no pesa ×1,5 como objetivo");
             pz2.Director.Active.Clear();
             for (int i = 0; i < 40; i++) pz2.Step();
             check(!pz2.WorkPaused(Node) && pz2.Works.At(Node)[0].WorkE4 > wMid, "cuando pasa el asedio la obra sigue donde se quedó");
+            pz2.Director.Active.Add(new HiveDirector.Plan { Kind = HiveDirector.PlanKind.Asedio, Node = Node, Edge = -1, Cell = 0, StartTick = pz2.Tick, UntilTick = pz2.Tick + 10 * NetConst.DayTicks, Started = true });
+            for (int i = 0; i < 30; i++) pz2.Step();
+            check(pz2.Intel.FindAll(e => e.Id == "OC-4").Count == 2, "una segunda parada vuelve a avisar (OC-4)");
             var ph = NetScenario.Mvp(); ph.Works.Add(0, ph.Works.Preview(0, PieceKind.Sacos, ten, 900)); ph.Works.Workers[0] = 4;
             ph.Graph.Nodes[0].HordeDensity = NetWorld.SiegeAt;
             check(ph.WorkPaused(0) && !ph.WorkActive(0), "con la horda encima (densidad de asedio) la obra se pausa");
@@ -336,12 +340,36 @@ namespace TBD.Sim.Tests
             check(Mass(pw) == m0w + pw.InjectedTotal - pw.LostTotal - pw.RetiredTotal && Mass(pc) == m0c + pc.InjectedTotal - pc.LostTotal - pc.RetiredTotal, "la masa del campo se conserva con sondeos: masa = inicial + inyectada − bajas − retirada");
             check(pw.Director.WorkProbes_Moved > 0 && pw.Director.WorkProbes_Moved <= pw.Director.WorkProbes_Asked, $"los sondeos mueven horda hacia el nodo: pidieron {pw.Director.WorkProbes_Asked} ‰ y movieron {pw.Director.WorkProbes_Moved} ‰");
 
-            // tamaño: 5 % del presupuesto del día (≈ 330 zombis el día 9)
+            // tamaño: 5 % del presupuesto del día, descontado del 400 ‰ que no va a asedios (Hugo): no es masa extra
             var ps = WithWork(0); ps.Director.P.WorkProbeMil = 1000;
             ps.Tick = 9 * NetConst.DayTicks; ps.Director.Hourly(ps);
             long askZ = ps.Director.WorkProbes_Asked * NetWorld.ZombiesPerPermil;
             long expectZ = ps.Director.DayZombies(9, ps.Director.HuellaMil(ps)) * 50 / 1000 / NetWorld.ZombiesPerPermil * NetWorld.ZombiesPerPermil;
-            check(ps.Director.WorkProbes_Count == 1 && askZ == expectZ && askZ >= 150 && askZ <= 450 && ps.Director.WorkProbes_Injected == ps.Director.WorkProbes_Asked, $"un sondeo del día 9 pide el 5 % del presupuesto del día: {askZ} zombis (D-N44: ≈ 330 con la huella de una partida avanzada) y llega como masa nueva");
+            check(ps.Director.WorkProbes_Count == 1 && askZ == expectZ && askZ >= 150 && askZ <= 450, $"un sondeo del día 9 pide el 5 % del presupuesto del día: {askZ} zombis (Hugo: 214–281 según la huella, con el ruido y la estación del día)");
+            check(ps.Director.WorkProbes_Paid > 0 && ps.Director.WorkProbes_Paid <= ps.Director.WorkProbes_Asked, $"se paga con lo que hay del 400 ‰ de esa hora (deriva y ahorro de emboscada): {ps.Director.WorkProbes_Paid} de {ps.Director.WorkProbes_Asked} ‰");
+            ps.Director.Season = null; ps.Director.Noise = null;
+            double k0 = ps.Director.DayZombies(8, 0), k3 = ps.Director.DayZombies(8, 3000);
+            check(k3 / k0 > 1.30 && k3 / k0 < 1.33, $"con k_huella = 240 del CSV, huella 3 da {k3 / k0:0.000} veces el presupuesto de huella 0 (Hugo: 268 / 204 = 1,314)");
+            // descontado, no extra: con la misma huella, la obra no cambia lo inyectado en 5 días
+            var xa = WithWork(0); var xb = NetScenario.Mvp(); xa.Director.P.WorkHuellaMil = 0; xb.Director.P.WorkHuellaMil = 0; xa.Director.P.WorkProbeMil = 1000;
+            for (int hr = 0; hr < 120; hr++) { xa.Tick = 2 * NetConst.DayTicks + hr * 1500; xb.Tick = xa.Tick; xa.Director.Hourly(xa); xb.Director.Hourly(xb); }
+            check(xa.Director.WorkProbes_Paid > 0 && xa.Director.BudgetTotal == xb.Director.BudgetTotal, $"el sondeo no suma presupuesto: el presupuesto de 120 h es el mismo con y sin obra ({xa.Director.BudgetTotal} = {xb.Director.BudgetTotal} ‰); el sondeo movió {xa.Director.WorkProbes_Moved} ‰ de masa que ya estaba en el campo");
+
+            // informe: OC-1 (primera obra, una sola vez), OC-3 (el sondeo llega), OC-4 (la horda para la obra)
+            var tx = new IntelTexts(File.ReadAllText(Path.Combine(BalanceTests.DataDirPublic(), "textos_informe.csv")));
+            bool allTexts = true; foreach (var id in new[] { "OC-1", "OC-2", "OC-3", "OC-4" }) if (!tx.Has(id)) allTexts = false;
+            string oc1 = tx.Format(new IntelEntry { Id = "OC-1", Vars = new[] { "nodo", "Valencia" } }, "es", out var src1), oc3 = tx.Format(new IntelEntry { Id = "OC-3", Vars = new[] { "nodo", "Valencia" } }, "en", out var src3);
+            check(allTexts && oc1 == "Una obra se oye desde lejos. Mientras dure, Valencia atrae a la Colmena." && src1 == "Llorens" && oc3 == "The construction gave us away. Contact at Valencia." && src3 == "tras el ataque", $"los textos OC-1 a OC-4 de Lucía están en textos_informe.csv: «{oc1}» / «{oc3}»");
+            var ic = WorldWithZone(900);
+            ic.Push(Place(ic.Tick, PieceKind.Sacos, 0, 0, 10_000, 0)); ic.Push(new NetCommand { Tick = ic.Tick, Type = NetCmdType.AssignWorkers, Arg = Node, Arg2 = 4 }); ic.ApplyCommands();
+            check(!ic.Intel.Exists(e => e.Id == "OC-1"), "sin tiempo de obra todavía no hay aviso de obra");
+            ic.Step();
+            int oc1n = ic.Intel.FindAll(e => e.Id == "OC-1").Count;
+            ic.Push(Place(ic.Tick, PieceKind.Sacos, 0, 0, 20_000, 0)); ic.ApplyCommands(); for (int i = 0; i < 2000; i++) ic.Step();
+            check(oc1n == 1 && ic.Intel.FindAll(e => e.Id == "OC-1").Count == 1 && ic.Intel.Find(e => e.Id == "OC-1").Vars[1] == ic.Graph.Nodes[Node].Name, "OC-1: la primera obra activa de la partida avisa una sola vez");
+            var hOc = ic.Hash(); ic.Works.FirstNoted = false; check(ic.Hash() != hOc, "haber avisado de la primera obra entra en el hash"); ic.Works.FirstNoted = true;
+            check(ps.Intel.Exists(e => e.Id == "OC-3" && e.Vars[1] == ps.Graph.Nodes[0].Name), "OC-3: el sondeo que llega avisa con el nombre del nodo");
+            check(!NetScenario.Mvp().Intel.Exists(e => e.Id.StartsWith("OC-")), "sin obras no hay avisos de obra");
 
             // en la zona en detalle: la celda congelada no recibe masa
             var pz = WithWork(0); pz.Director.P.WorkProbeMil = 1000;

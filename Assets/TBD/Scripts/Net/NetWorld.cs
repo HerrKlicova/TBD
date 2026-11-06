@@ -492,6 +492,11 @@ namespace TBD.Net
             {
                 int w = EffectiveWorkers(n);
                 if (w > 0) Works.Advance(n, w);
+                // avisos de obra (textos de Lucía, §7 de textos-informe-colmena.md)
+                if (!Works.FirstNoted && w > 0) { Works.FirstNoted = true; Intel.Add(new IntelEntry { Tick = Tick, Id = "OC-1", Vars = new[] { "nodo", Graph.Nodes[n].Name } }); }
+                bool stopped = Works.Workers[n] > 0 && Works.IsActive(n) && WorkPaused(n);          // la horda para la obra
+                if (stopped && !Works.WasPaused[n]) Intel.Add(new IntelEntry { Tick = Tick, Id = "OC-4", Vars = new[] { "nodo", Graph.Nodes[n].Name } });
+                Works.WasPaused[n] = stopped;
             }
         }
 
