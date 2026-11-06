@@ -1,7 +1,7 @@
 """Zombi LOD de masa (D-N58, Lucía): la horda a distancia se lee como mancha, no como ruido.
 Bruno (Arte técnico), 6-nov-2026.
 
-8x8 px, vista cenital, mirando al norte. Cuerpo en #303424 (olive_shadow) y cabeza de 1 px en
+8x8 px (mancha de 4x5), vista cenital, mirando al norte. Cuerpo en #1c200c y cabeza de 1 px en
 #88885c (olive_light, revisión de Lucía); sin contorno, sin cara clara y sin variantes. Andar de 4 fotogramas con 1 px de
 balanceo lateral y paso alterno. Cadáver de masa: mancha plana en diagonal, un escalón más apagada.
 Salida: atlas_zombi_lod.png (5 columnas de 8 px: andar 0–3 y cadáver), un PNG por fotograma, JSON
@@ -21,30 +21,31 @@ from pixelvm import PAL, Sprite  # noqa: E402
 OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "out_lod")
 ZOMBI = Path(sys.argv[2]) if len(sys.argv) > 2 else None    # carpeta con vm_zombi_*_muerte.png
 
-CUERPO, CABEZA = "olive_shadow", "olive_light"   # cabeza #88885c (Lucía): gentío también en balasto y asfalto
-CUERPO_M, CABEZA_M = "olive_black", "grey_brown"            # un escalón más apagado
+# Revisión de Lucía (6-nov, 10:00): mancha compacta y redondeada de 4x5 sin brazos (a 8 px los brazos
+# convierten cada zombi en una letra). Cuerpo #1c200c, cabeza de 1 px #88885c, 1 px de balanceo.
+CUERPO, CABEZA = "olive_black", "olive_light"
+CUERPO_M, CABEZA_M = "olive_black", "olive_shadow"          # cadáver: forma plana y cabeza apagada
 
 BASE = [
     "........",
-    "..b..b..",   # manos
-    "..bhbb..",   # cabeza de 1 px, adelantada
-    ".bbbbbb.",   # hombros
-    ".bbbbbb.",
+    "...hb...",   # cabeza de 1 px al norte
     "..bbbb..",
-    "PPPPPPPP",   # piernas (cambian con el paso)
+    "..bbbb..",
+    "..bbbb..",
+    "...bb...",
+    "........",
     "........",
 ]
-PASOS = ["..b..b..", "..b.....", "..b..b..", ".....b.."]
-BALANCEO = [0, 1, 0, -1]
+BALANCEO = [0, 1, 1, 0]                                     # solo 1 px
 
 CADAVER = [
     "........",
-    "......b.",
-    ".h..bbb.",
-    "..bbbbb.",
+    "........",
+    ".....bb.",
+    "..hbbbb.",
     ".bbbbb..",
-    "bbbb.b..",
-    ".b......",
+    ".bbb....",
+    "........",
     "........",
 ]
 
@@ -59,8 +60,7 @@ def pinta(filas, dx, cuerpo, cabeza):
 
 
 def andar(f):
-    filas = [PASOS[f] if r == "PPPPPPPP" else r for r in BASE]
-    return pinta(filas, BALANCEO[f], CUERPO, CABEZA)
+    return pinta(BASE, BALANCEO[f], CUERPO, CABEZA)
 
 
 def cadaver():
