@@ -32,7 +32,8 @@ def radio(s, cx, cy, antena_dx=0):
 
 
 def mando(s, cx, cy):
-    s.hline(cx - 2, cx + 2, cy - 1, "bone")                  # franja de mando en la nuca del casco
+    s.hline(cx - 2, cx + 2, cy - 2, "bone")                  # franja de mando de 2 px en la nuca del casco
+    s.hline(cx - 2, cx + 2, cy - 1, "bone")
 
 
 def oficial(s, cx, cy, pi, pd, fusil="puerto", retro=0, antena_dx=0, auricular=False):
@@ -117,10 +118,9 @@ def muerte(f):
             girar(s, -15)
         return fin(s)
     s = Sprite()
-    fu.tendido(s, 16, 6, 21, 1)
-    s.rect(12, 14, 8, 5, "olive_grey")                       # radio a la espalda
-    s.rect(13, 14, 6, 2, "beige")
-    s.line(20, 14, 24, 9, ANTENA)                            # antena doblada
+    fu.tendido(s, 16, 6, 21, 1)                              # igual que el fusilero; la única seña:
+    s.line(19, 13, 23, 10, ANTENA)                           # la antena doblada
+    s.line(23, 10, 26, 11, ANTENA)
     girar(s, -35)
     remapear(s, fu.APAGAR)
     return fin(s, rim=False)
