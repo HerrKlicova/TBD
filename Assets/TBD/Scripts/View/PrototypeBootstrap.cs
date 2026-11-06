@@ -84,6 +84,7 @@ namespace TBD.View
         Volume _volume;
         ColorAdjustments _grade;
         Bloom _bloom;
+        bool _autoPix = true; float _factorNext;           // pixelado automático: a más zoom, píxeles más gordos, para que el 3D de cerca también se vea pixelado (Eugenio, 6-nov)
         int _factor = 3;                              // factor de pixelado N (PROTOTIPO: 2-4)
         float _paletteMix = 0.65f;                     // mezcla con la paleta en el mundo 3D (Lucía, D-4 de dirección visual): el ocre y el ámbar no viran
         int _gradeIndex;
@@ -267,6 +268,12 @@ namespace TBD.View
         void UpdateHordePresentation()
         {
             if (_worldCam == null || _worldA == null) return;
+            if (_autoPix && Time.unscaledTime > _factorNext)                      // ~12 px por metro como máximo: cerca, factor 4-6; lejos, 3
+            {
+                float ideal = Screen.height / (24f * Mathf.Max(0.01f, _worldCam.orthographicSize));
+                int want = Mathf.Clamp(Mathf.RoundToInt(ideal), 3, 6);
+                if (want != _factor && Mathf.Abs(ideal - _factor) > 0.6f) { _factor = want; RebuildRt(); _factorNext = Time.unscaledTime + 0.5f; }
+            }
             float pxPerM = _worldCam.pixelHeight / (2f * Mathf.Max(0.01f, _worldCam.orthographicSize));
             float bodyPx = 0.8f * pxPerM;                                          // anchura de hombros del zombi en el búfer
             bool lod = RenderAssets.LodOn ? bodyPx < 10f : bodyPx < 8f;            // entra a menos de 8 px (Eugenio quiere figuras, no manchas: el sprite grande aguanta más), sale a más de 10
@@ -421,8 +428,8 @@ namespace TBD.View
             if (kb.digit7Key.wasPressedThisFrame) ApplyGrade(0);
             if (kb.digit8Key.wasPressedThisFrame) ApplyGrade(1);
             if (kb.digit9Key.wasPressedThisFrame) ApplyGrade(2);
-            if (kb.leftBracketKey.wasPressedThisFrame) { _factor = Mathf.Max(2, _factor - 1); RebuildRt(); }
-            if (kb.rightBracketKey.wasPressedThisFrame) { _factor = Mathf.Min(4, _factor + 1); RebuildRt(); }
+            if (kb.leftBracketKey.wasPressedThisFrame) { _autoPix = false; _factor = Mathf.Max(2, _factor - 1); RebuildRt(); }
+            if (kb.rightBracketKey.wasPressedThisFrame) { _autoPix = false; _factor = Mathf.Min(6, _factor + 1); RebuildRt(); }
             if (kb.commaKey.wasPressedThisFrame) _paletteMix = Mathf.Max(0f, _paletteMix - 0.25f);
             if (kb.periodKey.wasPressedThisFrame) _paletteMix = Mathf.Min(1f, _paletteMix + 0.25f);
             if (kb.pKey.wasPressedThisFrame) _paused = !_paused;
