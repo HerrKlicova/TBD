@@ -123,7 +123,7 @@ def reloj(n=16, hora=17, minuto=42):
 # --- 4. hollín y aceite en el eje de la vía -----------------------------------------------------
 def via_hollin():
     """Decal tileable en x (64x32) para el centro de la vía, entre carriles: hollín difuso de las
-    locomotoras en olive_shadow y olive_black, motas sueltas en el borde y goterones de aceite
+    locomotoras en #303424 y #48403c (nunca el #1c200c de la horda ni tonos rojizos; Lucía, v1.1), motas sueltas en el borde y goterones de aceite
     alineados con el eje. Escala: la misma que el balasto (64 px de lado)."""
     s = Sprite(64, 32)
     for y in range(32):
@@ -132,16 +132,98 @@ def via_hollin():
             n = ruido_periodico(x, y, 16, 610, 64) * 0.6 + ruido_periodico(x, y, 4, 611, 64) * 0.4
             v = perfil + (n - 0.5) * 1.5
             if v > 0.55:
-                s.set(x, y, "olive_black" if v > 0.85 else "olive_shadow")
+                s.set(x, y, "olive_shadow" if v > 0.85 else "grey_brown")
             elif v > 0.3 and _h(x, y, 612) > 0.85:
-                s.set(x, y, "olive_shadow")               # mota suelta de hollín
+                s.set(x, y, "grey_brown")                 # mota suelta de hollín
     for k in range(5):                                    # goterones de aceite en el eje
         x = int(4 + k * 12.5 + _h(k, 0, 613) * 4) % 64
         y = 14 + int(_h(k, 1, 613) * 4)
         for dx, dy in ((0, 0), (1, 0), (0, 1), (1, 1)) if k % 2 else ((0, 0), (1, 0)):
-            s.set((x + dx) % 64, y + dy, "olive_black")
+            s.set((x + dx) % 64, y + dy, "olive_shadow")
         if _h(k, 2, 613) > 0.5:
             s.set((x + 2) % 64, y, "slate_dark")           # brillo mate del aceite
+    return s
+
+
+# --- 5. pintadas (sagunto-nivel.md v1.1, §3) ---------------------------------------------------
+GRAFITI = {
+    "A": ["0110", "1001", "1111", "1001", "1001"], "Q": ["0110", "1001", "1001", "1010", "0101"],
+    "U": ["1001", "1001", "1001", "1001", "0110"], "I": ["1", "1", "1", "1", "1"],
+    "H": ["1001", "1001", "1111", "1001", "1001"], "Y": ["10001", "01010", "00100", "00100", "00100"],
+    "V": ["10001", "10001", "01010", "01010", "00100"], "O": ["0110", "1001", "1001", "1001", "0110"],
+    "S": ["0111", "1000", "0110", "0001", "1110"], " ": ["00", "00", "00", "00", "00"],
+}
+
+
+def _espray(s, bloques, seed):
+    """Trazo de espray: cada punto lógico es un bloque de 2x2 (x, y en px reales); trazo lleno y un
+    pulverizado escaso alrededor. Solo #d4d0cc (espray blanco), nunca rojo."""
+    trazo = set()
+    for (x, y) in bloques:
+        for dx in (0, 1):
+            for dy in (0, 1):
+                trazo.add((x + dx, y + dy))
+    for (x, y) in trazo:
+        s.set(x, y, "bone")
+    for (x, y) in trazo:                                  # pulverizado: motas sueltas a 2 px
+        ox = x + (2 if _h(x, y, seed) > 0.5 else -2)
+        oy = y + int(_h(y, x, seed + 1) * 5) - 2
+        if (ox, oy) not in trazo and _h(ox, oy, seed + 2) > 0.93 and s.inside(ox, oy):
+            s.set(ox, oy, "bone")
+
+
+def pintada_texto(texto="AQUÍ HAY VIVOS"):
+    """«AQUÍ HAY VIVOS» a espray: letras de 10 px con 2 px de trazo que bailan 1 px, la tilde de la Í
+    y algún chorreón corto. A 0,1 m/px: unos 13 m de largo y 1 m de alto, legible desde el aire."""
+    t = texto.replace("Í", "I")
+    ancho = sum(len(GRAFITI[c][0]) for c in t) + len(t) - 1
+    w, h = 2 * ancho + 6, 20
+    s = Sprite(w, h)
+    bl, x = [], 3
+    for i, c in enumerate(t):
+        jy = 5 + (1 if _h(i, 7, 701) > 0.5 else 0)        # baile vertical de 1 px
+        for j, fila in enumerate(GRAFITI[c]):
+            for k, b in enumerate(fila):
+                if b == "1":
+                    bl.append((x + 2 * k, jy + 2 * j))
+        if texto[i] == "Í":
+            bl.append((x + 1, jy - 4))                     # tilde
+        if c not in " I" and _h(i, 8, 702) > 0.6:          # chorreón de 1 px bajo la letra
+            for d in range(2):
+                s.set(x + 1, jy + 10 + d, "bone")
+        x += 2 * (len(GRAFITI[c][0]) + 1)
+    _espray(s, bl, 703)
+    return s
+
+
+def pintada_flecha():
+    """Flecha a espray hacia la derecha (se gira en el decal hacia la estación). 0,1 m/px: 4 m."""
+    s = Sprite(40, 18)
+    pts = [(x, 4) for x in range(1, 14)]                  # astil, con una ligera caída
+    pts += [(14, 4), (15, 4)] + [(15 - k, 4 - k) for k in range(1, 4)] + [(15 - k, 4 + k) for k in range(1, 4)]
+    _espray(s, [(2 * x + 4, 2 * y + 1) for x, y in pts], 711)
+    return s
+
+
+# --- 6. hollín de la puerta oeste (huellas de la horda) -----------------------------------------
+def hollin_puerta(v=0):
+    """Mancha de 64x64 en el balasto junto a la puerta oeste, donde siempre rompe la horda: núcleo
+    en #303424, halo en #48403c con motas sueltas y arrastres alargados hacia la puerta (este).
+    Se lee como suciedad, nunca como sangre: sin rojizos ni el #1c200c de la horda."""
+    s = Sprite(64, 64)
+    cx, cy = 30 + 4 * v, 32 - 3 * v
+    for y in range(64):
+        for x in range(64):
+            d = math.hypot((x - cx) / (24 + 4 * v), (y - cy) / 16)
+            n = ruido_periodico(x, y, 8, 720 + v, 64) * 0.6 + ruido_periodico(x, y, 4, 722 + v, 64) * 0.4
+            arrastre = 0.25 * max(0.0, math.sin((y + 3 * v) * 0.9)) * (x > cx)   # rayas de arrastre al este
+            c = 1 - d + (n - 0.5) * 0.9 + arrastre
+            if c > 0.45:
+                s.set(x, y, "olive_shadow")
+            elif c > 0.12:
+                s.set(x, y, "grey_brown")
+            elif c > -0.05 and _h(x, y, 724 + v) > 0.88:
+                s.set(x, y, "grey_brown")
     return s
 
 
@@ -161,6 +243,10 @@ if __name__ == "__main__":
         "reloj_fachada_16": reloj(16),
         "reloj_fachada_24": reloj(24),
         "decal_via_hollin_64x32": via_hollin(),
+        "decal_pintada_aqui_hay_vivos": pintada_texto(),
+        "decal_pintada_flecha": pintada_flecha(),
+        "decal_hollin_puerta_1_64": hollin_puerta(0),
+        "decal_hollin_puerta_2_64": hollin_puerta(1),
     }
     pal = {c[:3] for c in PAL.values()}
     for n, s in piezas.items():
@@ -206,3 +292,27 @@ if __name__ == "__main__":
     ls.alpha_composite(tileable_x(piezas["decal_linea_seguridad_64x2"].img, 2))
     hoja.alpha_composite(ls.resize((128 * 4, 12), Image.NEAREST), (8, 8 + 144 + 8 + 128 + 8))
     hoja.save(OUT / "contacto_sagunto.png")
+
+    # Prueba de los decals de §3 (v1.1): pintadas sobre el muro (hormigón A7) y sobre la fachada,
+    # hollín de la puerta oeste sobre balasto y tierra. x1 y x3.
+    txt, fle = piezas["decal_pintada_aqui_hay_vivos"].img, piezas["decal_pintada_flecha"].img
+    W2 = txt.width + fle.width + 24
+    muro = Image.new("RGBA", (W2, 64), PAL["navy"])
+    for x in range(0, W2, 64):
+        muro.paste(hor, (x, 0))
+    muro.paste(Image.new("RGBA", (W2, 32), PAL["beige"]), (0, 32))
+    for y0 in (4, 36):
+        muro.alpha_composite(txt, (4, y0))
+        muro.alpha_composite(fle, (txt.width + 12, y0 + 2))
+    suelo = Image.new("RGBA", (64 * 4, 64), PAL["navy"])
+    tie = a7.tierra().img
+    for i, (fo, dv) in enumerate(((bal, 0), (bal, 1), (tie, 0), (tie, 1))):
+        b = fo.copy()
+        b.alpha_composite(piezas[f"decal_hollin_puerta_{dv + 1}_64"].img)
+        suelo.paste(b, (64 * i, 0))
+    p2 = Image.new("RGBA", (max(W2, 256) * 3 + 16, (64 + 64) * 3 + 24), PAL["navy"])
+    p2.paste(muro.resize((W2 * 3, 192), Image.NEAREST), (8, 8))
+    p2.paste(suelo.resize((768, 192), Image.NEAREST), (8, 16 + 192))
+    p2.save(OUT / "prueba_decals_v11_x3.png")
+    muro.save(OUT / "prueba_pintadas_x1.png")
+    suelo.save(OUT / "prueba_hollin_puerta_x1.png")

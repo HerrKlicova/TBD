@@ -104,6 +104,10 @@ def ambientacion_sagunto(out):
     b.reloj(16).save(out / "reloj_fachada_16.png")
     b.reloj(24).save(out / "reloj_fachada_24.png")
     b.via_hollin().save(out / "decal_via_hollin_64x32.png")
+    b.pintada_texto().save(out / "decal_pintada_aqui_hay_vivos.png")      # sagunto-nivel.md v1.1, §3
+    b.pintada_flecha().save(out / "decal_pintada_flecha.png")
+    b.hollin_puerta(0).save(out / "decal_hollin_puerta_1_64.png")
+    b.hollin_puerta(1).save(out / "decal_hollin_puerta_2_64.png")
     for t in ("aceite", "escombros", "quemado"):
         for v in (0, 1):
             getattr(build_decals, t)(v).save(out / f"decal_{t}_{v + 1}_32.png")
