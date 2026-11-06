@@ -26,6 +26,7 @@ namespace TBD.View
 
         static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
+            if (GoldenRunner.Active) return;            // modo repetición dorada: sin juego
             if (scene.name != "Union") return;
             if (FindFirstObjectByType<OperationsMap3D>() != null) return;
             new GameObject("TBD_OperationsMap3D").AddComponent<OperationsMap3D>();

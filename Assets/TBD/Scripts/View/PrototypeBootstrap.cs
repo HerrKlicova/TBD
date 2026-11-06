@@ -54,6 +54,7 @@ namespace TBD.View
 
         static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
+            if (GoldenRunner.Active) return;            // modo repetición dorada: sin juego
             if (scene.name != "SampleScene") return;
             if (FindFirstObjectByType<PrototypeBootstrap>() != null) return;
             new GameObject("TBD_Prototype").AddComponent<PrototypeBootstrap>();

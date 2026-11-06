@@ -28,6 +28,7 @@ namespace TBD.View
 
         static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
+            if (GoldenRunner.Active) return;            // modo repetición dorada: sin juego
             if (scene.name != "Red") return;
             if (FindFirstObjectByType<OperationsMap>() != null) return;
             new GameObject("TBD_OperationsMap").AddComponent<OperationsMap>();
