@@ -1335,13 +1335,64 @@ namespace TBD.View
 
         static int ToLocalMm(float v, bool z = false) { return (int)Mathf.Round((v - (z ? WorkOrigin.y : WorkOrigin.x)) * 1000f); }
 
+        const int TrackGapMm = 1600;        // semiancho del hueco de vía (3,2 m): ningún muro libre lo ocupa; la puerta va ahí
+
+        /// <summary>
+        /// Parte la polilínea (mm locales al nodo; la vía es y = 0) en trozos que no entran en la franja de la vía: un muro nunca cruza la vía ni los
+        /// vagones. Cada trozo sale como una obra (es una orden de red, con su coste exacto). Devuelve cuántos tramos se han recortado.
+        /// </summary>
+        static System.Collections.Generic.List<int[]> SplitAroundTrack(int[] pts, out int clipped)
+        {
+            clipped = 0;
+            var result = new System.Collections.Generic.List<int[]>();
+            var cur = new System.Collections.Generic.List<int>();
+            void Flush() { if (cur.Count >= 4) result.Add(cur.ToArray()); cur.Clear(); }
+            for (int i = 0; i + 3 < pts.Length; i += 2)
+            {
+                long x0 = pts[i], y0 = pts[i + 1], x1 = pts[i + 2], y1 = pts[i + 3];
+                // intervalo del segmento (t en 0..1000) fuera de |y| < gap
+                long tIn = -1, tOut = -1;                                         // entrada y salida de la franja
+                if (System.Math.Min(y0, y1) < TrackGapMm && System.Math.Max(y0, y1) > -TrackGapMm && y0 != y1)
+                {
+                    long ta = (-TrackGapMm - y0) * 1000 / (y1 - y0), tb = (TrackGapMm - y0) * 1000 / (y1 - y0);
+                    tIn = System.Math.Max(0, System.Math.Min(ta, tb)); tOut = System.Math.Min(1000, System.Math.Max(ta, tb));
+                    if (tIn >= tOut) { tIn = -1; }
+                }
+                else if (y0 == y1 && System.Math.Abs(y0) < TrackGapMm) { tIn = 0; tOut = 1000; }
+                if (tIn < 0)                                                      // no toca la franja: se queda entero
+                {
+                    if (cur.Count == 0) { cur.Add((int)x0); cur.Add((int)y0); }
+                    cur.Add((int)x1); cur.Add((int)y1);
+                    continue;
+                }
+                clipped++;
+                int ax = (int)(x0 + (x1 - x0) * tIn / 1000), ay = (int)(y0 + (y1 - y0) * tIn / 1000);
+                int bx = (int)(x0 + (x1 - x0) * tOut / 1000), by = (int)(y0 + (y1 - y0) * tOut / 1000);
+                if (tIn > 0) { if (cur.Count == 0) { cur.Add((int)x0); cur.Add((int)y0); } cur.Add(ax); cur.Add(ay); }
+                Flush();
+                if (tOut < 1000) { cur.Add(bx); cur.Add(by); cur.Add((int)x1); cur.Add((int)y1); }
+            }
+            Flush();
+            return result;
+        }
+
         void FinishWall()
         {
             if (_wallPts.Count < 4) { _wallPts.Clear(); return; }
-            var plan = NetSession.A.Works.Preview(_zoneNode, _workKind, _wallPts.ToArray(), NetSession.A.Stock[_zoneNode, (int)Res.Materiales]);
-            if (!plan.Ok) { _workMsg = "No se puede construir: " + plan.Why; _wallPts.Clear(); return; }
-            NetSession.PushPayload(NetCmdType.PlaceWork, _zoneNode | ((int)_workKind << 16), _wallPts.ToArray());
-            _workMsg = $"Obra pedida: {plan.AllowedMm / 1000f:0.0} m de {(_workKind == PieceKind.Sacos ? "sacos" : "HESCO")}, {plan.CostU} u" + (plan.Cut ? " (se corta por falta de materiales)" : "");
+            int clipped;
+            var parts = SplitAroundTrack(_wallPts.ToArray(), out clipped);
+            if (parts.Count == 0) { _workMsg = "El muro cae sobre la vía: la vía queda libre (pon una puerta con H)."; _wallPts.Clear(); return; }
+            int stock = NetSession.A.Stock[_zoneNode, (int)Res.Materiales], totalU = 0; long totalMm = 0; bool cut = false;
+            foreach (var part in parts)
+            {
+                var plan = NetSession.A.Works.Preview(_zoneNode, _workKind, part, stock - totalU);
+                if (!plan.Ok) { cut = true; continue; }
+                totalU += plan.CostU; totalMm += plan.AllowedMm; cut |= plan.Cut;
+                NetSession.PushPayload(NetCmdType.PlaceWork, _zoneNode | ((int)_workKind << 16), part);
+            }
+            _workMsg = totalU > 0
+                ? $"Obra pedida: {totalMm / 1000f:0.0} m de {(_workKind == PieceKind.Sacos ? "sacos" : "HESCO")}, {totalU} u" + (cut ? " (se corta por falta de materiales)" : "") + (clipped > 0 ? " · el muro deja libre el hueco de la vía (3,2 m): ahí va la puerta" : "")
+                : "No se puede construir: faltan materiales o el muro es demasiado corto";
             _wallPts.Clear();
         }
 
