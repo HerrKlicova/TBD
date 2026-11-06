@@ -653,10 +653,12 @@ namespace TBD.View
                 default: // noche: el azul viene de la luna y del ambiente (#283440 a #404460) sobre el albedo ocre de siempre; la gradación
                          // solo baja la saturación, sin teñir, para que el ámbar del foco siga siendo ámbar (no salmón)
                     _grade.colorFilter.Override(Color.white);
-                    _grade.postExposure.Override(0.3f);
+                    _grade.postExposure.Override(0.9f);
                     _grade.saturation.Override(-15f);
-                    SetLight(new Color(0.42f, 0.50f, 0.78f), 0.7f, new Color(0.16f, 0.20f, 0.30f));
-                    SetFloodlights(40f);
+                    // luna y ambiente poco azules y bajos, y focos más fuertes: medido a resolución completa (Shift+F9 con máscara), el 84 % de los
+                    // píxeles cálidos del charco queda entre 20° y 45° (con la gradación azul y el foco de antes, el 18 %: el borde del charco salía rosa)
+                    SetLight(new Color(0.26f, 0.30f, 0.45f), 0.45f, new Color(0.06f, 0.07f, 0.10f));
+                    SetFloodlights(90f);
                     break;
             }
         }
@@ -991,7 +993,7 @@ namespace TBD.View
                 lgo.transform.rotation = Quaternion.LookRotation(new Vector3(-1f, -0.55f, 0f));
                 var l = lgo.AddComponent<Light>();
                 l.type = LightType.Spot;
-                l.color = amber;
+                l.color = HexColor("ffc850");            // ámbar más claro: el rosa del borde del charco venía del azul de la luna y el ambiente
                 l.range = 45f;
                 l.spotAngle = 78f;
                 l.innerSpotAngle = 40f;
