@@ -102,4 +102,6 @@ La noche para el trabajo pero no la obra. `WorkInProgress` (encargada y sin acab
 
 ### Terreno asegurado
 `PlaceWork` y `PreviewWork` exigen que no haya zombis en pie a menos de `SecureMm` (30 m) de ningún punto de la obra. La rejilla de densidad la ofrece la zona con `NetWorld.ZoneDensity` (`DensityView`: celdas en mm locales al nodo); sin zona enchufada todo vale. No entra en el hash. Pendiente del lado de la zona: construir la vista y enchufarla (Marcos).
+### Horario de un tren (SetSchedule)
+`NetWorld.SetSchedule(tren, datos)` sustituye las paradas de un tren parado: seis enteros por parada `[nodo, hora de salida, munición, combustible, materiales, personas]`. Tiene que incluir el nodo donde está el tren, de 1 a 12 paradas, sin dos seguidas en el mismo nodo. Entra en el hash solo si el jugador lo ha puesto. Es lo que permite mover un tren recién salido del taller y cargar los materiales del tren de obras.
 
