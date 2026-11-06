@@ -991,6 +991,14 @@ namespace TBD.View
             foreach (var h in _halos) if (h.gameObject.activeSelf) h.rotation = _fxCam.transform.rotation;   // el halo mira a la cámara
         }
 
+        /// <summary>Color de un escalón del talud: más oscuro cuanto más alto (para leer el relieve del desmonte).</summary>
+        static string BankColor(float h)
+        {
+            float k = Mathf.Clamp01(h / CuttingLevel.Depth);
+            int r = (int)Mathf.Lerp(0xa0, 0x5a, k), g = (int)Mathf.Lerp(0x84, 0x48, k), bl = (int)Mathf.Lerp(0x58, 0x30, k);
+            return r.ToString("x2") + g.ToString("x2") + bl.ToString("x2");
+        }
+
         void SetupLevelObjects()
         {
             Box("Suelo", new Vector3(SimConst.WorldW * 0.5f, -0.25f, SimConst.WorldH * 0.5f), new Vector3(SimConst.WorldW, 0.5f, SimConst.WorldH), _mGround);
@@ -1001,7 +1009,7 @@ namespace TBD.View
                 {
                     var c = (s.A + s.B) * 0.5f;
                     var size = s.B - s.A;
-                    Box(_cutting ? "Talud" : "Edificio", new Vector3(c.x, s.Height * 0.5f, c.y), new Vector3(size.x, s.Height, size.y), _cutting ? _mGround : _mRoof);
+                    Box(_cutting ? "Talud" : "Edificio", new Vector3(c.x, s.Height * 0.5f, c.y), new Vector3(size.x, s.Height, size.y), _cutting ? Mat(BankColor(s.Height)) : _mRoof);
                 }
                 else
                 {
