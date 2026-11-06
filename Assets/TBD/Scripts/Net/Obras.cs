@@ -441,9 +441,10 @@ namespace TBD.Net
         public readonly int[] Workers;           // obreros asignados por nodo (población; la orden «asignar obreros»)
         public readonly int[] NextId;            // siguiente número de obra por nodo
         public readonly bool[] WasPaused;        // por nodo: la obra estaba pausada en el tick anterior (para avisar OC-4 una sola vez por parada)
+        public readonly long[] MaintRem;         // por nodo: remanente del mantenimiento, en E4·‰·‰ (ver MaintDen); entra en el hash solo si no es 0
         public bool FirstNoted;                  // ya se avisó de la primera obra de la partida (OC-1, una sola vez)
 
-        public ObrasState(int nodes, ObrasParams p) { P = p; _byNode = new List<WorkPiece>[nodes]; Workers = new int[nodes]; NextId = new int[nodes]; WasPaused = new bool[nodes]; }
+        public ObrasState(int nodes, ObrasParams p) { P = p; _byNode = new List<WorkPiece>[nodes]; Workers = new int[nodes]; NextId = new int[nodes]; WasPaused = new bool[nodes]; MaintRem = new long[nodes]; }
 
         public int Nodes => _byNode.Length;
         public List<WorkPiece> At(int node) { return _byNode[node] ?? (_byNode[node] = new List<WorkPiece>()); }
@@ -498,8 +499,39 @@ namespace TBD.Net
             return destroyed;
         }
 
+        /// <summary>Una u de materiales en las unidades del remanente: 10.000 E4 por u, y cada día se suma Σ(CostE4 × vida ‰) × WearDayMil ‰ (E4 × ‰ × ‰).</summary>
+        public const long MaintDen = 10_000L * 1000L * 1000L;
+
         /// <summary>
-        /// Mantenimiento de un día (Hugo, #8): ceil(WearDayMil ‰ de Σ(CostE4 × vida)) con la misma Σ que el nivel de fortificación, en u de materiales del almacén.
+        /// Mantenimiento exacto de un día (Hugo, adenda de D-N63): suma al remanente del nodo el 1 % exacto de la Σ del nivel (la misma, con la vida) y
+        /// devuelve las u que la estación tiene que poder cubrir hoy: ceil(remanente / MaintDen). Una estación con 0 u no puede cubrir ni una fracción,
+        /// así que se desgasta cada día como antes; la que tiene reservas no se desgasta. Después se cierra con SettleMaintenance.
+        /// </summary>
+        public int AccrueMaintenance(int node)
+        {
+            var l = _byNode[node];
+            if (l == null || P.WearDayMil <= 0) return 0;
+            long value = 0;                                              // E4 × ‰
+            foreach (var w in l) if (Obras.CountsForLevel(P, w)) value += (long)w.CostE4 * w.LifeMil;
+            MaintRem[node] += value * P.WearDayMil;
+            return (int)((MaintRem[node] + MaintDen - 1) / MaintDen);
+        }
+
+        /// <summary>
+        /// Cierra el mantenimiento del día y devuelve las u que se cobran: si se pudo cubrir, floor(remanente / MaintDen) y el remanente baja en eso (queda
+        /// la fracción, dentro del hash); si no, no se cobra nada, ese día se aplica el desgaste y solo se conserva la fracción (no hay deuda que arrastrar).
+        /// Así un apeadero de 30 u paga 0,3 u al día de media y Sagunto 1,2 u, no un ceil por estación.
+        /// </summary>
+        public int SettleMaintenance(int node, bool paid)
+        {
+            long whole = MaintRem[node] / MaintDen;
+            if (!paid) { MaintRem[node] -= whole * MaintDen; return 0; }
+            MaintRem[node] -= whole * MaintDen;
+            return (int)whole;
+        }
+
+        /// <summary>
+        /// Techo del mantenimiento de un día (Hugo, #8): ceil(WearDayMil ‰ de Σ(CostE4 × vida)) con la misma Σ que el nivel de fortificación, en u de materiales del almacén.
         /// Si la estación puede pagarlo no hay desgaste; si no, se aplica WearDay (la caída geométrica).
         /// </summary>
         public int MaintenanceU(int node)
@@ -662,6 +694,7 @@ namespace TBD.Net
             }
             if (FirstNoted) h += NetWorld.Mix(0x0C1F1UL);
             for (int n = 0; n < WasPaused.Length; n++) if (WasPaused[n]) h += NetWorld.Mix(0x0C4A5UL ^ ((ulong)(uint)n << 40));
+            for (int n = 0; n < MaintRem.Length; n++) if (MaintRem[n] != 0) h += NetWorld.Mix(0x4D41494EUL ^ ((ulong)(uint)n << 40) ^ (ulong)MaintRem[n]);     // remanente del mantenimiento (solo si no es 0)
             for (int n = 0; n < Workers.Length; n++)
                 if (Workers[n] != 0 || NextId[n] != 0) h += NetWorld.Mix(0x0B0BEUL ^ ((ulong)(uint)n << 40) ^ ((ulong)(uint)Workers[n] << 16) ^ (ulong)(uint)NextId[n]);
             return h;
