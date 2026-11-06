@@ -309,6 +309,7 @@ namespace TBD.View
                         _desync = true;
                         _desyncTick = ha.Tick;
                         Debug.LogError($"[TBD] DESINCRONIZACIÓN en el tick {ha.Tick}: hash A={ha.Value:X16} hash B={hb.Value:X16}");
+                        WriteDesyncReport(ha, hb);
                     }
                 }
                 else if (ha.Tick % 300 == 0)
@@ -319,8 +320,12 @@ namespace TBD.View
         }
 
         /// <summary>Una orden entra por la cola única con un número de tick futuro, igual en los dos mundos.</summary>
+        readonly System.Collections.Generic.List<string> _cmdLog = new System.Collections.Generic.List<string>();   // últimas órdenes de la zona (para el informe de desincronización)
+
         void Push(CmdType type, int arg = 0, Unity.Mathematics.float2 p0 = default, Unity.Mathematics.float2 p1 = default)
         {
+            _cmdLog.Add($"tick {_worldA.EntityManager.GetComponentData<SimClock>(_rootA).Tick} {type} arg={arg}");
+            if (_cmdLog.Count > 40) _cmdLog.RemoveAt(0);
             PushTo(_worldA.EntityManager, _rootA, type, arg, p0, p1);
             PushTo(_worldB.EntityManager, _rootB, type, arg, p0, p1);
         }
@@ -714,6 +719,8 @@ namespace TBD.View
         // F9 = captura PNG de lo que ve el jugador (con efectos, postproceso e interfaz, a mitad de tamaño).
         // F10 = empieza/para una grabación de fotogramas; el GIF se monta con scripts/capturas/hacer_gif.py de
         // mr-mak-workspace. Todo se guarda en <proyecto>/Captures/, fuera de Git.
+        /// <summary>Las capturas de Shift+F9 salen a resolución completa del juego (la normal del F9 es a mitad de tamaño). Máscara: zombis #FF00FF, tren #00FFFF.</summary>
+        const int MaskSuperSize = 4;
         bool _recording;
         bool _capturing;
         float _recTimer;
@@ -749,7 +756,7 @@ namespace TBD.View
             bool wasPaused = _paused;
             _paused = true;
             yield return new WaitForEndOfFrame();
-            var normal = ScreenCapture.CaptureScreenshotAsTexture();
+            var normal = ScreenCapture.CaptureScreenshotAsTexture(MaskSuperSize);
             File.WriteAllBytes(normalPath, normal.EncodeToPNG());
             Destroy(normal);
 
@@ -773,14 +780,28 @@ namespace TBD.View
             bool fxPost = fxD.renderPostProcessing, prPost = prD.renderPostProcessing;
             fxD.renderPostProcessing = false;                                   // tampoco el tonemapping de URP
             prD.renderPostProcessing = false;
+            // el tren en cian puro #00FFFF (todo el tren: cuerpo, techo, contorno y franja), para medir su contraste contra el fondo (D-N13)
+            var cyan = new Material(Shader.Find("Universal Render Pipeline/Unlit")); cyan.SetColor("_BaseColor", new Color(0f, 1f, 1f, 1f));
+            var trainRenderers = new System.Collections.Generic.List<MeshRenderer>(); var trainMats = new System.Collections.Generic.List<Material[]>();
+            if (_trainParts != null)
+                foreach (var part in _trainParts)
+                    if (part != null)
+                        foreach (var r in part.GetComponentsInChildren<MeshRenderer>())
+                        {
+                            trainRenderers.Add(r); trainMats.Add(r.sharedMaterials);
+                            var arr = new Material[r.sharedMaterials.Length]; for (int k = 0; k < arr.Length; k++) arr[k] = cyan;
+                            r.sharedMaterials = arr;
+                        }
             yield return null;                                                // un fotograma para que Entities Graphics suba los colores
             yield return new WaitForEndOfFrame();
-            var mask = ScreenCapture.CaptureScreenshotAsTexture();
+            var mask = ScreenCapture.CaptureScreenshotAsTexture(MaskSuperSize);
             File.WriteAllBytes(maskPath, mask.EncodeToPNG());
             Destroy(mask);
 
             for (int i = 0; i < ents.Length; i++)
                 em.SetComponentData(ents[i], new ZombieBaseColor { Value = RenderAttachSystem.ColorFor(em.GetComponentData<Zombie>(ents[i]).SimId) });
+            for (int i = 0; i < trainRenderers.Count; i++) trainRenderers[i].sharedMaterials = trainMats[i];
+            Destroy(cyan);
             ents.Dispose();
             mat.shader = lit;
             _paletteMix = mix;
@@ -1009,6 +1030,35 @@ namespace TBD.View
         {
             if (_fxCam == null) return;
             foreach (var h in _halos) if (h.gameObject.activeSelf) h.rotation = _fxCam.transform.rotation;   // el halo mira a la cámara
+        }
+
+        /// <summary>
+        /// Q14 (Sara): cuando la zona se desincroniza, deja un informe en Captures/desync_zona_*.txt con la escena, el tipo de zona, Burst,
+        /// el hash por sistema de los dos mundos y las últimas órdenes, para no tener que preguntar qué se hizo.
+        /// </summary>
+        void WriteDesyncReport(SimHash ha, SimHash hb)
+        {
+            try
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.Append("Desincronización de la zona · ").Append(System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")).Append('\n');
+                sb.Append("Unity ").Append(Application.unityVersion).Append(" · ").Append(Application.isEditor ? "Editor" : "compilación").Append(" · Burst ")
+                  .Append(Unity.Burst.BurstCompiler.Options.EnableBurstCompilation ? "activado" : "DESACTIVADO").Append('\n');
+                sb.Append("escena ").Append(SceneManager.GetActiveScene().name).Append(" · zona ").Append(_cutting ? "emboscada (desmonte)" : "estación").Append(" · nodo ")
+                  .Append(_zoneNode).Append(" · zombis ").Append(_total).Append('\n');
+                sb.Append("tick A ").Append(ha.Tick).Append(" B ").Append(hb.Tick).Append(" · hash A ").Append(ha.Value.ToString("X16")).Append(" B ").Append(hb.Value.ToString("X16")).Append('\n');
+                var sa = ZoneGolden.Systems(_worldA.EntityManager, _rootA);
+                var sbb = ZoneGolden.Systems(_worldB.EntityManager, _rootB);
+                for (int i = 0; i < sa.Length && i < ZoneGolden.SystemNames.Length; i++)
+                    sb.Append("  ").Append(ZoneGolden.SystemNames[i]).Append(": A ").Append(sa[i].ToString("X16")).Append(" B ").Append(sbb[i].ToString("X16")).Append(sa[i] == sbb[i] ? "" : "   <-- DIFIERE").Append('\n');
+                sb.Append("últimas órdenes:\n");
+                foreach (var c in _cmdLog) sb.Append("  ").Append(c).Append('\n');
+                Directory.CreateDirectory(CaptureRoot);
+                string path = Path.Combine(CaptureRoot, $"desync_zona_{System.DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                File.WriteAllText(path, sb.ToString());
+                Debug.Log("[TBD] Informe de desincronización: " + path);
+            }
+            catch (System.Exception e) { Debug.LogWarning("[TBD] No se pudo escribir el informe de desincronización: " + e.Message); }
         }
 
         /// <summary>Título de la zona en pantalla: una emboscada lleva el nombre de su punto real (Lucía), no el del nodo más cercano.</summary>

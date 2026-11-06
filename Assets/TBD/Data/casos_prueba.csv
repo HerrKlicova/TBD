@@ -5,9 +5,9 @@ P1c;Combate S0 sin muros (bajas x3);z=2400 · municion_mil=4000 · nivel_fort_mi
 P1d;Asalto sin muros limitado por cadencia (réplica de P7);z=2000 · tiradores=21;abatidos=1134 · llegan_contacto=866 · bajas_mil=12124
 P1e;Limpiar Teruel A PIE con 30 tiradores (sin el tren al lado);z=1120 · tiradores=30;abatidos=1120 · llegan_contacto=0 · bajas_mil=0
 P1f;Limpiar Zaragoza A PIE con 30 tiradores (sin el tren al lado), desde el tren parado: sin tope, 0 bajas;z=1840 · tiradores=30;abatidos=1620 · llegan_contacto=220 · bajas_mil=3080
-P2-d10;Presupuesto de la Colmena (sin estación, rampa ni ruido);dia=10 · huella_mil=5000;tabla=1874 · raiz_mil=1341 · H=3894
-P2-d37;Presupuesto de la Colmena (sin estación, rampa ni ruido);dia=37 · huella_mil=12000;tabla=5070 · raiz_mil=1708 · H=13421
-P2-d150;Presupuesto de la Colmena (sin estación, rampa ni ruido);dia=150 · huella_mil=40000;tabla=27580 · raiz_mil=2720 · H=116277
+P2-d10;Presupuesto de la Colmena (sin estación, rampa ni ruido);dia=10 · huella_mil=5000;tabla=1874 · raiz_mil=1483 · H=4306
+P2-d37;Presupuesto de la Colmena (sin estación, rampa ni ruido);dia=37 · huella_mil=12000;tabla=5070 · raiz_mil=1969 · H=15472
+P2-d150;Presupuesto de la Colmena (sin estación, rampa ni ruido);dia=150 · huella_mil=40000;tabla=27580 · raiz_mil=3255 · H=139147
 P3;Memoria de tráfico, jugador rutinario (inc 200, decae 850, sin derrame);1 paso/día a la misma hora, días 1–10;memoria_al_pasar=0,170,314,436,540,629,704,768,822,868 | sucesos=-,-,-,aviso,aviso,emboscada,emboscada,emboscada,emboscada,corte
 P4;Pila en un muro de sacos de 60 m (altura 1200 mm);h0=0 · hora1: vivos=900 abatidos=2100 · hora2: sin presión · alternativa hora2: vivos=600 abatidos=1000;hora1=740 mm brecha=0 · hora2=590 mm · alternativa=1206 mm brecha=1
 P5;Viaje ida y vuelta con carga y descarga;Sagunto–Teruel 130 km · Sagunto–Zaragoza 310 km · vel 60;teruel_ticks=12500 · zaragoza_ticks=21500 · viajes_teruel_por_tren_dia_mil=1920
@@ -16,4 +16,7 @@ P6-30;Producción de Castellón (base 60 de combustible);pob=30 · plantilla=30;
 P6-60;Producción de Castellón (base 60 de combustible);pob=60 · plantilla=30;factor_mil=1500 · produccion=90
 P6-120;Producción de Castellón (base 60 de combustible);pob=120 · plantilla=30;factor_mil=2000 · produccion=120
 P7;Calibración zona vs S0 (D-N27: medido 1,51 u y 1.143 abatidos, objetivo tras ajustar acierto y cadencia);zona sin muros · 20 fusileros + 1 ametralladora contra 2000 comunes · 5 min;abatidos 1.000–1.300 (cadencia, igual que la medida) · 4–6 disparos por abatido · munición 2,5–3,9 u. Fuera de rango: avisar a Hugo
+P9a;Nivel S0: 150 m de HESCO + puerta + 2 nidos + 3 focos (ejemplo de Lucía, precios D-N44);piezas_mil=90000,6000,16000,6000;valor_mil=118000 · nivel_mil=3933
+P9b;Nivel S0 de un apeadero recién fundado: 150 m de sacos;piezas_mil=30000;nivel_mil=1000
+P9c;Coste de 100 m de HESCO en polilínea de 3 tramos (40 + 35 + 25 m);u_por_10m=6;coste_mil=60000
 P8;Camino crítico de la demo (rangos del modelo, mediana de 200 partidas);política equilibrada · semilla libre;Castellón ≤ día 2 · Teruel día 3–5 · Tren 3 día 6–9 · puente día 8–10 · ≥ 9 nodos el día 10 · derrota en 10 días = 0 %
