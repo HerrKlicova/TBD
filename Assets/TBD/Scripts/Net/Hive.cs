@@ -50,6 +50,23 @@ namespace TBD.Net
             _known = new bool[edges, p.Slots];
         }
 
+        public void SaveState(SaveWriter w)
+        {
+            w.Ints2(M); w.Bools2(_known);
+            var passed = new List<long>(_passedToday); passed.Sort();           // orden fijo: el recorrido de un HashSet no vale
+            w.Int(passed.Count); foreach (var p in passed) w.Long(p);
+            w.Long(_passDay);
+        }
+
+        public void LoadState(SaveReader r)
+        {
+            r.Ints2Into(M); r.Bools2Into(_known);
+            int n = r.Int();
+            if (n < 0 || n > r.Remaining) throw new SaveException(SaveError.Corrupt, "pasos de hoy no válidos");
+            _passedToday.Clear(); for (int i = 0; i < n; i++) _passedToday.Add(r.Long());
+            _passDay = r.Long();
+        }
+
         public int SlotOf(long tick) { return (int)(tick % NetConst.DayTicks / SlotTicks); }
 
         // D-N31: un solo paso por tren, tramo, franja y día (dos trenes distintos sí suman). Se guarda (día, tren, tramo, franja).

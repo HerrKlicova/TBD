@@ -52,6 +52,15 @@ namespace TBD.Net
             for (int i = 0; i < _names.Length; i++) _names[i] = g.Nodes[i].Name;
         }
 
+        public void SaveState(SaveWriter w) { w.Bools(Founded); }
+
+        public void LoadState(SaveReader r)
+        {
+            var f = r.Bools();
+            if (f == null || f.Length != Founded.Length) throw new SaveException(SaveError.TopologyMismatch, "estaciones fundadas: otro número de nodos");
+            Array.Copy(f, Founded, f.Length);
+        }
+
         public bool IsSite(int node)
         {
             if (node < 0 || node >= _names.Length || P.Sites == null) return false;

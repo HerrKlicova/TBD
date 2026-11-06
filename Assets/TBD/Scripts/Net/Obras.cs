@@ -446,6 +446,56 @@ namespace TBD.Net
 
         public ObrasState(int nodes, ObrasParams p) { P = p; _byNode = new List<WorkPiece>[nodes]; Workers = new int[nodes]; NextId = new int[nodes]; WasPaused = new bool[nodes]; MaintRem = new long[nodes]; }
 
+        public void SaveState(SaveWriter w)
+        {
+            w.Int(_byNode.Length);
+            for (int n = 0; n < _byNode.Length; n++)
+            {
+                var l = _byNode[n];
+                w.Int(l == null ? -1 : l.Count);                      // null y vacía no son lo mismo para quien compare el estado: se conservan
+                if (l == null) continue;
+                foreach (var p in l)
+                {
+                    w.Byte((byte)p.Kind); w.Int(p.X0); w.Int(p.Y0); w.Int(p.X1); w.Int(p.Y1); w.Int(p.CostE4); w.Int(p.LifeMil); w.Bool(p.Built); w.Int(p.MaxWorkers); w.Int(p.Id);
+                    w.Int(p.NeedE4); w.Int(p.WorkE4); w.Byte(p.GateMode); w.Int(p.GateProg); w.Int(p.PaidU); w.Bool(p.Broken);
+                }
+            }
+            w.Ints(Workers); w.Ints(NextId); w.Bools(WasPaused); w.Bool(FirstNoted); w.Longs(MaintRem);
+        }
+
+        public void LoadState(SaveReader r)
+        {
+            r.Expect(_byNode.Length, "nodos de obras");
+            for (int n = 0; n < _byNode.Length; n++)
+            {
+                int c = r.Int();
+                if (c < -1 || c > r.Remaining) throw new SaveException(SaveError.Corrupt, "lista de piezas no válida");
+                if (c < 0) { _byNode[n] = null; continue; }
+                var l = new List<WorkPiece>(c);
+                for (int i = 0; i < c; i++)
+                    l.Add(new WorkPiece
+                    {
+                        Kind = (PieceKind)r.Byte(), X0 = r.Int(), Y0 = r.Int(), X1 = r.Int(), Y1 = r.Int(), CostE4 = r.Int(), LifeMil = r.Int(), Built = r.Bool(), MaxWorkers = r.Int(), Id = r.Int(),
+                        NeedE4 = r.Int(), WorkE4 = r.Int(), GateMode = r.Byte(), GateProg = r.Int(), PaidU = r.Int(), Broken = r.Bool(),
+                    });
+                _byNode[n] = l;
+            }
+            CopyInto(r.Ints(), Workers, "obreros"); CopyInto(r.Ints(), NextId, "números de obra");
+            var wp = r.Bools();
+            if (wp == null || wp.Length != WasPaused.Length) throw new SaveException(SaveError.TopologyMismatch, "obras pausadas: otro número de nodos");
+            Array.Copy(wp, WasPaused, wp.Length);
+            FirstNoted = r.Bool();
+            var m = r.Longs();
+            if (m == null || m.Length != MaintRem.Length) throw new SaveException(SaveError.TopologyMismatch, "remanente de mantenimiento: otro número de nodos");
+            Array.Copy(m, MaintRem, m.Length);
+        }
+
+        static void CopyInto(int[] src, int[] dst, string what)
+        {
+            if (src == null || src.Length != dst.Length) throw new SaveException(SaveError.TopologyMismatch, what + ": otro número de nodos");
+            Array.Copy(src, dst, dst.Length);
+        }
+
         public int Nodes => _byNode.Length;
         public List<WorkPiece> At(int node) { return _byNode[node] ?? (_byNode[node] = new List<WorkPiece>()); }
         public int Count(int node) { return _byNode[node] == null ? 0 : _byNode[node].Count; }

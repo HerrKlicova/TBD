@@ -50,6 +50,23 @@ namespace TBD.Net
         public readonly List<RailNode> Nodes = new List<RailNode>();
         public readonly List<RailEdge> Edges = new List<RailEdge>();
 
+        // ---- guardado (Guardado.cs): solo lo que cambia durante la partida; el mapa lo pone el escenario
+        public void SaveState(SaveWriter w)
+        {
+            w.Int(Nodes.Count);
+            foreach (var n in Nodes) { w.Byte((byte)n.State); w.Int(n.HordeDensity); }
+            w.Int(Edges.Count);
+            foreach (var e in Edges) { w.Byte((byte)e.State); w.Long(e.HordeAtMm); w.Bool(e.Debris); w.Int(e.RepairSvc); w.Long(e.RepairDone); w.Long(e.RepairNeed); w.Int(e.RepairU); }
+        }
+
+        public void LoadState(SaveReader r)
+        {
+            r.Expect(Nodes.Count, "nodos");
+            foreach (var n in Nodes) { n.State = (NodeState)r.Byte(); n.HordeDensity = r.Int(); }
+            r.Expect(Edges.Count, "tramos");
+            foreach (var e in Edges) { e.State = (EdgeState)r.Byte(); e.HordeAtMm = r.Long(); e.Debris = r.Bool(); e.RepairSvc = r.Int(); e.RepairDone = r.Long(); e.RepairNeed = r.Long(); e.RepairU = r.Int(); }
+        }
+
         public RailNode AddNode(string name, int x, int y)
         {
             var n = new RailNode { Id = Nodes.Count, Name = name, XMeters = x, YMeters = y, State = NodeState.Segura };
@@ -125,6 +142,23 @@ namespace TBD.Net
         public long SpeedMmPerTick;                    // 100 = 3 m/s a 30 Hz
         public RailTrainState State = RailTrainState.Parado;
         public int CargoTonnes;
+
+        public void SaveState(SaveWriter w)
+        {
+            w.Int(Id); w.Str(Name); w.Int(Route == null ? -1 : Route.Count);
+            if (Route != null) foreach (var n in Route) w.Int(n);
+            w.Int(Leg); w.Long(OffsetMm); w.Long(SpeedMmPerTick); w.Byte((byte)State); w.Int(CargoTonnes);
+        }
+
+        public static RailTrain LoadState(SaveReader r)
+        {
+            var t = new RailTrain { Id = r.Int(), Name = r.Str() };
+            int n = r.Int();
+            if (n < 0) t.Route = null;
+            else { if (n > r.Remaining) throw new SaveException(SaveError.Corrupt, "ruta más larga que el archivo"); t.Route = new List<int>(n); for (int i = 0; i < n; i++) t.Route.Add(r.Int()); }
+            t.Leg = r.Int(); t.OffsetMm = r.Long(); t.SpeedMmPerTick = r.Long(); t.State = (RailTrainState)r.Byte(); t.CargoTonnes = r.Int();
+            return t;
+        }
 
         public void SetRoute(List<int> route)
         {
