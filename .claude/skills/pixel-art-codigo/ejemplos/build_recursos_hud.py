@@ -23,7 +23,8 @@ from build_maquetas import estrella  # noqa: E402
 
 def pila():
     """Muro de bloques a la derecha y la horda amontonada contra él en rampa, con una mano asomando por arriba.
-    Las cabezas van en oliva (#70784c) y no en los valores de la horda del mapa: es UI y tiene que leerse en el panel."""
+    D-N88: la horda va en sus valores (303424/283440) con un filo de 1 px en beige b4a080 arriba; nunca en oliva,
+    que es el color de la tropa propia. La horda es siempre lo más oscuro, también en la interfaz."""
     s = Sprite()
     s.rect(21, 7, 8, 22, "concrete")                     # muro
     s.vline(21, 7, 28, "concrete_light")
@@ -35,15 +36,21 @@ def pila():
         s.vline(x, y, y + 2, "grey_brown")
     cabezas = [(4, 26), (8, 26), (12, 26), (16, 26), (6, 22), (10, 22), (14, 22), (18, 23),
                (9, 18), (13, 18), (17, 19), (13, 14), (17, 15), (17, 11)]
-    for x, y in cabezas:                                 # cada cabeza, 4x4 con hombros debajo
-        s.rect(x - 1, y + 2, 5, 2, "olive_dark")
-        s.rect(x, y - 1, 3, 3, "olive")
-        s.set(x, y - 1, "olive_light")
-        s.set(x + 2, y + 1, "olive_dark")
-    s.line(18, 10, 20, 5, "olive")                       # brazo que sube por el muro
-    s.rect(20, 4, 2, 2, "olive_light")                   # mano en el borde
-    s.line(13, 13, 12, 8, "olive")                       # otro brazo levantado
-    s.set(12, 7, "olive_light")
+    for x, y in cabezas:                                 # cada cabeza, 4x4 con hombros debajo, en valores de la horda
+        s.rect(x - 1, y + 2, 5, 2, "slate_dark")
+        s.rect(x, y - 1, 3, 3, "olive_shadow")
+        s.set(x + 2, y + 1, "slate_dark")
+    s.line(18, 10, 20, 5, "olive_shadow")                # brazo que sube por el muro
+    s.rect(20, 4, 2, 2, "olive_shadow")                  # mano en el borde
+    s.line(13, 13, 12, 8, "olive_shadow")                # otro brazo levantado
+    s.set(12, 7, "olive_shadow")
+    px = s.img.load()                                    # filo de 1 px en beige arriba de cada pieza de la horda
+    horda = {PAL["olive_shadow"], PAL["slate_dark"]}
+    for x in range(2, 21):
+        for y in range(32):
+            if tuple(px[x, y][:3]) in {tuple(c[:3]) for c in horda} and px[x, y][3]:
+                if y == 0 or px[x, y - 1][3] == 0:
+                    s.set(x, y, "beige")
     s.hline(2, 28, 29, "olive_dark")                     # suelo
     s.outline()
     return s
