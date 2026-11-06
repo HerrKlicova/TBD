@@ -10,7 +10,11 @@ brillo semitransparente). Esto la deja lista para la capa pixelada del juego:
 Salida: <nombre>.png (hoja), <nombre>.json (estilo Aseprite, con fps y pivote) y contacto.png.
 
 Uso:
-  python fx_adaptar.py <hoja.png> <hoja.json> <carpeta_salida> [--fps 12] [--escala 1] [--nombre vm_vfx_x]
+  python fx_adaptar.py <hoja.png> <hoja.json> <carpeta_salida> [--fps 12] [--escala 1] [--max N] [--destello]
+                       [--nombre vm_vfx_x]
+
+Duraciones aprobadas (Lucía, 6-nov): impacto de bala 6 fotogramas, explosión pequeña 12–14,
+explosión de tierra 16–18, a 12 fps.
 """
 import argparse
 import json
@@ -61,6 +65,9 @@ def main():
     ap.add_argument("--fps", type=int, default=12)
     ap.add_argument("--escala", type=float, default=1.0)
     ap.add_argument("--nombre", default=None)
+    ap.add_argument("--max", type=int, default=0, help="fotogramas máximos (0 = todos); el resto lo pone el emisor de humo")
+    ap.add_argument("--destello", action="store_true",
+                    help="saca el primer fotograma (el destello) a su propio PNG para la capa VFX_HD")
     a = ap.parse_args()
 
     meta = json.loads(Path(a.json).read_text())
@@ -74,6 +81,11 @@ def main():
         nw, nh = max(1, round(fw * a.escala)), max(1, round(fh * a.escala))
         marcos = [m.resize((nw, nh), Image.NEAREST) for m in marcos]
         fw, fh, pvx, pvy = nw, nh, round(pvx * a.escala), round(pvy * a.escala)
+    destello = None
+    if a.destello:
+        destello, marcos = marcos[0], marcos[1:]
+    if a.max:
+        marcos = marcos[:a.max]
     cache = {}
     marcos = [adaptar_fotograma(m, cache) for m in marcos]
     # Corta la cola: fotogramas finales con menos del 3 % de los píxeles del fotograma más lleno
@@ -104,6 +116,10 @@ def main():
                        "trimmed": False, "spriteSourceSize": {"x": 0, "y": 0, "w": w, "h": h},
                        "sourceSize": {"w": w, "h": h}, "duration": dur})
     sheet.save(out / f"{nombre}.png")
+    if destello is not None:
+        # El destello va a resolución completa en Unity (VFX_HD, aditivo): se guarda sin bloquear la paleta
+        # ni binarizar la alfa, recortado a la misma caja que la hoja para que comparta pivote.
+        destello.crop((x0, y0, x1, y1)).save(out / f"{nombre}_destello_vfxhd.png")
     (out / f"{nombre}.json").write_text(json.dumps({"frames": frames, "meta": {
         "app": "pixelvm fx_adaptar (desde pixelfx, MIT)", "image": f"{nombre}.png", "format": "RGBA8888",
         "size": {"w": sheet.width, "h": sheet.height}, "scale": "1",

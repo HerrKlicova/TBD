@@ -22,23 +22,34 @@ def anillo(s, r0, r1, color, cx=C, cy=C):
                 s.set(i, j, color)
 
 
-def base(token, borde=None, dentro="bone", marca="slate_dark"):
+OSCURO = {"olive": "olive_dark", "olive_yellow": "ochre_dark", "red_bright": "red", "concrete": "slate",
+          "maroon": "red"}
+LUZ = {"olive": "olive_light", "olive_yellow": "olive_light", "red_bright": "rose", "concrete": "concrete_light",
+       "maroon": "wine"}
+
+
+def base(token, borde=None):
+    """Ficha del color del estado con el símbolo de estación de los mapas antiguos en hueso:
+    línea de vía con cuatro traviesas y el rectángulo del andén encima (Lucía, 6-nov). Sin disco blanco."""
     s = Sprite()
-    anillo(s, 0, 10.5, dentro)
-    anillo(s, 7.2, 10.5, token)                       # anillo del estado
-    anillo(s, 10.5, 11.6, borde or token)
-    # Luz arriba a la izquierda: un arco fino de un tono más claro en el anillo (volumen de ficha).
-    luz = {"olive": "olive_light", "olive_yellow": "olive_light", "red_bright": "rose", "concrete": "concrete_light",
-           "maroon": "wine"}[token]
+    anillo(s, 0, 10.5, token)
+    anillo(s, 9.5, 10.5, OSCURO[token])               # filo interior que separa el borde
+    anillo(s, 10.5, 11.6, borde or OSCURO[token])
+    # Luz arriba a la izquierda: arco fino más claro (volumen de ficha).
     for j in range(32):
         for i in range(32):
             d = math.hypot(i + .5 - C - .5, j + .5 - C - .5)
-            if 9.3 <= d < 10.5 and (i - C) + (j - C) < -6:
-                s.set(i, j, luz)
-    # Marca del andén: vía que cruza el círculo y andén a un lado (símbolo de estación).
-    s.hline(9, 22, 16, marca)
-    s.hline(9, 22, 17, marca)
-    s.rect(11, 12, 10, 2, marca)
+            if 8.3 <= d < 9.5 and (i - C) + (j - C) < -6:
+                s.set(i, j, LUZ[token])
+    # Símbolo de estación en hueso, con sombra beige abajo.
+    s.rect(11, 11, 10, 4, "bone")                     # andén
+    s.hline(11, 20, 11, "cream")
+    s.hline(11, 20, 14, "beige")
+    s.hline(8, 23, 18, "bone")                        # carril
+    s.hline(8, 23, 19, "beige")
+    for x in (9, 13, 17, 21):                         # traviesas
+        s.vline(x, 17, 21, "bone")
+        s.set(x, 21, "beige")
     return s
 
 
@@ -81,7 +92,7 @@ aaa......
 
 
 def perdida():
-    s = base("maroon", borde="red", dentro="grey_brown", marca="concrete_light")
+    s = base("maroon", borde="red")
     # Tachada a la manera de los mapas antiguos: barra diagonal sobre la estación.
     for k in range(-1, 2):
         s.line(8 + k, 23, 23 + k, 8, "red")

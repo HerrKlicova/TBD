@@ -68,6 +68,8 @@ contacto, criticar con la lista de `referencias/criterios.md` y corregir. Mínim
 `git clone --depth 1 https://github.com/patch-gg/pixelfx`. Busca con `node tools/list.mjs <palabra>` y exporta con
 `node tools/render.mjs <id> --sheet --opts '{"palette":[...]}'` usando rampas de nuestra paleta sin rojos
 (fuego: `#442c0c #7c3c18 #845c28 #a86c50 #e08c30 #f0dc9c #d4d0cc`). Después, siempre:
-`python scripts/fx_adaptar.py <hoja.png> <hoja.json> <salida> --fps 12 --escala 0.5`, que deja la hoja a 12 fps,
+`python scripts/fx_adaptar.py <hoja.png> <hoja.json> <salida> --fps 12 --escala 0.5 --max N --destello`, que deja la hoja a 12 fps,
 recortada, con alfa binaria, paleta estricta y sin rojos, y un JSON estilo Aseprite con pivote para Unity.
-Las chispas y destellos muy brillantes van mejor en la capa de VFX en alta resolución de Unity (dirección visual §3).
+Duraciones aprobadas (Lucía, 6-nov): impacto de bala 6 fotogramas, explosión pequeña 12–14, explosión de tierra 16–18;
+el humo que queda después lo pone el emisor de humo de Unity. `--destello` saca el primer fotograma a
+`*_destello_vfxhd.png` para la capa VFX_HD (alta resolución, aditiva), como pide la dirección visual §3.

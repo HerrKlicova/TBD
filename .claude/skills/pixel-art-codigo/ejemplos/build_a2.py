@@ -68,21 +68,23 @@ def ataque():
 
 def via_cortada():
     s = Sprite()
-    # Vía vista desde arriba: traviesas separadas (se ve el balasto entre ellas) y dos carriles marcados.
-    for y in (2, 7, 22, 27):
-        s.rect(6, y, 16, 2, "brown")
-        s.hline(6, 21, y, "ochre_dark")
-    for x in (9, 17):
-        for (y0, y1) in ((1, 11), (20, 30)):
-            s.vline(x, y0, y1, "grey_light")
-            s.vline(x + 1, y0, y1, "concrete")
-            s.vline(x + 2, y0, y1, "slate")
-    # Extremos del carril roto, astillados.
-    for x in (9, 17):
-        s.set(x + 2, 12, "concrete")
-        s.set(x, 19, "concrete")
+    # Una sola vía horizontal vista desde arriba, cortada por el centro en su misma dirección.
+    for x in (2, 7, 12, 19, 24, 29):
+        if 13 <= x <= 18:
+            continue
+        s.rect(x, 12, 2, 13, "brown")           # traviesas verticales
+        s.vline(x, 12, 24, "ochre_dark")
+    for y in (15, 21):
+        for (x0, x1) in ((1, 12), (19, 30)):
+            s.hline(x0, x1, y, "grey_light")
+            s.hline(x0, x1, y + 1, "concrete")
+            s.hline(x0, x1, y + 2, "slate")
+    # Extremos astillados del carril roto.
+    for y in (15, 21):
+        s.set(12, y + 2, "concrete")
+        s.set(19, y, "concrete")
     s.outline()
-    aspa(s, 19, 1, 12)
+    aspa(s, 19, 0, 11)
     return s
 
 

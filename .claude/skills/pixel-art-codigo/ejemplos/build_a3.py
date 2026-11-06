@@ -136,22 +136,37 @@ def retirarse():
     return s
 
 
+def flecha_vertical(s, x0, y0, largo, abajo=True):
+    """Flecha hueso vertical de 3 px de cuerpo; abajo=True apunta hacia abajo."""
+    if abajo:
+        s.rect(x0, y0, 3, largo - 4, "bone")
+        s.vline(x0, y0, y0 + largo - 5, "cream")
+        s.poly([(x0 - 2, y0 + largo - 4), (x0 + 4, y0 + largo - 4), (x0 + 1, y0 + largo - 1)], "bone")
+    else:
+        s.rect(x0, y0 + 4, 3, largo - 4, "bone")
+        s.vline(x0, y0 + 4, y0 + largo - 1, "cream")
+        s.poly([(x0 - 2, y0 + 3), (x0 + 4, y0 + 3), (x0 + 1, y0)], "bone")
+        s.line(x0 + 1, y0, x0 - 2, y0 + 3, "cream")
+
+
 def desplegar():
+    """Vagón arriba con la puerta abierta; la flecha baja de la puerta al soldado ya en tierra."""
     s = Sprite()
-    vagon(s, 1, 10, 18)
-    soldado(s, 25, 13)                               # ya en tierra, alejándose
-    flecha_der(s, 18, 4, 13, 3)                       # sale por la puerta
-    s.hline(0, 31, 27, "slate")
+    vagon(s, 1, 1, 21)
+    flecha_vertical(s, 16, 17, 12, abajo=True)       # de la puerta al suelo
+    soldado(s, 23, 18)                               # ya en tierra
+    s.hline(0, 31, 30, "slate")
     s.outline()
     return s
 
 
 def embarcar():
+    """El mismo vagón; la flecha sube desde el soldado hasta la puerta."""
     s = Sprite()
-    vagon(s, 13, 10, 18, izq=True)
-    soldado(s, 1, 13)                                # a punto de subir
-    flecha_der(s, 1, 4, 13, 3)                        # hacia la puerta
-    s.hline(0, 31, 27, "slate")
+    vagon(s, 1, 1, 21)
+    flecha_vertical(s, 16, 17, 12, abajo=False)      # del suelo a la puerta
+    soldado(s, 23, 18)                               # a punto de subir
+    s.hline(0, 31, 30, "slate")
     s.outline()
     return s
 
