@@ -177,14 +177,55 @@ def asedio():
     return s
 
 
+def senal_aviso(s, x0, y0, n):
+    """Triángulo de aviso en ámbar (nivel aviso, no peligro): borde ámbar con sombra ocre y relleno crema."""
+    m = n // 2
+    s.poly([(x0 + m, y0), (x0 + n - 1, y0 + n - 3), (x0, y0 + n - 3)], "amber")
+    s.line(x0 + m, y0, x0 + n - 1, y0 + n - 3, "ochre_dark")          # lado derecho en sombra
+    s.hline(x0, x0 + n - 1, y0 + n - 3, "ochre_dark")
+    s.poly([(x0 + m, y0 + 5), (x0 + n - 5, y0 + n - 5), (x0 + 4, y0 + n - 5)], "cream")
+
+
+def aviso():
+    """Aviso genérico en ámbar (etiqueta de construcción, D-N62): triángulo y signo de exclamación oscuro."""
+    s = Sprite()
+    senal_aviso(s, 1, 2, 31)
+    s.rect(15, 11, 3, 9, "olive_black")                                 # palo
+    s.rect(15, 22, 3, 3, "olive_black")                                 # punto
+    s.outline()
+    return s
+
+
+def aviso_16():
+    """A 16 px, a mano: la reducción deforma el signo de exclamación. Triángulo de 13 px de base,
+    borde ámbar (sombra ocre a la derecha y abajo), relleno crema, palo de 1x5 y punto de 1 px."""
+    s = Sprite(16, 16)
+    for y in range(1, 14):
+        hw = round((y - 1) * 6 / 12)
+        for x in range(7 - hw, 8 + hw):
+            borde_i, borde_d = x == 7 - hw, x == 7 + hw
+            if y == 13 or (borde_d and hw > 0):
+                c = "ochre_dark"
+            elif borde_i or y <= 2:
+                c = "amber"
+            else:
+                c = "cream"
+            s.set(x, y, c)
+    s.vline(7, 5, 9, "olive_black")
+    s.set(7, 11, "olive_black")
+    s.outline()
+    return s
+
+
 if __name__ == "__main__":
-    nombres = ["ataque", "via_cortada", "tren_detenido", "sin_municion", "sin_combustible", "asedio"]
+    nombres = ["ataque", "via_cortada", "tren_detenido", "sin_municion", "sin_combustible", "asedio", "aviso"]
+    OUT.mkdir(parents=True, exist_ok=True)
     s32 = [globals()[n]() for n in nombres]
     for s in s32:
         aviso = s.limit_colors(10)   # regla de estética única: 6–10 colores; los acentos no se funden
         if aviso:
             print("AVISO limit_colors:", aviso)
-    s16 = [reduce_16(s) for s in s32]
+    s16 = [aviso_16() if n == "aviso" else reduce_16(s) for n, s in zip(nombres, s32)]
     for n, a, b in zip(nombres, s32, s16):
         a.save(OUT / f"vm_alertas_{n}_32.png")
         b.save(OUT / f"vm_alertas_{n}_16.png")

@@ -94,13 +94,13 @@ JUNTAS = {
     "hormigon": {"grey_brown"},
     "ladrillo": {"olive_grey"},
     "tierra": set(),
-    "asfalto": {"olive_black"},
+    "asfalto": {"grey_brown"},
 }
 
 
 def balasto():
     """Piedra partida en el valor más oscuro de la escena (#48403c, D-N42): cantos en gris pardo,
-    algo de pizarra, alguna piedra clara suelta y huecos oscuros."""
+    alguna piedra clara suelta y huecos oscuros."""
     s = Sprite(T, T)
     pts = semillas(110, 7)
     for y in range(T):
@@ -110,7 +110,7 @@ def balasto():
                 s.set(x, y, "olive_shadow")          # hueco entre piedras (junta)
                 continue
             v = _h(k, 9, 7)
-            c = "grey_brown" if v < 0.80 else "slate" if v < 0.91 else "olive_grey"   # neutro: sin azules ni rojos fuertes
+            c = "grey_brown" if v < 0.91 else "olive_grey"   # sin piedras frías: el slate se leía como charco (Lucía, 6-nov)
             s.set(x, y, c)
     return s
 
@@ -164,15 +164,16 @@ def tierra():
 
 
 def asfalto():
-    """Asfalto gastado: gris pardo oscuro con motas sueltas oscuras y de árido, y una grieta fina."""
+    """Asfalto gastado y aclarado por el sol, como el de una comarcal (Lucía, 6-nov, revisión de D-N61):
+    base #6c7874 para que la horda (#1c200c) tenga ΔL* 38, motas de árido en #94948c y grieta en #48403c.
+    No usa #605c48 porque es el costado de los vehículos civiles."""
     s = Sprite(T, T)
-    s.rect(0, 0, T, T, "grey_brown")
-    motas(s, "olive_shadow", 0.14, 41)
-    motas(s, "slate", 0.03, 42, dobles=0)
+    s.rect(0, 0, T, T, "concrete")
+    motas(s, "concrete_light", 0.06, 42, dobles=0)
     x = 20.0                                         # grieta que envuelve al repetir (junta)
     for y in range(T):
         x += (ruido(0, y, 8, 43) - 0.5) * 2.2
-        s.set(int(x) % T, y, "olive_black")
+        s.set(int(x) % T, y, "grey_brown")
     return s
 
 

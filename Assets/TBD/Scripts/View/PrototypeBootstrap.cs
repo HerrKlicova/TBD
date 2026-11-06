@@ -1312,6 +1312,8 @@ namespace TBD.View
                 Box("Puente (reserva)", new Vector3(302.6f, 0.5f, ty), new Vector3(86f, 1f, 5f), concrete, root);
             Box("Tablero de la carretera", new Vector3(303.2f, -0.25f, 23f), new Vector3(75.2f, 0.5f, 7f), asphalt, root);      // la carretera vieja cruza el cauce por su propio tablero de ~75 m
             AddTruck(root, new Vector3(258f, 0f, 23f));                            // cabeza del atasco: camión cruzado a la entrada del tablero
+            // P9: silueta del castillo de Teo al fondo, borde norte del faldón (900 x 210 m, sin simulación ni colisión; mirando al sur)
+            PlaceModel("castillo_sagunto", "SM_castillo_sagunto_LOD1", new Vector3(130f, 0f, 330f), 180f, root);
             // P6: calle de la Estación (X 56-62), paso a nivel Z 58-67 (cubre también el desvío de la vía 2) y carretera vieja (Z 20-26)
             Box("Calle de la Estación", new Vector3(59f, 0.05f, 64f), new Vector3(6f, 0.06f, 528f), asphalt, root);
             for (int i = 0; i < 24; i++) Box("Grieta calle", new Vector3(57f + (i * 37 % 5), 0.09f, -150f + i * 21f), new Vector3(0.15f, 0.02f, 3.2f), crack, root);
@@ -1323,7 +1325,7 @@ namespace TBD.View
                 Box("Barrera rota", new Vector3(59f, 1.0f, 57.4f), new Vector3(0.15f, 0.15f, 3.2f), bone, root).transform.rotation = Quaternion.Euler(0f, 0f, 25f);
             }
             // almacén de naranjas de Teo (11 x 21 m, alero 5,5 m y cumbrera 7,5 m) en el solar del tejado de pruebas, girado 180° para que la fachada mire a la carretera vieja
-            if (PlaceVariant("almacen_naranjas", new Vector3(45.5f, 0f, 40.5f), 180f, root) == null)
+            if (PlaceModel("almacen_naranjas", "SM_almacen_naranjas_LOD1", new Vector3(45.5f, 0f, 40.5f), 180f, root) == null)
                 Box("Almacén de naranjas (reserva)", new Vector3(45.5f, 3.2f, 40.5f), new Vector3(11f, 6.4f, 21f), M("94948c"), root);
             Box("Carretera vieja", new Vector3(128f, 0.05f, 23f), new Vector3(756f, 0.06f, 6f), asphalt, root);
             for (int i = 0; i < 60; i++) Box("Grieta carretera", new Vector3(-240f + i * 12.5f + (i * 7 % 5), 0.09f, 21.5f + (i * 3 % 4)), new Vector3(2.5f, 0.02f, 0.15f), crack, root);
@@ -1397,6 +1399,9 @@ namespace TBD.View
 
         void AddCar(Transform root, Vector3 pos, float yawDeg, string hex, bool ambulance, bool doorOpen = false)
         {
+            // coches (coche_2000, base + v1-v5: compacto, berlina, berlina corta blanca, puerta abierta, quemada, puertas y maletero abiertos) y ambulancia sin cruz roja, de Teo
+            var carGo = ambulance ? PlaceModel("ambulancia", "SM_ambulancia_LOD1", pos, 90f + yawDeg, root) : PlaceVariant("coche_2000", pos, 90f + yawDeg, root);
+            if (carGo != null) return;
             var body = Box(ambulance ? "Ambulancia" : "Coche", pos + new Vector3(0f, 0.7f, 0f), new Vector3(4.2f, 1.2f, 1.8f), Mat(hex), root);
             body.transform.rotation = Quaternion.Euler(0f, yawDeg, 0f);
             var cab = Box("Cabina", pos + new Vector3(-0.2f, 1.5f, 0f), new Vector3(2.2f, 0.7f, 1.6f), Mat(ambulance ? "94948c" : "283440"), root);
