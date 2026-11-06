@@ -49,6 +49,7 @@ namespace TBD.Net
         public int BridgeU, BridgeObreroH;              // el puente del Jiloca: 80 u (puente_jiloca_materiales, balance_economia.csv) y 192 obrero·h (puente_jiloca_obreros_h, balance_construccion.csv)
         public int WorkStartHour, WorkEndHour;          // todas las obras trabajan de 06:00 a 18:00 (obra_hora_inicio, obra_hora_fin: 12 h al día) y de noche se paran
         public int ViaGateU, HViaGate;   // puerta de vía: 8 u y 6 obrero·h (pieza_puerta_via_u, obra_puerta_via_h)
+        public int SecureMm;     // terreno asegurado (diseno-hito5 §1): ningún zombi en pie a menos de esta distancia (mm) de la obra; obra_terreno_asegurado_mm
         public int TrackHalfMm;          // semiancho del hueco de la vía (3,2 m en total) respecto de y = 0; 0 = la red no conoce la vía (via_hueco_mm / 2)
         public int GateSwapTicks;        // abrir o cerrar la puerta de vía: 6 s a 30 ticks de zona por segundo = 180 ticks enteros
         public int GateNearMm;           // se abre sola con un tren propio a esta distancia o menos (150 m)
@@ -67,7 +68,7 @@ namespace TBD.Net
                     SacosPer10m = 2, HescoPer10m = 6, PuertaU = 6, NidoU = 8, FocoU = 2, AndenU = 6, DepositoU = 5,
                     ModuleMm = 10_000, MinWallMm = 1_000, PerimeterMm = 60_000, LevelDivU = 30, LevelMaxMil = 5_000,
                     MaxPieces = 2_000, MaxVertices = 32, CoordLimitMm = 2_000_000,
-                    MaxWorkersPerPiece = 4, GarrisonMin = 6, ViaGateU = 8, HViaGate = 6, TrackHalfMm = 1_600, GateSwapTicks = 180, GateNearMm = 150_000, RepairU = 5, RepairHours = 3, WorksCrew = 8, BridgeU = 80, BridgeObreroH = 192, WorkStartHour = 6, WorkEndHour = 18, OutsideWearMil = 10, WearDayMil = 10, CancelStartedMil = 500,
+                    MaxWorkersPerPiece = 4, GarrisonMin = 6, ViaGateU = 8, HViaGate = 6, SecureMm = 30_000, TrackHalfMm = 1_600, GateSwapTicks = 180, GateNearMm = 150_000, RepairU = 5, RepairHours = 3, WorksCrew = 8, BridgeU = 80, BridgeObreroH = 192, WorkStartHour = 6, WorkEndHour = 18, OutsideWearMil = 10, WearDayMil = 10, CancelStartedMil = 500,
                     HSacos10 = 2, HHesco10 = 4, HPuerta = 4, HNido = 6, HFoco = 2, HDeposito = 8, HAnden = 10
                 };
             }
@@ -91,7 +92,7 @@ namespace TBD.Net
             d.BridgeObreroH = (int)t.TryValue("puente_jiloca_obreros_h", d.BridgeObreroH);
             d.WorkStartHour = (int)t.TryValue("obra_hora_inicio", d.WorkStartHour); d.WorkEndHour = (int)t.TryValue("obra_hora_fin", d.WorkEndHour);
             d.ViaGateU = (int)t.TryValue("pieza_puerta_via_u", d.ViaGateU); d.HViaGate = (int)t.TryValue("obra_puerta_via_h", d.HViaGate);
-            d.TrackHalfMm = (int)(t.TryValue("via_hueco_mm", 2L * d.TrackHalfMm) / 2); d.GateSwapTicks = (int)t.TryValue("puerta_via_ticks", d.GateSwapTicks); d.GateNearMm = (int)t.TryValue("puerta_via_cerca_mm", d.GateNearMm);
+            d.SecureMm = (int)t.TryValue("obra_terreno_asegurado_mm", d.SecureMm); d.TrackHalfMm = (int)(t.TryValue("via_hueco_mm", 2L * d.TrackHalfMm) / 2); d.GateSwapTicks = (int)t.TryValue("puerta_via_ticks", d.GateSwapTicks); d.GateNearMm = (int)t.TryValue("puerta_via_cerca_mm", d.GateNearMm);
             d.RepairU = (int)t.TryValue("reparar_tramo_u", d.RepairU); d.RepairHours = (int)t.TryValue("reparar_tramo_h", d.RepairHours); d.WorksCrew = (int)t.TryValue("tren_obras_obreros", d.WorksCrew);
             d.OutsideWearMil = (int)t.TryValue("desgaste_fuera_perimetro_permil_dia", d.OutsideWearMil);
             d.CancelStartedMil = (int)t.TryValue("cancelar_obra_empezada_permil", d.CancelStartedMil);
@@ -162,6 +163,71 @@ namespace TBD.Net
         public readonly List<WorkPiece> Pieces = new List<WorkPiece>();
         public int Id = -1;                          // número de obra asignado al registrarla (ObrasState.Add)
         public string Why = "";                      // motivo si no hay obra
+    }
+
+    /// <summary>
+    /// Vista de la rejilla de densidad de la zona (zombis en pie por celda; los caídos y muertos no cuentan, SimCore.AddDensity) ya traducida a mm
+    /// locales al nodo (andén = (0,0), vía = y 0): la celda (cx, cy) ocupa [OriginXMm + cx·CellMm, +CellMm) × [OriginYMm + cy·CellMm, +CellMm).
+    /// La construye el lado de la zona (Marcos); la red solo la lee. Índice = cy · W + cx, como en la zona.
+    /// </summary>
+    public sealed class DensityView
+    {
+        public int[] D;
+        public int W, H, CellMm, OriginXMm, OriginYMm;
+    }
+
+    /// <summary>«Terreno asegurado»: sin zombis en pie a menos de SecureMm del punto de la obra (diseno-hito5 §1). Enteros puros: determinista.</summary>
+    public static class Terreno
+    {
+        /// <summary>¿Hay algún zombi en pie dentro del círculo de radio radiusMm alrededor de (x, y)? Una celda cuenta si su punto más cercano está a ≤ radio.</summary>
+        public static bool IsSecure(DensityView g, long x, long y, int radiusMm)
+        {
+            if (g == null || g.D == null || g.CellMm <= 0) return true;
+            long r = Math.Max(0, radiusMm), r2 = r * r;
+            long fx = x - g.OriginXMm, fy = y - g.OriginYMm;                    // respecto de la esquina de la celda (0,0)
+            long c0x = Math.Max(0, FloorDiv(fx - r, g.CellMm)), c1x = Math.Min(g.W - 1, FloorDiv(fx + r, g.CellMm));
+            long c0y = Math.Max(0, FloorDiv(fy - r, g.CellMm)), c1y = Math.Min(g.H - 1, FloorDiv(fy + r, g.CellMm));
+            for (long cy = c0y; cy <= c1y; cy++)
+            {
+                long ylo = cy * g.CellMm, yhi = ylo + g.CellMm - 1;
+                long dy = fy < ylo ? ylo - fy : (fy > yhi ? fy - yhi : 0);
+                for (long cx = c0x; cx <= c1x; cx++)
+                {
+                    if (g.D[cy * g.W + cx] <= 0) continue;
+                    long xlo = cx * g.CellMm, xhi = xlo + g.CellMm - 1;
+                    long dx = fx < xlo ? xlo - fx : (fx > xhi ? fx - xhi : 0);
+                    if (dx * dx + dy * dy <= r2) return false;
+                }
+            }
+            return true;
+        }
+
+        static long FloorDiv(long a, long b) { long q = a / b; return (a % b != 0 && ((a < 0) != (b < 0))) ? q - 1 : q; }
+
+        /// <summary>
+        /// ¿Está asegurada toda la obra del plan? Se comprueban los extremos de cada pieza y puntos intermedios cada SecureMm/2 como mucho,
+        /// de modo que un muro largo no cruza una mancha de zombis sin que se note. Si no, devuelve el primer punto inseguro.
+        /// </summary>
+        public static bool PlanSecure(DensityView g, WorkPlan plan, int radiusMm, out long badX, out long badY)
+        {
+            badX = badY = 0;
+            if (g == null || plan == null) return true;
+            long step = Math.Max(1, radiusMm / 2);
+            foreach (var w in plan.Pieces)
+            {
+                long dx = w.X1 - w.X0, dy = w.Y1 - w.Y0;
+                long len = (long)Math.Sqrt((double)(dx * dx + dy * dy));       // solo decide cuántas muestras; los puntos salen con enteros
+                long n = Math.Max(1, (len + step - 1) / step);
+                for (long i = 0; i <= n; i++)
+                {
+                    long px = w.X0 + RoundDivL(dx * i, n), py = w.Y0 + RoundDivL(dy * i, n);
+                    if (!IsSecure(g, px, py, radiusMm)) { badX = px; badY = py; return false; }
+                }
+            }
+            return true;
+        }
+
+        static long RoundDivL(long a, long b) { return a >= 0 ? (a + b / 2) / b : -((-a + b / 2) / b); }
     }
 
     public static class Obras

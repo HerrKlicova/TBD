@@ -391,6 +391,52 @@ namespace TBD.Sim.Tests
             RunDesgaste(check);
             RunPuertaVia(check);
             RunHorario(check);
+            RunTerreno(check);
+        }
+
+        static void RunTerreno(Action<bool, string> check)
+        {
+            Console.WriteLine("[23] Terreno asegurado: sin zombis en pie a menos de 30 m de la obra (diseno-hito5 §1)");
+            // rejilla de 0,5 m con la esquina (0,0) en (-20 m, -20 m) del nodo; 200 × 100 celdas
+            DensityView Grid(params (int x, int y)[] zombiesMm)
+            {
+                var g = new DensityView { W = 200, H = 100, CellMm = 500, OriginXMm = -20_000, OriginYMm = -20_000 };
+                g.D = new int[g.W * g.H];
+                foreach (var z in zombiesMm) g.D[((z.y - g.OriginYMm) / g.CellMm) * g.W + (z.x - g.OriginXMm) / g.CellMm]++;
+                return g;
+            }
+            check(Terreno.IsSecure(Grid(), 10_000, 5_000, 30_000), "sin zombis el terreno está asegurado");
+            check(Terreno.IsSecure(null, 0, 0, 30_000), "sin zona enchufada todo terreno vale");
+            check(!Terreno.IsSecure(Grid((30_000, 5_000)), 10_000, 5_000, 30_000), "un zombi a 20 m queda dentro de 30 m: no asegurado");
+            check(Terreno.IsSecure(Grid((50_000, 5_000)), 10_000, 5_000, 30_000), "un zombi a 40 m queda fuera: asegurado");
+            check(!Terreno.IsSecure(Grid((39_500, 5_000)), 10_000, 5_000, 30_000), "el borde cuenta por la celda más cercana: a 29,5 m de la celda sigue sin estar asegurado");
+            check(Terreno.IsSecure(Grid((40_500, 5_000)), 10_000, 5_000, 30_000), "y a 30,5 m ya sí");
+            check(Terreno.IsSecure(Grid((38_000, 28_000)), 10_000, 5_000, 30_000), "la distancia es circular: la esquina del cuadrado de 30 m no cuenta");
+
+            // la orden: la obra se rechaza y no cobra nada si hay zombis cerca, y pasa en cuanto se despejan
+            var w = WorldWithZone(900); w.Services.Clear(); w.Works.P.TrackHalfMm = 0; w.Tick = NetConst.Hours(8);
+            var dens = Grid((12_000, 3_000));
+            w.ZoneDensity = () => dens;
+            long mat0 = w.Stock[Node, (int)Res.Materiales];
+            var p1 = w.PlaceWork(Node, PieceKind.Sacos, new[] { 0, 0, 10_000, 0 });
+            check(p1 != null && !p1.Ok && p1.Why.Contains("zombis") && w.Stock[Node, (int)Res.Materiales] == mat0 && w.Works.Count(Node) == 0, "con zombis a 3 m la orden se rechaza, sin cobrar ni registrar");
+            dens = Grid();
+            var p2 = w.PlaceWork(Node, PieceKind.Sacos, new[] { 0, 0, 10_000, 0 });
+            check(p2 != null && p2.Ok && w.Works.Count(Node) == 1 && w.Stock[Node, (int)Res.Materiales] < mat0, "despejado, la misma orden se acepta y cobra");
+
+            // un muro largo: un zombi en mitad del trazado lo detiene aunque los extremos estén lejos
+            var w2 = WorldWithZone(900); w2.Services.Clear(); w2.Works.P.TrackHalfMm = 0; w2.Tick = NetConst.Hours(8);
+            var mid = Grid((80_000, 8_000));
+            w2.ZoneDensity = () => mid; long matW2 = w2.Stock[Node, (int)Res.Materiales];
+            var pm = w2.PreviewWork(Node, PieceKind.Sacos, new[] { 0, 8_000, 150_000, 8_000 });
+            check(!pm.Ok, "un zombi junto al centro de un muro de 150 m lo bloquea aunque los extremos estén lejos");
+            check(w2.Works.Count(Node) == 0 && w2.Stock[Node, (int)Res.Materiales] == matW2, "la vista previa no cobra ni registra");
+
+            // sin enchufar: nada cambia; el hash no depende de la rejilla
+            var w3 = WorldWithZone(900); w3.Services.Clear(); w3.Works.P.TrackHalfMm = 0; w3.Tick = NetConst.Hours(8);
+            var w4 = WorldWithZone(900); w4.Services.Clear(); w4.Works.P.TrackHalfMm = 0; w4.Tick = NetConst.Hours(8); w4.ZoneDensity = () => Grid();
+            w3.PlaceWork(Node, PieceKind.Sacos, new[] { 0, 0, 10_000, 0 }); w4.PlaceWork(Node, PieceKind.Sacos, new[] { 0, 0, 10_000, 0 });
+            check(w3.Hash() == w4.Hash(), "con la zona enchufada y despejada se obtiene el mismo hash que sin enchufar");
         }
 
         static void RunHorario(Action<bool, string> check)
