@@ -31,22 +31,27 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
     inf = {"limpiar": ns["limpiar"](o)}
     colores = {**db.COLORES, **(getattr(db, "COLORES_LOD1", {}) if lod else {})}
     r = ns["paleta_por_piezas"](o, colores, ruta_textura=os.path.join(out, "T_Paleta32.png"), permitir=permitir)
-    m = r["mascaras"]["casco"]
-    mc = r["mascaras"].get("costura", np.zeros_like(m))
-    inf["valor_partido"] = ns["valor_partido"](o, claro=claro, costado=costado, alisar=0, suavizar=0, mascara=m | mc)
+    m = r["mascaras"].get("casco")
+    mc = r["mascaras"].get("costura")
+    if m is not None:   # los bloques sin casco (p. ej. el zombi) solo usan VALOR_PIEZAS
+        mc = np.zeros_like(m) if mc is None else mc
+        inf["valor_partido"] = ns["valor_partido"](o, claro=claro, costado=costado, alisar=0, suavizar=0,
+                                                   mascara=m | mc)
     for pieza, (cl, co) in getattr(db, "VALOR_PIEZAS", {}).items():   # p. ej. la torre del LOD1 en olive_light
         mp = r["mascaras"].get(pieza)
         if mp is not None and mp.any():
-            inf["valor_" + pieza] = ns["valor_partido"](o, claro=cl, costado=co, alisar=0, suavizar=0, mascara=mp)
-    if mc.any():
+            pc = (co,) if getattr(db, "FACCION", "propio") == "zombi" else ()   # el zombi es dueño de sus grises
+            inf["valor_" + pieza] = ns["valor_partido"](o, claro=cl, costado=co, alisar=0, suavizar=0, mascara=mp,
+                                                        permitir_costado=pc)
+    if mc is not None and mc.any():
         inf["costuras"] = ns["costuras_por_valor"](o, mc)
-    inf["faccion"] = ns["marcar_faccion"](o, "propio")
-    a = ns["auditar"](o, presupuesto=(500, 4000) if lod else (1500, 4000))
+    inf["faccion"] = ns["marcar_faccion"](o, getattr(db, "FACCION", "propio"))
+    a = ns["auditar"](o, presupuesto=getattr(db, "PRESUPUESTO", {}).get(lod, (500, 4000) if lod else (1500, 4000)))
     inf["veredicto"] = a["veredicto"]
     inf["avisos"] = [(x["clave"], x["valor"]) for x in a["puntos"] if x["nivel"] != "OK"]
     inf["legibilidad"] = ns["medir_legibilidad"](o)["suelos"]
     inf["medidas_m"] = [round(d, 2) for d in o.dimensions]
-    u = 0.25 if lod else 0.06
+    u = getattr(db, "UMBRAL_CONTORNO", {}).get(lod, 0.25 if lod else 0.06)
     for suelo, hx in SUELOS:
         ns["vista_pixelada"](o, os.path.join(out, "%s_rts.png" % suelo), vista="rts", fondo=hx, umbral_contorno=u)
         ns["vista_pixelada"](o, os.path.join(out, "%s_juego.png" % suelo), vista="rts", res=px, ampliar=384 // px,

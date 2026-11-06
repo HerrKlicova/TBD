@@ -847,7 +847,7 @@ def _poner_indices(obj, idx):
 
 def valor_partido(obj, claro="b4a080", costado=None, umbral_arriba=0.7, oscurecer=12.0, paleta=None, suavizar=3,
                   alisar=25,
-                  excluir=PROHIBIDOS_OBJETO, mascara=None):
+                  excluir=PROHIBIDOS_OBJETO, mascara=None, permitir_costado=()):
     """D-N57 + regla 1 de Iris: valor partido horneado en el albedo. Caras que miran arriba (normal z > umbral) al
     color claro de la paleta (b4a080 por defecto, decisión de Lucía: 94948c es la camisa de los zombis; con claro=None se elige por el tono dominante); costados
     oscurecidos (al color de paleta más parecido con L* al menos `oscurecer` por debajo, o a `costado` si se da, p. ej.
@@ -891,9 +891,11 @@ def valor_partido(obj, claro="b4a080", costado=None, umbral_arriba=0.7, oscurece
             return int(cand[np.argmin(lab[cand, 0])])
         d = ((lab[cand, 1:] - lab[i, 1:]) ** 2).sum(1) + 0.3 * (lab[cand, 0] - (lab[i, 0] - paso)) ** 2
         return int(cand[d.argmin()])
-    if costado and costado.lower().lstrip("#") in COSTADOS_PROHIBIDOS:
+    # permitir_costado: solo para el propio zombi, que es el dueño de 60546c y 6c7874 (sus costados en el sprite)
+    prohib = tuple(h for h in COSTADOS_PROHIBIDOS if h not in permitir_costado)
+    if costado and costado.lower().lstrip("#") in prohib:
         raise ValueError("costado %s prohibido (suelo o zombi): usa 50541c (militar) o 605c48 (civil)" % costado)
-    permit = permit & np.array([h not in COSTADOS_PROHIBIDOS for h in hexes])
+    permit = permit & np.array([h not in prohib for h in hexes])
     # clase de cada cara: 1 arriba, 0 costado, -1 abajo; se suaviza por mayoría (ponderada por área) entre vecinas
     # para que el ruido de Hunyuan no deje motas de costado en el techo ni de beige en los flancos
     clase = np.where(nz > umbral_arriba, 1, np.where(nz < -umbral_arriba, -1, 0))
