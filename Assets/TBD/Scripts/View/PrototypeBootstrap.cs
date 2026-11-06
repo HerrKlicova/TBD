@@ -686,7 +686,7 @@ namespace TBD.View
             {
                 var net = NetSession.A;
                 GUI.Label(new Rect(pad * 2f, h + pad * 1.6f, w, _hudStyle.lineHeight * 1.5f),
-                    $"ZONA {net.Graph.Nodes[_zoneNode].Name.ToUpper()} · día {net.Tick / TBD.Net.NetConst.DayTicks + 1} · {TBD.Net.NetConst.Clock(net.Tick)} · la red sigue corriendo · M o alejar del todo: volver al mapa", _hudStyle);
+                    $"{ZoneTitle(net)} · día {net.Tick / TBD.Net.NetConst.DayTicks + 1} · {TBD.Net.NetConst.Clock(net.Tick)} · la red sigue corriendo · M o alejar del todo: volver al mapa", _hudStyle);
             }
             NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart);
         }
@@ -989,6 +989,18 @@ namespace TBD.View
         {
             if (_fxCam == null) return;
             foreach (var h in _halos) if (h.gameObject.activeSelf) h.rotation = _fxCam.transform.rotation;   // el halo mira a la cámara
+        }
+
+        /// <summary>Título de la zona en pantalla: una emboscada lleva el nombre de su punto real (Lucía), no el del nodo más cercano.</summary>
+        string ZoneTitle(NetWorld net)
+        {
+            if (_ambush && _ambushEdge >= 0)
+            {
+                var e = net.Graph.Edges[_ambushEdge];
+                string punto = e.Ambush.Count > 0 ? e.Ambush[0].Name : net.Graph.Nodes[e.A].Name + "–" + net.Graph.Nodes[e.B].Name;
+                return "EMBOSCADA · " + punto.ToUpper();
+            }
+            return "ZONA " + net.Graph.Nodes[_zoneNode].Name.ToUpper();
         }
 
         /// <summary>Color de un escalón del talud: más oscuro cuanto más alto (para leer el relieve del desmonte).</summary>
