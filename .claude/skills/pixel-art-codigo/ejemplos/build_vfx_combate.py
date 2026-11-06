@@ -226,7 +226,7 @@ def polvo_rotor(f):
             banda = 1 - abs(d - 32) / 14
             dens = banda * (.25 + .6 * veta)
             if tramado(x, y, dens):
-                s.set(x, y, "beige" if veta > .7 and d < 36 else "olive_light" if veta > .35 else "concrete_light")
+                s.set(x, y, "beige" if veta > .7 and d < 36 else "olive_light")   # 88885c y b4a080 (Lucía, D-N83)
     for k in range(10):                                # chinas y briznas lanzadas hacia fuera
         a = k * math.tau / 10 + f * math.pi / 16
         d = 38 + (f * 3 + k * 5) % 10
@@ -321,9 +321,10 @@ def vainas(f):
             continue
         x = 4 + k * 3 + t * 6
         y = 2 + 16 * t * t - (4 * t if t < .5 else 0)
+        suelo = y >= 13 - (k % 2)
         y = min(y, 13 - (k % 2))
-        horiz = (f + k) % 2
-        c, luz = "ochre_dark", "amber"
+        horiz = (f + k) % 2 if not suelo else 1          # en el suelo quedan tumbadas
+        c, luz = ("ochre_dark", "ochre_dark") if suelo else ("ochre_dark", "amber")   # en el suelo nada de ámbar (Lucía)
         if horiz:
             s.set(int(x), int(y), c)
             s.set(int(x) + 1, int(y), luz)
@@ -350,7 +351,12 @@ def polvo_ruedas(f):
     return s
 
 
-def impacto_30mm(f):
+def impacto_30mm_suelo(f):
+    """Variante contra el suelo o un edificio: el mismo destello y polvo, con cascotes y sin sangre."""
+    return impacto_30mm(f, sangre=False)
+
+
+def impacto_30mm(f, sangre=True):
     """Impacto de 30 mm (HE) en la horda: destello, cráter de polvo, sangre y trozos. 48 px, 6 f, una vez.
     Unas 3 veces el de bala; la explosión de 40 mm (granada) sigue siendo mayor."""
     s = Sprite(48, 48)
@@ -374,7 +380,12 @@ def impacto_30mm(f):
         x = cx + math.cos(a) * v * t * 1.4
         y = cy + math.sin(a) * v * t + 2 * f * f / 2
         y = min(y, cy + 10)
-        if k % 4 == 0:
+        if not sangre:                                 # cascotes de tierra y de obra
+            if k % 3 == 0:
+                s.rect(int(x), int(y), 2, 2, "grey_brown")
+            else:
+                s.set(int(x), int(y), "concrete" if k % 2 else "olive_grey")
+        elif k % 4 == 0:
             s.rect(int(x), int(y), 2, 2, "olive_shadow")
         else:
             s.set(int(x), int(y), "wine" if k % 3 == 0 else "blood_dark")
@@ -395,6 +406,7 @@ EFECTOS = {
     "vainas": (vainas, 6, 16, False, (0.3, 0.1)),
     "polvo_ruedas": (polvo_ruedas, 6, 48, False, (0.85, 0.75)),
     "impacto_30mm": (impacto_30mm, 6, 48, False, (0.5, 0.62)),
+    "impacto_30mm_suelo": (impacto_30mm_suelo, 6, 48, False, (0.5, 0.62)),
 }
 
 
