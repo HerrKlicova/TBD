@@ -8,8 +8,9 @@ esquinas y recercados de sillar, ventanas altas de medio punto, portones de made
 alero largo sobre el muelle sostenido por ménsulas de hierro y tejado de teja a dos aguas.
 MEDIDAS SIN VERIFICAR (típicas, estimadas sobre las fotos): nave de 18 × 8 m, alero a 4,6 m y cumbrera a 6,4 m;
 muelle a 1,1 m del suelo que sobresale 3,5 m hacia la vía, con rampa de 5 m en +X; portones de 2,6 × 3 m.
-Colores: mampostería d4d0cc, sillares f0dc9c, muelle 88885c con el borde en 94948c (Lucía: nada claro en bordes
-largos, que se confunde con la selección), teja a86c50, portones 543820,
+Colores: mampostería d4d0cc, sillares f0dc9c, andén con la cara de arriba en 94948c y los costados en 605c48, igual
+en todas las variantes (Lucía, 22:31: se quita la losa de 20 × 12 m que salía como un parche liso; queda solo el andén
+elevado de 3,5 m por el lado de la vía), teja a86c50, portones 543820,
 huecos y ménsulas 48403c, cajas 845c28 y sacos b4a080 (sin rojos ni valores de la horda).
 Orientación: la vía va a lo largo de X y pasa por −Y (+Z en Unity); el borde del muelle queda en y = −7,5.
 Colisión sugerida: el muelle es una caja de 1,1 m (la tropa sube por la rampa) y la nave una caja hasta el alero.
@@ -23,7 +24,7 @@ from taller import Taller
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 PIEZAS = ["muro", "sillar", "muelle", "borde", "tejado", "porton", "oscuro", "madera", "saco", "viga"]
 _MURO = ("d4d0cc", "d4d0cc", "d4d0cc", "d4d0cc", "b4a080", "d4d0cc")
-COLORES = {"muro": _MURO[VAR % 6], "sillar": "f0dc9c", "muelle": "88885c", "borde": "94948c", "tejado": "a86c50",
+COLORES = {"muro": _MURO[VAR % 6], "sillar": "f0dc9c", "muelle": "605c48", "borde": "94948c", "tejado": "a86c50",
            "porton": "543820", "oscuro": "48403c", "madera": "845c28", "saco": "b4a080", "viga": "605c48"}
 FACCION = "neutro"
 PRESUPUESTO = {0: (80, 1800), 1: (40, 800)}
@@ -38,18 +39,19 @@ def construir(nombre="SM_MuelleMercancias", lod=0):
     v = VAR % 6
     hx, hy = L / 2, W / 2
     yb = -hy - VM                                         # borde del muelle, del lado de la vía
-    # muelle de piedra: plataforma con el borde (albardilla) claro y rampa en +X
-    y0, y1 = yb, hy + 0.6
-    t.caja((0, (y0 + y1) / 2, HM / 2), (L + 2.0, y1 - y0, HM), "muelle")
-    t.caja((0, yb + 0.28, HM + 0.02), (L + 2.1, 0.6, 0.1), "borde")
-    t.caja((hx + 1.0 + 2.4, (y0 + y1) / 2, HM / 2), (y1 - y0, 5.0, HM), "muelle", rot_z=math.pi / 2, inclinar=4.85)
-    # nave sobre el muelle
+    # andén de carga elevado SOLO por el lado de la vía (Lucía, 22:31: sin losa bajo el edificio ni alrededor):
+    # costados en 605c48 y la cara de arriba en 94948c, iguales en todas las variantes; rampa en +X
+    y0, y1 = yb, -hy + 0.05
+    t.caja((0, (y0 + y1) / 2, HM / 2 - 0.02), (L + 2.0, y1 - y0, HM - 0.04), "muelle")
+    t.caja((0, (y0 + y1) / 2 - 0.01, HM - 0.02), (L + 2.04, y1 - y0 + 0.02, 0.04), "borde")      # cara de arriba
+    t.caja((hx + 1.0 + 2.4, (y0 + y1) / 2, HM / 2), (y1 - y0, 5.0, HM), "borde", rot_z=math.pi / 2, inclinar=4.85)
+    # nave: los muros bajan hasta el suelo; el piso interior queda a la altura del andén
     z0 = HM
     hm = ALERO - z0
-    t.caja((0, 0, z0 + hm / 2), (L, W, hm), "muro")
+    t.caja((0, 0, ALERO / 2), (L, W, ALERO), "muro")
     for sx in (-1, 1):                                    # esquinas de sillar
         for sy in (-1, 1):
-            t.caja((sx * (hx - 0.3), sy * (hy - 0.3), z0 + hm / 2), (0.7, 0.7, hm + 0.02), "sillar")
+            t.caja((sx * (hx - 0.3), sy * (hy - 0.3), ALERO / 2), (0.7, 0.7, ALERO + 0.02), "sillar")
     t.caja((0, 0, ALERO - 0.15), (L + 0.1, W + 0.1, 0.3), "sillar")      # cornisa
     _tejado(t, v, hx, hy)
     # portones del lado de la vía (tres) y uno en la trasera
