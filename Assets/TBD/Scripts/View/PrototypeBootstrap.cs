@@ -202,6 +202,7 @@ namespace TBD.View
             _worldB = new World("TBD_SimB");
             _groupB = SimWorldSetup.CreateSystems(_worldB);
             _rootB = SimWorldSetup.Populate(_worldB.EntityManager, zombies, siege, seed, _combat, shots, hasTrain, kind, !_netZone);
+            if (_netZone) BuildSaguntoAmbience();
         }
 
         void OnDestroy()
@@ -1176,6 +1177,66 @@ namespace TBD.View
             var m = new Mesh { name = "Zombi (figura provisional)" };
             m.CombineMeshes(parts.ToArray(), true, true);
             return m;
+        }
+
+        // ---------------------------------------------------------------- ambientación de Sagunto (Lucía, docs/arte/ambientacion-sagunto.md)
+        /// <summary>
+        /// Estación de pueblo con primitivas (hasta que lleguen los modelos de Teo): andén de 60 m con línea de seguridad, marquesina de 30 m con pilares,
+        /// edificio de viajeros pegado al muro norte, almacén al otro lado de la vía y postes de catenaria cada 50 m. Solo el edificio y el almacén
+        /// bloquean a la horda (segmentos de BuildWall en los dos mundos); el resto es decorado. Nada ocupa la vía ni el hueco de la puerta.
+        /// </summary>
+        /// <summary>Instancia un modelo de Teo (LOD1, paleta con filtro de punto) de cara a +Z girado yaw grados; null si falta.</summary>
+        GameObject PlaceModel(string folder, string file, Vector3 pos, float yaw, Transform parent)
+        {
+            var prefab = Resources.Load<GameObject>("Models/Sagunto/" + folder + "/" + file); var tex = Resources.Load<Texture2D>("Models/Sagunto/" + folder + "/T_Paleta32");
+            if (prefab == null || tex == null) return null;
+            var inst = Instantiate(prefab, parent); inst.name = file;
+            inst.transform.position = pos; inst.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+            var mat = Mat("ffffff"); mat.SetTexture("_BaseMap", tex); mat.SetColor("_BaseColor", Color.white);
+            foreach (var r in inst.GetComponentsInChildren<MeshRenderer>()) { r.sharedMaterial = mat; r.shadowCastingMode = ShadowCastingMode.On; }
+            return inst;
+        }
+
+        void BuildSaguntoAmbience()
+        {
+            var root = new GameObject("Ambientación de Sagunto").transform; root.SetParent(transform, false);
+            float ty = Level.TrackY;
+            Material M(string hex) { return Mat(hex); }
+            var curb = M("94948c"); var slab = M("605c48"); var line = M("f0dc9c"); var tin = M("94948c"); var iron = M("283440");
+            var wall = M("b4a080"); var plinth = M("605c48"); var tile = M("a86c50"); var wood = M("442c0c");
+            // andén norte: x 78-138, z de ty+2,2 a ty+6,2, 0,9 m de altura; bordillo y línea de seguridad
+            float px0 = 78f, px1 = 138f, pz0 = ty + 2.2f, pz1 = ty + 6.2f;
+            Box("Andén losa", new Vector3((px0 + px1) * 0.5f, 0.45f, (pz0 + pz1) * 0.5f), new Vector3(px1 - px0, 0.9f, pz1 - pz0), slab, root);
+            Box("Andén bordillo", new Vector3((px0 + px1) * 0.5f, 0.92f, pz0 + 0.12f), new Vector3(px1 - px0, 0.08f, 0.3f), curb, root);
+            Box("Línea de seguridad", new Vector3((px0 + px1) * 0.5f, 0.93f, pz0 + 0.75f), new Vector3(px1 - px0, 0.03f, 0.25f), line, root);
+            // marquesina de 30 m (modelo de Teo; el lado de la vía es +Z del modelo, así que se gira 180° para mirar a la vía al sur) en el tercio central
+            if (PlaceModel("marquesina", "SM_marquesina_LOD1", new Vector3(108f, 0.9f, pz0 + 2.5f), 180f, root) == null)
+            {
+                for (int i = 0; i <= 5; i++) Box("Pilar", new Vector3(93f + i * 6f, 2.45f, pz1 - 0.6f), new Vector3(0.3f, 3.1f, 0.3f), iron, root);
+                Box("Marquesina cubierta", new Vector3(108f, 4.1f, pz0 + 2.3f), new Vector3(30.6f, 0.2f, 5.2f), tin, root);
+            }
+            // edificio de viajeros: dos plantas, pegado al muro norte por dentro (x 98-114, z 75-83), zócalo y tejado a cuatro aguas (aprox. con dos losas)
+            Vector3 bc = new Vector3(106f, 0f, 79f);
+            if (PlaceModel("edificio_viajeros", "SM_edificio_viajeros_LOD1", bc, 180f, root) == null)      // 20 x 9 m, andén en +Z del modelo: se gira para dar al andén (sur)
+            {
+                Box("Edificio zócalo", bc + new Vector3(0f, 0.6f, 0f), new Vector3(16f, 1.2f, 8f), plinth, root);
+                Box("Edificio fachada", bc + new Vector3(0f, 4.2f, 0f), new Vector3(16f, 6f, 8f), wall, root);
+                Box("Edificio tejado", bc + new Vector3(0f, 7.5f, 0f), new Vector3(17f, 0.7f, 9f), tile, root);
+            }
+            // almacén con muelle al otro lado de la vía, hacia el fondo del recinto (x 127-143, z 50-58)
+            Vector3 wc = new Vector3(135f, 0f, 54f);
+            Box("Almacén muelle", wc + new Vector3(0f, 0.55f, 4.2f), new Vector3(16f, 1.1f, 2.4f), plinth, root);
+            Box("Almacén cuerpo", wc + new Vector3(0f, 2.6f, 0f), new Vector3(16f, 5f, 8f), M("94948c"), root);
+            Box("Almacén tejado", wc + new Vector3(0f, 5.4f, 0f), new Vector3(16.8f, 0.5f, 8.8f), wood, root);
+            // postes de catenaria cada 50 m a lo largo de toda la vía (dentro y fuera), a 3,6 m del eje; sin colisión
+            for (float x = 10f; x < SimConst.WorldW - 5f; x += 50f)       // el modelo deja la vía hacia su -X: girado 90° la vía queda al norte (+Z)
+                if (PlaceModel("poste_catenaria", "SM_poste_catenaria_LOD1", new Vector3(x, 0f, ty - 3.6f), 90f, root) == null)
+                    Box("Poste", new Vector3(x, 4f, ty - 3.6f), new Vector3(0.25f, 8f, 0.25f), iron, root);
+            // colisión: solo edificio y almacén (cuatro segmentos de 2 m de grosor cada uno cubren el solar completo)
+            foreach (float z in new[] { 75.5f, 77.5f, 79.5f, 81.5f, 83.3f })                    // huella de 20 x 9 m del edificio de Teo
+                Push(CmdType.BuildWall, 11000, new Unity.Mathematics.float2(96.5f, z), new Unity.Mathematics.float2(115.5f, z));
+            foreach (float z in new[] { 50.8f, 52.8f, 54.8f, 56.8f })
+                Push(CmdType.BuildWall, 5000, new Unity.Mathematics.float2(127.5f, z), new Unity.Mathematics.float2(142.5f, z));
         }
 
         void SetupVisualAssets()
