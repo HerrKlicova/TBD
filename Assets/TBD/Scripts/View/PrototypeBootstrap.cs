@@ -1058,7 +1058,7 @@ namespace TBD.View
                 var teoMeshes = new System.Collections.Generic.List<Mesh>(); var teoMats = new System.Collections.Generic.List<Material>();
                 foreach (var camisa in new[] { "camisa_303424", "camisa_283440", "camisa_442c0c" })
                 {
-                    var go = Resources.Load<GameObject>("Models/Zombi/" + camisa + "/SM_zombi_cercano_LOD1");
+                    var go = Resources.Load<GameObject>("Models/Zombi/" + camisa + "/SM_zombi_fino_LOD1");
                     var tex = Resources.Load<Texture2D>("Models/Zombi/" + camisa + "/T_Paleta32");
                     var mf = go != null ? go.GetComponentInChildren<MeshFilter>() : null;
                     if (mf == null || tex == null) continue;
