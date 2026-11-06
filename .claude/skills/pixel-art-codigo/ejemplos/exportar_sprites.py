@@ -25,7 +25,6 @@ import build_zombi  # noqa: E402
 import build_zombi_lod  # noqa: E402
 import build_oficial  # noqa: E402
 import build_taller  # noqa: E402
-from pixelvm import reduce_16  # noqa: E402
 
 PIVOTE = [0.5, 0.53]
 
@@ -80,7 +79,7 @@ def iconos_taller(out):
         s = getattr(build_taller, n)()
         s.limit_colors(10)
         s.save(out / f"vm_taller_{n}_32.png")
-        reduce_16(s).save(out / f"vm_taller_{n}_16.png")
+        build_taller.icono_16(n, s).save(out / f"vm_taller_{n}_16.png")
 
 
 if __name__ == "__main__":

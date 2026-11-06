@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from pixelvm import Sprite, check, contact_sheet, reduce_16  # noqa: E402
+from pixelvm import PAL, Sprite, check, contact_sheet, reduce_16  # noqa: E402
 import build_a5  # noqa: E402
 
 OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "out_taller")
@@ -120,8 +120,6 @@ def chispas():
     s.rect(13, 19, 6, 3, "rose_brown")                   # cuello
     s.ellipse(10, 8, 21, 21, "tan")                      # cara
     s.ellipse(10, 9, 15, 19, "beige")                    # lado iluminado
-    s.vline(21, 12, 18, "rose_brown")                    # sombra
-    s.set(20, 19, "rose_brown")
     s.rect(9, 12, 2, 4, "tan")                           # orejas
     s.rect(21, 12, 2, 4, "rose_brown")
     s.hline(12, 14, 13, "olive_black")                   # ojos (mirada cansada)
@@ -130,21 +128,57 @@ def chispas():
     s.hline(17, 19, 12, "grey_brown")
     s.vline(15, 14, 16, "rose_brown")                    # nariz
     s.set(16, 16, "rose_brown")
-    s.rect(12, 17, 8, 2, "grey_light")                   # bigote gris
-    s.hline(13, 18, 18, "concrete_light")
-    s.set(12, 18, "concrete_light")
-    s.hline(14, 17, 19, "rose_brown")                    # boca
-    s.set(19, 15, "grey_brown")                          # grasa en la mejilla
-    s.set(11, 17, "grey_brown")
+    s.rect(12, 17, 8, 2, "concrete_light")               # bigote gris (94948c), sin boca debajo (Lucía)
+    s.rect(19, 14, 1, 2, "grey_brown")                   # una sola mancha de grasa de 2 px (48403c)
     # Gorra plana y gafas en la frente.
-    s.poly([(8, 9), (11, 4), (21, 4), (24, 8), (23, 10), (9, 10)], "grey_brown")
-    s.hline(11, 20, 4, "concrete")
-    s.hline(9, 23, 10, "brown_dark")                     # visera
-    s.rect(11, 9, 4, 2, "slate_dark")                    # gafas de maquinista
-    s.rect(17, 9, 4, 2, "slate_dark")
-    s.set(12, 9, "concrete_light")
-    s.set(18, 9, "concrete_light")
-    s.hline(15, 16, 10, "slate_dark")
+    s.poly([(8, 7), (11, 3), (21, 3), (24, 7)], "grey_brown")
+    s.hline(11, 20, 3, "concrete")
+    s.hline(9, 23, 7, "brown_dark")                      # visera
+    s.rect(11, 8, 4, 2, "slate_dark")                    # gafas de maquinista, en la frente
+    s.rect(17, 8, 4, 2, "slate_dark")
+    s.set(12, 8, "grey_light")                           # cristal (b8b8b8)
+    s.set(18, 8, "grey_light")
+    s.hline(15, 16, 9, "slate_dark")
+    s.hline(11, 20, 10, "tan")                           # piel entre las gafas y los ojos
+    s.hline(11, 20, 11, "tan")
+    s.outline()
+    return s
+
+
+def _borra(s, x0, x1, y0, y1, colores):
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1):
+            if s.get(x, y)[3] and any(s.get(x, y)[:3] == PAL[c][:3] for c in colores):
+                s.set(x, y, None)
+
+
+def icono_16(n, s32):
+    """Reducción a 16 px con los retoques a mano de Lucía (6-nov, 12:14)."""
+    s = reduce_16(s32, outline=False)
+    if n == "puerta_via_rota":                         # silueta rota: el borde de arriba mordido
+        for x in range(5, 11):
+            s.set(x, 3, None)
+        for x in range(6, 10):
+            s.set(x, 4, None)
+        for y in range(5, 11):                         # hueco de 4 px con bordes dentados
+            l = 5 if y % 2 else 6
+            r = 10 if y % 3 == 0 else 9
+            for x in range(l, r + 1):
+                s.set(x, y, "olive_black")
+    elif n == "tren_nuevo":                            # cruz limpia de 5x5 con brazos de 1 px
+        _borra(s, 0, 6, 0, 6, ("bone", "grey_light"))
+        s.hline(1, 5, 3, "bone")
+        s.vline(3, 1, 5, "bone")
+    elif n == "rehabilitar":                           # llave con la boca abierta en U de 3 px
+        _borra(s, 0, 8, 0, 8, ("concrete_light", "concrete"))
+        for y in (0, 1):
+            s.set(0, y, "concrete_light")
+            s.set(4, y, "concrete")
+        s.hline(0, 4, 2, "concrete_light")
+        s.hline(1, 3, 3, "concrete_light")
+        s.set(4, 2, "concrete")
+        for k in range(4):                             # mango en diagonal hasta el hueco del tren
+            s.set(3 + k, 4 + k, "concrete_light")
     s.outline()
     return s
 
@@ -155,7 +189,7 @@ if __name__ == "__main__":
     s32 = [globals()[n]() for n in nombres]
     for s in s32:
         s.limit_colors(10)
-    s16 = [reduce_16(s) for s in s32]
+    s16 = [icono_16(n, s) for n, s in zip(nombres, s32)]
     for n, a, b in zip(nombres, s32, s16):
         a.save(OUT / f"vm_taller_{n}_32.png")
         b.save(OUT / f"vm_taller_{n}_16.png")
