@@ -739,6 +739,9 @@ def _render(obj, vista="rts", res=128, paleta=None, intensidad=0.65, fondo=(0x18
     pal = cargar_paleta() if paleta is None else paleta
     me = _malla_eval(obj)
     v, t = _tris(me)
+    nc = None   # normales horneadas (p. ej. hacia arriba en las matas): el render usa las mismas que verá Unity
+    if obj.get("tbd_normales_arriba"):
+        nc = np.array([np.mean([tuple(x) for x in lt.split_normals], axis=0) for lt in me.loop_triangles])
     bpy.data.meshes.remove(me)
     R = _matriz_vista(*VISTAS[vista])
     xy, z, _ = _proyectar(v, R, res)
@@ -746,6 +749,8 @@ def _render(obj, vista="rts", res=128, paleta=None, intensidad=0.65, fondo=(0x18
     base = colores_por_cara(obj)
     n = np.cross(v[t[:, 1]] - v[t[:, 0]], v[t[:, 2]] - v[t[:, 0]])
     n /= np.linalg.norm(n, axis=1, keepdims=True) + 1e-12
+    if nc is not None:
+        n = nc / (np.linalg.norm(nc, axis=1, keepdims=True) + 1e-12)
     luz = np.array([-0.45, 0.35, 0.82])  # arriba a la izquierda, ligeramente desde delante
     luz /= np.linalg.norm(luz)
     lam = np.clip(n @ luz, 0, 1)

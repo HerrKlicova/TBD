@@ -58,6 +58,17 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
     inf["legibilidad"] = ns["medir_legibilidad"](o)["suelos"]
     inf["criterio_legibilidad"] = getattr(db, "LEGIBILIDAD", "top20_o_contorno")
     inf["medidas_m"] = [round(d, 2) for d in o.dimensions]
+    if getattr(db, "NORMALES_ARRIBA", False):   # matas y piedras del suelo (Lucía, suelo-sagunto.md §8): luz del suelo
+        me = o.data   # True: toda la pieza; una lista de piezas: solo esas caras (p. ej. el trozo de prueba del suelo)
+        na = db.NORMALES_ARRIBA
+        idx = None if na is True else {db.PIEZAS.index(p) for p in na}
+        ns_ = []
+        for pol in me.polygons:
+            n = (0.0, 0.0, 1.0) if idx is None or pol.material_index in idx else tuple(pol.normal)
+            ns_ += [n] * pol.loop_total
+        me.normals_split_custom_set(ns_)
+        o["tbd_normales_arriba"] = 1
+        inf["normales_arriba"] = True
     u = getattr(db, "UMBRAL_CONTORNO", {}).get(lod, 0.25 if lod else 0.06)
     for suelo, hx in SUELOS:
         ns["vista_pixelada"](o, os.path.join(out, "%s_rts.png" % suelo), vista="rts", fondo=hx, umbral_contorno=u)
