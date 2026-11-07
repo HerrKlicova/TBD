@@ -76,6 +76,16 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
     if mc is not None and mc.any():
         inf["costuras"] = ns["costuras_por_valor"](o, mc, suelo_L=getattr(db, "L_MIN", 0.0))
     inf["faccion"] = ns["marcar_faccion"](o, getattr(db, "FACCION", "propio"))
+    if getattr(db, "TEXTURA_REAL", False) and os.environ.get("TBD_TEXTURA", "1") != "0":
+        # textura horneada de verdad (Eugenio 7-nov 09:20: nada de parches): una textura por vehículo para los dos LOD
+        sys.path.insert(0, AQUI)
+        import textura_real
+        ruta_t = os.path.join(salida, "T_Albedo.png")
+        if lod == 0 and os.path.exists(ruta_t):
+            os.remove(ruta_t)
+        inf["textura"] = textura_real.hornear(o, r["mascaras"], ruta_t, lod,
+                                              int(os.environ.get("TBD_VARIANTE", "0") or 0) % 5, ns["cargar_paleta"]())
+        ns["_material_paleta"](o, ruta_t)
     a = ns["auditar"](o, presupuesto=getattr(db, "PRESUPUESTO", {}).get(lod, (500, 4000) if lod else (1500, 4000)))
     inf["veredicto"] = a["veredicto"]
     inf["avisos"] = [(x["clave"], x["valor"]) for x in a["puntos"] if x["nivel"] != "OK"]
@@ -126,6 +136,9 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
                              fondo=hx, umbral_contorno=u)
     for v in ("izquierda", "frente"):
         ns["vista_pixelada"](ov, os.path.join(out, "%s.png" % v), vista=v, fondo=SUELOS[0][1], umbral_contorno=u)
+    if "textura" in inf:   # de cerca, a la escala de la captura de Eugenio (~40 px/m): para juzgar la textura
+        ns["vista_pixelada"](ov, os.path.join(out, "cerca_rts.png"), vista="rts", res=320, ampliar=2,
+                             fondo=SUELOS[0][1], umbral_contorno=u)
     if ov is not o:
         bpy.data.objects.remove(ov, do_unlink=True)
         o.hide_render = False

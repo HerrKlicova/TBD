@@ -742,6 +742,13 @@ def _render(obj, vista="rts", res=128, paleta=None, intensidad=0.65, fondo=(0x18
     pal = cargar_paleta() if paleta is None else paleta
     me = _malla_eval(obj)
     v, t = _tris(me)
+    uvt = None   # textura horneada (textura_real.py): UV por esquina de triángulo para muestrear por píxel
+    if obj.get("tbd_textura") and me.uv_layers.active is not None:
+        uvs = np.empty(len(me.loops) * 2)
+        me.uv_layers.active.data.foreach_get("uv", uvs)
+        lp = np.empty(len(me.loop_triangles) * 3, dtype=np.int64)
+        me.loop_triangles.foreach_get("loops", lp)
+        uvt = uvs.reshape(-1, 2)[lp.reshape(-1, 3)]
     nc = None   # normales horneadas (p. ej. hacia arriba en las matas): el render usa las mismas que verá Unity
     if obj.get("tbd_normales_arriba"):
         nc = np.array([np.mean([tuple(x) for x in lt.split_normals], axis=0) for lt in me.loop_triangles])
@@ -762,6 +769,25 @@ def _render(obj, vista="rts", res=128, paleta=None, intensidad=0.65, fondo=(0x18
     img[:] = fondo
     m = ib >= 0
     img[m] = base[ib[m]] * tono[ib[m], None]
+    if uvt is not None and m.any():
+        from PIL import Image
+        tex = np.asarray(Image.open(obj["tbd_textura"]).convert("RGB")).astype(np.float64)
+        th, tw = tex.shape[:2]
+        py, px = np.nonzero(m)
+        k = ib[m]
+        tx = xy[t[k]]                                    # (n, 3, 2)
+        gx, gy = px + 0.5, py + 0.5
+        x_, y_ = tx[:, :, 0], tx[:, :, 1]
+        d = (y_[:, 1] - y_[:, 2]) * (x_[:, 0] - x_[:, 2]) + (x_[:, 2] - x_[:, 1]) * (y_[:, 0] - y_[:, 2])
+        d = np.where(np.abs(d) < 1e-12, 1e-12, d)
+        l1 = ((y_[:, 1] - y_[:, 2]) * (gx - x_[:, 2]) + (x_[:, 2] - x_[:, 1]) * (gy - y_[:, 2])) / d
+        l2 = ((y_[:, 2] - y_[:, 0]) * (gx - x_[:, 2]) + (x_[:, 0] - x_[:, 2]) * (gy - y_[:, 2])) / d
+        L = np.stack([l1, l2, 1 - l1 - l2], 1).clip(0, 1)
+        L /= L.sum(1, keepdims=True) + 1e-12
+        uv = (L[:, :, None] * uvt[k]).sum(1)
+        cx = np.clip((uv[:, 0] * tw).astype(np.int64), 0, tw - 1)
+        cy = np.clip(((1 - uv[:, 1]) * th).astype(np.int64), 0, th - 1)
+        img[py, px] = tex[cy, cx] * tono[k, None]
     if intensidad > 0 and m.any():
         idx = indice_paleta(img[m], pal)
         img[m] = img[m] * (1 - intensidad) + pal[idx] * intensidad

@@ -25,11 +25,13 @@ import math, os
 from montaje import Montaje, separar as _separar
 import acabado as A
 
-VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0) % 5   # acabado de camuflaje (acabado.py): 0 boscoso … 4 urbano
+VAR = 1   # pintura lisa, como el real (Eugenio 7-nov 09:20 rechazó el camuflaje por caras); TBD_VARIANTE es ahora el
+          # grado de uso de la textura horneada (textura_real.py): 0 parque, 1 campaña, 2 árido, 3 embarrado, 4 castigado
+TEXTURA_REAL = True
 PIEZAS = ["casco", "mancha", "optica", "interior", "pala", "cubo", "goma", "metal", "arma", "disco"]
 COLORES = {"casco": "50541c", "mancha": "845c28", "optica": "60546c", "interior": "48403c", "pala": "94948c",
            "cubo": "845c28", "goma": "48403c", "metal": "605c48", "arma": "48403c", "disco": "94948c"}
-VALOR_PIEZAS = A.valores(VAR, {"casco": ("b4a080", "50541c", "50541c")})   # caras de abajo fijas: nunca 442c0c (horda)
+VALOR_PIEZAS = A.valores(VAR, {"casco": ("70784c", "50541c", "50541c")})   # caras de abajo fijas: nunca 442c0c (horda)
 COLORES = A.colores(VAR, COLORES)
 if A.TABLA[VAR][0]:   # las manchas pintadas de la foto toman el pardo del acabado
     COLORES["mancha"] = A.TABLA[VAR][2]["camo_a"][1]

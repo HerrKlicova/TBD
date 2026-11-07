@@ -20,9 +20,11 @@ import acabado as A
 from dragon_animable import _islas
 
 PIEZAS = V.PIEZAS
-VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0) % 5   # acabado de camuflaje (acabado.py): 0 boscoso … 4 urbano
+VAR = 1   # pintura lisa, como el real (Eugenio 7-nov 09:20 rechazó el camuflaje por caras); TBD_VARIANTE es ahora el
+          # grado de uso de la textura horneada (textura_real.py): 0 parque, 1 campaña, 2 árido, 3 embarrado, 4 castigado
+TEXTURA_REAL = True
 COLORES = A.colores(VAR, dict(V.COLORES, goma="48403c", optica="60546c", metal="48403c"))
-VALOR_PIEZAS = A.valores(VAR, {"casco": ("b4a080", "50541c", "50541c")})
+VALOR_PIEZAS = A.valores(VAR, {"casco": ("70784c", "50541c", "50541c")})
 ABAJO_CASCO = "50541c"
 L_MIN = 28.0
 EJES_Y = (-2.2, 1.7)
