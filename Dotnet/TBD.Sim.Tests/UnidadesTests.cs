@@ -940,6 +940,16 @@ namespace TBD.Sim.Tests
                     var heli = hs.Vehicles.Find(v => v.Kind == NightVehKind.Nh90); bool up = false; for (int t = 0; t < 4000 && hs.Night.State == NightState.Jugando; t++) { hs.Step(); up |= heli.Airborne; }
                     check(up && heli.Kills > 0 && heli.ShotsFired > 0, $"NH90: despega solo con la horda y dispara en vuelo ({heli.ShotsFired} disparos, {heli.Kills} abatidos)");
                 }
+                // D-N139: la infantería no atraviesa edificios, muros, vehículos ni el tren: los rodea
+                {
+                    var wo = new UnitsWorld(6); var po = wo.AddPlatoon(PlatoonKind.Tiradores, 0, 0, 0); wo.Obstacles.Add(new RectMm(10000, -3000, 14000, 3000));
+                    wo.Move(po.Id, 30000, 0); bool inside = false;
+                    for (int t = 0; t < 2400; t++) { wo.Step(new List<Target>(), new StepResult()); foreach (var m in po.Men) if (m.X > 10000 - 200 && m.X < 14000 + 200 && m.Y > -3000 - 200 && m.Y < 3000 + 200) inside = true; }
+                    check(!inside && po.AX > 25000, $"D-N139: el pelotón rodea un edificio de 4 × 6 m que tiene delante sin que nadie lo atraviese (ancla en X {po.AX / 1000} m)");
+                    var w0 = new UnitsWorld(6); var p0 = w0.AddPlatoon(PlatoonKind.Tiradores, 0, 0, 0); var w1 = new UnitsWorld(6); var p1x = w1.AddPlatoon(PlatoonKind.Tiradores, 0, 0, 0);
+                    w0.Move(p0.Id, 30000, 0); w1.Move(p1x.Id, 30000, 0); for (int t = 0; t < 300; t++) { w0.Step(new List<Target>(), new StepResult()); w1.Step(new List<Target>(), new StepResult()); }
+                    check(w0.Hash() == w1.Hash(), "D-N139: sin obstáculos todo sigue igual (mismo hash)");
+                }
                 // D-N133: causa y recuentos
                 check(g.Cause == DefeatCause.Tren && g.DefeatHeadline() == "El tren ha caído." && g.TrainsAlive == 0 && g.StationsAlive == 1, "D-N133: sin tren la causa es el tren y el titular «El tren ha caído.»");
                 check(g2.Cause == DefeatCause.Estacion && g2.DefeatHeadline() == "Sagunto ha caído." && g2.StationsAlive == 0, "D-N133: sin estación la causa es la estación y el titular «Sagunto ha caído.»");

@@ -98,6 +98,31 @@ namespace TBD.Units
         public const int PlatoonTurnPerTick = 1200;
         public const int EngageHoldTicks = 45;           // ataque en marcha: se para mientras alguien haya disparado hace menos de 1,5 s
         public const int DenseNeighbours = 3, DenseRadiusMm = 1500;
+        /// <summary>D-N139 (colisiones): obstáculos en mm (edificios, muros, el tren parado y los vehículos) que la infantería no atraviesa: los rodea deslizando por su borde.
+        /// Vacía = como antes (sin cambio de hash). Los pone quien simula (la zona o NightSim) y se pueden cambiar cada tick (vehículos que se mueven).</summary>
+        public readonly List<RectMm> Obstacles = new List<RectMm>();
+        public const int ManRadiusMm = 300;
+        bool Blocked(int x, int y)
+        {
+            for (int i = 0; i < Obstacles.Count; i++) { var r = Obstacles[i]; if (x > r.X0 - ManRadiusMm && x < r.X1 + ManRadiusMm && y > r.Y0 - ManRadiusMm && y < r.Y1 + ManRadiusMm) return true; }
+            return false;
+        }
+        /// <summary>D-N139: de (x, y) a (nx, ny) sin entrar en un obstáculo. Prueba el paso entero, por su eje principal y de lado (izquierda y derecha); si nada vale, se queda.
+        /// El que ya está dentro (p. ej. un obstáculo nuevo encima) puede salir. Entero y determinista.</summary>
+        void Slide(int x, int y, ref int nx, ref int ny)
+        {
+            if (Obstacles.Count == 0 || !Blocked(nx, ny) || Blocked(x, y)) return;
+            int dx = nx - x, dy = ny - y;
+            if (dx != 0 && !Blocked(nx, y)) { ny = y; return; }                // por el eje de avance principal (sin quedarse quieto)
+            if (dy != 0 && Math.Abs(dy) >= Math.Abs(dx) && !Blocked(x, ny)) { nx = x; return; }
+            // de lado, hacia el borde más cercano del obstáculo que estorba (siempre el mismo lado: no oscila)
+            int bi = -1; for (int i = 0; i < Obstacles.Count && bi < 0; i++) { var r0 = Obstacles[i]; if (nx > r0.X0 - ManRadiusMm && nx < r0.X1 + ManRadiusMm && ny > r0.Y0 - ManRadiusMm && ny < r0.Y1 + ManRadiusMm) bi = i; }
+            int st = Math.Max(Math.Abs(dx), Math.Abs(dy)); var r = Obstacles[Math.Max(0, bi)];
+            int sx = x, sy = y;
+            if (Math.Abs(dx) >= Math.Abs(dy)) sy = y + (2L * y >= (long)r.Y0 + r.Y1 ? st : -st); else sx = x + (2L * x >= (long)r.X0 + r.X1 ? st : -st);
+            if (!Blocked(sx, sy)) { nx = sx; ny = sy; return; }
+            nx = x; ny = y;
+        }
 
         public UnitsWorld(uint seed) { Rng = new IRng(seed); }
 
@@ -374,7 +399,7 @@ namespace TBD.Units
                 p.Heading = (p.Heading + IMath.Clamp(d, -PlatoonTurnPerTick, PlatoonTurnPerTick)) & 0xFFFF;
             }
             if (dist <= step) { p.AX = p.TX; p.AY = p.TY; p.Moving = false; p.AttackMove = false; }
-            else { p.AX += IMath.DivR((long)dx * step, dist); p.AY += IMath.DivR((long)dy * step, dist); }
+            else { int nax = p.AX + IMath.DivR((long)dx * step, dist), nay = p.AY + IMath.DivR((long)dy * step, dist); Slide(p.AX, p.AY, ref nax, ref nay); p.AX = nax; p.AY = nay; }
         }
 
         void MoveMen(Platoon p)
@@ -388,8 +413,10 @@ namespace TBD.Units
                 if (dist > 0)
                 {
                     m.Moving = dist > 80;
-                    if (dist <= maxStep) { m.X = m.SlotX; m.Y = m.SlotY; }
-                    else { m.X += IMath.DivR((long)dx * maxStep, dist); m.Y += IMath.DivR((long)dy * maxStep, dist); }
+                    int nx, ny;
+                    if (dist <= maxStep) { nx = m.SlotX; ny = m.SlotY; }
+                    else { nx = m.X + IMath.DivR((long)dx * maxStep, dist); ny = m.Y + IMath.DivR((long)dy * maxStep, dist); }
+                    Slide(m.X, m.Y, ref nx, ref ny); m.X = nx; m.Y = ny;
                     if (dist > 250) { int d = IMath.Diff(IMath.Atan2(dy, dx), m.Heading); m.Heading = (m.Heading + IMath.Clamp(d, -TurnPerTick, TurnPerTick)) & 0xFFFF; }
                 }
                 if (!m.Moving && dist <= 250) { int d = IMath.Diff(p.Heading, m.Heading); m.Heading = (m.Heading + IMath.Clamp(d, -TurnPerTick, TurnPerTick)) & 0xFFFF; }

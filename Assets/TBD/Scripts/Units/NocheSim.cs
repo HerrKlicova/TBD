@@ -176,6 +176,7 @@ namespace TBD.Units
         {
             SP = sp; Night = new NightGame(np, seed ^ 0x5A5A); Units = new UnitsWorld(seed); _rng = new IRng(seed ^ 0xC0FFEE);
             Units.StockShots = ammoU * WeaponCatalog.ShotsPerU; MaterialsU = materialsU; FuelU = fuelU;
+            Units.Obstacles.Add(np.StationRect); Units.Obstacles.Add(np.TrainRect);     // D-N139: la infantería rodea el edificio y el tren parado
             WallHp = sp.WallHp; Night.P.StationHp = sp.StationHp; Night.StationHp = sp.StationHp; Night.P.StationDmgPerZombieS = sp.StationDmgPerZombieS;
             // QA-35: el edificio y el tren son los reales de NightParams (los mismos de la zona). Fuera, la horda converge hacia StationX/Y (la puerta de la vía, como el
             // flujo de la zona); dentro del recinto (tras trepar o con el muro roto) va al centro del edificio de viajeros.
