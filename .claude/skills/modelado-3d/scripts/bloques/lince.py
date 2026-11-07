@@ -22,9 +22,9 @@ Jerarquía del FBX (mira a +Z en Unity), como el VAMTAC:
 import math
 from montaje import Montaje, separar as _separar
 
-PIEZAS = ["casco", "goma", "llanta", "optica", "foco", "metal"]
+PIEZAS = ["casco", "goma", "llanta", "optica", "foco", "metal", "tapa"]
 COLORES = {"casco": "50541c", "goma": "48403c", "llanta": "70784c", "optica": "60546c", "foco": "f0dc9c",
-           "metal": "48403c"}
+           "metal": "48403c", "tapa": "88885c"}   # tapa de la escotilla un paso por debajo del techo (Lucía, 7-nov)
 VALOR_PIEZAS = {"casco": ("b4a080", "50541c", "50541c")}
 ABAJO_CASCO = "50541c"
 L_MIN = 28.0
@@ -123,7 +123,7 @@ def construir(nombre="SM_Lince", lod=0):
     # inclinada 45° hacia atrás (en la foto está casi vertical): de canto caía al costado oscuro y desde arriba se leía
     # como un agujero negro detrás del tirador
     antes = set(m.bm.verts)
-    m.cilindro((0, ARO[1] + 0.62, 2.42), 0.42, 0.05, "Y", 12, "casco")
+    m.cilindro((0, ARO[1] + 0.6, 2.4), 0.4, 0.05, "Y", 12, "tapa")             # 0,8 m de diámetro
     from mathutils import Matrix, Vector
     giro, eje = Matrix.Rotation(math.radians(-45), 3, "X"), Vector((0, ARO[1] + 0.55, 2.03))
     for v in set(m.bm.verts) - antes:

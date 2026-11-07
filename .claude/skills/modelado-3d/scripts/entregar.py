@@ -163,6 +163,8 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
                 x.rotation_euler.x = math.radians(-20)     # en Blender, elevar el cañón (que mira a −Y) es X negativo
             if x.name in getattr(db, "DIRECCION", ()):   # ruedas directrices: giradas 25° sobre la vertical
                 x.rotation_euler.z = math.radians(25)
+            if x.name.startswith("Barrera"):             # barreras de paso a nivel: subidas 85° (brazo hacia su −Y)
+                x.rotation_euler.x = math.radians(-85)
             if x.name.startswith("RotorCola"):
                 x.rotation_euler.x = math.radians(30)
         bpy.context.view_layer.update()
