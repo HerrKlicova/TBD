@@ -15,7 +15,9 @@ Acabados (TBD_VARIANTE % 5):
   2 árido: arena con manchas pardas y oliva (despliegue en zona seca).
   3 embarrado: el verde liso con una franja de barro seco abajo (hasta ~1,3 m) y salpicaduras por todo.
   4 urbano: grises verdosos con manchas claras y oscuras.
-Reglas: D-N80 (ningún albedo propio bajo L* 28: nada de 48403c ni 543820 en las manchas), ningún costado en colores de
+Reglas: D-N80 (ningún albedo propio bajo L* 28: nada de 48403c ni 543820 en las manchas). Costado pardo 605c48 y no
+6c4038 ni 7c3c18, que en sombra caen en la banda de la horda (Bruno, 09:03); 845c28 no puede ir de costado porque es el
+llano, ningún costado en colores de
 suelo ni de zombi (COSTADOS_PROHIBIDOS: 845c28, 48403c, 6c7874, 94948c, 404460, 60546c), sin rojos.
 Los colores son una propuesta para que los revise Bruno (SIN VERIFICAR en la build: depende del arreglo del sRGB).
 """
@@ -26,10 +28,10 @@ NOMBRES = {0: "boscoso", 1: "liso", 2: "arido", 3: "embarrado", 4: "urbano"}
 # acabado -> (casco, torre, {pieza: triplete}); triplete = (techo, costado, abajo)
 TABLA = {
     0: (("88885c", "50541c", "50541c"), ("88885c", "50541c", "50541c"),
-        {"camo_a": ("a86c50", "6c4038", "6c4038"), "camo_b": ("b4a080", "70784c", "50541c")}),
+        {"camo_a": ("a86c50", "605c48", "605c48"), "camo_b": ("b4a080", "70784c", "50541c")}),
     1: (None, None, {}),
     2: (("b4a080", "847c34", "605c48"), ("b4a080", "847c34", "605c48"),
-        {"camo_a": ("a86c50", "6c4038", "6c4038"), "camo_b": ("88885c", "50541c", "50541c")}),
+        {"camo_a": ("a86c50", "605c48", "605c48"), "camo_b": ("88885c", "50541c", "50541c")}),
     3: (None, None, {"camo_a": ("a86c50", "a86c50", "a86c50")}),   # barro seco, claro: el oscuro se perdía en la sombra
     4: (("88885c", "70784c", "605c48"), ("88885c", "70784c", "605c48"),
         {"camo_a": ("b4a080", "605c48", "605c48"), "camo_b": ("70784c", "50541c", "50541c")}),
