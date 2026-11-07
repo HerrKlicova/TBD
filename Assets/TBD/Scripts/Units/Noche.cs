@@ -75,12 +75,12 @@ namespace TBD.Units
             return new NightParams
             {
                 ClockX = 28, StartHour = 22, EndHour = 6, ScalePermil = 850, FrontPct = 55, FrontTimePct = 25,
-                StationHp = 60000, TrainHp = 120000, Stars = StarRules.Default(), AttackReachMm = 1500, StationRect = new RectMm(98000, 75000, 114000, 83000), TrainRect = new RectMm(74000, 62900, 154000, 66100), StationDmgPerZombieS = 20, TrainDmgPerZombieS = 20, ContactRadiusMm = 900, ContactDmgPerTick = 2,
+                StationHp = 60000, TrainHp = 120000, Stars = StarRules.Default(), AttackReachMm = 1500, StationRect = new RectMm(98000, 75000, 114000, 83000), TrainRect = new RectMm(90000, 62900, 154000, 66100), StationDmgPerZombieS = 20, TrainDmgPerZombieS = 20, ContactRadiusMm = 900, ContactDmgPerTick = 2,
+                // D-N135 (Hugo, 7-nov 11:50; Eugenio: «de 6 a 4, es un primer contacto»): 22:20, 00:10, 02:10 y 04:10
                 Waves = new[]
                 {
-                    new WaveSpec { StartMinute = 20, Zombies = 900, ArrivalSeconds = 30, EntryCount = new[] { 50, 30, 20, 0 } }, new WaveSpec { StartMinute = 80, Zombies = 1500, ArrivalSeconds = 45, EntryCount = new[] { 50, 30, 20, 0 } },
-                    new WaveSpec { StartMinute = 160, Zombies = 2000, ArrivalSeconds = 60, EntryCount = new[] { 50, 30, 20, 0 } }, new WaveSpec { StartMinute = 240, Zombies = 3000, ArrivalSeconds = 70, EntryCount = new[] { 50, 30, 20, 0 } },
-                    new WaveSpec { StartMinute = 320, Zombies = 3600, ArrivalSeconds = 90, EntryCount = new[] { 40, 30, 20, 10 } }, new WaveSpec { StartMinute = 400, Zombies = 5000, ArrivalSeconds = 100, EntryCount = new[] { 30, 30, 20, 20 } },
+                    new WaveSpec { StartMinute = 20, Zombies = 900, ArrivalSeconds = 30, EntryCount = new[] { 50, 30, 20, 0 } }, new WaveSpec { StartMinute = 130, Zombies = 1500, ArrivalSeconds = 45, EntryCount = new[] { 50, 30, 20, 0 } },
+                    new WaveSpec { StartMinute = 250, Zombies = 2000, ArrivalSeconds = 60, EntryCount = new[] { 50, 30, 20, 0 } }, new WaveSpec { StartMinute = 370, Zombies = 3000, ArrivalSeconds = 70, EntryCount = new[] { 50, 30, 20, 0 } },
                 },
                 // Álvaro (sagunto-nivel.md §9.5), zona de 256 × 128 m: (X, Z) en metros → (X, Y) en mm
                 Entries = new[]

@@ -56,8 +56,8 @@
       },
       {
         "n": 2,
-        "hora": "23:20",
-        "minuto_juego": 80,
+        "hora": "00:10",
+        "minuto_juego": 130,
         "llegada_s_reales": 45,
         "total": 1090,
         "por_entrada": {
@@ -69,8 +69,8 @@
       },
       {
         "n": 3,
-        "hora": "00:40",
-        "minuto_juego": 160,
+        "hora": "02:10",
+        "minuto_juego": 250,
         "llegada_s_reales": 60,
         "total": 1450,
         "por_entrada": {
@@ -82,8 +82,8 @@
       },
       {
         "n": 4,
-        "hora": "02:00",
-        "minuto_juego": 240,
+        "hora": "04:10",
+        "minuto_juego": 370,
         "llegada_s_reales": 70,
         "total": 2180,
         "por_entrada": {
@@ -91,32 +91,6 @@
           "O2": 654,
           "O3": 436,
           "O4": 0
-        }
-      },
-      {
-        "n": 5,
-        "hora": "03:20",
-        "minuto_juego": 320,
-        "llegada_s_reales": 90,
-        "total": 2610,
-        "por_entrada": {
-          "O1": 1044,
-          "O2": 783,
-          "O3": 522,
-          "O4": 261
-        }
-      },
-      {
-        "n": 6,
-        "hora": "04:40",
-        "minuto_juego": 400,
-        "llegada_s_reales": 100,
-        "total": 3620,
-        "por_entrada": {
-          "O1": 1086,
-          "O2": 1086,
-          "O3": 724,
-          "O4": 724
         }
       }
     ],
@@ -136,8 +110,8 @@
       },
       {
         "n": 2,
-        "hora": "23:20",
-        "minuto_juego": 80,
+        "hora": "00:10",
+        "minuto_juego": 130,
         "llegada_s_reales": 45,
         "total": 1280,
         "por_entrada": {
@@ -149,8 +123,8 @@
       },
       {
         "n": 3,
-        "hora": "00:40",
-        "minuto_juego": 160,
+        "hora": "02:10",
+        "minuto_juego": 250,
         "llegada_s_reales": 60,
         "total": 1700,
         "por_entrada": {
@@ -162,8 +136,8 @@
       },
       {
         "n": 4,
-        "hora": "02:00",
-        "minuto_juego": 240,
+        "hora": "04:10",
+        "minuto_juego": 370,
         "llegada_s_reales": 70,
         "total": 2550,
         "por_entrada": {
@@ -171,32 +145,6 @@
           "O2": 765,
           "O3": 510,
           "O4": 0
-        }
-      },
-      {
-        "n": 5,
-        "hora": "03:20",
-        "minuto_juego": 320,
-        "llegada_s_reales": 90,
-        "total": 3060,
-        "por_entrada": {
-          "O1": 1224,
-          "O2": 918,
-          "O3": 612,
-          "O4": 306
-        }
-      },
-      {
-        "n": 6,
-        "hora": "04:40",
-        "minuto_juego": 400,
-        "llegada_s_reales": 100,
-        "total": 4250,
-        "por_entrada": {
-          "O1": 1275,
-          "O2": 1275,
-          "O3": 850,
-          "O4": 850
         }
       }
     ],
@@ -216,8 +164,8 @@
       },
       {
         "n": 2,
-        "hora": "23:20",
-        "minuto_juego": 80,
+        "hora": "00:10",
+        "minuto_juego": 130,
         "llegada_s_reales": 45,
         "total": 1710,
         "por_entrada": {
@@ -229,8 +177,8 @@
       },
       {
         "n": 3,
-        "hora": "00:40",
-        "minuto_juego": 160,
+        "hora": "02:10",
+        "minuto_juego": 250,
         "llegada_s_reales": 60,
         "total": 2280,
         "por_entrada": {
@@ -242,8 +190,8 @@
       },
       {
         "n": 4,
-        "hora": "02:00",
-        "minuto_juego": 240,
+        "hora": "04:10",
+        "minuto_juego": 370,
         "llegada_s_reales": 70,
         "total": 3420,
         "por_entrada": {
@@ -251,32 +199,6 @@
           "O2": 1026,
           "O3": 684,
           "O4": 0
-        }
-      },
-      {
-        "n": 5,
-        "hora": "03:20",
-        "minuto_juego": 320,
-        "llegada_s_reales": 90,
-        "total": 4100,
-        "por_entrada": {
-          "O1": 1640,
-          "O2": 1230,
-          "O3": 820,
-          "O4": 410
-        }
-      },
-      {
-        "n": 6,
-        "hora": "04:40",
-        "minuto_juego": 400,
-        "llegada_s_reales": 100,
-        "total": 5700,
-        "por_entrada": {
-          "O1": 1710,
-          "O2": 1710,
-          "O3": 1140,
-          "O4": 1140
         }
       }
     ]
@@ -346,7 +268,7 @@
       "dotacion_mil_u": 2000,
       "fuego_continuo_s": 66,
       "recarga_s": 20,
-      "recarga_u_mil": 2000,
+      "recarga_u_mil": 1200,
       "donde": "junto al tren o al depósito",
       "disparos": {
         "canon_30": 200,
@@ -358,7 +280,7 @@
       "dotacion_mil_u": 3000,
       "fuego_continuo_s": 200,
       "recarga_s": 20,
-      "recarga_u_mil": 3000,
+      "recarga_u_mil": 1800,
       "donde": "junto al tren o al depósito",
       "disparos": {
         "ametralladora_pesada": 2000
@@ -369,7 +291,7 @@
       "dotacion_mil_u": 3000,
       "fuego_continuo_s": 300,
       "recarga_s": 30,
-      "recarga_u_mil": 3000,
+      "recarga_u_mil": 1800,
       "donde": "posado en el helipuerto (también repone 4 u de combustible)",
       "disparos": {
         "ametralladora_puerta": 6000
