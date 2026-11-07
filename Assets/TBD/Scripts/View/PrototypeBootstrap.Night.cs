@@ -198,7 +198,8 @@ namespace TBD.View
                     if (near) _tgt.Add(new Target { Id = (int)z.SimId, X = (int)(z.Pos.x * 1000f), Y = (int)(z.Pos.z * 1000f) });
                 }
                 zs.Dispose();
-                _zomCounted = true;   // D-N136 (Nacho): _zomPos ya es la cuenta de vivos de ECS; NightGame gana al llegar a 0 con toda la horda dentro
+                _zomCounted = true;
+                if ((_ng.Tick % NightSim.ClimberRetargetTicks) == 0) ClimberGoals();   // D-N148 (Nacho)   // D-N136 (Nacho): _zomPos ya es la cuenta de vivos de ECS; NightGame gana al llegar a 0 con toda la horda dentro
                 _allT.Clear(); for (int i = 0; i < _zomPos.Count; i++) _allT.Add(new Target { Id = (int)_zomId[i], X = (int)(_zomPos[i].x * 1000f), Y = (int)(_zomPos[i].y * 1000f) });
                 _ng.CountAttackers(_allT, out _pileNearStation, out _nearTrain);
                 if ((_nearTrain > 0 || _pileNearStation > 0) && _diagN < 6 && Time.unscaledTime - _diagT > 2f)
@@ -262,6 +263,36 @@ namespace TBD.View
             return false;
         }
         bool _zomCounted;
+        readonly List<Target> _cgMen = new List<Target>(), _cgVeh = new List<Target>(), _cgWork = new List<Target>();
+        /// <summary>D-N148 (Nacho): a los zombis que han pasado el muro (dentro del recinto) les pone su objetivo con ClimberTargets.Pick, la misma regla que NightSim:
+        /// lo vivo más cercano a menos de 30 m (infantería, vehículos parados, obreros) y, si no hay nadie, el tren. En los dos mundos, con las mismas listas.
+        /// Los de fuera siguen el campo de flujo (HasGoal = 0).</summary>
+        void ClimberGoals()
+        {
+            _cgMen.Clear(); _cgVeh.Clear();
+            foreach (var p in _uw.Platoons) { if (p.Aboard != 0) continue; foreach (var m in p.Men) if (m.Alive) _cgMen.Add(new Target { Id = m.Id, X = m.X, Y = m.Y }); }
+            for (int i = 0; i < _vehs.Count; i++) { var v = _vehs[i]; if (v.Heli ? v.State != 0 : v.Speed > 0.1f) continue; _cgVeh.Add(new Target { Id = i, X = (int)(v.Pos.x * 1000f), Y = (int)(v.Pos.y * 1000f) }); }
+            var tr = _ng.P.TrainRect;
+            foreach (var wld in new[] { _worldA, _worldB })
+            {
+                if (wld == null || !wld.IsCreated) continue;
+                var em = wld.EntityManager;
+                using (var q = em.CreateEntityQuery(typeof(Zombie)))
+                {
+                    var zs = q.ToComponentDataArray<Zombie>(Allocator.Temp); bool dirty = false;
+                    for (int i = 0; i < zs.Length; i++)
+                    {
+                        var z = zs[i]; float x = z.Pos.x, y = z.Pos.z;
+                        bool inside = x > Level.FortX0 && x < Level.FortX1 && y > Level.FortY0 && y < Level.FortY1;
+                        if (!inside) { if (z.HasGoal != 0) { z.HasGoal = 0; zs[i] = z; dirty = true; } continue; }
+                        int tx, ty; ClimberTargets.Pick((int)(x * 1000f), (int)(y * 1000f), _cgMen, _cgVeh, _cgWork, NightSim.ClimberSeekMm, tr, out tx, out ty);
+                        z.Goal = new float2(tx / 1000f, ty / 1000f); z.HasGoal = 1; zs[i] = z; dirty = true;
+                    }
+                    if (dirty) q.CopyFromComponentDataArray(zs);
+                    zs.Dispose();
+                }
+            }
+        }
         readonly System.Text.StringBuilder _fullTrace = new System.Text.StringBuilder(); float _gateT = -10f; readonly HashSet<int> _gateWalled = new HashSet<int>(); bool _capDirDone; readonly HashSet<float> _shotAtDone = new HashSet<float>(); int _diagN; float _diagT; float _endStationF = 1f, _endTrainF = 1f; int _pileNearStation, _nearTrain, _pileWall; float _wallHp, _wallMax; readonly List<Target> _allT = new List<Target>(); readonly ContactResult _contact = new ContactResult(); readonly float _contactR2 = 1200f * 1200f; readonly int _contactPpm = 1000000 * 14 / 1000 / 30;   // NightSimParams de Nacho: 1,2 m y 14 ‰ por zombi y segundo (por tick)
 
         int CurrentWave()

@@ -334,6 +334,11 @@ namespace TBD.Sim
 
             // ---- marcha en continuo: velocidad deseada = dirección del flujo interpolada
             float2 desired = FlowAt(flowVec, p) * z.Speed;
+            if (z.HasGoal != 0)                                     // D-N148: el que ha pasado el muro va derecho a su objetivo; a menos de 0,5 m se queda
+            {
+                float2 dg = z.Goal - p; float l2 = math.dot(dg, dg);
+                desired = l2 > 0.25f ? dg * (z.Speed / math.sqrt(l2)) : new float2(0f, 0f);
+            }
             float2 steer = desired + SeparationAt(density, p);      // la separación no cuenta como «empujar contra el muro»
             float2 vel2 = math.lerp(z.Vel.xz, steer, SimConst.Accel);
             float2 intended = vel2 * SimConst.Dt;

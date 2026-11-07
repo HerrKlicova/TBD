@@ -87,6 +87,7 @@ namespace TBD.Units
         public bool Fire = true;            // fuego libre (A) / alto el fuego (G)
         public bool Airborne;               // el helicóptero solo dispara en vuelo (en la zona: State == 2)
         public int Shots, NextFireTick, ResupplyUntil = -1;
+        public int HomeX, HomeY;            // NH90: su plataforma, para volver al acabar
         public int Kills, ShotsFired, Resupplies, ResupplyShotsSpent;
 
         public static NightVehicle Make(string name, NightVehKind k, int x, int y)
@@ -158,6 +159,7 @@ namespace TBD.Units
         public int WallHp, Kills, SoldierDeaths, Resupplies, PeakPile, Spawned;
         /// <summary>Zombis que han saltado el muro trepando por la pila (QA-35).</summary>
         public int Climbed;
+        int _aliveForHeli;
         long _climbRem;
         public int StationHp { get { return Night.StationHp; } }      // la vida del edificio vive en NightGame (misma regla que el juego)
         public int MaterialsU, FuelU;
@@ -387,14 +389,19 @@ namespace TBD.Units
 
         void VehiclesStep(WaveStats cur)
         {
-            int tick = Night.Tick;
+            int tick = Night.Tick; _aliveForHeli = AliveZombies();
             for (int vi = 0; vi < Vehicles.Count; vi++)
             {
                 var v = Vehicles[vi];
                 if (v.ResupplyUntil >= 0 && tick >= v.ResupplyUntil) { v.Shots = v.MaxShots; v.ResupplyUntil = -1; }      // como la zona: al acabar, reserva llena
                 if ((AutoVehicleResupply || Bot != null) && VehicleResupplyBelowPct >= 0 && v.ResupplyUntil < 0 && v.Shots * 100 < v.MaxShots * VehicleResupplyBelowPct && (tick % 60) == 0) ResupplyVehicle(vi);
                 if (!v.Fire || v.Shots <= 0 || tick < v.NextFireTick) continue;
-                if (v.Kind == NightVehKind.Nh90 && !v.Airborne) continue;
+                if (v.Kind == NightVehKind.Nh90)            // como la zona (Noche50, Marcos): el NH90 despega solo con más de 30 zombis y va sobre el andén (100;64); sin zombis vuelve a su plataforma
+                {
+                    if (!v.Airborne && v.Fire && _aliveForHeli > 30 && v.Shots * 20 > v.MaxShots) { v.HomeX = v.X; v.HomeY = v.Y; v.X = 100000; v.Y = 64000; v.Airborne = true; }
+                    else if (v.Airborne && _aliveForHeli == 0 && v.HomeX != 0) { v.X = v.HomeX; v.Y = v.HomeY; v.Airborne = false; }
+                    if (!v.Airborne) continue;
+                }
                 long best = (long)v.RangeMm * v.RangeMm; int bi = -1;
                 for (int i = 0; i < _z.Count; i++) { var z = _z[i]; if (!z.Alive) continue; long dx = z.X - v.X, dy = z.Y - v.Y, d2 = dx * dx + dy * dy; if (d2 < best) { best = d2; bi = i; } }
                 if (bi < 0) continue;

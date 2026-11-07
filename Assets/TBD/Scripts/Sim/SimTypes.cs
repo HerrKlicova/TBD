@@ -262,6 +262,8 @@ namespace TBD.Sim
         public float Speed;
         public int SettledCell;
         public byte State;
+        public float2 Goal;                              // D-N148: objetivo propio dentro del recinto (soldado, vehículo, obrero o tren); lo pone la noche cada 15 ticks
+        public byte HasGoal;                             // 0 = sigue el campo de flujo (todo lo de antes, goldens incluidos)
 
         public static Zombie Create(uint id, float2 pos, float height)
         {

@@ -923,6 +923,12 @@ namespace TBD.Sim.Tests
                     check(cm.Climbed > 0 && cm.SoldierDeaths > 0 && cm.Night.TrainHp == cm.Night.P.TrainHp, $"D-N148: con un pelotón junto al muro, los que trepan van a por él ({cm.SoldierDeaths} bajas) y el tren queda intacto");
                     check(cn.Climbed > 0 && cn.Night.TrainHp < cn.Night.P.TrainHp, $"D-N148: sin nadie dentro, los que trepan van al tren ({cn.Night.P.TrainHp - cn.Night.TrainHp} de daño)");
                 }
+                // NH90 (Sara: «no despega ni dispara», 920 de 920): como en la Noche50, sale solo con más de 30 zombis y dispara en vuelo
+                {
+                    var hs = NightSim.FromJson(TBD.Net.BalanceSource.Read("noche_sagunto.json"), null, 4); hs.AddDefaultForce(); hs.AddDefaultVehicles(true);
+                    var heli = hs.Vehicles.Find(v => v.Kind == NightVehKind.Nh90); bool up = false; for (int t = 0; t < 4000 && hs.Night.State == NightState.Jugando; t++) { hs.Step(); up |= heli.Airborne; }
+                    check(up && heli.Kills > 0 && heli.ShotsFired > 0, $"NH90: despega solo con la horda y dispara en vuelo ({heli.ShotsFired} disparos, {heli.Kills} abatidos)");
+                }
                 // D-N133: causa y recuentos
                 check(g.Cause == DefeatCause.Tren && g.DefeatHeadline() == "El tren ha caído." && g.TrainsAlive == 0 && g.StationsAlive == 1, "D-N133: sin tren la causa es el tren y el titular «El tren ha caído.»");
                 check(g2.Cause == DefeatCause.Estacion && g2.DefeatHeadline() == "Sagunto ha caído." && g2.StationsAlive == 0, "D-N133: sin estación la causa es la estación y el titular «Sagunto ha caído.»");
@@ -1156,7 +1162,7 @@ namespace TBD.Sim.Tests
                 var sn = NightSim.FromJson(json, null, 3); sn.AddDefaultForce(); sn.Bot = NightBot.FromParams(sn.SP);
                 for (int t = 0; t < 9000; t++) { sv.Step(); sn.Step(); }
                 var dr = sv.Vehicles[0]; var nh = sv.Vehicles[3];
-                check(sv.Vehicles.Count == 4 && sv.VehicleKills > 0 && dr.Kills > 0 && dr.ShotsFired > 0 && nh.Kills == 0, $"con fuego libre los vehículos abaten ({sv.VehicleKills} en 9.000 ticks; Dragón {dr.Kills}, VAMTAC {sv.Vehicles[1].Kills}+{sv.Vehicles[2].Kills}); el NH90 en tierra no dispara");
+                check(sv.Vehicles.Count == 4 && sv.VehicleKills > 0 && dr.Kills > 0 && dr.ShotsFired > 0 && nh.Kills > 0, $"con fuego libre los vehículos abaten ({sv.VehicleKills} en 9.000 ticks; Dragón {dr.Kills}, VAMTAC {sv.Vehicles[1].Kills}+{sv.Vehicles[2].Kills}, NH90 {nh.Kills}); el NH90 despega solo con la horda y dispara en vuelo");
                 check(sv.LastPile <= sn.LastPile || sv.PeakPile <= sn.PeakPile, $"con vehículos la pila no crece (máx. {sv.PeakPile} frente a {sn.PeakPile})");
                 var sx = NightSim.FromJson(json, null, 3); sx.AddDefaultForce(); sx.AddDefaultVehicles(true); sx.Bot = NightBot.FromParams(sx.SP);
                 for (int t = 0; t < 9000; t++) sx.Step();
