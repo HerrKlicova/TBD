@@ -20,6 +20,7 @@ namespace TBD.View
     public static class NightRun
     {
         public static bool Active;
+        public static bool LeftOnce;               // QA: -leaveat solo una vez
         public static NightSession Session;       // la noche persistente: sobrevive a la escena de la zona (D-N91)
         public static int Difficulty = 850;      // palanca única (D-N74): 725 fácil, 850 normal, 1000 difícil
     }
@@ -434,7 +435,7 @@ namespace TBD.View
                 _capDirDone = true; string dd = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(dd);
                 StartCoroutine(CaptureRoutine(System.IO.Path.Combine(dd, "capdirecta_1_siempre.png"))); ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dd, "capdirecta_2_directa.png"));
             }
-            { var cl = System.Environment.GetCommandLineArgs(); for (int li = 0; li + 1 < cl.Length; li++) if (cl[li] == "-leaveat" && float.TryParse(cl[li + 1], out var lt) && Time.realtimeSinceStartup - _nightT0 >= lt && !_leaving && _nightInit && _ng != null && _ng.State == NightState.Jugando) { Debug.Log("[NOCHE] prueba: -leaveat, salgo al mapa"); LeaveToMap(); } }   // QA: sale al mapa a los N s reales
+            { var cl = System.Environment.GetCommandLineArgs(); for (int li = 0; li + 1 < cl.Length; li++) if (cl[li] == "-leaveat" && float.TryParse(cl[li + 1], out var lt) && Time.realtimeSinceStartup - _nightT0 >= lt && !_leaving && !NightRun.LeftOnce && _nightInit && _ng != null && _ng.State == NightState.Jugando) { NightRun.LeftOnce = true; Debug.Log("[NOCHE] prueba: -leaveat, salgo al mapa tick " + _ng.Tick); LeaveToMap(); } }   // QA: sale al mapa a los N s reales
             if (!_nightOn) return;
             var kb = Keyboard.current; var mouse = Mouse.current; if (kb == null || mouse == null) return;
             if (kb.f2Key.wasPressedThisFrame) _debugHud = !_debugHud;

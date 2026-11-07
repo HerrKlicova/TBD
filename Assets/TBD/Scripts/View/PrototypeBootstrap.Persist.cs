@@ -83,6 +83,7 @@ namespace TBD.View
                 nv.Shots = Mathf.Clamp((int)(v.Ammo * nv.MaxShots), 0, nv.MaxShots); nv.Fire = v.Fire; nv.Airborne = v.Heli && v.State == 2; nv.ResupplyUntil = v.ResupT;
                 sim.Vehicles.Add(nv);
             }
+            if (_bot != null) sim.Bot = _bot;                                  // con -nightbot, el bot sigue fuera de pantalla (Nacho): misma prueba A/B comparable
             s.Sim = sim; s.Away = true;
             if (s.Clock == null) { var go = new GameObject("NightClock"); DontDestroyOnLoad(go); s.Clock = go.AddComponent<NightClock>(); }
             Debug.Log($"[NOCHE] salgo al mapa con la noche en marcha: {sim.ZombiesAlive} zombis pasan a NightSim, hora {_ng.Hour:00}:{_ng.Minute:00}");
@@ -103,7 +104,7 @@ namespace TBD.View
                     if (v.Name == nv.Name) { v.Ammo = nv.MaxShots > 0 ? nv.Shots / (float)nv.MaxShots : v.Ammo; v.Fire = nv.Fire; v.ResupT = nv.ResupplyUntil; v.Pos = new Vector2(nv.X / 1000f, nv.Y / 1000f); }
             if (s.Clock != null) Destroy(s.Clock.gameObject);
             s.Clock = null; s.Away = false; s.Sim = null;
-            Debug.Log($"[NOCHE] vuelvo a la zona: {pts.Count} zombis recreados, hora {_ng.Hour:00}:{_ng.Minute:00}, muro {_ng.WallPermil}‰, estado {_ng.State}");
+            Debug.Log($"[NOCHE] vuelvo a la zona (tick {_ng.Tick}): {pts.Count} zombis recreados, hora {_ng.Hour:00}:{_ng.Minute:00}, muro {_ng.WallPermil}‰, estado {_ng.State}");
             if (_ng.State != NightState.Jugando) NightEnded();
         }
 
