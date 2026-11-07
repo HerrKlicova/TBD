@@ -238,7 +238,7 @@ namespace TBD.View
         Veh VehAt(Vector2 mp)
         {
             Veh best = null; float bd = Screen.height * 0.06f;
-            foreach (var v in _vehs) { if (v.Go == null) continue; var sp = _worldCam.WorldToScreenPoint(new Vector3(v.Pos.x, v.Alt + 1.5f, v.Pos.y)); if (sp.z < 0) continue; float d = (new Vector2(sp.x, sp.y) - mp).magnitude; if (d < bd) { bd = d; best = v; } }
+            foreach (var v in _vehs) { if (v.Go == null) continue; var sp = ScreenOf(new Vector3(v.Pos.x, v.Alt + 1.5f, v.Pos.y)); if (sp.z < 0) continue; float d = (new Vector2(sp.x, sp.y) - mp).magnitude; if (d < bd) { bd = d; best = v; } }
             return best;
         }
 

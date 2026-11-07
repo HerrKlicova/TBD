@@ -480,12 +480,13 @@ namespace TBD.View
         {
             var kb = Keyboard.current;
             if (kb == null) return;
-            if (NightRun.Active && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-debug") < 0)   // D-N137: de noche las teclas de depuracion (4 = zombis, 7-9 gradacion, B, H, N...) solo con -debug
+            bool dbgLock = NightRun.Active && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-debug") < 0;   // D-N137: de noche las teclas de depuracion (4 = zombis, 7-9 gradacion, B, H, N...) solo con -debug
+            if (dbgLock)
             {
                 if (kb.mKey.wasPressedThisFrame) LeaveToMap();                                                    // el mundo es uno: M sale al mapa y la noche sigue (D-N91)
                 if (kb.f9Key.wasPressedThisFrame) SaveScreenshot();
-                return;
             }
+            else {
             if (kb.digit1Key.wasPressedThisFrame) Push(CmdType.SpawnRoof, 500);
             if (kb.digit2Key.wasPressedThisFrame) Push(CmdType.ToggleGate);
             if (kb.digit3Key.wasPressedThisFrame) Push(CmdType.ToggleTrain);
@@ -537,6 +538,8 @@ namespace TBD.View
                     if (kb.cKey.wasPressedThisFrame && tl.ChispasAt != -2) NetSession.Push(NetCmdType.SetChispas, tl.ChispasAt == -1 ? 1 : 0, 0);   // al tren 1 o de vuelta al taller
                 }
             }
+
+            }   // fin de las teclas de depuracion
 
             // ---- cámara libre: rotación, inclinación y zoom continuos (GDD §11, v1.10)
             float dt = Time.unscaledDeltaTime;

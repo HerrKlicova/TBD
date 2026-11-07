@@ -128,6 +128,42 @@ namespace TBD.View
             Debug.Log("[OBJ] total " + n);
         }
 
+        // ---- QA (-inputtest): simula WASD y clics con el Input System y escribe en el log si la camara se mueve y si la seleccion funciona varias veces seguidas
+        bool _itStarted;
+        void InputTestCheck()
+        {
+            if (_itStarted || System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-inputtest") < 0 || Time.realtimeSinceStartup - _nightT0 < 15f || _ng == null) return;
+            _itStarted = true; StartCoroutine(InputTest());
+        }
+        System.Collections.IEnumerator InputTest()
+        {
+            var kb = UnityEngine.InputSystem.Keyboard.current; var ms = UnityEngine.InputSystem.Mouse.current;
+            if (kb == null || ms == null) { Debug.Log("[TEST] sin teclado o raton"); yield break; }
+            _paused = false;
+            // 1) WASD: D mueve el foco a la derecha, W hacia delante
+            foreach (var key in new[] { UnityEngine.InputSystem.Key.D, UnityEngine.InputSystem.Key.W, UnityEngine.InputSystem.Key.A, UnityEngine.InputSystem.Key.S })
+            {
+                var f0 = _focus; UnityEngine.InputSystem.InputSystem.QueueStateEvent(kb, new UnityEngine.InputSystem.LowLevel.KeyboardState(key));
+                yield return new WaitForSecondsRealtime(0.6f); var f1 = _focus; UnityEngine.InputSystem.InputSystem.QueueStateEvent(kb, new UnityEngine.InputSystem.LowLevel.KeyboardState());
+                yield return new WaitForSecondsRealtime(0.2f);
+                Debug.Log($"[TEST] tecla {key}: foco ({f0.x:0.00};{f0.z:0.00}) -> ({f1.x:0.00};{f1.z:0.00}) {(Vector3.Distance(f0, f1) > 0.2f ? "MUEVE" : "NO MUEVE")}");
+            }
+            // 2) seleccion varias veces seguidas por clic sobre cada pelotón
+            int ok = 0, tot = 0;
+            for (int rep = 0; rep < 2; rep++)
+                for (int i = 0; i < _uw.Platoons.Count; i++)
+                {
+                    var pl = _uw.Platoons[i]; Infantryman man = null; foreach (var m in pl.Men) if (m.Alive) { man = m; break; } if (man == null) continue;
+                    var sp = ScreenOf(new Vector3(man.X / 1000f, 1f, man.Y / 1000f)); if (sp.z < 0f || sp.y > Screen.height * 0.78f || sp.y < Screen.height * 0.1f) { Debug.Log($"[TEST] pelotón {pl.Id}: fuera de pantalla ({sp.x:0};{sp.y:0})"); continue; }
+                    UnityEngine.InputSystem.InputSystem.QueueStateEvent(ms, new UnityEngine.InputSystem.LowLevel.MouseState { position = new Vector2(sp.x, sp.y) }); yield return null;
+                    UnityEngine.InputSystem.InputSystem.QueueStateEvent(ms, new UnityEngine.InputSystem.LowLevel.MouseState { position = new Vector2(sp.x, sp.y) }.WithButton(UnityEngine.InputSystem.LowLevel.MouseButton.Left, true)); yield return null; yield return null;
+                    UnityEngine.InputSystem.InputSystem.QueueStateEvent(ms, new UnityEngine.InputSystem.LowLevel.MouseState { position = new Vector2(sp.x, sp.y) }); yield return null; yield return null;
+                    tot++; bool sel = _sel.Count == 1 && _sel.Contains(pl.Id) && _selVeh == null; if (sel) ok++;
+                    Debug.Log($"[TEST] clic sobre pelotón {pl.Id} en ({sp.x:0};{sp.y:0}): seleccionados [{string.Join(",", _sel)}] {(sel ? "OK" : "FALLO")}");
+                }
+            Debug.Log($"[TEST] seleccion: {ok}/{tot} correctas");
+        }
+
         void UpdateFx()
         {
             float now = Time.time;

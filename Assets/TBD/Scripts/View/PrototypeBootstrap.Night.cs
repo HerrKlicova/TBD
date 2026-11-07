@@ -470,6 +470,7 @@ namespace TBD.View
             UpdateFx();
             GradeSweepCheck();
             ListObjsCheck();
+            InputTestCheck();
             if (!_capDirDone && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-capdirecta") >= 0 && Time.realtimeSinceStartup - _nightT0 >= 30f)   // QA (Bruno): MISMO fotograma, captura de siempre vs. captura directa a resolucion completa sin Blit
             {
                 _capDirDone = true; string dd = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(dd);
@@ -498,11 +499,15 @@ namespace TBD.View
                     var vh = VehAt(mp); if (vh != null && (mp - _selStart).magnitude < 6f) { _selVeh = vh; _sel.Clear(); goto selDone; }
                     var r = Rect.MinMaxRect(Mathf.Min(_selStart.x, mp.x), Mathf.Min(_selStart.y, mp.y), Mathf.Max(_selStart.x, mp.x), Mathf.Max(_selStart.y, mp.y));
                     bool box = r.width > 6f && r.height > 6f; var found = new List<int>();
-                    foreach (var pl in _uw.Platoons)
+                    foreach (var pl in _uw.Platoons)                          // OJO: _worldCam pinta en una RT mas pequena, asi que se proyecta por viewport (WorldToScreenPoint devolvia pixeles de la RT y la seleccion fallaba, Eugenio)
                     {
-                        if (pl.AliveCount() == 0) continue;
-                        var sp = _worldCam.WorldToScreenPoint(new Vector3(pl.AX / 1000f, 1f, pl.AY / 1000f));
-                        if (box ? r.Contains(new Vector2(sp.x, sp.y)) : (new Vector2(sp.x, sp.y) - mp).magnitude < Screen.height * 0.07f) found.Add(pl.Id);
+                        if (pl.AliveCount() == 0) continue; bool hit = false;
+                        foreach (var m in pl.Men)
+                        {
+                            if (!m.Alive) continue; var sp = ScreenOf(new Vector3(m.X / 1000f, 1f, m.Y / 1000f)); if (sp.z < 0f) continue; var q = new Vector2(sp.x, sp.y);
+                            if (box ? r.Contains(q) : (q - mp).magnitude < Screen.height * 0.035f) { hit = true; break; }
+                        }
+                        if (hit) found.Add(pl.Id);
                     }
                     if (found.Count > 0 || box) { _selVeh = null; if (!(kb.leftShiftKey.isPressed)) _sel.Clear(); foreach (var id in found) if (!_sel.Contains(id)) _sel.Add(id); }
                     selDone:;
@@ -563,6 +568,9 @@ namespace TBD.View
             }
         }
         int _shotsDemo;
+
+        /// <summary>Posicion en pantalla (pixeles reales) de un punto del mundo: por viewport, porque la camara del mundo renderiza a una RT de menor resolucion.</summary>
+        Vector3 ScreenOf(Vector3 w) { var v = _worldCam.WorldToViewportPoint(w); return new Vector3(v.x * Screen.width, v.y * Screen.height, v.z); }
 
         bool TryGround(Vector2 mp, out Vector3 p)
         {
