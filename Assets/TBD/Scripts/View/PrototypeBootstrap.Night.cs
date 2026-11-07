@@ -233,7 +233,7 @@ namespace TBD.View
             int integ = win ? _ng.Report.IntegrityPermil : _ng.IntegrityPermil, wallP = win ? _ng.Report.WallPermil : _ng.WallPermil; long shots = a.StockShots; foreach (var p0 in a.Platoons) if (p0.AliveCount() > 0) shots += p0.AmmoShots;
             int stars = _ng.P.Stars.Stars(_ng.State, integ, wallP, _nightLost, (int)(shots * 1000 / WeaponCatalog.ShotsPerU), false);
             _endStars = stars;
-            Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} estrellas={stars} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 recargas={_resupplies} hora_fin={TimeStr()}");
+            Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} estrellas={stars} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 recargas={_resupplies} desync={_desync} hora_fin={TimeStr()}");
             _endReason = win ? "06:00. Amanece en Sagunto.\nLa estación resiste." : "Sagunto ha caído.";
         }
         int _endStars; bool _endDismissed, _reportClosed;
@@ -352,7 +352,7 @@ namespace TBD.View
             NightDemoFlags();
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-nightshots") >= 0 && _ng.State != NightState.Jugando)       // captura de la pantalla final
             { if (_endAt < 0f) _endAt = Time.realtimeSinceStartup; if (!_endShot && Time.realtimeSinceStartup - _endAt > 2f) { _endShot = true; SaveScreenshot(); } }
-            if (Time.realtimeSinceStartup - _fpsLogT > 20f) { _fpsLogT = Time.realtimeSinceStartup; Debug.Log($"[NOCHE-FPS] hora={TimeStr()} fps={_fps:0} zombis={_total} abatidos={_nightKills} bajas={_nightLost} pila={_pileWall} muro_permil={_ng.WallPermil}"); }
+            if (Time.realtimeSinceStartup - _fpsLogT > 20f) { _fpsLogT = Time.realtimeSinceStartup; Debug.Log($"[NOCHE-FPS] hora={TimeStr()} fps={_fps:0} zombis={_total} abatidos={_nightKills} bajas={_nightLost} pila={_pileWall} muro_permil={_ng.WallPermil} desync={_desync}"); }
             { var ca = System.Environment.GetCommandLineArgs(); if (System.Array.IndexOf(ca, "-nightshots") >= 0) { float tt = Time.realtimeSinceStartup - _nightT0; foreach (float at in new[] { 12f, 40f, 90f, 150f }) if (tt >= at && _shotsTaken < Array.IndexOf(new[] { 12f, 40f, 90f, 150f }, at) + 1) { _shotsTaken++; SaveScreenshot(); } } }
             if (_ng.State == NightState.Derrota && !_endDismissed) { UpdateNightSoldiers(); return; }
             Vector2 mp = mouse.position.ReadValue();

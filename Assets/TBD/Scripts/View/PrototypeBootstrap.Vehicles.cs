@@ -134,7 +134,7 @@ namespace TBD.View
         // ---------------------------------------------------------------- fuego automático del vehículo
         void VehicleFire(Veh v, NativeSnapshot z, float dt)
         {
-            if (_bot != null) return;                                                       // -nightbot compara con NightSim, que no tiene vehiculos que disparen (Nacho)
+            if (_bot != null && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-vehfuego") < 0) return;                                                       // -nightbot compara con NightSim, que no tiene vehiculos que disparen (Nacho)
             if (_zomPos.Count == 0) return; if (v.Heli && v.State != 2) return;
             if (v.Ammo <= 0f) return;                                                        // sin municion no dispara (reserva por vehiculo)
             float range = v.Heli ? 70f : (v.Name.StartsWith("Dragón") ? 55f : 40f); int best = -1; float bd = range * range;
