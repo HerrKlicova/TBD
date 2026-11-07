@@ -71,9 +71,13 @@ def _torre(t, lod, y, z_top, metal=True):
     """Rellano alto sobre el andén con cuatro pilares y la escalera que baja hacia +X."""
     g = 0.22 if lod == 0 else 0.34
     pieza = "pilar" if metal else "cornisa"
-    for x in (-ANCHO / 2 + 0.15, ANCHO / 2 - 0.15):
-        for yy in (y - ANCHO / 2 + 0.15, y + ANCHO / 2 - 0.15):
-            t.caja((x, yy, (H_ANDEN + z_top) / 2), (g, g, z_top - H_ANDEN), pieza)
+    if metal and lod == 1:   # LOD1: 2 pilares por torre (Lucía 08:40: con 4, el contorno los junta en manchas negras)
+        pies = [(0.0, y - ANCHO / 2 + 0.17), (0.0, y + ANCHO / 2 - 0.17)]
+    else:
+        pies = [(x, yy) for x in (-ANCHO / 2 + 0.15, ANCHO / 2 - 0.15)
+                for yy in (y - ANCHO / 2 + 0.15, y + ANCHO / 2 - 0.15)]
+    for x, yy in pies:
+        t.caja((x, yy, (H_ANDEN + z_top) / 2), (g, g, z_top - H_ANDEN), pieza)
     t.caja((0, y, z_top - 0.15), (ANCHO, ANCHO, 0.3), "chapa" if metal else "losa")
     xb = _escalera(t, lod, ANCHO / 2 - 0.05, y, H_ANDEN, z_top, 1, "chapa" if metal else "losa",
                    peto=None if metal else "cornisa")
