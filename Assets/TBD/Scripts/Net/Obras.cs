@@ -11,7 +11,7 @@ namespace TBD.Net
     // - Un muro se parte en módulos de ≤ 10 m. Cada módulo es una pieza con su coste y su vida: el daño es local y la regla del perímetro
     //   (≤ 60 m del andén) se aplica pieza a pieza, sin trucos con muros largos.
 
-    public enum PieceKind : byte { Sacos = 0, Hesco = 1, Puerta = 2, Nido = 3, Foco = 4, Deposito = 5, Anden = 6, PuertaVia = 7 }
+    public enum PieceKind : byte { Sacos = 0, Hesco = 1, Puerta = 2, Nido = 3, Foco = 4, Deposito = 5, Anden = 6, PuertaVia = 7, PuertaVeh = 8 }
 
     public struct WorkPiece
     {
@@ -25,7 +25,8 @@ namespace TBD.Net
         public int NeedE4;               // trabajo necesario, en 1/10.000 de obrero·tick (1 obrero·h = 1.500 obrero·ticks)
         public int WorkE4;               // trabajo hecho (mismas unidades)
         public bool IsWall => Kind == PieceKind.Sacos || Kind == PieceKind.Hesco;
-        public bool IsGate => Kind == PieceKind.PuertaVia;
+        public bool IsGate => Kind == PieceKind.PuertaVia || Kind == PieceKind.PuertaVeh;     // de vía (8 u, para el tren) o de vehículos (10 u, 8 m, para los vehículos del jugador): mismo estado y mismas reglas
+        public bool IsVehGate => Kind == PieceKind.PuertaVeh;
         // Puerta de vía (diseno-hito5.md §2a): su estado va en el registro, dentro del hash (solo las puertas de vía lo usan)
         public byte GateMode;            // 0 = automática, 1 = bloqueada abierta, 2 = bloqueada cerrada (orden del jugador)
         public int GateProg;             // 0 = cerrada … GateSwapTicks = abierta (ticks de zona; tarda 6 s en cada sentido)
@@ -49,6 +50,7 @@ namespace TBD.Net
         public int BridgeU, BridgeObreroH;              // el puente del Jiloca: 80 u (puente_jiloca_materiales, balance_economia.csv) y 192 obrero·h (puente_jiloca_obreros_h, balance_construccion.csv)
         public int WorkStartHour, WorkEndHour;          // todas las obras trabajan de 06:00 a 18:00 (obra_hora_inicio, obra_hora_fin: 12 h al día) y de noche se paran
         public int ViaGateU, HViaGate;   // puerta de vía: 8 u y 6 obrero·h (pieza_puerta_via_u, obra_puerta_via_h)
+        public int VehGateU, HVehGate, VehGateWidthMm, VehGateNearMm;   // puerta de vehículos (Álvaro §9, Hugo D-N72): 10 u, 8 obrero·h y 8 m de ancho (pieza_puerta_vehiculos_u, obra_puerta_vehiculos_h, puerta_vehiculos_ancho_mm); se abre sola con un vehículo propio a ≤ 20 m
         public int SecureMm;     // terreno asegurado (diseno-hito5 §1): ningún zombi en pie a menos de esta distancia (mm) de la obra; obra_terreno_asegurado_mm
         public int TrackHalfMm;          // semiancho del hueco de la vía (3,2 m en total) respecto de y = 0; 0 = la red no conoce la vía (via_hueco_mm / 2)
         public int GateSwapTicks;        // abrir o cerrar la puerta de vía: 6 s a 30 ticks de zona por segundo = 180 ticks enteros
@@ -68,7 +70,7 @@ namespace TBD.Net
                     SacosPer10m = 2, HescoPer10m = 6, PuertaU = 6, NidoU = 8, FocoU = 2, AndenU = 6, DepositoU = 5,
                     ModuleMm = 10_000, MinWallMm = 1_000, PerimeterMm = 60_000, LevelDivU = 30, LevelMaxMil = 5_000,
                     MaxPieces = 2_000, MaxVertices = 32, CoordLimitMm = 2_000_000,
-                    MaxWorkersPerPiece = 4, GarrisonMin = 6, ViaGateU = 8, HViaGate = 6, SecureMm = 30_000, TrackHalfMm = 1_600, GateSwapTicks = 180, GateNearMm = 150_000, RepairU = 5, RepairHours = 3, WorksCrew = 8, BridgeU = 80, BridgeObreroH = 192, WorkStartHour = 6, WorkEndHour = 18, OutsideWearMil = 10, WearDayMil = 10, CancelStartedMil = 500,
+                    MaxWorkersPerPiece = 4, GarrisonMin = 6, ViaGateU = 8, HViaGate = 6, VehGateU = 10, HVehGate = 8, VehGateWidthMm = 8_000, VehGateNearMm = 20_000, SecureMm = 30_000, TrackHalfMm = 1_600, GateSwapTicks = 180, GateNearMm = 150_000, RepairU = 5, RepairHours = 3, WorksCrew = 8, BridgeU = 80, BridgeObreroH = 192, WorkStartHour = 6, WorkEndHour = 18, OutsideWearMil = 10, WearDayMil = 10, CancelStartedMil = 500,
                     HSacos10 = 2, HHesco10 = 4, HPuerta = 4, HNido = 6, HFoco = 2, HDeposito = 8, HAnden = 10
                 };
             }
@@ -92,6 +94,7 @@ namespace TBD.Net
             d.BridgeObreroH = (int)t.TryValue("puente_jiloca_obreros_h", d.BridgeObreroH);
             d.WorkStartHour = (int)t.TryValue("obra_hora_inicio", d.WorkStartHour); d.WorkEndHour = (int)t.TryValue("obra_hora_fin", d.WorkEndHour);
             d.ViaGateU = (int)t.TryValue("pieza_puerta_via_u", d.ViaGateU); d.HViaGate = (int)t.TryValue("obra_puerta_via_h", d.HViaGate);
+            d.VehGateU = (int)t.TryValue("pieza_puerta_vehiculos_u", d.VehGateU); d.HVehGate = (int)t.TryValue("obra_puerta_vehiculos_h", d.HVehGate); d.VehGateWidthMm = (int)t.TryValue("puerta_vehiculos_ancho_mm", d.VehGateWidthMm);
             d.SecureMm = (int)t.TryValue("obra_terreno_asegurado_mm", d.SecureMm); d.TrackHalfMm = (int)(t.TryValue("via_hueco_mm", 2L * d.TrackHalfMm) / 2); d.GateSwapTicks = (int)t.TryValue("puerta_via_ticks", d.GateSwapTicks); d.GateNearMm = (int)t.TryValue("puerta_via_cerca_mm", d.GateNearMm);
             d.RepairU = (int)t.TryValue("reparar_tramo_u", d.RepairU); d.RepairHours = (int)t.TryValue("reparar_tramo_h", d.RepairHours); d.WorksCrew = (int)t.TryValue("tren_obras_obreros", d.WorksCrew);
             d.OutsideWearMil = (int)t.TryValue("desgaste_fuera_perimetro_permil_dia", d.OutsideWearMil);
@@ -133,6 +136,7 @@ namespace TBD.Net
                 case PieceKind.Deposito: return (int)(HDeposito * TicksPerHour * 10_000);
                 case PieceKind.Anden: return (int)(HAnden * TicksPerHour * 10_000);
                 case PieceKind.PuertaVia: return (int)(HViaGate * TicksPerHour * 10_000);
+                case PieceKind.PuertaVeh: return (int)(HVehGate * TicksPerHour * 10_000);
                 default: return 0;
             }
         }
@@ -146,6 +150,7 @@ namespace TBD.Net
                 case PieceKind.Foco: return FocoU;
                 case PieceKind.Deposito: return DepositoU;
                 case PieceKind.Anden: return AndenU;
+                case PieceKind.PuertaVeh: return VehGateU;
                 default: return 0;
             }
         }
@@ -256,6 +261,7 @@ namespace TBD.Net
                 case PieceKind.Hesco: return 2100;
                 case PieceKind.Puerta: return 2100;
                 case PieceKind.PuertaVia: return 2100;
+                case PieceKind.PuertaVeh: return 2100;
                 case PieceKind.Nido: return 1500;
                 case PieceKind.Anden: return 1500;
                 default: return 0;
@@ -395,10 +401,35 @@ namespace TBD.Net
             return plan;
         }
 
+        /// <summary>
+        /// Puerta de vehículos (Álvaro §9, D-N72): una pieza de VehGateWidthMm (8 m) centrada en (x, y) a lo largo del muro (alongX: en un muro norte o sur; si no, en uno este u oeste).
+        /// Cuesta 10 u y 8 obrero·h; no se corta (si no hay materiales, no se construye). La vía debe quedar libre.
+        /// </summary>
+        public static WorkPlan PlanVehicleGate(ObrasParams p, int x, int y, bool alongX, int stockU, int pieceRoom)
+        {
+            var plan = new WorkPlan();
+            int u = p.VehGateU;
+            if (u <= 0 || p.VehGateWidthMm <= 0) { plan.Why = "la puerta de vehículos no está en el balance"; return plan; }
+            if (x > p.CoordLimitMm || x < -p.CoordLimitMm || y > p.CoordLimitMm || y < -p.CoordLimitMm) { plan.Why = "fuera de la zona"; return plan; }
+            if (pieceRoom < 1) { plan.Why = "demasiadas piezas en el nodo"; return plan; }
+            int h = p.VehGateWidthMm / 2;
+            int x0 = alongX ? x - h : x, x1 = alongX ? x + h : x, y0 = alongX ? y : y - h, y1 = alongX ? y : y + h;
+            if (p.TrackHalfMm > 0 && Math.Max(y0, y1) > -p.TrackHalfMm && Math.Min(y0, y1) < p.TrackHalfMm) { plan.Why = "la vía queda libre"; return plan; }
+            if (stockU < u) { plan.Cut = true; plan.Why = "faltan materiales"; return plan; }
+            plan.Pieces.Add(new WorkPiece { Kind = PieceKind.PuertaVeh, X0 = x0, Y0 = y0, X1 = x1, Y1 = y1, CostE4 = u * 10_000, LifeMil = 1000, Built = false, NeedE4 = p.WorkE4(PieceKind.PuertaVeh, 0), MaxWorkers = p.MaxWorkersPerPiece });
+            plan.CostE4 = u * 10_000L; plan.CostU = u; plan.Ok = true;
+            return plan;
+        }
+
         /// <summary>Ver NetWorld.PlaceWork: Arg = nodo | (PieceKind &lt;&lt; 16), Payload = [x0,y0,x1,y1,…] o [x,y].</summary>
         public static WorkPlan Plan(ObrasParams p, PieceKind kind, int[] pts, int stockU, int pieceRoom)
         {
             if (kind == PieceKind.Sacos || kind == PieceKind.Hesco) return PlanWall(p, kind, pts, stockU, pieceRoom);
+            if (kind == PieceKind.PuertaVeh)        // [x, y] a lo largo de X (muros norte y sur) o [x, y, 1] a lo largo de Y (muros este y oeste)
+            {
+                if (pts == null || pts.Length < 2 || pts.Length > 3) { var bad2 = new WorkPlan(); bad2.Why = "punto no válido"; return bad2; }
+                return PlanVehicleGate(p, pts[0], pts[1], pts.Length == 2 || pts[2] == 0, stockU, pieceRoom);
+            }
             if (pts == null || pts.Length != 2) { var bad = new WorkPlan(); bad.Why = "punto no válido"; return bad; }
             return PlanPoint(p, kind, pts[0], pts[1], stockU, pieceRoom);
         }
@@ -684,7 +715,7 @@ namespace TBD.Net
         public static bool GatePassable(in ObrasParams p, in WorkPiece w) { return w.IsGate && w.Built && (w.Broken || w.GateProg >= p.GateSwapTicks); }
 
         /// <summary>Un tick de zona de todas las puertas del nodo. trainXMm = posición (x local, en mm, sobre la vía y = 0) de los trenes propios.</summary>
-        public void StepGates(int node, IList<int> trainXMm)
+        public void StepGates(int node, IList<int> trainXMm, IList<long> vehiclesXY = null)
         {
             var l = _byNode[node];
             if (l == null) return;
@@ -692,8 +723,13 @@ namespace TBD.Net
             {
                 var w = l[i];
                 if (!w.IsGate || !w.Built || w.Broken) continue;
-                long mx = ((long)w.X0 + w.X1) / 2; bool near = false;
-                if (trainXMm != null) for (int t = 0; t < trainXMm.Count; t++) if (Math.Abs(trainXMm[t] - mx) <= P.GateNearMm) { near = true; break; }
+                long mx = ((long)w.X0 + w.X1) / 2, my = ((long)w.Y0 + w.Y1) / 2; bool near = false;
+                if (w.IsVehGate)
+                {
+                    // vehículos propios, de dos en dos en vehiclesXY = [x0, y0, x1, y1, …] (mm locales): se abre sola con uno a ≤ VehGateNearMm
+                    if (vehiclesXY != null) for (int t = 0; t + 1 < vehiclesXY.Count; t += 2) { long dx = vehiclesXY[t] - mx, dy = vehiclesXY[t + 1] - my; if (dx * dx + dy * dy <= (long)P.VehGateNearMm * P.VehGateNearMm) { near = true; break; } }
+                }
+                else if (trainXMm != null) for (int t = 0; t < trainXMm.Count; t++) if (Math.Abs(trainXMm[t] - mx) <= P.GateNearMm) { near = true; break; }
                 int before = w.GateProg; StepGate(P, ref w, near);
                 if (w.GateProg != before) l[i] = w;
             }
@@ -712,7 +748,7 @@ namespace TBD.Net
                 long dx = (long)(w.X0 + w.X1) / 2 - x, dy = (long)(w.Y0 + w.Y1) / 2 - y, d = dx * dx + dy * dy;
                 if (d < bestD) { bestD = d; best = i; }
             }
-            long lim = 2L * P.TrackHalfMm;
+            long lim = best >= 0 && l[best].IsVehGate ? P.VehGateWidthMm / 2 + 1000L : 2L * P.TrackHalfMm;
             if (best < 0 || bestD > lim * lim) return false;
             var g = l[best]; g.GateMode = (byte)mode; l[best] = g;
             return true;

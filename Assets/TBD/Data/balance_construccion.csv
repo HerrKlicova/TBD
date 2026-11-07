@@ -4,6 +4,9 @@ pieza_hesco_u_por_10m;6;1;defensiva, 150 m = 90 u = nivel 3, obra 4 obreros·h p
 pieza_puerta_u;6;1;defensiva, obra 4 obreros·h
 pieza_puerta_via_u;8;1;D-N59 (Lucía): defensiva, cuenta para nivel y mantenimiento, deja pasar al tren
 obra_puerta_via_h;6;1;D-N59: obrero·h
+pieza_puerta_vehiculos_u;10;1;D-N72 (Álvaro y Hugo): puerta de 8 m en el muro sur para el Dragón, dos hojas de 4 m, defensiva, cuenta para nivel y mantenimiento
+obra_puerta_vehiculos_h;8;1;D-N72: obrero·h
+puerta_vehiculos_ancho_mm;8000;1;D-N72: el Dragón mide 3 m de ancho, cabe girando
 pieza_nido_u;8;1;defensiva, obra 6 obreros·h
 pieza_foco_u;2;1;defensiva, obra 2 obreros·h, 200 milésimas de combustible por noche
 pieza_anden_u;6;1;defensiva, obra 10 obreros·h, tras muro, el bono de carga solo en el andén de Sagunto
@@ -12,10 +15,10 @@ almacen_base_u;100;1;por estación, Castellón produce 60 al día y no puede tir
 almacen_deposito_extra_u;200;1;por depósito
 almacen_nudo_u;1000;1;Sagunto
 anden_sagunto_carga_permil;750;1000;-25 % de carga y descarga solo en Sagunto (si fuera en todas, la escasez baja de 55 a 43 %)
-obra_sondeo_permil_hora;83;1000;probabilidad de sondeo por hora de obra activa: uno cada ~12 h
+obra_sondeo_permil_hora;83;1000;probabilidad de sondeo por hora de obra TRABAJANDO (06-18, de noche no hay sondeo): uno cada ~12 h
 obra_sondeo_permil_presupuesto_dia;50;1000;tamaño del sondeo: 5 % del presupuesto del día (~330 el día 9)
-obra_peso_asedio_permil;1500;1000;el nodo con obra activa pesa x1,5 para el objetivo del asedio
-obra_huella_muros_permil;500;1000;huella de una obra de muros, el puente y las obras grandes, 1500
+obra_peso_asedio_permil;1500;1000;el nodo con obra EN CURSO (encargada y sin acabar, tambien de noche) pesa x1,5 para el objetivo del asedio
+obra_huella_muros_permil;500;1000;huella de una obra EN CURSO (tambien de noche) de muros, el puente y las obras grandes, 1500
 reparar_tramo_u;5;1;y 3 h con el tren de obras
 obra_hora_inicio;6;1;D-N59: todas las obras trabajan de 06:00 a 18:00 (12 h, = horas_obra_dia del modelo), de noche se para
 obra_hora_fin;18;1;D-N59
