@@ -12,6 +12,8 @@ namespace TBD.Units
     // D-N91 (Lucía): MUNDO CONTINUO. La noche no es una misión aparte: al amanecer sale un parte (NightReport) y el mundo sigue. Victoria = «noche cerrada»:
     // el reloj sigue corriendo (Step ya no genera zombis ni evalúa derrota) hasta que se llame a BeginNextNight. Solo la derrota acaba la partida.
     public enum NightState : byte { Jugando = 0, Victoria = 1, Derrota = 2 }
+    /// <summary>Por qué se perdió (D-N133): sin estaciones principales, sin trenes o las dos cosas en el mismo tick.</summary>
+    public enum DefeatCause : byte { Ninguna = 0, Estacion = 1, Tren = 2, Ambas = 3 }
 
     /// <summary>Parte del amanecer: lo que le enseña la interfaz al cerrarse la noche.</summary>
     public struct NightReport
@@ -128,6 +130,21 @@ namespace TBD.Units
         public NightReport Report;                          // parte de la última noche cerrada (válido si State == Victoria)
         public int NightsSurvived;
         public bool EndedByStation, EndedByTrain;
+        /// <summary>Recuento del último tick (D-N133). Hoy valen 1 o 0; con varios frentes, las estaciones principales vivas y los trenes vivos. No entran en el hash: son entradas del tick.</summary>
+        public int StationsAlive = 1, TrainsAlive = 1;
+        /// <summary>Causa de la derrota (Ninguna si no se ha perdido).</summary>
+        public DefeatCause Cause => State != NightState.Derrota ? DefeatCause.Ninguna : (DefeatCause)((EndedByStation ? 1 : 0) | (EndedByTrain ? 2 : 0));
+        /// <summary>Titular de la derrota: «El tren ha caído.», «Sagunto ha caído.» o los dos. Vacío si no se ha perdido.</summary>
+        public string DefeatHeadline(string station = "Sagunto")
+        {
+            switch (Cause)
+            {
+                case DefeatCause.Estacion: return station + " ha caído.";
+                case DefeatCause.Tren: return "El tren ha caído.";
+                case DefeatCause.Ambas: return station + " y el tren han caído.";
+                default: return "";
+            }
+        }
         public readonly int[] Spawned;                      // zombis ya generados por oleada
         readonly List<SpawnPoint> _scratch = new List<SpawnPoint>();
         public readonly int[][] SpawnedEntry;               // y por entrada (reparto exacto por cuotas)
@@ -203,8 +220,16 @@ namespace TBD.Units
         }
 
         /// <summary>Un tick. Rellena «spawns» con los zombis que entran en este tick (la lista se vacía antes). Siempre gana la derrota.</summary>
+        /// <summary>Un tick con recuentos (D-N133): se pierde con 0 estaciones principales vivas o 0 trenes vivos.</summary>
+        public void Step(int stationsAlive, int trainsAlive, List<SpawnPoint> spawns)
+        {
+            Step(stationsAlive > 0, trainsAlive > 0, spawns);
+            StationsAlive = stationsAlive < 0 ? 0 : stationsAlive; TrainsAlive = trainsAlive < 0 ? 0 : trainsAlive;
+        }
+
         public void Step(bool stationAlive, bool trainAlive, List<SpawnPoint> spawns)
         {
+            StationsAlive = stationAlive ? 1 : 0; TrainsAlive = trainAlive ? 1 : 0;
             if (spawns != null) spawns.Clear();
             if (State == NightState.Derrota) return;
             if (State == NightState.Victoria) { Tick++; return; }      // mundo continuo: la noche está cerrada, el reloj sigue y no entra nadie
