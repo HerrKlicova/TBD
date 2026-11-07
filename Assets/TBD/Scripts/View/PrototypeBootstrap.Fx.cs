@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
+using TBD.Sim;
+using TBD.Units;
 
 namespace TBD.View
 {
@@ -57,6 +59,51 @@ namespace TBD.View
             }
             f.Go.transform.position = pos; f.Go.transform.localScale = Vector3.one * size;
             f.Go.transform.rotation = _worldCam != null ? _worldCam.transform.rotation : Quaternion.identity; f.Go.SetActive(true); f.Until = Time.time + 0.05f; _flashLive.Add(f);
+        }
+
+        /// <summary>Sonido de la noche (Nuria, docs/sonido/integracion-noche26.md): ambiente, lecho de la horda por distancia segun el zoom, motores, rotor, tren y alarma. Sin AudioMixer: volumenes directos.</summary>
+        bool _alarmOn; float _alarmT = -100f;
+        void NightAudio()
+        {
+            if (_ng == null) return;
+            float o = _orthoSize; float zf = Mathf.Clamp01((o - 14f) / 20f);
+            Sfx.Loop("sfx_amb_estacion_pequena_1", 0.5f, false);
+            Sfx.Loop("sfx_amb_viento_1", Mathf.Clamp01((o - 30f) / 40f) * 0.6f, false);
+            float hv = Mathf.Min(1f, _total / 150f);
+            Sfx.Loop("sfx_horda_cerca_1", o < 14f ? hv : 0f, false); Sfx.Loop("sfx_horda_media_1", o >= 14f && o < 34f ? hv : 0f, false); Sfx.Loop("sfx_horda_lejos_1", o >= 34f ? hv : 0f, false);
+            Sfx.Loop("sfx_tren_ralenti_1", 0.25f, false);
+            bool vam = false, dra = false, heli = false;
+            foreach (var v in _vehs) { if (v.Go == null) continue; if (v.Heli) { if (v.State == 2 || v.State == 1) heli = true; } else if (Mathf.Abs(v.Speed) > 0.5f) { if (v.Name.StartsWith("Drag")) dra = true; else vam = true; } }
+            Sfx.Loop("sfx_vamtac_motor_1", vam ? 0.35f : 0f, false); Sfx.Loop("sfx_dragon_motor_1", dra ? 0.4f : 0f, false); Sfx.Loop("sfx_nh90_rotor_1", heli ? 0.5f : 0f, false);
+            bool attack = _ng.State == NightState.Jugando && (_pileNearStation > 0 || _nearTrain > 0);
+            if (attack && !_alarmOn && Time.unscaledTime - _alarmT > 20f) { _alarmT = Time.unscaledTime; Sfx.Play("alarma_ataque", Vector3.zero, 0.8f, 1f); }
+            _alarmOn = attack;
+        }
+
+        // ---- QA29 (Bruno): barrido de 5 gradaciones en el MISMO fotograma (partida en pausa), una captura directa (_full) por variante, con frameCount, tiempo y media de la imagen en el log
+        bool _sweepDone;
+        void GradeSweepCheck()
+        {
+            if (_sweepDone || System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-gradsweep") < 0 || Time.realtimeSinceStartup - _nightT0 < 40f || _ng == null) return;
+            _sweepDone = true; StartCoroutine(GradeSweep());
+        }
+        System.Collections.IEnumerator GradeSweep()
+        {
+            _nightGradeLock = true; _paused = true;
+            string dir = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(dir);
+            // exposicion, saturacion, luna r, g, b
+            float[][] v = { new[] { -0.45f, -30f, 0.75f, 0.80f, 1f }, new[] { -0.45f, -30f, 0.62f, 0.70f, 1f }, new[] { -0.20f, -30f, 0.62f, 0.70f, 1f }, new[] { -0.70f, -20f, 0.62f, 0.70f, 1f }, new[] { -0.45f, -20f, 0.55f, 0.65f, 1f } };
+            for (int i = 0; i < v.Length; i++)
+            {
+                _grade.colorFilter.Override(Color.white); _grade.postExposure.Override(v[i][0]); _grade.saturation.Override(v[i][1]);
+                SetLight(new Color(v[i][2], v[i][3], v[i][4]), 0.45f, new Color(0.03f, 0.045f, 0.10f), 50f); SetFloodlights(90f);
+                yield return null; yield return null; yield return new WaitForEndOfFrame();
+                var full = ScreenCapture.CaptureScreenshotAsTexture(); var px = full.GetPixels32(); long sr = 0, sg = 0, sb = 0; int step = 7, n = 0;
+                for (int k = 0; k < px.Length; k += step) { sr += px[k].r; sg += px[k].g; sb += px[k].b; n++; }
+                string path = System.IO.Path.Combine(dir, "grad_G" + (i + 1) + "_full.png"); System.IO.File.WriteAllBytes(path, full.EncodeToPNG()); Destroy(full);
+                Debug.Log($"[NOCHE] barrido G{i + 1}: frame={Time.frameCount} t={Time.realtimeSinceStartup:0.000} fps={_fps:0} media=({sr / n};{sg / n};{sb / n}) exp={v[i][0]} sat={v[i][1]} luna=({v[i][2]};{v[i][3]};{v[i][4]})");
+            }
+            _paused = false;
         }
 
         void UpdateFx()

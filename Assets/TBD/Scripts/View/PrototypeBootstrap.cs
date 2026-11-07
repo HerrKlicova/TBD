@@ -693,7 +693,7 @@ namespace TBD.View
             _fxCam.allowHDR = true;
             var fxData = _fxCam.GetUniversalAdditionalCameraData();
             fxData.renderType = CameraRenderType.Overlay;
-            fxData.renderPostProcessing = true;
+            fxData.renderPostProcessing = false;   // la gradacion se aplicaba dos veces: en la camara de presentacion y en la VFX HD (Bruno, qa28)
 
             var presentData = _presentCam.GetUniversalAdditionalCameraData();
             presentData.renderPostProcessing = true;
@@ -1180,6 +1180,8 @@ namespace TBD.View
             _capturing = true;
             yield return new WaitForEndOfFrame();
             var full = ScreenCapture.CaptureScreenshotAsTexture();
+            { var pxs = full.GetPixels32(); long sm = 0; int nn = 0; for (int q = 0; q < pxs.Length; q += 11) { sm += pxs[q].r + pxs[q].g + pxs[q].b; nn++; }
+              Debug.Log($"[CAPTURA] frame={Time.frameCount} t={Time.realtimeSinceStartup:0.000} dt={Time.unscaledDeltaTime * 1000f:0.0} ms media={(nn > 0 ? sm / (3f * nn) : 0f):0.0} {System.IO.Path.GetFileName(path)}"); }   // QA (Bruno): capturas negras al aparecer los 10.000 zombis
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-capdirecta") >= 0) File.WriteAllBytes(path.Replace(".png", "_full.png"), full.EncodeToPNG());   // QA (Bruno): el mismo fotograma sin Blit
             int w = Mathf.Max(2, full.width / 2), h = Mathf.Max(2, full.height / 2);
             var rt = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);   // Linear: sin recodificar a sRGB (Bruno, prueba -capdirecta: la pantalla estaba bien)

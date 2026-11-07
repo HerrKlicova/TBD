@@ -167,7 +167,7 @@ namespace TBD.View
             int wv = CurrentWave();
             if (playing && wv != _lastWave && wv >= 0)
             {
-                _lastWave = wv; _nightWaveTotal = _ng.WaveTotal(wv); _waveBannerT0 = Time.unscaledTime;
+                _lastWave = wv; _nightWaveTotal = _ng.WaveTotal(wv); _waveBannerT0 = Time.unscaledTime; Sfx.Play("aviso_horda", Vector3.zero, 0.7f, 1f); Sfx.Play("horda_acercandose", Vector3.zero, 0.7f, 1f);
                 string time = $"{_ng.P.StartHour + _ng.P.Waves[wv].StartMinute / 60:00}:{_ng.P.Waves[wv].StartMinute % 60:00}".Replace("24:", "00:");
                 _bannerText = $"{TimeStr()} · OLEADA {wv + 1}\nLa Colmena se acerca por el oeste"; _bannerUntil = Time.unscaledTime + 4f; Sfx.Play("sfx_alerta_oleada", 0.8f, 1f);
                 Debug.Log($"[NOCHE] oleada={wv + 1} hora={TimeStr()} total={_nightWaveTotal} ammo_u={_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.0} recargas={_resupplies} pila={_pileWall} muro_permil={_ng.WallPermil} bajas={_nightLost}");
@@ -285,6 +285,7 @@ namespace TBD.View
 
         void KillZombies(List<TargetHit> hits)
         {
+            if (hits.Count > 0 && _orthoSize < 14f) { Sfx.Play("impacto_carne", Vector3.zero, 0.5f, 0.05f); Sfx.Play("zombi_caida", Vector3.zero, 0.4f, 0.08f); if (UnityEngine.Random.Range(0, 4) == 0) Sfx.Play("zombi_muerte", Vector3.zero, 0.4f, 0.2f); }
             _killSet.Clear(); for (int i = 0; i < hits.Count; i++) _killSet.Add((uint)hits[i].TargetId);
             foreach (var wld in new[] { _worldA, _worldB })
             {
@@ -303,6 +304,7 @@ namespace TBD.View
 
         void NightEnded()
         {
+            if (_ng.State == NightState.Derrota) Sfx.Play("estacion_caida", Vector3.zero, 0.9f, 1f);
             ClearNightSession();                                                      // la noche termino: se borra la sesion (el parte usa _ng y _uw locales)
             try { string d0 = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(d0); System.IO.File.WriteAllText(System.IO.Path.Combine(d0, "traza-noche.csv"), _fullTrace.ToString()); if (_rec != null && !_rec.Done) System.IO.File.WriteAllText(System.IO.Path.Combine(d0, "traza-zona.csv"), _rec.Trace.ToCsv()); } catch (System.Exception e0) { Debug.LogWarning("[TBD] traza noche: " + e0.Message); }
             bool win = _ng.State == NightState.Victoria; var a = _uw;
@@ -346,7 +348,7 @@ namespace TBD.View
             var pl = _uw.Find(s.Platoon); if (pl == null) return; Infantryman man = null; foreach (var m in pl.Men) if (m.Id == s.Man) { man = m; break; }
             if (man == null) return;
             if (_trMat == null) { _trMat = new Material(Shader.Find("Universal Render Pipeline/Unlit")); _trMat.SetColor("_BaseColor", new Color32(0xf0, 0xdc, 0x9c, 255)); }
-            if (s.Splash) Sfx.PlayDist("granada_40", _orthoSize, 0.8f, 0.25f); else if (s.Kind == InfKind.Ametrallador) Sfx.PlayDist("ametralladora", _orthoSize, 0.5f, 0.45f); else Sfx.PlayDist("fusil_rafaga", _orthoSize, 0.35f, 0.18f);
+            if (s.Splash) { Sfx.PlayDist("granada_40", _orthoSize, 1f, 0.25f); Sfx.Play("explosion_granada", Vector3.zero, 0.7f, 0.3f); } else if (s.Kind == InfKind.Ametrallador) Sfx.PlayDist("ametralladora", _orthoSize, 1f, 0.2f); else if (s.Kind == InfKind.Tirador) { Sfx.PlayDist("tirador", _orthoSize, 1f, 0.2f); Sfx.Play("cola_urbana", Vector3.zero, 0.3f, 0.4f); } else Sfx.PlayDist("fusil_rafaga", _orthoSize, 1f, 0.12f);
             var from = new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f); var to = new Vector3(s.AimX / 1000f, 0.8f, s.AimY / 1000f);
             // trazadora que viaja (no un rayo): 1 de cada 3 balas en fusileros, 1 de cada 4 en ametralladoras, todas en tiradores y granadas (Lucia §4.1)
             bool tracer = s.Splash || s.Kind == InfKind.Tirador || UnityEngine.Random.value < (s.Kind == InfKind.Ametrallador ? 0.25f : 0.34f);
@@ -430,6 +432,7 @@ namespace TBD.View
         {
             ColorCases();
             UpdateFx();
+            GradeSweepCheck();
             if (!_capDirDone && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-capdirecta") >= 0 && Time.realtimeSinceStartup - _nightT0 >= 30f)   // QA (Bruno): MISMO fotograma, captura de siempre vs. captura directa a resolucion completa sin Blit
             {
                 _capDirDone = true; string dd = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(dd);
@@ -470,7 +473,7 @@ namespace TBD.View
             }
             // clic derecho sin arrastre = mover (con arrastre, gira la cámara como siempre)
             if (mouse.rightButton.wasPressedThisFrame) { _rmbDown = true; _rmbStart = mp; }
-            if (mouse.rightButton.wasReleasedThisFrame && _rmbDown) { _rmbDown = false; if ((mp - _rmbStart).magnitude < 6f && !OverNightUi(mp)) { if (_selVeh != null) { if (TryGround(mp, out var gv)) VehicleOrder(_selVeh, gv); } else IssueMove(mp, false); Sfx.Play("sfx_ui_clic", 0.6f); } }
+            if (mouse.rightButton.wasReleasedThisFrame && _rmbDown) { _rmbDown = false; if ((mp - _rmbStart).magnitude < 6f && !OverNightUi(mp)) { if (_selVeh != null) { if (TryGround(mp, out var gv)) VehicleOrder(_selVeh, gv); } else IssueMove(mp, false); Sfx.Play("ui_orden", Vector3.zero, 0.6f, 0.05f); } }
             if (_selVeh != null)
             {
                 if (kb.aKey.wasPressedThisFrame) { _selVeh.Fire = true; Debug.Log($"[NOCHE] {_selVeh.Name}: fuego libre"); }
@@ -483,7 +486,8 @@ namespace TBD.View
             if (kb.rKey.wasPressedThisFrame && kb.leftShiftKey.isPressed) foreach (var id in _sel) _uw.Resupply(id);
             if (kb.gKey.wasPressedThisFrame) foreach (var id in _sel) { var pl = _uw.Find(id); if (pl != null) _uw.SetHoldFire(id, !pl.HoldFire); }
             if (kb.tKey.wasPressedThisFrame) foreach (var id in _sel) _uw.Resupply(id);
-            { float zf = Mathf.Clamp01(_total / 3000f); Sfx.Loop("sfx_horda_bucle", 0.15f + 0.85f * zf, false); Sfx.Loop("mus_oleada", _total > 200 ? 0.55f : 0.0f, true); }
+            { float zf = Mathf.Clamp01(_total / 3000f); Sfx.Loop("mus_oleada", _total > 200 ? 0.55f : 0.0f, true); }
+            NightAudio();
             UpdateNightSoldiers(); UpdateVehicleViews();
             while (_blood.Count > 0 && Time.unscaledTime > _blood.Peek().t) { var o = _blood.Dequeue(); if (o.go != null) Destroy(o.go); }
             // la luz sigue a la hora: de noche hasta las 05:30, luego el alba

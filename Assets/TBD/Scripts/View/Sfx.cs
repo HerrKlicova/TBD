@@ -34,7 +34,7 @@ namespace TBD.View
         /// </summary>
         public static void PlayDist(string evento, float ortho, float vol = 1f, float minGap = 0.08f, float pitchJitter = 0.04f)
         {
-            string d = ortho < 14f ? "cerca" : ortho < 34f ? "media" : "lejos"; float dv = d == "cerca" ? 1f : d == "media" ? 0.7f : 0.45f;
+            string d = ortho < 14f ? "cerca" : ortho < 34f ? "media" : "lejos"; float dv = 1f;   // la mezcla por distancia ya viene en los archivos (D-N134, Nuria)
             var s = I; float now = Time.unscaledTime; if (s._last.TryGetValue(evento, out var t0) && now - t0 < minGap) return; s._last[evento] = now;
             AudioClip c = null;
             for (int tries = 0; tries < 3 && c == null; tries++) { int n = s.Variants(evento, d); if (n <= 0) break; c = s.Clip("sfx_" + evento + "_" + d + "_" + Random.Range(1, n + 1)); }

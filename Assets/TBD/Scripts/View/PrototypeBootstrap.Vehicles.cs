@@ -184,7 +184,7 @@ namespace TBD.View
             if (_trMat == null) { _trMat = new Material(Shader.Find("Universal Render Pipeline/Unlit")); _trMat.SetColor("_BaseColor", new Color32(0xf0, 0xdc, 0x9c, 255)); }
             SpawnTracer(new Vector3(v.Pos.x, v.Alt + (v.Heli ? 1.5f : 2.2f), v.Pos.y), new Vector3(tp.x, 0.8f, tp.y), dragon ? 150f : 200f, dragon ? 0.14f : 0.07f, dragon ? 7f : 5f);
             SpawnFlash(new Vector3(v.Pos.x, v.Alt + (v.Heli ? 1.5f : 2.2f), v.Pos.y), dragon ? 1.1f : 0.5f);
-            Sfx.PlayDist(dragon ? "canon_30" : "ametralladora", _orthoSize, dragon ? 0.8f : 0.45f, dragon ? 0.5f : 0.35f);
+            Sfx.PlayDist(dragon ? "canon_30" : "ametralladora", _orthoSize, 1f, dragon ? 0.5f : 0.25f); if (dragon) { Sfx.Play("impacto_30mm", Vector3.zero, 0.7f, 0.5f); Sfx.Play("cola_urbana", Vector3.zero, 0.4f, 0.5f); }
         }
 
         // ---------------------------------------------------------------- atropello
@@ -246,7 +246,7 @@ namespace TBD.View
                 v.Target = tgt; v.HasTarget = true; if (v.State == 3) v.State = 2;
             }
             else { v.Target = tgt; v.HasTarget = true; }
-            Sfx.Play("sfx_ui_clic", 0.6f);
+            Sfx.Play("ui_orden", Vector3.zero, 0.6f, 0.05f);
         }
     }
 }
