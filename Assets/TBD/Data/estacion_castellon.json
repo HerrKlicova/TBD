@@ -59,11 +59,21 @@
   [
    [
     146,
-    14
+    12
    ],
    [
     214,
-    14
+    12
+   ]
+  ],
+  [
+   [
+    146,
+    17
+   ],
+   [
+    214,
+    17
    ]
   ],
   [
@@ -74,16 +84,6 @@
    [
     214,
     22
-   ]
-  ],
-  [
-   [
-    146,
-    30
-   ],
-   [
-    214,
-    30
    ]
   ]
  ],
@@ -171,7 +171,7 @@
   {
    "pieza": "sagunto/edificio_viajeros",
    "pos": [
-    107,
+    105,
     0,
     79.5
    ],
@@ -181,22 +181,12 @@
   {
    "pieza": "sagunto/edificio_viajeros",
    "pos": [
-    153,
+    155,
     0,
     79.5
    ],
    "yaw": 180,
    "variante": 4
-  },
-  {
-   "pieza": "nuevo/cuerpo_central_viajeros",
-   "pos": [
-    130,
-    0,
-    81.5
-   ],
-   "yaw": 0,
-   "variante": 3
   },
   {
    "pieza": "sagunto/marquesina",
@@ -754,7 +744,7 @@
    "pos": [
     159,
     0,
-    14
+    12
    ],
    "yaw": 0,
    "variante": 2
@@ -764,7 +754,7 @@
    "pos": [
     159,
     0,
-    22
+    17
    ],
    "yaw": 0,
    "variante": 0
@@ -774,7 +764,7 @@
    "pos": [
     159,
     0,
-    30
+    22
    ],
    "yaw": 0,
    "variante": 3
@@ -794,7 +784,7 @@
    "pos": [
     178,
     0,
-    14
+    12
    ],
    "yaw": 0,
    "variante": 0
@@ -804,7 +794,7 @@
    "pos": [
     178,
     0,
-    22
+    17
    ],
    "yaw": 0,
    "variante": 3
@@ -814,7 +804,7 @@
    "pos": [
     178,
     0,
-    30
+    22
    ],
    "yaw": 0,
    "variante": 1
@@ -834,7 +824,7 @@
    "pos": [
     197,
     0,
-    14
+    12
    ],
    "yaw": 0,
    "variante": 3
@@ -844,7 +834,7 @@
    "pos": [
     197,
     0,
-    22
+    17
    ],
    "yaw": 0,
    "variante": 1
@@ -854,10 +844,240 @@
    "pos": [
     197,
     0,
-    30
+    22
    ],
    "yaw": 0,
    "variante": 4
+  },
+  {
+   "pieza": "kit/torreta_vigilancia",
+   "pos": [
+    67,
+    0,
+    87
+   ],
+   "yaw": 315,
+   "variante_por_estado": "Caída: vacía; Liberada: andamio",
+   "nota": "recinto heredado",
+   "variante": 2
+  },
+  {
+   "pieza": "kit/torreta_vigilancia",
+   "pos": [
+    219,
+    0,
+    87
+   ],
+   "yaw": 45,
+   "variante_por_estado": "Caída: vacía; Liberada: andamio",
+   "nota": "recinto heredado",
+   "variante": 2
+  },
+  {
+   "pieza": "kit/torreta_vigilancia",
+   "pos": [
+    215,
+    0,
+    10
+   ],
+   "yaw": 135,
+   "variante_por_estado": "Caída: vacía; Liberada: andamio",
+   "nota": "recinto heredado",
+   "variante": 2
+  },
+  {
+   "pieza": "kit/torreta_vigilancia",
+   "pos": [
+    67,
+    0,
+    7
+   ],
+   "yaw": 225,
+   "variante_por_estado": "Caída: vacía; Liberada: andamio",
+   "nota": "recinto heredado",
+   "variante": 2
+  },
+  {
+   "pieza": "kit/torreta_vigilancia",
+   "pos": [
+    219,
+    0,
+    49
+   ],
+   "yaw": 90,
+   "variante_por_estado": "Caída: vacía; Liberada: andamio",
+   "nota": "recinto heredado",
+   "variante": 1
+  },
+  {
+   "pieza": "kit/torreta_vigilancia",
+   "pos": [
+    67,
+    0,
+    36
+   ],
+   "yaw": 270,
+   "variante_por_estado": "Caída: vacía; Liberada: andamio",
+   "nota": "recinto heredado",
+   "variante": 1
+  },
+  {
+   "pieza": "castellon/talud_tierra_10m",
+   "pos": [
+    149,
+    0,
+    28
+   ],
+   "yaw": 90
+  },
+  {
+   "pieza": "castellon/talud_tierra_10m",
+   "pos": [
+    159,
+    0,
+    28
+   ],
+   "yaw": 90
+  },
+  {
+   "pieza": "castellon/talud_tierra_10m",
+   "pos": [
+    169,
+    0,
+    28
+   ],
+   "yaw": 90
+  },
+  {
+   "pieza": "castellon/talud_tierra_10m",
+   "pos": [
+    179,
+    0,
+    28
+   ],
+   "yaw": 90
+  },
+  {
+   "pieza": "castellon/talud_tierra_10m",
+   "pos": [
+    189,
+    0,
+    28
+   ],
+   "yaw": 90
+  },
+  {
+   "pieza": "castellon/talud_tierra_10m",
+   "pos": [
+    199,
+    0,
+    28
+   ],
+   "yaw": 90
+  },
+  {
+   "pieza": "castellon/talud_tierra_10m",
+   "pos": [
+    209,
+    0,
+    28
+   ],
+   "yaw": 90
+  },
+  {
+   "pieza": "castellon/talud_tierra_10m",
+   "pos": [
+    217,
+    0,
+    17
+   ],
+   "yaw": 0
+  },
+  {
+   "pieza": "castellon/talud_tierra_10m",
+   "pos": [
+    217,
+    0,
+    25
+   ],
+   "yaw": 0
+  },
+  {
+   "pieza": "kit_remate",
+   "variante": 2,
+   "pos": [
+    116,
+    0,
+    81.5
+   ],
+   "yaw": 180,
+   "fondo": 13
+  },
+  {
+   "pieza": "kit_cuerpo",
+   "variante": 6,
+   "pos": [
+    120,
+    0,
+    81.5
+   ],
+   "yaw": 180,
+   "fondo": 13
+  },
+  {
+   "pieza": "kit_cuerpo",
+   "variante": 6,
+   "pos": [
+    124,
+    0,
+    81.5
+   ],
+   "yaw": 180,
+   "fondo": 13
+  },
+  {
+   "pieza": "kit_remate",
+   "variante": 0,
+   "pos": [
+    130,
+    0,
+    81.5
+   ],
+   "yaw": 180,
+   "fondo": 13
+  },
+  {
+   "pieza": "kit_cuerpo",
+   "variante": 6,
+   "pos": [
+    136,
+    0,
+    81.5
+   ],
+   "yaw": 180,
+   "fondo": 13
+  },
+  {
+   "pieza": "kit_cuerpo",
+   "variante": 6,
+   "pos": [
+    140,
+    0,
+    81.5
+   ],
+   "yaw": 180,
+   "fondo": 13
+  },
+  {
+   "pieza": "kit_remate",
+   "variante": 2,
+   "pos": [
+    144,
+    0,
+    81.5
+   ],
+   "yaw": 180,
+   "fondo": 13
   }
  ],
  "carreteras": [
@@ -933,8 +1153,17 @@
   "tipo": "radar",
   "pos": [
    206,
+   0,
    82
-  ]
+  ],
+  "yaw": 180,
+  "parcela": "X 201,5–210,5 y Z 78,5–85,5 con la v1/v2 (9 × 7 m); 5 m al andén lateral y 4,5 m al muro norte",
+  "variante_por_estado": {
+   "en_construccion": 3,
+   "Segura": 1,
+   "Caida": 4
+  },
+  "nota": "No existe al empezar (Castellón empieza infestada): se construye. Modelo de Teo, docs/arte/modelado-3d/radar/."
  },
  "paradas_asalto": [
   {

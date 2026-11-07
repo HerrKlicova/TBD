@@ -14,7 +14,7 @@ namespace TBD.Net
     public enum EstacionTamano : byte { Pequena = 0, Estacion = 1, Principal = 2 }
     public enum EstacionInicio : byte { Propia = 0, Abandonada = 1, Infestada = 2 }
 
-    public struct EstacionPieza { public string Pieza; public float X, Y, Z, Yaw; public int Variante; }
+    public struct EstacionPieza { public string Pieza; public float X, Y, Z, Yaw; public int Variante; public float Fondo; }   // Variante −1 = por hash; Fondo 0 = el del módulo
     public struct EstacionPuerta { public string Tipo; public float X, Z; }
     public struct EstacionCarretera { public string Id, Nombre; public float[] Tramo; public bool Habilitada; }   // Tramo: x0, z0, x1, z1, …
     public struct EstacionSitio { public string Id; public float X, Z; }
@@ -57,7 +57,7 @@ namespace TBD.Net
             {
                 var p = Obj(o, "piezas"); var pos = Floats(p["pos"], "piezas");
                 if (pos.Length != 3) throw new FormatException("pieza: «pos» tiene que ser [x, y, z]");
-                d.Piezas.Add(new EstacionPieza { Pieza = Req<string>(p, "pieza"), X = pos[0], Y = pos[1], Z = pos[2], Yaw = p.ContainsKey("yaw") ? Num(p["yaw"]) : 0f, Variante = p.ContainsKey("variante") ? (int)Num(p["variante"]) : -1 });
+                d.Piezas.Add(new EstacionPieza { Pieza = Req<string>(p, "pieza"), X = pos[0], Y = pos[1], Z = pos[2], Yaw = p.ContainsKey("yaw") ? Num(p["yaw"]) : 0f, Variante = p.ContainsKey("variante") ? (int)Num(p["variante"]) : -1, Fondo = p.ContainsKey("fondo") ? Num(p["fondo"]) : 0f });
             }
             foreach (var o in List(root, "carreteras"))
             {
