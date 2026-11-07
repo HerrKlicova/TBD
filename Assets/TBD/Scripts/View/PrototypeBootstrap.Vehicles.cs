@@ -81,7 +81,7 @@ namespace TBD.View
             if (!near || v.Speed > 0.5f) { Debug.Log($"[NOCHE] recarga de {v.Name}: debe estar parado junto al {(v.Heli ? "helipuerto" : "tren")}"); return; }
             float u = (v.Heli ? 1.3f : (v.Name.StartsWith("Dragón") ? 0.6f : 1.2f)) * (1f - v.Ammo); long cost = (long)(u * WeaponCatalog.ShotsPerU);
             if (_uw.StockShots < cost) { Debug.Log($"[NOCHE] recarga de {v.Name}: falta municion en el almacen"); return; }
-            _uw.StockShots -= cost; v.ResupU = u; v.ResupT = _ng.Tick + (v.Heli ? 900 : 600); Sfx.Play("sfx_ui_clic", 0.6f);
+            _uw.StockShots -= (int)cost; v.ResupU = u; v.ResupT = _ng.Tick + (v.Heli ? 900 : 600); Sfx.Play("sfx_ui_clic", 0.6f);
             Debug.Log($"[NOCHE] recarga de {v.Name}: {u:0.0} u del almacen, lista a las {TimeStr()} + {(v.Heli ? 30 : 20)} s");
         }
 

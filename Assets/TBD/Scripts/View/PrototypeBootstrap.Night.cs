@@ -93,6 +93,18 @@ namespace TBD.View
         {
             if (!_nightOn || _ng == null) return;
             bool playing = _ng.State == NightState.Jugando;
+            if (Time.unscaledTime - _gateT > 1f)    // las puertas de SagunteStart nacen construidas con la noche inactiva: SyncWorks no les hace el muro. Aqui, una sola vez por pieza (idempotente), por la cola como el resto de ordenes (Nacho)
+            {
+                _gateT = Time.unscaledTime;
+                var gp = NetSession.A != null && _zoneNode >= 0 ? NetSession.A.Works.At(_zoneNode) : null;
+                if (gp != null) for (int gi = 0; gi < gp.Count; gi++)
+                {
+                    var w = gp[gi]; if (!w.IsGate || !w.Built || _gateWalled.Contains(gi)) continue;
+                    _gateWalled.Add(gi);
+                    Push(CmdType.BuildWall, 2100, new Unity.Mathematics.float2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f), new Unity.Mathematics.float2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f));
+                    Debug.Log($"[NOCHE] puerta {w.Kind} cerrada con muro: ({WorkOrigin.x + w.X0 / 1000f:0.0};{WorkOrigin.y + w.Y0 / 1000f:0.0}) -> ({WorkOrigin.x + w.X1 / 1000f:0.0};{WorkOrigin.y + w.Y1 / 1000f:0.0})");
+                }
+            }
             if (_ng.State == NightState.Derrota && !_endDismissed) return;            // derrota: el mundo se para
             _spawns.Clear();
             { var st0 = _ng.State; _ng.Attack(_pileNearStation, _nearTrain); _ng.Step(_spawns); if (st0 == NightState.Jugando && _ng.State != NightState.Jugando) NightEnded(); if (_ng.State == NightState.Derrota) return; }
@@ -165,6 +177,11 @@ namespace TBD.View
                     catch (System.Exception e) { Debug.LogWarning("[TBD] traza: " + e.Message); }
                 }
             }
+            if (_ng.Tick % 30 == 0 && _ng.State == NightState.Jugando)   // traza de la noche entera (Sara): una fila por segundo de juego con la vida del tren y de la estacion
+            {
+                if (_fullTrace.Length == 0) _fullTrace.Append("tick,hora,estacion_hp,tren_hp,muro_hp,zombis,pila,atacan_tren,atacan_estacion,abatidos,bajas" + (char)10);
+                _fullTrace.Append($"{_ng.Tick},{TimeStr()},{_ng.StationHp},{_ng.TrainHp},{(long)_wallHp},{_zomPos.Count},{_pileWall},{_nearTrain},{_pileNearStation},{_nightKills},{_nightLost}" + (char)10);
+            }
             if (_uw.Tick % 15 == 0 && _uw.StockShots > 0)                                // reabastecimiento automatico: bajo el 30 % de su dotacion, del almacen (la T queda como recarga anticipada)
                 foreach (var plr in _uw.Platoons) if (plr.AliveCount() > 0 && plr.AmmoCap > 0 && plr.AmmoShots * 100 < plr.AmmoCap * 30 && _uw.Resupply(plr.Id) > 0) _resupplies++;
             VehiclesTick(default(NativeSnapshot)); if (_vehHits.Count > 0) { KillZombies(_vehHits); _vehHits.Clear(); }
@@ -180,7 +197,7 @@ namespace TBD.View
             {
                 _wallSegsT = Time.unscaledTime; _wallSegs.Clear();
                 var pieces = NetSession.A != null && _zoneNode >= 0 ? NetSession.A.Works.At(_zoneNode) : null;
-                if (pieces != null) foreach (var w in pieces) if (w.IsWall && w.Built) _wallSegs.Add((new Vector2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f), new Vector2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f)));
+                if (pieces != null) foreach (var w in pieces) if ((w.IsWall || w.IsGate) && w.Built) _wallSegs.Add((new Vector2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f), new Vector2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f)));
             }
             for (int i = 0; i < _wallSegs.Count; i++)
             {
@@ -189,7 +206,7 @@ namespace TBD.View
             }
             return false;
         }
-        int _diagN; float _diagT; float _endStationF = 1f, _endTrainF = 1f; int _pileNearStation, _nearTrain, _pileWall; float _wallHp, _wallMax; readonly List<Target> _allT = new List<Target>(); readonly ContactResult _contact = new ContactResult(); readonly float _contactR2 = 1200f * 1200f; readonly int _contactPpm = 1000000 * 14 / 1000 / 30;   // NightSimParams de Nacho: 1,2 m y 14 ‰ por zombi y segundo (por tick)
+        readonly System.Text.StringBuilder _fullTrace = new System.Text.StringBuilder(); float _gateT = -10f; readonly HashSet<int> _gateWalled = new HashSet<int>(); int _diagN; float _diagT; float _endStationF = 1f, _endTrainF = 1f; int _pileNearStation, _nearTrain, _pileWall; float _wallHp, _wallMax; readonly List<Target> _allT = new List<Target>(); readonly ContactResult _contact = new ContactResult(); readonly float _contactR2 = 1200f * 1200f; readonly int _contactPpm = 1000000 * 14 / 1000 / 30;   // NightSimParams de Nacho: 1,2 m y 14 ‰ por zombi y segundo (por tick)
 
         int CurrentWave()
         {
@@ -233,6 +250,7 @@ namespace TBD.View
 
         void NightEnded()
         {
+            try { string d0 = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(d0); System.IO.File.WriteAllText(System.IO.Path.Combine(d0, "traza-noche.csv"), _fullTrace.ToString()); if (_rec != null && !_rec.Done) System.IO.File.WriteAllText(System.IO.Path.Combine(d0, "traza-zona.csv"), _rec.Trace.ToCsv()); } catch (System.Exception e0) { Debug.LogWarning("[TBD] traza noche: " + e0.Message); }
             bool win = _ng.State == NightState.Victoria; var a = _uw;
             int alive = 0, total = 0; foreach (var pl in a.Platoons) { alive += pl.AliveCount(); total += pl.Men.Count; }
             _nightLost = total - alive;
