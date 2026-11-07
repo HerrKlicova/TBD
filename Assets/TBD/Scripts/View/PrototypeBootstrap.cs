@@ -844,12 +844,11 @@ namespace TBD.View
                     break;
                 default: // noche: el azul viene de la luna y del ambiente (#283440 a #404460) sobre el albedo ocre de siempre; la gradación
                          // solo baja la saturación, sin teñir, para que el ámbar del foco siga siendo ámbar (no salmón)
-                    _grade.colorFilter.Override(Color.white);
-                    _grade.postExposure.Override(0.35f);
-                    _grade.saturation.Override(-15f);
-                    // luna y ambiente poco azules y bajos, y focos más fuertes: medido a resolución completa (Shift+F9 con máscara), el 84 % de los
-                    // píxeles cálidos del charco queda entre 20° y 45° (con la gradación azul y el foco de antes, el 18 %: el borde del charco salía rosa)
-                    SetLight(new Color(0.42f, 0.48f, 0.62f), 0.45f, new Color(0.012f, 0.016f, 0.026f), 50f);   // luna D-N69 elegida por Eugenio (0,45): gris azulado frio y ambiente azul gris muy bajo   // ambiente a 0: medido, con cualquier ambiente > 0 (incluso 0,002) la paleta sube el suelo a L* 37; a 0 sale L* 17 y fuera de los focos casi no se ve nada   // luna alta; ambiente al 6-10 %
+                    // noche v3 de Bruno elegida por Lucia (qa24, D-N129): luna fria (0,40; 0,55; 1,0) a 0,45, ambiente azul (0,03; 0,045; 0,10), filtro (0,78; 0,86; 1), sat -10, exposicion 0; sin cuantizador ni tramado
+                    _grade.colorFilter.Override(new Color(0.78f, 0.86f, 1f));
+                    _grade.postExposure.Override(0f);
+                    _grade.saturation.Override(-10f);
+                    SetLight(new Color(0.40f, 0.55f, 1.0f), 0.45f, new Color(0.03f, 0.045f, 0.10f), 50f);
                     SetFloodlights(90f);
                     break;
             }
