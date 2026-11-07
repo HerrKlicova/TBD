@@ -172,7 +172,7 @@ namespace TBD.View.UiNoche
             int e = Escala;
             _texto.fontSize = tam * e;
             _texto.alignment = ancla;
-            _texto.normal.textColor = c;
+            _texto.normal.textColor = QualitySettings.activeColorSpace == ColorSpace.Linear ? c.gamma : c;   // IMGUI en Linear pasa el color a lineal sin recodificar: sale oscuro (Bruno, qa13-15)
             float w = ancho > 0 ? ancho : 400;
             float xx = ancla == TextAnchor.UpperCenter || ancla == TextAnchor.MiddleCenter ? x - w * .5f : ancla == TextAnchor.UpperRight ? x - w : x;
             var m = GUI.matrix;

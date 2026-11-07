@@ -20,7 +20,7 @@ namespace TBD.View
             public float Speed, Alt, Tilt, Rpm, SpinWheel, Steer, TurretYaw, GunElev; public Vector2 Target; public bool HasTarget; public Vector2 Home;
             public Transform[] WheelsFront, WheelsAll; public Quaternion[] WheelInit; public Transform Turret, Gun, RotorMain, RotorTail, Disc; public Quaternion TurretInit, GunInit, RotorMainInit, RotorTailInit;
             public float FireAt; public int FireTick; public float Ammo = 1f; public GameObject Shadow; public int State;                  // helicóptero: 0 en tierra, 1 despegando, 2 en vuelo, 3 aterrizando
-            public float StateT; public float SpinMainDeg, SpinTailDeg;
+            public float StateT; public float SpinMainDeg, SpinTailDeg; public bool Fire; public int ResupT = -1; public float ResupU;
         }
         readonly List<Veh> _vehs = new List<Veh>(); Veh _selVeh; readonly List<TargetHit> _vehHits = new List<TargetHit>(); readonly List<Vector2> _zomPos = new List<Vector2>(); readonly List<uint> _zomId = new List<uint>();
         readonly Dictionary<string, Material> _vehMats = new Dictionary<string, Material>();
@@ -58,6 +58,7 @@ namespace TBD.View
             MakeVeh("VAMTAC 1", "vamtac", "SM_Vamtac_Animable_LOD1", new Vector2(88f, 53f), 180f, false, w4, new[] { "Rueda_1L", "Rueda_1R" }, "Aro", "Ametralladora");
             MakeVeh("VAMTAC 2", "vamtac", "SM_Vamtac_Animable_LOD1", new Vector2(80f, 53f), 180f, false, w4, new[] { "Rueda_1L", "Rueda_1R" }, "Aro", "Ametralladora");
             MakeVeh("NH90", "nh90", "SM_NH90_LOD1", new Vector2(180f, 44f), 270f, true, new string[0], new string[0], null, null);
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-vehfuego") >= 0) foreach (var vf in _vehs) vf.Fire = true;   // prueba de techo (Sara): fuego libre desde el principio
         }
 
         // ---------------------------------------------------------------- un tick de vehículos (30 Hz)
@@ -68,8 +69,27 @@ namespace TBD.View
             {
                 if (v.Go == null) continue;
                 if (!v.Heli) GroundStep(v, dt); else HeliStep(v, dt);
-                VehicleFire(v, z, dt);
+                VehicleResupply(v); VehicleFire(v, z, dt);
             }
+        }
+
+        /// <summary>Recarga de un vehiculo del almacen (Hugo, D-N74/D-N101): Dragon 0,6 u y VAMTAC 1,2 u en 20 s junto al tren; NH90 1,3 u en 30 s en el helipuerto. Local (fuera del hash).</summary>
+        void StartVehicleResupply(Veh v)
+        {
+            if (_uw == null || _ng == null || v.ResupT >= 0 || v.Ammo > 0.95f) return;
+            bool near = v.Heli ? (v.State == 0 && (v.Pos - v.Home).magnitude < 12f) : (Mathf.Abs(v.Pos.y - Level.TrackY) < 12f && v.Pos.x > 70f && v.Pos.x < 156f);
+            if (!near || v.Speed > 0.5f) { Debug.Log($"[NOCHE] recarga de {v.Name}: debe estar parado junto al {(v.Heli ? "helipuerto" : "tren")}"); return; }
+            float u = (v.Heli ? 1.3f : (v.Name.StartsWith("Dragón") ? 0.6f : 1.2f)) * (1f - v.Ammo); long cost = (long)(u * WeaponCatalog.ShotsPerU);
+            if (_uw.StockShots < cost) { Debug.Log($"[NOCHE] recarga de {v.Name}: falta municion en el almacen"); return; }
+            _uw.StockShots -= cost; v.ResupU = u; v.ResupT = _ng.Tick + (v.Heli ? 900 : 600); Sfx.Play("sfx_ui_clic", 0.6f);
+            Debug.Log($"[NOCHE] recarga de {v.Name}: {u:0.0} u del almacen, lista a las {TimeStr()} + {(v.Heli ? 30 : 20)} s");
+        }
+
+        void VehicleResupply(Veh v)
+        {
+            if (v.ResupT < 0 || _ng == null) return;
+            if (v.Speed > 1f && !v.Heli) { v.ResupT = -1; return; }        // si se mueve, se pierde la recarga en curso
+            if (_ng.Tick >= v.ResupT) { v.Ammo = 1f; v.ResupT = -1; Debug.Log($"[NOCHE] {v.Name} recargado"); }
         }
 
         struct NativeSnapshot { public int N; }
@@ -135,6 +155,7 @@ namespace TBD.View
         void VehicleFire(Veh v, NativeSnapshot z, float dt)
         {
             if (_bot != null && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-vehfuego") < 0) return;                                                       // -nightbot compara con NightSim, que no tiene vehiculos que disparen (Nacho)
+            if (!v.Fire) return;                                                              // de noche solo disparan con orden del jugador (A = fuego, G = alto el fuego; Hugo/Mak)
             if (_zomPos.Count == 0) return; if (v.Heli && v.State != 2) return;
             if (v.Ammo <= 0f) return;                                                        // sin municion no dispara (reserva por vehiculo)
             float range = v.Heli ? 70f : (v.Name.StartsWith("Dragón") ? 55f : 40f); int best = -1; float bd = range * range;

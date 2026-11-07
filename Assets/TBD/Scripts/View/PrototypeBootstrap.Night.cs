@@ -134,6 +134,13 @@ namespace TBD.View
                 zs.Dispose();
                 _allT.Clear(); for (int i = 0; i < _zomPos.Count; i++) _allT.Add(new Target { Id = (int)_zomId[i], X = (int)(_zomPos[i].x * 1000f), Y = (int)(_zomPos[i].y * 1000f) });
                 _ng.CountAttackers(_allT, out _pileNearStation, out _nearTrain);
+                if ((_nearTrain > 0 || _pileNearStation > 0) && _diagN < 6 && Time.unscaledTime - _diagT > 2f)
+                {
+                    _diagN++; _diagT = Time.unscaledTime; var sbd = new System.Text.StringBuilder(); int k = 0;
+                    for (int i = 0; i < _zomPos.Count && k < 8; i++) { var zq = _zomPos[i]; if (zq.x > 66f && zq.x < 160f && zq.y > 60f && zq.y < 69f || (zq - StationC).sqrMagnitude < 144f) { sbd.Append($"({zq.x:0.0};{zq.y:0.0}) "); k++; } }
+                    Debug.Log($"[NOCHE-DIAG] tren={_nearTrain} estacion={_pileNearStation} hora={TimeStr()} muro_permil={_ng.WallPermil} zombis_cerca={sbd}");
+                    if (_diagN == 1) { var sw = new System.Text.StringBuilder(); foreach (var sg in _wallSegs) sw.Append($"[{sg.a.x:0.0};{sg.a.y:0.0}->{sg.b.x:0.0};{sg.b.y:0.0}] "); Debug.Log("[NOCHE-DIAG] muros_obras " + sw); }
+                }
                 _pileWall = wallPile;
                 if (_wallMax <= 0f) _wallMax = _wallHp = Mathf.Max(1200000, NightSimParams.Default().WallHp);
                 _wallHp = Mathf.Max(0f, _wallHp - wallPile * (NightSimParams.Default().WallDmgPerZombieS / 30f)); _ng.WallPermil = Mathf.RoundToInt(1000f * _wallHp / _wallMax);
@@ -182,7 +189,7 @@ namespace TBD.View
             }
             return false;
         }
-        int _pileNearStation, _nearTrain, _pileWall; float _wallHp, _wallMax; readonly List<Target> _allT = new List<Target>(); readonly ContactResult _contact = new ContactResult(); readonly float _contactR2 = 1200f * 1200f; readonly int _contactPpm = 1000000 * 14 / 1000 / 30;   // NightSimParams de Nacho: 1,2 m y 14 ‰ por zombi y segundo (por tick)
+        int _diagN; float _diagT; float _endStationF = 1f, _endTrainF = 1f; int _pileNearStation, _nearTrain, _pileWall; float _wallHp, _wallMax; readonly List<Target> _allT = new List<Target>(); readonly ContactResult _contact = new ContactResult(); readonly float _contactR2 = 1200f * 1200f; readonly int _contactPpm = 1000000 * 14 / 1000 / 30;   // NightSimParams de Nacho: 1,2 m y 14 ‰ por zombi y segundo (por tick)
 
         int CurrentWave()
         {
@@ -230,6 +237,7 @@ namespace TBD.View
             int alive = 0, total = 0; foreach (var pl in a.Platoons) { alive += pl.AliveCount(); total += pl.Men.Count; }
             _nightLost = total - alive;
             float left = a.StockShots / (float)WeaponCatalog.ShotsPerU;
+            _endStationF = _ng.StationHp / (float)Mathf.Max(1, _ng.StationHpMax); _endTrainF = _ng.TrainHp / (float)Mathf.Max(1, _ng.TrainHpMax);   // el parte congela estas cifras: despues del amanecer la horda sigue y no debe vaciar la barra (Sara)
             int integ = win ? _ng.Report.IntegrityPermil : _ng.IntegrityPermil, wallP = win ? _ng.Report.WallPermil : _ng.WallPermil; long shots = a.StockShots; foreach (var p0 in a.Platoons) if (p0.AliveCount() > 0) shots += p0.AmmoShots;
             int stars = _ng.P.Stars.Stars(_ng.State, integ, wallP, _nightLost, (int)(shots * 1000 / WeaponCatalog.ShotsPerU), false);
             _endStars = stars;
@@ -380,7 +388,13 @@ namespace TBD.View
             // clic derecho sin arrastre = mover (con arrastre, gira la cámara como siempre)
             if (mouse.rightButton.wasPressedThisFrame) { _rmbDown = true; _rmbStart = mp; }
             if (mouse.rightButton.wasReleasedThisFrame && _rmbDown) { _rmbDown = false; if ((mp - _rmbStart).magnitude < 6f && !OverNightUi(mp)) { if (_selVeh != null) { if (TryGround(mp, out var gv)) VehicleOrder(_selVeh, gv); } else IssueMove(mp, false); Sfx.Play("sfx_ui_clic", 0.6f); } }
-            if (kb.aKey.wasPressedThisFrame) _attackNext = true;
+            if (_selVeh != null)
+            {
+                if (kb.aKey.wasPressedThisFrame) { _selVeh.Fire = true; Debug.Log($"[NOCHE] {_selVeh.Name}: fuego libre"); }
+                if (kb.gKey.wasPressedThisFrame) { _selVeh.Fire = false; Debug.Log($"[NOCHE] {_selVeh.Name}: alto el fuego"); }
+                if (kb.tKey.wasPressedThisFrame) StartVehicleResupply(_selVeh);
+            }
+            else if (kb.aKey.wasPressedThisFrame) _attackNext = true;
             if (kb.sKey.wasPressedThisFrame) foreach (var id in _sel) { _uw.Hold(id); _uw.SetHoldFire(id, false); }
             if (kb.dKey.wasPressedThisFrame && TryGround(mp, out var gp)) foreach (var id in _sel) { var pl = _uw.Find(id); if (pl != null) _uw.DeployAt(id, IMath.Atan2((int)(gp.z * 1000f) - pl.AY, (int)(gp.x * 1000f) - pl.AX)); }
             if (kb.rKey.wasPressedThisFrame && kb.leftShiftKey.isPressed) foreach (var id in _sel) _uw.Resupply(id);
