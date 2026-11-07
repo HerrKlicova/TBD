@@ -194,7 +194,7 @@ namespace TBD.View
             _worldA = World.DefaultGameObjectInjectionWorld;
             _groupA = SimWorldSetup.CreateSystems(_worldA);
             var kind = _cutting ? ZoneKind.Cutting : ZoneKind.Station;
-            float trainX = NightRun.Active && _netZone && !_cutting ? Level.TrainNightX : float.NaN;   // QA-35 (Nacho): de noche el tren espera al fondo del andén, lejos de la pila del muro oeste
+            float trainX = NightRun.Active && _netZone && !_cutting ? Level.TrainNightX : float.NaN;   // QA-35 (Nacho): de noche el tren espera en el centro del recinto, a 11 m de los muros oeste y este
             _rootA = SimWorldSetup.Populate(_worldA.EntityManager, zombies, siege, seed, _combat, shots, hasTrain, kind, !_netZone, trainX);
             sw.Stop();
             LastMaterializeMs = sw.Elapsed.TotalMilliseconds;

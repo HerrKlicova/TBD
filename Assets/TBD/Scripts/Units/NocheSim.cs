@@ -120,9 +120,36 @@ namespace TBD.Units
         public ulong Hash() { return IMath.Mix((ulong)(uint)Shots + ((ulong)(uint)NextFireTick << 32) + (ulong)Kind) + IMath.Mix((ulong)(uint)ResupplyUntil + ((ulong)(uint)Kills << 32) + (Fire ? 7UL : 11UL) + (Airborne ? 13UL : 0UL)); }
     }
 
+    /// <summary>D-N148 (Lucía, 7-nov): a qué va un zombi que ha pasado el muro (trepando la pila o por una brecha). Lo vivo más cercano a menos de «seekMm», por este
+    /// orden: infantería, después vehículos parados y después obreros; si no hay nadie, el punto del tren más cercano. Entero y determinista (empate: el primero de la lista).
+    /// Lo usan NightSim y la zona (ECS), con las mismas listas. Devuelve 1 infantería, 2 vehículo, 3 obrero o 4 tren.</summary>
+    public static class ClimberTargets
+    {
+        public static byte Pick(int x, int y, IList<Target> men, IList<Target> vehicles, IList<Target> workers, int seekMm, RectMm train, out int tx, out int ty)
+        {
+            long r2 = (long)seekMm * seekMm;
+            if (Nearest(x, y, men, r2, out tx, out ty)) return 1;
+            if (Nearest(x, y, vehicles, r2, out tx, out ty)) return 2;
+            if (Nearest(x, y, workers, r2, out tx, out ty)) return 3;
+            tx = Math.Max(train.X0, Math.Min(train.X1, x)); ty = Math.Max(train.Y0, Math.Min(train.Y1, y));
+            return 4;
+        }
+        static bool Nearest(int x, int y, IList<Target> list, long r2, out int tx, out int ty)
+        {
+            tx = ty = 0; long best = long.MaxValue; bool found = false;
+            if (list == null) return false;
+            for (int i = 0; i < list.Count; i++)
+            {
+                long dx = list[i].X - x, dy = list[i].Y - y, d = dx * dx + dy * dy;
+                if (d <= r2 && d < best) { best = d; tx = list[i].X; ty = list[i].Y; found = true; }
+            }
+            return found;
+        }
+    }
+
     public sealed class NightSim
     {
-        sealed class Zomb { public int X, Y; public bool Alive = true; }
+        sealed class Zomb { public int X, Y; public bool Alive = true; public int TX, TY; public byte Goal; }   // Goal (D-N148): 0 sin decidir, 1 infantería, 2 vehículo, 3 obrero, 4 tren
 
         public NightSimParams SP;
         public readonly UnitsWorld Units;
@@ -251,6 +278,7 @@ namespace TBD.Units
             if (Night.State != NightState.Jugando) return;
             // 1) la noche: reloj, oleadas y fin de partida (gana la derrota)
             Night.WallPermil = SP.WallHp > 0 ? (int)((long)WallHp * 1000 / SP.WallHp) : 0;
+            Night.ZombiesAlive = AliveZombies();                               // D-N136: victoria al acabar con la horda
             Night.Step(_spawns);
             var cur = Current();
             foreach (var s in _spawns) { _z.Add(new Zomb { X = s.X, Y = s.Y }); Spawned++; if (cur != null) cur.Spawned++; }
@@ -260,12 +288,18 @@ namespace TBD.Units
             {
                 var z = _z[i]; if (!z.Alive) continue;
                 int tx = SP.StationX, ty = SP.StationY;
-                if (InFort(z.X, z.Y)) { var sr = Night.P.StationRect; tx = (sr.X0 + sr.X1) / 2; ty = (sr.Y0 + sr.Y1) / 2; }
+                bool inside = InFort(z.X, z.Y);
+                if (inside)
+                {
+                    // D-N148 (Lucía): dentro del recinto ataca lo vivo más cercano (infantería, después vehículos parados, después obreros) y solo va al tren si no queda nadie en 30 m
+                    if (z.Goal == 0 || ((Night.Tick + i) % ClimberRetargetTicks) == 0) RetargetClimber(z);
+                    tx = z.TX; ty = z.TY;
+                }
                 bool gap = SP.GateGapMm > 0 && WallHp > 0;
                 bool toGate = false;
                 if (gap && z.X < SP.FortX0 - 500 && !InFort(z.X, z.Y)) { tx = SP.FortX0 - 1000; toGate = true; }      // con hueco en la vía, la horda rodea el muro hasta la puerta (como el flujo de la zona)
                 int dx = tx - z.X, dy = ty - z.Y, d = IMath.Dist(dx, dy);
-                if (d < 3500 && !toGate) continue;
+                if (inside ? (z.Goal != 4 && d < 500) : (d < 3500 && !toGate)) continue;
                 if (d < 1) continue;
                 int nx = z.X + IMath.DivR((long)dx * speed, d), ny = z.Y + IMath.DivR((long)dy * speed, d);
                 if (WallHp > 0 && !InFort(z.X, z.Y) && InFort(nx, ny) && !(gap && z.X <= SP.FortX0 && Math.Abs(ny - SP.StationY) < SP.GateGapMm / 2))
@@ -274,7 +308,11 @@ namespace TBD.Units
                     if (!InFort(nx, z.Y)) ny = z.Y; else if (!InFort(z.X, ny)) nx = z.X; else { nx = z.X; ny = z.Y; }
                     if (InFort(nx, ny)) { nx = z.X; ny = z.Y; }
                 }
-                if (InFort(z.X, z.Y) && InRect(nx, ny, Night.P.TrainRect) && !InRect(z.X, z.Y, Night.P.TrainRect)) { nx = z.X; ny = z.Y; }   // QA-35: el tren parado es un muro: el que lo tiene en el camino al edificio se queda pegado a él
+                if (InFort(z.X, z.Y) && InRect(nx, ny, Night.P.TrainRect) && !InRect(z.X, z.Y, Night.P.TrainRect))
+                {
+                    // QA-35 y D-N139: el tren parado es un muro. Se rodea deslizando por su costado (primero en Y, luego en X); si no hay salida, se queda pegado
+                    if (!InRect(z.X, ny, Night.P.TrainRect)) nx = z.X; else if (!InRect(nx, z.Y, Night.P.TrainRect)) ny = z.Y; else { nx = z.X; ny = z.Y; }
+                }
                 z.X = nx; z.Y = ny;
                 if (WallHp > 0 && !InFort(z.X, z.Y) && NearWall(z.X, z.Y) && !(gap && Math.Abs(z.Y - SP.StationY) < SP.GateGapMm / 2 + 500)) pile++;      // los que cruzan el hueco no son pila
             }
@@ -376,6 +414,24 @@ namespace TBD.Units
 
         /// <summary>QA-35: la pila trepa. De los «excess» que sobran por encima de ClimbPileZ saltan ClimbPermilS ‰ por segundo (resto entero exacto); saltan los últimos
         /// en llegar (índice más alto) y caen 1,5 m dentro del recinto, en su lado del muro. Entero y determinista. Devuelve cuántos han saltado.</summary>
+        /// <summary>D-N148: cada cuántos ticks vuelve a elegir objetivo un zombi que ha pasado el muro (repartido por índice para no hacerlo todo en el mismo tick).</summary>
+        public const int ClimberRetargetTicks = 15;
+        /// <summary>D-N148: radio en el que un zombi dentro del recinto busca algo vivo antes de ir al tren.</summary>
+        public const int ClimberSeekMm = 30000;
+        readonly List<Target> _men = new List<Target>(), _vehT = new List<Target>(), _workers = new List<Target>();
+        int _menTick = -1;
+
+        void RetargetClimber(Zomb z)
+        {
+            if (_menTick != Night.Tick)
+            {
+                _menTick = Night.Tick; _men.Clear(); _vehT.Clear();
+                foreach (var p in Units.Platoons) { if (p.Aboard != 0) continue; foreach (var m in p.Men) if (m.Alive) _men.Add(new Target { Id = m.Id, X = m.X, Y = m.Y }); }
+                for (int v = 0; v < Vehicles.Count; v++) if (!Vehicles[v].Airborne) _vehT.Add(new Target { Id = v, X = Vehicles[v].X, Y = Vehicles[v].Y });
+            }
+            int tx, ty; z.Goal = ClimberTargets.Pick(z.X, z.Y, _men, _vehT, _workers, ClimberSeekMm, Night.P.TrainRect, out tx, out ty); z.TX = tx; z.TY = ty;
+        }
+
         int ClimbStep(int excess)
         {
             long acc = _climbRem + (long)excess * SP.ClimbPermilS; int n = (int)(acc / (1000L * IMath.TickRate)); _climbRem = acc % (1000L * IMath.TickRate);

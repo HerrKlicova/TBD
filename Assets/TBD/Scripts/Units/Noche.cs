@@ -69,19 +69,17 @@ namespace TBD.Units
         // tren en la vía (y = 64,5 ± 1,6 m), de x 74 a 154 m (Hugo: el tren ocupa el andén). VALORES DE DISEÑO SIN MEDIR.
         public int AttackReachMm;
         public RectMm StationRect, TrainRect;
+        /// <summary>D-N136 (Lucía): la noche se gana al acabar con la horda, sin esperar al amanecer (además de la victoria de siempre a las 06:00).</summary>
+        public bool WinOnClear;
 
         public static NightParams Default()
         {
             return new NightParams
             {
                 ClockX = 28, StartHour = 22, EndHour = 6, ScalePermil = 850, FrontPct = 55, FrontTimePct = 25,
-                StationHp = 60000, TrainHp = 120000, Stars = StarRules.Default(), AttackReachMm = 1500, StationRect = new RectMm(98000, 75000, 114000, 83000), TrainRect = new RectMm(90000, 62900, 154000, 66100), StationDmgPerZombieS = 20, TrainDmgPerZombieS = 20, ContactRadiusMm = 900, ContactDmgPerTick = 2,
-                // D-N135 (Hugo, 7-nov 11:50; Eugenio: «de 6 a 4, es un primer contacto»): 22:20, 00:10, 02:10 y 04:10
-                Waves = new[]
-                {
-                    new WaveSpec { StartMinute = 20, Zombies = 900, ArrivalSeconds = 30, EntryCount = new[] { 50, 30, 20, 0 } }, new WaveSpec { StartMinute = 130, Zombies = 1500, ArrivalSeconds = 45, EntryCount = new[] { 50, 30, 20, 0 } },
-                    new WaveSpec { StartMinute = 250, Zombies = 2000, ArrivalSeconds = 60, EntryCount = new[] { 50, 30, 20, 0 } }, new WaveSpec { StartMinute = 370, Zombies = 3000, ArrivalSeconds = 70, EntryCount = new[] { 50, 30, 20, 0 } },
-                },
+                StationHp = 60000, TrainHp = 120000, Stars = StarRules.Default(), AttackReachMm = 1500, StationRect = new RectMm(98000, 75000, 114000, 83000), TrainRect = new RectMm(81000, 62900, 145000, 66100), StationDmgPerZombieS = 20, TrainDmgPerZombieS = 20, ContactRadiusMm = 900, ContactDmgPerTick = 2, WinOnClear = true,
+                // D-N136 (Lucía y Hugo, 7-nov 13:50): una sola horda de 4.700 (escala 1000) a las 22:00, que entra durante 180 s (D-N136b) por las cuatro entradas (30/30/20/20)
+                Waves = new[] { new WaveSpec { StartMinute = 0, Zombies = 4700, ArrivalSeconds = 180, EntryCount = new[] { 30, 30, 20, 20 } } },
                 // Álvaro (sagunto-nivel.md §9.5), zona de 256 × 128 m: (X, Z) en metros → (X, Y) en mm
                 Entries = new[]
                 {
@@ -130,6 +128,13 @@ namespace TBD.Units
         public NightReport Report;                          // parte de la última noche cerrada (válido si State == Victoria)
         public int NightsSurvived;
         public bool EndedByStation, EndedByTrain;
+        /// <summary>D-N136: zombis vivos según quien simula (la zona o NightSim), puesto ANTES de Step. −1 = no se sabe (no hay victoria por limpieza). No entra en el hash: es una entrada.</summary>
+        public int ZombiesAlive = -1;
+        /// <summary>true si la última victoria fue por acabar con la horda (D-N136) y no por llegar al amanecer.</summary>
+        public bool WonByClear;
+        int _lastSpawnTick = -1;
+        /// <summary>¿Han entrado ya todos los zombis de todas las oleadas?</summary>
+        public bool AllSpawned { get { for (int w = 0; w < Spawned.Length; w++) if (Spawned[w] < WaveTotal(w)) return false; return true; } }
         /// <summary>Recuento del último tick (D-N133). Hoy valen 1 o 0; con varios frentes, las estaciones principales vivas y los trenes vivos. No entran en el hash: son entradas del tick.</summary>
         public int StationsAlive = 1, TrainsAlive = 1;
         /// <summary>Causa de la derrota (Ninguna si no se ha perdido).</summary>
@@ -243,13 +248,13 @@ namespace TBD.Units
                 int due = Cumulative(w, t) - Spawned[w];
                 bool front = t <= WaveDurationTicks(w) * P.FrontTimePct / 100;
                 for (int k = 0; k < due; k++) spawns.Add(Place(w, front));
-                if (due > 0) Spawned[w] += due;
+                if (due > 0) { Spawned[w] += due; _lastSpawnTick = Tick; }
             }
             // fin de partida: la derrota tiene prioridad sobre la victoria en el mismo tick
             if (!stationAlive || !trainAlive) { State = NightState.Derrota; DefeatTick = Tick; EndedByStation = !stationAlive; EndedByTrain = !trainAlive; }
-            else if (Tick >= TotalTicks)
+            else if (Tick >= TotalTicks || (P.WinOnClear && ZombiesAlive == 0 && Tick > _lastSpawnTick && AllSpawned))
             {
-                State = NightState.Victoria; NightsSurvived++;
+                WonByClear = Tick < TotalTicks; State = NightState.Victoria; NightsSurvived++;
                 int sp = 0; for (int i = 0; i < Spawned.Length; i++) sp += Spawned[i];
                 Report = new NightReport { Night = NightIndex, CloseTick = Tick, Spawned = sp, StationAlive = stationAlive, TrainAlive = trainAlive, IntegrityPermil = IntegrityPermil, WallPermil = WallPermil };
             }
@@ -259,7 +264,7 @@ namespace TBD.Units
         public bool BeginNextNight(NightParams next)
         {
             if (State != NightState.Victoria) return false;
-            P = next; Tick = 0; State = NightState.Jugando; NightIndex++; DefeatTick = -1; EndedByStation = EndedByTrain = false;
+            P = next; Tick = 0; State = NightState.Jugando; NightIndex++; DefeatTick = -1; EndedByStation = EndedByTrain = false; WonByClear = false; _lastSpawnTick = -1;
             if (Spawned.Length != next.Waves.Length) throw new ArgumentException("otro número de oleadas: crea un NightGame nuevo");
             for (int w = 0; w < Spawned.Length; w++) { Spawned[w] = 0; for (int e = 0; e < SpawnedEntry[w].Length; e++) SpawnedEntry[w][e] = 0; }
             return true;

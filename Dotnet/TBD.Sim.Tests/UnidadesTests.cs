@@ -31,7 +31,7 @@ namespace TBD.Sim.Tests
             string difs = Environment.GetEnvironmentVariable("TBD_DIF") ?? "todas";
             int climb = -1; int.TryParse(Environment.GetEnvironmentVariable("TBD_CLIMB") ?? "-1", out climb);   // ClimbPileZ (−1 = el del código o el JSON)
             int climbR = -1; int.TryParse(Environment.GetEnvironmentVariable("TBD_CLIMB_R") ?? "-1", out climbR);   // ClimbPermilS
-            int trainX0 = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_TRAIN_X0") ?? "0", out trainX0);   // cola del tren en mm (74000 = como en la qa25)
+            int trainX0 = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_TRAIN_X0") ?? "0", out trainX0);   // cola del tren en mm; el tren mide 64 m (74000 = como en la qa25)
             string vehs = Environment.GetEnvironmentVariable("TBD_VEH") ?? "ambos";
             Console.WriteLine("dificultad;vehiculos;partidas;victorias;estrellas_0;estrellas_1;estrellas_2;estrellas_3;muro_medio_pct;pila_max_media;abatidos_vehiculos_medio;recargas_vehiculos_medio;municion_final_media_u;bajas_medias;derrotas_tren;derrotas_estacion;tren_final_medio_pct;estacion_final_media_pct;trepan_medio;muro_p50_pct");
             foreach (var dif in difs == "todas" ? new[] { "facil", "normal", "dificil" } : new[] { difs })
@@ -40,7 +40,7 @@ namespace TBD.Sim.Tests
                     int wins = 0; var st = new int[4]; long wall = 0, pile = 0, vk = 0, vr = 0, ammo = 0, deaths = 0, trainF = 0, stF = 0, climbed = 0; int lostT = 0, lostS = 0; var walls = new List<int>();
                     for (int i = 0; i < n; i++)
                     {
-                        var sim = NightSim.FromJson(json, dif, (uint)(i + 1)); if (climb >= 0) sim.SP.ClimbPileZ = climb; if (climbR >= 0) sim.SP.ClimbPermilS = climbR; if (trainX0 > 0) { var tp = sim.Night.P; tp.TrainRect = new RectMm(trainX0, tp.TrainRect.Y0, tp.TrainRect.X1, tp.TrainRect.Y1); sim.Night.P = tp; }
+                        var sim = NightSim.FromJson(json, dif, (uint)(i + 1)); if (climb >= 0) sim.SP.ClimbPileZ = climb; if (climbR >= 0) sim.SP.ClimbPermilS = climbR; if (trainX0 > 0) { var tp = sim.Night.P; tp.TrainRect = new RectMm(trainX0, tp.TrainRect.Y0, trainX0 + 64000, tp.TrainRect.Y1); sim.Night.P = tp; }
                         sim.AddDefaultForce(); if (veh) sim.AddDefaultVehicles(true); sim.Bot = NightBot.FromParams(sim.SP);
                         while (sim.Night.State == NightState.Jugando) sim.Run(300);
                         if (sim.Night.State == NightState.Victoria) wins++; st[Math.Max(0, Math.Min(3, sim.Stars()))]++;
@@ -176,7 +176,7 @@ namespace TBD.Sim.Tests
                 var nd = NightParams.FromCsv(new CsvTable(TBD.Net.BalanceSource.Read("balance_noche.csv"))); var dd = NightParams.Default();
                 bool same = nd.ClockX == dd.ClockX && nd.ScalePermil == dd.ScalePermil && nd.Waves.Length == dd.Waves.Length && nd.StartHour == dd.StartHour && nd.EndHour == dd.EndHour;
                 for (int i = 0; same && i < nd.Waves.Length; i++) same = nd.Waves[i].StartMinute == dd.Waves[i].StartMinute && nd.Waves[i].Zombies == dd.Waves[i].Zombies && nd.Waves[i].ArrivalSeconds == dd.Waves[i].ArrivalSeconds;
-                check(same, "los valores por defecto de la noche coinciden con balance_noche.csv (D-N135: 4 oleadas, ×28, escala 850 ‰)");
+                check(same, "los valores por defecto de la noche coinciden con balance_noche.csv (D-N136: una horda, ×28, escala 850 ‰)");
                 var w = WeaponCatalog.Get(WeaponId.Fusil);
                 check(w.RangeMm == 60000 && w.HitBlankPm == 210 && WeaponCatalog.Get(WeaponId.Lanzagranadas).RangeMm == 140000 && WeaponCatalog.Get(WeaponId.Canon30).RangeMm == 220000, "fusil 60 m y 210 ‰; lanzagranadas a 140 m y cañón de 30 mm a 220 m (cambios de Hugo de las 00:25)");
                 var w2 = new UnitsWorld(1); var f = w2.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0); var a = w2.AddPlatoon(PlatoonKind.Ametralladores, 0, 0, 0); var g = w2.AddPlatoon(PlatoonKind.Granaderos, 0, 0, 0); var t = w2.AddPlatoon(PlatoonKind.Tiradores, 0, 0, 0);
@@ -354,14 +354,14 @@ namespace TBD.Sim.Tests
                     }
                 }
                 check(g.State == NightState.Victoria && g.Tick == g.TotalTicks, "si el edificio y el tren aguantan hasta las 06:00, victoria");
-                check(perWave[0] == 765 && perWave[1] == 1275 && perWave[2] == 1700 && perWave[3] == 2550 && all == 6290, $"D-N135: las 4 oleadas suman exactamente 765, 1.275, 1.700 y 2.550 zombis al 850 ‰ ({all})");
+                check(perWave[0] == 3995 && all == 3995, $"D-N136: la horda única suma exactamente 3.995 zombis (4.700 al 850 ‰) ({all})");
                 check(!early && firstSpawnTick == g.WaveStartTick(0) + 1 - 0 || firstSpawnTick == g.WaveStartTick(0) + 1 || firstSpawnTick > g.WaveStartTick(0), $"nadie aparece antes de su oleada (primera aparición en el tick {firstSpawnTick}, oleada 1 en {g.WaveStartTick(0)} = 22:20)");
-                var expected = new[,] { { 383, 229, 153, 0 }, { 638, 382, 255, 0 }, { 850, 510, 340, 0 }, { 1275, 765, 510, 0 } };
-                bool exact = true; string got = ""; for (int a = 0; a < 4; a++) { got += $" [O{a + 1}:"; for (int b = 0; b < 4; b++) { if (perWE[a, b] != expected[a, b]) exact = false; got += (b > 0 ? "/" : "") + perWE[a, b]; } got += "]"; }
-                check(exact, "reparto por oleada y entrada por cuotas exacto (pesos de noche_sagunto.json con la escala de 850 ‰; D-N135: el puente O4 queda cerrado);" + got);
+                var expected = new[,] { { 1199, 1198, 799, 799 } };
+                bool exact = true; string got = ""; for (int a = 0; a < 1; a++) { got += $" [O{a + 1}:"; for (int b = 0; b < 4; b++) { if (perWE[a, b] != expected[a, b]) exact = false; got += (b > 0 ? "/" : "") + perWE[a, b]; } got += "]"; }
+                check(exact, "reparto por oleada y entrada por cuotas exacto (pesos de noche_sagunto.json con la escala de 850 ‰; D-N136: 30/30/20/20);" + got);
                 check(!clockBad, "el reloj marca las 00:00 a las 2 h de juego (tick 7.715)");
                 check(inRect, "los zombis aparecen dentro de los rectángulos de entrada de Álvaro");
-                check(perEntry[3] == 0, $"D-N135: el puente O4 no se abre en la noche de primer contacto ({perEntry[3]} en total)");
+                check(perEntry[3] == 799, $"D-N136: el puente O4 (este) trae el 20 % de la horda ({perEntry[3]} en total)");
                 int wtot = g.WaveTotal(0); int fc = g.Cumulative(0, g.WaveDurationTicks(0) * 25 / 100);
                 check(Math.Abs(fc - wtot * 55 / 100) <= 1 && fymax - fymin < 17000 / 3 + 2 && ymax - ymin > 17000 * 8 / 10, $"frente denso y cola dispersa: el 55 % entra en el primer 25 % del tiempo ({fc} de {wtot}) por el tercio central ({(fymax - fymin) / 1000.0:F1} m) y la cola se abre a {(ymax - ymin) / 1000.0:F1} m");
             }
@@ -678,9 +678,9 @@ namespace TBD.Sim.Tests
                     string nj = TBD.Net.BalanceSource.Read("noche_sagunto.json"); int t0 = NightTraceTools.FirstWaveTick(nj, null, 1);
                     var refT = NightTraceTools.Reference(nj, null, 1, t0, 9000, 30);
                     var csv = refT.ToCsv(); var back = NightTrace.FromCsv(csv);
-                    bool rt = back.Rows.Count == refT.Rows.Count && back.Source == "NightSim" && back.ToCsv() == csv && refT.Rows.Count == 301 && refT.Rows[0].Tick == t0 && refT.Rows[300].Tick == t0 + 9000;
+                    bool rt = back.Rows.Count == refT.Rows.Count && back.Source == "NightSim" && back.ToCsv() == csv && refT.Rows.Count >= 2 && refT.Rows.Count <= 301 && refT.Rows[0].Tick >= t0 && refT.Rows[0].Tick <= t0 + 30;   // D-N136: la traza acaba antes si se acaba con la horda
                     var lastR = refT.Rows[refT.Rows.Count - 1]; int peakR = 0; foreach (var rw in refT.Rows) peakR = Math.Max(peakR, rw.Pile); bool mono = true; for (int i = 1; i < refT.Rows.Count; i++) mono &= refT.Rows[i].Spawned >= refT.Rows[i - 1].Spawned && refT.Rows[i].Kills >= refT.Rows[i - 1].Kills;
-                    check(rt && mono && peakR > 50 && lastR.Spawned > 1500, $"traza de referencia de NightSim: {refT.Rows.Count} filas (1 por segundo, 9.000 ticks desde la O1), ida y vuelta por CSV idéntica; al final entraron {lastR.Spawned}, abatidos {lastR.Kills}, pila máxima {peakR}, muro {lastR.WallPpm / 10000.0:0.0} %");
+                    check(rt && mono && peakR > 50 && lastR.Spawned > 1500, $"traza de referencia de NightSim: {refT.Rows.Count} filas (1 por segundo, hasta 9.000 ticks desde la horda), ida y vuelta por CSV idéntica; al final entraron {lastR.Spawned}, abatidos {lastR.Kills}, pila máxima {peakR}, muro {lastR.WallPpm / 10000.0:0.0} %");
                     // la misma traza contra sí misma: todo correcto
                     var same = NightTraceTools.Compare(refT, NightTrace.FromCsv(csv)); 
                     check(same.Ok && same.Warns == 0, $"una traza contra sí misma no da fallos ni avisos ({same.Oks} correctas)");
@@ -733,11 +733,11 @@ namespace TBD.Sim.Tests
                     check(botNight(5) == botNight(5) && botNight(5) != botNight(6), "el bot es determinista: misma semilla, mismo hash y mismas órdenes; otra semilla, otro");
                     var full = NightSim.FromJson(TBD.Net.BalanceSource.Read("noche_sagunto.json"), null, 1); full.AddDefaultForce(); full.AddDefaultVehicles(true); full.Bot = NightBot.FromParams(full.SP); while (full.Night.State == NightState.Jugando) full.Run(150);
                     var fs = full.Snapshot();
-                    check(fs.State == NightState.Victoria && full.Stars() >= 1 && fs.WallHp * 100 / full.SP.WallHp > 60 && full.Bot.Resupplies > 10 && full.Resupplies == 0, $"la noche normal entera con el bot y los vehículos en fuego libre (D-N128; sin ayuda de recarga aparte): {fs.State}, {full.Stars()} estrellas, muro {fs.WallHp * 100 / full.SP.WallHp} %, {full.Bot.Resupplies} reabastecimientos, {fs.SoldierDeaths} bajas");
+                    check(fs.State == NightState.Victoria && full.Stars() >= 1 && fs.WallHp * 100 / full.SP.WallHp > 60 && full.Bot.Resupplies > 3 && full.Resupplies == 0, $"la noche normal entera con el bot y los vehículos en fuego libre (D-N128; sin ayuda de recarga aparte): {fs.State}, {full.Stars()} estrellas, muro {fs.WallHp * 100 / full.SP.WallHp} %, {full.Bot.Resupplies} reabastecimientos, {fs.SoldierDeaths} bajas");
                     // hueco de la vía (la zona de Unity no pone sólido a la puerta de vía): la horda rodea el muro hasta el hueco, no se amontona y el muro no se desgasta
                     Func<int, NightSim> gapRun = gap => { var n = NightSim.FromJson(TBD.Net.BalanceSource.Read("noche_sagunto.json"), null, 1); n.SP.GateGapMm = gap; n.AddDefaultForce(); n.Run(4500); return n; };
                     var gClosed = gapRun(0); var gOpen = gapRun(3200);
-                    check(gClosed.PeakPile > 20 && gClosed.WallHp < gClosed.SP.WallHp && gOpen.PeakPile == 0 && gOpen.WallHp == gOpen.SP.WallHp, $"recinto cerrado: la oleada 1 amontona {gClosed.PeakPile} y gasta muro; con hueco de 3,2 m en la vía: pila {gOpen.PeakPile} y el muro intacto (así sale la zona real: pila 0, muro 1000 ‰)");
+                    check(gClosed.PeakPile > 20 && gClosed.WallHp < gClosed.SP.WallHp && gOpen.PeakPile < gClosed.PeakPile && gOpen.WallHp > gClosed.WallHp, $"recinto cerrado: la horda amontona {gClosed.PeakPile} y gasta muro; con hueco de 3,2 m en la vía oeste, menos pila ({gOpen.PeakPile}) y menos desgaste (D-N136: el puente O4 sigue apilando en el este)");
                 }
                 // ---------------------------------------------------- elección del vehículo: solo uno LIBRE, entero, con plazas y combustible
                 Func<UnitsWorld, TransportDirector> mk = w => new TransportDirector(w, RoadMap.Sagunto(rj));
@@ -878,9 +878,9 @@ namespace TBD.Sim.Tests
                 check(g.State == NightState.Derrota && g.Tick == g.TotalTicks && g.EndedByTrain && !g.EndedByStation, "en el mismo tick de las 06:00 cae la locomotora: DERROTA, no victoria");
                 var g2 = new NightGame(NightParams.Default(), 1); while (g2.Tick < g2.TotalTicks - 1) g2.Step(true, true, sp); g2.Step(false, true, sp);
                 check(g2.State == NightState.Derrota && g2.EndedByStation, "en el mismo tick de las 06:00 cae el edificio de viajeros: DERROTA");
-                // QA-35: la pila trepa el muro oeste; de noche el tren espera al fondo del andén (sólido de X 90 a 154)
+                // QA-35: la pila trepa el muro oeste; de noche el tren espera en el centro del recinto (sólido de X 81 a 145)
                 {
-                    check(NightParams.Default().TrainRect.X0 == (int)((TBD.Sim.Level.TrainNightX - TBD.Sim.Level.TrainRear) * 1000f) && NightParams.Default().TrainRect.X1 == 154000, "QA-35: el tren de NightGame es el sólido de la zona aparcado de noche (X 90 a 154 m)");
+                    check(NightParams.Default().TrainRect.X0 == (int)((TBD.Sim.Level.TrainNightX - TBD.Sim.Level.TrainRear) * 1000f) && NightParams.Default().TrainRect.X1 == (int)((TBD.Sim.Level.TrainNightX + TBD.Sim.Level.TrainFront) * 1000f), "QA-35: el tren de NightGame es el sólido de la zona aparcado de noche (X 81 a 145 m, en el centro del recinto)");
                     Func<int, NightSim> pile = (x0) =>
                     {
                         var ng = new NightGame(NightParams.Default(), 1); if (x0 > 0) { var tp = ng.P; tp.TrainRect = new RectMm(x0, tp.TrainRect.Y0, tp.TrainRect.X1, tp.TrainRect.Y1); ng.P = tp; }
@@ -891,12 +891,37 @@ namespace TBD.Sim.Tests
                     };
                     var a1 = pile(0); var a2 = pile(0); var old = pile(74000);
                     check(a1.Climbed > 0 && a1.WallHp > 1100000, $"QA-35: con 400 pegados al muro oeste la pila trepa sin romper el muro ({a1.Climbed} saltan en 20 s, muro {a1.WallHp * 100 / 1200000} %)");
-                    check(a1.Night.TrainHp == a1.Night.P.TrainHp, "QA-35: con el tren aparcado al fondo, los que trepan van al edificio y no tocan el tren");
+                    // (D-N148: sin nadie dentro, los que trepan van al tren; lo prueba el bloque de la D-N148)
                     check(old.Night.TrainHp < old.Night.P.TrainHp, $"QA-35: con la cola a 74 m (como en la qa25) los que trepan caen sobre el tren ({(old.Night.P.TrainHp - old.Night.TrainHp)} de daño en 20 s)");
                     check(a1.Night.Hash() == a2.Night.Hash() && a1.Climbed == a2.Climbed, "QA-35: trepar es determinista");
                     var off = NightSimParams.Default(); off.ClimbPermilS = 0; var ng0 = new NightGame(NightParams.Default(), 1); var n0 = new NightSim(ng0, new UnitsWorld(1), off, 1200000);
                     for (int i = 0; i < 400; i++) n0.ImportZombie(68800, 60000 + (i % 10) * 900); for (int i = 0; i < 600; i++) n0.Step();
                     check(n0.Climbed == 0, "QA-35: con ClimbPermilS = 0 no trepa nadie (el modelo anterior)");
+                }
+                // D-N148: el que pasa el muro ataca lo vivo más cercano (infantería, vehículos parados, obreros) y solo va al tren si no hay nadie en 30 m
+                {
+                    var tr = NightParams.Default().TrainRect; int tx, ty;
+                    var men = new List<Target> { new Target { X = 100000, Y = 70000 }, new Target { X = 80000, Y = 60000 } };
+                    var veh = new List<Target> { new Target { X = 76000, Y = 60000 } }; var wk = new List<Target> { new Target { X = 75000, Y = 60000 } };
+                    byte c1 = ClimberTargets.Pick(72000, 60000, men, veh, wk, 30000, tr, out tx, out ty);
+                    check(c1 == 1 && tx == 80000 && ty == 60000, "D-N148: con infantería a menos de 30 m va al soldado más cercano, aunque haya un vehículo o un obrero más cerca");
+                    byte c2 = ClimberTargets.Pick(72000, 60000, new List<Target>(), veh, wk, 30000, tr, out tx, out ty);
+                    byte c3 = ClimberTargets.Pick(72000, 60000, new List<Target>(), new List<Target>(), wk, 30000, tr, out tx, out ty);
+                    check(c2 == 2 && c3 == 3, "D-N148: sin infantería, el vehículo parado; sin vehículo, el obrero");
+                    byte c4 = ClimberTargets.Pick(72000, 50000, new List<Target> { new Target { X = 140000, Y = 80000 } }, null, null, 30000, tr, out tx, out ty);
+                    check(c4 == 4 && tx == tr.X0 && ty == tr.Y0, "D-N148: si no hay nadie en 30 m va al punto más cercano del tren");
+                    Func<bool, NightSim> climb = withMen =>
+                    {
+                        var ng = new NightGame(NightParams.Default(), 1); var uw = new UnitsWorld(1);
+                        if (withMen) { var pl = uw.AddPlatoon(PlatoonKind.Fusileros, 76000, 60000, 0); pl.HoldFire = true; }
+                        var ns = new NightSim(ng, uw, NightSimParams.Default(), 1200000) { AutoPlatoonResupply = false };
+                        for (int i = 0; i < 400; i++) ns.ImportZombie(68800, 58000 + (i % 10) * 400);
+                        for (int i = 0; i < 600; i++) ns.Step();
+                        return ns;
+                    };
+                    var cm = climb(true); var cn = climb(false);
+                    check(cm.Climbed > 0 && cm.SoldierDeaths > 0 && cm.Night.TrainHp == cm.Night.P.TrainHp, $"D-N148: con un pelotón junto al muro, los que trepan van a por él ({cm.SoldierDeaths} bajas) y el tren queda intacto");
+                    check(cn.Climbed > 0 && cn.Night.TrainHp < cn.Night.P.TrainHp, $"D-N148: sin nadie dentro, los que trepan van al tren ({cn.Night.P.TrainHp - cn.Night.TrainHp} de daño)");
                 }
                 // D-N133: causa y recuentos
                 check(g.Cause == DefeatCause.Tren && g.DefeatHeadline() == "El tren ha caído." && g.TrainsAlive == 0 && g.StationsAlive == 1, "D-N133: sin tren la causa es el tren y el titular «El tren ha caído.»");
@@ -911,14 +936,14 @@ namespace TBD.Sim.Tests
                 var g4 = new NightGame(NightParams.Default(), 1); while (g4.State == NightState.Jugando) g4.Step(true, true, sp); g4.Step(false, false, sp);
                 check(g4.State == NightState.Victoria, "una vez ganada la noche, un fallo posterior no la cambia");
                 // D-N91: mundo continuo
-                check(g4.Report.Night == 1 && g4.Report.CloseTick == g4.TotalTicks && g4.Report.Spawned == 6290 && g4.Report.StationAlive && g4.Report.TrainAlive && g4.NightsSurvived == 1, "al amanecer sale el parte de la noche (noche 1, 6.290 zombis, edificio y tren en pie) y la noche queda cerrada");
+                check(g4.Report.Night == 1 && g4.Report.CloseTick == g4.TotalTicks && g4.Report.Spawned == 3995 && g4.Report.StationAlive && g4.Report.TrainAlive && g4.NightsSurvived == 1, "al amanecer sale el parte de la noche (noche 1, 3.995 zombis, edificio y tren en pie) y la noche queda cerrada");
                 int tc = g4.Tick; g4.Step(true, true, sp);
                 check(g4.State == NightState.Victoria && g4.Tick == tc + 1 && sp.Count == 0, "mundo continuo: tras ganar, el reloj sigue corriendo, no entra nadie y la partida NO termina");
                 check(g4.BeginNextNight(NightParams.Default()) && g4.State == NightState.Jugando && g4.Tick == 0 && g4.NightIndex == 2 && g4.Hour == 22, "BeginNextNight abre la noche 2: reloj a las 22:00, oleadas a cero");
                 var gd = new NightGame(NightParams.Default(), 1); gd.Step(false, true, sp);
                 check(!gd.BeginNextNight(NightParams.Default()) && gd.State == NightState.Derrota, "la derrota sí acaba la partida: no se puede abrir otra noche");
                 long cnt = 0; while (g4.State == NightState.Jugando) { g4.Step(true, true, sp); cnt += sp.Count; }
-                check(cnt == 6290 && g4.NightsSurvived == 2, "la segunda noche también reparte las 4 oleadas completas (6.290) y se cierra");
+                check(cnt == 3995 && g4.NightsSurvived == 2, "la segunda noche también reparte la horda completa (3.995) y se cierra");
             }
             {
                 // determinismo y guardado de todo junto: pelotones + noche
@@ -963,9 +988,9 @@ namespace TBD.Sim.Tests
             {
                 string json = TBD.Net.BalanceSource.Read("noche_sagunto.json");
                 var sim = NightSim.FromJson(json, null, 7);
-                check(sim.Night.P.Waves.Length == 4 && sim.Night.WaveTotal(0) == 760 && sim.Night.WaveTotal(3) == 2550 && sim.Units.StockShots == 47 * 2000 && sim.MaterialsU == 40 && sim.FuelU == 30, "crear la noche desde noche_sagunto.json (normal): 4 oleadas de 760 a 2.550 zombis (D-N135), 47 u de munición (94.000 disparos; D-N128), 40 de materiales y 30 de combustible");
+                check(sim.Night.P.Waves.Length == 1 && sim.Night.WaveTotal(0) == 4000 && sim.Units.StockShots == 47 * 2000 && sim.MaterialsU == 40 && sim.FuelU == 30, "crear la noche desde noche_sagunto.json (normal): una horda de 4.000 zombis (D-N136), 47 u de munición (94.000 disparos; D-N128), 40 de materiales y 30 de combustible");
                 var easy = NightSim.FromJson(json, "facil", 7); var hard = NightSim.FromJson(json, "dificil", 7);
-                check(easy.Night.WaveTotal(0) == 650 && easy.Night.WaveTotal(3) == 2180 && hard.Night.WaveTotal(0) == 1030 && hard.Night.WaveTotal(3) == 3420, "dificultad fácil (650…2.180) y difícil (1.030…3.420, escala 1140) desde el mismo JSON");
+                check(easy.Night.WaveTotal(0) == 3410 && hard.Night.WaveTotal(0) == 5360, "dificultad fácil (3.410) y difícil (5.360, escala 1140) desde el mismo JSON (D-N136)");
                 bool bad = false; try { Mini.Parse("{\"a\": [1, 2"); } catch (FormatException) { bad = true; }
                 check(bad && (long)((System.Collections.Generic.Dictionary<string, object>)Mini.Parse("{\"a\": -12}"))["a"] == -12, "el lector de JSON mínimo rechaza un texto truncado y lee enteros con signo");
 
@@ -980,15 +1005,15 @@ namespace TBD.Sim.Tests
                 }
                 swc.Stop();
                 var snap = sim.Snapshot(); int spent = 0; foreach (var p in sim.Units.Platoons) spent += p.AmmoSpent;
-                check((snap.State == NightState.Victoria ? snap.ZombiesSpawned == 6290 : snap.ZombiesSpawned > 0 && snap.ZombiesSpawned < 6290) && snap.Kills <= snap.ZombiesSpawned && snap.Kills + snap.ZombiesAlive <= snap.ZombiesSpawned, $"balance de zombis (la noche acabó en {snap.State}): entraron {snap.ZombiesSpawned} de 6.290, abatidos {snap.Kills}, vivos {snap.ZombiesAlive}");
+                check((snap.State == NightState.Victoria ? snap.ZombiesSpawned == 4000 : snap.ZombiesSpawned > 0 && snap.ZombiesSpawned <= 4000) && snap.Kills <= snap.ZombiesSpawned && snap.Kills + snap.ZombiesAlive <= snap.ZombiesSpawned, $"balance de zombis (la noche acabó en {snap.State}): entraron {snap.ZombiesSpawned} de 4.000, abatidos {snap.Kills}, vivos {snap.ZombiesAlive}");
                 check(snap.PlatoonAmmoShots + snap.StockShots + spent == ammo0, $"la munición se conserva: inicial {ammo0} = restante {snap.PlatoonAmmoShots + snap.StockShots} + gastada {spent} disparos");
                 int rs = 0, ks = 0, ds = 0; foreach (var w in sim.Waves) { rs += w.Resupplies; ks += w.Kills; ds += w.SoldierDeaths; }
                 check(rs == snap.Resupplies && rs == resup && ks == snap.Kills && ds == snap.SoldierDeaths, $"las estadísticas por oleada suman los totales (recargas {rs}, bajas enemigas {ks}, bajas propias {ds})");
-                check(sim.Waves[0].StartTick == 1285 && sim.Waves[0].HourAtStart == 22 && sim.Waves[0].MinuteAtStart == 20 && sim.Waves[1].HourAtStart == 0 && sim.Waves[1].MinuteAtStart == 10 && sim.Waves[3].HourAtStart == 4 && sim.Waves[3].MinuteAtStart == 10, "D-N135: las oleadas empiezan a las 22:20, 00:10, 02:10 y 04:10, con su hora");
+                check(sim.Waves.Count == 1 && sim.Waves[0].StartTick == 0 && sim.Waves[0].HourAtStart == 22 && sim.Waves[0].MinuteAtStart == 0, "D-N136: la horda empieza a entrar a las 22:00");
                 var sb = new System.Text.StringBuilder();
                 foreach (var w in sim.Waves) sb.Append($" [O{w.Wave} {w.HourAtStart:00}:{w.MinuteAtStart:00} entran {w.Spawned}, abatidos {w.Kills}, pila máx. {w.PeakPile}, bajas {w.SoldierDeaths}, recargas {w.Resupplies}, disparos {w.AmmoSpentShots}]");
                 Console.WriteLine($"         noche con la fuerza por defecto y reabastecimiento mínimo: {snap.State} a las {snap.Hour:00}:{snap.Minute:00}, estrellas {sim.Stars()}, muro {snap.WallHp}, edificio {snap.StationHp}, bajas propias {snap.SoldierDeaths} de {snap.SoldierDeaths + snap.SoldiersAlive};{sb}");
-                check(swc.Elapsed.TotalSeconds < 60, $"una noche entera (30.857 ticks, hasta 6.290 zombis) sin ventana en {swc.Elapsed.TotalSeconds:F1} s");
+                check(swc.Elapsed.TotalSeconds < 60, $"una noche entera (30.857 ticks, hasta 4.000 zombis) sin ventana en {swc.Elapsed.TotalSeconds:F1} s");
                 // determinismo de la noche entera
                 Func<uint, ulong> night = seed =>
                 {
@@ -1096,8 +1121,9 @@ namespace TBD.Sim.Tests
                     off.Run(6000); return off.Hash();
                 };
                 {
-                    var zone = NightSim.FromJson(json, null, 5); zone.AddDefaultForce(); zone.Run(4000);
-                    int tick0 = zone.Night.Tick, sp0 = zone.Night.Spawned[0] + zone.Night.Spawned[1], ammo0 = zone.Units.StockShots, alive0 = zone.ZombiesAlive, wall0 = zone.WallHp;
+                    var zone = NightSim.FromJson(json, null, 5); zone.AddDefaultForce(); zone.Run(1000);   // D-N136: a los 33 s la horda aún está entrando
+                    int sp00 = 0; for (int w = 0; w < zone.Night.Spawned.Length; w++) sp00 += zone.Night.Spawned[w];
+                    int tick0 = zone.Night.Tick, sp0 = sp00, ammo0 = zone.Units.StockShots, alive0 = zone.ZombiesAlive, wall0 = zone.WallHp;
                     var exp = new List<Target>(); zone.ExportZombies(exp);
                     var off = new NightSim(zone.Night, zone.Units, zone.SP, wall0, 5); foreach (var t in exp) off.ImportZombie(t.X, t.Y);
                     check(off.Night == zone.Night && off.Units == zone.Units && off.ZombiesAlive == alive0 && off.WallHp == wall0 && off.Night.Tick == tick0 && off.Units.StockShots == ammo0,

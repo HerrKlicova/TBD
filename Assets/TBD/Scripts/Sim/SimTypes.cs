@@ -361,9 +361,10 @@ namespace TBD.Sim
         public const float GateY0 = 62f, GateY1 = 67f;
         public const float RoofX0 = 40f, RoofX1 = 51f, RoofY0 = 30f, RoofY1 = 51f;
         public const float TrainMinX = 135f, TrainMaxX = 151.5f;       // el tren cabe entero dentro del fuerte (muros en X = 70 y 101): cola en 73,5 y locomotora en 93,5 (parado en el andén)
-        /// <summary>QA-35 (Nacho, 7-nov): de noche el tren espera al fondo del andén (sólido de X 90 a 154), a 20 m del muro oeste. Parado en TrainMinX su cola quedaba a 3,5 m
-        /// del muro oeste, justo donde se apila la entrada O1 (vía, la mitad de la horda): los que trepan la pila caían encima del tren con el muro casi entero.</summary>
-        public const float TrainNightX = TrainMaxX;
+        /// <summary>QA-35 y D-N136 (Nacho, 7-nov): de noche el tren espera en el centro del recinto (sólido de X 81 a 145), a 11 m de los muros oeste y este. Parado en TrainMinX
+        /// su cola quedaba a 3,5 m del muro oeste, donde se apila la entrada O1, y al fondo del andén su frente quedaba a 2 m del muro este, donde llega el puente O4:
+        /// los que trepan la pila caían encima del tren con el muro casi entero.</summary>
+        public const float TrainNightX = 142.5f;
         public const byte GateId = 1;
         public const byte TrainId = 2;                    // D-N27: el tren parado es un muro móvil
         public const float TrainRear = 61.5f, TrainFront = 2.5f, TrainHalf = 1.0f, TrainH = 2.2f;

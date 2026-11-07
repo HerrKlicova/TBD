@@ -161,14 +161,7 @@ namespace TBD.View
             }
             if (_ng.State == NightState.Derrota && !_endDismissed) return;            // derrota: el mundo se para
             _spawns.Clear();
-            { var st0 = _ng.State; _ng.Attack(_pileNearStation, _nearTrain); _ng.Step(_spawns); if (st0 == NightState.Jugando && _ng.State != NightState.Jugando) NightEnded(); if (_ng.State == NightState.Derrota) return; }
-            // D-N136: una sola horda al entrar; la noche se gana al acabar con ella (sin esperar al amanecer)
-            if (_ng.State == NightState.Jugando && _ng.P.Waves.Length == 1 && _ng.Tick > _ng.WaveStartTick(0) + 450 && _spawnedTotal >= _ng.WaveTotal(0) && _total == 0)
-            {
-                _ng.State = NightState.Victoria; _ng.NightsSurvived++;
-                _ng.Report = new NightReport { Night = _ng.NightIndex, CloseTick = _ng.Tick, Spawned = _spawnedTotal, StationAlive = _ng.StationHp > 0, TrainAlive = _ng.TrainHp > 0, IntegrityPermil = _ng.IntegrityPermil, WallPermil = _ng.WallPermil };
-                NightEnded();
-            }
+            { var st0 = _ng.State; _ng.Attack(_pileNearStation, _nearTrain); _ng.ZombiesAlive = _zomCounted ? _zomPos.Count : -1; _ng.Step(_spawns); if (st0 == NightState.Jugando && _ng.State != NightState.Jugando) NightEnded(); if (_ng.State == NightState.Derrota) return; }   // D-N136: NightGame gana al acabar con la horda (WinOnClear, misma regla que NightSim)
             playing = _ng.State == NightState.Jugando;
 
             // oleadas: líneas de registro y rótulo
@@ -205,6 +198,7 @@ namespace TBD.View
                     if (near) _tgt.Add(new Target { Id = (int)z.SimId, X = (int)(z.Pos.x * 1000f), Y = (int)(z.Pos.z * 1000f) });
                 }
                 zs.Dispose();
+                _zomCounted = true;   // D-N136 (Nacho): _zomPos ya es la cuenta de vivos de ECS; NightGame gana al llegar a 0 con toda la horda dentro
                 _allT.Clear(); for (int i = 0; i < _zomPos.Count; i++) _allT.Add(new Target { Id = (int)_zomId[i], X = (int)(_zomPos[i].x * 1000f), Y = (int)(_zomPos[i].y * 1000f) });
                 _ng.CountAttackers(_allT, out _pileNearStation, out _nearTrain);
                 if ((_nearTrain > 0 || _pileNearStation > 0) && _diagN < 6 && Time.unscaledTime - _diagT > 2f)
@@ -267,6 +261,7 @@ namespace TBD.View
             }
             return false;
         }
+        bool _zomCounted;
         readonly System.Text.StringBuilder _fullTrace = new System.Text.StringBuilder(); float _gateT = -10f; readonly HashSet<int> _gateWalled = new HashSet<int>(); bool _capDirDone; readonly HashSet<float> _shotAtDone = new HashSet<float>(); int _diagN; float _diagT; float _endStationF = 1f, _endTrainF = 1f; int _pileNearStation, _nearTrain, _pileWall; float _wallHp, _wallMax; readonly List<Target> _allT = new List<Target>(); readonly ContactResult _contact = new ContactResult(); readonly float _contactR2 = 1200f * 1200f; readonly int _contactPpm = 1000000 * 14 / 1000 / 30;   // NightSimParams de Nacho: 1,2 m y 14 ‰ por zombi y segundo (por tick)
 
         int CurrentWave()
@@ -324,7 +319,7 @@ namespace TBD.View
             int stars = _ng.P.Stars.Stars(_ng.State, integ, wallP, _nightLost, (int)(shots * 1000 / WeaponCatalog.ShotsPerU), false);
             _endStars = stars;
             Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} estrellas={stars} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 recargas={_resupplies} desync={_desync} hora_fin={TimeStr()}");
-            _endReason = win ? "06:00. Amanece en Sagunto.\nLa estación resiste." : _ng.DefeatHeadline();
+            _endReason = win ? (_ng.WonByClear ? $"{TimeStr()}. Sagunto resiste.\nLa horda ha caído." : "06:00. Amanece en Sagunto.\nLa estación resiste.") : _ng.DefeatHeadline();   // D-N136/D-N146
         }
         int _endStars; bool _endDismissed, _reportClosed;
 

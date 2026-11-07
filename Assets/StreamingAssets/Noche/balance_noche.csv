@@ -12,16 +12,7 @@ noche_estacion_danio_zombi_s;20;1;por zombi pegado y segundo real
 noche_tren_danio_zombi_s;20;1;por zombi pegado y segundo real
 noche_contacto_mm;900;1;Nacho a210bd3, pendiente de la medición de Sara
 noche_contacto_danio_tick;2;1;soldado de 100 de vida, pendiente de la medición de Sara
-noche_oleadas;4;1;D-N135: todas desde el borde oeste, repartidas a lo ancho
-noche_oleada1_minuto;20;1;minutos de juego desde las 22:00 (22:20)
-noche_oleada1_zombis;900;1;
-noche_oleada1_llegada_s;30;1;segundos REALES en los que entra la oleada
-noche_oleada2_minuto;130;1;minutos de juego desde las 22:00 (00:10)
-noche_oleada2_zombis;1500;1;
-noche_oleada2_llegada_s;45;1;segundos REALES en los que entra la oleada
-noche_oleada3_minuto;250;1;minutos de juego desde las 22:00 (02:10)
-noche_oleada3_zombis;2000;1;
-noche_oleada3_llegada_s;60;1;segundos REALES en los que entra la oleada
-noche_oleada4_minuto;370;1;minutos de juego desde las 22:00 (04:10)
-noche_oleada4_zombis;3000;1;
-noche_oleada4_llegada_s;70;1;segundos REALES en los que entra la oleada
+noche_oleadas;1;1;D-N136: una sola horda desde el borde oeste, repartida a lo ancho; entra durante 180 s
+noche_oleada1_minuto;0;1;minutos de juego desde las 22:00 (22:00)
+noche_oleada1_zombis;4700;1;
+noche_oleada1_llegada_s;180;1;segundos REALES en los que entra la oleada

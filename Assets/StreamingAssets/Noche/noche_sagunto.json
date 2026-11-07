@@ -43,162 +43,45 @@
     "facil": [
       {
         "n": 1,
-        "hora": "22:20",
-        "minuto_juego": 20,
-        "llegada_s_reales": 30,
-        "total": 650,
+        "hora": "22:00",
+        "minuto_juego": 0,
+        "llegada_s_reales": 180,
+        "total": 3410,
         "por_entrada": {
-          "O1": 325,
-          "O2": 195,
-          "O3": 130,
-          "O4": 0
-        }
-      },
-      {
-        "n": 2,
-        "hora": "00:10",
-        "minuto_juego": 130,
-        "llegada_s_reales": 45,
-        "total": 1090,
-        "por_entrada": {
-          "O1": 545,
-          "O2": 327,
-          "O3": 218,
-          "O4": 0
-        }
-      },
-      {
-        "n": 3,
-        "hora": "02:10",
-        "minuto_juego": 250,
-        "llegada_s_reales": 60,
-        "total": 1450,
-        "por_entrada": {
-          "O1": 725,
-          "O2": 435,
-          "O3": 290,
-          "O4": 0
-        }
-      },
-      {
-        "n": 4,
-        "hora": "04:10",
-        "minuto_juego": 370,
-        "llegada_s_reales": 70,
-        "total": 2180,
-        "por_entrada": {
-          "O1": 1090,
-          "O2": 654,
-          "O3": 436,
-          "O4": 0
+          "O1": 1023,
+          "O2": 1023,
+          "O3": 682,
+          "O4": 682
         }
       }
     ],
     "normal": [
       {
         "n": 1,
-        "hora": "22:20",
-        "minuto_juego": 20,
-        "llegada_s_reales": 30,
-        "total": 760,
+        "hora": "22:00",
+        "minuto_juego": 0,
+        "llegada_s_reales": 180,
+        "total": 4000,
         "por_entrada": {
-          "O1": 380,
-          "O2": 228,
-          "O3": 152,
-          "O4": 0
-        }
-      },
-      {
-        "n": 2,
-        "hora": "00:10",
-        "minuto_juego": 130,
-        "llegada_s_reales": 45,
-        "total": 1280,
-        "por_entrada": {
-          "O1": 640,
-          "O2": 384,
-          "O3": 256,
-          "O4": 0
-        }
-      },
-      {
-        "n": 3,
-        "hora": "02:10",
-        "minuto_juego": 250,
-        "llegada_s_reales": 60,
-        "total": 1700,
-        "por_entrada": {
-          "O1": 850,
-          "O2": 510,
-          "O3": 340,
-          "O4": 0
-        }
-      },
-      {
-        "n": 4,
-        "hora": "04:10",
-        "minuto_juego": 370,
-        "llegada_s_reales": 70,
-        "total": 2550,
-        "por_entrada": {
-          "O1": 1275,
-          "O2": 765,
-          "O3": 510,
-          "O4": 0
+          "O1": 1200,
+          "O2": 1200,
+          "O3": 800,
+          "O4": 800
         }
       }
     ],
     "dificil": [
       {
         "n": 1,
-        "hora": "22:20",
-        "minuto_juego": 20,
-        "llegada_s_reales": 30,
-        "total": 1030,
+        "hora": "22:00",
+        "minuto_juego": 0,
+        "llegada_s_reales": 180,
+        "total": 5360,
         "por_entrada": {
-          "O1": 515,
-          "O2": 309,
-          "O3": 206,
-          "O4": 0
-        }
-      },
-      {
-        "n": 2,
-        "hora": "00:10",
-        "minuto_juego": 130,
-        "llegada_s_reales": 45,
-        "total": 1710,
-        "por_entrada": {
-          "O1": 855,
-          "O2": 513,
-          "O3": 342,
-          "O4": 0
-        }
-      },
-      {
-        "n": 3,
-        "hora": "02:10",
-        "minuto_juego": 250,
-        "llegada_s_reales": 60,
-        "total": 2280,
-        "por_entrada": {
-          "O1": 1140,
-          "O2": 684,
-          "O3": 456,
-          "O4": 0
-        }
-      },
-      {
-        "n": 4,
-        "hora": "04:10",
-        "minuto_juego": 370,
-        "llegada_s_reales": 70,
-        "total": 3420,
-        "por_entrada": {
-          "O1": 1710,
-          "O2": 1026,
-          "O3": 684,
-          "O4": 0
+          "O1": 1608,
+          "O2": 1608,
+          "O3": 1072,
+          "O4": 1072
         }
       }
     ]
