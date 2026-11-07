@@ -63,8 +63,10 @@ def _techo(m, z, fino, pieza="casco", medio=False):
                 continue
             m.caja((sx * (A / 2 - 0.12), sy * (A / 2 - 0.12), z + 1.05), (0.1 if fino else 0.2,) * 2 + (2.1,), "metal")
     if medio:   # media chapa arrancada, colgando hacia +X
-        m.caja((-A / 4, 0, z + 2.18), (A / 2 + 0.3, A + 0.4, 0.08), pieza, rot_x=R(-6))
-        m.caja((A / 2 + 0.25, 0.2, z + 1.5), (0.08, A, 1.4), pieza, rot_y=R(-15))
+        # la mitad que queda, apoyada en los postes -X (sin inclinar, para que no levite); la otra, colgando del
+        # poste de la esquina (+X, +Y) hacia abajo (Lucía 09:17)
+        m.caja((-A / 4 + 0.1, 0, z + 2.14), (A / 2 + 0.3, A + 0.4, 0.08), pieza)
+        m.caja((A / 2 - 0.05, A / 2 - 0.12 - 0.75, z + 1.45), (0.08, 1.6, 1.4), pieza, rot_x=R(20), rot_y=R(-12))
     else:
         m.caja((0, 0, z + 2.18), (A + 0.5, A + 0.5, 0.08), pieza, rot_x=R(-6))   # cae hacia atrás (+Y)
 
