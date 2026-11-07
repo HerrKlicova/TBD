@@ -7,7 +7,7 @@ nivel: esos canales están en la marjal). La caseta es un cubo de hormigón con 
 apoya en una plataforma (tajamar) que entra en el canal, y de ella sale la pasarela de las compuertas que cruza el cauce.
 En el juego es uno de los dos cuellos de botella del sur: por la pasarela se cruza el canal.
 Pieza: un tramo de 12 m del canal (muros y agua) con la caseta, para que se pueda poner tal cual sobre la franja del canal
-de Álvaro (Z 14-21, caseta en X 196-204). Canal de 7 m a lo largo de X, muros con la coronación a z = 0 (el suelo de la
+de Álvaro (Z 14-21; centro en (200; 0; 17,5) con yaw 0 y la caseta en la orilla norte, que en Unity es +Z). Canal de 7 m a lo largo de X, muros con la coronación a z = 0 (el suelo de la
 huerta) y agua a -1,2 m. Caseta de 3,6 x 3,6 m y 4,2 m de alto. Medidas SIN VERIFICAR (estimadas sobre las fotos).
 Colores: hormigón 94948c con manchas de humedad 88885c, compuertas y barandilla 605c48 (48403c en el LOD0 para la
 barandilla), ventana 48403c (605c48 en el LOD1), agua 605c48 (el verde turbio de la foto), sacos b4a080.
@@ -20,6 +20,7 @@ Variantes (TBD_VARIANTE % 5):
 """
 import math
 import os
+from mathutils import Matrix
 from taller import Taller
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0) % 5
@@ -83,7 +84,7 @@ def construir(nombre="SM_CasetaCompuertas", lod=0):
         t.caja((xg, y, ZA / 2 + 0.1), (1.0, 0.5, -ZA + 0.5), "hormigon", cuña=None)
     an = 1.4 if lod == 0 else 2.0       # LOD1: tablero más ancho, para que se lea como una banda clara
     t.caja((xg, 0, 0.15), (an, AC + 0.98, 0.3), "hormigon")                          # tablero (apoya en los muros)
-    for s in (-1, 1):
+    for s in ((-1, 1) if lod == 0 else (1,)):   # LOD1: sin la barandilla del lado de las compuertas (Lucía 08:51)
         x = xg + s * (an / 2 - 0.04)
         if roto and s == 1:   # barandilla caída: un tramo colgando hacia el agua
             t.caja((x + 0.3, -1.0, -0.1), (g, 3.0, g), "barandilla", rot_x=R(10), rot_y=R(-60))
@@ -120,4 +121,8 @@ def construir(nombre="SM_CasetaCompuertas", lod=0):
             t.caja((x, y, 0.84), (dx - 0.15, dy - 0.05, 0.32), "saco")
     # manchas de humedad en la caseta (LOD0)
     fino.caja((xc + 0.9, yc - CY / 2 - 0.02, 3.9), (0.9, 0.04, 0.5), "humedad")
-    return t.objeto(nombre, bisel=0)
+    o = t.objeto(nombre, bisel=0)
+    # girada 180°: la caseta queda en -Y de Blender = +Z de Unity, la orilla norte del plano de Álvaro (Z crece hacia el
+    # norte), para que vaya con yaw 0 en (200; 0; 17,5) (nules-nivel.md §0c)
+    o.data.transform(Matrix.Rotation(math.pi, 4, "Z"))
+    return o
