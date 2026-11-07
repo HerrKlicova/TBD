@@ -26,6 +26,7 @@
     <Compile Include="PerfGate.cs" />
     <Compile Include="EstacionesTests.cs" />
     <Compile Include="ProduccionTests.cs" />
+    <Compile Include="EstacionDatoTests.cs" />
     <Compile Include="HorarioTests.cs" />
     <Compile Include="TallerTests.cs" />
     <Compile Include="DisparoIndiceTests.cs" />
@@ -40,6 +41,7 @@
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Obras.cs" Link="Net\Obras.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Estaciones.cs" Link="Net\Estaciones.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Produccion.cs" Link="Net\Produccion.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Net\EstacionDato.cs" Link="Net\EstacionDato.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Taller.cs" Link="Net\Taller.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Guardado.cs" Link="Net\Guardado.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Units\IMath.cs" Link="Units\IMath.cs" />

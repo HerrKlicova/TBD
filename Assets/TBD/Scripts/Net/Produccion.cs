@@ -7,11 +7,12 @@ namespace TBD.Net
     // red-estaciones-aviso.md §4). Lógica pura en enteros, sin Unity. Va dentro del hash (existencias) y del guardado (NetVersion 2).
     //
     // Reglas (de sim_economia.py, «2) PRODUCCIÓN»):
-    //  - Produce cada nodo con gente (personas > 0) que no esté perdido, una vez al día a medianoche, lo de balance_nodos.csv (prod_*).
+    //  - Produce cada nodo con gente (personas > 0) que no esté perdido lo de balance_nodos.csv (prod_*), en un pulso por hora de juego
+    //    (tick % 1500 == 0, prod × factor / 24; decisión de Mak del 7-nov a petición de Hugo, para que el almacén se llene a lo largo del día).
     //  - Rendimiento por plantilla: req = guarnicion_minima (12), ×2,5 en las ciudades. f = min(1, pob/req); en una ciudad con pob > req,
-    //    f = min(rend_ciudad_max, 1 + rend_ciudad_pendiente·(pob/req − 1)). Todo en milésimas, con remanente exacto por nodo y recurso.
-    //  - Tope del almacén POR RECURSO [propuesta de Iker, a confirmar con Hugo]: almacen_base_u (100) + almacen_deposito_extra_u (200) por
-    //    depósito construido; el nudo (rama 0, Sagunto) tiene almacen_nudo_u (1000). La producción que no cabe se pierde («Castellón no puede
+    //    f = min(rend_ciudad_max, 1 + rend_ciudad_pendiente·(pob/req − 1)). En milésimas, con remanente exacto por nodo y recurso en 1/24.000 de u.
+    //  - Tope del almacén POR RECURSO (confirmado por Hugo): almacen_base_u (100) + almacen_deposito_extra_u (200) por
+    //    depósito construido y sano; el nudo (rama 0, Sagunto) parte de almacen_nudo_u (1000) y sus depósitos también suman (Hugo). La producción que no cabe se pierde («Castellón no puede
     //    tirar producción»); lo que llega en tren o ya estaba no se recorta.
     //  - Víveres: el MVP de Unity no tiene ese recurso (Res), así que prod_viveres no se usa. El chatarreo (3 u al día al azar) tampoco.
 
@@ -90,14 +91,16 @@ namespace TBD.Net
         public const int ProdRes = 3;                 // Municion, Combustible, Materiales (las personas no se producen)
         public ProductionParams P;
         public readonly int[] Row;                    // fila de balance_nodos.csv de cada nodo del grafo (-1 = no está: no produce)
-        public readonly int[] RemMil;                 // por nodo y recurso: milésimas de u acumuladas que aún no llegan a 1 u
+        public const int HourTicks = 1500;           // 1 h de juego (2,4 s por tick)
+        public const int RemDen = 24_000;            // el remanente va en 1/24.000 de u: u al día × milésimas / 24 h
+        public readonly int[] Rem;                    // por nodo y recurso: 1/24.000 de u acumulados que aún no llegan a 1 u
         public readonly long[] WastedU;               // por nodo y recurso: u perdidas porque el almacén estaba lleno (para QA y el panel)
 
         public ProductionState(RailGraph g, ProductionParams p)
         {
             P = p;
             int n = g.Nodes.Count;
-            Row = new int[n]; RemMil = new int[n * ProdRes]; WastedU = new long[n * ProdRes];
+            Row = new int[n]; Rem = new int[n * ProdRes]; WastedU = new long[n * ProdRes];
             for (int i = 0; i < n; i++) Row[i] = p.Names == null ? -1 : Array.IndexOf(p.Names, g.Nodes[i].Name);
         }
 
@@ -118,14 +121,14 @@ namespace TBD.Net
 
         public bool IsHub(int node) { int row = Row[node]; return row >= 0 && P.Hub[row]; }
 
-        public void SaveState(SaveWriter w) { w.Ints(RemMil); w.Longs(WastedU); }
+        public void SaveState(SaveWriter w) { w.Ints(Rem); w.Longs(WastedU); }
 
         public void LoadState(SaveReader r)
         {
             var a = r.Ints(); var b = r.Longs();
-            if (a == null || a.Length != RemMil.Length || b == null || b.Length != WastedU.Length)
+            if (a == null || a.Length != Rem.Length || b == null || b.Length != WastedU.Length)
                 throw new SaveException(SaveError.TopologyMismatch, "producción: otro número de nodos");
-            Array.Copy(a, RemMil, a.Length); Array.Copy(b, WastedU, b.Length);
+            Array.Copy(a, Rem, a.Length); Array.Copy(b, WastedU, b.Length);
         }
 
         /// <summary>Lo que añade la versión 2 al final de la sección NET de una partida de la versión 1: remanentes y pérdidas a 0.</summary>
@@ -134,9 +137,9 @@ namespace TBD.Net
         public ulong Hash()
         {
             ulong h = 0;
-            for (int i = 0; i < RemMil.Length; i++)
+            for (int i = 0; i < Rem.Length; i++)
             {
-                if (RemMil[i] != 0) h += NetWorld.Mix(0x960D0CUL ^ ((ulong)(uint)i << 32) ^ (ulong)(uint)RemMil[i]);
+                if (Rem[i] != 0) h += NetWorld.Mix(0x960D0CUL ^ ((ulong)(uint)i << 32) ^ (ulong)(uint)Rem[i]);
                 if (WastedU[i] != 0) h += NetWorld.Mix(0x7A57EDUL ^ ((ulong)(uint)i << 40) ^ (ulong)WastedU[i]);
             }
             return h;
@@ -148,24 +151,23 @@ namespace TBD.Net
         /// <summary>Solo para pruebas que aíslan otro sistema (mantenimiento, conservación de la carga): apaga la producción. No se guarda; el juego siempre la lleva encendida.</summary>
         public bool ProductionEnabled = true;
 
-        /// <summary>Tope del almacén de un nodo para cada recurso producido: el nudo, 1000; el resto, 100 más 200 por depósito construido y sano.</summary>
+        /// <summary>Tope del almacén de un nodo para cada recurso producido: el nudo, 1000; el resto, 100; y cada depósito construido y sano suma 200 (también en el nudo).</summary>
         public int StoreCapU(int node)
         {
-            if (Production.IsHub(node)) return Production.P.StoreHubU;
             int deposits = 0;
             foreach (var p in Works.Snapshot(node)) if (p.Kind == PieceKind.Deposito && p.Built && !p.Broken) deposits++;
-            return Production.P.StoreBaseU + Production.P.StoreDepositU * deposits;
+            return (Production.IsHub(node) ? Production.P.StoreHubU : Production.P.StoreBaseU) + Production.P.StoreDepositU * deposits;   // el depósito suma también en el nudo (Hugo)
         }
 
-        /// <summary>Producción de hoy en un nodo, en u (sin el remanente ni el tope): para el panel.</summary>
+        /// <summary>Producción al día de un nodo con su gente de ahora, en u (sin el remanente ni el tope): para el panel.</summary>
         public int ProductionTodayU(int node, int res)
         {
             if (Graph.Nodes[node].State == NodeState.Perdida) return 0;
             return (int)((long)Production.BaseU(node, res) * Production.FactorMil(node, Stock[node, (int)Res.Personas]) / 1000);
         }
 
-        /// <summary>A medianoche: cada nodo con gente produce lo suyo según su plantilla, hasta el tope del almacén. Lo que no cabe se pierde.</summary>
-        void ProduceDay()
+        /// <summary>Cada hora: cada nodo con gente produce 1/24 de lo suyo según su plantilla, hasta el tope del almacén. Lo que no cabe se pierde.</summary>
+        void ProduceHour()
         {
             if (!ProductionEnabled) return;
             for (int n = 0; n < Graph.Nodes.Count; n++)
@@ -179,9 +181,9 @@ namespace TBD.Net
                     int baseU = Production.BaseU(n, r);
                     if (baseU <= 0) continue;
                     int k = n * ProductionState.ProdRes + r;
-                    long total = Production.RemMil[k] + (long)baseU * f;            // u × milésimas = milésimas de u
-                    int give = (int)(total / 1000);
-                    Production.RemMil[k] = (int)(total % 1000);
+                    long total = Production.Rem[k] + (long)baseU * f;            // (u al día × milésimas) por hora = 1/24.000 de u
+                    int give = (int)(total / ProductionState.RemDen);
+                    Production.Rem[k] = (int)(total % ProductionState.RemDen);
                     if (cap < 0) cap = StoreCapU(n);
                     int room = Math.Max(0, cap - Stock[n, r]);
                     int add = Math.Min(give, room);

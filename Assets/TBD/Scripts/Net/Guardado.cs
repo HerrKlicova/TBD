@@ -201,7 +201,7 @@ namespace TBD.Net
     {
         public const uint Magic = 0x53444254;           // «TBDS»
         public const ushort FormatVersion = 1;          // contenedor: cabecera, secciones y suma de comprobación
-        public const ushort NetVersion = 2;             // 2: producción diaria (remanentes y pérdidas al final de la sección)             // sección NET: el estado de NetWorld
+        public const ushort NetVersion = 2;             // sección NET: el estado de NetWorld. 2 = producción de las estaciones (remanentes y pérdidas al final)
         public const ushort MinNetVersion = 1;          // la más antigua que sabe leer (con las migraciones registradas)
         public static readonly uint NetTag = SaveSection.Tag("NET\0");
 

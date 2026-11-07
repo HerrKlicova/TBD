@@ -16,8 +16,8 @@ namespace TBD.Sim.Tests
             int nules = -1; foreach (var n in w0.Graph.Nodes) if (n.Name == "Nules") nules = n.Id;
             bool anyFounded = false; foreach (var f in w0.Stations.Founded) if (f) anyFounded = true;
             var sp = StationParams.FromCsv(new CsvTable(File.ReadAllText(Path.Combine(BalanceTests.DataDirPublic(), "balance_economia.csv"))));
-            check(nules >= 0 && w0.Stations.IsSite(nules) && w0.Stations.P.Sites.Length == 1 && !anyFounded && w0.StationKindOf(nules) == StationKind.NoFundada,
-                "el único emplazamiento de la demo es Nules y empieza sin fundar (Jérica salió de la demo)");
+            check(nules >= 0 && w0.Stations.IsSite(nules) && w0.Stations.P.Sites.Length == 2 && w0.Stations.P.Sites[1] == "Castellón" && !anyFounded && w0.StationKindOf(nules) == StationKind.NoFundada,
+                "los emplazamientos de la demo son Nules y Castellón (infestada, se reclama igual: Mak, 7-nov) y empiezan sin fundar");
             check(sp.FoundMaterialsU == 30 && sp.FoundPeople == 12 && w0.Stations.P.FoundMaterialsU == 30 && w0.Stations.P.FoundPeople == 12 && w0.Stations.P.StationPeople == 40,
                 $"fundar cuesta 30 u y 12 personas (fundar_materiales y guarnicion_minima del CSV de Hugo); para estación, 40 personas");
             check(w0.Stations.Hash() == 0, "sin fundar nada el hash de las estaciones es 0: G1–G5 no se mueven");

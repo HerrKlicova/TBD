@@ -1028,7 +1028,7 @@ namespace TBD.Net
                 UpdateFromField();
             }
             Tick++;
-            if (Tick % NetConst.DayTicks == 0) ProduceDay();          // producción del día, hasta el tope del almacén (Produccion.cs)
+            if (Tick % ProductionState.HourTicks == 0) ProduceHour(); // producción de la hora (1/24 del día), hasta el tope del almacén (Produccion.cs)
             if (Tick % NetConst.DayTicks == 0) WearAndMaintain();     // mantenimiento diario de lo construido (Hugo, 1 %)
             if (Tick % NetConst.DayTicks == 0 && Traffic != null)
                 Traffic.Decay((e, slot) => Intel.Add(new IntelEntry { Tick = Tick, Id = "TR-5", Vars = new[] { "tramo", EdgeName(Graph.Edges[e]) } }));
@@ -1317,8 +1317,10 @@ namespace TBD.Net
             // existencias iniciales (toneladas; personas = plazas)
             void Stock(string n, int mun, int comb, int mat, int per) { int i = Id(n); w.Stock[i, 0] = mun; w.Stock[i, 1] = comb; w.Stock[i, 2] = mat; w.Stock[i, 3] = per; }
             Stock("Valencia", 600, 800, 900, 300);
-            Stock("Sagunto", 200, 1400, 700, 170);              // incluye el Puerto (D-N14): combustible y acero
-            Stock("Castellón", 100, 100, 100, 80);
+            Stock("Sagunto", 200, 1400, 700, 80);               // incluye el Puerto (D-N14): combustible y acero. 80 personas (Mak, 7-nov, con la medida de Hugo: con 170 y Castellón propia solo se perdía el 1,8 %)
+            // Castellón empieza infestada, sin gente ni almacén propio (D-N124, decisión de Mak del 7-nov): se reclama el primer día con la misma orden
+            // que una fundación (FoundStation: 30 u y 12 personas desde un tren parado). Hereda el depósito de combustible (Hugo: 100 + 200 = 300 u).
+            w.Stations.P.Sites = new[] { "Nules", "Castellón" };
             Stock("Teruel", 20, 30, 40, 40);
 
             int[] T(int mun, int comb, int mat, int per) { return new[] { mun, comb, mat, per }; }
@@ -1339,6 +1341,12 @@ namespace TBD.Net
             w.Field.BlobStatic(61, 55, 5, 600);           // al norte de Castellón, tierra adentro (no en el mar)
             w.Field.BlobStatic(42, 44, 4, 500);                // paisaje: al este de Teruel, lejos de la vía
             if (saguntoWalls) SagunteStart(w);     // D-N63: Sagunto empieza con 120 u de muro ya construidas
+            if (saguntoWalls)                      // con las estructuras de partida: Castellón hereda su depósito de combustible (Hugo: 100 + 200 = 300 u)
+            {
+                int cas = Id("Castellón");
+                var dep = w.Works.Preview(cas, PieceKind.Deposito, new[] { 48_000, -44_000 }, 1000);
+                if (dep.Ok) { w.Works.Add(cas, dep); w.Works.CompleteAll(cas); }
+            }
             w.Tick = NetConst.Hours(5.5);          // el prototipo arranca a las 05:30, media hora antes del primer tren
             return w;
         }
