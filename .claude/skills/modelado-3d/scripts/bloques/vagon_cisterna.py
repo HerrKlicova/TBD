@@ -96,8 +96,8 @@ def construir(nombre="SM_VagonCisterna", lod=0):
         t.cilindro((0, s * (LC / 2 + 0.69), ZE), RC * 0.6, 0.2, "Y", lados, "cuba", r2=RC * 0.3)   # 1 cm dentro: sin aro gemelo
     cuba = _nuevos(t, antes)
     if v == 3:
-        _abollar(cuba, (1.4, -2.6, ZE + 0.5), 2.0, 0.75)          # en el costado +X, el que ve la cámara de juego
-        _abollar(cuba, (1.3, 3.8, ZE - 0.4), 1.5, 0.5)
+        _abollar(cuba, (1.4, -2.6, ZE + 0.4), 2.6, 1.0)           # en el costado +X, el que ve la cámara de juego
+        _abollar(cuba, (1.3, 3.9, ZE - 0.2), 2.0, 0.7)
         _abollar(cuba, (0.4, -(LC / 2 + 0.6), ZE + 0.5), 0.9, 0.25)
     # --- boca de carga y pasarela de arriba
     t.cilindro((0, 0, ZE + RC + 0.12), 0.4, 0.3, "Z", 10 if lod == 0 else 8, "cuba")
