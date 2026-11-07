@@ -23,7 +23,8 @@ NUEVAS = ["quemado", "hollin", "oxido", "ceniza"]
 _VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 ESTADO = "reciente" if _VAR % 2 == 0 else "oxidado"
 PALETAS_RESTOS = {
-    "reciente": {"quemado": "d4d0cc", "hollin": "605c48", "oxido": "a86c50", "ceniza": "b8b8b8"},
+    "reciente": {"quemado": "b8b8b8",   # Lucía 08:09: d4d0cc es el color de la selección
+                  "hollin": "605c48", "oxido": "a86c50", "ceniza": "b8b8b8"},
     "oxidado": {"quemado": "94948c", "hollin": "605c48", "oxido": "7c3c18", "ceniza": "b8b8b8"},   # a86c50 de fondo era una losa naranja
 }
 COLORES_RESTOS = PALETAS_RESTOS[ESTADO]
