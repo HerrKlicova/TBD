@@ -16,6 +16,8 @@ ASPECTO = VAR % 5
 PIEZAS = V.PIEZAS
 COLORES = dict(V.COLORES, goma="48403c", optica="48403c", metal="48403c", foco="48403c", **COLORES_RESTOS)
 VALOR_PIEZAS = {"casco": ("88885c", "70784c", "88885c")}   # costados en 70784c: la sombra fuera de la banda de la horda
+if VAR == 2:   # Lucía (7-nov 08:05): en la v2 la cara de arriba salía en cfcbc7 (d4d0cc iluminado); baja a b8b8b8
+    COLORES["quemado"] = "b8b8b8"
 COLORES_LOD1 = COLORES_LOD1_RESTOS     # 7-nov: sombras fuera de L* < 20
 FACCION = "neutro"                      # restos: sin el marcador de unidad propia
 PRESUPUESTO = {0: (600, 6000), 1: (300, 3000)}
