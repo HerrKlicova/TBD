@@ -6,6 +6,7 @@ Encargo de Mak (23:38), con la D-N78 como guía. Mismo estilo que A1: luz fija a
   ui_recurso_pila_{32,16}     la pila de la horda contra el muro (la cifra que vigila el jugador; GDD §8)
   ui_recurso_bajas_{32,16}    bajas propias: fusil clavado con el casco encima
   ui_resultado_{zombis,amanecer,caida}_16   iconos de fila de la pantalla final (zombis abatidos, fin de la noche)
+  ui_resultado_{muro,integridad}_16         D-N104: muro (saco terrero) e integridad (estación y tren)
   ui_estrellas_{0,1,2,3}      grupo de 3 estrellas de 16 (56x16) con las llenas a la izquierda
   ui_panel_derrota            ui_panel con el marco en rojo de ataque (#982420), slice 4, solo para la derrota
 """
@@ -118,6 +119,36 @@ CAIDA16 = """
 """
 
 
+MURO16 = """
+...ssssssss.....
+..sSSSSSSSSs....
+.sSSSSSSSSSSs...
+.sSddSSSSddSs...
+.sSSSSSSSSSSs...
+..sddddddddss...
+...ssssssss.....
+..ssssss.sssss..
+.sSSSSSs.sSSSSs.
+.sddSSSs.sddSSs.
+..sddddss.ddds..
+"""
+
+INTEGRIDAD16 = """
+....rrrrrrr.....
+...rrrrrrrrr....
+..rrrrrrrrrrr...
+...wwwwwwwww....
+...wbbwbbwbb....
+...wwwwwwwww....
+..........llll..
+.ooooooooolbbl..
+.oxxoxxoxolllll.
+.ooooooooolllll.
+..kk..kk..kk.kk.
+gggggggggggggggg
+"""
+
+
 def _grid(texto, keys, y0=3):
     s = Sprite(16, 16)
     s.grid(0, y0, texto, keys)
@@ -131,6 +162,20 @@ def zombis_16():
 
 def amanecer_16():
     return _grid(AMANECER16, {"c": "cream", "b": "beige", "h": "ochre_dark", "g": "olive_dark"}, 3)
+
+
+def muro_16():
+    """D-N104: un saco terrero sobre dos (muro, sacos y nidos)."""
+    return _grid(MURO16, {"s": "ochre_dark", "S": "beige", "d": "olive_grey"}, 2)
+
+
+def integridad_16():
+    """D-N104: el edificio de viajeros con su tejado y, delante, la locomotora en la vía (lo que defiendes)."""
+    s = Sprite(16, 16)
+    s.grid(0, 1, INTEGRIDAD16, {"r": "rust", "w": "beige", "b": "olive_grey", "d": "grey_brown",
+                                "g": "concrete", "o": "olive", "x": "olive_light", "l": "olive_light", "k": "grey_brown"})
+    s.outline()
+    return s
 
 
 def caida_16():
@@ -155,7 +200,8 @@ def exportar(out):
         s32.img.save(out / f"ui_recurso_{n}_32.png")
         s16.img.save(out / f"ui_recurso_{n}_16.png")
         todo[n] = (s32, s16)
-    for n, fn in (("zombis", zombis_16), ("amanecer", amanecer_16), ("caida", caida_16)):
+    for n, fn in (("zombis", zombis_16), ("amanecer", amanecer_16), ("caida", caida_16), ("muro", muro_16),
+                  ("integridad", integridad_16)):
         s = fn()
         s.img.save(out / f"ui_resultado_{n}_16.png")
         todo[f"res_{n}"] = (s,)

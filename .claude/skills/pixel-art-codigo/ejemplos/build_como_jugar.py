@@ -3,7 +3,7 @@
 Encargo de Mak (23:44). Las teclas son las de plan-noche-7nov §8: mover (clic derecho), Atacar (A), Mantener (S),
 Emplazar (D, solo ametralladores) y Embarcar o desembarcar (E). La selección es clic y arrastre (§2, fila 3) y el
 zoom es la rueda (D-N70). La cámara (build Noche05 de Marcos, vía Lucía): flechas, bordes de la pantalla, Z y X,
-rueda y arrastre con el botón central. Qué hacen Z y X está POR CONFIRMAR: en la maqueta van sin rótulo definitivo.
+rueda y arrastre con el botón central. Z acerca y X aleja, como la rueda (decisión de Mak, 7-nov 00:17).
   ui_tecla_{z,x}, ui_tecla_flechas (26x15), ui_icono_borde_pantalla (16x12), ui_tecla_raton_central (17x12)
   ui_tecla_{a,s,d,e}             tecla de 14x14 con la letra dibujada a mano (sin fuente)
   ui_tecla_raton_rueda           ratón de 9x12 con la rueda marcada
@@ -202,7 +202,7 @@ CONTROLES = [   # (icono, texto). icono: ("tecla", letra) | ("raton", "izq"/"dch
     (("rueda",), "Rueda: acercar y alejar"),
     (("flechas",), "Flechas o bordes de la pantalla: mover la cámara"),
     (("central",), "Botón central y arrastre: mover la cámara"),
-    (("zx",), "Z y X: (por confirmar con Marcos)"),
+    (("zx",), "Z y X: acercar y alejar (como la rueda)"),
 ]
 ESTADOS_TEXTO = [("emplazado", "Emplazado"), ("embarcado", "Embarcado"), ("sin_municion", "Sin munición"),
                  ("reabasteciendo", "Reabasteciendo"), ("alto_el_fuego", "Alto el fuego")]

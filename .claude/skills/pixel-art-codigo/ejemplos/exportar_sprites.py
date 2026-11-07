@@ -50,6 +50,7 @@ import build_rutas  # noqa: E402
 import build_frentes_aire  # noqa: E402
 import build_estados_vehiculo  # noqa: E402
 import build_apoyo_aereo  # noqa: E402
+import build_apertura  # noqa: E402
 
 PIVOTE = [0.5, 0.53]
 
@@ -177,6 +178,7 @@ def prototipo_noche(out):
     build_frentes_aire.exportar(out)                     # frentes activos, iconos aéreos y aviso de cazas
     build_estados_vehiculo.exportar(out)                 # estados de vehículo y avisos del tren
     build_apoyo_aereo.exportar(out)                      # sombra y altura del helicóptero, helipuerto en 3 estados, humo, fuego, cráter
+    build_apertura.exportar(out)                         # apertura (D-N91): rótulo de inicio, primera oleada, barra de la noche
 
 
 if __name__ == "__main__":

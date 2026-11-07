@@ -278,10 +278,12 @@ def hud(im, cartel=True):
 RESULTADOS = {   # cifras de ejemplo con los formatos de D-N77 (Hugo, clave «resultados» del JSON de la noche)
     True: [("Zombis abatidos", "11.842 de 13.090"), ("Bajas propias", "5 de 26 soldados"),
            ("Munición gastada", "34,0 u · 348 zombis por u"), ("Munición restante", "11,2 u"),
-           ("Combustible gastado", "17 de 30 u"), ("Fin de la noche", "Amanecer, 06:00")],
+           ("Combustible gastado", "17 de 30 u"), ("Integridad", "62 % (tren)"), ("Muro", "38 %"),
+           ("Fin de la noche", "Amanecer, 06:00")],
     False: [("Zombis abatidos", "6.120 de 7.400"), ("Bajas propias", "26 de 26 soldados · Dragón perdido"),
             ("Munición gastada", "41,5 u · 295 zombis por u"), ("Munición restante", "3,4 u"),
-            ("Combustible gastado", "24 de 30 u"), ("Fin de la noche", "Cayó a las 03:47, en la oleada 5")],
+            ("Combustible gastado", "24 de 30 u"), ("Integridad", "0 % (estación)"), ("Muro", "4 %"),
+            ("Fin de la noche", "Cayó a las 03:47, en la oleada 5")],
 }
 
 
@@ -294,14 +296,14 @@ def pantalla_final(victoria, estrellas=2):
             for x in range(W):
                 if BAYER[y % 4][x % 4] < 11:
                     px[x, y] = PAL["navy"]
-    pw, ph = 340, 230
+    pw, ph = 340, 250                                   # D-N104: dos filas más (integridad y muro)
     p = ui.panel(pw, ph)
     if not victoria:                                    # el marco rojo de la derrota se queda (Lucía)
         for y in (0, ph - 1):
             p.hline(0, pw - 1, y, "red_bright")
         for x in (0, pw - 1):
             p.vline(x, 0, ph - 1, "red_bright")
-    x0, y0 = W // 2 - pw // 2, 64
+    x0, y0 = W // 2 - pw // 2, 46
     pega(im, p, x0, y0)
     texto(im, (W // 2, y0 + 10), "Parte de la noche" if victoria else "Sagunto ha caído", 13, "cream" if victoria else "bone", centro=True)
     if victoria:                                        # de 1 a 3 estrellas; con derrota no hay
@@ -311,7 +313,8 @@ def pantalla_final(victoria, estrellas=2):
     import build_recursos_hud as rh                     # aquí dentro: rh importa estrella de este módulo
     from pixelvm import reduce_16
     iconos = [rh.zombis_16(), reduce_16(rh.bajas()), reduce_16(a1.municion()), reduce_16(a1.municion()),
-              reduce_16(a1.combustible()), rh.amanecer_16() if victoria else rh.caida_16()]
+              reduce_16(a1.combustible()), rh.integridad_16(), rh.muro_16(),
+              rh.amanecer_16() if victoria else rh.caida_16()]
     ty = y0 + (56 if victoria else 40)
     for i, (k, v) in enumerate(RESULTADOS[victoria]):
         y = ty + i * 18
