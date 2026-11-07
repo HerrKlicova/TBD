@@ -21,6 +21,10 @@ os.makedirs(SAL, exist_ok=True)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
 TRIS = []          # (V (n,3,3) en mundo, color (n,3), emisivo (n,))
+# CRONICA=1 (coordinador, 7-nov 01:42): renders para la crónica de Elena, con la puerta E4 de HESCO (v1) y los focos
+# del paso a nivel ENCENDIDOS en 982420 (el rojo de alerta, que solo es luz, nunca albedo) como si llegara un tren
+CRONICA = os.environ.get("CRONICA") == "1"
+ROJO = None
 
 
 def _hex(h):
@@ -54,7 +58,10 @@ def poner(fbx, x, y, rot=0.0, hijos=None, z=0.0):
         # encendidas: la capa de emisión del tren y las «Luces» del helipuerto y de las balizas; los focos del paso a nivel
         # (Luces_A/B) solo parpadean con un tren cruzando, así que van apagados
         emi = o.name.startswith("Emision") or o.name.split(".")[0] == "Luces"
-        TRIS.append((v[t], col, np.full(len(t), emi)))
+        cod = 1 if emi else 0
+        if CRONICA and o.name.split(".")[0] in ("Luces_A", "Luces_B"):
+            cod = 2                                      # foco del paso a nivel encendido en 982420
+        TRIS.append((v[t], col, np.full(len(t), cod)))
         bpy.data.objects.remove(o)
 
 
@@ -108,7 +115,8 @@ poner("nh90/SM_NH90_LOD0.fbx", 179, 44, 25, hijos={"RotorPrincipal": 20, "DiscoR
 for fbx, x, y, r in (("rearme_set/SM_RearmeSet_v0_LOD0.fbx", 192, 34, 0), ("rearme_set/SM_RearmeSet_v1_LOD0.fbx", 192, 38, 10),
                      ("rearme_set/SM_RearmeSet_v2_LOD0.fbx", 168, 32, -20), ("rearme_set/SM_RearmeSet_v3_LOD0.fbx", 195, 52, 90)):
     poner(fbx, x, y, r)
-poner("puerta_vehiculos/SM_PuertaVehiculos_v4_LOD0.fbx", 99, 43, 0, hijos={"Hoja_O": -75, "Hoja_E": 75})
+poner("puerta_vehiculos/SM_PuertaVehiculos_v%d_LOD0.fbx" % (1 if CRONICA else 4), 99, 43, 0,
+      hijos={"Hoja_O": -75, "Hoja_E": 75})
 poner("dragon/v5/SM_VCR_Dragon_v5_LOD0.fbx", 99, 50.5, 0)                       # saliendo por la puerta
 poner("dragon/v5/SM_VCR_Dragon_v5_LOD0.fbx", 110, 54, 90)
 poner("v2_vamtac/SM_vamtac_v2_LOD0.fbx", 118, 54, 90)
@@ -155,12 +163,20 @@ LUCES = [((68 + 2.5, 64.5 + 15, 6), CREMA, 30, 1.0), ((68 + 2.5, 64.5 - 15, 6), 
          ((100, 69.5, 4.2), CREMA, 12, 0.7), ((112, 69.5, 4.2), CREMA, 12, 0.7), ((124, 69.5, 4.2), CREMA, 12, 0.7),
          ((112, 74.5, 3.0), CREMA, 10, 0.8),                                # puerta de la estación
          ((52.5, 64.5, 2.6), CREMA, 22, 1.1),                               # faros de la locomotora (hacia el paso)
-         ((59, 64.5, 3.0), CREMA, 9, 0.5),                                  # focos del paso a nivel
+         ((59, 64.5, 3.0), CREMA, 9, 0.3 if CRONICA else 0.5),              # focos del paso a nivel
          ((180, 44, 6), FRIO, 22, 0.7), ((171, 35, 1.2), CREMA, 8, 0.6), ((189, 35, 1.2), CREMA, 8, 0.6),
          ((171, 53, 1.2), CREMA, 8, 0.6), ((189, 53, 1.2), CREMA, 8, 0.6),
          ((106, 38, 1.8), CREMA, 7, 0.8),                                   # baliza en trípode
          ((99, 36.5, 1.2), CREMA, 12, 0.8),
          ((209, 19.0, 1.8), CREMA, 12, 1.0), ((213, 23, 5.0), FRIO, 16, 0.6)]   # control de la carretera vieja
+if CRONICA:                                                                 # faroles del vagón de tropa y del contenedor
+    for x, z, r, it in ((11.4, 3.6, 9, 0.55), (23.4, 3.6, 9, 0.55), (-8.2, 4.2, 8, 0.45), (1.8, 4.2, 8, 0.45),
+                        (30.0, 4.5, 10, 0.4)):
+        for y in (64.5 - 2.2, 64.5 + 2.2):
+            LUCES.append(((x, y, z), CREMA, r, it))
+if CRONICA:                                                                 # resplandor rojo de los focos encendidos
+    for y in (64.5 - 4.5, 64.5 + 4.5):
+        LUCES.append(((59, y, 2.4), _hex("982420"), 7, 1.2))
 for x in range(0, 210, 30):
     LUCES.append(((x + 6, 18.6, 1.0), CREMA, 3.5, 0.5))                     # catadióptricos de las balizas
 LP = np.array([l[0] for l in LUCES], float)
@@ -180,6 +196,11 @@ ENCUADRES = {
     "muro": ((101, 46, 1), -15, 32, 40, 1600, 900),
     "estacion": ((112, 70, 2), 15, 30, 56, 1600, 900),
     "cortes": ((215, 24, 0.5), -30, 34, 30, 1600, 900),
+    # crónica de Elena (CRONICA=1)
+    "cronica_tren": ((20, 63.5, 1.8), -30, 22, 60, 1600, 900),
+    "cronica_puerta": ((99, 44, 1.2), -12, 30, 30, 1600, 900),
+    "cronica_paso_nivel": ((57, 63, 1.2), -40, 26, 28, 1600, 900),
+    "cronica_helipuerto": ((181, 43, 1), 20, 40, 44, 1600, 900),
 }
 
 
@@ -219,7 +240,8 @@ def render(nombre, centro, az, el, ancho_m, W, H):
         luz += (it * caida * lam)[:, None] * lc
     col = base * luz * 255.0 * 1.25
     em = E[k]
-    col[em] = CREMA                                          # emisión en crema f0dc9c (Lucía)
+    col[em == 1] = CREMA                                     # emisión en crema f0dc9c (Lucía)
+    col[em == 2] = _hex("982420") * 1.35                     # focos del paso a nivel encendidos (luz, no albedo)
     col = np.clip(col, 0, 255)
     img = np.zeros((H, W, 3))
     img[:] = (16, 12, 8)
