@@ -354,14 +354,25 @@
       }
     },
     {
+      "unidad": "vamtac",
+      "dotacion_mil_u": 3000,
+      "fuego_continuo_s": 200,
+      "recarga_s": 20,
+      "recarga_u_mil": 3000,
+      "donde": "junto al tren o al depósito",
+      "disparos": {
+        "ametralladora_pesada": 2000
+      }
+    },
+    {
       "unidad": "nh90",
-      "dotacion_mil_u": 1000,
-      "fuego_continuo_s": 100,
+      "dotacion_mil_u": 3000,
+      "fuego_continuo_s": 300,
       "recarga_s": 30,
-      "recarga_u_mil": 1000,
+      "recarga_u_mil": 3000,
       "donde": "posado en el helipuerto (también repone 4 u de combustible)",
       "disparos": {
-        "ametralladora_puerta": 2000
+        "ametralladora_puerta": 6000
       }
     }
   ],
