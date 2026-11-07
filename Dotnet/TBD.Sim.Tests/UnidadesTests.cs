@@ -53,6 +53,25 @@ namespace TBD.Sim.Tests
                 }
         }
 
+        /// <summary>TBD_KILL_TIMELINE=1: abatidos de la oleada 1 a las 22:25, 22:44 y 22:54 (los hitos que mide la zona), con el bot y con la fuerza fija, y velocidades de zombi.</summary>
+        public static void KillTimeline()
+        {
+            string json = TBD.Net.BalanceSource.Read("noche_sagunto.json");
+            foreach (int spd in new int[] { 1500, 1600 })
+                foreach (bool useBot in new bool[] { true, false })
+                {
+                    var sim = NightSim.FromJson(json, null, 1); sim.SP.ZombieSpeedMmS = spd; sim.AddDefaultForce(); if (useBot) sim.Bot = NightBot.FromParams(sim.SP);
+                    int t0 = sim.Night.WaveStartTick(0); var line = new System.Text.StringBuilder(); int firstK = -1;
+                    foreach (int min in new int[] { 0, 5, 10, 24, 34, 44 })
+                    {
+                        int target = t0 + (int)(min * 60L * 30 / 28);
+                        while (sim.Night.Tick < target && sim.Night.State == NightState.Jugando) { sim.Run(1); if (firstK < 0 && sim.Kills > 0) firstK = sim.Night.Tick - t0; if (useBot == false) sim.ResupplyBot(); }
+                        line.Append($" 22:{20 + min:00}→{sim.Kills}/{sim.Spawned} (pila {sim.LastPile})");
+                    }
+                    Console.WriteLine($"{spd} mm/s {(useBot ? "NightBot" : "fija")}: primer abatido a los {firstK / 30.0:0.0} s;{line}");
+                }
+        }
+
         public static void NightReport()
         {
             string json = TBD.Net.BalanceSource.Read("noche_sagunto.json");
