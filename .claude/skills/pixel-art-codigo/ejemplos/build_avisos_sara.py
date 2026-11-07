@@ -5,8 +5,8 @@ Encargo de Mak:
      es pasajero, se apaga al recargar).
   2. Aviso de muro o estación bajo ataque (rojo de ataque #982420, lenguaje de A2).
   3. Iconos del panel de vehículos: munición, combustible del NH90, embarcar y desembarcar.
-Cada grupo sale en 5 variantes (A–E) en una hoja (--muestra). Mak aprobó la A en las cuatro (7-nov 00:39):
-  ui_tarjeta_sin_municion   capa de 40x48 sobre ui_tarjeta_unidad, 2 f (500 ms): banda ámbar con la caja vacía y la T
+Cada grupo sale en 5 variantes (A–E) en una hoja (--muestra). Mak aprobó la A en las cuatro (7-nov 00:39) = D-N109:
+  ui_tarjeta_sin_municion   capa de 40x48 sobre ui_tarjeta_unidad, 2 f (500 ms) solo 3 s y luego fija (D-N109): banda ámbar con la caja vacía y la T
   ui_tecla_t_9 / ui_tecla_t tecla T pequeña (para la tarjeta y dentro del texto del HUD) y la de 14x14
   Fila del HUD: ui_alerta_aviso + ui_estado_sin_municion_16 + texto «Sin munición · [ui_tecla_t_9] para recargar»
   ui_aviso_{muro_atacado,estacion_atacada}_{32,16}   triángulo de A2 en la esquina, como «tren atacado»
@@ -311,8 +311,9 @@ def exportar(out):
         hoja.alpha_composite(s.img, (40 * f, 0))
     hoja.save(out / "ui_tarjeta_sin_municion.png")
     (out / "ui_tarjeta_sin_municion.json").write_text(
-        '{"frames": 2, "frameSize": [40, 48], "duration_ms": 500, "loop": true, '
-        '"uso": "encima de ui_tarjeta_unidad mientras el pelotón no tenga munición; se quita al recargar (T)"}',
+        '{"frames": 2, "frameSize": [40, 48], "duration_ms": 500, "parpadeo_s": 3, "despues": "fijo en el fotograma 0", '
+        '"uso": "encima de ui_tarjeta_unidad mientras el pelotón no tenga munición; parpadea los 3 primeros segundos '
+        '(D-N109) y luego se queda fija en ámbar hasta que se recarga con T"}',
         encoding="utf-8")
     tecla_t().img.save(out / "ui_tecla_t_9.png")
     tecla_t(False).img.save(out / "ui_tecla_t.png")

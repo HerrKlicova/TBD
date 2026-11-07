@@ -214,6 +214,7 @@ CONTROLES = [   # (icono, texto). icono: ("tecla", letra) | ("raton", "izq"/"dch
     (("tecla", "s"), "Mantener la posición"),
     (("tecla", "d"), "Emplazar (ametralladores)"),
     (("tecla", "e"), "Embarcar o desembarcar"),
+    (("tecla_t",), "Recargar (sin munición)"),
     (("rueda",), "Rueda: acercar y alejar"),
     (("flechas",), "Flechas o borde de pantalla: mover"),
     (("central",), "Botón central y arrastre: mover"),
@@ -238,7 +239,7 @@ def cartel():
     m.texto(fondo, (W // 2, y0 + 28), "Aguanta en Sagunto de las 22:00 al amanecer. Si cae la estación o el tren, se acaba.", 9,
             "beige", centro=True, sombra=False)
     for i, (ic, t) in enumerate(CONTROLES):
-        y = y0 + 46 + i * 17
+        y = y0 + 46 + i * 16
         tx = x0 + 38
         if ic[0] == "tecla":
             m.pega(fondo, tecla(ic[1]), x0 + 16, y)
@@ -251,6 +252,9 @@ def cartel():
         elif ic[0] == "central":
             m.pega(fondo, raton_central(), x0 + 18, y + 1)
             tx = x0 + 42
+        elif ic[0] == "tecla_t":
+            import build_avisos_sara as sara
+            m.pega(fondo, sara.tecla_t(False), x0 + 16, y)
         elif ic[0] in ("zx", "rf"):
             a, b = ic[0]
             m.pega(fondo, tecla(a), x0 + 8, y)
