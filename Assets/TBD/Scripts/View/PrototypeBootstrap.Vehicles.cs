@@ -19,7 +19,7 @@ namespace TBD.View
             public string Name; public bool Heli; public GameObject Go; public Vector2 Pos; public float Heading;          // rumbo = giro en Y de Unity (grados), +Z = 0
             public float Speed, Alt, Tilt, Rpm, SpinWheel, Steer, TurretYaw, GunElev; public Vector2 Target; public bool HasTarget; public Vector2 Home;
             public Transform[] WheelsFront, WheelsAll; public Quaternion[] WheelInit; public Transform Turret, Gun, RotorMain, RotorTail, Disc; public Quaternion TurretInit, GunInit, RotorMainInit, RotorTailInit;
-            public float FireAt; public float Ammo = 1f; public GameObject Shadow; public int State;                  // helicóptero: 0 en tierra, 1 despegando, 2 en vuelo, 3 aterrizando
+            public float FireAt; public int FireTick; public float Ammo = 1f; public GameObject Shadow; public int State;                  // helicóptero: 0 en tierra, 1 despegando, 2 en vuelo, 3 aterrizando
             public float StateT; public float SpinMainDeg, SpinTailDeg;
         }
         readonly List<Veh> _vehs = new List<Veh>(); Veh _selVeh; readonly List<TargetHit> _vehHits = new List<TargetHit>(); readonly List<Vector2> _zomPos = new List<Vector2>(); readonly List<uint> _zomId = new List<uint>();
@@ -134,13 +134,15 @@ namespace TBD.View
         // ---------------------------------------------------------------- fuego automático del vehículo
         void VehicleFire(Veh v, NativeSnapshot z, float dt)
         {
+            if (_bot != null) return;                                                       // -nightbot compara con NightSim, que no tiene vehiculos que disparen (Nacho)
             if (_zomPos.Count == 0) return; if (v.Heli && v.State != 2) return;
+            if (v.Ammo <= 0f) return;                                                        // sin municion no dispara (reserva por vehiculo)
             float range = v.Heli ? 70f : (v.Name.StartsWith("Dragón") ? 55f : 40f); int best = -1; float bd = range * range;
             for (int i = 0; i < _zomPos.Count; i++) { float d = (_zomPos[i] - v.Pos).sqrMagnitude; if (d < bd) { bd = d; best = i; } }
             if (best < 0) return;
             v.TurretYaw = Mathf.MoveTowardsAngle(v.TurretYaw, Mathf.Atan2(_zomPos[best].x - v.Pos.x, _zomPos[best].y - v.Pos.y) * Mathf.Rad2Deg - (v.Heli ? 0f : v.Heading), 120f * dt);
-            if (Time.unscaledTime < v.FireAt) return;
-            bool dragon = v.Name.StartsWith("Dragón"); v.FireAt = Time.unscaledTime + (dragon ? 0.45f : v.Heli ? 0.22f : 0.2f);
+            if (_ng != null && _ng.Tick < v.FireTick) return;                              // cadencia por ticks de la simulacion (no por tiempo de pantalla)
+            bool dragon = v.Name.StartsWith("Dragón"); v.FireTick = (_ng != null ? _ng.Tick : 0) + (dragon ? 30 : v.Heli ? 9 : 9); v.Ammo -= dragon ? 1f / 120f : v.Heli ? 1f / 400f : 1f / 300f;   // Dragon 1 salva/s (120 salvas), VAMTAC y NH90 ~3 disparos/s (300-400)
             int kills = dragon ? 3 : 1; var tp = _zomPos[best];
             for (int i = 0; i < _zomPos.Count && kills > 0; i++) if ((_zomPos[i] - tp).sqrMagnitude < (dragon ? 9f : 1.2f)) { _vehHits.Add(new TargetHit { TargetId = (int)_zomId[i], Damage = 100, Platoon = -1 }); kills--; }
             if (_trMat == null) { _trMat = new Material(Shader.Find("Universal Render Pipeline/Unlit")); _trMat.SetColor("_BaseColor", new Color32(0xf0, 0xdc, 0x9c, 255)); }
