@@ -23,7 +23,7 @@ Nada más: no hay que enlazar mandos ni UI. `NightSim` lo usa con `sim.Bot = Nig
 
 Es determinista: solo lee el estado del mundo y la lista de zombis (en el orden que la zona se la da a `Units.Step`), todo en enteros, sin azar. Misma semilla → mismo hash y mismas órdenes (prueba).
 
-## Resultado en NightSim (fuerza por defecto, semillas 1–3; balance v3: muro 1.200.000, difícil 1140)
+## Resultado en NightSim (fuerza por defecto, semillas 1–3; balance v3: muro 1.200.000, difícil 1140; medido antes de la D-N127, la difícil a 1280 no está medida con el bot)
 | Dificultad | Partida | Resultado | Muro al amanecer | Bajas propias | Munición que queda | Pila máxima |
 |---|---|---|---|---|---|---|
 | fácil | fija + bot de recarga | victoria ★3 | 81–82 % | 0 | 16–17 u | ~1.100 |

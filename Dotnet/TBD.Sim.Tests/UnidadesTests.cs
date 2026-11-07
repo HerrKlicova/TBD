@@ -900,7 +900,7 @@ namespace TBD.Sim.Tests
                 var sim = NightSim.FromJson(json, null, 7);
                 check(sim.Night.P.Waves.Length == 6 && sim.Night.WaveTotal(0) == 760 && sim.Night.WaveTotal(5) == 4250 && sim.Units.StockShots == 52 * 2000 && sim.MaterialsU == 40 && sim.FuelU == 30, "crear la noche desde noche_sagunto.json (normal): 6 oleadas de 760 a 4.250 zombis, 52 u de munición (104.000 disparos), 40 de materiales y 30 de combustible");
                 var easy = NightSim.FromJson(json, "facil", 7); var hard = NightSim.FromJson(json, "dificil", 7);
-                check(easy.Night.WaveTotal(0) == 650 && easy.Night.WaveTotal(5) == 3620 && hard.Night.WaveTotal(0) == 1030 && hard.Night.WaveTotal(5) == 5700, "dificultad fácil (650…3.620) y difícil (1.030…5.700, escala 1140) desde el mismo JSON");
+                check(easy.Night.WaveTotal(0) == 650 && easy.Night.WaveTotal(5) == 3620 && hard.Night.WaveTotal(0) == 1150 && hard.Night.WaveTotal(5) == 6400, "dificultad fácil (650…3.620) y difícil (1.150…6.400, escala 1280, D-N127) desde el mismo JSON");
                 bool bad = false; try { Mini.Parse("{\"a\": [1, 2"); } catch (FormatException) { bad = true; }
                 check(bad && (long)((System.Collections.Generic.Dictionary<string, object>)Mini.Parse("{\"a\": -12}"))["a"] == -12, "el lector de JSON mínimo rechaza un texto truncado y lee enteros con signo");
 

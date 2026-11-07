@@ -28,7 +28,7 @@ Todo en mm, ticks a 30 Hz, enteros. La zona ya hace casi todo; lo que falla (Sar
 | fácil (725) | sin límite (36) / 3 | victoria 3 estrellas, muro 82 % / derrota 04:15 |
 | difícil (1140, 18.240 zombis) | sin límite (42) / 3 | victoria 2 estrellas, muro 25 % / derrota 03:11 |
 
-(Datos de la v3 de Hugo: muro 1.200.000 y difícil a 1140.)
+(Datos de la v3 de Hugo: muro 1.200.000 y difícil a 1140. La D-N127 sube la difícil a 1280: esa fila no está remedida.)
 
 Lectura: **la noche se gana reabasteciendo unas 36–42 veces**, no con 3. Un jugador de prueba que recarga 3 veces pierde también en NightSim (a las 03:49 en normal; en la zona real a las 04:45 porque el muro no se gasta, ver arriba). Así que hay **dos** cosas distintas:
 - Si el jugador de Noche15 solo hace 3 recargas, perder es **lo esperado**; para la prueba debe seguir la regla del bot (reponer al bajar del 30 %, mirando cada ~150 ticks).

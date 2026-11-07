@@ -4,7 +4,7 @@ noche_hora_inicio;22;1;
 noche_hora_fin;6;1;ganas si al amanecer siguen en pie el edificio de viajeros y el tren
 noche_municion_sagunto_u;52;1;además de la dotación de cada pelotón, el Dragón y el NH90 (unas 10 u)
 noche_materiales_u;40;1;para sacos y nidos entre oleadas (el muro de partida de 120 u ya está, D-N63)
-noche_escala_oleadas_permil;850;1000;D-N74: PALANCA ÚNICA, 850 por defecto (primera partida de Eugenio), fácil 725, difícil 1140 (D-N103 y D-N121)
+noche_escala_oleadas_permil;850;1000;D-N74: PALANCA ÚNICA, 850 por defecto (primera partida de Eugenio), fácil 725, difícil 1280 (D-N103, D-N121 y D-N127)
 noche_combustible_u;30;1;D-N76: total de la noche, con los depósitos llenos del Dragón (8) y del NH90 (6) incluidos: en el almacén quedan 16
 noche_estacion_vida;60000;1;D-N99: el edificio de viajeros, con 100 zombis dentro cae en 30 s
 noche_tren_vida;120000;1;D-N105 (Hugo): el tren blindado en el andén aguanta el doble que el edificio, con 100 zombis pegados cae en 60 s. Sin medir
