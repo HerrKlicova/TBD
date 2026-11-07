@@ -357,8 +357,78 @@ def muestra(out):
     return hoja
 
 
+# --- Piezas finales: estilo A con la sombra de la D (aprobado por Mak, 07-11 01:03) -------------
+FPS = 12
+EFECTOS = {
+    # nombre                    (función, fotogramas, (w, h), bucle, pivote, texel_m, ms)
+    "polvo_losa_despegue": (lambda f: polvo("A", "despegue", f), 12, (96, 96), False, (.5, .5), .1, 125),
+    "polvo_losa_aterrizaje": (lambda f: polvo("A", "aterrizaje", f), 12, (96, 96), False, (.5, .5), .1, 125),
+    "fogonazo_mag_puerta": (lambda f: mag("A", f), 3, (24, 24), True, (.12, .5), .1, 50),
+}
+
+
+def _hoja(out, base, frames, w, h, bucle, piv, texel, ms, extra=None):
+    import json
+    n = len(frames)
+    hoja = Image.new("RGBA", (w * n, h), (0, 0, 0, 0))
+    for f, sp in enumerate(frames):
+        hoja.alpha_composite(sp.img, (w * f, 0))
+    hoja.save(out / f"{base}.png")
+    vm = {"fps": round(1000 / ms), "loop": bucle, "frames": n, "frameSize": [w, h], "pivot": list(piv),
+          "texel_m": texel, "blend": "alfa", "capa": "VFX_HD", "origen": "pixelvm, build_vfx_nh90.py"}
+    vm.update(extra or {})
+    meta = {"frames": [{"filename": f"{base} {f}", "frame": {"x": w * f, "y": 0, "w": w, "h": h}, "rotated": False,
+                        "trimmed": False, "spriteSourceSize": {"x": 0, "y": 0, "w": w, "h": h},
+                        "sourceSize": {"w": w, "h": h}, "duration": ms} for f in range(n)],
+            "meta": {"image": f"{base}.png", "size": {"w": w * n, "h": h}, "format": "RGBA8888", "viaMuerta": vm}}
+    (out / f"{base}.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def exportar(out):
+    out = Path(out)
+    todo = {}
+    notas = {"polvo_losa_despegue": {"uso": "del arranque del rotor (f 0) a 10 m de altura (f 11); 1,5 s en total, centrado bajo el rotor"},
+             "polvo_losa_aterrizaje": {"uso": "de 10 m de altura (f 0) al toque (f 7) y el asentamiento (f 11); en la losa del helipuerto. Fuera de la losa sigue vm_vfx_polvo_rotor (D-N83)"},
+             "fogonazo_mag_puerta": {"uso": "MAG 58 de puerta del NH90; sustituye a vm_vfx_fogonazo_mag (2 f) en el NH90; 50 ms por fotograma en ráfaga"}}
+    for nombre, (fn, n, (w, h), bucle, piv, texel, ms) in EFECTOS.items():
+        frames = [fn(f) for f in range(n)]
+        _hoja(out, f"vm_vfx_{nombre}", frames, w, h, bucle, piv, texel, ms, notas[nombre])
+        todo[nombre] = frames
+    for alt in ("bajo", "medio", "alto"):
+        sp = sombra("D", alt)
+        sp.img.save(out / f"decal_sombra_nh90_disco_{alt}.png")
+        todo[f"sombra_{alt}"] = [sp]
+    import json
+    (out / "decal_sombra_nh90_disco.json").write_text(json.dumps({
+        "texel_m": 0.25, "tamano": [72, 72], "pivote": [0.5, 0.5], "morro": "+X de la textura (a la derecha)",
+        "alturas": {"bajo": "< 3 m", "medio": "3–15 m", "alto": "> 15 m"},
+        "uso": "decal en el suelo bajo el NH90, girado con el yaw del aparato; sustituye a decal_sombra_heli_nh90_* (anillo del disco del rotor y fuselaje)",
+        "color": "olive_shadow (D-N100)"}, ensure_ascii=False, indent=1), encoding="utf-8")
+    return todo
+
+
 if __name__ == "__main__":
     OUT = Path(next((a for a in sys.argv[1:] if not a.startswith("--")), "out_vfx_nh90"))
     OUT.mkdir(parents=True, exist_ok=True)
-    muestra(OUT)
+    if "--muestra" in sys.argv:
+        muestra(OUT)
+    else:
+        todo = exportar(OUT)
+        import build_maquetas as m
+        E = 3
+        filas = list(todo.items())
+        Wt = max(sum(sp.w * E + 6 for sp in fr) for _, fr in filas) + 220
+        Ht = sum(fr[0].h * E + 6 for _, fr in filas)
+        hoja = Image.new("RGBA", (Wt, Ht), PAL["navy"])
+        y = 0
+        for n, fr in filas:
+            m.texto(hoja, (4, y + 4), n, 9, "cream")
+            x = 220
+            for sp in fr:
+                fondo = _losa(sp.w, sp.h) if sp.w >= 48 else _noche(sp.w, sp.h)
+                fondo.alpha_composite(sp.img)
+                hoja.alpha_composite(fondo.resize((sp.w * E, sp.h * E), Image.NEAREST), (x, y))
+                x += sp.w * E + 6
+            y += fr[0].h * E + 6
+        hoja.save(OUT / "contacto_vfx_nh90_x3.png")
     print("ok")
