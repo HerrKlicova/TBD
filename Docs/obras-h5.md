@@ -117,7 +117,7 @@ La noche para el trabajo pero no la obra. `WorkInProgress` (encargada y sin acab
 - Mantenimiento: 2 u al día de los materiales de Sagunto.
 - **Mantenimiento con remanente** (adenda de D-N63, Hugo): cada día `AccrueMaintenance` suma el 1 % exacto de la Σ del nivel al remanente del nodo (`MaintRem`, en E4·‰·‰; `MaintDen` = una u) y la estación tiene que poder cubrir `ceil(remanente)`; `SettleMaintenance` cobra `floor(remanente)` u y guarda la fracción (en el hash solo si no es 0). Si no puede cubrirlo, se aplica el desgaste y no se cobra nada ni se arrastra deuda. Sagunto paga 1,2 u al día de media; un apeadero de 30 u, 0,3 u. `MaintenanceU` es solo el techo para la interfaz.
 
-## Puerta de vehículos (7-nov, D-N72 y D-N110)
+## Puerta de vehículos (7-nov, D-N72 y D-N111)
 
 `PieceKind.PuertaVeh` (8): pieza de 8 m (`VehGateWidthMm`) en un muro, de 10 u (`pieza_puerta_vehiculos_u`) y 8 obrero·h (`obra_puerta_vehiculos_h`). Es puerta (`IsGate`, `IsVehGate`),
 defensiva, y cuenta para el nivel y el mantenimiento. La orden `PlaceWork` con `Arg = nodo | (8 << 16)` y `Payload = [x, y]` (muro este u oeste, a lo largo de Y) o `[x, y, 1]` (muro norte o sur, a lo
