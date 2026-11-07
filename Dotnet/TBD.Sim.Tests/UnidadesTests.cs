@@ -233,7 +233,7 @@ namespace TBD.Sim.Tests
                 var g = new NightGame(NightParams.Default(), 77);
                 check(g.TotalTicks == 30857 && Math.Abs(g.TotalTicks / 30.0 / 60 - 17.1) < 0.05, $"de 22:00 a 06:00 a ×28: {g.TotalTicks} ticks = {g.TotalTicks / 30.0 / 60:F1} min reales");
                 var sp = new List<SpawnPoint>();
-                bool clockBad = false; int all = 0; var perWave = new int[6]; var perEntry = new int[4]; bool inRect = true; int firstSpawnTick = -1; bool early = false;
+                bool clockBad = false; int all = 0; var perWave = new int[6]; var perEntry = new int[4]; var perWE = new int[6, 4]; bool inRect = true; int firstSpawnTick = -1; bool early = false;
                 int frontCount1 = 0, tail1 = 0; int ymin = int.MaxValue, ymax = int.MinValue, fymin = int.MaxValue, fymax = int.MinValue;
                 while (g.State == NightState.Jugando)
                 {
@@ -241,7 +241,7 @@ namespace TBD.Sim.Tests
                     if (g.Tick == 7715 && (g.Hour != 0 || g.Minute != 0)) clockBad = true;
                     foreach (var s in sp)
                     {
-                        if (firstSpawnTick < 0) firstSpawnTick = g.Tick; all++; perWave[s.Wave]++; perEntry[s.Entry]++;
+                        if (firstSpawnTick < 0) firstSpawnTick = g.Tick; all++; perWave[s.Wave]++; perEntry[s.Entry]++; perWE[s.Wave, s.Entry]++;
                         var e = g.P.Entries[s.Entry]; if (s.X < e.X0 || s.X >= e.X1 || s.Y < e.Y0 || s.Y >= e.Y1) inRect = false;
                         if (g.Tick < g.WaveStartTick(s.Wave)) early = true;
                         if (s.Wave == 0 && s.Entry == 0) { if (s.Front) { frontCount1++; fymin = Math.Min(fymin, s.Y); fymax = Math.Max(fymax, s.Y); } else { tail1++; ymin = Math.Min(ymin, s.Y); ymax = Math.Max(ymax, s.Y); } }
@@ -250,10 +250,12 @@ namespace TBD.Sim.Tests
                 check(g.State == NightState.Victoria && g.Tick == g.TotalTicks, "si el edificio y el tren aguantan hasta las 06:00, victoria");
                 check(perWave[0] == 510 && perWave[1] == 1020 && perWave[2] == 1700 && perWave[3] == 2550 && perWave[4] == 3060 && perWave[5] == 4250 && all == 13090, $"las 6 oleadas suman exactamente 510, 1.020, 1.700, 2.550, 3.060 y 4.250 zombis al 850 ‰ ({all})");
                 check(!early && firstSpawnTick == g.WaveStartTick(0) + 1 - 0 || firstSpawnTick == g.WaveStartTick(0) + 1 || firstSpawnTick > g.WaveStartTick(0), $"nadie aparece antes de su oleada (primera aparición en el tick {firstSpawnTick}, oleada 1 en {g.WaveStartTick(0)} = 22:20)");
+                var expected = new[,] { { 255, 153, 102, 0 }, { 510, 306, 204, 0 }, { 850, 510, 340, 0 }, { 1275, 765, 510, 0 }, { 1224, 918, 612, 306 }, { 1275, 1275, 850, 850 } };
+                bool exact = true; string got = ""; for (int a = 0; a < 6; a++) { got += $" [O{a + 1}:"; for (int b = 0; b < 4; b++) { if (perWE[a, b] != expected[a, b]) exact = false; got += (b > 0 ? "/" : "") + perWE[a, b]; } got += "]"; }
+                check(exact, "reparto por oleada y entrada EXACTO al de Hugo (noche_sagunto.json, normal): O4 cerrada en 1–4, 306 en la 5 y 850 en la 6;" + got);
                 check(!clockBad, "el reloj marca las 00:00 a las 2 h de juego (tick 7.715)");
-                check(inRect && perEntry[3] == 0, "los zombis aparecen dentro de los rectángulos de entrada de Álvaro, y la entrada O4 (peso 0) no se usa");
-                double w1 = perEntry[0] / (double)all, w2 = perEntry[1] / (double)all, w3 = perEntry[2] / (double)all;
-                check(Math.Abs(w1 - 0.5) < 0.03 && Math.Abs(w2 - 0.3) < 0.03 && Math.Abs(w3 - 0.2) < 0.03, $"reparto por entradas 50/30/20: {w1 * 100:F0}/{w2 * 100:F0}/{w3 * 100:F0} %");
+                check(inRect, "los zombis aparecen dentro de los rectángulos de entrada de Álvaro");
+                check(perEntry[0] == 4 * 0 + perEntry[0] && perEntry[3] == 306 + 850, $"el puente O4 se abre: 306 zombis en la oleada 5 y 850 en la 6 ({perEntry[3]} en total)");
                 int wtot = g.WaveTotal(0); int fc = g.Cumulative(0, g.WaveDurationTicks(0) * 25 / 100);
                 check(Math.Abs(fc - wtot * 55 / 100) <= 1 && fymax - fymin < 17000 / 3 + 2 && ymax - ymin > 17000 * 8 / 10, $"frente denso y cola dispersa: el 55 % entra en el primer 25 % del tiempo ({fc} de {wtot}) por el tercio central ({(fymax - fymin) / 1000.0:F1} m) y la cola se abre a {(ymax - ymin) / 1000.0:F1} m");
             }
@@ -270,6 +272,15 @@ namespace TBD.Sim.Tests
                 check(g3.State == NightState.Derrota && g3.DefeatTick == 5001 && g3.Tick == t0 && sp.Count == 0, "la derrota es definitiva: el reloj se para y no entra nadie más");
                 var g4 = new NightGame(NightParams.Default(), 1); while (g4.State == NightState.Jugando) g4.Step(true, true, sp); g4.Step(false, false, sp);
                 check(g4.State == NightState.Victoria, "una vez ganada la noche, un fallo posterior no la cambia");
+                // D-N91: mundo continuo
+                check(g4.Report.Night == 1 && g4.Report.CloseTick == g4.TotalTicks && g4.Report.Spawned == 13090 && g4.Report.StationAlive && g4.Report.TrainAlive && g4.NightsSurvived == 1, "al amanecer sale el parte de la noche (noche 1, 13.090 zombis, edificio y tren en pie) y la noche queda cerrada");
+                int tc = g4.Tick; g4.Step(true, true, sp);
+                check(g4.State == NightState.Victoria && g4.Tick == tc + 1 && sp.Count == 0, "mundo continuo: tras ganar, el reloj sigue corriendo, no entra nadie y la partida NO termina");
+                check(g4.BeginNextNight(NightParams.Default()) && g4.State == NightState.Jugando && g4.Tick == 0 && g4.NightIndex == 2 && g4.Hour == 22, "BeginNextNight abre la noche 2: reloj a las 22:00, oleadas a cero");
+                var gd = new NightGame(NightParams.Default(), 1); gd.Step(false, true, sp);
+                check(!gd.BeginNextNight(NightParams.Default()) && gd.State == NightState.Derrota, "la derrota sí acaba la partida: no se puede abrir otra noche");
+                long cnt = 0; while (g4.State == NightState.Jugando) { g4.Step(true, true, sp); cnt += sp.Count; }
+                check(cnt == 13090 && g4.NightsSurvived == 2, "la segunda noche también reparte las 6 oleadas completas (13.090) y se cierra");
             }
             {
                 // determinismo y guardado de todo junto: pelotones + noche
@@ -308,6 +319,50 @@ namespace TBD.Sim.Tests
                 bool trunc = true; var full = sw2.ToArray();
                 for (int cut = 0; cut < full.Length && trunc; cut += 7) { try { new UnitsWorld(0).LoadState(new SaveReader(full, 0, cut)); trunc = false; } catch (SaveException) { } }
                 check(trunc, "un guardado de pelotones recortado da siempre error, nunca un mundo a medias en silencio");
+            }
+
+            // ------------------------------------------------------------------ noche sin ventana (API para el jugador automático de Sara)
+            {
+                string json = TBD.Net.BalanceSource.Read("noche_sagunto.json");
+                var sim = NightSim.FromJson(json, null, 7);
+                check(sim.Night.P.Waves.Length == 6 && sim.Night.WaveTotal(0) == 510 && sim.Night.WaveTotal(5) == 4250 && sim.Units.StockShots == 45 * 2000 && sim.MaterialsU == 40 && sim.FuelU == 30, "crear la noche desde noche_sagunto.json (normal): 6 oleadas de 510 a 4.250 zombis, 45 u de munición (90.000 disparos), 40 de materiales y 30 de combustible");
+                var easy = NightSim.FromJson(json, "facil", 7); var hard = NightSim.FromJson(json, "dificil", 7);
+                check(easy.Night.WaveTotal(0) == 440 && easy.Night.WaveTotal(5) == 3620 && hard.Night.WaveTotal(0) == 600 && hard.Night.WaveTotal(5) == 5000, "dificultad fácil (440…3.620) y difícil (600…5.000) desde el mismo JSON");
+                bool bad = false; try { Mini.Parse("{\"a\": [1, 2"); } catch (FormatException) { bad = true; }
+                check(bad && (long)((System.Collections.Generic.Dictionary<string, object>)Mini.Parse("{\"a\": -12}"))["a"] == -12, "el lector de JSON mínimo rechaza un texto truncado y lee enteros con signo");
+
+                sim.AddDefaultForce();
+                int ammo0 = 0; foreach (var p in sim.Units.Platoons) ammo0 += p.AmmoShots; ammo0 += sim.Units.StockShots;
+                var swc = Stopwatch.StartNew();
+                int resup = 0;
+                while (sim.Night.State == NightState.Jugando)
+                {
+                    sim.Run(150);
+                    foreach (var p in sim.Units.Platoons) if (p.AmmoShots * 4 < p.AmmoCap && sim.Resupply(p.Id) > 0) resup++;      // jugador automático mínimo: reabastece a un pelotón con < 25 %
+                }
+                swc.Stop();
+                var snap = sim.Snapshot(); int spent = 0; foreach (var p in sim.Units.Platoons) spent += p.AmmoSpent;
+                check((snap.State == NightState.Victoria ? snap.ZombiesSpawned == 13090 : snap.ZombiesSpawned > 0 && snap.ZombiesSpawned < 13090) && snap.Kills <= snap.ZombiesSpawned && snap.Kills + snap.ZombiesAlive <= snap.ZombiesSpawned, $"balance de zombis (la noche acabó en {snap.State}): entraron {snap.ZombiesSpawned} de 13.090, abatidos {snap.Kills}, vivos {snap.ZombiesAlive}");
+                check(snap.PlatoonAmmoShots + snap.StockShots + spent == ammo0, $"la munición se conserva: inicial {ammo0} = restante {snap.PlatoonAmmoShots + snap.StockShots} + gastada {spent} disparos");
+                int rs = 0, ks = 0, ds = 0; foreach (var w in sim.Waves) { rs += w.Resupplies; ks += w.Kills; ds += w.SoldierDeaths; }
+                check(rs == snap.Resupplies && rs == resup && ks == snap.Kills && ds == snap.SoldierDeaths, $"las estadísticas por oleada suman los totales (recargas {rs}, bajas enemigas {ks}, bajas propias {ds})");
+                check(sim.Waves[0].StartTick == 1285 && sim.Waves[0].HourAtStart == 22 && sim.Waves[0].MinuteAtStart == 20 && sim.Waves[2].HourAtStart == 0 && sim.Waves[2].MinuteAtStart == 40, "las oleadas empiezan a las 22:20, 23:20, 00:40… con su hora");
+                var sb = new System.Text.StringBuilder();
+                foreach (var w in sim.Waves) sb.Append($" [O{w.Wave} {w.HourAtStart:00}:{w.MinuteAtStart:00} entran {w.Spawned}, abatidos {w.Kills}, pila máx. {w.PeakPile}, bajas {w.SoldierDeaths}, recargas {w.Resupplies}, disparos {w.AmmoSpentShots}]");
+                Console.WriteLine($"         noche con la fuerza por defecto y reabastecimiento mínimo: {snap.State} a las {snap.Hour:00}:{snap.Minute:00}, estrellas {sim.Stars()}, muro {snap.WallHp}, edificio {snap.StationHp}, bajas propias {snap.SoldierDeaths} de {snap.SoldierDeaths + snap.SoldiersAlive};{sb}");
+                check(swc.Elapsed.TotalSeconds < 60, $"una noche entera (30.857 ticks, hasta 13.090 zombis) sin ventana en {swc.Elapsed.TotalSeconds:F1} s");
+                // determinismo de la noche entera
+                Func<uint, ulong> night = seed =>
+                {
+                    var n = NightSim.FromJson(json, null, seed); n.AddDefaultForce(); n.Run(9000); n.Units.Move(1, 85000, 60000); n.Run(6000); return n.Hash();
+                };
+                check(night(5) == night(5) && night(5) != night(6), "la noche sin ventana es determinista: misma semilla, mismo hash; otra semilla, otro");
+            }
+            {
+                // atajo de pruebas de Sara: un tren sin edificio ni pelotones pierde pronto
+                var sim = NightSim.FromJson(TBD.Net.BalanceSource.Read("noche_sagunto.json"), "dificil", 3);
+                sim.Run(sim.Night.TotalTicks);
+                check(sim.Night.State == NightState.Derrota && sim.Stars() == 0, $"sin ningún pelotón, la noche difícil se pierde (a las {sim.Night.Hour:00}:{sim.Night.Minute:00}) y da 0 estrellas");
             }
 
             // ------------------------------------------------------------------ rendimiento

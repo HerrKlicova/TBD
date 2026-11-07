@@ -29,3 +29,9 @@ Las estadísticas (`InfCatalog.Table`) son de partida; Hugo las calibra.
 - `Noche.cs`: `NightGame` (reloj 22:00–06:00 a ×28 = 30.857 ticks, 6 oleadas del CSV con la palanca de escala, frente denso y cola dispersa, entradas O1–O4 de Álvaro) y `NightParams.FromCsv`.
   **Fin de partida: siempre gana la derrota** (`Step(stationAlive, trainAlive, spawns)`): si en el mismo tick cae el edificio de viajeros o la locomotora y dan las 06:00, es derrota.
   La simulación no crea zombis: `Step` devuelve los puntos de aparición del tick y la zona los materializa.
+
+## Noche sin ventana (`NocheSim.cs`) y mundo continuo (D-N91)
+- `NightSim.FromJson(json, dificultad, semilla)` crea la noche desde `noche_sagunto.json` (Mini JSON propio, sin dependencias): oleadas, reparto exacto por entrada (O4 abierta en la 5 y la 6) y recursos.
+  `AddDefaultForce()`, órdenes en `sim.Units` (Move, AttackMove, Hold, DeployAt, SetFormation, SetHoldFire), `sim.Resupply(id)` (cuenta recargas), `Run(n)` / `Step()`, `Snapshot()` (hora, zombis, munición restante, pila contra el muro, bajas, recargas),
+  `Waves[i]` (estadísticas por oleada) y `Stars()`. **La «zona» es una abstracción mínima y provisional** (`NightSimParams`: velocidad del zombi, desgaste del muro por la pila, contacto con soldados): sirve para medir munición y equilibrio relativo sin ventana, no sustituye a la zona de Unity.
+- Mundo continuo: al amanecer `NightGame` pasa a `Victoria` = noche cerrada con su `Report`; el reloj sigue y no entra nadie. `BeginNextNight(params)` abre la siguiente. Solo la derrota acaba la partida.

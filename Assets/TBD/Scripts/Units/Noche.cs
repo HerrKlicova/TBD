@@ -9,9 +9,14 @@ namespace TBD.Units
     // REGLA DE FIN DE PARTIDA (Lucía): SIEMPRE GANA LA DERROTA. Si en el mismo tick cae el edificio de viajeros o la locomotora y dan las 06:00, es derrota.
     // La simulación NO crea zombis: devuelve los puntos de aparición de cada tick (SpawnPoint) y la zona los materializa.
 
+    // D-N91 (Lucía): MUNDO CONTINUO. La noche no es una misión aparte: al amanecer sale un parte (NightReport) y el mundo sigue. Victoria = «noche cerrada»:
+    // el reloj sigue corriendo (Step ya no genera zombis ni evalúa derrota) hasta que se llame a BeginNextNight. Solo la derrota acaba la partida.
     public enum NightState : byte { Jugando = 0, Victoria = 1, Derrota = 2 }
 
-    public struct WaveSpec { public int StartMinute; public int Zombies; public int ArrivalSeconds; }
+    /// <summary>Parte del amanecer: lo que le enseña la interfaz al cerrarse la noche.</summary>
+    public struct NightReport { public int Night, CloseTick, Spawned; public bool StationAlive, TrainAlive; }
+
+    public struct WaveSpec { public int StartMinute; public int Zombies; public int ArrivalSeconds; public int[] EntryCount; }   // EntryCount (opcional): reparto exacto por entrada
     public struct EntrySpec { public string Name; public int X0, Y0, X1, Y1; public int Weight; }   // rectángulo de aparición en mm y peso (‰ relativo)
     public struct SpawnPoint { public int Wave, Entry, X, Y; public bool Front; }
 
@@ -31,9 +36,9 @@ namespace TBD.Units
                 ClockX = 28, StartHour = 22, EndHour = 6, ScalePermil = 850, FrontPct = 55, FrontTimePct = 25,
                 Waves = new[]
                 {
-                    new WaveSpec { StartMinute = 20, Zombies = 600, ArrivalSeconds = 40 }, new WaveSpec { StartMinute = 80, Zombies = 1200, ArrivalSeconds = 50 },
-                    new WaveSpec { StartMinute = 160, Zombies = 2000, ArrivalSeconds = 60 }, new WaveSpec { StartMinute = 240, Zombies = 3000, ArrivalSeconds = 70 },
-                    new WaveSpec { StartMinute = 320, Zombies = 3600, ArrivalSeconds = 90 }, new WaveSpec { StartMinute = 400, Zombies = 5000, ArrivalSeconds = 100 },
+                    new WaveSpec { StartMinute = 20, Zombies = 600, ArrivalSeconds = 40, EntryCount = new[] { 50, 30, 20, 0 } }, new WaveSpec { StartMinute = 80, Zombies = 1200, ArrivalSeconds = 50, EntryCount = new[] { 50, 30, 20, 0 } },
+                    new WaveSpec { StartMinute = 160, Zombies = 2000, ArrivalSeconds = 60, EntryCount = new[] { 50, 30, 20, 0 } }, new WaveSpec { StartMinute = 240, Zombies = 3000, ArrivalSeconds = 70, EntryCount = new[] { 50, 30, 20, 0 } },
+                    new WaveSpec { StartMinute = 320, Zombies = 3600, ArrivalSeconds = 90, EntryCount = new[] { 40, 30, 20, 10 } }, new WaveSpec { StartMinute = 400, Zombies = 5000, ArrivalSeconds = 100, EntryCount = new[] { 30, 30, 20, 20 } },
                 },
                 // Álvaro (sagunto-nivel.md §9.5), zona de 256 × 128 m: (X, Z) en metros → (X, Y) en mm
                 Entries = new[]
@@ -59,7 +64,7 @@ namespace TBD.Units
             {
                 var def = i < d.Waves.Length ? d.Waves[i] : default(WaveSpec);
                 string k = "noche_oleada" + (i + 1) + "_";
-                w[i] = new WaveSpec { StartMinute = (int)t.TryValue(k + "minuto", def.StartMinute), Zombies = (int)t.TryValue(k + "zombis", def.Zombies), ArrivalSeconds = (int)t.TryValue(k + "llegada_s", def.ArrivalSeconds) };
+                w[i] = new WaveSpec { StartMinute = (int)t.TryValue(k + "minuto", def.StartMinute), Zombies = (int)t.TryValue(k + "zombis", def.Zombies), ArrivalSeconds = (int)t.TryValue(k + "llegada_s", def.ArrivalSeconds), EntryCount = def.EntryCount };
             }
             d.Waves = w;
             return d;
@@ -73,10 +78,15 @@ namespace TBD.Units
         public NightState State = NightState.Jugando;
         public IRng Rng;
         public int DefeatTick = -1;
+        public int NightIndex = 1;                          // noches vividas (1 = la primera)
+        public NightReport Report;                          // parte de la última noche cerrada (válido si State == Victoria)
+        public int NightsSurvived;
         public bool EndedByStation, EndedByTrain;
         public readonly int[] Spawned;                      // zombis ya generados por oleada
+        readonly List<SpawnPoint> _scratch = new List<SpawnPoint>();
+        public readonly int[][] SpawnedEntry;               // y por entrada (reparto exacto por cuotas)
 
-        public NightGame(NightParams p, uint seed) { P = p; Rng = new IRng(seed); Spawned = new int[p.Waves.Length]; }
+        public NightGame(NightParams p, uint seed) { P = p; Rng = new IRng(seed); Spawned = new int[p.Waves.Length]; SpawnedEntry = new int[p.Waves.Length][]; for (int w = 0; w < p.Waves.Length; w++) SpawnedEntry[w] = new int[p.Entries.Length]; }
 
         public int TotalTicks { get { return (int)((long)((P.EndHour - P.StartHour + 24) % 24) * 3600 * IMath.TickRate / P.ClockX); } }
         public int WaveStartTick(int w) { return (int)((long)P.Waves[w].StartMinute * 60 * IMath.TickRate / P.ClockX); }
@@ -101,31 +111,55 @@ namespace TBD.Units
         public void Step(bool stationAlive, bool trainAlive, List<SpawnPoint> spawns)
         {
             if (spawns != null) spawns.Clear();
-            if (State != NightState.Jugando) return;
+            if (State == NightState.Derrota) return;
+            if (State == NightState.Victoria) { Tick++; return; }      // mundo continuo: la noche está cerrada, el reloj sigue y no entra nadie
             Tick++;
-            if (spawns != null)
+            if (spawns == null) spawns = _scratch;
+            spawns.Clear();
+            for (int w = 0; w < P.Waves.Length; w++)
             {
-                for (int w = 0; w < P.Waves.Length; w++)
-                {
-                    int t = Tick - WaveStartTick(w);
-                    if (t < 0) continue;
-                    int due = Cumulative(w, t) - Spawned[w];
-                    bool front = t <= WaveDurationTicks(w) * P.FrontTimePct / 100;
-                    for (int k = 0; k < due; k++) spawns.Add(Place(w, front));
-                    if (due > 0) Spawned[w] += due;
-                }
+                int t = Tick - WaveStartTick(w);
+                if (t < 0) continue;
+                int due = Cumulative(w, t) - Spawned[w];
+                bool front = t <= WaveDurationTicks(w) * P.FrontTimePct / 100;
+                for (int k = 0; k < due; k++) spawns.Add(Place(w, front));
+                if (due > 0) Spawned[w] += due;
             }
-            else for (int w = 0; w < P.Waves.Length; w++) { int t = Tick - WaveStartTick(w); if (t >= 0) Spawned[w] = Cumulative(w, t); }
             // fin de partida: la derrota tiene prioridad sobre la victoria en el mismo tick
             if (!stationAlive || !trainAlive) { State = NightState.Derrota; DefeatTick = Tick; EndedByStation = !stationAlive; EndedByTrain = !trainAlive; }
-            else if (Tick >= TotalTicks) State = NightState.Victoria;
+            else if (Tick >= TotalTicks)
+            {
+                State = NightState.Victoria; NightsSurvived++;
+                int sp = 0; for (int i = 0; i < Spawned.Length; i++) sp += Spawned[i];
+                Report = new NightReport { Night = NightIndex, CloseTick = Tick, Spawned = sp, StationAlive = stationAlive, TrainAlive = trainAlive };
+            }
+        }
+
+        /// <summary>Empieza la noche siguiente (mundo continuo): reloj a las 22:00, oleadas a cero y el mismo generador. Solo tras cerrar una noche.</summary>
+        public bool BeginNextNight(NightParams next)
+        {
+            if (State != NightState.Victoria) return false;
+            P = next; Tick = 0; State = NightState.Jugando; NightIndex++; DefeatTick = -1; EndedByStation = EndedByTrain = false;
+            if (Spawned.Length != next.Waves.Length) throw new ArgumentException("otro número de oleadas: crea un NightGame nuevo");
+            for (int w = 0; w < Spawned.Length; w++) { Spawned[w] = 0; for (int e = 0; e < SpawnedEntry[w].Length; e++) SpawnedEntry[w][e] = 0; }
+            return true;
         }
 
         SpawnPoint Place(int wave, bool front)
         {
-            int total = 0; for (int i = 0; i < P.Entries.Length; i++) total += P.Entries[i].Weight;
-            int e = 0;
-            if (total > 0) { int r = Rng.Below(total), acc = 0; for (; e < P.Entries.Length; e++) { acc += P.Entries[e].Weight; if (r < acc) break; } }
+            // reparto EXACTO por cuotas: cada zombi va a la entrada que más le falta respecto a su peso (empate: la de menor índice).
+            // Con los pesos de la oleada (EntryCount, de noche_sagunto.json) el reparto final coincide con el de Hugo al zombi.
+            var ec = P.Waves[wave].EntryCount; var se = SpawnedEntry[wave];
+            long total = 0; for (int i = 0; i < P.Entries.Length; i++) total += ec != null && i < ec.Length ? ec[i] : P.Entries[i].Weight;
+            long k1 = 1; for (int i = 0; i < se.Length; i++) k1 += se[i]; int e = 0; long best = long.MinValue;
+            if (total > 0)
+                for (int i = 0; i < P.Entries.Length; i++)
+                {
+                    long wi = ec != null && i < ec.Length ? ec[i] : P.Entries[i].Weight;
+                    long deficit = wi * k1 - (long)se[i] * total;
+                    if (wi > 0 && deficit > best) { best = deficit; e = i; }
+                }
+            se[e]++;
             var en = P.Entries[Math.Min(e, P.Entries.Length - 1)];
             int w = en.Y1 - en.Y0;
             int y = front ? en.Y0 + w / 3 + Rng.Below(Math.Max(1, w / 3)) : en.Y0 + Rng.Below(Math.Max(1, w));       // el frente va por el tercio central; la cola, a todo lo ancho
@@ -135,22 +169,24 @@ namespace TBD.Units
 
         public ulong Hash()
         {
-            ulong h = IMath.Mix(0x20E0 ^ (ulong)(uint)Tick) + IMath.Mix(0x20E1 ^ Rng.S) + IMath.Mix(0x20E2 ^ (ulong)State ^ ((ulong)(uint)(DefeatTick + 1) << 8)) + IMath.Mix(0x20E3 ^ (ulong)(uint)P.ScalePermil ^ ((ulong)(uint)P.ClockX << 20));
-            for (int i = 0; i < Spawned.Length; i++) h += IMath.Mix((ulong)(uint)Spawned[i] + ((ulong)i << 40) + 17);
+            ulong h = IMath.Mix(0x20E0 ^ (ulong)(uint)Tick) + IMath.Mix(0x20E1 ^ Rng.S) + IMath.Mix(0x20E2 ^ (ulong)State ^ ((ulong)(uint)(DefeatTick + 1) << 8)) + IMath.Mix(0x20E3 ^ (ulong)(uint)P.ScalePermil ^ ((ulong)(uint)P.ClockX << 20)) + IMath.Mix(0x20E4 ^ (ulong)(uint)NightIndex ^ ((ulong)(uint)NightsSurvived << 20) ^ ((ulong)(uint)Report.CloseTick << 40));
+            for (int i = 0; i < Spawned.Length; i++) { h += IMath.Mix((ulong)(uint)Spawned[i] + ((ulong)i << 40) + 17); for (int e = 0; e < SpawnedEntry[i].Length; e++) h += IMath.Mix((ulong)(uint)SpawnedEntry[i][e] + ((ulong)i << 40) + ((ulong)e << 52) + 19); }
             return h;
         }
 
         public void SaveState(SaveWriter w)
         {
             w.Int(Tick); w.Byte((byte)State); w.UInt(Rng.S); w.Int(DefeatTick); w.Bool(EndedByStation); w.Bool(EndedByTrain);
-            w.Int(Spawned.Length); for (int i = 0; i < Spawned.Length; i++) w.Int(Spawned[i]);
+            w.Int(NightIndex); w.Int(NightsSurvived); w.Int(Report.Night); w.Int(Report.CloseTick); w.Int(Report.Spawned); w.Bool(Report.StationAlive); w.Bool(Report.TrainAlive);
+            w.Int(Spawned.Length); for (int i = 0; i < Spawned.Length; i++) { w.Int(Spawned[i]); for (int e = 0; e < SpawnedEntry[i].Length; e++) w.Int(SpawnedEntry[i][e]); }
         }
 
         public void LoadState(SaveReader r)
         {
             Tick = r.Int(); State = (NightState)r.Byte(); Rng.S = r.UInt(); DefeatTick = r.Int(); EndedByStation = r.Bool(); EndedByTrain = r.Bool();
+            NightIndex = r.Int(); NightsSurvived = r.Int(); Report = new NightReport { Night = r.Int(), CloseTick = r.Int(), Spawned = r.Int(), StationAlive = r.Bool(), TrainAlive = r.Bool() };
             int n = r.Int(); if (n != Spawned.Length) throw new SaveException(SaveError.Corrupt, "otro número de oleadas");
-            for (int i = 0; i < n; i++) Spawned[i] = r.Int();
+            for (int i = 0; i < n; i++) { Spawned[i] = r.Int(); for (int e = 0; e < SpawnedEntry[i].Length; e++) SpawnedEntry[i][e] = r.Int(); }
         }
     }
 }
