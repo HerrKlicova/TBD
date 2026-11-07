@@ -2,7 +2,7 @@
 del atributo de cara «hueso» que pone soldado.Cuerpo. Animaciones (24 fps), una acción por clip, para que el FBX las
 exporte como tomas separadas que Unity importa como clips: reposo (24 f, bucle), andar (24 f, bucle, un paso completo
 a ~1,4 m/s: avanza 0,7 m por ciclo si se quiere root motion, aquí sin desplazamiento), disparar (12 f, bucle: encara y
-dos retrocesos) y morir (36 f, sin bucle: flojea de rodillas y cae de espaldas; revisión de Lucía 23:17: sin
+dos retrocesos), apuntar (12 f, pose fija) y morir (36 f, sin bucle: flojea de rodillas y cae de espaldas; revisión de Lucía 23:17: sin
 arrodillarse, para que las piernas no se separen de la pelvis en ningún fotograma).
 Ángulos SIN VERIFICAR contra captura de movimiento; ajustados a ojo en el render a tamaño de juego."""
 import math
@@ -20,6 +20,10 @@ HUESOS = {   # nombre: (cabeza, cola, padre)
     "pierna_R": ((-0.1, 0, 0.5), (-0.1, 0, 0.08), "muslo_R"),
 }
 R = math.radians
+# pose «apuntando» (grados XYZ en el espacio de cada hueso, como las demás claves)
+POSE_APUNTAR = {"brazos": (24, 0, 0), "pecho": (-6, 0, 0), "cabeza": (8, 0, 0), "muslo_L": (-12, 0, 0),
+                "muslo_R": (8, 0, 0), "pierna_R": (10, 0, 0)}
+POSE_APUNTAR_LOC = (0, -0.12, 0.0)   # el hueso mira a -Y: Y local negativa = hacia atrás, culata al hombro
 
 
 def _clave(arm, f, hueso, rot=None, loc=None):
@@ -83,6 +87,15 @@ def animaciones(arm, tipo=0):
         7: {"brazos": ((a, 0, 0), None), "pecho": ((0, 0, 0), None)},
         10: {"brazos": ((a + 5, 0, 0), None), "pecho": ((-4, 0, 0), None)},
     }, 13)
+    # apuntando (Lucía, encargo de control de disparos §4.3, 7-nov): arma al hombro y a la horizontal, orientada al
+    # frente; pose fija (bucle de 12 f sin movimiento). El paso de reposo a apuntando (0,25 s) y el retroceso (2 px,
+    # 1 fotograma) los hace Marcos por código. Misma pose que el primer fotograma de «disparar», más el pecho
+    # adelantado y la cabeza agachada sobre el arma.
+    _accion(arm, "apuntar", {
+        1: {"brazos": (POSE_APUNTAR["brazos"], POSE_APUNTAR_LOC), "pecho": (POSE_APUNTAR["pecho"], None),
+            "cabeza": (POSE_APUNTAR["cabeza"], None), "muslo_L": (POSE_APUNTAR["muslo_L"], None),
+            "muslo_R": (POSE_APUNTAR["muslo_R"], None), "pierna_R": (POSE_APUNTAR["pierna_R"], None)},
+    }, 12)
     _accion(arm, "morir", {
         1: {"raiz": ((0, 0, 0), (0, 0, 0)), "muslo_L": ((0, 0, 0), None), "muslo_R": ((0, 0, 0), None),
             "pierna_L": ((0, 0, 0), None), "pierna_R": ((0, 0, 0), None), "brazos": ((0, 0, 0), None),
