@@ -90,7 +90,7 @@ def v_oxidado():
 def v_ceniza():
     s = Sprite(T, T)
     huella(s, 3, largo=31, ancho=18, ceniza=1.0, ceniza_dens=2.6)
-    motas(s, 3, 18, ["grey_light", "concrete_light", "bone"], 1130, (4, 12, 56, 40))   # cristales (K8_3)
+    motas(s, 3, 18, ["grey_light", "concrete_light", "grey_light"], 1130, (4, 12, 56, 40))   # cristales (K8_3); sin d4d0cc, que es el color de la selección (Lucía)
     return s
 
 
