@@ -148,8 +148,84 @@ def flecha_ataque():
     return s
 
 
+def fila_aviso(im, y):
+    """Fila «Tren atacado · vagón N» de la columna de avisos (piezas que ya existían)."""
+    import build_maquetas as m
+    import build_interfaz as ui
+    import build_avisos_minimapa as am
+    from pixelvm import reduce_16
+    m.pega(im, ui.alerta_slot("ataque"), 12, y)
+    m.pega(im, reduce_16(am.tren_atacado()), 16, y + 4)
+    m.pega(im, ui.panel(150, 24), 38, y)
+    m.texto(im, (46, y + 6), "Tren atacado · vagón 2", 9, "bone", sombra=False)
+
+
+# --- Piezas finales (variante A + fila de la C) ------------------------------------------------
+CAJA_W, CAJA_H = 28, 20
+
+
+def caja(estado, f=0):
+    """Hueco de un coche en el esquema (28x20, 9-slice slice 2). estado: normal, atacado (2 f), visible."""
+    c = Sprite(CAJA_W, CAJA_H)
+    c.rect(0, 0, CAJA_W, CAJA_H, "navy")
+    borde = {"normal": "grey_brown", "visible": "grey_brown"}.get(estado, "red_bright" if f == 0 else "red")
+    for x in range(CAJA_W):
+        c.set(x, 0, borde); c.set(x, CAJA_H - 1, borde)
+    for y in range(CAJA_H):
+        c.set(0, y, borde); c.set(CAJA_W - 1, y, borde)
+    if estado == "visible":
+        for (x, y) in ((1, 1), (CAJA_W - 2, 1), (1, CAJA_H - 2), (CAJA_W - 2, CAJA_H - 2)):
+            c.set(x, y, "bone")
+    return c
+
+
+def exportar(out):
+    import json
+    out = Path(out)
+    caja("normal").img.save(out / "ui_tren_caja.png")
+    caja("visible").img.save(out / "ui_tren_caja_visible.png")
+    h = Image.new("RGBA", (2 * CAJA_W, CAJA_H), (0, 0, 0, 0))
+    for f in range(2):
+        h.alpha_composite(caja("atacado", f).img, (CAJA_W * f, 0))
+    h.save(out / "ui_tren_caja_atacado.png")
+    for t in ("loco", "tropa", "contenedor", "cisterna"):
+        silueta(t, 22, 8).img.save(out / f"ui_tren_coche_{t}_22x8.png")
+    fondo = Sprite(1, 2); fondo.rect(0, 0, 1, 2, "grey_brown"); fondo.img.save(out / "ui_tren_barra_fondo.png")
+    for n, col in (("alta", "bone"), ("media", "beige"), ("baja", "ochre_dark")):
+        r = Sprite(1, 2); r.rect(0, 0, 1, 2, col); r.img.save(out / f"ui_tren_barra_{n}.png")
+    fr = Sprite(4, 34); fr.rect(0, 0, 4, 34, "navy"); fr.hline(0, 3, 0, "grey_brown"); fr.img.save(out / "ui_tren_franja.png")
+    triangulo_rojo().img.save(out / "ui_tren_triangulo_ataque.png")
+    flecha_ataque().img.save(out / "ui_tren_flecha_ataque.png")
+    (out / "ui_tren_vista.json").write_text(json.dumps({
+        "variante": "A + fila de aviso de la C (aprobada por Mak, 07-11 00:46)",
+        "base": [640, 360], "escala_1080": 3,
+        "franja": {"png": "ui_tren_franja", "y": 326, "alto": 34, "estirar": "horizontal a 640; la fila 0 es el filete"},
+        "esquema": {"centro_x": 320, "y": 333, "orden": "locomotora a la derecha (el tren va hacia +X)",
+                    "coches": ["loco", "tropa", "contenedor"], "paso_x": 31,
+                    "caja": {"png": "ui_tren_caja", "visible": "ui_tren_caja_visible", "atacado": "ui_tren_caja_atacado",
+                             "slice": 2, "atacado_frames": 2, "duration_ms": 500},
+                    "silueta": {"png": "ui_tren_coche_<tipo>_22x8", "x": 3, "y": 2},
+                    "barra": {"x": 3, "y": 14, "ancho": 22, "alto": 2, "fondo": "ui_tren_barra_fondo",
+                              "relleno": {"alta (>=50 %)": "ui_tren_barra_alta", "media (25-50 %)": "ui_tren_barra_media",
+                                          "baja (<25 %)": "ui_tren_barra_baja"}}},
+        "triangulo": {"png": "ui_tren_triangulo_ataque", "sobre": "la caja atacada, 13 px por encima de la franja",
+                      "parpadeo": "visible en el fotograma 0 de la caja atacada"},
+        "flecha": {"png": "ui_tren_flecha_ataque", "uso": "en el mundo, sobre el trozo atacado; si está fuera de cuadro, pegada al borde por donde atacan"},
+        "textos": ["Vista del tren (9 px, cream, x 10, y 334)", "V: volver al mapa (9 px, beige, x 10, y 346)"],
+        "aviso": "fila de la columna de avisos: ui_alerta_ataque + ui_aviso_tren_atacado_16 + ui_panel con «Tren atacado · vagón N»",
+        "colores": "vida en hueso, beige y ocre (sin ámbar); rojo #982420 solo para el ataque",
+    }, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def maqueta(out):
+    out = Path(out)
+    for f in range(2):
+        im = pantalla("A", f, final=True)
+        im.resize((1920, 1080), Image.NEAREST).save(out / f"maqueta_1080_tren_vista{'_f1' if f else ''}.png")
+
+
 # --- Pantallas de la muestra -----------------------------------------------------------------
-def pantalla(v, f=0):
+def pantalla(v, f=0, final=False):
     import build_maquetas as m
     import build_interfaz as ui
     import build_apertura as ap
@@ -174,6 +250,8 @@ def pantalla(v, f=0):
         x_at = W // 2 - e.width // 2 + 2 + (len(TREN) - 1 - ATACADO) * 31 + 8
         m.pega(im, triangulo_rojo(), x_at, H - 40)
         m.pega(im, flecha_ataque(), 40, 210)
+        if final:                                    # D-N110: la A con la fila de aviso de la C (Mak, 00:46)
+            fila_aviso(im, 60)
     elif v == "B":                                   # visor: esquinas de cámara y barras de vida sobre el vagón
         for (x, y, dx, dy) in ((8, 8, 1, 1), (W - 9, 8, -1, 1), (8, H - 9, 1, -1), (W - 9, H - 9, -1, -1)):
             for k in range(14):
@@ -203,13 +281,7 @@ def pantalla(v, f=0):
         m.texto(im, (20, 3), "Vista del tren", 9, "cream", sombra=False)
         e = esquema("pips", f)
         im.alpha_composite(e, (W // 2 - e.width // 2, 40))
-        slot = ui.alerta_slot("ataque")
-        import build_avisos_minimapa as am
-        from pixelvm import reduce_16
-        m.pega(im, slot, 12, 60)
-        m.pega(im, reduce_16(am.tren_atacado()), 16, 64)
-        m.pega(im, ui.panel(150, 24), 38, 60)
-        m.texto(im, (46, 66), "Tren atacado · vagón 2", 9, "bone", sombra=False)
+        fila_aviso(im, 60)
     elif v == "D":                                   # esquema grande abajo con siluetas que se llenan
         e = esquema("relleno", f, 40)
         pl = ui.panel(e.width + 16, 34)
@@ -261,5 +333,9 @@ def muestra(out):
 if __name__ == "__main__":
     OUT = Path(next((a for a in sys.argv[1:] if not a.startswith("--")), "out_tren_vista"))
     OUT.mkdir(parents=True, exist_ok=True)
-    muestra(OUT)
+    if "--muestra" in sys.argv:
+        muestra(OUT)
+    else:
+        exportar(OUT)
+        maqueta(OUT)
     print("ok")

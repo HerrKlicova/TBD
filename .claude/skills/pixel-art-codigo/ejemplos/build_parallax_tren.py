@@ -28,8 +28,9 @@ COLORES = {
             "bancal": "ochre_dark", "arbol": "olive_dark", "arbol_luz": "olive", "casa": "bone", "ventana": None},
     "noche": {"cielo": ["navy", "slate_dark", "grey_brown"], "estrella": "bone",
               "sierra": "navy", "sierra_luz": "grey_brown", "sierra_sombra": "navy",
-              "colina": "olive_shadow", "colina_luz": "grey_brown", "colina_sombra": "olive_black",
-              "bancal": "brown_dark", "arbol": "olive_black", "arbol_luz": "olive_shadow", "casa": "grey_brown",
+              # D-N110 (Lucía): nada en 1c200c ni 442c0c junto a la vía, que se leería como horda
+              "colina": "olive_shadow", "colina_luz": "grey_brown", "colina_sombra": "grey_brown",
+              "bancal": "olive_dark", "arbol": "olive_dark", "arbol_luz": "olive_grey", "casa": "grey_brown",
               "ventana": "cream"},
 }
 
