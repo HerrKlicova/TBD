@@ -217,6 +217,7 @@ peloton_zapadores_materiales_u;2;1;equipo, una vez al formarlo
 peloton_zapadores_formacion_h;10;1;
 peloton_zapadores_etapa;1;1;prioridad de la noche P2
 peloton_zapadores_soldado_vida;4000;1;D-N107 (Hugo): 100 -> 2000 -> 4000 con el contacto de a210bd3 (2 por zombi y tick a 900 mm): un zombi solo tarda 67 s, seis tardan 11 s. Con 2000 el caso B de Sara daba 10 bajas
+infanteria_campo_traves_permil;700;1000;D-N119 (Hugo): a pie fuera de carretera y vía (huerta, descampado) al 70 % de la velocidad del pelotón, marcha de 5 km/h en camino frente a 3,5 por campo. Sustituye a Transporte.FootPenaltyPm
 vehiculo_dragon_vida;4000;1;VCR 8x8 Dragón (Paula V1: 8 x 3 x 2,34 m, 30 t, torre de 30 mm)
 vehiculo_dragon_armadura;990;1000;‰ del daño de los zombis que se ignora
 vehiculo_dragon_vel_mm_s;12000;1;la horda casi no lo araña (armadura 99 %), lo que lo mata es quedarse encajado: con pila >= 3 delante se para, como el tren

@@ -86,7 +86,7 @@ deshabilita carreteras ahí, no en el dibujo). Todo **local** como los vehículo
 
 **Regla**: un pelotón a pie recibe «ir a (x, y)». Solo embarca en un vehículo **libre** (sin trabajo ni reserva `Vehicle.OnJob`, sin pasajeros, entero, con plazas para todos los vivos y gasolina para el viaje).
 El vehículo solo va por **carreteras habilitadas o por la caja de la vía**, nunca campo a través (los extremos se unen con un acceso de ≤ 60 m al punto más cercano; si no lo hay, «sin ruta»). Dentro del recinto
-no hay carretera: se sale por la puerta sur. La infantería a pie va a campo través al 70 % de su velocidad (`FootPenaltyPm`, provisional: Hugo debe confirmarlo).
+no hay carretera: se sale por la puerta sur. La infantería a pie va a campo través al 70 % de su velocidad: dato `infanteria_campo_traves_permil` de `balance_unidades.csv` (D-N119, Hugo); `TransportDirector.LoadBalance(csv)` lo lee (junto a `VehicleCatalog.Load`), 700 si falta.
 
 **API** (todo en enteros; `Step()` una vez por tick, junto con `UnitsWorld.Step`):
 - `RoadMap.Sagunto(json)` (o `FromJson`): red de carreteras. `SetRoadEnabled(id, bool)` y `BlockNear(x, y, radio, bloqueado)` (puerta de vía cerrada, escombros). `Route(...)` devuelve `RoutePath` (puntos en mm, tipo de cada tramo, metros por carretera, vía y acceso, giros).

@@ -120,6 +120,16 @@ namespace TBD.Sim.Tests
         {
             string dataDir = BalanceTests.DataDirPublic();           // el mismo lector que Unity, apuntando a la carpeta de datos del repositorio
             TBD.Net.BalanceSource.Reader = f => { var path = System.IO.Path.Combine(dataDir, f); return System.IO.File.Exists(path) ? System.IO.File.ReadAllText(path) : null; };
+            if (Environment.GetEnvironmentVariable("TBD_TRACE_REFERENCE") is string refOut && refOut.Length > 0)     // regenera la traza de referencia de NightSim (ruta del CSV de salida)
+            {
+                string nj = TBD.Net.BalanceSource.Read("noche_sagunto.json"); var rt = TBD.Units.NightTraceTools.Reference(nj, null, 1, TBD.Units.NightTraceTools.FirstWaveTick(nj, null, 1), 9000, 30);
+                System.IO.File.WriteAllText(refOut, rt.ToCsv()); Console.WriteLine($"traza de referencia: {rt.Rows.Count} filas en {refOut}"); return 0;
+            }
+            if (Environment.GetEnvironmentVariable("TBD_TRACE_COMPARE") is string zonePath && zonePath.Length > 0)    // compara la traza que ha grabado la zona de Unity (CSV) con la de NightSim
+            {
+                var zt = TBD.Units.NightTrace.FromCsv(System.IO.File.ReadAllText(zonePath)); var rpt = TBD.Units.NightTraceTools.CompareWithReference(zt);
+                Console.WriteLine(rpt.Text); Console.WriteLine(); Console.WriteLine(TBD.Units.NightTraceTools.SideBySide(TBD.Units.NightTraceTools.ReferenceFromData(), zt, 10)); return rpt.Ok ? 0 : 1;
+            }
             if (Environment.GetEnvironmentVariable("TBD_NIGHT_REPORT") == "1") { UnidadesTests.NightReport(); return 0; }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_UNITS") == "1")      // solo la sección [29] (unidades), para iterar rápido
             {
