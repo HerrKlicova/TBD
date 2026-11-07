@@ -42,7 +42,7 @@ arma_ametralladora_emplazada_tope_bajas;1;1;
 arma_ametralladora_emplazada_perforacion;1;1;zombis extra detrás del primero, al 50 %
 arma_ametralladora_emplazada_despliegue_ticks;60;1;parado este tiempo antes de disparar, no dispara en marcha si > 0
 arma_ametralladora_emplazada_vuelo_ticks;0;1;retardo hasta el impacto
-arma_lanzagranadas_cadencia_ticks;180;1;HK AG36 de 40 mm, monotiro, hasta 350 m (Paula), tiro parabólico, solo si hay >= 6 zombis en el radio, si no el granadero usa su fusil
+arma_lanzagranadas_cadencia_ticks;180;1;HK AG36 de 40 mm, monotiro, hasta 350 m (Paula), D-N137 (7-nov): radio 2,5 -> 4 m y tope 10 -> 25 (40 mm HE: letal ~5 m), tiro parabólico, solo si hay >= 6 zombis en el radio, si no el granadero usa su fusil
 arma_lanzagranadas_clase_municion;3;1;1 ligera, 2 pesada, 3 especial: en el MVP las tres salen del MISMO stock de munición (la economía tiene una sola), la clase es para la Colmena (tipo de muerte) y para separarlas más adelante
 arma_lanzagranadas_alcance_m;140;1;
 arma_lanzagranadas_alcance_min_m;15;1;
@@ -50,9 +50,9 @@ arma_lanzagranadas_acierto_bocajarro_permil;0;1000;
 arma_lanzagranadas_acierto_pendiente_permil_m;0;1000;
 arma_lanzagranadas_acierto_minimo_permil;0;1000;
 arma_lanzagranadas_coste_disparos;40;1;disparos equivalentes por disparo (1 u = 2.000)
-arma_lanzagranadas_radio_mm;2500;1;0 = tiro directo
+arma_lanzagranadas_radio_mm;4000;1;0 = tiro directo
 arma_lanzagranadas_letalidad_permil;500;1000;probabilidad de abatir a cada zombi dentro del radio
-arma_lanzagranadas_tope_bajas;10;1;
+arma_lanzagranadas_tope_bajas;25;1;
 arma_lanzagranadas_perforacion;0;1;zombis extra detrás del primero, al 50 %
 arma_lanzagranadas_despliegue_ticks;0;1;parado este tiempo antes de disparar, no dispara en marcha si > 0
 arma_lanzagranadas_vuelo_ticks;20;1;retardo hasta el impacto
@@ -98,7 +98,7 @@ arma_carga_zapador_tope_bajas;40;1;
 arma_carga_zapador_perforacion;0;1;zombis extra detrás del primero, al 50 %
 arma_carga_zapador_despliegue_ticks;90;1;parado este tiempo antes de disparar, no dispara en marcha si > 0
 arma_carga_zapador_vuelo_ticks;150;1;retardo hasta el impacto
-arma_canon_30_cadencia_ticks;10;1;Mk44S de 30 mm del VCR Dragón (Paula: 200 disp./min, 3.000 m), explosivo: impacto directo más metralla en 1,5 m, apunta y dispara solo
+arma_canon_30_cadencia_ticks;10;1;Mk44S de 30 mm del VCR Dragón (Paula: 200 disp./min, 3.000 m), D-N137 (7-nov): radio 1,5 -> 2,5 m y tope 4 -> 10, explosivo: impacto directo más metralla en 2,5 m, apunta y dispara solo
 arma_canon_30_clase_municion;2;1;1 ligera, 2 pesada, 3 especial: en el MVP las tres salen del MISMO stock de munición (la economía tiene una sola), la clase es para la Colmena (tipo de muerte) y para separarlas más adelante
 arma_canon_30_alcance_m;220;1;
 arma_canon_30_alcance_min_m;0;1;
@@ -106,9 +106,9 @@ arma_canon_30_acierto_bocajarro_permil;500;1000;
 arma_canon_30_acierto_pendiente_permil_m;1;1000;
 arma_canon_30_acierto_minimo_permil;200;1000;
 arma_canon_30_coste_disparos;15;1;disparos equivalentes por disparo (1 u = 2.000)
-arma_canon_30_radio_mm;1500;1;0 = tiro directo
+arma_canon_30_radio_mm;2500;1;0 = tiro directo
 arma_canon_30_letalidad_permil;500;1000;probabilidad de abatir a cada zombi dentro del radio
-arma_canon_30_tope_bajas;4;1;
+arma_canon_30_tope_bajas;10;1;
 arma_canon_30_perforacion;0;1;zombis extra detrás del primero, al 50 %
 arma_canon_30_despliegue_ticks;0;1;parado este tiempo antes de disparar, no dispara en marcha si > 0
 arma_canon_30_vuelo_ticks;0;1;retardo hasta el impacto
@@ -148,12 +148,26 @@ arma_canon_30_heli_acierto_bocajarro_permil;450;1000;
 arma_canon_30_heli_acierto_pendiente_permil_m;1;1000;
 arma_canon_30_heli_acierto_minimo_permil;200;1000;
 arma_canon_30_heli_coste_disparos;15;1;disparos equivalentes por disparo (1 u = 2.000)
-arma_canon_30_heli_radio_mm;1500;1;0 = tiro directo
+arma_canon_30_heli_radio_mm;2500;1;0 = tiro directo
 arma_canon_30_heli_letalidad_permil;500;1000;probabilidad de abatir a cada zombi dentro del radio
-arma_canon_30_heli_tope_bajas;4;1;
+arma_canon_30_heli_tope_bajas;10;1;
 arma_canon_30_heli_perforacion;0;1;zombis extra detrás del primero, al 50 %
 arma_canon_30_heli_despliegue_ticks;0;1;parado este tiempo antes de disparar, no dispara en marcha si > 0
 arma_canon_30_heli_vuelo_ticks;0;1;retardo hasta el impacto
+arma_c90_cadencia_ticks;300;1;Instalaza C90-CR-AM de 90 mm, desechable, unos 200-350 m eficaces (dotación real sin verificar), D-N137 (Lucía, 7-nov): SOLO por orden del jugador, nunca automático, un solo uso, 2 por pelotón de fusileros (1 por escuadra), se reponen del almacén en la recarga, coste 1 u por tiro (2.000 disparos equivalentes) para que gastarlo sea una decisión
+arma_c90_clase_municion;3;1;1 ligera, 2 pesada, 3 especial: en el MVP las tres salen del MISMO stock de munición (la economía tiene una sola), la clase es para la Colmena (tipo de muerte) y para separarlas más adelante
+arma_c90_alcance_m;120;1;
+arma_c90_alcance_min_m;10;1;
+arma_c90_acierto_bocajarro_permil;0;1000;
+arma_c90_acierto_pendiente_permil_m;0;1000;
+arma_c90_acierto_minimo_permil;0;1000;
+arma_c90_coste_disparos;2000;1;disparos equivalentes por disparo (1 u = 2.000)
+arma_c90_radio_mm;5000;1;0 = tiro directo
+arma_c90_letalidad_permil;500;1000;probabilidad de abatir a cada zombi dentro del radio
+arma_c90_tope_bajas;40;1;
+arma_c90_perforacion;0;1;zombis extra detrás del primero, al 50 %
+arma_c90_despliegue_ticks;0;1;parado este tiempo antes de disparar, no dispara en marcha si > 0
+arma_c90_vuelo_ticks;15;1;retardo hasta el impacto
 arma_cohetes_70_cadencia_ticks;600;1;cohetes de 70 mm del Tigre (Paula A3), salva cada 20 s, solo 2 salvas por salida
 arma_cohetes_70_clase_municion;3;1;1 ligera, 2 pesada, 3 especial: en el MVP las tres salen del MISMO stock de munición (la economía tiene una sola), la clase es para la Colmena (tipo de muerte) y para separarlas más adelante
 arma_cohetes_70_alcance_m;220;1;
@@ -173,6 +187,7 @@ peloton_fusileros_servidores;0;1;personas sin arma propia (cargadores)
 peloton_fusileros_arma_fusil;4;1;
 peloton_fusileros_arma_ametralladora_ligera;2;1;
 peloton_fusileros_arma_lanzagranadas;2;1;
+peloton_fusileros_c90_tiros;2;1;D-N137: C90 de un solo uso, solo por orden del jugador, se reponen del almacén en la recarga a 1 u cada uno (arma_c90_*)
 peloton_fusileros_velocidad_mm_s;2500;1;el zombi común va de 1,2 a 2,0 m/s
 peloton_fusileros_dotacion_municion_permil_u;1500;1000;munición que se lleva al desembarcar (sale del tren o de la estación)
 peloton_fusileros_materiales_u;0;1;equipo, una vez al formarlo

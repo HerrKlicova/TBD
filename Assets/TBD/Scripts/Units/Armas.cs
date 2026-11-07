@@ -11,6 +11,7 @@ namespace TBD.Units
     {
         Fusil = 0, FusilPrecision = 1, FusilAntimaterial = 2, MgLigera = 3, MgEmplazada = 4, MgPesada = 5, MgPuerta = 6,
         Lanzagranadas = 7, CargaZapador = 8, Canon30 = 9, Canon30Heli = 10, Cohetes70 = 11,
+        C90 = 12,                       // D-N137 (Lucía): lanzacohetes de un solo uso de los fusileros, SOLO por orden del jugador (UnitsWorld.OrderC90), nunca automático
     }
 
     public struct Weapon
@@ -57,11 +58,12 @@ namespace TBD.Units
                 W("ametralladora_emplazada", 2, 1, 80, 0, 300, 3, 40, 2, 0, 0, 1, 1, 60, 0, cone: 5461),     // cono de 60°: 30° a cada lado
                 W("ametralladora_pesada", 3, 1, 100, 0, 300, 2, 40, 3, 0, 0, 1, 1, 0, 0),
                 W("ametralladora_puerta", 3, 1, 120, 0, 180, 1, 30, 1, 0, 0, 1, 0, 0, 0, cone: 16384),         // sector de 180°: 90° a cada lado
-                W("lanzagranadas", 180, 3, 140, 15, 0, 0, 0, 40, 2500, 500, 10, 0, 0, 20, cluster: 6),
+                W("lanzagranadas", 180, 3, 140, 15, 0, 0, 0, 40, 4000, 500, 25, 0, 0, 20, cluster: 6),
                 W("carga_zapador", 900, 3, 10, 0, 0, 0, 0, 200, 4000, 800, 40, 0, 90, 150, cluster: 6),
-                W("canon_30", 10, 2, 220, 0, 500, 1, 200, 15, 1500, 500, 4, 0, 0, 0),
-                W("canon_30_heli", 5, 2, 200, 0, 450, 1, 200, 15, 1500, 500, 4, 0, 0, 0),
+                W("canon_30", 10, 2, 220, 0, 500, 1, 200, 15, 2500, 500, 10, 0, 0, 0),
+                W("canon_30_heli", 5, 2, 200, 0, 450, 1, 200, 15, 2500, 500, 10, 0, 0, 0),
                 W("cohetes_70", 600, 3, 220, 30, 0, 0, 0, 200, 7000, 600, 60, 0, 0, 30, cluster: 3),
+                W("c90", 300, 3, 120, 10, 0, 0, 0, 2000, 5000, 500, 40, 0, 0, 15),        // Hugo, dn137: 5 m, 500 ‰, tope 40, 1 u por tiro (se paga al reponerlo)
             };
         }
 
@@ -119,6 +121,7 @@ namespace TBD.Units
         public int DotationPm;                  // munición propia en ‰ de u
         public int MaterialsU;
         public int Hp;
+        public int C90Shots;                    // D-N137: tiros de C90 por pelotón (de un solo uso, solo por orden; no están en WeaponCount para que nadie los dispare solo)
     }
 
     public static class PlatoonCatalog
@@ -129,7 +132,7 @@ namespace TBD.Units
         {
             var c = new int[Enum.GetValues(typeof(WeaponId)).Length];
             foreach (var (w, n) in ws) c[(int)w] = n;
-            return new PlatoonSpec { Key = key, Persons = persons, Servers = servers, WeaponCount = c, SpeedMmS = speed, DotationPm = dot, MaterialsU = mat, Hp = 4000 };   // D-N107 (Hugo): 4000 con el contacto de 2 por zombi y tick
+            return new PlatoonSpec { Key = key, Persons = persons, Servers = servers, WeaponCount = c, SpeedMmS = speed, DotationPm = dot, MaterialsU = mat, Hp = 4000, C90Shots = key == "fusileros" ? 2 : 0 };   // D-N107 (Hugo): 4000 con el contacto de 2 por zombi y tick
         }
 
         static PlatoonSpec[] Defaults()
@@ -157,6 +160,7 @@ namespace TBD.Units
                 s.DotationPm = (int)t.TryValue(k + "dotacion_municion_permil_u", s.DotationPm);
                 s.MaterialsU = (int)t.TryValue(k + "materiales_u", s.MaterialsU);
                 s.Hp = (int)t.TryValue(k + "soldado_vida", s.Hp);
+                s.C90Shots = (int)t.TryValue(k + "c90_tiros", s.C90Shots);
                 bool any = false; var c = new int[s.WeaponCount.Length];
                 for (int w = 0; w < c.Length; w++) { c[w] = (int)t.TryValue(k + "arma_" + WeaponCatalog.Table[w].Key, -1); if (c[w] >= 0) any = true; else c[w] = 0; }
                 if (any) s.WeaponCount = c;
@@ -173,7 +177,7 @@ namespace TBD.Units
             {
                 var s = Table[i];
                 ulong x = IMath.Mix((ulong)(uint)s.Persons + ((ulong)(uint)s.Servers << 16) + ((ulong)(uint)s.SpeedMmS << 32) + ((ulong)(uint)s.DotationPm << 48) ^ (ulong)i)
-                        + IMath.Mix((ulong)(uint)s.MaterialsU + ((ulong)(uint)s.Hp << 24) + 5);
+                        + IMath.Mix((ulong)(uint)s.MaterialsU + ((ulong)(uint)s.Hp << 24) + ((ulong)(uint)s.C90Shots << 56) + 5);
                 for (int w = 0; w < s.WeaponCount.Length; w++) x += IMath.Mix((ulong)(uint)s.WeaponCount[w] + ((ulong)w << 32) + ((ulong)i << 40) + 7);
                 h += x;
             }

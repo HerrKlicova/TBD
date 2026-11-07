@@ -950,6 +950,31 @@ namespace TBD.Sim.Tests
                     w0.Move(p0.Id, 30000, 0); w1.Move(p1x.Id, 30000, 0); for (int t = 0; t < 300; t++) { w0.Step(new List<Target>(), new StepResult()); w1.Step(new List<Target>(), new StepResult()); }
                     check(w0.Hash() == w1.Hash(), "D-N139: sin obstáculos todo sigue igual (mismo hash)");
                 }
+                // D-N137 (Lucía): C90 de los fusileros, 2 por pelotón, solo por orden del jugador, de un solo uso y se repone del almacén
+                {
+                    var wc = new UnitsWorld(9); var pf = wc.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0); var pg = wc.AddPlatoon(PlatoonKind.Granaderos, 0, 20000, 0);
+                    check(pf.C90Left == 2 && pf.C90Cap == 2 && pg.C90Cap == 0, $"D-N137: los fusileros salen con 2 C90 y los demás con ninguno ({pf.C90Left}/{pf.C90Cap}, granaderos {pg.C90Cap})");
+                    var zs = new List<Target>(); int id = 1; for (int i = 0; i < 10; i++) for (int j = 0; j < 10; j++) zs.Add(new Target { Id = id++, X = 50000 + i * 800 - 3600, Y = j * 800 - 3600 });
+                    var rs = new StepResult(); int c90Shots = 0;
+                    for (int t = 0; t < 900; t++) { wc.Step(zs, rs); foreach (var e in rs.Shots) if (e.Weapon == WeaponId.C90) c90Shots++; }
+                    check(c90Shots == 0 && pf.C90Left == 2, $"D-N137: sin orden nadie dispara el C90, ni con 100 zombis a tiro ({c90Shots} disparos)");
+                    { var wb = new UnitsWorld(3); var pb = wb.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0, Formation.Bloque); int far = 0; foreach (var m in pb.Men) far = Math.Max(far, IMath.Dist(m.X - pb.AX, m.Y - pb.AY)); bool a1 = !wc.OrderC90(pf.Id, 200000, 0), a2 = far < 10000 && !wb.OrderC90(pb.Id, pb.AX, pb.AY), a3 = !wc.OrderC90(pg.Id, 50000, 0);
+                    check(a1 && a2 && a3, $"D-N137: fuera de alcance (120 m), demasiado cerca (10 m) o sin C90, la orden se rechaza ({a1} {a2} {a3}, soldado más lejano a {far} mm)"); }
+                    wc.SetHoldFire(pf.Id, true);
+                    check(wc.OrderC90(pf.Id, 50000, 0), "D-N137: la orden C90 a 50 m se acepta (también con alto el fuego)");
+                    var sw = new SaveWriter(); wc.SaveState(sw); var wl = new UnitsWorld(0); wl.LoadState(new SaveReader(sw.ToArray()));
+                    check(wl.Hash() == wc.Hash(), "D-N137: la orden pendiente y los C90 se guardan y cargan (mismo hash)");
+                    int fired = 0, blasts = 0, kills = 0, blastR = 0;
+                    for (int t = 0; t < 30; t++) { wc.Step(zs, rs); foreach (var e in rs.Shots) if (e.Weapon == WeaponId.C90) fired++; foreach (var b in rs.Blasts) if (b.Weapon == WeaponId.C90) { blasts++; blastR = b.RadiusMm; } foreach (var h in rs.Hits) if (h.Weapon == WeaponId.C90) kills++; }
+                    check(fired == 1 && blasts == 1 && blastR == 5000 && kills >= 10 && kills <= 40 && pf.C90Left == 1, $"D-N137: un solo disparo, explota con 5 m de radio y abate entre 10 y 40 (abatidos {kills}, quedan {pf.C90Left})");
+                    check(wc.OrderC90(pf.Id, 50000, 0), "D-N137: el segundo C90 también se acepta");
+                    for (int t = 0; t < 30; t++) wc.Step(zs, rs);
+                    check(pf.C90Left == 0 && !wc.OrderC90(pf.Id, 50000, 0), "D-N137: gastados los dos, la orden se rechaza");
+                    pf.AmmoShots = pf.AmmoCap; wc.StockShots = 3000; wc.Resupply(pf.Id);
+                    check(pf.C90Left == 1 && wc.StockShots == 1000, $"D-N137: en la recarga se repone un C90 por cada 1 u del almacén (quedan {pf.C90Left}, almacén {wc.StockShots})");
+                    wc.StockShots = 10000; wc.Resupply(pf.Id);
+                    check(pf.C90Left == 2 && wc.StockShots == 8000, "D-N137: con almacén de sobra se repone hasta 2 y no más");
+                }
                 // D-N133: causa y recuentos
                 check(g.Cause == DefeatCause.Tren && g.DefeatHeadline() == "El tren ha caído." && g.TrainsAlive == 0 && g.StationsAlive == 1, "D-N133: sin tren la causa es el tren y el titular «El tren ha caído.»");
                 check(g2.Cause == DefeatCause.Estacion && g2.DefeatHeadline() == "Sagunto ha caído." && g2.StationsAlive == 0, "D-N133: sin estación la causa es la estación y el titular «Sagunto ha caído.»");
