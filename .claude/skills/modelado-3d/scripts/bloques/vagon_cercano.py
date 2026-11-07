@@ -43,9 +43,9 @@ L_MIN = 28.0
 VALOR_PIEZAS = {"casco": (("70784c" if ASPECTO == 2 else "b8b8b8"), "50541c", "50541c")}
 VENTANILLAS = {"Ventanillas": ["ventana"]}
 # Normales inclinadas hacia arriba, como el soldado: con la luz casi cenital del juego los costados verticales (casi
-# todo lo que se ve de un contenedor o de una caja de 23 m) caían a media luz, a valores de la horda. El de tropa es el
-# R2 aprobado y se queda como estaba.
-NORMALES_ARRIBA = ASPECTO != 2
+# todo lo que se ve de un contenedor o de una caja de 23 m) caían a media luz, a valores de la horda. Vale para el
+# R2 de tropa también desde el 7-nov 00:16 (Lucía: en la vista lateral del tren sus costados caían a valores de la horda).
+NORMALES_ARRIBA = True
 NORMALES_INCLINACION = 1.0
 PRESUPUESTO = {0: (300, 4000), 1: (150, 2000)}
 
