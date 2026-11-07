@@ -48,6 +48,7 @@ import build_marcadores  # noqa: E402
 import build_avisos_minimapa  # noqa: E402
 import build_rutas  # noqa: E402
 import build_frentes_aire  # noqa: E402
+import build_estados_vehiculo  # noqa: E402
 
 PIVOTE = [0.5, 0.53]
 
@@ -173,6 +174,7 @@ def prototipo_noche(out):
     build_avisos_minimapa.exportar(out)                  # P1: avisos del HUD y minimapa (base de Sagunto e iconos)
     build_rutas.exportar(out)                            # mundo persistente: ETA, rutas, refuerzos y ruta no válida
     build_frentes_aire.exportar(out)                     # frentes activos, iconos aéreos y aviso de cazas
+    build_estados_vehiculo.exportar(out)                 # estados de vehículo, helipuerto y avisos del tren
 
 
 if __name__ == "__main__":
