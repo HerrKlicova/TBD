@@ -36,7 +36,7 @@ namespace TBD.View
         void OrdersUpdate()
         {
             var kb = UnityEngine.InputSystem.Keyboard.current; if (kb == null) return;
-            Formation? nf = null; if (kb.f1Key.wasPressedThisFrame) nf = Formation.Linea; if (kb.f2Key.wasPressedThisFrame) nf = Formation.Cuna; if (kb.f3Key.wasPressedThisFrame) nf = Formation.Columna; if (kb.f4Key.wasPressedThisFrame) nf = Formation.Circulo;
+            Formation? nf = null; if (kb.f1Key.wasPressedThisFrame) nf = Formation.Linea; if (kb.f2Key.wasPressedThisFrame) nf = Formation.Cuna; if (kb.f3Key.wasPressedThisFrame) nf = Formation.Columna; if (kb.f4Key.wasPressedThisFrame) nf = Formation.Bloque;   // Lucía (7-nov): el bloque sustituye al círculo
             if (nf.HasValue) { _curForm = nf.Value; foreach (var id in _sel) _uw.SetFormation(id, _curForm); Debug.Log("[NOCHE] formacion " + _curForm); }
         }
 
@@ -111,7 +111,7 @@ namespace TBD.View
                 }
             }
             // formacion activa
-            { var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(11, Screen.height / 70), wordWrap = false, clipping = TextClipping.Overflow }; st.normal.textColor = OvHueso; if (_sel.Count > 0 && _selVeh == null) GUI.Label(new Rect(12f, Screen.height * 0.80f - st.fontSize * 1.6f, Screen.width * 0.6f, st.fontSize * 1.6f), "Formación " + _curForm + "  (F1 línea · F2 cuña · F3 columna · F4 círculo) · clic derecho y arrastrar = frente", st); }
+            { var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(11, Screen.height / 70), wordWrap = false, clipping = TextClipping.Overflow }; st.normal.textColor = OvHueso; if (_sel.Count > 0 && _selVeh == null) GUI.Label(new Rect(12f, Screen.height * 0.80f - st.fontSize * 1.6f, Screen.width * 0.6f, st.fontSize * 1.6f), "Formación " + _curForm + "  (F1 línea · F2 cuña · F3 columna · F4 bloque) · clic derecho y arrastrar = frente", st); }
         }
     }
 }
