@@ -10,7 +10,7 @@ namespace TBD.View
     /// - Anillo bajo el pelotón seleccionado + un punto de 2×2 px bajo cada soldado; doble anillo con muesca de proa en el vehiculo seleccionado.
     /// - Marca de destino hasta que llegan (anillo y aspa) y linea de ruta.
     /// - Clic derecho y arrastrar = dibujar el frente (como Total War): la linea fija el ancho y hacia donde miran (a la izquierda del arrastre); silueta fantasma de cada soldado.
-    ///   Varios pelotones se reparten por la linea en el orden de sus tarjetas. Formacion: F1 linea, F2 cuña, F3 columna, F4 circulo (la activa se aplica a la seleccion).
+    ///   Varios pelotones se reparten por la linea en el orden de sus tarjetas. Formacion: F1 linea, F2 cuña, F3 columna, F4 bloque (la activa se aplica a la seleccion).
     /// Solo vista y ordenes de UnitsWorld (Move/AttackMove/SetFormation con rumbo final): los huecos los calcula la simulacion, no la vista.
     /// </summary>
     public partial class PrototypeBootstrap
