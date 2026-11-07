@@ -260,6 +260,75 @@ namespace TBD.Sim.Tests
                 check(Math.Abs(fc - wtot * 55 / 100) <= 1 && fymax - fymin < 17000 / 3 + 2 && ymax - ymin > 17000 * 8 / 10, $"frente denso y cola dispersa: el 55 % entra en el primer 25 % del tiempo ({fc} de {wtot}) por el tercio central ({(fymax - fymin) / 1000.0:F1} m) y la cola se abre a {(ymax - ymin) / 1000.0:F1} m");
             }
             {
+                // daño de los zombis a los soldados: proximidad pura, determinista (misma regla que la zona: 900 mm, 2 por zombi y tick)
+                Func<UnitsWorld> mk = () => { var u = new UnitsWorld(3); u.AddPlatoon(PlatoonKind.Fusileros, 50000, 50000, 0); return u; };
+                var w = mk(); var pl = w.Platoons[0]; var man = pl.Men[0]; int total0 = pl.AliveCount();
+                var zs = new List<Target>();
+                zs.Add(new Target { Id = 1, X = man.X + 800, Y = man.Y });          // dentro
+                zs.Add(new Target { Id = 2, X = man.X, Y = man.Y + 900 });          // justo en el radio: toca
+                zs.Add(new Target { Id = 3, X = man.X + 901, Y = man.Y });          // fuera
+                zs.Add(new Target { Id = 4, X = man.X - 20000, Y = man.Y });        // lejos
+                var cr = new ContactResult(); int fell = w.ZombieContact(zs, 900, 2, cr);
+                check(man.Hp == 100 - 2 * 2 && fell == 0 && cr.Touches >= 2, $"dos zombis a ≤ 900 mm quitan 2 × 2 de vida en un tick y el de 901 mm no (vida {man.Hp})");
+                // un zombi pegado mata a un soldado de 100 de vida en 50 ticks; tres, en 17
+                var w1 = mk(); var m1 = w1.Platoons[0].Men[0]; int t1 = 0; var one = new List<Target> { new Target { Id = 1, X = m1.X, Y = m1.Y } };
+                while (m1.Alive && t1 < 1000) { w1.ZombieContact(one, 900, 2, null); t1++; }
+                var w3 = mk(); var m3 = w3.Platoons[0].Men[0]; int t3 = 0; var three = new List<Target> { new Target { Id = 1, X = m3.X, Y = m3.Y }, new Target { Id = 2, X = m3.X + 100, Y = m3.Y }, new Target { Id = 3, X = m3.X, Y = m3.Y - 100 } };
+                var cr3 = new ContactResult(); int fell3 = 0; while (m3.Alive && t3 < 1000) { fell3 += w3.ZombieContact(three, 900, 2, cr3); t3++; }
+                check(t1 == 50 && t3 == 17, $"un zombi pegado abate a un soldado en {t1} ticks (1,7 s) y tres en {t3}");
+                check(fell3 == 1 && cr3.Fallen.Count == 1 && cr3.Fallen[0].Man == m3.Id && w3.Platoons[0].Losses == 1 && w3.Platoons[0].AliveCount() == total0 - 1, "el caído se informa (pelotón, soldado, posición) y cuenta como baja del pelotón");
+                // el orden de la lista no importa
+                var rz = new List<Target>(); var rng = new IRng(5); for (int i = 0; i < 400; i++) rz.Add(new Target { Id = i, X = 50000 + (int)(rng.Below(12000)) - 6000, Y = 50000 + (int)(rng.Below(12000)) - 6000 });
+                var wa = new UnitsWorld(3); wa.AddPlatoon(PlatoonKind.Fusileros, 50000, 50000, 0); wa.AddPlatoon(PlatoonKind.Ametralladores, 52000, 50000, 0);
+                var wb = new UnitsWorld(3); wb.AddPlatoon(PlatoonKind.Fusileros, 50000, 50000, 0); wb.AddPlatoon(PlatoonKind.Ametralladores, 52000, 50000, 0);
+                var rev = new List<Target>(rz); rev.Reverse();
+                wa.ZombieContact(rz, 1500, 2, null); wb.ZombieContact(rev, 1500, 2, null);
+                check(wa.Hash() == wb.Hash(), "dar la lista de zombis del revés da el mismo estado (cuenta contactos, sin orden ni azar)");
+                // y coincide con la fuerza bruta
+                var wc = new UnitsWorld(3); wc.AddPlatoon(PlatoonKind.Fusileros, 50000, 50000, 0); wc.AddPlatoon(PlatoonKind.Ametralladores, 52000, 50000, 0);
+                foreach (var pp in wc.Platoons) foreach (var mm in pp.Men) { int c = 0; foreach (var z in rz) { long ex = z.X - mm.X, ey = z.Y - mm.Y; if (ex * ex + ey * ey <= 1500L * 1500) c++; } mm.Hp -= c * 2; }
+                bool same = true; for (int a = 0; a < wa.Platoons.Count; a++) for (int b = 0; b < wa.Platoons[a].Men.Count; b++) if (wa.Platoons[a].Men[b].Hp != wc.Platoons[a].Men[b].Hp) same = false;
+                check(same, "el resultado de la rejilla coincide con contar a fuerza bruta para cada soldado");
+                // guardado
+                var sw = new SaveWriter(); wa.SaveState(sw); var wl = new UnitsWorld(0); wl.LoadState(new SaveReader(sw.ToArray()));
+                check(wl.Hash() == wa.Hash(), "la vida y las bajas del pelotón viajan en el guardado");
+                // coste con 10.000 zombis
+                var big = new List<Target>(); var rg = new IRng(9); for (int i = 0; i < 10000; i++) big.Add(new Target { Id = i, X = 50000 + rg.Below(40000) - 20000, Y = 50000 + rg.Below(40000) - 20000 });
+                var wp = new UnitsWorld(3); for (int k = 0; k < 5; k++) wp.AddPlatoon(PlatoonKind.Fusileros, 40000 + k * 4000, 50000, 0);
+                var swp = Stopwatch.StartNew(); for (int i = 0; i < 100; i++) { foreach (var q in wp.Platoons) foreach (var mm in q.Men) mm.Hp = 100; wp.ZombieContact(big, 900, 2, null); } swp.Stop();
+                double ms = swp.Elapsed.TotalMilliseconds / 100;
+                Console.WriteLine($"         contacto con 10.000 zombis y {wp.Platoons.Count * wp.Platoons[0].Men.Count} soldados: {ms:0.000} ms por tick");
+                check(ms < 1.0, $"el contacto con 10.000 zombis cuesta {ms:0.000} ms por tick (< 1 ms)");
+            }
+            {
+                // vida del edificio de viajeros y del tren
+                var P = NightParams.Default(); var sp = new List<SpawnPoint>();
+                var g = new NightGame(P, 1);
+                check(g.StationHp == 60000 && g.TrainHp == 40000 && g.StationAlive && g.TrainAlive, "la noche empieza con el edificio (60.000) y el tren (40.000) enteros");
+                int t = 0; while (g.StationHp > 0 && t < 5000) { g.Attack(100, 0); g.Step(sp); t++; }
+                check(t == 900 && g.StationHp == 0 && g.TrainHp == 40000, $"100 zombis pegados al edificio lo derriban en {t} ticks (30 s: 100 × 20 por segundo)");
+                g.Step(sp);
+                check(g.State == NightState.Derrota && g.EndedByStation && !g.EndedByTrain, "con el edificio a 0 el siguiente tick es DERROTA por el edificio");
+                var g1 = new NightGame(P, 1); for (int i = 0; i < 30; i++) g1.Attack(1, 0);
+                check(g1.StationHp == 60000 - 20, $"un zombi pegado 30 ticks quita exactamente 20 (resto fraccionario exacto): {60000 - g1.StationHp}");
+                var g2 = new NightGame(P, 1); for (int i = 0; i < 300; i++) g2.Attack(0, 7);
+                check(g2.TrainHp == 40000 - 7 * 20 * 10 && g2.StationHp == 60000, "el tren se desgasta aparte: 7 zombis durante 10 s quitan 1.400");
+                var g3 = new NightGame(P, 1); while (g3.Tick < g3.TotalTicks - 1) g3.Step(sp);
+                g3.Attack(0, 100000); while (g3.TrainHp > 0) g3.Attack(0, 100000);
+                g3.Step(sp);
+                check(g3.State == NightState.Derrota && g3.EndedByTrain && g3.Tick == g3.TotalTicks, "si el tren cae en el tick de las 06:00 gana la derrota");
+                var g4 = new NightGame(P, 1); g4.Attack(50, 10); int rp = g4.RepairStation(1000000); int rt = g4.RepairTrain(5);
+                check(g4.StationHp == 60000 && rp > 0 && rt == 5 && g4.TrainHp <= 40000, "reparar suma sin pasar del máximo");
+                var g5 = new NightGame(P, 1); g5.Attack(10000, 10000); g5.Attack(10000, 10000); int rz = g5.RepairStation(100);
+                check(g5.StationHp > 0 || rz == 0, "una vida a 0 no se repara");
+                var h0 = new NightGame(P, 1); var h1 = new NightGame(P, 1); h1.Attack(1, 0);
+                check(h0.Hash() != h1.Hash(), "la vida entra en el hash (también el desgaste fraccionario)");
+                var sws = new SaveWriter(); g2.SaveState(sws); var gl = new NightGame(P, 0); gl.LoadState(new SaveReader(sws.ToArray()));
+                check(gl.Hash() == g2.Hash() && gl.TrainHp == g2.TrainHp, "la vida de edificio y tren viaja en el guardado");
+                var csv = NightParams.FromCsv(new CsvTable("clave;valor;escala;nota\nnoche_estacion_vida;1234;1;\nnoche_tren_vida;99;1;\nnoche_contacto_danio_tick;3;1;\n"));
+                check(csv.StationHp == 1234 && csv.TrainHp == 99 && csv.ContactDmgPerTick == 3 && csv.ContactRadiusMm == 900, "los parámetros se leen del CSV de la noche");
+            }
+            {
                 // la derrota gana siempre
                 var g = new NightGame(NightParams.Default(), 1); var sp = new List<SpawnPoint>();
                 while (g.Tick < g.TotalTicks - 1) g.Step(true, true, sp);

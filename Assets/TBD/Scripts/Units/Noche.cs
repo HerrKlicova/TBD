@@ -28,12 +28,18 @@ namespace TBD.Units
         public WaveSpec[] Waves;
         public EntrySpec[] Entries;
         public int FrontPct, FrontTimePct;    // el frente: FrontPct % de los zombis en el primer FrontTimePct % de la llegada
+        // Vida del edificio de viajeros y del tren (puntos) y lo que quita cada zombi pegado por segundo. VALORES DE DISEÑO SIN MEDIR (Hugo: estación 60000
+        // con 20 por zombi·s = 100 zombis dentro la derriban en 30 s; el tren no tiene cifra de Hugo todavía: provisional, el mismo desgaste).
+        public int StationHp, TrainHp, StationDmgPerZombieS, TrainDmgPerZombieS;
+        // Contacto zombi-soldado: igual que la zona (balance_combate: cuerpo_a_cuerpo_mm = 900, zombi_danio_tick = 2 por zombi y tick).
+        public int ContactRadiusMm, ContactDmgPerTick;
 
         public static NightParams Default()
         {
             return new NightParams
             {
                 ClockX = 28, StartHour = 22, EndHour = 6, ScalePermil = 850, FrontPct = 55, FrontTimePct = 25,
+                StationHp = 60000, TrainHp = 40000, StationDmgPerZombieS = 20, TrainDmgPerZombieS = 20, ContactRadiusMm = 900, ContactDmgPerTick = 2,
                 Waves = new[]
                 {
                     new WaveSpec { StartMinute = 20, Zombies = 600, ArrivalSeconds = 40, EntryCount = new[] { 50, 30, 20, 0 } }, new WaveSpec { StartMinute = 80, Zombies = 1200, ArrivalSeconds = 50, EntryCount = new[] { 50, 30, 20, 0 } },
@@ -58,6 +64,12 @@ namespace TBD.Units
             d.StartHour = (int)t.TryValue("noche_hora_inicio", d.StartHour);
             d.EndHour = (int)t.TryValue("noche_hora_fin", d.EndHour);
             d.ScalePermil = (int)t.TryValue("noche_escala_oleadas_permil", d.ScalePermil);
+            d.StationHp = (int)t.TryValue("noche_estacion_vida", d.StationHp);
+            d.TrainHp = (int)t.TryValue("noche_tren_vida", d.TrainHp);
+            d.StationDmgPerZombieS = (int)t.TryValue("noche_estacion_danio_zombi_s", d.StationDmgPerZombieS);
+            d.TrainDmgPerZombieS = (int)t.TryValue("noche_tren_danio_zombi_s", d.TrainDmgPerZombieS);
+            d.ContactRadiusMm = (int)t.TryValue("noche_contacto_mm", d.ContactRadiusMm);
+            d.ContactDmgPerTick = (int)t.TryValue("noche_contacto_danio_tick", d.ContactDmgPerTick);
             int n = (int)t.TryValue("noche_oleadas", d.Waves.Length);
             var w = new WaveSpec[n];
             for (int i = 0; i < n; i++)
@@ -86,7 +98,33 @@ namespace TBD.Units
         readonly List<SpawnPoint> _scratch = new List<SpawnPoint>();
         public readonly int[][] SpawnedEntry;               // y por entrada (reparto exacto por cuotas)
 
-        public NightGame(NightParams p, uint seed) { P = p; Rng = new IRng(seed); Spawned = new int[p.Waves.Length]; SpawnedEntry = new int[p.Waves.Length][]; for (int w = 0; w < p.Waves.Length; w++) SpawnedEntry[w] = new int[p.Entries.Length]; }
+        // Vida actual (entra en el hash y en el guardado). El reloj y los zombis no la reparan: solo RepairStation/RepairTrain.
+        public int StationHp, TrainHp;
+        int _stationRem, _trainRem;                         // desgaste fraccionario (puntos·ticks / 30) para que dañar a ×1 zombi sea exacto
+        public int StationHpMax { get { return P.StationHp; } }
+        public int TrainHpMax { get { return P.TrainHp; } }
+
+        public NightGame(NightParams p, uint seed) { P = p; StationHp = p.StationHp; TrainHp = p.TrainHp; Rng = new IRng(seed); Spawned = new int[p.Waves.Length]; SpawnedEntry = new int[p.Waves.Length][]; for (int w = 0; w < p.Waves.Length; w++) SpawnedEntry[w] = new int[p.Entries.Length]; }
+
+        /// <summary>Daño de este tick al edificio y al tren: «atStation» y «atTrain» son los zombis pegados a cada uno (los cuenta la zona; un zombi que
+        /// toca los dos cuenta en los dos). Cada zombi quita StationDmgPerZombieS/TrainDmgPerZombieS por segundo (÷30 por tick, con resto exacto). La vida no baja
+        /// de 0; en cuanto una llega a 0, el siguiente Step es DERROTA. Devuelve el daño aplicado ((estación, tren) en dos campos de LastDmgStation/LastDmgTrain).</summary>
+        public void Attack(int atStation, int atTrain)
+        {
+            LastDmgStation = LastDmgTrain = 0;
+            if (State == NightState.Derrota) return;
+            if (atStation > 0 && StationHp > 0) { long acc = _stationRem + (long)atStation * P.StationDmgPerZombieS; int d = (int)Math.Min(acc / IMath.TickRate, StationHp); _stationRem = (int)(acc % IMath.TickRate); StationHp -= d; LastDmgStation = d; }
+            if (atTrain > 0 && TrainHp > 0) { long acc = _trainRem + (long)atTrain * P.TrainDmgPerZombieS; int d = (int)Math.Min(acc / IMath.TickRate, TrainHp); _trainRem = (int)(acc % IMath.TickRate); TrainHp -= d; LastDmgTrain = d; }
+        }
+        public int LastDmgStation, LastDmgTrain;
+        public bool StationAlive { get { return StationHp > 0; } }
+        public bool TrainAlive { get { return TrainHp > 0; } }
+        /// <summary>Reparación (la pagará la economía): suma sin pasar del máximo. Un edificio o un tren a 0 no se reparan: la partida ya acabó.</summary>
+        public int RepairStation(int hp) { if (StationHp <= 0 || hp <= 0) return 0; int d = Math.Min(hp, P.StationHp - StationHp); StationHp += d; return d; }
+        public int RepairTrain(int hp) { if (TrainHp <= 0 || hp <= 0) return 0; int d = Math.Min(hp, P.TrainHp - TrainHp); TrainHp += d; return d; }
+
+        /// <summary>Un tick con la vida propia: equivale a Step(StationHp &gt; 0, TrainHp &gt; 0, spawns). Llama antes a Attack con los zombis pegados.</summary>
+        public void Step(List<SpawnPoint> spawns) { Step(StationHp > 0, TrainHp > 0, spawns); }
 
         public int TotalTicks { get { return (int)((long)((P.EndHour - P.StartHour + 24) % 24) * 3600 * IMath.TickRate / P.ClockX); } }
         public int WaveStartTick(int w) { return (int)((long)P.Waves[w].StartMinute * 60 * IMath.TickRate / P.ClockX); }
@@ -169,7 +207,7 @@ namespace TBD.Units
 
         public ulong Hash()
         {
-            ulong h = IMath.Mix(0x20E0 ^ (ulong)(uint)Tick) + IMath.Mix(0x20E1 ^ Rng.S) + IMath.Mix(0x20E2 ^ (ulong)State ^ ((ulong)(uint)(DefeatTick + 1) << 8)) + IMath.Mix(0x20E3 ^ (ulong)(uint)P.ScalePermil ^ ((ulong)(uint)P.ClockX << 20)) + IMath.Mix(0x20E4 ^ (ulong)(uint)NightIndex ^ ((ulong)(uint)NightsSurvived << 20) ^ ((ulong)(uint)Report.CloseTick << 40));
+            ulong h = IMath.Mix(0x20E0 ^ (ulong)(uint)Tick) + IMath.Mix(0x20E1 ^ Rng.S) + IMath.Mix(0x20E2 ^ (ulong)State ^ ((ulong)(uint)(DefeatTick + 1) << 8)) + IMath.Mix(0x20E3 ^ (ulong)(uint)P.ScalePermil ^ ((ulong)(uint)P.ClockX << 20)) + IMath.Mix(0x20E4 ^ (ulong)(uint)NightIndex ^ ((ulong)(uint)NightsSurvived << 20) ^ ((ulong)(uint)Report.CloseTick << 40)) + IMath.Mix(0x20E5 ^ (ulong)(uint)StationHp ^ ((ulong)(uint)TrainHp << 24)) + (_stationRem != 0 || _trainRem != 0 ? IMath.Mix(0x20E6 ^ (ulong)(uint)_stationRem ^ ((ulong)(uint)_trainRem << 16)) : 0UL);
             for (int i = 0; i < Spawned.Length; i++) { h += IMath.Mix((ulong)(uint)Spawned[i] + ((ulong)i << 40) + 17); for (int e = 0; e < SpawnedEntry[i].Length; e++) h += IMath.Mix((ulong)(uint)SpawnedEntry[i][e] + ((ulong)i << 40) + ((ulong)e << 52) + 19); }
             return h;
         }
@@ -178,6 +216,7 @@ namespace TBD.Units
         {
             w.Int(Tick); w.Byte((byte)State); w.UInt(Rng.S); w.Int(DefeatTick); w.Bool(EndedByStation); w.Bool(EndedByTrain);
             w.Int(NightIndex); w.Int(NightsSurvived); w.Int(Report.Night); w.Int(Report.CloseTick); w.Int(Report.Spawned); w.Bool(Report.StationAlive); w.Bool(Report.TrainAlive);
+            w.Int(StationHp); w.Int(TrainHp); w.Int(_stationRem); w.Int(_trainRem);
             w.Int(Spawned.Length); for (int i = 0; i < Spawned.Length; i++) { w.Int(Spawned[i]); for (int e = 0; e < SpawnedEntry[i].Length; e++) w.Int(SpawnedEntry[i][e]); }
         }
 
@@ -185,6 +224,7 @@ namespace TBD.Units
         {
             Tick = r.Int(); State = (NightState)r.Byte(); Rng.S = r.UInt(); DefeatTick = r.Int(); EndedByStation = r.Bool(); EndedByTrain = r.Bool();
             NightIndex = r.Int(); NightsSurvived = r.Int(); Report = new NightReport { Night = r.Int(), CloseTick = r.Int(), Spawned = r.Int(), StationAlive = r.Bool(), TrainAlive = r.Bool() };
+            StationHp = r.Int(); TrainHp = r.Int(); _stationRem = r.Int(); _trainRem = r.Int();
             int n = r.Int(); if (n != Spawned.Length) throw new SaveException(SaveError.Corrupt, "otro número de oleadas");
             for (int i = 0; i < n; i++) { Spawned[i] = r.Int(); for (int e = 0; e < SpawnedEntry[i].Length; e++) SpawnedEntry[i][e] = r.Int(); }
         }
