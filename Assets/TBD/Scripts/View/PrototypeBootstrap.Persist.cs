@@ -43,7 +43,7 @@ namespace TBD.View
             if (SceneManager.GetActiveScene().name == "SampleScene") return;
             if (_st == null) { _st = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, richText = true }; _px = new Texture2D(1, 1); _px.SetPixel(0, 0, Color.white); _px.Apply(); }
             var ng = s.Sim.Night; string txt;
-            if (ng.State == NightState.Derrota) txt = "<b>Sagunto ha caído.</b> Entra para ver el parte.";
+            if (ng.State == NightState.Derrota) txt = "<b>" + ng.DefeatHeadline() + "</b> Entra para ver el parte.";
             else if (ng.State == NightState.Victoria) txt = "<b>Sagunto aguanta.</b> Entra para ver el parte.";
             else txt = $"Sagunto en combate · {ng.Hour:00}:{ng.Minute:00} · zombis {s.Sim.ZombiesAlive} · muro {Mathf.RoundToInt(100f * s.Sim.WallHp / Mathf.Max(1, s.Sim.SP.WallHp))} %";
             _st.fontSize = Mathf.Max(13, Screen.height / 55); float w = Screen.width * 0.5f, h = _st.fontSize * 2.2f;

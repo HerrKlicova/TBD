@@ -59,7 +59,7 @@ namespace TBD.View
             bool won = _ng.State == NightState.Victoria;
             d.Parte = new Parte
             {
-                victoria = won, estrellas = _endStars, zombis = _nightKills, bajas = tot - alv, municionGastada = Mathf.RoundToInt(_nightShotsSpent / (float)WeaponCatalog.ShotsPerU), municionRestante = d.Municion,
+                victoria = won, titulo = _ng.State == NightState.Derrota ? _ng.DefeatHeadline().TrimEnd((char)46) : null, estrellas = _endStars, zombis = _nightKills, bajas = tot - alv, municionGastada = Mathf.RoundToInt(_nightShotsSpent / (float)WeaponCatalog.ShotsPerU), municionRestante = d.Municion,
                 estacion = _ng.State != NightState.Jugando ? _endStationF : _ng.StationHp / (float)Mathf.Max(1, _ng.StationHpMax), tren = _ng.State != NightState.Jugando ? _endTrainF : _ng.TrainHp / (float)Mathf.Max(1, _ng.TrainHpMax), muro = won ? _ng.Report.WallPermil / 1000f : _ng.WallPermil / 1000f
             };
         }

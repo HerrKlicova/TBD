@@ -314,7 +314,7 @@ namespace TBD.View
             int stars = _ng.P.Stars.Stars(_ng.State, integ, wallP, _nightLost, (int)(shots * 1000 / WeaponCatalog.ShotsPerU), false);
             _endStars = stars;
             Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} estrellas={stars} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 recargas={_resupplies} desync={_desync} hora_fin={TimeStr()}");
-            _endReason = win ? "06:00. Amanece en Sagunto.\nLa estación resiste." : "Sagunto ha caído.";
+            _endReason = win ? "06:00. Amanece en Sagunto.\nLa estación resiste." : _ng.DefeatHeadline();
         }
         int _endStars; bool _endDismissed, _reportClosed;
 

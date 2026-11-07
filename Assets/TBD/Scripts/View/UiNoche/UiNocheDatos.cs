@@ -32,7 +32,7 @@ namespace TBD.View.UiNoche
 
     public struct Parte
     {
-        public bool victoria;
+        public bool victoria; public string titulo;   // titular de la derrota (D-N133: «El tren ha caído» / «Sagunto ha caído»)
         public int estrellas;     // D-N104
         public int zombis, bajas, municionGastada, municionRestante;
         public float estacion, tren, muro; // 0..1

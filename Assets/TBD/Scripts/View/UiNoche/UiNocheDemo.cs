@@ -203,7 +203,7 @@ namespace TBD.View.UiNoche
             float pw = 340, ph = 214, x0 = 320 - pw / 2, y0 = p.victoria ? 84 : 60;
             UiNocheKit.Slice(p.victoria ? "ui_parte_panel" : "ui_parte_panel_derrota", new Rect(x0, y0, pw, ph));
             UiNocheKit.Pieza(p.victoria ? "ui_parte_cabecera_amanecer" : "ui_parte_cabecera_caida", 320 - 48, y0 + 4);
-            UiNocheKit.Texto(320, y0 + 20, p.victoria ? "Amanece en Sagunto" : "Sagunto ha caído", p.victoria ? UiNocheKit.Crema : UiNocheKit.Hueso, 11, TextAnchor.UpperCenter);
+            UiNocheKit.Texto(320, y0 + 20, p.victoria ? "Amanece en Sagunto" : (string.IsNullOrEmpty(p.titulo) ? "Sagunto ha caído" : p.titulo), p.victoria ? UiNocheKit.Crema : UiNocheKit.Hueso, 11, TextAnchor.UpperCenter);
             float y = y0 + 40;
             if (p.victoria)
             {
