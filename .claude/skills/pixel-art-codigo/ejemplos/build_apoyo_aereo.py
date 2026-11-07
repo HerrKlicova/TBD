@@ -12,7 +12,7 @@ Encargo de Mak (00:03), sacado de docs/arte/referencia-ataques-aereos.md (§3.C,
         rearme    cuñas quietas y el aro como barra de progreso (8 f, NO bucle: fotograma = progreso x 8)
   vm_vfx_humo_bombardeo_{denso,medio,disipando}   E1: humo de 8–12 s, tramado y nunca negro (no tapa la horda)
   vm_vfx_fuego_suelo / vm_vfx_rescoldo_suelo       E3: fuego en el suelo como negación de zona, sin ámbar
-  decal_suelo_quemado_32                           lo que queda en la celda
+  decal_suelo_quemado_30                           lo que queda en la celda (3.0 m = 6 celdas de 0.5 m)
   decal_crater_{1,2}_64                            E2: cráter persistente con escombros
 """
 import json
@@ -232,14 +232,15 @@ def humo_bombardeo(etapa, f):
 
 # --- E3: fuego en el suelo -------------------------------------------------------------------
 def fuego_suelo(f):
-    """Celda de 32x32 (3.2 m) que se repite en X; llamas bajas, sin ámbar, periódicas en 8."""
-    s = Sprite(32, 32)
-    base = 30
+    """Celda de 30x30 (3.0 m = 6 celdas de 0.5 m de la simulación, decisión de Mak) que se repite en X;
+    llamas bajas, sin ámbar, periódicas en 8."""
+    s = Sprite(30, 30)
+    base = 28
     for y in range(6, base + 1):
-        for x in range(32):
-            lengua = .55 + .55 * _h(int(x // 4) % 8, f, 551)
+        for x in range(30):
+            lengua = .55 + .55 * _h(int(x // 5) % 6, f, 551)
             alto = (base - y) / (22 * lengua)
-            n = ruido(x, y + f * 4, 8, 41, per=32) * .6 + ruido(x, y + f * 4, 4, 42, per=32) * .4
+            n = ruido(x, y + f * 3.75, 10, 41, per=30) * .6 + ruido(x, y + f * 3.75, 5, 42, per=30) * .4
             v = (1 - alto * 1.15) + (n - .5) * .9 - .1
             if v <= .05:
                 continue
@@ -247,19 +248,19 @@ def fuego_suelo(f):
             c = "cream" if v > nucleo else "beige" if v > .6 else "ochre_dark" if v > .32 else "rust"
             s.set(x, y, c)
     for k in range(3):                               # pavesas
-        y = int((base - 8 - _h(k, 0, 552) * 18 - f * 4) % 24) + 2
-        x = int(4 + _h(k, 1, 552) * 24)
+        y = int((base - 8 - _h(k, 0, 552) * 18 - f * 4) % 22) + 2
+        x = int(4 + _h(k, 1, 552) * 22)
         if not s.get(x, y)[3]:
             s.set(x, y, "beige" if k % 2 else "ochre_dark")
     return s
 
 
 def rescoldo_suelo(f):
-    """Lo que queda los últimos segundos: brasas que parpadean sobre la celda (32x16, 4 f)."""
-    s = Sprite(32, 16)
+    """Lo que queda los últimos segundos: brasas que parpadean sobre la celda (30x16, 4 f)."""
+    s = Sprite(30, 16)
     for y in range(16):
-        for x in range(32):
-            n = ruido(x, y * 2, 8, 61, per=32)
+        for x in range(30):
+            n = ruido(x, y * 2, 10, 61, per=30)
             p = _h(x, y, 600 + f)
             if n > .62 and p > .55:
                 s.set(x, y, "ochre_dark" if n > .74 and p > .8 else "rust")
@@ -269,11 +270,11 @@ def rescoldo_suelo(f):
 
 
 def suelo_quemado():
-    s = Sprite(32, 32)
-    for y in range(32):
-        for x in range(32):
-            e = math.hypot(x + .5 - 16, y + .5 - 16) / 16
-            n = ruido(x, y, 8, 71, per=32)
+    s = Sprite(30, 30)
+    for y in range(30):
+        for x in range(30):
+            e = math.hypot(x + .5 - 15, y + .5 - 15) / 15
+            n = ruido(x, y, 10, 71, per=30)
             v = 1 - e + (n - .5) * .7
             if v <= .1:
                 continue
@@ -370,14 +371,14 @@ def exportar(out):
               extra={"cadena": "denso 4 s → medio 4 s → disipando 3 s", "nota": "tramado, nunca negro (E1)"})
         todo[f"humo_{e}"] = fr
     fr = [fuego_suelo(f) for f in range(8)]
-    _hoja(out, "vm_vfx_fuego_suelo", fr, True, (.5, .94), extra={"wrapX": True, "celda_m": 3.2,
+    _hoja(out, "vm_vfx_fuego_suelo", fr, True, (.5, .94), extra={"wrapX": True, "celda_m": 3.0, "celdas_sim": 6,
                                                                  "nota": "negación de zona (E3), unos 15 s; sin ámbar"})
     todo["fuego_suelo"] = fr
     fr = [rescoldo_suelo(f) for f in range(4)]
-    _hoja(out, "vm_vfx_rescoldo_suelo", fr, True, (.5, .5), fps=6, extra={"celda_m": 3.2})
+    _hoja(out, "vm_vfx_rescoldo_suelo", fr, True, (.5, .5), fps=6, extra={"celda_m": 3.0, "celdas_sim": 6})
     todo["rescoldo"] = fr
     q = suelo_quemado()
-    q.img.save(out / "decal_suelo_quemado_32.png")
+    q.img.save(out / "decal_suelo_quemado_30.png")
     cr = [crater(v) for v in range(2)]
     for v, s in enumerate(cr):
         s.img.save(out / f"decal_crater_{v + 1}_64.png")

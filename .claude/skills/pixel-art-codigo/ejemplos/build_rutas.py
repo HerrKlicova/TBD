@@ -6,7 +6,7 @@ mapa, y los vehículos de tierra solo van por vías y carreteras.
   ui_eta_reloj_7          relojito de 7x7 que va a la izquierda de la cifra (unidad en camino)
   ui_eta_destino_7        banderín de 7x7 para la placa del destino
   ui_digitos_3x5          atlas de 0–9 y «:» a 3x5 (4 px de paso) en hueso, para no depender de la fuente
-  decal_ruta_{carretera,via,aire}_16   tesela de 16x4 que repite a lo largo de la ruta (0,1 m/texel: 1,6 m)
+  decal_ruta_{carretera,via,aire}_16   tesela que repite a lo largo de la ruta (0,1 m/texel: 1,6 m); carretera 16x6 con chevrones (D-N94), vía y aire 16x4
   decal_ruta_{carretera,via,aire}_fin  punta de flecha de 8x8 al final de la ruta (mira a +X)
   ui_mm_ruta_{carretera,via,aire}      tesela de 4x1 para la ruta en el minimapa
   ui_aviso_refuerzos_{32,16}           aviso de información (sin rojo ni ámbar): flecha con un soldado
@@ -85,13 +85,21 @@ bb.....
 
 
 def ruta(tipo):
-    """Tesela de 16x4 que repite en X. Sombra de 1 px en 303424 debajo para leerse sobre suelo claro."""
-    s = Sprite(16, 4)
+    """Tesela que repite en X. Sombra de 1 px en 303424 debajo para leerse sobre suelo claro.
+    Carretera (D-N94): chevrones «>>» de 16x6, porque los trazos se confunden con las marcas viales del asfalto.
+    Vía y aire: 16x4."""
     if tipo == "carretera":
-        for x in range(0, 10):
-            s.set(x, 1, "bone"); s.set(x, 2, "bone")
-            s.set(x, 3, "olive_shadow")
-    elif tipo == "via":
+        s = Sprite(16, 6)
+        for x0 in (2, 10):
+            for y, dx in enumerate((0, 1, 2, 1, 0)):
+                s.set(x0 + dx, y, "bone"); s.set(x0 + dx + 1, y, "bone")
+        for y in range(5, 0, -1):
+            for x in range(16):
+                if s.get(x, y - 1)[3] and not s.get(x, y)[3]:
+                    s.set(x, y, "olive_shadow")
+        return s
+    s = Sprite(16, 4)
+    if tipo == "via":
         for x in range(16):
             if x % 8 < 6:
                 s.set(x, 1, "beige")

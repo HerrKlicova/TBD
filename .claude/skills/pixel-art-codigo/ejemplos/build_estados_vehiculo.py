@@ -8,7 +8,9 @@ Encargo de Mak (00:01).
   (el marcador del helipuerto se movió a build_apoyo_aereo.py, con tres estados: despegue, regreso y rearme)
   ui_aviso_tren_marcha_{32,16}     información: la locomotora con líneas de velocidad (sin rojo ni ámbar)
   ui_aviso_tren_detenido_{32,16}   el de A2 (disco ámbar de alto), exportado aquí por fin con este nombre
-  ui_mm_tren_marcha / ui_mm_tren_detenido   el tren del minimapa: en marcha con estela, detenido apagado y con punto ámbar
+  ui_mm_tren_marcha / _detenido / _detenido_anomalo   el tren del minimapa: en marcha con estela; detenido en el andén
+        apagado y sin ámbar; detenido anómalo (vía cortada, sin combustible o fuera de estación) con punto ámbar (D-N98).
+        ui_aviso_tren_detenido solo se muestra en la parada anómala.
 """
 import json
 import math
@@ -123,7 +125,8 @@ def mm_tren(estado_):
         s.set(2, 1, "black"); s.set(12, 1, "black")
         for x in range(3, 12):
             s.set(x, 1, "grey_brown" if (x - 3) % 4 != 3 else "black")
-        s.set(13, 1, "amber"); s.set(14, 1, "amber")   # punto de aviso
+        if estado_ == "detenido_anomalo":           # D-N98: ámbar solo si la parada es anómala
+            s.set(13, 1, "amber"); s.set(14, 1, "amber")
     return s
 
 
@@ -146,7 +149,7 @@ def exportar(out):
     d.img.save(out / "ui_aviso_tren_detenido_32.png")
     reduce_16(d).img.save(out / "ui_aviso_tren_detenido_16.png")
     todo["aviso_tren"] = [m, reduce_16(m), d, reduce_16(d)]
-    for e in ("marcha", "detenido"):
+    for e in ("marcha", "detenido", "detenido_anomalo"):
         s = mm_tren(e)
         s.img.save(out / f"ui_mm_tren_{e}.png")
         todo[f"mm_tren_{e}"] = [s]
@@ -158,7 +161,7 @@ if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     todo = exportar(OUT)
     E = 4
-    filas = [[todo[f"est_{t}"][0] for t in TIPOS] + todo["mm_tren_marcha"] + todo["mm_tren_detenido"],
+    filas = [[todo[f"est_{t}"][0] for t in TIPOS] + todo["mm_tren_marcha"] + todo["mm_tren_detenido"] + todo["mm_tren_detenido_anomalo"],
              todo["aviso_tren"]]
     Wt = max(sum(s.w * E // (2 if s.w == 96 else 1) + 8 for s in f) for f in filas)
     Ht = sum(max(s.h * E // (2 if s.w == 96 else 1) for s in f) + 8 for f in filas)

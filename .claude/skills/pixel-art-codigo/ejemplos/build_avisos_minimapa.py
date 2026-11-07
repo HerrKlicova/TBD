@@ -126,6 +126,59 @@ def minimapa_base(paso=4):
     return s
 
 
+YAW = 45     # D-N93: el minimapa gira como la cámara (yaw 45°: arriba en pantalla = noreste en el mundo, +X+Z)
+
+
+def minimapa_rombo(paso=4, yaw=YAW):
+    """Base del minimapa girada (D-N93): rombo dentro de su marco cuadrado, esquinas en navy y borde de 1 px.
+    Se muestrea el mapa de zonas de 1 m directamente en la rejilla girada (sin reescalar dos veces)."""
+    z = Image.open(ZONAS_PNG)
+    zw, zh = z.size
+    W, H = zw / paso, zh / paso
+    src = z.load()
+    c, s_ = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    L = int(math.ceil((W + H) * max(c, s_))) + 2
+    out = Sprite(L, L)
+    dentro = [[False] * L for _ in range(L)]
+    for v in range(L):
+        for u in range(L):
+            cuenta = {}
+            for j in range(paso):
+                for i in range(paso):
+                    du = u + (i + .5) / paso - L / 2
+                    dv = v + (j + .5) / paso - L / 2
+                    dx, dy = c * du - s_ * dv, s_ * du + c * dv        # vuelta al mapa sin girar (px de 4 m)
+                    sx, sy = int((W / 2 + dx) * paso), int((H / 2 + dy) * paso)
+                    if 0 <= sx < zw and 0 <= sy < zh:
+                        val = src[sx, sy]
+                        cuenta[val] = cuenta.get(val, 0) + 1
+            if sum(cuenta.values()) < paso * paso // 2:
+                continue
+            dentro[v][u] = True
+            for val in (3, 4, 9):
+                if cuenta.get(val, 0) >= 3:
+                    zona = val
+                    break
+            else:
+                zona = max(cuenta, key=cuenta.get)
+            out.set(u, v, COLOR_ZONA.get(zona, "olive_grey"))
+    for v in range(L):
+        for u in range(L):
+            if not dentro[v][u]:
+                out.set(u, v, "navy")
+            elif any(not (0 <= u + a < L and 0 <= v + b < L and dentro[v + b][u + a])
+                     for a, b in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+                out.set(u, v, "grey_brown")
+    return out
+
+
+def a_rombo(x, y, L, W=189, H=170):
+    """Píxel del minimapa sin girar (4 m/px) → píxel del rombo."""
+    dx, dy = x - W / 2, y - H / 2
+    k = math.sqrt(.5)
+    return int(L / 2 + k * (dx + dy)), int(L / 2 + k * (dy - dx))
+
+
 def _mm(grid, keys):
     filas = [f for f in grid.strip().split("\n")]
     s = Sprite(len(filas[0].strip()), len(filas))
@@ -262,11 +315,16 @@ def exportar(out):
     if not ZONAS_PNG.exists():
         print(f"aviso: no encuentro {ZONAS_PNG}; el minimapa base no se genera (define MRMAK)")
     else:
-        b = minimapa_base()
-        b.img.save(out / "ui_minimapa_base_sagunto.png")
-        (out / "ui_minimapa_base_sagunto.json").write_text(json.dumps({"meta": {"viaMuerta": {
-            "m_por_px": 4, "X": [-250, 506], "Z": [-200, 480], "fila0": "Z = 480 (norte)",
-            "px": "x = (X + 250) / 4, y = (480 - Z) / 4", "origen": "sagunto_zonas_1m.png (Álvaro, mr-mak-workspace 4d02e00)"}}},
+        b = minimapa_rombo()
+        b.img.save(out / "ui_minimapa_rombo_sagunto.png")
+        L = b.w
+        (out / "ui_minimapa_rombo_sagunto.json").write_text(json.dumps({"meta": {"viaMuerta": {
+            "m_por_px": 4, "X": [-250, 506], "Z": [-200, 480], "yaw": YAW, "lado_px": L,
+            "px": (f"x = (X + 250) / 4 - 94.5; y = (480 - Z) / 4 - 85; "
+                   f"u = {L / 2} + 0.7071 * (x + y); v = {L / 2} + 0.7071 * (y - x)"),
+            "nota": "D-N93: sustituye a ui_minimapa_base_sagunto (sin girar). Esquinas en navy del panel; el marco "
+                    "de cámara (ui_mm_camara, slice 2) queda recto. Supongo que yaw 45 en Unity = mirar a +X+Z.",
+            "origen": "sagunto_zonas_1m.png (Álvaro, mr-mak-workspace 4d02e00)"}}},
             indent=1, ensure_ascii=False))
         todo["minimapa"] = [b]
     for n, fn in ICONOS_MM.items():
@@ -291,20 +349,22 @@ if __name__ == "__main__":
     b = todo["minimapa"][0]
     # vista previa: minimapa con iconos colocados a mano
     prev = b.img.copy()
+    L = b.w
     pos = {"estacion": (95, 99), "tren": (82, 106), "peloton": (88, 100), "vehiculo": (100, 104),
            "helipuerto": (120, 112), "helicoptero": (110, 92)}
     for n, (x, y) in pos.items():
-        prev.alpha_composite(todo[f"mm_{n}"][0].img, (x, y))
+        prev.alpha_composite(todo[f"mm_{n}"][0].img, a_rombo(x, y, L))
     for k in range(18):
-        prev.alpha_composite(todo["mm_horda"][0].img, (40 + (k % 6) * 4, 96 + (k // 6) * 4))
-    prev.alpha_composite(todo["mm_entrada"][0].img, (30, 100))
-    prev.alpha_composite(todo["mm_alerta"][2].img, (84, 96))
+        prev.alpha_composite(todo["mm_horda"][0].img, a_rombo(40 + (k % 6) * 4, 96 + (k // 6) * 4, L))
+    prev.alpha_composite(todo["mm_entrada"][0].img, a_rombo(30, 100, L))
+    prev.alpha_composite(todo["mm_alerta"][2].img, a_rombo(84, 96, L))
     cam = Image.new("RGBA", (40, 24), (0, 0, 0, 0))
     for x in range(40):
         cam.putpixel((x, 0), PAL["bone"]); cam.putpixel((x, 23), PAL["bone"])
     for y in range(24):
         cam.putpixel((0, y), PAL["bone"]); cam.putpixel((39, y), PAL["bone"])
-    prev.alpha_composite(cam, (78, 88))
+    cx, cy = a_rombo(95, 99, L)
+    prev.alpha_composite(cam, (cx - 20, cy - 12))
     filas = [[s for s in todo[f"aviso_{n}"]] for n in AVISOS]
     hoja = Image.new("RGBA", (b.w * E + 20 + 3 * (32 * E + 8), max(b.h * E, 2 * (32 * E + 8)) + 8), PAL["navy"])
     hoja.alpha_composite(prev.resize((b.w * E, b.h * E), Image.NEAREST), (0, 0))

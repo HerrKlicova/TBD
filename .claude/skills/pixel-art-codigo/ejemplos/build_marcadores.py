@@ -201,7 +201,7 @@ def cursor(tipo):
         s.rect(6, 12, 4, 3, "bone")
     elif tipo == "embarcar":                         # flecha que entra en una caja
         s.rect(6, 7, 9, 7, "grey_light"); s.rect(7, 8, 7, 5, None)
-        s.rect(7, 8, 7, 5, "slate_dark")
+        s.rect(7, 8, 7, 5, "olive_shadow")              # D-N92: 303424, no 283440
         s.line(0, 3, 9, 10, "bone"); s.line(1, 3, 10, 10, "bone")
         s.rect(8, 9, 3, 3, "bone")
     else:                                            # no válido: círculo con barra, en hueso (no es ataque)
