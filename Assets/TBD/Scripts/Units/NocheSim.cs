@@ -20,6 +20,10 @@ namespace TBD.Units
         public int StationDmgPerZombieS;
         public int ContactRadiusMm, ContactCasualtyPmPerS;  // soldado en contacto con un zombi: ‰ de caer por zombi y segundo
         public int PileRadiusMm;                        // «pegado al muro»
+        /// <summary>QA-35 (Nacho, 7-nov): la pila trepa. En la zona los muros miden 2,5 m y cada zombi apilado suma 0,35 m (hasta 10 por celda de 0,5 m): con unos 6 por celda
+        /// los de arriba saltan el muro sin romperlo. Aquí: con más de ClimbPileZ zombis pegados al muro, saltan dentro ClimbPermilS ‰ por segundo de los que sobran
+        /// (los últimos en llegar). ClimbPermilS = 0: no trepan.</summary>
+        public int ClimbPileZ, ClimbPermilS;
         public int GateGapMm;                           // hueco de la vía en el muro oeste (en la zona de Unity la puerta de vía no tiene sólido: 3.200). 0 = recinto cerrado (lo medido hasta ahora)
 
         public static NightSimParams Default()
@@ -28,7 +32,7 @@ namespace TBD.Units
             {
                 FortX0 = 70000, FortX1 = 156000, FortY0 = 44000, FortY1 = 85000, StationX = 113000, StationY = 64500,
                 StationHp = 60000, WallHp = 1200000, ZombieSpeedMmS = 1500, WallDmgPerZombieS = 1, StationDmgPerZombieS = 20,
-                ContactRadiusMm = 1200, ContactCasualtyPmPerS = 14, PileRadiusMm = 1500,
+                ContactRadiusMm = 1200, ContactCasualtyPmPerS = 14, PileRadiusMm = 1500, ClimbPileZ = 150, ClimbPermilS = 20,
             };
         }
 
@@ -41,7 +45,7 @@ namespace TBD.Units
             Func<string, int, int> g = (k, d) => o.ContainsKey(k) && o[k] is long ? (int)(long)o[k] : d;
             p.FortX0 = g("FortX0", p.FortX0); p.FortX1 = g("FortX1", p.FortX1); p.FortY0 = g("FortY0", p.FortY0); p.FortY1 = g("FortY1", p.FortY1); p.StationX = g("StationX", p.StationX); p.StationY = g("StationY", p.StationY);
             p.WallHp = g("WallHp", p.WallHp); p.WallDmgPerZombieS = g("WallDmgPerZombieS", p.WallDmgPerZombieS); p.StationHp = g("StationHp", p.StationHp); p.StationDmgPerZombieS = g("StationDmgPerZombieS", p.StationDmgPerZombieS);
-            p.ZombieSpeedMmS = g("ZombieSpeedMmS", p.ZombieSpeedMmS); p.ContactRadiusMm = g("ContactRadiusMm", p.ContactRadiusMm); p.ContactCasualtyPmPerS = g("ContactCasualtyPmPerS", p.ContactCasualtyPmPerS); p.PileRadiusMm = g("PileRadiusMm", p.PileRadiusMm); p.GateGapMm = g("GateGapMm", p.GateGapMm);
+            p.ZombieSpeedMmS = g("ZombieSpeedMmS", p.ZombieSpeedMmS); p.ContactRadiusMm = g("ContactRadiusMm", p.ContactRadiusMm); p.ContactCasualtyPmPerS = g("ContactCasualtyPmPerS", p.ContactCasualtyPmPerS); p.PileRadiusMm = g("PileRadiusMm", p.PileRadiusMm); p.GateGapMm = g("GateGapMm", p.GateGapMm); p.ClimbPileZ = g("ClimbPileZ", p.ClimbPileZ); p.ClimbPermilS = g("ClimbPermilS", p.ClimbPermilS);
             return p;
         }
     }
@@ -125,6 +129,9 @@ namespace TBD.Units
         public readonly NightGame Night;
         public readonly List<WaveStats> Waves = new List<WaveStats>();
         public int WallHp, Kills, SoldierDeaths, Resupplies, PeakPile, Spawned;
+        /// <summary>Zombis que han saltado el muro trepando por la pila (QA-35).</summary>
+        public int Climbed;
+        long _climbRem;
         public int StationHp { get { return Night.StationHp; } }      // la vida del edificio vive en NightGame (misma regla que el juego)
         public int MaterialsU, FuelU;
         readonly List<Zomb> _z = new List<Zomb>();
@@ -141,8 +148,8 @@ namespace TBD.Units
             SP = sp; Night = new NightGame(np, seed ^ 0x5A5A); Units = new UnitsWorld(seed); _rng = new IRng(seed ^ 0xC0FFEE);
             Units.StockShots = ammoU * WeaponCatalog.ShotsPerU; MaterialsU = materialsU; FuelU = fuelU;
             WallHp = sp.WallHp; Night.P.StationHp = sp.StationHp; Night.StationHp = sp.StationHp; Night.P.StationDmgPerZombieS = sp.StationDmgPerZombieS;
-            // NightSim abstrae el edificio como el punto al que convergen los zombis (StationX/Y): su «edificio» es una caja de ±3,5 m alrededor; el tren es el real (andén)
-            Night.P.StationRect = new RectMm(sp.StationX - 3500, sp.StationY - 3500, sp.StationX + 3500, sp.StationY + 3500);
+            // QA-35: el edificio y el tren son los reales de NightParams (los mismos de la zona). Fuera, la horda converge hacia StationX/Y (la puerta de la vía, como el
+            // flujo de la zona); dentro del recinto (tras trepar o con el muro roto) va al centro del edificio de viajeros.
             for (int w = 0; w < np.Waves.Length; w++) Waves.Add(new WaveStats { Wave = w + 1, StartTick = Night.WaveStartTick(w), HourAtStart = (np.StartHour + np.Waves[w].StartMinute / 60) % 24, MinuteAtStart = np.Waves[w].StartMinute % 60 });
         }
 
@@ -234,6 +241,7 @@ namespace TBD.Units
             return cur;
         }
 
+        static bool InRect(int x, int y, RectMm r) { return x >= r.X0 && x <= r.X1 && y >= r.Y0 && y <= r.Y1; }
         bool InFort(int x, int y) { return x > SP.FortX0 && x < SP.FortX1 && y > SP.FortY0 && y < SP.FortY1; }
 
         public void Run(int ticks) { for (int i = 0; i < ticks && Night.State == NightState.Jugando; i++) Step(); }
@@ -252,10 +260,12 @@ namespace TBD.Units
             {
                 var z = _z[i]; if (!z.Alive) continue;
                 int tx = SP.StationX, ty = SP.StationY;
+                if (InFort(z.X, z.Y)) { var sr = Night.P.StationRect; tx = (sr.X0 + sr.X1) / 2; ty = (sr.Y0 + sr.Y1) / 2; }
                 bool gap = SP.GateGapMm > 0 && WallHp > 0;
-                if (gap && z.X < SP.FortX0 - 500 && !InFort(z.X, z.Y)) { tx = SP.FortX0 - 1000; }      // con hueco en la vía, la horda rodea el muro hasta la puerta (como el flujo de la zona)
+                bool toGate = false;
+                if (gap && z.X < SP.FortX0 - 500 && !InFort(z.X, z.Y)) { tx = SP.FortX0 - 1000; toGate = true; }      // con hueco en la vía, la horda rodea el muro hasta la puerta (como el flujo de la zona)
                 int dx = tx - z.X, dy = ty - z.Y, d = IMath.Dist(dx, dy);
-                if (d < 3500 && tx == SP.StationX) continue;
+                if (d < 3500 && !toGate) continue;
                 if (d < 1) continue;
                 int nx = z.X + IMath.DivR((long)dx * speed, d), ny = z.Y + IMath.DivR((long)dy * speed, d);
                 if (WallHp > 0 && !InFort(z.X, z.Y) && InFort(nx, ny) && !(gap && z.X <= SP.FortX0 && Math.Abs(ny - SP.StationY) < SP.GateGapMm / 2))
@@ -264,9 +274,11 @@ namespace TBD.Units
                     if (!InFort(nx, z.Y)) ny = z.Y; else if (!InFort(z.X, ny)) nx = z.X; else { nx = z.X; ny = z.Y; }
                     if (InFort(nx, ny)) { nx = z.X; ny = z.Y; }
                 }
+                if (InFort(z.X, z.Y) && InRect(nx, ny, Night.P.TrainRect) && !InRect(z.X, z.Y, Night.P.TrainRect)) { nx = z.X; ny = z.Y; }   // QA-35: el tren parado es un muro: el que lo tiene en el camino al edificio se queda pegado a él
                 z.X = nx; z.Y = ny;
                 if (WallHp > 0 && !InFort(z.X, z.Y) && NearWall(z.X, z.Y) && !(gap && Math.Abs(z.Y - SP.StationY) < SP.GateGapMm / 2 + 500)) pile++;      // los que cruzan el hueco no son pila
             }
+            if (SP.ClimbPermilS > 0 && WallHp > 0 && pile > SP.ClimbPileZ) pile -= ClimbStep(pile - SP.ClimbPileZ);
             if (pile > PeakPile) PeakPile = pile;
             if (cur != null && pile > cur.PeakPile) cur.PeakPile = pile;
             LastPile = pile;
@@ -361,6 +373,23 @@ namespace TBD.Units
         /// <summary>Bot opcional (-nightbot): si no es null, da órdenes cada tick (ataque-movimiento al muro amenazado y reabastecimiento al 30 %). Ver NocheBot.cs.</summary>
         public NightBot Bot;
         public int LastPile;
+
+        /// <summary>QA-35: la pila trepa. De los «excess» que sobran por encima de ClimbPileZ saltan ClimbPermilS ‰ por segundo (resto entero exacto); saltan los últimos
+        /// en llegar (índice más alto) y caen 1,5 m dentro del recinto, en su lado del muro. Entero y determinista. Devuelve cuántos han saltado.</summary>
+        int ClimbStep(int excess)
+        {
+            long acc = _climbRem + (long)excess * SP.ClimbPermilS; int n = (int)(acc / (1000L * IMath.TickRate)); _climbRem = acc % (1000L * IMath.TickRate);
+            int moved = 0;
+            for (int i = _z.Count - 1; i >= 0 && moved < n; i--)
+            {
+                var z = _z[i]; if (!z.Alive || InFort(z.X, z.Y) || !NearWall(z.X, z.Y)) continue;
+                if (z.X <= SP.FortX0) z.X = SP.FortX0 + 1500; else if (z.X >= SP.FortX1) z.X = SP.FortX1 - 1500;
+                else if (z.Y <= SP.FortY0) z.Y = SP.FortY0 + 1500; else z.Y = SP.FortY1 - 1500;
+                z.X = Math.Max(SP.FortX0 + 1500, Math.Min(SP.FortX1 - 1500, z.X)); z.Y = Math.Max(SP.FortY0 + 1500, Math.Min(SP.FortY1 - 1500, z.Y));
+                moved++;
+            }
+            Climbed += moved; return moved;
+        }
 
         bool NearWall(int x, int y)
         {

@@ -194,7 +194,8 @@ namespace TBD.View
             _worldA = World.DefaultGameObjectInjectionWorld;
             _groupA = SimWorldSetup.CreateSystems(_worldA);
             var kind = _cutting ? ZoneKind.Cutting : ZoneKind.Station;
-            _rootA = SimWorldSetup.Populate(_worldA.EntityManager, zombies, siege, seed, _combat, shots, hasTrain, kind, !_netZone);
+            float trainX = NightRun.Active && _netZone && !_cutting ? Level.TrainNightX : float.NaN;   // QA-35 (Nacho): de noche el tren espera al fondo del andén, lejos de la pila del muro oeste
+            _rootA = SimWorldSetup.Populate(_worldA.EntityManager, zombies, siege, seed, _combat, shots, hasTrain, kind, !_netZone, trainX);
             sw.Stop();
             LastMaterializeMs = sw.Elapsed.TotalMilliseconds;
             Debug.Log($"[TBD] Zona {(_zoneNode >= 0 ? NetSession.A.Graph.Nodes[_zoneNode].Name : "suelta")}: {zombies} zombis ({(siege ? "asedio" : "deriva")}) creados en {LastMaterializeMs:0.0} ms");
@@ -202,7 +203,7 @@ namespace TBD.View
 
             _worldB = new World("TBD_SimB");
             _groupB = SimWorldSetup.CreateSystems(_worldB);
-            _rootB = SimWorldSetup.Populate(_worldB.EntityManager, zombies, siege, seed, _combat, shots, hasTrain, kind, !_netZone);
+            _rootB = SimWorldSetup.Populate(_worldB.EntityManager, zombies, siege, seed, _combat, shots, hasTrain, kind, !_netZone, trainX);
             if (_netZone) BuildSaguntoAmbience();
         }
 

@@ -10,7 +10,8 @@ namespace TBD.Units
     // Un impacto = un zombi abatido (TargetHit.Damage = KillDamage); las armas de Hugo abaten, no restan vida.
 
     public enum InfKind : byte { Fusilero = 0, Ametrallador = 1, Granadero = 2, Tirador = 3, Zapador = 4, Servidor = 5 }
-    public enum Formation : byte { Linea = 0, Columna = 1, Cuna = 2, Circulo = 3 }
+    /// <summary>Bloque (Lucía, 7-nov; Eugenio quiere «dibujar un cuadrado»): sustituye al Círculo en las órdenes del jugador. Circulo se queda solo para partidas guardadas.</summary>
+    public enum Formation : byte { Linea = 0, Columna = 1, Cuna = 2, Circulo = 3, Bloque = 4 }
 
     /// <summary>Objetivo que le da la zona al pelotón: identificador estable y posición en mm.</summary>
     public struct Target { public int Id; public int X, Y; public bool Special; }      // Special: zombi especial (los tiradores lo prefieren)
@@ -302,6 +303,14 @@ namespace TBD.Units
                 case Formation.Linea: { int o = (k + 1) / 2; right = (k & 1) == 1 ? o * spacing : -o * spacing; } break;
                 case Formation.Columna: fwd = -k * spacing; break;
                 case Formation.Cuna: { int row = (k + 1) / 2; int side = (k & 1) == 1 ? 1 : -1; if (k == 0) { row = 0; side = 0; } fwd = -row * spacing; right = side * row * spacing; } break;
+                case Formation.Bloque:
+                    {
+                        // cuadrado lo más compacto posible: cols = ⌈√n⌉, filas que hagan falta; el jefe (k = 0) en la esquina delantera izquierda; el bloque va centrado en el ancla
+                        int nn = Math.Max(1, n), cols = 1; while (cols * cols < nn) cols++;
+                        int rows = (nn + cols - 1) / cols, row = k / cols, col = k % cols;
+                        right = (2 * col - (cols - 1)) * spacing / 2; fwd = -(2 * row - (rows - 1)) * spacing / 2;
+                    }
+                    break;
                 case Formation.Circulo:
                     if (k > 0)
                     {
