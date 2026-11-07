@@ -1,12 +1,11 @@
-"""Estados de vehículo, marcador del helipuerto y aviso del tren (P1, noche del 7-nov). Bruno (Arte técnico).
+"""Estados de vehículo y aviso del tren (P1, noche del 7-nov). Bruno (Arte técnico).
 
 Encargo de Mak (00:01).
   ui_estado_veh_{embarcando,desembarcando,danado,en_llamas,sin_municion,reabasteciendo}_16
         sobre el vehículo en el mundo y en la esquina de su tarjeta. En hueso con contorno negro, como los del
         pelotón (D-N89); «sin munición» es la A2 reducida (ámbar de aviso) y «reabasteciendo» el del pelotón.
         «En llamas» va sin ámbar (se queda en pantalla): beige, ocre y óxido, como el fuego de D-N87.
-  decal_helipuerto_aterrizaje_96   4 f, bucle: cuatro cuñas que se cierran sobre la H mientras baja el helicóptero
-  decal_helipuerto_despegue_96     4 f, bucle: las cuñas se abren hacia fuera mientras sube
+  (el marcador del helipuerto se movió a build_apoyo_aereo.py, con tres estados: despegue, regreso y rearme)
   ui_aviso_tren_marcha_{32,16}     información: la locomotora con líneas de velocidad (sin rojo ni ámbar)
   ui_aviso_tren_detenido_{32,16}   el de A2 (disco ámbar de alto), exportado aquí por fin con este nombre
   ui_mm_tren_marcha / ui_mm_tren_detenido   el tren del minimapa: en marcha con estela, detenido apagado y con punto ámbar
@@ -138,16 +137,7 @@ def exportar(out):
         s = estado(t)
         s.img.save(out / f"ui_estado_veh_{t}_16.png")
         todo[f"est_{t}"] = [s]
-    for nombre, desp in (("aterrizaje", False), ("despegue", True)):
-        fr = [helipuerto(f, desp) for f in range(4)]
-        hoja = Image.new("RGBA", (96 * 4, 96), (0, 0, 0, 0))
-        for k, s in enumerate(fr):
-            hoja.alpha_composite(s.img, (96 * k, 0))
-        hoja.save(out / f"decal_helipuerto_{nombre}_96.png")
-        (out / f"decal_helipuerto_{nombre}_96.json").write_text(json.dumps({"meta": {"viaMuerta": {
-            "frames": 4, "frameSize": [96, 96], "loop": True, "duration_ms": 150, "texel_m": 0.1, "pivot": [0.5, 0.5],
-            "nota": "centrado sobre decal_helipuerto_128 mientras el NH90 o el Tigre aterriza o despega"}}}, ensure_ascii=False))
-        todo[f"heli_{nombre}"] = fr
+    # el marcador del helipuerto (despegue, regreso y rearme) está en build_apoyo_aereo.py
     m = tren_marcha()
     m.img.save(out / "ui_aviso_tren_marcha_32.png")
     reduce_16(m).img.save(out / "ui_aviso_tren_marcha_16.png")
@@ -169,7 +159,7 @@ if __name__ == "__main__":
     todo = exportar(OUT)
     E = 4
     filas = [[todo[f"est_{t}"][0] for t in TIPOS] + todo["mm_tren_marcha"] + todo["mm_tren_detenido"],
-             todo["aviso_tren"], todo["heli_aterrizaje"], todo["heli_despegue"]]
+             todo["aviso_tren"]]
     Wt = max(sum(s.w * E // (2 if s.w == 96 else 1) + 8 for s in f) for f in filas)
     Ht = sum(max(s.h * E // (2 if s.w == 96 else 1) for s in f) + 8 for f in filas)
     hoja = Image.new("RGBA", (Wt, Ht), PAL["navy"])
