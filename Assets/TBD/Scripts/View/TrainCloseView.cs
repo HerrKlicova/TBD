@@ -105,7 +105,7 @@ namespace TBD.View
             var railMat = Unlit(new Color32(0x94, 0x94, 0x8c, 255));
             Prim(PrimitiveType.Cube, "Raíl A", new Vector3(0f, 0.2f, -0.72f), new Vector3(700f, 0.14f, 0.12f), railMat); Prim(PrimitiveType.Cube, "Raíl B", new Vector3(0f, 0.2f, 0.72f), new Vector3(700f, 0.14f, 0.12f), railMat);
             // tren: locomotora y coches (todo mira a +Z en los modelos: giro 90° para avanzar hacia +X)
-            string[] cars = { "vagon_v0", "vagon_v0", "vagon_v1", "vagon_v2" }; float x0 = 6f;
+            string[] cars = { "vagon_v2", "vagon_v3" }; float x0 = 6f;   // orden de la noche (Lucía): locomotora, tropa y contenedor
             var lo = Model("locomotora", "SM_Locomotora_Cercana_LOD1", new Vector3(x0, 0f, 0f), 90f);
             float cx = x0 - 12f - 11.75f;
             for (int i = 0; i < cars.Length; i++) { Model(cars[i], "SM_Vagon_Cercano_" + cars[i].Substring(7) + "_LOD1", new Vector3(cx, 0f, 0f), 90f); cx -= 23.5f; }
