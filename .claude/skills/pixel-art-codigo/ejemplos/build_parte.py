@@ -162,6 +162,9 @@ DATOS = {
 }
 
 
+UMBRALES = {"estacion": (.40, .75), "tren": (.40, .75), "muro": (.25, .50)}   # D-N104 (muro: D-N108)
+
+
 def _icono(k):
     import build_recursos_hud as rh
     import build_a1 as a1
@@ -185,12 +188,12 @@ def _nueve(src, w, h, sl):
     return out
 
 
-def _barra(im, x, y, w, v):
+def _barra(im, x, y, w, v, umbrales=(.40, .75)):
     im.alpha_composite(_nueve(barra_fondo(), w, 6, 2), (x, y))
     n = int((w - 2) * v)
     if n > 0:
         im.alpha_composite(barra_relleno().img.resize((n, 4), Image.NEAREST), (x + 1, y + 1))
-    for u in (.40, .75):
+    for u in umbrales:
         im.alpha_composite(barra_umbral().img, (x + 1 + int((w - 2) * u) - 1, y - 1))
 
 
@@ -239,7 +242,7 @@ def pantalla(variante, victoria=True):
             im.alpha_composite(_icono(key).img, (x0 + 10, yy))
             m.texto(im, (x0 + 30, yy), nombre, 8, "beige", sombra=False)
             m.texto(im, (x0 + 104 - int(_ancho(f"{int(v * 100)} %", 8)), yy), f"{int(v * 100)} %", 8, "bone", sombra=False)
-            _barra(im, x0 + 30, yy + 11, 76, v)
+            _barra(im, x0 + 30, yy + 11, 76, v, UMBRALES[key])
             yy += 24
         cx = x0 + 128
         for i, (key, nombre, v) in enumerate(D["filas"]):
@@ -262,7 +265,7 @@ def pantalla(variante, victoria=True):
                 bx = x0 + 12 + i * 106
                 im.alpha_composite(_icono(key).img, (bx, y))
                 m.texto(im, (bx + 20, y + 1), f"{nombre} {int(v * 100)} %", 8, "beige", sombra=False)
-                _barra(im, bx, y + 19, 96, v)
+                _barra(im, bx, y + 19, 96, v, UMBRALES[key])
             y += 32
         for i, (key, nombre, v) in enumerate(filas):
             im.alpha_composite(_nueve(franja(), pw - 16, 15, 3), (x0 + 8, y - 2))
@@ -279,12 +282,12 @@ def pantalla(variante, victoria=True):
                     im.alpha_composite(_icono(key).img, (bx + 3, y + 1))
                     m.texto(im, (bx + 22, y - 1), nombre, 8, "beige", sombra=False)
                     m.texto(im, (bx + 22, y + 8), f"{int(v * 100)} %", 8, "bone", sombra=False)
-                    _barra(im, bx + 52, y + 9, 42, v)
+                    _barra(im, bx + 52, y + 9, 42, v, UMBRALES[key])
             else:
                 for i, (key, nombre, v) in enumerate(D["estado"]):
                     im.alpha_composite(_icono(key).img, (x0 + 12, y - 2))
                     m.texto(im, (x0 + 32, y), nombre, 9, "beige", sombra=False)
-                    _barra(im, x0 + 110, y + 2, pw - 170, v)
+                    _barra(im, x0 + 110, y + 2, pw - 170, v, UMBRALES[key])
                     t = f"{int(v * 100)} %"
                     m.texto(im, (x0 + pw - 14 - int(_ancho(t)), y), t, 9, "bone", sombra=False)
                     y += 15
@@ -329,7 +332,8 @@ def exportar(out):
     bf.img.save(out / "ui_parte_barra_fondo.png"); br.img.save(out / "ui_parte_barra_relleno.png")
     bu.img.save(out / "ui_parte_barra_umbral.png")
     (out / "ui_parte_barra_fondo.json").write_text('{"slice": 2, "relleno": "ui_parte_barra_relleno (1x4) estirado a '
-                                                  '(ancho-2)*valor, en x=1, y=1", "umbrales": [0.40, 0.75]}')
+                                                  '(ancho-2)*valor, en x=1, y=1", "umbrales": {"estacion": [0.40, 0.75], "tren": [0.40, 0.75], '
+                                                  '"muro": [0.25, 0.50]}}')
     ca, cc = cabecera_amanecer(), cabecera_caida()
     ca.img.save(out / "ui_parte_cabecera_amanecer.png"); cc.img.save(out / "ui_parte_cabecera_caida.png")
     todo["piezas"] = [p, pd, fr, el, ev] + ap + [bf, bu, ca, cc]
@@ -341,7 +345,7 @@ if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     todo = exportar(OUT)
     import build_maquetas as m
-    # D-N: Mak aprobó la variante A (7-nov 00:34). La muestra de las 5 se regenera con --muestra.
+    # D-N108: variante A (Mak, 7-nov 00:34; Lucía: muescas del muro al 25 y al 50 %). La muestra de las 5 se regenera con --muestra.
     pantalla("A", True).resize((1920, 1080), Image.NEAREST).save(OUT / "maqueta_1080_parte_victoria.png")
     pantalla("A", False).resize((1920, 1080), Image.NEAREST).save(OUT / "maqueta_1080_parte_derrota.png")
     if "--muestra" in sys.argv:
