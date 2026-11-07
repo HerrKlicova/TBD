@@ -141,6 +141,13 @@ gr = [(96, 45.5), (97.2, 45.0), (101, 45.4), (102.3, 46.0), (95, 47), (103.5, 47
       (172, 37), (173, 36.2), (186, 36), (187.4, 37)]
 for k, (x, y) in enumerate(gr):
     poner("infanteria/SM_Soldado_v%d_LOD0.fbx" % (k % 6), x, y, (k * 47) % 360)
+if CRONICA:                                        # puesto de frente v2 (HESCO) ocupado por un pelotón, al oeste
+    poner("puesto_frente/SM_PuestoFrente_v2_LOD0.fbx", 28, 42, 0)
+    pel = [(24.5, 44.5), (25.6, 45.2), (23.8, 46.4), (27.0, 38.4), (31.5, 39.0), (32.6, 38.2), (26.8, 47.6),
+           (28.6, 44.0), (27.2, 34.7), (29.0, 34.6)]          # los dos últimos, de guardia en la entrada
+    for k, (x, y) in enumerate(pel):
+        poner("infanteria/SM_Soldado_v%d_LOD0.fbx" % (k % 6), x, y, 180 if k >= 8 else (k * 53) % 360)
+    poner("v2_vamtac/SM_vamtac_v2_LOD0.fbx", 36.5, 31.0, 20)
 # pueblo y huerta (contexto)
 for x, y in ((30, 92), (44, 95), (140, 100), (165, 96)):
     poner("sagunto/casa_baja/SM_casa_baja_LOD0.fbx", x, y, (x * 7) % 30)
@@ -169,6 +176,9 @@ LUCES = [((68 + 2.5, 64.5 + 15, 6), CREMA, 30, 1.0), ((68 + 2.5, 64.5 - 15, 6), 
          ((106, 38, 1.8), CREMA, 7, 0.8),                                   # baliza en trípode
          ((99, 36.5, 1.2), CREMA, 12, 0.8),
          ((209, 19.0, 1.8), CREMA, 12, 1.0), ((213, 23, 5.0), FRIO, 16, 0.6)]   # control de la carretera vieja
+if CRONICA:                                                                 # foco del mástil del puesto y luz de la tienda
+    LUCES.append(((24.2, 38.4, 5.9), CREMA, 15, 1.1))
+    LUCES.append(((29.6, 41.2, 2.2), CREMA, 6, 0.6))
 if CRONICA:                                                                 # faroles del vagón de tropa y del contenedor
     for x, z, r, it in ((11.4, 3.6, 9, 0.55), (23.4, 3.6, 9, 0.55), (-8.2, 4.2, 8, 0.45), (1.8, 4.2, 8, 0.45),
                         (30.0, 4.5, 10, 0.4)):
@@ -201,6 +211,7 @@ ENCUADRES = {
     "cronica_puerta": ((99, 44, 1.2), -12, 30, 30, 1600, 900),
     "cronica_paso_nivel": ((57, 63, 1.2), -40, 26, 28, 1600, 900),
     "cronica_helipuerto": ((181, 43, 1), 20, 40, 44, 1600, 900),
+    "cronica_puesto": ((28, 40.5, 1), -25, 34, 30, 1600, 900),
 }
 
 
