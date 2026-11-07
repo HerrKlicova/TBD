@@ -167,6 +167,9 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
                 x.rotation_euler.x = math.radians(-85)
             if x.name.startswith("RotorCola"):
                 x.rotation_euler.x = math.radians(30)
+            g = getattr(db, "GIRO_PRUEBA", {}).get(x.name)   # giro de prueba propio del módulo: {hijo: (eje, grados)}
+            if g:
+                setattr(x.rotation_euler, g[0].lower(), math.radians(g[1]))
         bpy.context.view_layer.update()
         copias = []
         for x in objs:
