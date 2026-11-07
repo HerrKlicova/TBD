@@ -846,11 +846,11 @@ namespace TBD.View
                 default: // noche: el azul viene de la luna y del ambiente (#283440 a #404460) sobre el albedo ocre de siempre; la gradación
                          // solo baja la saturación, sin teñir, para que el ámbar del foco siga siendo ámbar (no salmón)
                     // noche v3 de Bruno elegida por Lucia (qa24, D-N129): luna fria (0,40; 0,55; 1,0) a 0,45, ambiente azul (0,03; 0,045; 0,10), filtro (0,78; 0,86; 1), sat -10, exposicion 0; sin cuantizador ni tramado
-                    // luz de noche E de Bruno elegida por Lucia (D-N129): filtro blanco, exposicion +1,4, saturacion -50, luna (0,75; 0,80; 1,0) a 0,45, ambiente (0,03; 0,045; 0,10), focos 90
-                    _grade.colorFilter.Override(Color.white);
-                    _grade.postExposure.Override(1.4f);
-                    _grade.saturation.Override(-50f);
-                    SetLight(new Color(0.75f, 0.80f, 1.0f), 0.45f, new Color(0.03f, 0.045f, 0.10f), 50f);
+                    // noche v3 de Bruno (D-N129) mientras Lucia no elija entre G1-G5 (qa29): filtro (0,78; 0,86; 1), exposicion 0, sat -10, luna (0,40; 0,55; 1,0) a 0,45, ambiente (0,03; 0,045; 0,10)
+                    _grade.colorFilter.Override(new Color(0.78f, 0.86f, 1f));
+                    _grade.postExposure.Override(0f);
+                    _grade.saturation.Override(-10f);
+                    SetLight(new Color(0.40f, 0.55f, 1.0f), 0.45f, new Color(0.03f, 0.045f, 0.10f), 50f);
                     SetFloodlights(90f);
                     break;
             }
