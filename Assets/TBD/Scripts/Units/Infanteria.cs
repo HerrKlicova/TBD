@@ -25,6 +25,15 @@ namespace TBD.Units
     /// <summary>Explosión que cae este tick (para el efecto visual en el punto de impacto).</summary>
     public struct Blast { public int X, Y, RadiusMm; public WeaponId Weapon; }
 
+    public struct Casualty { public int Platoon, Man, X, Y; }
+    /// <summary>Resultado de UnitsWorld.ZombieContact: quién ha caído y cuánto contacto hubo este tick.</summary>
+    public sealed class ContactResult
+    {
+        public readonly List<Casualty> Fallen = new List<Casualty>();
+        public int Contacts, Touches, Damage;                 // contactos zombi-soldado, y vida quitada
+        public void Clear() { Fallen.Clear(); Contacts = Touches = Damage = 0; }
+    }
+
     public sealed class StepResult
     {
         public readonly List<FireEvent> Shots = new List<FireEvent>();
@@ -61,7 +70,7 @@ namespace TBD.Units
         public int SpacingMm = 2200;
         public int SpeedMmS;
         public int AmmoShots, AmmoCap;       // munición propia en disparos equivalentes
-        public int AmmoSpent, Kills;
+        public int AmmoSpent, Kills, Losses;      // Losses: soldados caídos del pelotón (por contacto de zombis)
         public int LastFireTick = -1000;
         public int AliveCount() { int n = 0; for (int i = 0; i < Men.Count; i++) if (Men[i].Alive) n++; return n; }
     }
@@ -163,6 +172,67 @@ namespace TBD.Units
                 if (p.Men[i].Id == manId && p.Men[i].Alive) { p.Men[i].Hp -= damage; return !p.Men[i].Alive; }
             return false;
         }
+
+        // ------------------------------------------------------------ daño de los zombis (cuerpo a cuerpo)
+        /// <summary>Regla (la misma que la zona, balance_combate: zombi_danio_tick y cuerpo_a_cuerpo_mm): cada zombi vivo a menos de «radiusMm» de un soldado
+        /// le quita «dmgPerTick» de vida ESTE tick. Es proximidad pura: sin azar, sin orden (se cuentan contactos por soldado). Un zombi toca a todos los
+        /// soldados de su radio. Devuelve los soldados caídos; «res» (opcional) acumula quién. Coste O(zombis) con una rejilla sobre los soldados.</summary>
+        public int ZombieContact(IList<Target> zombies, int radiusMm, int dmgPerTick, ContactResult res)
+        {
+            if (res != null) res.Clear();
+            if (zombies == null || zombies.Count == 0 || dmgPerTick <= 0 || radiusMm <= 0) return 0;
+            int n = 0; int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
+            _cx.Clear(); _cy.Clear(); _cp.Clear(); _cm.Clear();
+            for (int a = 0; a < Platoons.Count; a++)
+            {
+                var p = Platoons[a];
+                for (int b = 0; b < p.Men.Count; b++)
+                {
+                    var m = p.Men[b]; if (!m.Alive) continue;
+                    _cx.Add(m.X); _cy.Add(m.Y); _cp.Add(a); _cm.Add(b); n++;
+                    if (m.X < minX) minX = m.X; if (m.X > maxX) maxX = m.X; if (m.Y < minY) minY = m.Y; if (m.Y > maxY) maxY = m.Y;
+                }
+            }
+            if (n == 0) return 0;
+            int cell = Math.Max(1, radiusMm);
+            int gw = (maxX - minX) / cell + 1, gh = (maxY - minY) / cell + 1;
+            while ((long)gw * gh > 4096) { cell *= 2; gw = (maxX - minX) / cell + 1; gh = (maxY - minY) / cell + 1; }
+            if (_head.Length < gw * gh) _head = new int[gw * gh];
+            for (int i = 0; i < gw * gh; i++) _head[i] = -1;
+            if (_next.Length < n) _next = new int[n];
+            if (_touch.Length < n) _touch = new int[n];
+            for (int i = 0; i < n; i++) { int c = ((_cy[i] - minY) / cell) * gw + (_cx[i] - minX) / cell; _next[i] = _head[c]; _head[c] = i; _touch[i] = 0; }
+            long r2 = (long)radiusMm * radiusMm; int touches = 0;
+            for (int zi = 0; zi < zombies.Count; zi++)
+            {
+                var z = zombies[zi];
+                if (z.X < minX - radiusMm || z.X > maxX + radiusMm || z.Y < minY - radiusMm || z.Y > maxY + radiusMm) continue;
+                int c0 = Math.Max(0, (z.X - radiusMm - minX) / cell), c1 = Math.Min(gw - 1, (z.X + radiusMm - minX) / cell);
+                int r0 = Math.Max(0, (z.Y - radiusMm - minY) / cell), r1 = Math.Min(gh - 1, (z.Y + radiusMm - minY) / cell);
+                if (z.X - radiusMm < minX) c0 = 0; if (z.Y - radiusMm < minY) r0 = 0;
+                for (int ry = r0; ry <= r1; ry++)
+                    for (int rx = c0; rx <= c1; rx++)
+                        for (int i = _head[ry * gw + rx]; i >= 0; i = _next[i])
+                        {
+                            long ex = z.X - _cx[i], ey = z.Y - _cy[i];
+                            if (ex * ex + ey * ey <= r2) { _touch[i]++; touches++; }
+                        }
+            }
+            int fallen = 0;
+            for (int i = 0; i < n; i++)
+            {
+                if (_touch[i] == 0) continue;
+                var p = Platoons[_cp[i]]; var m = p.Men[_cm[i]];
+                int dmg = (int)Math.Min((long)_touch[i] * dmgPerTick, int.MaxValue / 2);
+                m.Hp -= dmg;
+                if (res != null) { res.Contacts += _touch[i]; res.Damage += dmg; }
+                if (!m.Alive) { fallen++; p.Losses++; if (res != null) res.Fallen.Add(new Casualty { Platoon = p.Id, Man = m.Id, X = m.X, Y = m.Y }); }
+            }
+            if (res != null) res.Touches = touches;
+            return fallen;
+        }
+        readonly List<int> _cx = new List<int>(), _cy = new List<int>(), _cp = new List<int>(), _cm = new List<int>();
+        int[] _head = new int[0], _next = new int[0], _touch = new int[0];
 
         public void NoteKill(int platoon) { var p = Find(platoon); if (p != null) p.Kills++; }
 
@@ -409,7 +479,7 @@ namespace TBD.Units
                 var p = Platoons[i];
                 ulong ph = IMath.Mix((ulong)(uint)p.Id + ((ulong)(uint)p.AX << 20) + ((ulong)(uint)p.AY << 40) + (ulong)p.Heading * 0x9E3779B1UL);
                 ph ^= IMath.Mix((ulong)(uint)p.TX + ((ulong)(uint)p.TY << 32) + ((p.Moving ? 1UL : 0UL) << 63) + ((p.HoldFire ? 1UL : 0UL) << 62) + ((p.AttackMove ? 1UL : 0UL) << 61) + ((p.Deploy ? 1UL : 0UL) << 60) + ((ulong)p.Form << 56) + ((ulong)(uint)(p.FinalHeading + 1) << 20));
-                ph += IMath.Mix((ulong)(uint)p.SpacingMm + ((ulong)(uint)p.AmmoSpent << 24) + ((ulong)(uint)p.Kills << 48)) + IMath.Mix((ulong)(uint)p.AmmoShots + ((ulong)(uint)p.AmmoCap << 32) + 11)
+                ph += IMath.Mix((ulong)(uint)p.SpacingMm + ((ulong)(uint)p.AmmoSpent << 24) + ((ulong)(uint)p.Kills << 48)) + IMath.Mix((ulong)(uint)p.Losses + 0x105) + IMath.Mix((ulong)(uint)p.AmmoShots + ((ulong)(uint)p.AmmoCap << 32) + 11)
                     + IMath.Mix((ulong)(uint)(p.LastFireTick + 1000) + ((ulong)p.Kind << 40) + ((ulong)(uint)p.SpeedMmS << 20));
                 for (int j = 0; j < p.Men.Count; j++)
                 {
@@ -431,7 +501,7 @@ namespace TBD.Units
             foreach (var p in Platoons)
             {
                 w.Int(p.Id); w.Byte((byte)p.Kind); w.Int(p.AX); w.Int(p.AY); w.Int(p.Heading); w.Byte((byte)p.Form); w.Bool(p.Moving); w.Bool(p.AttackMove); w.Int(p.TX); w.Int(p.TY); w.Int(p.FinalHeading);
-                w.Bool(p.Deploy); w.Bool(p.HoldFire); w.Int(p.SpacingMm); w.Int(p.SpeedMmS); w.Int(p.AmmoShots); w.Int(p.AmmoCap); w.Int(p.AmmoSpent); w.Int(p.Kills); w.Int(p.LastFireTick);
+                w.Bool(p.Deploy); w.Bool(p.HoldFire); w.Int(p.SpacingMm); w.Int(p.SpeedMmS); w.Int(p.AmmoShots); w.Int(p.AmmoCap); w.Int(p.AmmoSpent); w.Int(p.Kills); w.Int(p.Losses); w.Int(p.LastFireTick);
                 w.Int(p.Men.Count);
                 foreach (var m in p.Men)
                 {
@@ -452,7 +522,7 @@ namespace TBD.Units
             for (int i = 0; i < np; i++)
             {
                 var p = new Platoon { Id = r.Int(), Kind = (PlatoonKind)r.Byte(), AX = r.Int(), AY = r.Int(), Heading = r.Int(), Form = (Formation)r.Byte(), Moving = r.Bool(), AttackMove = r.Bool(), TX = r.Int(), TY = r.Int(), FinalHeading = r.Int() };
-                p.Deploy = r.Bool(); p.HoldFire = r.Bool(); p.SpacingMm = r.Int(); p.SpeedMmS = r.Int(); p.AmmoShots = r.Int(); p.AmmoCap = r.Int(); p.AmmoSpent = r.Int(); p.Kills = r.Int(); p.LastFireTick = r.Int();
+                p.Deploy = r.Bool(); p.HoldFire = r.Bool(); p.SpacingMm = r.Int(); p.SpeedMmS = r.Int(); p.AmmoShots = r.Int(); p.AmmoCap = r.Int(); p.AmmoSpent = r.Int(); p.Kills = r.Int(); p.Losses = r.Int(); p.LastFireTick = r.Int();
                 if ((int)p.Kind >= PlatoonCatalog.Table.Length) throw new SaveException(SaveError.Corrupt, "tipo de pelotón no válido");
                 int nm = r.Int(); if (nm < 0 || nm > 1000) throw new SaveException(SaveError.Corrupt, "número de soldados no válido");
                 for (int j = 0; j < nm; j++)

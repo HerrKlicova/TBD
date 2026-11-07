@@ -61,21 +61,23 @@ namespace TBD.Units
         public readonly UnitsWorld Units;
         public readonly NightGame Night;
         public readonly List<WaveStats> Waves = new List<WaveStats>();
-        public int WallHp, StationHp, Kills, SoldierDeaths, Resupplies, PeakPile, Spawned;
+        public int WallHp, Kills, SoldierDeaths, Resupplies, PeakPile, Spawned;
+        public int StationHp { get { return Night.StationHp; } }      // la vida del edificio vive en NightGame (misma regla que el juego)
         public int MaterialsU, FuelU;
         readonly List<Zomb> _z = new List<Zomb>();
         readonly List<Target> _targets = new List<Target>();
         readonly List<int> _ids = new List<int>();
         readonly List<SpawnPoint> _spawns = new List<SpawnPoint>();
         readonly StepResult _res = new StepResult();
-        int _wallRem, _stationRem, _contactSeed;
+        readonly ContactResult _contact = new ContactResult();
+        int _wallRem;
         IRng _rng;
 
         public NightSim(NightParams np, NightSimParams sp, int ammoU, int materialsU, int fuelU, uint seed)
         {
             SP = sp; Night = new NightGame(np, seed ^ 0x5A5A); Units = new UnitsWorld(seed); _rng = new IRng(seed ^ 0xC0FFEE);
             Units.StockShots = ammoU * WeaponCatalog.ShotsPerU; MaterialsU = materialsU; FuelU = fuelU;
-            WallHp = sp.WallHp; StationHp = sp.StationHp;
+            WallHp = sp.WallHp; Night.P.StationHp = sp.StationHp; Night.StationHp = sp.StationHp; Night.P.StationDmgPerZombieS = sp.StationDmgPerZombieS;
             for (int w = 0; w < np.Waves.Length; w++) Waves.Add(new WaveStats { Wave = w + 1, StartTick = Night.WaveStartTick(w), HourAtStart = (np.StartHour + np.Waves[w].StartMinute / 60) % 24, MinuteAtStart = np.Waves[w].StartMinute % 60 });
         }
 
@@ -133,7 +135,7 @@ namespace TBD.Units
         {
             if (Night.State != NightState.Jugando) return;
             // 1) la noche: reloj, oleadas y fin de partida (gana la derrota)
-            Night.Step(StationHp > 0, true, _spawns);
+            Night.Step(_spawns);
             var cur = Current();
             foreach (var s in _spawns) { _z.Add(new Zomb { X = s.X, Y = s.Y }); Spawned++; if (cur != null) cur.Spawned++; }
             // 2) los zombis: caminan hacia el edificio; el muro los detiene; se cuenta la pila
@@ -158,7 +160,7 @@ namespace TBD.Units
             LastPile = pile;
             // 3) desgaste del muro por la pila y del edificio por los que llegan a él
             if (WallHp > 0 && pile > 0) { _wallRem += pile * SP.WallDmgPerZombieS; int dmg = _wallRem / IMath.TickRate; _wallRem %= IMath.TickRate; WallHp = Math.Max(0, WallHp - dmg); }
-            if (atStation > 0) { _stationRem += atStation * SP.StationDmgPerZombieS; int dmg = _stationRem / IMath.TickRate; _stationRem %= IMath.TickRate; StationHp = Math.Max(0, StationHp - dmg); }
+            Night.Attack(atStation, 0);
             // 4) los pelotones disparan; los impactos abaten
             _targets.Clear(); _ids.Clear();
             for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) { _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); }
@@ -168,7 +170,9 @@ namespace TBD.Units
                 if (h.TargetId >= 0 && h.TargetId < _z.Count && _z[h.TargetId].Alive) { _z[h.TargetId].Alive = false; Kills++; Units.NoteKill(h.Platoon); if (cur != null) cur.Kills++; }
             if (cur != null) cur.AmmoSpentShots += _res.AmmoSpent;
             // 5) contacto con los soldados
-            ContactCasualties(cur);
+            _targets.Clear(); for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y });
+            int fell = Units.ZombieContact(_targets, Night.P.ContactRadiusMm, Night.P.ContactDmgPerTick, _contact);
+            SoldierDeaths += fell; if (cur != null) cur.SoldierDeaths += fell;
             // 6) limpieza cada 64 ticks para que la lista no crezca sin fin
             if ((Night.Tick & 63) == 0) _z.RemoveAll(z => !z.Alive);
             // 7) cierre de oleada: cuando empieza la siguiente (o acaba la noche) se congelan sus estadísticas
@@ -186,22 +190,6 @@ namespace TBD.Units
             int r = SP.PileRadiusMm;
             bool inX = x > SP.FortX0 - r && x < SP.FortX1 + r, inY = y > SP.FortY0 - r && y < SP.FortY1 + r;
             return inX && inY;     // fuera del recinto y a menos de r de él
-        }
-
-        void ContactCasualties(WaveStats cur)
-        {
-            long r2 = (long)SP.ContactRadiusMm * SP.ContactRadiusMm;
-            foreach (var p in Units.Platoons)
-                foreach (var m in p.Men)
-                {
-                    if (!m.Alive) continue;
-                    int contacts = 0;
-                    for (int i = 0; i < _z.Count; i++) { var z = _z[i]; if (!z.Alive) continue; long ex = z.X - m.X, ey = z.Y - m.Y; if (ex * ex + ey * ey <= r2) contacts++; }
-                    if (contacts == 0) continue;
-                    // ‰ por zombi y segundo → por tick: p = contactos · pm / (30 · 1000)
-                    if (_rng.Below(30000) < contacts * SP.ContactCasualtyPmPerS)
-                        if (Units.DamageMan(p.Id, m.Id, 1000)) { SoldierDeaths++; if (cur != null) cur.SoldierDeaths++; }
-                }
         }
 
         int AliveZombies() { int n = 0; for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) n++; return n; }
@@ -226,7 +214,7 @@ namespace TBD.Units
         public ulong Hash()
         {
             ulong h = Units.Hash() ^ Night.Hash();
-            h += IMath.Mix((ulong)(uint)WallHp + ((ulong)(uint)StationHp << 32) + 3) + IMath.Mix((ulong)(uint)Kills + ((ulong)(uint)SoldierDeaths << 32) + 5) + IMath.Mix(_rng.S ^ 0x77);
+            h += IMath.Mix((ulong)(uint)WallHp + ((ulong)(uint)Night.StationHp << 32) + 3) + IMath.Mix((ulong)(uint)Kills + ((ulong)(uint)SoldierDeaths << 32) + 5) + IMath.Mix(_rng.S ^ 0x77);
             for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) h += IMath.Mix((ulong)(uint)_z[i].X + ((ulong)(uint)_z[i].Y << 32) + (ulong)i);
             return h;
         }
