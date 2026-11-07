@@ -165,6 +165,7 @@ namespace TBD.Sim.Tests
             HiveTests.Run(Check);
             ObrasTests.Run(Check);
             EstacionesTests.Run(Check);
+            ProduccionTests.Run(Check);
             HorarioTests.Run(Check);
             TallerTests.Run(Check);
             DisparoIndiceTests.Run(Check);

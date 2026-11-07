@@ -79,6 +79,7 @@ namespace TBD.Sim.Tests
 
             // ---- un día completo: cada tren hace su servicio y la carga se conserva (tren + estaciones)
             w = NetScenario.Mvp(false);
+            w.ProductionEnabled = false;          // la producción de las estaciones crea carga a propósito (ProduccionTests); aquí se mide solo el transporte
             long total0 = TotalGoods(w);
             for (long t = 0; t < 2 * NetConst.DayTicks; t++) { w.ApplyCommands(); w.Step(); }
             check(TotalGoods(w) == total0, $"en dos días no se crea ni se pierde carga ({total0} t)");

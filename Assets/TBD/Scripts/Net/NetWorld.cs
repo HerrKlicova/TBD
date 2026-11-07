@@ -333,7 +333,7 @@ namespace TBD.Net
     }
 
     // ================================================================== mundo S0
-    public sealed class NetWorld
+    public sealed partial class NetWorld
     {
         public readonly RailGraph Graph;
         public readonly List<TrainService> Services = new List<TrainService>();
@@ -344,6 +344,7 @@ namespace TBD.Net
         public readonly StationState Stations;     // hito 5: qué emplazamientos están fundados (flag dentro del hash, sin nodos en caliente)
         public readonly TallerState Taller;        // hito 5, paso 5: la cola del taller de Sagunto (dentro del hash, en «existencias»)
         public readonly ObrasState Works;          // hito 5: lo construido en cada nodo (dentro del hash, en «existencias»)
+        public readonly ProductionState Production; // producción diaria y tope del almacén (Produccion.cs; dentro del hash, en «existencias»)
         public long Tick;
         public int Speed = 1;                       // 1, 2 o 4 ticks por paso de 1/30 s
         public bool Paused;
@@ -411,6 +412,7 @@ namespace TBD.Net
             w.Int(Alerts == null ? -1 : Alerts.Count);
             if (Alerts != null) foreach (var a in Alerts) { w.Int(a.Id); w.Byte((byte)a.Kind); w.Int(a.Priority); w.Long(a.EtaTicks); w.Int(a.Subject); w.Str(a.Text); }
             Director.SaveState(w);
+            Production.SaveState(w);                    // NetVersion 2
         }
 
         public void LoadState(SaveReader r)
@@ -448,6 +450,7 @@ namespace TBD.Net
             if (n < 0) Alerts = null;
             else { Alerts = new List<Alert>(n); for (int i = 0; i < n; i++) Alerts.Add(new Alert { Id = r.Int(), Kind = (AlertKind)r.Byte(), Priority = r.Int(), EtaTicks = r.Long(), Subject = r.Int(), Text = r.Str() }); }
             Director.LoadState(r);
+            Production.LoadState(r);
             Injections.Clear(); Retirements.Clear(); LostThisTick = 0; RetiredThisTick = 0;      // datos de QA del tick: empiezan limpios
         }
 
@@ -466,6 +469,7 @@ namespace TBD.Net
             Works = new ObrasState(g.Nodes.Count, BalanceSource.Obras());
             Stations = new StationState(g, BalanceSource.Stations());
             Taller = new TallerState(g, BalanceSource.Taller());
+            Production = new ProductionState(g, BalanceSource.Production());
             Traffic = new TrafficMemory(g.Edges.Count, BalanceSource.Traffic());
             Director.P = BalanceSource.Director();
             Director.Curve = BalanceSource.Curve();
@@ -1024,6 +1028,7 @@ namespace TBD.Net
                 UpdateFromField();
             }
             Tick++;
+            if (Tick % NetConst.DayTicks == 0) ProduceDay();          // producción del día, hasta el tope del almacén (Produccion.cs)
             if (Tick % NetConst.DayTicks == 0) WearAndMaintain();     // mantenimiento diario de lo construido (Hugo, 1 %)
             if (Tick % NetConst.DayTicks == 0 && Traffic != null)
                 Traffic.Decay((e, slot) => Intel.Add(new IntelEntry { Tick = Tick, Id = "TR-5", Vars = new[] { "tramo", EdgeName(Graph.Edges[e]) } }));
@@ -1272,6 +1277,7 @@ namespace TBD.Net
             h += Works.Hash();
             h += Stations.Hash();
             h += Taller.Hash();
+            h += Production.Hash();
             r.Stock = h;
             h = 0;
             foreach (var e in Graph.Edges)

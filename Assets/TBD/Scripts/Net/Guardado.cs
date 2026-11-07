@@ -201,7 +201,7 @@ namespace TBD.Net
     {
         public const uint Magic = 0x53444254;           // «TBDS»
         public const ushort FormatVersion = 1;          // contenedor: cabecera, secciones y suma de comprobación
-        public const ushort NetVersion = 1;             // sección NET: el estado de NetWorld
+        public const ushort NetVersion = 2;             // 2: producción diaria (remanentes y pérdidas al final de la sección)             // sección NET: el estado de NetWorld
         public const ushort MinNetVersion = 1;          // la más antigua que sabe leer (con las migraciones registradas)
         public static readonly uint NetTag = SaveSection.Tag("NET\0");
 
@@ -209,7 +209,35 @@ namespace TBD.Net
         /// Migraciones de la sección NET: «de la versión v a la v + 1», sobre los bytes de la sección. Al subir NetVersion se registra aquí la
         /// de la anterior; las partidas largas (GDD §14) cargan encadenándolas. Vacío mientras solo exista la versión 1.
         /// </summary>
-        public static readonly Dictionary<int, Func<byte[], byte[]>> NetMigrations = new Dictionary<int, Func<byte[], byte[]>>();
+        public static readonly Dictionary<int, Func<byte[], byte[]>> NetMigrations = new Dictionary<int, Func<byte[], byte[]>>
+        {
+            { 1, MigrateNet1To2 },
+        };
+
+        /// <summary>1 → 2: la producción (Produccion.cs) añade remanentes y pérdidas al final; en una partida vieja valen 0. El número de nodos sale de
+        /// la primera tabla por nodo de la sección (la atracción), así que no hace falta el mapa.</summary>
+        static byte[] MigrateNet1To2(byte[] v1)
+        {
+            int nodes = NodesOfV1(v1);
+            var w = new SaveWriter(); w.Raw(v1); ProductionState.WriteEmpty(w, nodes);
+            return w.ToArray();
+        }
+
+        /// <summary>Recorre la cabecera de la sección NET v1 (el orden de NetWorld.SaveState) hasta la atracción por nodo y devuelve su longitud.</summary>
+        static int NodesOfV1(byte[] v1)
+        {
+            var r = new SaveReader(v1);
+            r.Long(); r.Int(); r.Bool(); r.Bool(); r.Bool();               // tick, velocidad, pausa, frenado automático, director
+            r.Long(); r.Long(); r.Long();                                   // inyectado, perdido, retirado
+            r.Int(); r.Int(); r.Int(); r.Long(); r.Int();                   // zona activa
+            r.Bool(); r.Int(); r.Int(); r.Int(); r.Int(); r.Long();         // emboscada en curso
+            int n = r.Int(); for (int i = 0; i < n; i++) r.Int();           // emboscadas pendientes
+            r.Int();                                                        // secuencia de órdenes
+            n = r.Int(); for (int i = 0; i < n; i++) { r.Long(); r.Byte(); r.Int(); r.Int(); r.Int(); r.Ints(); }
+            var att = r.Ints();
+            if (att == null) throw new SaveException(SaveError.Corrupt, "migración 1 → 2: no se encuentra la atracción por nodo");
+            return att.Length;
+        }
 
         // ---------------------------------------------------------------- guardar
         /// <summary>Guarda el estado de la red. «extra» son secciones adicionales (la zona en detalle, de quien la serialice).</summary>
@@ -334,7 +362,7 @@ namespace TBD.Net
         public static ulong ParamsHash(NetWorld w)
         {
             ulong h = 0xBA1A;
-            h = FoldObject(h, w.Works.P); h = FoldObject(h, w.Stations.P); h = FoldObject(h, w.Taller.P, "Stage2");
+            h = FoldObject(h, w.Works.P); h = FoldObject(h, w.Stations.P); h = FoldObject(h, w.Taller.P, "Stage2"); h = FoldObject(h, w.Production.P);
             if (w.Traffic != null) h = FoldObject(h, w.Traffic.P);
             h = FoldObject(h, w.Director.P);
             h = Fold(h, 0xC); foreach (var v in w.Director.Curve ?? new long[0]) h = Fold(h, (ulong)v);
@@ -360,6 +388,8 @@ namespace TBD.Net
                 else if (v is long) h = Fold(h, (ulong)(long)v);
                 else if (v is byte) h = Fold(h, (byte)v);
                 else if (v is ulong) h = Fold(h, (ulong)v);
+                else if (v is int[]) { foreach (var x in (int[])v) h = Fold(h, (ulong)(long)x); }
+                else if (v is bool[]) { foreach (var x in (bool[])v) h = Fold(h, x ? 1UL : 0UL); }
                 else h = Fold(h, Convert.ToUInt64(v));
             }
             return h;
