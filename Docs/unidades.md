@@ -51,3 +51,30 @@ DISEÑO SIN MEDIR; el del tren es provisional). Cada tick: `Attack(zombisPegados
 En cuanto una vida llega a 0, el siguiente `Step` es derrota (`EndedByStation`/`EndedByTrain`; gana a las 06:00). `RepairStation/RepairTrain(hp)` suben sin pasar del máximo.
 Vida, desgaste fraccionario y guardado entran en el hash. CSV: `noche_estacion_vida`, `noche_tren_vida`, `noche_estacion_danio_zombi_s`, `noche_tren_danio_zombi_s`.
 Quién cuenta «pegados»: la zona (los zombis a menos de X m de la fachada o del tren; la cifra de X es de Marcos y Lucía). La simulación solo suma.
+
+## Vehículos de tierra, NH90 y pasajeros (7-nov, 04:00; datos de Hugo)
+
+Todo **local**: no entra en el hash ni en el guardado ni en el lockstep (decisión de Mak). Solo entra en la simulación el daño a la horda (los `TargetHit` que devuelven las armas) y quién va a bordo
+de qué (`Platoon.Aboard`, sí en hash y guardado). Física en enteros para poder llevarla a coma fija en el H7.
+
+**Datos**: `VehicleCatalog.Load(csv)` y `HeliCatalog.Load(csv)` leen `vehiculo_<vamtac|pizarro|dragon>_*` y `heli_<nh90|tigre>_*` de `balance_unidades.csv`. Los valores por defecto del código son los del CSV
+(prueba). El Lince no está en el CSV (provisional). Lo que no está en el CSV (ruedas, frenos, rotor, geometría, giro de la torreta) es mío y de jugabilidad.
+
+**Vehicle** (`Dragon`, `Vamtac`, `Pizarro`, `Lince`): `Controls(acelerador, volante, freno)` y `Step()` cada tick. La zona rellena antes de `Step`: `PileAhead` (zombis apilados delante; a `BlockPile` se para en seco)
+y `InHorde` (horda suelta ≥ 0,5/m²: tope `HordeSpeedMmS`). Después: `TakeContact(zombisPegados, danioPorTick)` (armadura en ‰, resto exacto), `RunOver(zombis, tick, killed)` (a ≥ velocidad mínima abate a cada zombi
+que pisa con `RunOverPm` ‰, tirada por hash de vehículo, zombi y tick: sin estado; la zona aplica los ids de `killed`), `StepWeapons(unitsWorld, zombis, res)` (torreta automática: apunta al blanco más cercano de la
+primera arma que tenga uno, gira a su ritmo, dispara alineada; las demás armas disparan a su blanco si está a ±6,6° de la torreta; sigue disparando sin motor, no destruido).
+**Combustible**: `FuelE4` (E4 de u), se gasta cada tick en E4/s ÷ 30 con resto exacto (marcha, ralentí; apagado, 0); a cero el motor se apaga y se queda inmóvil. `Refuel(e4)` devuelve lo que ha entrado de verdad
+(la economía descuenta solo eso), `SetEngine`, `LowFuel` (< 20 %), `FuelPm`, `FuelUsedE4`.
+**Pasajeros**: `CanBoard/Board(world, platoon)` (casi parado, pelotón a ≤ 15 m, plazas), `CarryPassengers(world)` cada tick tras `Step`, `Unload(world, platoon)` detrás. A bordo el pelotón ni se mueve ni dispara ni lo
+tocan los zombis (`ZombieContact` lo salta).
+
+**Helicopter** (`Nh90`, `Tigre`, `Cougar`, `Chinook`): `Controls(colectivo, cíclico adelante, cíclico lateral, pedales)`, `StartEngine/StopEngine`, `Step()`. Combustible igual que arriba (vuelo 1,62 u/min, posado con rotores 0,54);
+a cero en el aire entra en **autorrotación**: sin mandos, rotor girando, baja a `MaxDescentMmS` (4 m/s en el NH90) y aterriza sin daño. `Refuel` solo posado. **Vulnerable** solo por debajo de `ContactAltMm` (3 m) o posado:
+`TakeContact` no hace nada por encima. `StepWeapons`: dos ametralladoras de puerta (izquierda = rumbo + 90°, derecha = rumbo − 90°), cada una solo a su semiplano, con el alcance recortado por la altura (3D);
+el Tigre lleva el cañón fijo al morro (±8°). **Transporte**: `Board` solo posado (EnTierra), `Unload` solo posado; en vuelo los pasajeros van con el aparato.
+
+**Armas montadas**: `UnitsWorld.MountFire` (usa `MountRng`, que no entra en el hash; la explosión cae ya, sin impactos pendientes). En los eventos, `Platoon` es el dueño: vehículo = −1 − Id, helicóptero = −1001 − Id.
+
+**Para la vista**: `FireEvent.FromX/FromY` (dónde está el tirador) y `ArcPeakMm` (vértice de la parábola de las granadas, g·T²/8: 545 mm con 20 ticks de vuelo; 0 en tiro directo).
+**Francotiradores**: `Target.Special` marca a un zombi especial; `FusilPrecision` y `FusilAntimaterial` (`Weapon.PrefersSpecials`) disparan antes a un especial a tiro que a cualquier otro. El resto, al más cercano.

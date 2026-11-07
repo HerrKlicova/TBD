@@ -430,6 +430,86 @@ namespace TBD.Sim.Tests
                 check(un && pl.Aboard == 0 && IMath.Dist(pl.AX - bus.X, pl.AY - bus.Y) > 6000, "al bajar, el pelotón queda detrás del vehículo y vuelve a ser suyo");
             }
             {
+                // NH90 (Hugo): datos, combustible, autorrotación, vulnerabilidad, ametralladoras de puerta y transporte
+                var hb = (HeliStats[])HeliCatalog.Table.Clone();
+                HeliCatalog.Load(new CsvTable(TBD.Net.BalanceSource.Read("balance_unidades.csv")));
+                bool same = true; for (int i = 0; i < hb.Length; i++) { if (hb[i].Key != "nh90" && hb[i].Key != "tigre") continue; var a = hb[i]; var b = HeliCatalog.Table[i]; same &= a.Hp == b.Hp && a.ArmorPm == b.ArmorPm && a.MaxFwdMmS == b.MaxFwdMmS && a.AccelMmS2 == b.AccelMmS2 && (a.Key == "tigre" || a.DragMmS2 == b.DragMmS2) && Math.Abs(a.YawRatePerTick - b.YawRatePerTick) <= 1 && a.MaxClimbMmS == b.MaxClimbMmS && a.MaxDescentMmS == b.MaxDescentMmS && a.CruiseAltMm == b.CruiseAltMm && a.ContactAltMm == b.ContactAltMm && Math.Abs(a.MaxTilt - b.MaxTilt) <= 1 && a.Seats == b.Seats && a.AmmoBoardMilliU == b.AmmoBoardMilliU && a.FuelFlyE4s == b.FuelFlyE4s && a.FuelGroundE4s == b.FuelGroundE4s && a.TankU == b.TankU; }
+                HeliCatalog.Table = hb;
+                check(same, "los valores por defecto del NH90 y el Tigre coinciden con balance_unidades.csv");
+                var ns = HeliCatalog.Get(HeliKind.Nh90);
+                check(ns.Hp == 3000 && ns.MaxFwdMmS == 45000 && ns.Seats == 12 && ns.CruiseAltMm == 30000 && ns.ContactAltMm == 3000 && ns.TankU == 6 && ns.DoorGuns.Length == 2, "NH90: 3000 de vida, 45 m/s, 12 plazas, crucero a 30 m, contacto por debajo de 3 m, depósito de 6 u y dos ametralladoras de puerta");
+                // despegue y crucero a 30 m
+                var h = new Helicopter(1, HeliKind.Nh90, 0, 0, 0); h.StartEngine(); h.Controls(1000, 0, 0, 0);
+                int tk = 0; while (h.AltitudeMm < 30_000 && tk < 3000) { h.Step(); tk++; }
+                h.Controls(0, 1000, 0, 0); for (int t = 0; t < 900; t++) h.Step(); int speed = IMath.Dist(h.VX, h.VY);
+                check(h.IsAirborne && h.AltitudeMm >= 29_000 && speed > 40_000 && speed <= 45_000, $"el NH90 despega, sube a {h.AltitudeMm / 1000} m en {tk / 30.0:0.0} s y vuela a {speed / 1000.0:0.0} m/s (máx. 45)");
+                long used0 = h.FuelUsedE4; for (int t = 0; t < 1800; t++) h.Step(); long used = h.FuelUsedE4 - used0;
+                check(used >= 16_100 && used <= 16_300, $"en vuelo gasta 1,62 u/min: {used / 10_000.0:0.000} u en 60 s");
+                // sin combustible en el aire: autorrotación a 4 m/s, aterrizaje blando, sin control
+                var f = new Helicopter(2, HeliKind.Nh90, 0, 0, 0); f.StartEngine(); f.Controls(1000, 0, 0, 0); while (f.AltitudeMm < 20_000) f.Step();
+                f.FuelE4 = 40; f.Controls(1000, 1000, 1000, 1000); int hp0 = f.Hp; int vzSeen = 0; int tt = 0;
+                while (f.IsAirborne && tt < 3000) { f.Step(); if (f.Autorotating) vzSeen = f.VZ; tt++; }
+                check(!f.EngineOn && f.State == HeliState.EnTierra && vzSeen == -4000 && f.Hp == hp0 && f.LastImpactMmS <= 4500, $"a cero de combustible baja en autorrotación a {-vzSeen / 1000.0:0.0} m/s, sin hacer caso a los mandos, y aterriza sin daño (impacto {f.LastImpactMmS / 1000.0:0.0} m/s)");
+                check(f.LowFuel && f.Refuel(1_000_000) == 60_000 && !f.LowFuel, "tras posarse puede repostar (6 u) y el aviso de combustible bajo se apaga");
+                var fl = new Helicopter(3, HeliKind.Nh90, 0, 0, 0); fl.StartEngine(); fl.Controls(1000, 0, 0, 0); while (fl.AltitudeMm < 5_000) fl.Step();
+                check(fl.Refuel(1000) == 0, "en el aire no se reposta");
+                // vulnerabilidad: solo por debajo de 3 m
+                var hv = new Helicopter(4, HeliKind.Nh90, 0, 0, 0); hv.StartEngine(); hv.Controls(1000, 0, 0, 0); while (hv.AltitudeMm < 20_000) hv.Step();
+                int hpA = hv.Hp; for (int t = 0; t < 100; t++) hv.TakeContact(24, 2);
+                var gv = new Helicopter(5, HeliKind.Nh90, 0, 0, 0); for (int t = 0; t < 100; t++) gv.TakeContact(24, 2);
+                var lv = new Helicopter(6, HeliKind.Nh90, 0, 0, 0); lv.StartEngine(); lv.Controls(1000, 0, 0, 0); while (lv.AltitudeMm < 2_500) lv.Step(); bool low = lv.Vulnerable; int hpL = lv.Hp; for (int t = 0; t < 100; t++) lv.TakeContact(24, 2);
+                check(!hv.Vulnerable && hv.Hp == hpA && gv.Vulnerable && gv.Hp == 3000 - 480 && low && lv.Hp == hpL - 480, $"a 20 m los zombis no lo tocan; posado o a 2,5 m sí (armadura 90 %: 480 de vida en 100 ticks con 24 agarrados)");
+                // ametralladoras de puerta: cada una solo a su lado; el alcance se recorta con la altura
+                var wd = new UnitsWorld(1); var res = new StepResult();
+                Func<Helicopter> air = () => { var a = new Helicopter(7, HeliKind.Nh90, 50_000, 50_000, 0); a.State = HeliState.Volando; a.Z = 30_000; a.EngineOn = true; return a; };
+                Func<int, int, int> shots = (sideLeft, sideRight) =>
+                {
+                    var a = air(); var zl = new List<Target>(); for (int i = 0; i < sideLeft; i++) zl.Add(new Target { Id = i, X = 50_000 + (i % 5) * 400, Y = 50_000 + 60_000 + (i / 5) * 400 });
+                    for (int i = 0; i < sideRight; i++) zl.Add(new Target { Id = 1000 + i, X = 50_000 + (i % 5) * 400, Y = 50_000 - 60_000 - (i / 5) * 400 });
+                    int n = 0; for (int t = 0; t < 30; t++) { a.StepWeapons(wd, zl, res); n += res.Shots.Count; res.Clear(); } return n;
+                };
+                int onlyLeft = shots(20, 0), onlyRight = shots(0, 20), both = shots(20, 20);
+                check(onlyLeft == 10 && onlyRight == 10 && both == 20, $"cada ametralladora solo dispara a su lado: izquierda sola {onlyLeft} disparos en 1 s, derecha sola {onlyRight}, las dos {both}");
+                var ahead = air(); var za = new List<Target>(); for (int i = 0; i < 10; i++) za.Add(new Target { Id = i, X = 50_000 + 70_000, Y = 50_000 + 300 * i });
+                int sa = 0; for (int t = 0; t < 30; t++) { ahead.StepWeapons(wd, za, res); sa += res.Shots.Count; res.Clear(); }
+                var farz = new List<Target> { new Target { Id = 1, X = 50_000, Y = 50_000 + 119_000 } }; var near2 = new List<Target> { new Target { Id = 2, X = 50_000, Y = 50_000 + 100_000 } };
+                int sFar = 0, sNear = 0; var ah = air(); for (int t = 0; t < 30; t++) { ah.StepWeapons(wd, farz, res); sFar += res.Shots.Count; res.Clear(); } var ah2 = air(); for (int t = 0; t < 30; t++) { ah2.StepWeapons(wd, near2, res); sNear += res.Shots.Count; res.Clear(); }
+                check(sFar == 0 && sNear > 0, $"a 30 m de altura, un zombi a 119 m en horizontal queda fuera de alcance (120 m en 3D) y a 100 m dentro ({sFar}, {sNear})");
+                var crash = air(); crash.State = HeliState.Estrellado; crash.Hp = 0; int sc = 0; var zc = new List<Target> { new Target { Id = 1, X = 50_000, Y = 90_000 } }; for (int t = 0; t < 30; t++) { crash.StepWeapons(wd, zc, res); sc += res.Shots.Count; res.Clear(); }
+                var kill = air(); int kills = 0; var big = new List<Target>(); for (int i = 0; i < 400; i++) big.Add(new Target { Id = i, X = 50_000 - 20_000 + (i % 20) * 300, Y = 50_000 + 50_000 + (i / 20) * 300 });
+                int am0 = kill.AmmoShots; for (int t = 0; t < 600; t++) { kill.StepWeapons(wd, big, res); foreach (var hh in res.Hits) { big.RemoveAll(q => q.Id == hh.TargetId); kills++; } res.Clear(); }
+                check(sc == 0 && am0 == 2000 && kills > 20 && kill.AmmoShots < am0, $"estrellado no dispara; en 20 s abate {kills} zombis y gasta {am0 - kill.AmmoShots} de {am0} disparos de a bordo");
+                // transporte de un pelotón
+                var tw = new UnitsWorld(3); var p1 = tw.AddPlatoon(PlatoonKind.Fusileros, 50_000, 50_000, 0); var p2 = tw.AddPlatoon(PlatoonKind.Fusileros, 53_000, 50_000, 0);
+                var nh = new Helicopter(8, HeliKind.Nh90, 51_000, 50_000, 0); int men = p1.AliveCount();
+                bool b1 = nh.Board(tw, p1.Id), b2 = nh.Board(tw, p2.Id);
+                check(b1 && !b2 && men <= 12 && tw.SeatsUsed(nh.CarrierId) == men, $"sube un pelotón ({men} de 12 plazas) y el segundo ya no cabe ({p2.AliveCount()} más)");
+                nh.StartEngine(); nh.Controls(1000, 0, 0, 0); while (nh.AltitudeMm < 10_000) { nh.Step(); nh.CarryPassengers(tw); }
+                check(Math.Abs(p1.AX - nh.X) < 10 && Math.Abs(p1.Men[0].Y - nh.Y) < 10 && !nh.Unload(tw, p1.Id) && p1.Aboard == nh.CarrierId, "en vuelo los pasajeros van con el helicóptero y no se pueden bajar");
+                var other = new Helicopter(9, HeliKind.Nh90, 90_000, 90_000, 0); other.StartEngine(); other.Controls(1000, 0, 0, 0); while (other.AltitudeMm < 5_000) other.Step();
+                var tw2 = new UnitsWorld(3); var pz = tw2.AddPlatoon(PlatoonKind.Fusileros, 90_000, 90_000, 0);
+                check(!other.CanBoard(tw2, pz.Id), "en el aire no se embarca");
+                nh.Controls(-1000, 0, 0, 0); int gt = 0; while (nh.IsAirborne && gt < 3000) { nh.Step(); nh.CarryPassengers(tw); gt++; }
+                bool unl = nh.Unload(tw, p1.Id);
+                check(unl && p1.Aboard == 0 && nh.State == HeliState.EnTierra && IMath.Dist(p1.AX - nh.X, p1.AY - nh.Y) >= 7_000, "posado, el pelotón baja a un costado y vuelve a ser suyo");
+            }
+            {
+                // arco de las granadas para la vista, y francotiradores que prefieren a los especiales
+                var gw = new UnitsWorld(4); var gp = gw.AddPlatoon(PlatoonKind.Granaderos, 50_000, 50_000, 0); var rs = new StepResult();
+                var cl = new List<Target>(); for (int i = 0; i < 12; i++) cl.Add(new Target { Id = i, X = 50_000 + 60_000 + (i % 4) * 500, Y = 50_000 + (i / 4) * 500 });
+                FireEvent gev = default(FireEvent); bool gotG = false, gotRifle = false; FireEvent rev = default(FireEvent);
+                for (int t = 0; t < 400 && !(gotG && gotRifle); t++) { gw.Step(cl, rs); foreach (var e in rs.Shots) { if (e.Weapon == WeaponId.Lanzagranadas && !gotG) { gev = e; gotG = true; } if (e.Weapon == WeaponId.Fusil && !gotRifle) { rev = e; gotRifle = true; } } }
+                check(gotG && gev.FlightTicks == 20 && gev.ArcPeakMm >= 500 && gev.ArcPeakMm <= 600 && gev.FromX > 49_000 && gev.FromX < 55_000 && (!gotRifle || rev.ArcPeakMm == 0), $"la granada sale con su parábola: vuelo {gev.FlightTicks} ticks, vértice a {gev.ArcPeakMm} mm (g·T²/8), desde ({gev.FromX / 1000}, {gev.FromY / 1000}) m; el fusil no tiene arco");
+                var sw2 = new UnitsWorld(5); var sp2 = sw2.AddPlatoon(PlatoonKind.Tiradores, 50_000, 50_000, 0); var sr = new StepResult();
+                var mix = new List<Target> { new Target { Id = 1, X = 50_000 + 30_000, Y = 50_000 }, new Target { Id = 2, X = 50_000 + 120_000, Y = 50_000, Special = true }, new Target { Id = 3, X = 50_000 + 20_000, Y = 50_000 + 500 } };
+                int firstTarget = -1; for (int t = 0; t < 400 && firstTarget < 0; t++) { sw2.Step(mix, sr); foreach (var e in sr.Shots) if (e.Weapon == WeaponId.FusilPrecision && firstTarget < 0) firstTarget = e.TargetId; }
+                var sw3 = new UnitsWorld(5); sw3.AddPlatoon(PlatoonKind.Tiradores, 50_000, 50_000, 0); int firstPlain = -1; var plain = new List<Target> { new Target { Id = 1, X = 80_000, Y = 50_000 }, new Target { Id = 2, X = 170_000, Y = 50_000 }, new Target { Id = 3, X = 70_000, Y = 50_500 } };
+                for (int t = 0; t < 400 && firstPlain < 0; t++) { sw3.Step(plain, sr); foreach (var e in sr.Shots) if (e.Weapon == WeaponId.FusilPrecision && firstPlain < 0) firstPlain = e.TargetId; }
+                var sw4 = new UnitsWorld(5); sw4.AddPlatoon(PlatoonKind.Fusileros, 50_000, 50_000, 0); int firstRifle = -1; var rm = new List<Target> { new Target { Id = 1, X = 50_000 + 30_000, Y = 50_000 }, new Target { Id = 2, X = 50_000 + 50_000, Y = 50_000, Special = true } };
+                for (int t = 0; t < 400 && firstRifle < 0; t++) { sw4.Step(rm, sr); foreach (var e in sr.Shots) if (e.Weapon == WeaponId.Fusil && firstRifle < 0) firstRifle = e.TargetId; }
+                check(firstTarget == 2 && firstPlain == 3 && firstRifle == 1, $"el francotirador dispara primero al especial aunque esté a 120 m ({firstTarget}); sin especiales, al más cercano ({firstPlain}); el fusilero no distingue ({firstRifle})");
+            }
+            {
                 // la derrota gana siempre
                 var g = new NightGame(NightParams.Default(), 1); var sp = new List<SpawnPoint>();
                 while (g.Tick < g.TotalTicks - 1) g.Step(true, true, sp);
