@@ -96,6 +96,21 @@ namespace TBD.Units
             }
             v.Shots = v.MaxShots; return v;
         }
+        /// <summary>Aplica a un vehículo su entrada de «NightVehicles» (nightsim_params.json de Hugo) y le llena la reserva (Shots = MaxShots). Sin JSON o sin entrada, no cambia nada.
+        /// Lo que no esté en la entrada se queda como estaba. La zona lo usa al pasar sus vehículos a NightSim (fuera de pantalla).</summary>
+        public static void ApplyParams(NightVehicle v, string json)
+        {
+            if (v == null || json == null) return;
+            var root = Mini.Parse(json) as Dictionary<string, object>; if (root == null || !root.ContainsKey("NightVehicles")) return;
+            var all = root["NightVehicles"] as Dictionary<string, object>; if (all == null) return;
+            object o; if (!all.TryGetValue(v.Kind.ToString(), out o)) return; var d = o as Dictionary<string, object>; if (d == null) return;
+            Func<string, int, int> g = (k, def) => d.ContainsKey(k) && d[k] is long ? (int)(long)d[k] : def;
+            v.RangeMm = g("RangeMm", v.RangeMm); v.PeriodTicks = Math.Max(1, g("PeriodTicks", v.PeriodTicks)); v.KillsPerShot = g("KillsPerShot", v.KillsPerShot); v.SplashMm = g("SplashMm", v.SplashMm);
+            v.MaxShots = g("MaxShots", v.MaxShots); v.ResupplyMilliU = g("ResupplyMilliU", v.ResupplyMilliU); v.ResupplyTicks = g("ResupplyTicks", v.ResupplyTicks);
+            if (d.ContainsKey("Airborne") && d["Airborne"] is bool) v.Airborne = (bool)d["Airborne"];
+            if (d.ContainsKey("Fire") && d["Fire"] is bool) v.Fire = (bool)d["Fire"];
+            v.Shots = v.MaxShots;
+        }
         /// <summary>Coste de llenar la reserva, en disparos del almacén (1 u = WeaponCatalog.ShotsPerU): ResupplyMilliU × lo que falta / MaxShots.</summary>
         public int RefillCostShots() { return MaxShots <= 0 ? 0 : (int)((long)ResupplyMilliU * WeaponCatalog.ShotsPerU / 1000 * (MaxShots - Shots) / MaxShots); }
         public ulong Hash() { return IMath.Mix((ulong)(uint)Shots + ((ulong)(uint)NextFireTick << 32) + (ulong)Kind) + IMath.Mix((ulong)(uint)ResupplyUntil + ((ulong)(uint)Kills << 32) + (Fire ? 7UL : 11UL) + (Airborne ? 13UL : 0UL)); }
@@ -305,22 +320,9 @@ namespace TBD.Units
 
         /// <summary>Cifras de Hugo: nightsim_params.json → «NightVehicles»: { "Dragon": { "MaxShots": 240, ... }, "Vamtac": {...}, "Nh90": {..., "Airborne": true} }. Lo que no esté se queda.</summary>
         public string VehicleParamsJson;
-        void ApplyVehicleParams()
-        {
-            if (VehicleParamsJson == null) return;
-            var root = Mini.Parse(VehicleParamsJson) as Dictionary<string, object>; if (root == null || !root.ContainsKey("NightVehicles")) return;
-            var all = root["NightVehicles"] as Dictionary<string, object>; if (all == null) return;
-            foreach (var v in Vehicles)
-            {
-                object o; if (!all.TryGetValue(v.Kind.ToString(), out o)) continue; var d = o as Dictionary<string, object>; if (d == null) continue;
-                Func<string, int, int> g = (k, def) => d.ContainsKey(k) && d[k] is long ? (int)(long)d[k] : def;
-                v.RangeMm = g("RangeMm", v.RangeMm); v.PeriodTicks = Math.Max(1, g("PeriodTicks", v.PeriodTicks)); v.KillsPerShot = g("KillsPerShot", v.KillsPerShot); v.SplashMm = g("SplashMm", v.SplashMm);
-                v.MaxShots = g("MaxShots", v.MaxShots); v.ResupplyMilliU = g("ResupplyMilliU", v.ResupplyMilliU); v.ResupplyTicks = g("ResupplyTicks", v.ResupplyTicks);
-                if (d.ContainsKey("Airborne") && d["Airborne"] is bool) v.Airborne = (bool)d["Airborne"];
-                if (d.ContainsKey("Fire") && d["Fire"] is bool) v.Fire = (bool)d["Fire"];
-                v.Shots = v.MaxShots;
-            }
-        }
+        /// <summary>Aplica NightVehicles (VehicleParamsJson) a todos los vehículos de la lista y les llena la reserva. Público para la zona (Marcos): Make + Add + ApplyVehicleParams()
+        /// y después, si hace falta, la reserva real (Shots) de cada uno.</summary>
+        public void ApplyVehicleParams() { foreach (var v in Vehicles) NightVehicle.ApplyParams(v, VehicleParamsJson); }
 
         /// <summary>Orden T del jugador: recarga del almacén si la reserva no está llena (&gt; 95 % no recarga, como la zona) y hay munición. Devuelve el coste en disparos (0 = no).</summary>
         public int ResupplyVehicle(int index)

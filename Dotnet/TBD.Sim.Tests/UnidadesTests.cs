@@ -1101,6 +1101,8 @@ namespace TBD.Sim.Tests
                 v0.Fire = false; for (int t = 0; t < 601; t++) sr.Step(); check(v0.ResupplyUntil == -1 && v0.Shots == v0.MaxShots, "al acabar la recarga (20 s) la reserva vuelve a estar llena");
                 var sj = NightSim.FromJson(json, null, 3); sj.VehicleParamsJson = "{\"NightVehicles\": {\"Dragon\": {\"MaxShots\": 240}, \"Nh90\": {\"Airborne\": true}}}"; sj.AddDefaultVehicles(true);
                 check(sj.Vehicles[0].MaxShots == 240 && sj.Vehicles[0].Shots == 240 && sj.Vehicles[3].Airborne && sj.Vehicles[1].MaxShots == 750, "las cifras de Hugo (NightVehicles en nightsim_params.json) cambian solo lo que dicen");
+                { var sz = NightSim.FromJson(json, null, 3); var vz = NightVehicle.Make("VAMTAC 1", NightVehKind.Vamtac, 88000, 53000); sz.Vehicles.Add(vz); sz.VehicleParamsJson = "{\"NightVehicles\": {\"Vamtac\": {\"ResupplyMilliU\": 1800}}}"; sz.ApplyVehicleParams(); vz.Shots = 375;
+                  check(vz.ResupplyMilliU == 1800 && vz.MaxShots == 750 && vz.RefillCostShots() == 1800, $"la zona puede aplicar el JSON a sus vehículos (ApplyVehicleParams) y luego poner la reserva real: medio VAMTAC con recarga ×0,6 cuesta 0,9 u ({vz.RefillCostShots()} disparos)"); }
             }
         }
     }
