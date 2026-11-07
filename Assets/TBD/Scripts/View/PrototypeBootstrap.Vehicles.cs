@@ -20,7 +20,7 @@ namespace TBD.View
             public float Speed, Alt, Tilt, Rpm, SpinWheel, Steer, TurretYaw, GunElev; public Vector2 Target; public bool HasTarget; public Vector2 Home;
             public Transform[] WheelsFront, WheelsAll; public Quaternion[] WheelInit; public Transform Turret, Gun, RotorMain, RotorTail, Disc; public Quaternion TurretInit, GunInit, RotorMainInit, RotorTailInit;
             public float FireAt; public int FireTick; public float Ammo = 1f; public GameObject Shadow; public int State;                  // helicóptero: 0 en tierra, 1 despegando, 2 en vuelo, 3 aterrizando
-            public float StateT; public float SpinMainDeg, SpinTailDeg; public bool Fire; public int ResupT = -1; public float ResupU;
+            public float StateT; public float SpinMainDeg, SpinTailDeg; public bool Fire = true; public int ResupT = -1; public float ResupU;
         }
         readonly List<Veh> _vehs = new List<Veh>(); Veh _selVeh; readonly List<TargetHit> _vehHits = new List<TargetHit>(); readonly List<Vector2> _zomPos = new List<Vector2>(); readonly List<uint> _zomId = new List<uint>();
         readonly Dictionary<string, Material> _vehMats = new Dictionary<string, Material>();
@@ -69,7 +69,7 @@ namespace TBD.View
             {
                 if (v.Go == null) continue;
                 if (!v.Heli) GroundStep(v, dt); else HeliStep(v, dt);
-                VehicleResupply(v); VehicleFire(v, z, dt);
+                if (_bot != null && !_noVehResup && v.Ammo < 0.3f && _ng != null && _ng.Tick % 30 == 0) StartVehicleResupply(v); VehicleResupply(v); VehicleFire(v, z, dt);
             }
         }
 
@@ -92,6 +92,7 @@ namespace TBD.View
             if (_ng.Tick >= v.ResupT) { v.Ammo = 1f; v.ResupT = -1; Debug.Log($"[NOCHE] {v.Name} recargado"); }
         }
 
+        readonly bool _noVehResup = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinrecarga") >= 0;   // QA (Sara): el bot no recarga los vehiculos
         struct NativeSnapshot { public int N; }
 
         void GroundStep(Veh v, float dt)
@@ -154,7 +155,7 @@ namespace TBD.View
         // ---------------------------------------------------------------- fuego automático del vehículo
         void VehicleFire(Veh v, NativeSnapshot z, float dt)
         {
-            if (_bot != null && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-vehfuego") < 0) return;                                                       // -nightbot compara con NightSim, que no tiene vehiculos que disparen (Nacho)
+            // los vehiculos disparan por defecto, tambien con -nightbot (decision de Mak/Eugenio, 7-nov); G = alto el fuego, A = fuego libre
             if (!v.Fire) return;                                                              // de noche solo disparan con orden del jugador (A = fuego, G = alto el fuego; Hugo/Mak)
             if (_zomPos.Count == 0) return; if (v.Heli && v.State != 2) return;
             if (v.Ammo <= 0f) return;                                                        // sin municion no dispara (reserva por vehiculo)
@@ -163,7 +164,7 @@ namespace TBD.View
             if (best < 0) return;
             v.TurretYaw = Mathf.MoveTowardsAngle(v.TurretYaw, Mathf.Atan2(_zomPos[best].x - v.Pos.x, _zomPos[best].y - v.Pos.y) * Mathf.Rad2Deg - (v.Heli ? 0f : v.Heading), 120f * dt);
             if (_ng != null && _ng.Tick < v.FireTick) return;                              // cadencia por ticks de la simulacion (no por tiempo de pantalla)
-            bool dragon = v.Name.StartsWith("Dragón"); v.FireTick = (_ng != null ? _ng.Tick : 0) + (dragon ? 30 : v.Heli ? 9 : 9); v.Ammo -= dragon ? 1f / 120f : v.Heli ? 1f / 400f : 1f / 300f;   // Dragon 1 salva/s (120 salvas), VAMTAC y NH90 ~3 disparos/s (300-400)
+            bool dragon = v.Name.StartsWith("Dragón"); v.FireTick = (_ng != null ? _ng.Tick : 0) + (dragon ? 30 : v.Heli ? 9 : 9); v.Ammo -= dragon ? 1f / 400f : v.Heli ? 1f / 930f : 1f / 750f;   // Dragon 1 salva/s (120 salvas), VAMTAC y NH90 ~3 disparos/s (300-400)
             int kills = dragon ? 3 : 1; var tp = _zomPos[best];
             for (int i = 0; i < _zomPos.Count && kills > 0; i++) if ((_zomPos[i] - tp).sqrMagnitude < (dragon ? 9f : 1.2f)) { _vehHits.Add(new TargetHit { TargetId = (int)_zomId[i], Damage = 100, Platoon = -1 }); kills--; }
             if (_trMat == null) { _trMat = new Material(Shader.Find("Universal Render Pipeline/Unlit")); _trMat.SetColor("_BaseColor", new Color32(0xf0, 0xdc, 0x9c, 255)); }

@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.Animations;
 using UnityEngine.InputSystem;
 using UnityEngine.Playables;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 using TBD.Sim;
 using TBD.Units;
@@ -79,6 +80,8 @@ namespace TBD.View
             }
             _targetOrtho = 26f; _focus = new Vector3(96f, 0f, 64f);
             ApplyGrade(2);
+            _paletteMix = 0f;                                          // D-N129 (Lucia y Bruno): el mundo no pasa por el cuantizador; la paleta queda solo en los albedos y la interfaz
+            { var ca2 = System.Environment.GetCommandLineArgs(); for (int i2 = 0; i2 + 1 < ca2.Length; i2++) if (ca2[i2] == "-luz") NightLightPass(ca2[i2 + 1]); }
             _bannerText = "22:00. El tren se detiene en Sagunto.\nAguanta hasta el amanecer."; _bannerUntil = Time.unscaledTime + 5f;
             NearWall(Vector2.zero); Debug.Log($"[NOCHE] muros_obras={_wallSegs.Count}");
             Debug.Log($"[NOCHE] reloj_x={_ng.P.ClockX} municion_u={_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.#} materiales_u=40 combustible_u=30 almacen_combustible_u=16");
@@ -86,6 +89,45 @@ namespace TBD.View
             InitVehicles();
             _rec = new NightTraceRecorder("zona", 1285, 9000, 30);
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-nightbot") >= 0) { try { _bot = NightBot.FromParams(NightSimParams.FromJson(BalanceSource.Read("nightsim_params.json"))); Debug.Log("[NOCHE] prueba: -nightbot (NightBot de Nacho)"); } catch (System.Exception e) { Debug.LogWarning("[TBD] NightBot: " + e.Message); } }
+        }
+
+        // ---- QA (Bruno): doble codificacion sRGB en partida. -colorcasos recorre 5 casos, uno cada 6 s reales, con una captura en cada uno (F6 pasa al siguiente a mano)
+        int _colorCase = -1; float _colorCaseT = -1f; bool _colorAuto = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-colorcasos") >= 0;
+        static readonly string[] ColorCaseNames = { "base", "a_fx_sin_post", "b_fx_y_present_sin_post", "c_sin_hdr", "d_sin_fxcam_en_pila" };
+        void ColorCases()
+        {
+            var kb = Keyboard.current; bool next = kb != null && kb.f6Key.wasPressedThisFrame;
+            if (_colorAuto && _colorCaseT < 0f) _colorCaseT = Time.unscaledTime + 8f;
+            if (_colorAuto && _colorCaseT > 0f && Time.unscaledTime >= _colorCaseT && _colorCase < ColorCaseNames.Length - 1) { next = true; }
+            if (!next) return;
+            if (_colorCase >= 0 && _colorCase < ColorCaseNames.Length) { }
+            _colorCase++; if (_colorCase >= ColorCaseNames.Length) _colorCase = 0; _colorCaseT = Time.unscaledTime + 6f;
+            var fxD = _fxCam.GetUniversalAdditionalCameraData(); var prD = _presentCam.GetUniversalAdditionalCameraData();
+            fxD.renderPostProcessing = true; prD.renderPostProcessing = true; _fxCam.allowHDR = true; _presentCam.allowHDR = true;
+            if (!prD.cameraStack.Contains(_fxCam)) prD.cameraStack.Add(_fxCam);
+            switch (_colorCase)
+            {
+                case 1: fxD.renderPostProcessing = false; break;
+                case 2: fxD.renderPostProcessing = false; prD.renderPostProcessing = false; break;
+                case 3: _fxCam.allowHDR = false; _presentCam.allowHDR = false; break;
+                case 4: prD.cameraStack.Remove(_fxCam); break;
+            }
+            string dir = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(dir);
+            Debug.Log("[NOCHE] caso de color " + ColorCaseNames[_colorCase]);
+            StartCoroutine(ColorCaseShot(System.IO.Path.Combine(dir, "color_" + _colorCase + "_" + ColorCaseNames[_colorCase] + ".png")));
+        }
+        System.Collections.IEnumerator ColorCaseShot(string path) { yield return new WaitForSeconds(2f); yield return CaptureRoutine(path); }
+
+        /// <summary>QA24 (Bruno): una sola luz sobre la imagen sin gradacion ni bloom. luna = sol blanco 1,0 con sombras; ambiente = luz ambiente blanca 0,1; focos = solo focos a 90.</summary>
+        void NightLightPass(string mode)
+        {
+            _nightGradeLock = true; _paletteMix = 0f;
+            _grade.colorFilter.Override(Color.white); _grade.saturation.Override(0f); _grade.postExposure.Override(0f); if (_bloom != null) _bloom.intensity.Override(0f);
+            if (mode == "luna") { SetLight(Color.white, 1.0f, Color.black, 50f); SetFloodlights(0f); }
+            else if (mode == "ambiente") { SetLight(Color.black, 0f, new Color(0.1f, 0.1f, 0.1f), 50f); SetFloodlights(0f); }
+            else if (mode == "focos") { SetLight(Color.black, 0f, Color.black, 50f); SetFloodlights(90f); }
+            else if (mode == "actual") { }
+            Debug.Log("[NOCHE] pasada de luz: " + mode);
         }
 
         // ---------------------------------------------------------------- un tick (30 Hz), antes de los sistemas de la zona
@@ -101,7 +143,7 @@ namespace TBD.View
                 {
                     var w = gp[gi]; if (!w.IsGate || !w.Built || _gateWalled.Contains(gi)) continue;
                     _gateWalled.Add(gi);
-                    Push(CmdType.BuildWall, 2100, new Unity.Mathematics.float2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f), new Unity.Mathematics.float2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f));
+                    Push(CmdType.BuildWall, 2500, new Unity.Mathematics.float2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f), new Unity.Mathematics.float2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f));
                     Debug.Log($"[NOCHE] puerta {w.Kind} cerrada con muro: ({WorkOrigin.x + w.X0 / 1000f:0.0};{WorkOrigin.y + w.Y0 / 1000f:0.0}) -> ({WorkOrigin.x + w.X1 / 1000f:0.0};{WorkOrigin.y + w.Y1 / 1000f:0.0})");
                 }
             }
@@ -310,28 +352,28 @@ namespace TBD.View
         SoldierView MakeView(Infantryman m, bool leader)
         {
             int v; string weapon;
-            switch (m.Kind)
+            switch (m.Kind)                                                          // SoldadoArmado de Teo (7-nov): el arma va dentro de la malla, asi no queda tumbada: v0 G36E, v1 G36E+AG36, v2 G36E, v3 MG4E, v4 G28, v5 G36E
             {
                 case InfKind.Ametrallador: v = 3; weapon = "MG4E"; break;
                 case InfKind.Zapador: v = 2; weapon = "G36E"; break;
-                case InfKind.Servidor: v = 1; weapon = "G36E"; break;
-                case InfKind.Granadero: v = (m.Id & 1) == 0 ? 0 : 1; weapon = "G36E_AG36"; break;
+                case InfKind.Servidor: v = 2; weapon = "G36E"; break;
+                case InfKind.Granadero: v = 1; weapon = "G36E_AG36"; break;
                 case InfKind.Tirador: v = 4; weapon = "G28"; break;
-                default: v = (m.Id & 1) == 0 ? 2 : 4; weapon = "G36E"; break;
+                default: v = (m.Id & 1) == 0 ? 0 : 2; weapon = "G36E"; break;
             }
             if (leader) { v = 5; weapon = "G36E"; }                                  // jefe de pelotón: v5 + G36E
-            var prefab = Resources.Load<GameObject>("Models/Infanteria/SM_Soldado_v" + v + "_LOD1"); if (prefab == null) return null;
+            var prefab = Resources.Load<GameObject>("Models/Infanteria/SM_SoldadoArmado_v" + v + "_" + weapon + "_LOD1"); bool armado = prefab != null; if (!armado) prefab = Resources.Load<GameObject>("Models/Infanteria/SM_Soldado_v" + v + "_LOD1"); if (prefab == null) return null;
             if (_soldMat == null) { _soldPal = Resources.Load<Texture2D>("Models/Infanteria/T_Paleta32"); _soldMat = Mat("ffffff"); _soldMat.SetTexture("_BaseMap", _soldPal); _soldMat.enableInstancing = true; }
             var go = Instantiate(prefab); go.name = "Soldado " + m.Id; go.transform.localScale = Vector3.one * RenderAssets.FigureScale;
             foreach (var r in go.GetComponentsInChildren<Renderer>()) { r.sharedMaterial = _soldMat; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On; }
             Transform brazos = FindBone(go.transform, "brazos"), pecho = FindBone(go.transform, "pecho");
             var wp = Resources.Load<GameObject>("Models/Infanteria/SM_Arma_" + weapon + "_LOD1");
-            if (wp != null && brazos != null) { var w = Instantiate(wp, go.transform); w.transform.localPosition = Vector3.zero; w.transform.localRotation = Quaternion.identity; w.transform.SetParent(brazos, true); foreach (var r in w.GetComponentsInChildren<Renderer>()) r.sharedMaterial = _soldMat; }
-            if (m.Kind == InfKind.Fusilero && pecho != null) { var c = Resources.Load<GameObject>("Models/Infanteria/SM_Arma_C90_LOD1"); if (c != null) { var w = Instantiate(c, go.transform); w.transform.localPosition = Vector3.zero; w.transform.localRotation = Quaternion.identity; w.transform.SetParent(pecho, true); foreach (var r in w.GetComponentsInChildren<Renderer>()) r.sharedMaterial = _soldMat; } }
+            if (!armado && wp != null && brazos != null) { var w = Instantiate(wp, go.transform); w.transform.localPosition = Vector3.zero; w.transform.localRotation = Quaternion.identity; w.transform.SetParent(brazos, true); foreach (var r in w.GetComponentsInChildren<Renderer>()) r.sharedMaterial = _soldMat; }
+            if (!armado && m.Kind == InfKind.Fusilero && pecho != null) { var c = Resources.Load<GameObject>("Models/Infanteria/SM_Arma_C90_LOD1"); if (c != null) { var w = Instantiate(c, go.transform); w.transform.localPosition = Vector3.zero; w.transform.localRotation = Quaternion.identity; w.transform.SetParent(pecho, true); foreach (var r in w.GetComponentsInChildren<Renderer>()) r.sharedMaterial = _soldMat; } }
             var sv = new SoldierView { Go = go };
             var an = go.GetComponent<Animator>(); if (an == null) an = go.AddComponent<Animator>();
             an.runtimeAnimatorController = null; an.applyRootMotion = false;
-            var clips = Resources.LoadAll<AnimationClip>("Models/Infanteria/SM_Soldado_v" + v + "_LOD1");
+            var clips = Resources.LoadAll<AnimationClip>(armado ? "Models/Infanteria/SM_SoldadoArmado_v" + v + "_" + weapon + "_LOD1" : "Models/Infanteria/SM_Soldado_v" + v + "_LOD1");
             sv.Graph = PlayableGraph.Create("Soldado " + m.Id); sv.Graph.SetTimeUpdateMode(DirectorUpdateMode.Manual);
             var output = AnimationPlayableOutput.Create(sv.Graph, "anim", an); sv.Mix = AnimationMixerPlayable.Create(sv.Graph, 4); output.SetSourcePlayable(sv.Mix);
             for (int i = 0; i < 4; i++)
@@ -372,6 +414,7 @@ namespace TBD.View
         // ---------------------------------------------------------------- entrada y órdenes
         void NightUpdate()
         {
+            ColorCases();
             if (!_nightOn) return;
             var kb = Keyboard.current; var mouse = Mouse.current; if (kb == null || mouse == null) return;
             if (kb.f2Key.wasPressedThisFrame) _debugHud = !_debugHud;

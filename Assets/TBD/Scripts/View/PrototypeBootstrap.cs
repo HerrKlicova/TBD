@@ -501,7 +501,7 @@ namespace TBD.View
             if (kb.periodKey.wasPressedThisFrame) _paletteMix = Mathf.Min(1f, _paletteMix + 0.25f);
             if (kb.pKey.wasPressedThisFrame) _paused = !_paused;
             if (kb.f3Key.wasPressedThisFrame) ToggleCheck();
-            if (kb.mKey.wasPressedThisFrame) LeaveToMap();
+            if (kb.mKey.wasPressedThisFrame) { if (NightRun.Active) { _outHintUntil = Time.unscaledTime + 2.5f; _outHintPos = new Vector2(Screen.width * 0.5f - 120f, Screen.height * 0.5f); } else LeaveToMap(); }   // de noche el mapa no esta disponible: sale el aviso y no se reinicia nada (Lucia, D-N91)
             if (kb.f9Key.wasPressedThisFrame)
             {
                 if (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed) SaveScreenshotWithMask(); else SaveScreenshot();
@@ -562,7 +562,7 @@ namespace TBD.View
                     // D-N70: el delta de la rueda en el Input System son pixeles (+-120 por muesca en Windows, +-1 en el Editor y otros). Antes se dividia siempre entre 120:
                     // en el Editor cada muesca valia 0,1 % y «no funcionaba». Ahora se normaliza a muescas (>=10 -> /120) y cada una da un salto del 15 %, suavizado por el lerp (~0,15 s).
                     float notches = Mathf.Clamp(s / (Mathf.Abs(s) >= 10f ? 120f : 1f), -3f, 3f);
-                    if (notches < 0f && _targetOrtho >= 69.5f && _zoneNode >= 0)
+                    if (notches < 0f && _targetOrtho >= 69.5f && _zoneNode >= 0 && !NightRun.Active)   // de noche no se sale al mapa con la rueda: reiniciaba la partida (Eugenio, 7-nov)
                     {
                         // en el tope de 70: la primera muesca de mas avisa junto al cursor; la segunda, en menos de 0,6 s, sale al mapa (con el fundido que ya hay)
                         if (Time.unscaledTime - _outNotchAt < 0.6f && _outNotchAt > 0f) { _outNotchAt = 0f; _outHintUntil = 0f; LeaveToMap(); }
@@ -748,7 +748,9 @@ namespace TBD.View
                 _lowRt.Release();
                 Destroy(_lowRt);
             }
-            _lowRt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32) { filterMode = FilterMode.Point, antiAliasing = 1 };
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-lowrtsrgb") >= 0)   // prueba de Bruno: la RT del mundo en sRGB para no codificar dos veces
+            { var dsc = new RenderTextureDescriptor(w, h, RenderTextureFormat.ARGB32, 24) { sRGB = true, msaaSamples = 1 }; _lowRt = new RenderTexture(dsc) { filterMode = FilterMode.Point }; }
+            else _lowRt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32) { filterMode = FilterMode.Point, antiAliasing = 1 };
             _lowRt.Create();
             _worldCam.targetTexture = _lowRt;
             _quadMat.SetTexture("_MainTex", _lowRt);
@@ -950,8 +952,8 @@ namespace TBD.View
             if (Time.unscaledTime < _outHintUntil && _zoneNode >= 0)
             {
                 int fs = Mathf.Max(12, Screen.height / 70); var st = new GUIStyle(GUI.skin.label) { fontSize = fs, richText = true }; st.normal.textColor = new Color(0.9f, 0.92f, 0.95f);
-                var rc = new Rect(_outHintPos.x + 18f, Screen.height - _outHintPos.y + 14f, fs * 20f, fs * 1.8f);
-                FillRect(rc, new Color(0.06f, 0.07f, 0.09f, 0.78f)); GUI.Label(new Rect(rc.x + 6f, rc.y + 2f, rc.width, rc.height), "sigue alejando para ir al mapa", st);
+                var rc = new Rect(_outHintPos.x + 18f, Screen.height - _outHintPos.y + 14f, fs * (NightRun.Active ? 26f : 20f), fs * 1.8f);
+                FillRect(rc, new Color(0.06f, 0.07f, 0.09f, 0.78f)); GUI.Label(new Rect(rc.x + 6f, rc.y + 2f, rc.width, rc.height), NightRun.Active ? "El mapa no está disponible durante el ataque" : "sigue alejando para ir al mapa", st);
             }
             if (_hudStyle == null)
             {
@@ -2594,9 +2596,9 @@ namespace TBD.View
                             Push(CmdType.BuildWall, Obras.HeightMm(w.Kind), new Unity.Mathematics.float2(c.x - half, c.z), new Unity.Mathematics.float2(c.x + half, c.z));
                         }
                         else if (w.Kind == PieceKind.PuertaVia && NightRun.Active)   // noche (Nacho): la puerta de via es un muro de 2,1 m que cierra el hueco de 3,2 m; sin el, la horda entra en fila por la via
-                            Push(CmdType.BuildWall, 2100, new Unity.Mathematics.float2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f), new Unity.Mathematics.float2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f));
+                            Push(CmdType.BuildWall, 2500, new Unity.Mathematics.float2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f), new Unity.Mathematics.float2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f));
                         else if (w.Kind == PieceKind.PuertaVeh && NightRun.Active)   // noche (Nacho): la puerta de vehiculos (8 m en el muro sur) tambien cierra el recinto; WallBlocks deja pasar a los vehiculos
-                            Push(CmdType.BuildWall, 2100, new Unity.Mathematics.float2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f), new Unity.Mathematics.float2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f));
+                            Push(CmdType.BuildWall, 2500, new Unity.Mathematics.float2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f), new Unity.Mathematics.float2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f));
                         else if (w.Kind == PieceKind.Foco)                            // el foco ilumina de noche
                         {
                             var lg = new GameObject("Foco de obra"); lg.transform.SetParent(_workVisuals[i].transform, false); lg.transform.localPosition = new Vector3(0f, 3f, 0f);
