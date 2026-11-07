@@ -778,7 +778,7 @@ def _render(obj, vista="rts", res=128, paleta=None, intensidad=0.65, fondo=(0x18
     return img, m, borde
 
 
-def vista_pixelada(obj, ruta_png, vista="rts", res=128, ampliar=3, paleta=None, intensidad=0.65,
+def vista_pixelada(obj, ruta_png, vista="rts", res=128, ampliar=3, paleta=None, intensidad=None,
                    fondo=(0x18, 0x1c, 0x30), contorno=True, umbral_contorno=0.06):
     """umbral_contorno: salto de profundidad (fracción del fondo de la pieza) que dibuja línea interior. Con 0,15 solo
     quedan la silueta y los grandes cambios de volumen (regla de Lucía del 6-nov: el detalle interior va con valor).
@@ -786,6 +786,8 @@ def vista_pixelada(obj, ruta_png, vista="rts", res=128, ampliar=3, paleta=None, 
     paleta al 65 %, contorno de 1 px por profundidad y vecino más cercano. Sirve para revisar sin abrir Unity;
     la última palabra la tiene la captura de Unity (regla 13). El contorno lo pone siempre el script (o el shader),
     nunca se pinta en la textura (regla 2 de encargo-modelos-hunyuan.md)."""
+    if intensidad is None:   # Lucía 7-nov 09:08 (D-N129: el mundo va sin cuantizar): hojas sin acercar a la paleta;
+        intensidad = float(os.environ.get("TBD_CUANTIZAR", "0") or 0)   # TBD_CUANTIZAR=0.65 da el render antiguo
     img, _, _ = _render(obj, vista, res, paleta, intensidad, fondo, contorno, umbral_contorno=umbral_contorno)
     rgba = np.concatenate([img, np.full((res, res, 1), 255.0)], 2)
     rgba = np.repeat(np.repeat(rgba, ampliar, 0), ampliar, 1)
