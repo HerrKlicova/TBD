@@ -54,6 +54,7 @@ import build_apertura  # noqa: E402
 import build_parte  # noqa: E402
 import build_avisos_sara  # noqa: E402
 import build_tren_vista  # noqa: E402
+import build_mapa_frentes  # noqa: E402
 
 PIVOTE = [0.5, 0.53]
 
@@ -185,6 +186,7 @@ def prototipo_noche(out):
     build_parte.exportar(out)                            # parte de la noche, victoria y derrota (variante A)
     build_avisos_sara.exportar(out)                      # sin munición (T), muro o estación atacados, panel de vehículos
     build_tren_vista.exportar(out)                       # vista cercana del tren (D-N110): esquema, cajas, franja y avisos
+    build_mapa_frentes.exportar(out)                     # mapa de frentes de Sagunto (variante A): fondo, placas, teselas y dato de carreteras
 
 
 if __name__ == "__main__":

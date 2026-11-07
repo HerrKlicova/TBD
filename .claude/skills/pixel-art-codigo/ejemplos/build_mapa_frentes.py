@@ -36,14 +36,19 @@ SITIOS = {
     "paso": {"pos": (59, 62), "nombre": "Paso a nivel", "vida": None, "estado": "aviso"},
     "heli": {"pos": (180, 44), "nombre": "Helipuerto", "vida": None, "estado": "base"},
 }
-CARRETERAS = [   # (nombre, tramo, habilitada)
-    ("Calle de la Estación", [(59, 20), (59, 160)], True),
-    ("Carretera vieja", [(-250, 23), (222, 23)], True),
-    ("Carretera vieja (pasado el Palancia)", [(222, 23), (320, 23)], False),
-    ("Paso superior", [(-20, -22), (-20, 150)], False),
-]
-VIA = [(-250, 64.5), (330, 64.5)]
-RECINTO = [(68, 43), (157, 43), (157, 87), (68, 87)]          # muro del fuerte (borde de la zona 1: X 70-155, Z 45-85)
+DATOS = Path(__file__).resolve().parent / "datos" / "mapa_sagunto_carreteras.json"
+
+
+def _datos():
+    import json
+    return json.loads(DATOS.read_text(encoding="utf-8"))
+
+
+_D = _datos()
+# (nombre, tramo, habilitada): sale del dato, no del dibujo (Mak, 00:55)
+CARRETERAS = [(c["nombre"], [tuple(q) for q in c["tramo"]], c["habilitada"]) for c in _D["carreteras"]]
+VIA = [tuple(q) for q in _D["via"]]
+RECINTO = [tuple(q) for q in _D["recinto"]]                  # muro del fuerte (borde de la zona 1: X 70-155, Z 45-85)
 RUTAS = [   # (unidad, icono, tipo, puntos, eta, avance 0..1)
     ("Pelotón 2 · VAMTAC", "vehiculo", "via", [(68, 64.5), (-36, 64.5)], "02:14", .55),
     ("Pelotón 4 · Dragón", "vehiculo", "carretera", [(68, 64.5), (59, 62), (59, 23), (-60, 23)], "03:10", .55),
@@ -131,14 +136,14 @@ def letras_px(im, x, y, s, c="bone"):
 
 
 def eta(texto, borde="bone"):
-    """Placa «ETA mm:ss» (11 px de alto): ui_eta_placa + ui_eta_reloj_7 + letras y dígitos de 3x5."""
+    """Placa «ETA mm:ss» de 9 px: ui_eta_placa (slice 3) + ui_eta_reloj_7 en x 2 + letras y dígitos de 3x5 en y 2."""
     import build_rutas as r
     s = "ETA " + texto
     w = 2 + 7 + 2 + 4 * len(s) - 1 + 3
-    im = Image.new("RGBA", (w, 11), (0, 0, 0, 0))
-    caja(im, 0, 0, w, 11, "navy", borde, "grey_brown")
-    im.alpha_composite(r.reloj().img, (2, 2))
-    letras_px(im, 11, 3, s)
+    im = Image.new("RGBA", (w, 9), (0, 0, 0, 0))
+    caja(im, 0, 0, w, 9, "navy", borde, "grey_brown")
+    im.alpha_composite(r.reloj().img, (2, 1))
+    letras_px(im, 11, 2, s)
     return im
 
 
@@ -204,7 +209,7 @@ FONDOS = {
     # zona: color por estilo. 0 descampado, 1 recinto, 2 glacis, 3 vía, 4 calle, 5 huerta, 6 pisado, 7 pueblo,
     # 8 cauce, 9 acequia, 10 solar, 11 cerro
     "tactico": {0: "olive_shadow", 1: "grey_brown", 2: "olive_shadow", 3: "olive_shadow", 4: "olive_grey", 5: "olive_dark",
-                6: "grey_brown", 7: "olive_grey", 8: "grey_brown", 9: "olive_grey", 10: "grey_brown", 11: "navy"},
+                6: "grey_brown", 7: "olive_grey", 8: "grey_brown", 9: "olive_grey", 10: "grey_brown", 11: "olive_shadow"},
     "papel": {0: "beige", 1: "bone", 2: "beige", 3: "beige", 4: "bone", 5: "olive_light", 6: "beige", 7: "concrete_light",
               8: "olive_light", 9: "concrete", 10: "beige", 11: "olive_light"},
     "velado": {0: "olive_grey", 1: "concrete", 2: "grey_brown", 3: "olive_grey", 4: "olive_grey", 5: "olive_dark",
@@ -247,18 +252,23 @@ def carreteras(im, v, estilo):
                 linea(im, (cx + 3, cy - 3), (cx - 3, cy + 3), nohab, 1)
 
 
+def via_px(im, a, b, c):
+    """Vía en diagonal de 45°: dos carriles a ±1 px en perpendicular y traviesa cada 3 pasos (tesela ui_mapa_via)."""
+    (x0, y0), (x1, y1) = a, b
+    n = int(round(max(abs(x1 - x0), abs(y1 - y0))))
+    sx, sy = (1 if x1 >= x0 else -1), (1 if y1 >= y0 else -1)
+    px, py = sy, -sx                                       # perpendicular en la rejilla diagonal
+    for i in range(n + 1):
+        x, y = round(x0) + sx * i, round(y0) + sy * i
+        _pon(im, x + px, y + py, c); _pon(im, x - px, y - py, c)
+        if i % 3 == 0:
+            _pon(im, x, y, c)
+
+
 def via(im, v, estilo):
     a, b = [v.p(*q) for q in VIA]
     c = {"tactico": "beige", "papel": "grey_brown", "velado": "beige", "lineas": "beige"}[estilo]
-    n = int(math.hypot(b[0] - a[0], b[1] - a[1]))
-    ux, uy = (b[0] - a[0]) / n, (b[1] - a[1]) / n
-    for d in range(n):                                    # dos carriles y traviesas cada 4 px
-        x, y = a[0] + ux * d, a[1] + uy * d
-        _pon(im, round(x - uy * 1.5), round(y + ux * 1.5), c)
-        _pon(im, round(x + uy * 1.5), round(y - ux * 1.5), c)
-        if d % 4 == 0:
-            for k in (-1, 0, 1):
-                _pon(im, round(x + uy * k), round(y - ux * k), c)
+    via_px(im, a, b, c)
 
 
 def recinto(im, v, c="grey_light"):
@@ -321,7 +331,7 @@ def unidad(im, x, y, icono, etiqueta, borde="bone", lado=1):
     im.alpha_composite(ic.img, (int(x - ic.w // 2), int(y - ic.h // 2)))
     e = eta(etiqueta)
     ex = int(x + 9) if lado > 0 else int(x - 9 - e.width)
-    im.alpha_composite(e, (ex, int(y - 5)))
+    im.alpha_composite(e, (ex, int(y - 4)))
 
 
 def sitio(im, v, clave, f=0, modo="placa"):
@@ -520,8 +530,160 @@ def muestra(out):
     hoja.save(out / "muestra_mapa_frentes_5_variantes.png")
 
 
+# --- Piezas finales (variante A, D-N111 si Lucía la numera) -----------------------------------
+ESC = 1.8                                                  # px de la base 640x360 por metro (x3 a 1080p)
+PASO = 6                                                   # periodo de las teselas diagonales
+
+
+def _banda(dibuja, d):
+    """Dibuja un trazo diagonal largo y recorta una banda de PASO px de ancho: tesela que repite en diagonal."""
+    im = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    if d == "x":                                           # +X del mundo: arriba a la derecha
+        dibuja(im, (0, 60), (60, 0))
+    else:                                                  # +Z del mundo: arriba a la izquierda
+        dibuja(im, (60, 60), (0, 0))
+    c0 = 24
+    caja_ = im.crop((c0, 0, c0 + PASO, 64))
+    bb = caja_.getbbox()
+    centro = 36 if d == "x" else 24                        # y del eje del trazo en la columna c0
+    return caja_.crop((0, bb[1], PASO, bb[3])), centro - bb[1]
+
+
+def placa_estado(estado, f=0):
+    col = COL_ESTADO[estado]
+    if f == 1:
+        col = {"ataque": "red", "aviso": "ochre_dark"}.get(estado, col)
+    im = Image.new("RGBA", (20, 20), (0, 0, 0, 0))
+    caja(im, 0, 0, 20, 20, "navy", col, col)
+    return im
+
+
+def etiqueta_9():
+    im = Image.new("RGBA", (8, 13), (0, 0, 0, 0))
+    caja(im, 0, 0, 8, 13, "navy", "grey_brown", "grey_brown")
+    return im
+
+
+def chip_unidad():
+    im = Image.new("RGBA", (13, 13), (0, 0, 0, 0))
+    caja(im, 0, 0, 13, 13, "navy", "bone", "grey_brown")
+    return im
+
+
+def aspa_7(c="grey_brown"):
+    im = Image.new("RGBA", (7, 7), (0, 0, 0, 0))
+    linea(im, (0, 0), (6, 6), c); linea(im, (6, 0), (0, 6), c)
+    return im
+
+
+def fin_flecha(c, ang):
+    im = Image.new("RGBA", (11, 11), (0, 0, 0, 0))
+    t = math.radians(ang)
+    flecha(im, 5, 5, math.cos(t), -math.sin(t), c)
+    return im
+
+
+def fondo_completo():
+    """Mapa de Sagunto entero girado 45° a ESC px/m, sin carreteras con estado (las pinta el juego desde el dato)."""
+    esquinas = [(-250, -200), (506, -200), (506, 480), (-250, 480)]
+    v0 = Vista(0, 0, ESC, 0, 0)
+    xs, ys = zip(*[v0.p(*q) for q in esquinas])
+    ox, oy = -min(xs), -min(ys)
+    Wf, Hf = int(math.ceil(max(xs) - min(xs))) + 1, int(math.ceil(max(ys) - min(ys))) + 1
+    v = Vista(0, 0, ESC, ox, oy)
+    z = _zonas()
+    tabla = FONDOS["tactico"]
+    im = Image.new("RGBA", (Wf, Hf), (0, 0, 0, 0))
+    px = im.load()
+    for sy in range(Hf):
+        for sx in range(Wf):
+            X, Z = v.mundo(sx + .5, sy + .5)
+            a, b = int(X + 250), int(480 - Z)
+            if 0 <= a < 756 and 0 <= b < 680:
+                px[sx, sy] = PAL[tabla.get(z[a, b], "olive_shadow")]
+    via(im, v, "tactico"); recinto(im, v)
+    return im, ox, oy
+
+
+def exportar(out):
+    import json
+    out = Path(out)
+    fo, ox, oy = fondo_completo()
+    fo.save(out / "ui_mapa_fondo_sagunto.png")
+    for e in ("ok", "base"):
+        placa_estado(e).save(out / f"ui_mapa_placa_{e}.png")
+    for e in ("aviso", "ataque"):
+        h = Image.new("RGBA", (40, 20), (0, 0, 0, 0))
+        for f in range(2):
+            h.alpha_composite(placa_estado(e, f), (20 * f, 0))
+        h.save(out / f"ui_mapa_placa_{e}.png")
+    etiqueta_9().save(out / "ui_mapa_etiqueta.png")
+    chip_unidad().save(out / "ui_mapa_unidad.png")
+    paso_nivel_16().img.save(out / "ui_frente_paso_nivel_16.png")
+    helipuerto_16().img.save(out / "ui_mapa_helipuerto_16.png")
+    heli_9().img.save(out / "ui_mapa_nh90_11x9.png")
+    for n, c in (("fondo", "grey_brown"), ("ok", "beige"), ("aviso", "amber"), ("ataque", "red_bright")):
+        t = Image.new("RGBA", (1, 1), PAL[c]); t.save(out / f"ui_mapa_vida_{n}.png")
+    aspa_7().save(out / "ui_mapa_aspa_7.png")
+    teselas = {}
+    estilos = {
+        "carretera_habilitada": lambda im, a, b: linea(im, a, b, "concrete_light", 3),
+        "carretera_no_habilitada": lambda im, a, b: linea(im, a, b, "grey_brown", 3, lambda i: i % 6 < 3),
+        "via": lambda im, a, b: via_px(im, a, b, "beige"),
+        "ruta_via": lambda im, a, b: linea(im, a, b, RUTA_COL["via"], 2, lambda i: i % 6 < 4),
+        "ruta_carretera": lambda im, a, b: linea(im, a, b, RUTA_COL["carretera"], 2, lambda i: i % 6 != 5),
+        "ruta_hecha": lambda im, a, b: linea(im, a, b, "grey_brown", 1),
+    }
+    for nombre, fn in estilos.items():
+        for d in ("x", "z"):
+            t, ay = _banda(fn, d)
+            t.save(out / f"ui_mapa_{nombre}_{d}.png")
+            teselas[f"ui_mapa_{nombre}_{d}"] = {"tamano": list(t.size), "ancla": [0, ay],
+                                                 "paso": [PASO, -PASO] if d == "x" else [-PASO, -PASO]}
+    Image.new("RGBA", (1, 1), PAL[RUTA_COL["aire"]]).save(out / "ui_mapa_ruta_aire_punto.png")
+    for nombre, c in (("via", RUTA_COL["via"]), ("carretera", RUTA_COL["carretera"]), ("aire", RUTA_COL["aire"])):
+        h = Image.new("RGBA", (88, 11), (0, 0, 0, 0))
+        for k in range(8):
+            h.alpha_composite(fin_flecha(c, 45 * k), (11 * k, 0))
+        h.save(out / f"ui_mapa_ruta_fin_{nombre}.png")
+    kE = round(K * ESC, 5)
+    (out / "ui_mapa_frentes.json").write_text(json.dumps({
+        "variante": "A, plano táctico oscuro (aprobada por Mak, 07-11 00:55)",
+        "base": [640, 360], "escala_1080": 3, "px_por_metro": ESC,
+        "fondo": {"png": "ui_mapa_fondo_sagunto", "tamano": list(fo.size),
+                  "mundo_a_px": f"x = {ox:.2f} + {kE} * (X - Z);  y = {oy:.2f} - {kE} * (X + Z)",
+                  "nota": "girado 45° como la cámara (D-N93): arriba = +X+Z. Lleva la vía y el muro; las carreteras con estado no"},
+        "carreteras": {"dato": "mapa_sagunto_carreteras.json",
+                       "habilitada": "ui_mapa_carretera_habilitada_{x|z}", "no_habilitada": "ui_mapa_carretera_no_habilitada_{x|z} + ui_mapa_aspa_7 cada 24 px",
+                       "uso": "cada tramo va a lo largo de X (tesela _x) o de Z (_z): la columna 0 y la fila «ancla» de la tesela caen sobre el eje del tramo; se estampa cada «paso» (en _z, de derecha a izquierda)"},
+        "teselas": teselas,
+        "sitios": {"placa": "ui_mapa_placa_{ok|aviso|ataque|base} (20x20, slice 3; aviso y ataque, 2 f de 500 ms; el aviso parpadea solo 3 s, D-N109)",
+                   "iconos": {"estacion": "ui_frente_estacion_16", "tren": "ui_frente_tren_16", "paso_nivel": "ui_frente_paso_nivel_16",
+                              "helipuerto": "ui_mapa_helipuerto_16 (con ui_mapa_placa_base)"},
+                   "etiqueta": "ui_mapa_etiqueta (slice 3, 13 px de alto) 12 px por debajo de la placa (por encima si queda a menos de 40 px del borde de abajo o es el paso a nivel); nombre y % en la letra de UI Toolkit",
+                   "vida": "1 px bajo el texto, en la fila 11 de la etiqueta: ui_mapa_vida_fondo + ui_mapa_vida_{ok|aviso|ataque} estirado a (ancho − 6) × vida"},
+        "unidades": {"chip": "ui_mapa_unidad (13x13, slice 3)", "iconos": {"vehiculo": "ui_mm_vehiculo", "peloton": "ui_mm_peloton", "helicoptero": "ui_mapa_nh90_11x9"},
+                     "eta": "a 9 px a la derecha del chip: ui_eta_placa + ui_eta_reloj_7 (x 2, y 1) + «ETA mm:ss» con ui_letras_3x5 y ui_digitos_3x5 (x 11, y 2, paso 4)"},
+        "rutas": {"falta": "ui_mapa_ruta_{via|carretera}_{x|z}; aire: ui_mapa_ruta_aire_punto cada 4 px en línea recta",
+                  "hecha": "ui_mapa_ruta_hecha_{x|z} (1 px grey_brown)", "fin": "ui_mapa_ruta_fin_{via|carretera|aire}: 8 direcciones de 11x11, 45° cada una empezando por la derecha, en sentido antihorario",
+                  "marcha": "las teselas avanzan 3 px por fotograma (aire, 2) para que la ruta se mueva hacia el destino"},
+        "colores": "rojo #982420 solo en el ataque; ámbar solo en el aviso; H del helipuerto en grey_light (E6 y foto H7 de Paula); nada en 283440",
+    }, ensure_ascii=False, indent=1), encoding="utf-8")
+    (out / "mapa_sagunto_carreteras.json").write_text(DATOS.read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def maqueta(out):
+    out = Path(out)
+    for f in range(2):
+        pantalla("A", f).resize((1920, 1080), Image.NEAREST).save(out / f"maqueta_1080_mapa_frentes{'_f1' if f else ''}.png")
+
+
 if __name__ == "__main__":
     OUT = Path(next((a for a in sys.argv[1:] if not a.startswith("--")), "out_mapa_frentes"))
     OUT.mkdir(parents=True, exist_ok=True)
-    muestra(OUT)
+    if "--muestra" in sys.argv:
+        muestra(OUT)
+    else:
+        exportar(OUT)
+        maqueta(OUT)
     print("ok")
