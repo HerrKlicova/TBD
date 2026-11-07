@@ -128,7 +128,7 @@ namespace TBD.Units
         {
             var c = new int[Enum.GetValues(typeof(WeaponId)).Length];
             foreach (var (w, n) in ws) c[(int)w] = n;
-            return new PlatoonSpec { Key = key, Persons = persons, Servers = servers, WeaponCount = c, SpeedMmS = speed, DotationPm = dot, MaterialsU = mat, Hp = 100 };
+            return new PlatoonSpec { Key = key, Persons = persons, Servers = servers, WeaponCount = c, SpeedMmS = speed, DotationPm = dot, MaterialsU = mat, Hp = 4000 };   // D-N107 (Hugo): 4000 con el contacto de 2 por zombi y tick
         }
 
         static PlatoonSpec[] Defaults()

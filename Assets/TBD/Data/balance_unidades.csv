@@ -178,7 +178,7 @@ peloton_fusileros_dotacion_municion_permil_u;1500;1000;munición que se lleva al
 peloton_fusileros_materiales_u;0;1;equipo, una vez al formarlo
 peloton_fusileros_formacion_h;6;1;
 peloton_fusileros_etapa;1;1;prioridad de la noche P0
-peloton_fusileros_soldado_vida;100;1;igual que hoy (balance_combate)
+peloton_fusileros_soldado_vida;4000;1;D-N107 (Hugo): 100 -> 2000 -> 4000 con el contacto de a210bd3 (2 por zombi y tick a 900 mm): un zombi solo tarda 67 s, seis tardan 11 s. Con 2000 el caso B de Sara daba 10 bajas
 peloton_ametralladores_personas;4;1;emplazados, cono de fuego sostenido devastador contra masas, quietos y vulnerables por los flancos
 peloton_ametralladores_servidores;2;1;personas sin arma propia (cargadores)
 peloton_ametralladores_arma_ametralladora_emplazada;2;1;
@@ -187,7 +187,7 @@ peloton_ametralladores_dotacion_municion_permil_u;2000;1000;munición que se lle
 peloton_ametralladores_materiales_u;2;1;equipo, una vez al formarlo
 peloton_ametralladores_formacion_h;8;1;
 peloton_ametralladores_etapa;1;1;prioridad de la noche P0
-peloton_ametralladores_soldado_vida;100;1;igual que hoy (balance_combate)
+peloton_ametralladores_soldado_vida;4000;1;D-N107 (Hugo): 100 -> 2000 -> 4000 con el contacto de a210bd3 (2 por zombi y tick a 900 mm): un zombi solo tarda 67 s, seis tardan 11 s. Con 2000 el caso B de Sara daba 10 bajas
 peloton_granaderos_personas;6;1;área con tiro parabólico (mínimo 15 m): rompen la pila contra el muro, con la horda suelta tiran de fusil
 peloton_granaderos_servidores;0;1;personas sin arma propia (cargadores)
 peloton_granaderos_arma_lanzagranadas;6;1;
@@ -196,7 +196,7 @@ peloton_granaderos_dotacion_municion_permil_u;2000;1000;munición que se lleva a
 peloton_granaderos_materiales_u;3;1;equipo, una vez al formarlo
 peloton_granaderos_formacion_h;8;1;
 peloton_granaderos_etapa;1;1;prioridad de la noche P1
-peloton_granaderos_soldado_vida;100;1;igual que hoy (balance_combate)
+peloton_granaderos_soldado_vida;4000;1;D-N107 (Hugo): 100 -> 2000 -> 4000 con el contacto de a210bd3 (2 por zombi y tick a 900 mm): un zombi solo tarda 67 s, seis tardan 11 s. Con 2000 el caso B de Sara daba 10 bajas
 peloton_tiradores_personas;2;1;tirador y observador: alcance largo, especiales y grandes primero, casi no gastan
 peloton_tiradores_servidores;0;1;personas sin arma propia (cargadores)
 peloton_tiradores_arma_fusil_precision;1;1;
@@ -206,7 +206,7 @@ peloton_tiradores_dotacion_municion_permil_u;300;1000;munición que se lleva al 
 peloton_tiradores_materiales_u;1;1;equipo, una vez al formarlo
 peloton_tiradores_formacion_h;12;1;
 peloton_tiradores_etapa;1;1;prioridad de la noche P1
-peloton_tiradores_soldado_vida;100;1;igual que hoy (balance_combate)
+peloton_tiradores_soldado_vida;4000;1;D-N107 (Hugo): 100 -> 2000 -> 4000 con el contacto de a210bd3 (2 por zombi y tick a 900 mm): un zombi solo tarda 67 s, seis tardan 11 s. Con 2000 el caso B de Sara daba 10 bajas
 peloton_zapadores_personas;6;1;construyen y reparan obras al doble de velocidad (obra x2) y ponen cargas, 2 de los 6 llevan carga
 peloton_zapadores_servidores;0;1;personas sin arma propia (cargadores)
 peloton_zapadores_arma_fusil;6;1;
@@ -216,7 +216,7 @@ peloton_zapadores_dotacion_municion_permil_u;1500;1000;munición que se lleva al
 peloton_zapadores_materiales_u;2;1;equipo, una vez al formarlo
 peloton_zapadores_formacion_h;10;1;
 peloton_zapadores_etapa;1;1;prioridad de la noche P2
-peloton_zapadores_soldado_vida;100;1;igual que hoy (balance_combate)
+peloton_zapadores_soldado_vida;4000;1;D-N107 (Hugo): 100 -> 2000 -> 4000 con el contacto de a210bd3 (2 por zombi y tick a 900 mm): un zombi solo tarda 67 s, seis tardan 11 s. Con 2000 el caso B de Sara daba 10 bajas
 vehiculo_dragon_vida;4000;1;VCR 8x8 Dragón (Paula V1: 8 x 3 x 2,34 m, 30 t, torre de 30 mm)
 vehiculo_dragon_armadura;990;1000;‰ del daño de los zombis que se ignora
 vehiculo_dragon_vel_mm_s;12000;1;la horda casi no lo araña (armadura 99 %), lo que lo mata es quedarse encajado: con pila >= 3 delante se para, como el tren
@@ -228,7 +228,7 @@ vehiculo_dragon_plazas;8;1;
 vehiculo_dragon_municion_bordo;2000;1000;‰ de u
 vehiculo_dragon_comb_marcha_e4_s;200;10000;D-N76: E4 de u por segundo REAL en marcha (1,2 u/min), se cobra cada 30 ticks
 vehiculo_dragon_comb_ralenti_e4_s;60;10000;D-N76: parado con el motor encendido (0,36 u/min), apagado, 0
-vehiculo_dragon_deposito_u;8;1;D-N76: sale lleno del almacén al empezar, a cero se queda inmóvil y la torre sigue disparando
+vehiculo_dragon_deposito_u;8;1;D-N76: sale lleno del almacén al empezar, a cero se queda inmóvil y sus armas siguen disparando
 vehiculo_dragon_repostar_s_por_u;2;1;junto al depósito o al tren, del almacén de Sagunto, un zapador lleva un bidón de 2 u (20 s)
 vehiculo_dragon_coste_mat;60;1;
 vehiculo_dragon_coste_comb;15;1;
@@ -237,8 +237,57 @@ vehiculo_dragon_reparar_u_por_1000_vida;5;1;
 vehiculo_dragon_etapa;1;1;
 vehiculo_dragon_atropello_vel_min_mm_s;3000;1;por debajo solo empuja
 vehiculo_dragon_atropello_permil;500;1;probabilidad de abatir a cada zombi que pisa yendo a >= 3 m/s (empuja y atropella)
+vehiculo_dragon_vel_carretera_kmh;80;1;D-N96: en el mapa, km/h del reloj de juego por carretera habilitada
+vehiculo_dragon_vel_via_kmh;30;1;D-N96: en el mapa, km/h de juego rodando por la caja de la vía (balasto), no van campo a través
 vehiculo_dragon_arma_canon_30;1;1;
 vehiculo_dragon_arma_ametralladora_ligera;1;1;
+vehiculo_vamtac_vida;2000;1;URO VAMTAC ST5 con M2 de 12,7 mm (4,9 x 2,2 m, 7 t)
+vehiculo_vamtac_armadura;950;1000;‰ del daño de los zombis que se ignora
+vehiculo_vamtac_vel_mm_s;19000;1;rápido y barato: enlace, reconocimiento y reabastecer, con 24 zombis pegados cae en unos 28 s, con pila >= 2 delante se para
+vehiculo_vamtac_vel_horda_mm_s;3000;1;a través de horda suelta (>= 0,5 zombis/m²)
+vehiculo_vamtac_acel_mm_s2;3800;1;
+vehiculo_vamtac_giro_cdeg_s;5000;1;
+vehiculo_vamtac_bloqueo_pila;2;1;pila delante a partir de la cual se para (= tapón del tren)
+vehiculo_vamtac_plazas;4;1;
+vehiculo_vamtac_municion_bordo;1000;1000;‰ de u
+vehiculo_vamtac_comb_marcha_e4_s;90;10000;D-N76: E4 de u por segundo REAL en marcha (0,54 u/min), se cobra cada 30 ticks
+vehiculo_vamtac_comb_ralenti_e4_s;25;10000;D-N76: parado con el motor encendido (0,15 u/min), apagado, 0
+vehiculo_vamtac_deposito_u;4;1;D-N76: sale lleno del almacén al empezar, a cero se queda inmóvil y sus armas siguen disparando
+vehiculo_vamtac_repostar_s_por_u;2;1;junto al depósito o al tren, del almacén de Sagunto, un zapador lleva un bidón de 2 u (20 s)
+vehiculo_vamtac_coste_mat;20;1;
+vehiculo_vamtac_coste_comb;5;1;
+vehiculo_vamtac_taller_dias;1;1;
+vehiculo_vamtac_reparar_u_por_1000_vida;4;1;
+vehiculo_vamtac_etapa;1;1;
+vehiculo_vamtac_atropello_vel_min_mm_s;3000;1;por debajo solo empuja
+vehiculo_vamtac_atropello_permil;300;1;probabilidad de abatir a cada zombi que pisa yendo a >= 3 m/s (empuja y atropella)
+vehiculo_vamtac_vel_carretera_kmh;90;1;D-N96: en el mapa, km/h del reloj de juego por carretera habilitada
+vehiculo_vamtac_vel_via_kmh;25;1;D-N96: en el mapa, km/h de juego rodando por la caja de la vía (balasto), no van campo a través
+vehiculo_vamtac_arma_ametralladora_pesada;1;1;
+vehiculo_pizarro_vida;5000;1;VCI Pizarro (ASCOD) de orugas con Mauser de 30 mm (6,8 x 3,2 m, 28 t)
+vehiculo_pizarro_armadura;993;1000;‰ del daño de los zombis que se ignora
+vehiculo_pizarro_vel_mm_s;14000;1;ariete de orugas: atraviesa la pila (se para con >= 6) y aguanta unos 6 min con 33 zombis pegados, lento y caro de combustible: de lejos, mejor en el tren
+vehiculo_pizarro_vel_horda_mm_s;5000;1;a través de horda suelta (>= 0,5 zombis/m²)
+vehiculo_pizarro_acel_mm_s2;2500;1;
+vehiculo_pizarro_giro_cdeg_s;4000;1;
+vehiculo_pizarro_bloqueo_pila;6;1;pila delante a partir de la cual se para (= tapón del tren)
+vehiculo_pizarro_plazas;8;1;
+vehiculo_pizarro_municion_bordo;2500;1000;‰ de u
+vehiculo_pizarro_comb_marcha_e4_s;250;10000;D-N76: E4 de u por segundo REAL en marcha (1,5 u/min), se cobra cada 30 ticks
+vehiculo_pizarro_comb_ralenti_e4_s;80;10000;D-N76: parado con el motor encendido (0,48 u/min), apagado, 0
+vehiculo_pizarro_deposito_u;8;1;D-N76: sale lleno del almacén al empezar, a cero se queda inmóvil y sus armas siguen disparando
+vehiculo_pizarro_repostar_s_por_u;2;1;junto al depósito o al tren, del almacén de Sagunto, un zapador lleva un bidón de 2 u (20 s)
+vehiculo_pizarro_coste_mat;80;1;
+vehiculo_pizarro_coste_comb;20;1;
+vehiculo_pizarro_taller_dias;3;1;
+vehiculo_pizarro_reparar_u_por_1000_vida;6;1;
+vehiculo_pizarro_etapa;2;1;
+vehiculo_pizarro_atropello_vel_min_mm_s;2000;1;por debajo solo empuja
+vehiculo_pizarro_atropello_permil;700;1;probabilidad de abatir a cada zombi que pisa yendo a >= 2 m/s (empuja y atropella)
+vehiculo_pizarro_vel_carretera_kmh;50;1;D-N96: en el mapa, km/h del reloj de juego por carretera habilitada
+vehiculo_pizarro_vel_via_kmh;35;1;D-N96: en el mapa, km/h de juego rodando por la caja de la vía (balasto), no van campo a través
+vehiculo_pizarro_arma_canon_30;1;1;
+vehiculo_pizarro_arma_ametralladora_ligera;1;1;
 heli_nh90_vida;3000;1;NH90 de las FAMET (Paula A2)
 heli_nh90_armadura;900;1000;
 heli_nh90_vel_max_mm_s;45000;1;RECOMENDADO para el MVP: lleva un pelotón lejos de la vía y lo apoya. Solo se le puede tocar por debajo de 3 m

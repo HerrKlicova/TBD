@@ -26,7 +26,7 @@ namespace TBD.Units
             return new NightSimParams
             {
                 FortX0 = 70000, FortX1 = 156000, FortY0 = 44000, FortY1 = 85000, StationX = 113000, StationY = 64500,
-                StationHp = 6000, WallHp = 120240, ZombieSpeedMmS = 1500, WallDmgPerZombieS = 6, StationDmgPerZombieS = 20,
+                StationHp = 60000, WallHp = 960000, ZombieSpeedMmS = 1500, WallDmgPerZombieS = 1, StationDmgPerZombieS = 20,
                 ContactRadiusMm = 1200, ContactCasualtyPmPerS = 14, PileRadiusMm = 1500,
             };
         }
@@ -78,10 +78,19 @@ namespace TBD.Units
             SP = sp; Night = new NightGame(np, seed ^ 0x5A5A); Units = new UnitsWorld(seed); _rng = new IRng(seed ^ 0xC0FFEE);
             Units.StockShots = ammoU * WeaponCatalog.ShotsPerU; MaterialsU = materialsU; FuelU = fuelU;
             WallHp = sp.WallHp; Night.P.StationHp = sp.StationHp; Night.StationHp = sp.StationHp; Night.P.StationDmgPerZombieS = sp.StationDmgPerZombieS;
+            // NightSim abstrae el edificio como el punto al que convergen los zombis (StationX/Y): su «edificio» es una caja de ±3,5 m alrededor; el tren es el real (andén)
+            Night.P.StationRect = new RectMm(sp.StationX - 3500, sp.StationY - 3500, sp.StationX + 3500, sp.StationY + 3500);
             for (int w = 0; w < np.Waves.Length; w++) Waves.Add(new WaveStats { Wave = w + 1, StartTick = Night.WaveStartTick(w), HourAtStart = (np.StartHour + np.Waves[w].StartMinute / 60) % 24, MinuteAtStart = np.Waves[w].StartMinute % 60 });
         }
 
         /// <summary>Crea la noche a partir del texto de noche_sagunto.json de Hugo (D-N74). «difficulty»: facil, normal o dificil (null = la del JSON).</summary>
+        static StarTier Tier(Dictionary<string, object> d)
+        {
+            var t = new StarTier { IntegrityMinPm = (int)(long)d["integridad_min_permil"], WallMinPm = (int)(long)d["muro_min_permil"], MaxLosses = (int)(long)d["bajas_max"], AmmoMinMilliU = (int)(long)d["municion_min_permil_u"] };
+            object nv; if (d.TryGetValue("sin_vehiculos_perdidos", out nv) && nv is bool) t.NoVehiclesLost = (bool)nv;
+            return t;
+        }
+
         public static NightSim FromJson(string json, string difficulty = null, uint seed = 1)
         {
             var root = Mini.Parse(json) as Dictionary<string, object>;
@@ -97,19 +106,30 @@ namespace TBD.Units
                 np.Waves[i] = new WaveSpec { StartMinute = (int)(long)o["minuto_juego"], Zombies = (int)(long)o["total"], ArrivalSeconds = (int)(long)o["llegada_s_reales"],
                     EntryCount = new[] { (int)(long)pe["O1"], (int)(long)pe["O2"], (int)(long)pe["O3"], (int)(long)pe["O4"] } };
             }
+            var res0 = root.ContainsKey("resultados") ? root["resultados"] as Dictionary<string, object> : null;
+            var est = res0 != null && res0.ContainsKey("estrellas") ? res0["estrellas"] as Dictionary<string, object> : null;
+            if (est != null) np.Stars = new StarRules { Two = Tier(est["dos"] as Dictionary<string, object>), Three = Tier(est["tres"] as Dictionary<string, object>) };
             var rec = (Dictionary<string, object>)root["recursos_iniciales"];
             return new NightSim(np, NightSimParams.Default(), (int)(long)rec["municion_u"], (int)(long)rec["materiales_u"], (int)(long)rec["combustible_u"], seed);
         }
 
         /// <summary>Los cinco pelotones de la noche, dentro del recinto junto al muro oeste.</summary>
+        /// <summary>Fuerza de salida repartida (calibración de Hugo, nightsim-calibracion.md): los del centro cubren los dos muros y los lanzagranadas no quedan a menos de su mínimo.</summary>
         public void AddDefaultForce()
         {
-            int x = SP.FortX0 + 9000, y0 = SP.FortY0 + 6000;
-            Units.AddPlatoon(PlatoonKind.Fusileros, x, y0 + 0, 0);
-            Units.AddPlatoon(PlatoonKind.Ametralladores, x, y0 + 10000, 0);
-            Units.AddPlatoon(PlatoonKind.Granaderos, x + 6000, y0 + 20000, 0);
-            Units.AddPlatoon(PlatoonKind.Tiradores, x + 12000, y0 + 5000, 0);
-            Units.AddPlatoon(PlatoonKind.Zapadores, x + 12000, y0 + 25000, 0);
+            Units.AddPlatoon(PlatoonKind.Fusileros, 86000, 56000, 0);
+            Units.AddPlatoon(PlatoonKind.Granaderos, 113000, 64500, 0);
+            Units.AddPlatoon(PlatoonKind.Ametralladores, 113000, 56000, 0);
+            Units.AddPlatoon(PlatoonKind.Tiradores, 113000, 74000, 0);
+            Units.AddPlatoon(PlatoonKind.Zapadores, 140000, 64500, 0);
+        }
+
+        /// <summary>Bot de reabastecimiento de Hugo: a cada pelotón que baja del 30 % de su dotación le pasa munición del almacén. Devuelve cuántos pelotones ha repuesto.</summary>
+        public int ResupplyBot()
+        {
+            int n = 0;
+            foreach (var p in Units.Platoons) if (p.AmmoCap > 0 && p.AmmoShots * 100 < p.AmmoCap * 30) if (Resupply(p.Id) > 0) n++;
+            return n;
         }
 
         /// <summary>Reabastece a un pelotón del almacén y lo cuenta (para las estadísticas por oleada).</summary>
@@ -135,16 +155,17 @@ namespace TBD.Units
         {
             if (Night.State != NightState.Jugando) return;
             // 1) la noche: reloj, oleadas y fin de partida (gana la derrota)
+            Night.WallPermil = SP.WallHp > 0 ? (int)((long)WallHp * 1000 / SP.WallHp) : 0;
             Night.Step(_spawns);
             var cur = Current();
             foreach (var s in _spawns) { _z.Add(new Zomb { X = s.X, Y = s.Y }); Spawned++; if (cur != null) cur.Spawned++; }
             // 2) los zombis: caminan hacia el edificio; el muro los detiene; se cuenta la pila
-            int pile = 0, speed = SP.ZombieSpeedMmS / IMath.TickRate, atStation = 0;
+            int pile = 0, speed = SP.ZombieSpeedMmS / IMath.TickRate;
             for (int i = 0; i < _z.Count; i++)
             {
                 var z = _z[i]; if (!z.Alive) continue;
                 int dx = SP.StationX - z.X, dy = SP.StationY - z.Y, d = IMath.Dist(dx, dy);
-                if (d < 3500) { atStation++; continue; }
+                if (d < 3500) continue;
                 int nx = z.X + IMath.DivR((long)dx * speed, d), ny = z.Y + IMath.DivR((long)dy * speed, d);
                 if (WallHp > 0 && !InFort(z.X, z.Y) && InFort(nx, ny))
                 {
@@ -160,7 +181,7 @@ namespace TBD.Units
             LastPile = pile;
             // 3) desgaste del muro por la pila y del edificio por los que llegan a él
             if (WallHp > 0 && pile > 0) { _wallRem += pile * SP.WallDmgPerZombieS; int dmg = _wallRem / IMath.TickRate; _wallRem %= IMath.TickRate; WallHp = Math.Max(0, WallHp - dmg); }
-            Night.Attack(atStation, 0);
+            { _targets.Clear(); for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); int aS, aT; Night.CountAttackers(_targets, out aS, out aT); Night.Attack(aS, aT); }
             // 4) los pelotones disparan; los impactos abaten
             _targets.Clear(); _ids.Clear();
             for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) { _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); }
@@ -205,11 +226,17 @@ namespace TBD.Units
         }
 
         /// <summary>Estrellas de la partida (D-N74 pendiente de Lucía): 0 si se pierde; 1 por ganar; +1 si el muro sigue en pie; +1 si no cae ningún soldado.</summary>
+        /// <summary>Estrellas (D-N104, Lucía; umbrales de Hugo en noche_sagunto.json → resultados.estrellas): ganar = 1; 2 y 3 exigen integridad, muro, bajas y munición
+        /// restante (y, en 3, ningún vehículo perdido: VehiclesLost, lo anota la zona). Se da la mayor que se cumpla; con derrota, 0.</summary>
         public int Stars()
         {
-            if (Night.State != NightState.Victoria) return 0;
-            int s = 1; if (WallHp > 0) s++; if (SoldierDeaths == 0) s++; return s;
+            int integrity = Night.State == NightState.Victoria ? Night.Report.IntegrityPermil : Night.IntegrityPermil;
+            int wall = Night.State == NightState.Victoria ? Night.Report.WallPermil : Night.WallPermil;
+            return Night.P.Stars.Stars(Night.State, integrity, wall, SoldierDeaths, AmmoMilliU(), VehiclesLost > 0);
         }
+        /// <summary>Munición restante en milésimas de u: almacén + dotación de los pelotones que siguen vivos (D-N77).</summary>
+        public int AmmoMilliU() { long shots = Units.StockShots; foreach (var p in Units.Platoons) if (p.AliveCount() > 0) shots += p.AmmoShots; return (int)(shots * 1000 / WeaponCatalog.ShotsPerU); }
+        public int VehiclesLost;
 
         public ulong Hash()
         {

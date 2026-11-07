@@ -35,3 +35,19 @@ Las estadísticas (`InfCatalog.Table`) son de partida; Hugo las calibra.
   `AddDefaultForce()`, órdenes en `sim.Units` (Move, AttackMove, Hold, DeployAt, SetFormation, SetHoldFire), `sim.Resupply(id)` (cuenta recargas), `Run(n)` / `Step()`, `Snapshot()` (hora, zombis, munición restante, pila contra el muro, bajas, recargas),
   `Waves[i]` (estadísticas por oleada) y `Stars()`. **La «zona» es una abstracción mínima y provisional** (`NightSimParams`: velocidad del zombi, desgaste del muro por la pila, contacto con soldados): sirve para medir munición y equilibrio relativo sin ventana, no sustituye a la zona de Unity.
 - Mundo continuo: al amanecer `NightGame` pasa a `Victoria` = noche cerrada con su `Report`; el reloj sigue y no entra nadie. `BeginNextNight(params)` abre la siguiente. Solo la derrota acaba la partida.
+
+## Daño de los zombis y vida del edificio y del tren (7-nov, 00:20)
+
+**Soldados** — `UnitsWorld.ZombieContact(IList<Target> zombies, int radiusMm, int dmgPerTick, ContactResult res)`. Proximidad pura y sin azar, la misma regla que
+la zona (`balance_combate`: `cuerpo_a_cuerpo_mm` 900, `zombi_danio_tick` 2): cada zombi a ≤ radio de un soldado le quita `dmgPerTick` de vida ese tick; un zombi
+toca a todos los soldados de su radio. Un soldado tiene 100 de vida: con 4000 de vida (D-N107) un zombi lo abate en 2000 ticks (67 s) y tres en 667. Se llama UNA vez por tick, después de
+`Step` (disparo) y de mover a los zombis. Devuelve los caídos; `res.Fallen` dice (pelotón, soldado, X, Y) para la animación. `Platoon.Losses` cuenta las bajas
+y entra en el hash y el guardado. No depende del orden de la lista (probado). Coste medido: 0,16 ms por tick con 10.000 zombis y 40 soldados (dotnet, Release).
+Parámetros por defecto en `NightParams.ContactRadiusMm/ContactDmgPerTick` (CSV: `noche_contacto_mm`, `noche_contacto_danio_tick`).
+Ojo: esta regla es mucho más letal que la ‰ de Hugo en NightSim (antes 14 ‰ por zombi·s; ahora 60 de vida por zombi·s). NightSim ya usa la del juego.
+
+**Edificio y tren** — `NightGame.StationHp` (60.000) y `TrainHp` (40.000), con `P.StationDmgPerZombieS`/`TrainDmgPerZombieS` = 20 por zombi y segundo (VALORES DE
+DISEÑO SIN MEDIR; el del tren es provisional). Cada tick: `Attack(zombisPegadosAlEdificio, zombisPegadosAlTren)` y después `Step(spawns)` (sin booleanos: usa su vida).
+En cuanto una vida llega a 0, el siguiente `Step` es derrota (`EndedByStation`/`EndedByTrain`; gana a las 06:00). `RepairStation/RepairTrain(hp)` suben sin pasar del máximo.
+Vida, desgaste fraccionario y guardado entran en el hash. CSV: `noche_estacion_vida`, `noche_tren_vida`, `noche_estacion_danio_zombi_s`, `noche_tren_danio_zombi_s`.
+Quién cuenta «pegados»: la zona (los zombis a menos de X m de la fachada o del tren; la cifra de X es de Marcos y Lucía). La simulación solo suma.
