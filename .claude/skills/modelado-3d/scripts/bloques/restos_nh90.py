@@ -12,13 +12,14 @@ Hijo «Humo»: su origen es el foco del incendio (la joroba de los motores, o la
 import math, os
 from mathutils import Vector
 import nh90 as N
-from restos import Restos, COLORES_RESTOS, separar_restos, Rx, Ry, Rz, T
+from restos import Restos, COLORES_RESTOS, COLORES_LOD1_RESTOS, separar_restos, Rx, Ry, Rz, T
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 ASPECTO = VAR % 5
 PIEZAS = N.PIEZAS
 COLORES = dict(N.COLORES, optica="48403c", interior="48403c", goma="48403c", **COLORES_RESTOS)
-VALOR_PIEZAS = {"casco": ("88885c", "70784c", "50541c")}
+VALOR_PIEZAS = {"casco": ("88885c", "70784c", "88885c")}
+COLORES_LOD1 = COLORES_LOD1_RESTOS     # 7-nov: sombras fuera de L* < 20
 FACCION = "neutro"
 PRESUPUESTO = {0: (600, 6000), 1: (300, 3000)}
 UMBRAL_CONTORNO = {0: 0.06, 1: 0.25}
@@ -68,8 +69,7 @@ def construir(nombre="SM_RestosNH90", lod=0):
     r.borrar(r.caras(lambda f, p, c: p == "disco"))
     palas = _palas(r)
     tren = r.islas(r.caras(lambda f, p, c: p == "goma"))
-    if a != 1:
-        r.borrar(tren)                                 # tren aplastado: queda sobre la panza
+    r.borrar(tren)                                     # neumáticos calcinados (K8); en la 0, tren aplastado sobre la panza
     if a == 0:
         for k, cs in palas.items():
             _doblar(r, cs, 0.09 + 0.03 * k)

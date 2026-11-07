@@ -10,14 +10,15 @@ Hijo «Humo»: su origen es el foco del incendio (el compartimento del motor, de
 """
 import os
 import dragon_v5 as D
-from restos import Restos, COLORES_RESTOS, separar_restos, Rx, Ry, Rz, T
+from restos import Restos, COLORES_RESTOS, COLORES_LOD1_RESTOS, separar_restos, Rx, Ry, Rz, T
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 ASPECTO = VAR % 5
 PIEZAS = D.PIEZAS
 COLORES = dict(D.COLORES, goma="48403c", optica="48403c", metal="48403c", foco="48403c", visor="94948c",
                **COLORES_RESTOS)
-VALOR_PIEZAS = {"casco": ("88885c", "70784c", "50541c"), "torre": ("88885c", "70784c", "50541c")}
+VALOR_PIEZAS = {"casco": ("88885c", "70784c", "88885c"), "torre": ("88885c", "70784c", "88885c")}
+COLORES_LOD1 = COLORES_LOD1_RESTOS     # 7-nov: sombras fuera de L* < 20
 FACCION = "neutro"
 PRESUPUESTO = {0: (900, 8000), 1: (400, 4000)}
 UMBRAL_CONTORNO = {0: 0.06, 1: 0.25}
@@ -36,8 +37,7 @@ def construir(nombre="SM_RestosDragon", lod=0):
     fuego = MOTOR
     torre = r.caras(lambda f, p, c: c.z > TZ + 0.03 and abs(c.x - 0.25) < 1.0 and -3.6 < c.y < 1.15)
     canon = r.caras(lambda f, p, c: p == "metal" and c.z > TZ + 0.3 and c.y < -0.8 and abs(c.x - 0.25) < 0.3)
-    if a == 0:
-        r.borrar(r.caras(lambda f, p, c: p == "goma" and abs(c.x) > 1.0))
+    r.borrar(r.caras(lambda f, p, c: p == "goma" and abs(c.x) > 1.0))   # neumáticos calcinados en todas (K8)
     if a == 1:                                         # torre arrancada: cae al suelo a la izquierda (+X), volcada
         r.mover(r.islas(torre), T(3.2, 0.8, -TZ + 0.05) @ Rz(70, TORRE) @ Ry(-110, (1.1, 0.12, TZ)))
         r.caja((0.25, 0.12, TZ + 0.04), (1.3, 1.4, 0.04), "hollin")          # hueco de la torre (placa oscura)

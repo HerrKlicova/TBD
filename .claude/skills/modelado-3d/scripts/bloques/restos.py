@@ -10,12 +10,26 @@ quemado 94948c (la chapa calcinada se queda gris ceniza), hollín 605c48 (centro
 Jerarquía: SM_…_LODn (los restos) y un hijo «Humo» (un rombo pequeño de ceniza; su ORIGEN es el foco del incendio,
 para colgar el VFX). Origen de los restos en el suelo, en el punto donde estaba el origen del vehículo.
 """
-import math
+import math, os
 import bmesh
 from mathutils import Vector, Matrix
 
 NUEVAS = ["quemado", "hollin", "oxido", "ceniza"]
-COLORES_RESTOS = {"quemado": "94948c", "hollin": "605c48", "oxido": "845c28", "ceniza": "b8b8b8"}
+# 7-nov (Teo 2), repaso con las fotos K8 de Paula y el color que midió Bruno: la chapa recién quemada sale casi blanca
+# (L* 71-87) con churretes de hollín (L* 22-45); la oxidada tira a óxido 7c3c18 y tostado a86c50; los neumáticos
+# desaparecen y queda la llanta. En el oxidado, la chapa sigue en ceniza 94948c y el óxido va en las caras de arriba
+# (con a86c50 de fondo salía una losa naranja). Dos estados por variante (pares, recién quemado; impares, oxidado). El óxido ya no es
+# 845c28, que es el color del llano. La ceniza b8b8b8 solo está en el rombo del Humo (no es una pieza larga).
+_VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
+ESTADO = "reciente" if _VAR % 2 == 0 else "oxidado"
+PALETAS_RESTOS = {
+    "reciente": {"quemado": "d4d0cc", "hollin": "605c48", "oxido": "a86c50", "ceniza": "b8b8b8"},
+    "oxidado": {"quemado": "94948c", "hollin": "605c48", "oxido": "7c3c18", "ceniza": "b8b8b8"},   # a86c50 de fondo era una losa naranja
+}
+COLORES_RESTOS = PALETAS_RESTOS[ESTADO]
+# D-N80 en las vistas de juego del LOD1: lo que queda en 48403c (gomas, ópticas, metal) cae a L* 19 en sombra
+COLORES_LOD1_RESTOS = {"goma": "605c48", "optica": "605c48", "metal": "605c48", "foco": "605c48", "interior": "605c48",
+                       "arma": "605c48"}
 
 
 def _h(v, k=0):
@@ -93,6 +107,9 @@ class Restos:
     def quemar(self, fuego, radio, piezas_no=("optica",)):
         """Parches: cerca del foco, hollín y quemado; más lejos, óxido y quemado a manchas; los cristales, hollín."""
         fx = Vector(fuego)
+        nucleo = radio                   # el hollín del foco no crece con el radio
+        radio *= 1.8                     # K8: el fuego se come toda la pintura; apenas quedan restos lejos del foco
+        u_ox = 0.45 if ESTADO == "oxidado" else 0.62
         for f in self.bm.faces:
             p = self.mats[f.material_index]
             if p in NUEVAS:
@@ -100,16 +117,21 @@ class Restos:
             c = f.calc_center_median()
             d = (c - fx).length / radio
             r = _h(c, 7)
+            vertical = abs(f.normal.z) < 0.35
+            arriba = f.normal.z > 0.5            # D-N80: el óxido 7c3c18 en una cara en sombra cae a L* 19
             if p in piezas_no:
                 f.material_index = self.mat("hollin")
-            elif d < 0.35 and r < 0.5:
+            elif (c - fx).length / nucleo < 0.35 and r < 0.5:
                 f.material_index = self.mat("hollin")
+            elif d < 1.0 and f.calc_area() < 0.4 and (r > 0.7 if vertical else r > 0.88):
+                f.material_index = self.mat("hollin")            # churretes y manchas de hollín (K8_1, K8_3)
             elif d < 0.8:
-                f.material_index = self.mat("quemado") if r < 0.85 or f.calc_area() > 0.4 else self.mat("oxido")
+                f.material_index = self.mat("quemado") if r < u_ox or f.calc_area() > 0.4 or not arriba \
+                    else self.mat("oxido")
             elif d < 1.3:
-                if r < 0.45:
+                if r < 0.6:
                     f.material_index = self.mat("quemado")
-                elif r < 0.53 and f.calc_area() < 0.4:
+                elif r < 0.68 and f.calc_area() < 0.4 and arriba:
                     f.material_index = self.mat("oxido")
 
     def caja(self, c, s, pieza, rz=0.0, rx=0.0, parte=0):
@@ -163,6 +185,11 @@ class Restos:
             c = sum(hs, Vector()) / len(hs)
             self.o["tbd_fuego"] = (c.x, c.y, c.z)
         bmesh.ops.recalc_face_normals(self.bm, faces=self.bm.faces)
+        # D-N80: el óxido 7c3c18 solo en caras que acaban mirando arriba (tras volcar los restos); en sombra cae a L* 19
+        io, iq = self.mat("oxido"), self.mat("quemado")
+        for f in self.bm.faces:
+            if f.material_index == io and f.normal.z < 0.5:
+                f.material_index = iq
         self.bm.to_mesh(self.o.data)
         self.bm.free()
         self.o.data.update()

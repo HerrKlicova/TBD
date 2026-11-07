@@ -9,13 +9,14 @@ Hijo «Humo»: su origen es el foco del incendio (el motor, bajo el capó, o la 
 """
 import os
 import vamtac_v2 as V
-from restos import Restos, COLORES_RESTOS, separar_restos, Rx, Ry, Rz, T
+from restos import Restos, COLORES_RESTOS, COLORES_LOD1_RESTOS, separar_restos, Rx, Ry, Rz, T
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 ASPECTO = VAR % 5
 PIEZAS = V.PIEZAS
 COLORES = dict(V.COLORES, goma="48403c", optica="48403c", metal="48403c", foco="48403c", **COLORES_RESTOS)
-VALOR_PIEZAS = {"casco": ("88885c", "70784c", "50541c")}   # costados en 70784c: la sombra fuera de la banda de la horda
+VALOR_PIEZAS = {"casco": ("88885c", "70784c", "88885c")}   # costados en 70784c: la sombra fuera de la banda de la horda
+COLORES_LOD1 = COLORES_LOD1_RESTOS     # 7-nov: sombras fuera de L* < 20
 FACCION = "neutro"                      # restos: sin el marcador de unidad propia
 PRESUPUESTO = {0: (600, 6000), 1: (300, 3000)}
 UMBRAL_CONTORNO = {0: 0.06, 1: 0.25}
@@ -36,8 +37,8 @@ def construir(nombre="SM_RestosVamtac", lod=0):
     a = ASPECTO
     fuego = MOTOR
     arma = r.caras(lambda f, p, c: c.z > V.H - 0.02 and abs(c.y + 0.1) < 0.9)
-    if a in (0, 3):                                    # neumáticos calcinados: quedan las llantas
-        r.borrar(r.caras(lambda f, p, c: p == "goma" and abs(c.x) > 0.82))
+    # neumáticos calcinados en todas las variantes (K8): quedan las llantas; la rueda que arranca la mina (v2) se salva
+    r.borrar(r.caras(lambda f, p, c: p == "goma" and abs(c.x) > 0.82 and not (a == 2 and _rueda(c, 0.98, -2.2))))
     if a == 2:                                         # mina bajo la rueda delantera izquierda (+X)
         rueda = r.caras(lambda f, p, c: p in ("goma", "llanta") and _rueda(c, 0.98, -2.2))
         r.mover(rueda, T(2.6, -2.4, -0.18) @ Rz(30, (0.98, -2.2, 0.52)) @ Ry(80, (0.98, -2.2, 0.52)))
