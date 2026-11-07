@@ -58,7 +58,7 @@ def construir(nombre="SM_RestosDragon", lod=0):
     r.humo(fuego)
     r.quemar(fuego, 4.2)
     r.apoyar()
-    r.mancha_suelo((0, -0.3), 5.0, 8.6, k=a)
+    # r.mancha_suelo((0, -0.3), 5.0, 8.6, k=a)   # 7-nov: la quita Bruno; su huella de suelo (decal) hace ese papel
     r.escombros((0, -0.3), 5.0, 10 if fino else 5, k=a + 10)
     return r.cerrar()
 

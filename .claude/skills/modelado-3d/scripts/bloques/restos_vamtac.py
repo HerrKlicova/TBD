@@ -59,7 +59,7 @@ def construir(nombre="SM_RestosVamtac", lod=0):
     if a == 4:                                         # boca abajo
         r.mover(r.todo(), Ry(178) @ Rz(12))
     r.apoyar()
-    r.mancha_suelo((0, -0.3), 4.0, 6.6, k=a)
+    # r.mancha_suelo((0, -0.3), 4.0, 6.6, k=a)   # 7-nov: la quita Bruno; su huella de suelo (decal) hace ese papel
     r.escombros((0, -0.3), 4.0, 8 if fino else 4, k=a)
     return r.cerrar()
 

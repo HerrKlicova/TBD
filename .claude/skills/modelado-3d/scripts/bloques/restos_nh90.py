@@ -109,7 +109,7 @@ def construir(nombre="SM_RestosNH90", lod=0):
     r.humo(fuego)
     r.quemar(fuego, 7.0 if a == 4 else 5.0)
     r.apoyar()
-    r.mancha_suelo((0, 0.5), 6.0, 12.0, k=a)
+    # r.mancha_suelo((0, 0.5), 6.0, 12.0, k=a)   # 7-nov: la quita Bruno; su huella de suelo (decal) hace ese papel
     r.escombros((0, 0.5), 7.0, 12 if fino else 6, k=a + 20)
     return r.cerrar()
 
