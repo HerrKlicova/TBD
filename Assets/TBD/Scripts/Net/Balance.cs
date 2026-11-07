@@ -142,6 +142,12 @@ namespace TBD.Net
             return TallerParams.FromCsv(e == null ? null : new CsvTable(e), c == null ? null : new CsvTable(c));
         }
 
+        public static ProductionParams Production()
+        {
+            var n = Read("balance_nodos.csv"); var e = Read("balance_economia.csv"); var c = Read("balance_construccion.csv");
+            return ProductionParams.FromCsv(n == null ? null : new CsvTable(n), e == null ? null : new CsvTable(e), c == null ? null : new CsvTable(c));
+        }
+
         public static StationParams Stations()
         {
             var e = Read("balance_economia.csv");

@@ -191,14 +191,18 @@ namespace TBD.Sim.Tests
                 }
                 check(Try(WithNetVersion((ushort)(NetSave.NetVersion + 1), new byte[0])) == SaveError.TooNew, "una red guardada con una versión más nueva da TooNew");
                 check(Try(WithNetVersion(0, new byte[0])) == SaveError.TooOld, "una versión antigua sin migración registrada da TooOld");
-                NetSave.NetMigrations[0] = old => { var r = new byte[old.Length - 2]; Array.Copy(old, 2, r, 0, r.Length); return r; };      // migración de prueba: la versión 0 llevaba 2 bytes de prefijo
+                // migración de prueba: la versión anterior a la actual llevaba 2 bytes de prefijo (se sustituye la migración real mientras dura la prueba;
+                // la real, 1 → 2 de la producción, tiene su propia prueba en ProduccionTests)
+                ushort vPrev = (ushort)(NetSave.NetVersion - 1);
+                NetSave.NetMigrations.TryGetValue(vPrev, out var realMig);
+                NetSave.NetMigrations[vPrev] = old => { var r = new byte[old.Length - 2]; Array.Copy(old, 2, r, 0, r.Length); return r; };
                 try
                 {
                     var l = NetScenario.Mvp(false); SaveInfo mi = null; SaveError e = SaveError.None;
-                    try { mi = NetSave.Load(WithNetVersion(0, new byte[] { 0xAB, 0xCD }), l); } catch (SaveException ex) { e = ex.Error; }
-                    check(e == SaveError.None && mi != null && mi.Migrated && mi.NetVersion == 0 && DeepDiff(w, l) == null, "con una migración registrada, una partida de la versión 0 se migra y carga idéntica (Migrated = true)");
+                    try { mi = NetSave.Load(WithNetVersion(vPrev, new byte[] { 0xAB, 0xCD }), l); } catch (SaveException ex) { e = ex.Error; }
+                    check(e == SaveError.None && mi != null && mi.Migrated && mi.NetVersion == vPrev && DeepDiff(w, l) == null, $"con una migración registrada, una partida de la versión {vPrev} se migra y carga idéntica (Migrated = true)");
                 }
-                finally { NetSave.NetMigrations.Remove(0); }
+                finally { if (realMig != null) NetSave.NetMigrations[vPrev] = realMig; else NetSave.NetMigrations.Remove(vPrev); }
 
                 // otro mapa
                 Func<NetWorld> other = () => { var o = NetScenario.Mvp(false); o.Graph.AddNode("Utopía", 10, 10); return new NetWorld(o.Graph); };

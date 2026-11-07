@@ -10,7 +10,7 @@ namespace TBD.Sim.Tests
     {
         static NetWorld World(bool chispas = false)
         {
-            var w = NetScenario.Mvp(false); w.Services.Clear();            // sin trenes del escenario: no tocan las existencias de Sagunto
+            var w = NetScenario.Mvp(false); w.Services.Clear(); w.ProductionEnabled = false;   // sin trenes del escenario ni producción: nadie más toca las existencias de Sagunto
             if (!chispas) w.Taller.ChispasAt = -2;                    // sin Chispas: plazos del CSV tal cual
             return w;
         }
@@ -67,7 +67,7 @@ namespace TBD.Sim.Tests
             int peopleBefore = S(wc, Res.Personas);
             Steps(wc, day3 - 1); bool nb2 = wc.Services.Count == 1; wc.Step();
             check(nb2 && wc.Services.Count == 2 && wc.Services[1].Train.Id == 2 && !wc.Services[1].WorksTrain, $"fabricar un tren tarda 3 días ({day3} ticks) aunque Chispas esté en el taller: no acelera la fabricación");
-            check(peopleBefore == 170 - 10 - 10, "un tren nuevo toma 10 de tripulación de la población al encargarse (el Tren 3 ya había tomado otros 10)");
+            check(peopleBefore == 80 - 10 - 10, "un tren nuevo toma 10 de tripulación de la población al encargarse (el Tren 3 ya había tomado otros 10)");
 
             // Chispas fuera del taller: no acelera las rehabilitaciones
             var wl = World(true); wl.Taller.ChispasAt = 0;              // en un tren (índice 0)
@@ -121,20 +121,20 @@ namespace TBD.Sim.Tests
 
             // cancelar: sin empezar, el 100 % de lo pagado; empezado, floor(50 % de lo pagado) (D-N59, igual que las obras)
             var wx = World(); wx.OrderTrain(TallerKind.RehabObras); wx.OrderTrain(TallerKind.Carga);
-            check(wx.CancelTrainOrder(1) == TallerResult.Ok && S(wx, Res.Materiales) == 700 - 20 && S(wx, Res.Combustible) == 1400 - 5 && S(wx, Res.Personas) == 170 && wx.Taller.Queue.Count == 1, "cancelar un encargo sin empezar devuelve el 100 %, tripulación incluida");
+            check(wx.CancelTrainOrder(1) == TallerResult.Ok && S(wx, Res.Materiales) == 700 - 20 && S(wx, Res.Combustible) == 1400 - 5 && S(wx, Res.Personas) == 80 && wx.Taller.Queue.Count == 1, "cancelar un encargo sin empezar devuelve el 100 %, tripulación incluida");
             check(Count(wx, "TL-3") == 0, "sin empezar no hay aviso de recuperación");
             Steps(wx, 10_800);
             check(wx.CancelTrainOrder(0) == TallerResult.Ok, "se puede cancelar el que está en marcha");
-            check(S(wx, Res.Materiales) == 700 - 20 + 10 && S(wx, Res.Combustible) == 1400 - 5 + 2 && S(wx, Res.Personas) == 170, "empezado, devuelve floor(50 % de lo pagado): +10 u de 20 y +2 de 5 de combustible (no la mitad de lo que falta)");
+            check(S(wx, Res.Materiales) == 700 - 20 + 10 && S(wx, Res.Combustible) == 1400 - 5 + 2 && S(wx, Res.Personas) == 80, "empezado, devuelve floor(50 % de lo pagado): +10 u de 20 y +2 de 5 de combustible (no la mitad de lo que falta)");
             check(Count(wx, "TL-3") == 1 && wx.Intel.First(e => e.Id == "TL-3").Vars[3] == "10", "al cancelar con la obra en marcha avisa (TL-3: recuperamos 10 u)");
             check(wx.OrderTrain(TallerKind.RehabObras) == TallerResult.Ok && wx.CancelTrainOrder(7) == TallerResult.EncargoInexistente, "un rehabilitado cancelado se puede volver a encargar; un encargo que no existe se rechaza");
             var wy = World(); wy.OrderTrain(TallerKind.Carga); Steps(wy, 1000); int pm = S(wy, Res.Materiales);
             wy.CancelTrainOrder(0);
-            check(S(wy, Res.Materiales) == pm + 60 && S(wy, Res.Personas) == 170, "un tren nuevo empezado devuelve 60 de 120 u y la tripulación entera de 10");
+            check(S(wy, Res.Materiales) == pm + 60 && S(wy, Res.Personas) == 80, "un tren nuevo empezado devuelve 60 de 120 u y la tripulación entera de 10");
             var wz = World(); wz.OrderTrain(TallerKind.RehabTren3); wz.OrderTrain(TallerKind.Obras);
-            check(S(wz, Res.Personas) == 160, "el Tren 3 toma 10 de tripulación y un tren de obras (nuevo) no toma ninguna al encargarse: sus 8 obreros son su tripulación (Hugo)");
+            check(S(wz, Res.Personas) == 70, "el Tren 3 toma 10 de tripulación y un tren de obras (nuevo) no toma ninguna al encargarse: sus 8 obreros son su tripulación (Hugo)");
             wz.CancelTrainOrder(0);
-            check(S(wz, Res.Personas) == 170, "cancelar el Tren 3 sin empezar devuelve sus 10 de tripulación");
+            check(S(wz, Res.Personas) == 80, "cancelar el Tren 3 sin empezar devuelve sus 10 de tripulación");
 
             // órdenes: grabadas y repetidas igual; el hash cambia con el encargo y coincide entre mundos
             var ha = World(); var hb = World();

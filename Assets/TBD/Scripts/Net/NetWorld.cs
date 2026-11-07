@@ -333,7 +333,7 @@ namespace TBD.Net
     }
 
     // ================================================================== mundo S0
-    public sealed class NetWorld
+    public sealed partial class NetWorld
     {
         public readonly RailGraph Graph;
         public readonly List<TrainService> Services = new List<TrainService>();
@@ -344,6 +344,7 @@ namespace TBD.Net
         public readonly StationState Stations;     // hito 5: qué emplazamientos están fundados (flag dentro del hash, sin nodos en caliente)
         public readonly TallerState Taller;        // hito 5, paso 5: la cola del taller de Sagunto (dentro del hash, en «existencias»)
         public readonly ObrasState Works;          // hito 5: lo construido en cada nodo (dentro del hash, en «existencias»)
+        public readonly ProductionState Production; // producción diaria y tope del almacén (Produccion.cs; dentro del hash, en «existencias»)
         public long Tick;
         public int Speed = 1;                       // 1, 2 o 4 ticks por paso de 1/30 s
         public bool Paused;
@@ -411,6 +412,7 @@ namespace TBD.Net
             w.Int(Alerts == null ? -1 : Alerts.Count);
             if (Alerts != null) foreach (var a in Alerts) { w.Int(a.Id); w.Byte((byte)a.Kind); w.Int(a.Priority); w.Long(a.EtaTicks); w.Int(a.Subject); w.Str(a.Text); }
             Director.SaveState(w);
+            Production.SaveState(w);                    // NetVersion 2
         }
 
         public void LoadState(SaveReader r)
@@ -448,6 +450,7 @@ namespace TBD.Net
             if (n < 0) Alerts = null;
             else { Alerts = new List<Alert>(n); for (int i = 0; i < n; i++) Alerts.Add(new Alert { Id = r.Int(), Kind = (AlertKind)r.Byte(), Priority = r.Int(), EtaTicks = r.Long(), Subject = r.Int(), Text = r.Str() }); }
             Director.LoadState(r);
+            Production.LoadState(r);
             Injections.Clear(); Retirements.Clear(); LostThisTick = 0; RetiredThisTick = 0;      // datos de QA del tick: empiezan limpios
         }
 
@@ -466,6 +469,7 @@ namespace TBD.Net
             Works = new ObrasState(g.Nodes.Count, BalanceSource.Obras());
             Stations = new StationState(g, BalanceSource.Stations());
             Taller = new TallerState(g, BalanceSource.Taller());
+            Production = new ProductionState(g, BalanceSource.Production());
             Traffic = new TrafficMemory(g.Edges.Count, BalanceSource.Traffic());
             Director.P = BalanceSource.Director();
             Director.Curve = BalanceSource.Curve();
@@ -1024,6 +1028,7 @@ namespace TBD.Net
                 UpdateFromField();
             }
             Tick++;
+            if (Tick % ProductionState.HourTicks == 0) ProduceHour(); // producción de la hora (1/24 del día), hasta el tope del almacén (Produccion.cs)
             if (Tick % NetConst.DayTicks == 0) WearAndMaintain();     // mantenimiento diario de lo construido (Hugo, 1 %)
             if (Tick % NetConst.DayTicks == 0 && Traffic != null)
                 Traffic.Decay((e, slot) => Intel.Add(new IntelEntry { Tick = Tick, Id = "TR-5", Vars = new[] { "tramo", EdgeName(Graph.Edges[e]) } }));
@@ -1272,6 +1277,7 @@ namespace TBD.Net
             h += Works.Hash();
             h += Stations.Hash();
             h += Taller.Hash();
+            h += Production.Hash();
             r.Stock = h;
             h = 0;
             foreach (var e in Graph.Edges)
@@ -1311,8 +1317,10 @@ namespace TBD.Net
             // existencias iniciales (toneladas; personas = plazas)
             void Stock(string n, int mun, int comb, int mat, int per) { int i = Id(n); w.Stock[i, 0] = mun; w.Stock[i, 1] = comb; w.Stock[i, 2] = mat; w.Stock[i, 3] = per; }
             Stock("Valencia", 600, 800, 900, 300);
-            Stock("Sagunto", 200, 1400, 700, 170);              // incluye el Puerto (D-N14): combustible y acero
-            Stock("Castellón", 100, 100, 100, 80);
+            Stock("Sagunto", 200, 1400, 700, 80);               // incluye el Puerto (D-N14): combustible y acero. 80 personas (Mak, 7-nov, con la medida de Hugo: con 170 y Castellón propia solo se perdía el 1,8 %)
+            // Castellón empieza infestada, sin gente ni almacén propio (D-N124, decisión de Mak del 7-nov): se reclama el primer día con la misma orden
+            // que una fundación (FoundStation: 30 u y 12 personas desde un tren parado). Hereda el depósito de combustible (Hugo: 100 + 200 = 300 u).
+            w.Stations.P.Sites = new[] { "Nules", "Castellón" };
             Stock("Teruel", 20, 30, 40, 40);
 
             int[] T(int mun, int comb, int mat, int per) { return new[] { mun, comb, mat, per }; }
@@ -1333,6 +1341,12 @@ namespace TBD.Net
             w.Field.BlobStatic(61, 55, 5, 600);           // al norte de Castellón, tierra adentro (no en el mar)
             w.Field.BlobStatic(42, 44, 4, 500);                // paisaje: al este de Teruel, lejos de la vía
             if (saguntoWalls) SagunteStart(w);     // D-N63: Sagunto empieza con 120 u de muro ya construidas
+            if (saguntoWalls)                      // con las estructuras de partida: Castellón hereda su depósito de combustible (Hugo: 100 + 200 = 300 u)
+            {
+                int cas = Id("Castellón");
+                var dep = w.Works.Preview(cas, PieceKind.Deposito, new[] { 48_000, -44_000 }, 1000);
+                if (dep.Ok) { w.Works.Add(cas, dep); w.Works.CompleteAll(cas); }
+            }
             w.Tick = NetConst.Hours(5.5);          // el prototipo arranca a las 05:30, media hora antes del primer tren
             return w;
         }
