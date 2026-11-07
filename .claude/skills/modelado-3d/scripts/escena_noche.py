@@ -96,7 +96,11 @@ suelo(80, 66.5, 145, 71.5, "94948c", 0.3)                        # andén
 # muro de sacos (1,2 m, 1,0 m de grueso) con la puerta E4 en X 95–103 y huecos de vía en X 68 y 157
 def muro(x0, y0, x1, y1, hexcol="88885c", alto=1.2):
     caja(((x0 + x1) / 2, (y0 + y1) / 2, alto / 2), (abs(x1 - x0) or 1.0, abs(y1 - y0) or 1.0, alto), hexcol)
-muro(68, 43, 94.1, 43); muro(103.9, 43, 157, 43)                 # sur, con la puerta
+muro(68, 43, 94.1, 43)                                           # sur, con la puerta
+if CRONICA:                                                      # tramos modulares del muro (x 120–136) para la brecha
+    muro(103.9, 43, 120, 43); muro(136, 43, 157, 43)
+else:
+    muro(103.9, 43, 157, 43)
 muro(68, 87, 157, 87)                                            # norte
 muro(157, 43, 157, 62.4); muro(157, 66.6, 157, 87)               # este, con la puerta de vía cerrada
 caja((157, 64.5, 1.05), (0.4, 4.2, 2.1), "605c48")
@@ -148,6 +152,24 @@ if CRONICA:                                        # puesto de frente v2 (HESCO)
     for k, (x, y) in enumerate(pel):
         poner("infanteria/SM_Soldado_v%d_LOD0.fbx" % (k % 6), x, y, 180 if k >= 8 else (k * 53) % 360)
     poner("v2_vamtac/SM_vamtac_v2_LOD0.fbx", 36.5, 31.0, 20)
+if CRONICA:                                        # brecha (v3) con la horda empujando y reparación (v4) al lado
+    for x, v in ((122, 1), (126, 3), (130, 4), (134, 0)):
+        poner("muro_sacos/SM_MuroSacos_v%d_LOD0.fbx" % v, x, 43, 0)
+    zs = ["zombi_fino/camisa_%s/lod0/SM_zombi_fino_LOD0.fbx" % c for c in ("283440", "303424", "442c0c")]
+    zs += ["zombi_fino/variantes/%s" % d for d in sorted(os.listdir(A + "zombi_fino/variantes"))]
+    zs = [z if z.endswith(".fbx") else z + "/" + [f for f in os.listdir(A + z) if f.endswith("LOD0.fbx")][0] for z in zs]
+    k = 0
+    for fila in range(7):                                         # la horda en abanico contra la brecha, desde fuera
+        n = 4 + fila * 2
+        for i in range(n):
+            x = 126 + (i - (n - 1) / 2) * (0.75 + 0.12 * fila) + ((k * 37) % 7 - 3) * 0.06
+            y = 42.0 - fila * 0.8 - ((k * 13) % 5) * 0.08
+            if fila == 0 and abs(x - 126) > 1.2:
+                continue
+            poner(zs[k % len(zs)], x, y, 180 + ((k * 29) % 50 - 25))
+            k += 1
+    for j, (x, y, r) in enumerate(((124.6, 45.2, 200), (127.2, 45.0, 160), (125.8, 46.2, 180), (131.5, 46.4, 170))):
+        poner("infanteria/SM_Soldado_v%d_LOD0.fbx" % (j % 6), x, y, r)   # el pelotón cubriendo la brecha desde dentro
 # pueblo y huerta (contexto)
 for x, y in ((30, 92), (44, 95), (140, 100), (165, 96)):
     poner("sagunto/casa_baja/SM_casa_baja_LOD0.fbx", x, y, (x * 7) % 30)
@@ -176,6 +198,9 @@ LUCES = [((68 + 2.5, 64.5 + 15, 6), CREMA, 30, 1.0), ((68 + 2.5, 64.5 - 15, 6), 
          ((106, 38, 1.8), CREMA, 7, 0.8),                                   # baliza en trípode
          ((99, 36.5, 1.2), CREMA, 12, 0.8),
          ((209, 19.0, 1.8), CREMA, 12, 1.0), ((213, 23, 5.0), FRIO, 16, 0.6)]   # control de la carretera vieja
+if CRONICA:                                                                 # focos sobre la brecha y la reparación
+    LUCES.append(((129, 47.5, 5.0), CREMA, 13, 1.1))
+    LUCES.append(((123, 47.0, 4.0), CREMA, 9, 0.7))
 if CRONICA:                                                                 # foco del mástil del puesto y luz de la tienda
     LUCES.append(((24.2, 38.4, 5.9), CREMA, 15, 1.1))
     LUCES.append(((29.6, 41.2, 2.2), CREMA, 6, 0.6))
@@ -212,6 +237,7 @@ ENCUADRES = {
     "cronica_paso_nivel": ((57, 63, 1.2), -40, 26, 28, 1600, 900),
     "cronica_helipuerto": ((181, 43, 1), 20, 40, 44, 1600, 900),
     "cronica_puesto": ((28, 40.5, 1), -25, 34, 30, 1600, 900),
+    "cronica_brecha": ((128, 42.5, 0.8), -20, 30, 22, 1600, 900),
 }
 
 
