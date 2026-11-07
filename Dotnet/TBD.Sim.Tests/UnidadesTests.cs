@@ -248,11 +248,11 @@ namespace TBD.Sim.Tests
                     }
                 }
                 check(g.State == NightState.Victoria && g.Tick == g.TotalTicks, "si el edificio y el tren aguantan hasta las 06:00, victoria");
-                check(perWave[0] == 510 && perWave[1] == 1020 && perWave[2] == 1700 && perWave[3] == 2550 && perWave[4] == 3060 && perWave[5] == 4250 && all == 13090, $"las 6 oleadas suman exactamente 510, 1.020, 1.700, 2.550, 3.060 y 4.250 zombis al 850 ‰ ({all})");
+                check(perWave[0] == 765 && perWave[1] == 1275 && perWave[2] == 1700 && perWave[3] == 2550 && perWave[4] == 3060 && perWave[5] == 4250 && all == 13600, $"las 6 oleadas suman exactamente 765, 1.275, 1.700, 2.550, 3.060 y 4.250 zombis al 850 ‰ ({all})");
                 check(!early && firstSpawnTick == g.WaveStartTick(0) + 1 - 0 || firstSpawnTick == g.WaveStartTick(0) + 1 || firstSpawnTick > g.WaveStartTick(0), $"nadie aparece antes de su oleada (primera aparición en el tick {firstSpawnTick}, oleada 1 en {g.WaveStartTick(0)} = 22:20)");
-                var expected = new[,] { { 255, 153, 102, 0 }, { 510, 306, 204, 0 }, { 850, 510, 340, 0 }, { 1275, 765, 510, 0 }, { 1224, 918, 612, 306 }, { 1275, 1275, 850, 850 } };
+                var expected = new[,] { { 383, 229, 153, 0 }, { 638, 382, 255, 0 }, { 850, 510, 340, 0 }, { 1275, 765, 510, 0 }, { 1224, 918, 612, 306 }, { 1275, 1275, 850, 850 } };
                 bool exact = true; string got = ""; for (int a = 0; a < 6; a++) { got += $" [O{a + 1}:"; for (int b = 0; b < 4; b++) { if (perWE[a, b] != expected[a, b]) exact = false; got += (b > 0 ? "/" : "") + perWE[a, b]; } got += "]"; }
-                check(exact, "reparto por oleada y entrada EXACTO al de Hugo (noche_sagunto.json, normal): O4 cerrada en 1–4, 306 en la 5 y 850 en la 6;" + got);
+                check(exact, "reparto por oleada y entrada por cuotas exacto (pesos de noche_sagunto.json con la escala de 850 ‰): O4 cerrada en 1–4, 306 en la 5 y 850 en la 6;" + got);
                 check(!clockBad, "el reloj marca las 00:00 a las 2 h de juego (tick 7.715)");
                 check(inRect, "los zombis aparecen dentro de los rectángulos de entrada de Álvaro");
                 check(perEntry[0] == 4 * 0 + perEntry[0] && perEntry[3] == 306 + 850, $"el puente O4 se abre: 306 zombis en la oleada 5 y 850 en la 6 ({perEntry[3]} en total)");
@@ -353,6 +353,83 @@ namespace TBD.Sim.Tests
                 check(nsim.Night.TrainHp < nsim.Night.P.TrainHp || nsim.Night.State == NightState.Derrota, $"sin defensa, los zombis que llegan al andén dañan el tren (vida {nsim.Night.TrainHp} de {nsim.Night.P.TrainHp})");
             }
             {
+                // vehículos de Hugo (CSV), combustible, pila, atropello, torreta y pasajeros
+                var before = (VehicleStats[])VehicleCatalog.Table.Clone();
+                VehicleCatalog.Load(new CsvTable(TBD.Net.BalanceSource.Read("balance_unidades.csv")));
+                bool same = true; for (int i = 1; i < before.Length; i++) { var a = before[i]; var b = VehicleCatalog.Table[i]; same &= a.Hp == b.Hp && a.ArmorPm == b.ArmorPm && a.MaxFwdMmS == b.MaxFwdMmS && a.HordeSpeedMmS == b.HordeSpeedMmS && a.AccelMmS2 == b.AccelMmS2 && Math.Abs(a.MaxYawPerTick - b.MaxYawPerTick) <= 1 && a.BlockPile == b.BlockPile && a.Seats == b.Seats && a.AmmoBoardMilliU == b.AmmoBoardMilliU && a.FuelMarchE4s == b.FuelMarchE4s && a.FuelIdleE4s == b.FuelIdleE4s && a.TankU == b.TankU && a.RunOverMinMmS == b.RunOverMinMmS && a.RunOverPm == b.RunOverPm; }
+                VehicleCatalog.Reset();
+                check(same, "los valores por defecto de VAMTAC, Dragón y Pizarro coinciden con balance_unidades.csv (vida, armadura, velocidades, pila, plazas, munición, combustible, atropello)");
+                var dr = VehicleCatalog.Get(VehicleKind.Dragon);
+                check(dr.Hp == 4000 && dr.ArmorPm == 990 && dr.MaxFwdMmS == 12000 && dr.Seats == 8 && dr.TankU == 8 && dr.Mounts.Length == 2 && dr.Mounts[0] == WeaponId.Canon30 && !dr.Tracked, "el Dragón: 8×8 de ruedas, 4000 de vida, armadura 99 %, 12 m/s, 8 plazas, depósito de 8 u, cañón de 30 mm y ametralladora ligera");
+                // aceleración y combustible: 100 s a fondo = 1,2 u/min × 1,67 min = 2 u (20.000 E4)
+                var v = new Vehicle(1, VehicleKind.Dragon, 0, 0, 0); v.Controls(1000, 0, 0);
+                for (int t = 0; t < 3000; t++) v.Step();
+                check(v.SpeedMmS == 12000 && v.FuelUsedE4 >= 19_900 && v.FuelUsedE4 <= 20_100 && v.FuelE4 == 80_000 - v.FuelUsedE4, $"el Dragón llega a 12 m/s y gasta 1,2 u/min en marcha: {v.FuelUsedE4 / 10_000.0:0.00} u en 100 s");
+                var idle = new Vehicle(2, VehicleKind.Dragon, 0, 0, 0); for (int t = 0; t < 1800; t++) idle.Step();
+                check(idle.FuelUsedE4 >= 3_550 && idle.FuelUsedE4 <= 3_650, $"parado con el motor encendido gasta 0,36 u/min: {idle.FuelUsedE4 / 10_000.0:0.000} u en 60 s");
+                idle.SetEngine(false); long f0 = idle.FuelE4; for (int t = 0; t < 600; t++) idle.Step();
+                check(idle.FuelE4 == f0, "con el motor apagado no gasta nada");
+                // sin combustible: se queda inmóvil, y repostar lo devuelve a la vida
+                var dry = new Vehicle(3, VehicleKind.Dragon, 0, 0, 0); dry.FuelE4 = 150; dry.Controls(1000, 0, 0);
+                for (int t = 0; t < 600; t++) dry.Step();
+                check(dry.OutOfFuel && !dry.EngineOn && dry.SpeedMmS == 0 && dry.LowFuel, $"a cero de combustible el motor se apaga y el Dragón se queda inmóvil (velocidad {dry.SpeedMmS})");
+                int taken = dry.Refuel(1_000_000); dry.SetEngine(true); dry.Controls(1000, 0, 0); for (int t = 0; t < 120; t++) dry.Step();
+                check(taken == 80_000 - 0 - 0 + (80_000 - taken) * 0 && dry.SpeedMmS > 3000 && !dry.LowFuel, $"repostar mete lo que cabe ({taken / 10_000.0:0.0} u) y vuelve a rodar");
+                // pila delante y horda suelta
+                var pv = new Vehicle(4, VehicleKind.Dragon, 0, 0, 0); pv.Controls(1000, 0, 0); pv.PileAhead = 2; for (int t = 0; t < 300; t++) pv.Step(); int moved2 = pv.X;
+                var pb = new Vehicle(5, VehicleKind.Dragon, 0, 0, 0); pb.Controls(1000, 0, 0); pb.PileAhead = 3; for (int t = 0; t < 300; t++) pb.Step();
+                var vm = new Vehicle(6, VehicleKind.Vamtac, 0, 0, 0); vm.Controls(1000, 0, 0); vm.PileAhead = 2; for (int t = 0; t < 300; t++) vm.Step();
+                check(moved2 > 30_000 && pb.X == 0 && pb.SpeedMmS == 0 && vm.X == 0, $"con pila 2 el Dragón avanza ({moved2 / 1000} m), con 3 se para en seco y el VAMTAC ya se para con 2");
+                var hv = new Vehicle(7, VehicleKind.Dragon, 0, 0, 0); hv.Controls(1000, 0, 0); hv.InHorde = true; for (int t = 0; t < 400; t++) hv.Step();
+                check(hv.SpeedMmS == 4000, $"a través de horda suelta el Dragón no pasa de 4 m/s ({hv.SpeedMmS})");
+                // daño de contacto con armadura: Hugo dice que un VAMTAC con 24 zombis pegados cae en unos 28 s
+                var vt = new Vehicle(8, VehicleKind.Vamtac, 0, 0, 0); int ticks = 0; while (vt.Hp > 0 && ticks < 100000) { vt.TakeContact(24, 2); ticks++; }
+                var dt = new Vehicle(9, VehicleKind.Dragon, 0, 0, 0); int dticks = 0; while (dt.Hp > 0 && dticks < 100000) { dt.TakeContact(24, 2); dticks++; }
+                check(Math.Abs(ticks / 30.0 - 27.8) < 0.6 && dticks > 8000, $"con 24 zombis pegados el VAMTAC (armadura 95 %) cae en {ticks / 30.0:0.0} s y el Dragón (99 %) aguanta {dticks / 30.0:0.0} s");
+                // atropello: a ≥ 3 m/s abate al 50 %; más despacio solo empuja
+                var rv = new Vehicle(10, VehicleKind.Dragon, 0, 0, 0); rv.Controls(1000, 0, 0); for (int t = 0; t < 300; t++) rv.Step();
+                var crowd = new List<Target>(); for (int i = 0; i < 1000; i++) crowd.Add(new Target { Id = i, X = rv.X + 1000 + (i % 40) * 50, Y = rv.Y - 1000 + (i / 40) * 80 });
+                var kl = new List<int>(); int k1 = rv.RunOver(crowd, 500, kl); var kl2 = new List<int>(); int k2 = rv.RunOver(crowd, 500, kl2);
+                var slow = new Vehicle(11, VehicleKind.Dragon, 0, 0, 0); slow.Controls(200, 0, 0); for (int t = 0; t < 60; t++) slow.Step();
+                var kl3 = new List<int>();
+                int inRam = 0; foreach (var z in crowd) if (Vehicle.InRam(rv, z.X, z.Y)) inRam++;
+                check(k1 == k2 && kl.Count == kl2.Count && k1 > inRam * 40 / 100 && k1 < inRam * 60 / 100 && slow.RunOver(crowd, 500, kl3) == 0, $"a {rv.SpeedMmS / 1000} m/s el Dragón abate {k1} de los {inRam} zombis que pisa (50 %), siempre los mismos; a {slow.SpeedMmS / 1000.0:0.0} m/s no abate");
+                // torreta
+                var wv = new UnitsWorld(1); var tv = new Vehicle(12, VehicleKind.Dragon, 50_000, 50_000, 0); var res = new StepResult();
+                var zs = new List<Target>(); for (int i = 0; i < 40; i++) zs.Add(new Target { Id = 100 + i, X = 50_000 + 40_000 + (i % 8) * 600, Y = 50_000 + 35_000 + (i / 8) * 600 });
+                int ammo0 = tv.AmmoShots; int shotsFired = 0, killsT = 0; int yaw0 = tv.TurretYaw;
+                for (int t = 0; t < 300; t++) { tv.StepWeapons(wv, zs, res); shotsFired += res.Shots.Count; foreach (var h in res.Hits) { zs.RemoveAll(q => q.Id == h.TargetId); killsT++; } res.Shots.Clear(); res.Hits.Clear(); res.Blasts.Clear(); }
+                check(ammo0 == 4000 && tv.AmmoShots < ammo0 && killsT > 3 && Math.Abs(IMath.Diff(tv.TurretYaw, yaw0)) > 1000, $"la torreta automática gira hacia los zombis ({Math.Abs(IMath.Diff(tv.TurretYaw, yaw0)) * 360 / 65536}°), dispara {shotsFired} veces y abate {killsT}; munición {ammo0} → {tv.AmmoShots} disparos");
+                var empty = new Vehicle(13, VehicleKind.Dragon, 50_000, 50_000, 0); empty.FuelE4 = 0; empty.EngineOn = false; int sf = 0; var e2 = new StepResult();
+                var zs2 = new List<Target>(); for (int i = 0; i < 20; i++) zs2.Add(new Target { Id = 300 + i, X = 80_000, Y = 52_000 + i * 300 });
+                for (int t = 0; t < 120; t++) { empty.StepWeapons(wv, zs2, e2); sf += e2.Shots.Count; e2.Clear(); }
+                var wrecked = new Vehicle(14, VehicleKind.Dragon, 50_000, 50_000, 0); wrecked.Hp = 0; int sw0 = 0; for (int t = 0; t < 120; t++) { wrecked.StepWeapons(wv, zs2, e2); sw0 += e2.Shots.Count; e2.Clear(); }
+                check(sf > 0 && sw0 == 0, $"sin combustible las armas siguen disparando ({sf} disparos) y destruido no");
+                var hashBefore = wv.Hash(); var tt = new Vehicle(15, VehicleKind.Dragon, 50_000, 50_000, 0); for (int t = 0; t < 100; t++) { tt.StepWeapons(wv, zs2, e2); e2.Clear(); }
+                check(wv.Hash() == hashBefore, "los disparos de los vehículos no tocan el hash de la simulación (son locales)");
+                // pasajeros
+                var pw = new UnitsWorld(2); var pl = pw.AddPlatoon(PlatoonKind.Fusileros, 50_000, 50_000, 0); var pl2 = pw.AddPlatoon(PlatoonKind.Fusileros, 52_000, 50_000, 0);
+                var bus = new Vehicle(16, VehicleKind.Dragon, 51_000, 50_000, 0); int men = pl.AliveCount();
+                var far = new UnitsWorld(2); var plf = far.AddPlatoon(PlatoonKind.Fusileros, 90_000, 50_000, 0);
+                check(!bus.CanBoard(far, plf.Id), "un pelotón a más de 15 m no sube");
+                bus.SpeedMmS = 5000; bool moving = bus.CanBoard(pw, pl.Id); bus.SpeedMmS = 0;
+                check(!moving && bus.CanBoard(pw, pl.Id) && men <= 8, $"con el vehículo en marcha no sube; parado sí ({men} soldados, 8 plazas)");
+                bool boarded = bus.Board(pw, pl.Id); bool second = bus.Board(pw, pl2.Id);
+                check(boarded && pl.Aboard == bus.CarrierId && pw.SeatsUsed(bus.CarrierId) == men && (men == 8 ? !second : second), $"sube el primer pelotón ({men} plazas ocupadas) y el segundo {(second ? "también cabe" : "ya no cabe")}");
+                bus.Controls(1000, 0, 0); for (int t = 0; t < 300; t++) { bus.Step(); bus.CarryPassengers(pw); }
+                check(Math.Abs(pl.AX - bus.X) < 10 && Math.Abs(pl.Men[0].X - bus.X) < 10 && bus.X > 30_000, $"los pasajeros viajan con el vehículo ({bus.X / 1000} m)");
+                var cr = new ContactResult(); int hp0 = pl.Men[0].Hp; var swarm = new List<Target>(); for (int i = 0; i < 50; i++) swarm.Add(new Target { Id = i, X = bus.X, Y = bus.Y });
+                pw.ZombieContact(swarm, 900, 2, cr);
+                check(pl.Men[0].Hp == hp0, "a bordo los zombis no tocan a los soldados");
+                var stepRes = new StepResult(); int tx = pl.Men[0].X; pw.Step(swarm, stepRes);
+                check(stepRes.Shots.Count == 0 || pl.Aboard != 0, "a bordo el pelotón no dispara ni se mueve por su cuenta");
+                var sw5 = new SaveWriter(); pw.SaveState(sw5); var pwl = new UnitsWorld(0); pwl.LoadState(new SaveReader(sw5.ToArray()));
+                check(pwl.Hash() == pw.Hash() && pwl.Find(pl.Id).Aboard == bus.CarrierId, "quién va a bordo entra en el hash y en el guardado");
+                bus.Brake = 0; bus.Controls(0, 0, 1000); for (int t = 0; t < 200; t++) bus.Step();
+                bool un = bus.Unload(pw, pl.Id);
+                check(un && pl.Aboard == 0 && IMath.Dist(pl.AX - bus.X, pl.AY - bus.Y) > 6000, "al bajar, el pelotón queda detrás del vehículo y vuelve a ser suyo");
+            }
+            {
                 // la derrota gana siempre
                 var g = new NightGame(NightParams.Default(), 1); var sp = new List<SpawnPoint>();
                 while (g.Tick < g.TotalTicks - 1) g.Step(true, true, sp);
@@ -366,14 +443,14 @@ namespace TBD.Sim.Tests
                 var g4 = new NightGame(NightParams.Default(), 1); while (g4.State == NightState.Jugando) g4.Step(true, true, sp); g4.Step(false, false, sp);
                 check(g4.State == NightState.Victoria, "una vez ganada la noche, un fallo posterior no la cambia");
                 // D-N91: mundo continuo
-                check(g4.Report.Night == 1 && g4.Report.CloseTick == g4.TotalTicks && g4.Report.Spawned == 13090 && g4.Report.StationAlive && g4.Report.TrainAlive && g4.NightsSurvived == 1, "al amanecer sale el parte de la noche (noche 1, 13.090 zombis, edificio y tren en pie) y la noche queda cerrada");
+                check(g4.Report.Night == 1 && g4.Report.CloseTick == g4.TotalTicks && g4.Report.Spawned == 13600 && g4.Report.StationAlive && g4.Report.TrainAlive && g4.NightsSurvived == 1, "al amanecer sale el parte de la noche (noche 1, 13.600 zombis, edificio y tren en pie) y la noche queda cerrada");
                 int tc = g4.Tick; g4.Step(true, true, sp);
                 check(g4.State == NightState.Victoria && g4.Tick == tc + 1 && sp.Count == 0, "mundo continuo: tras ganar, el reloj sigue corriendo, no entra nadie y la partida NO termina");
                 check(g4.BeginNextNight(NightParams.Default()) && g4.State == NightState.Jugando && g4.Tick == 0 && g4.NightIndex == 2 && g4.Hour == 22, "BeginNextNight abre la noche 2: reloj a las 22:00, oleadas a cero");
                 var gd = new NightGame(NightParams.Default(), 1); gd.Step(false, true, sp);
                 check(!gd.BeginNextNight(NightParams.Default()) && gd.State == NightState.Derrota, "la derrota sí acaba la partida: no se puede abrir otra noche");
                 long cnt = 0; while (g4.State == NightState.Jugando) { g4.Step(true, true, sp); cnt += sp.Count; }
-                check(cnt == 13090 && g4.NightsSurvived == 2, "la segunda noche también reparte las 6 oleadas completas (13.090) y se cierra");
+                check(cnt == 13600 && g4.NightsSurvived == 2, "la segunda noche también reparte las 6 oleadas completas (13.600) y se cierra");
             }
             {
                 // determinismo y guardado de todo junto: pelotones + noche
@@ -418,9 +495,9 @@ namespace TBD.Sim.Tests
             {
                 string json = TBD.Net.BalanceSource.Read("noche_sagunto.json");
                 var sim = NightSim.FromJson(json, null, 7);
-                check(sim.Night.P.Waves.Length == 6 && sim.Night.WaveTotal(0) == 510 && sim.Night.WaveTotal(5) == 4250 && sim.Units.StockShots == 50 * 2000 && sim.MaterialsU == 40 && sim.FuelU == 30, "crear la noche desde noche_sagunto.json (normal): 6 oleadas de 510 a 4.250 zombis, 50 u de munición (100.000 disparos), 40 de materiales y 30 de combustible");
+                check(sim.Night.P.Waves.Length == 6 && sim.Night.WaveTotal(0) == 760 && sim.Night.WaveTotal(5) == 4250 && sim.Units.StockShots == 52 * 2000 && sim.MaterialsU == 40 && sim.FuelU == 30, "crear la noche desde noche_sagunto.json (normal): 6 oleadas de 760 a 4.250 zombis, 52 u de munición (104.000 disparos), 40 de materiales y 30 de combustible");
                 var easy = NightSim.FromJson(json, "facil", 7); var hard = NightSim.FromJson(json, "dificil", 7);
-                check(easy.Night.WaveTotal(0) == 440 && easy.Night.WaveTotal(5) == 3620 && hard.Night.WaveTotal(0) == 650 && hard.Night.WaveTotal(5) == 5450, "dificultad fácil (440…3.620) y difícil (650…5.450) desde el mismo JSON");
+                check(easy.Night.WaveTotal(0) == 650 && easy.Night.WaveTotal(5) == 3620 && hard.Night.WaveTotal(0) == 980 && hard.Night.WaveTotal(5) == 5450, "dificultad fácil (650…3.620) y difícil (980…5.450) desde el mismo JSON");
                 bool bad = false; try { Mini.Parse("{\"a\": [1, 2"); } catch (FormatException) { bad = true; }
                 check(bad && (long)((System.Collections.Generic.Dictionary<string, object>)Mini.Parse("{\"a\": -12}"))["a"] == -12, "el lector de JSON mínimo rechaza un texto truncado y lee enteros con signo");
 
@@ -435,7 +512,7 @@ namespace TBD.Sim.Tests
                 }
                 swc.Stop();
                 var snap = sim.Snapshot(); int spent = 0; foreach (var p in sim.Units.Platoons) spent += p.AmmoSpent;
-                check((snap.State == NightState.Victoria ? snap.ZombiesSpawned == 13090 : snap.ZombiesSpawned > 0 && snap.ZombiesSpawned < 13090) && snap.Kills <= snap.ZombiesSpawned && snap.Kills + snap.ZombiesAlive <= snap.ZombiesSpawned, $"balance de zombis (la noche acabó en {snap.State}): entraron {snap.ZombiesSpawned} de 13.090, abatidos {snap.Kills}, vivos {snap.ZombiesAlive}");
+                check((snap.State == NightState.Victoria ? snap.ZombiesSpawned == 13600 : snap.ZombiesSpawned > 0 && snap.ZombiesSpawned < 13600) && snap.Kills <= snap.ZombiesSpawned && snap.Kills + snap.ZombiesAlive <= snap.ZombiesSpawned, $"balance de zombis (la noche acabó en {snap.State}): entraron {snap.ZombiesSpawned} de 13.600, abatidos {snap.Kills}, vivos {snap.ZombiesAlive}");
                 check(snap.PlatoonAmmoShots + snap.StockShots + spent == ammo0, $"la munición se conserva: inicial {ammo0} = restante {snap.PlatoonAmmoShots + snap.StockShots} + gastada {spent} disparos");
                 int rs = 0, ks = 0, ds = 0; foreach (var w in sim.Waves) { rs += w.Resupplies; ks += w.Kills; ds += w.SoldierDeaths; }
                 check(rs == snap.Resupplies && rs == resup && ks == snap.Kills && ds == snap.SoldierDeaths, $"las estadísticas por oleada suman los totales (recargas {rs}, bajas enemigas {ks}, bajas propias {ds})");
@@ -443,7 +520,7 @@ namespace TBD.Sim.Tests
                 var sb = new System.Text.StringBuilder();
                 foreach (var w in sim.Waves) sb.Append($" [O{w.Wave} {w.HourAtStart:00}:{w.MinuteAtStart:00} entran {w.Spawned}, abatidos {w.Kills}, pila máx. {w.PeakPile}, bajas {w.SoldierDeaths}, recargas {w.Resupplies}, disparos {w.AmmoSpentShots}]");
                 Console.WriteLine($"         noche con la fuerza por defecto y reabastecimiento mínimo: {snap.State} a las {snap.Hour:00}:{snap.Minute:00}, estrellas {sim.Stars()}, muro {snap.WallHp}, edificio {snap.StationHp}, bajas propias {snap.SoldierDeaths} de {snap.SoldierDeaths + snap.SoldiersAlive};{sb}");
-                check(swc.Elapsed.TotalSeconds < 60, $"una noche entera (30.857 ticks, hasta 13.090 zombis) sin ventana en {swc.Elapsed.TotalSeconds:F1} s");
+                check(swc.Elapsed.TotalSeconds < 60, $"una noche entera (30.857 ticks, hasta 13.600 zombis) sin ventana en {swc.Elapsed.TotalSeconds:F1} s");
                 // determinismo de la noche entera
                 Func<uint, ulong> night = seed =>
                 {
