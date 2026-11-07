@@ -736,9 +736,35 @@ def _muestra(px, w, h, u, v):
     return px[y, x, :3]
 
 
+
+def _parche_fbx_nietos():
+    """Arregla un fallo del exportador FBX de Blender con bake_space_transform: a partir del segundo nivel de la
+    jerarquía (Canon bajo Torre, Ametralladora bajo Aro) escribe mal la transformación local (G·Lp⁻¹·G⁻¹·Lp·L·G⁻¹ en
+    vez de G·L·G⁻¹), y el hijo sale girado 90° y bajo el suelo en Unity. Con la malla horneada en el espacio FBX
+    (vértices × G), la local correcta de cualquier hijo es G·L·G⁻¹. Comprobado reimportando (Teo, 7-nov)."""
+    import io_scene_fbx.fbx_utils as fu
+    W = fu.ObjectWrapper
+    if getattr(W, "_tbd_parche", False):
+        return
+    original = W.fbx_object_matrix
+
+    def corregida(self, scene_data, rest=False, local_space=False, global_space=False):
+        par = self.parent
+        if (not global_space and par is not None and self._tag == "OB" and par._tag == "OB"
+                and not self.parented_to_armature and self.use_bake_space_transform(scene_data)
+                and par.use_bake_space_transform(scene_data) and self.bdata.type == "MESH"):
+            G = scene_data.settings.global_matrix
+            L = self.matrix_rest_local if rest else self.matrix_local
+            return G @ L @ scene_data.settings.global_matrix_inv
+        return original(self, scene_data, rest=rest, local_space=local_space, global_space=global_space)
+    W.fbx_object_matrix = corregida
+    W._tbd_parche = True
+
 def _render(obj, vista="rts", res=128, paleta=None, intensidad=0.65, fondo=(0x18, 0x1c, 0x30), contorno=True,
-            luz_on=True, umbral_contorno=0.06):
-    """Render propio: (imagen RGB, máscara del modelo, máscara del contorno)."""
+            luz_on=True, umbral_contorno=0.06, luz_color=None):
+    """luz_color: (ambiente RGB, color de la luz RGB) para ver el modelo con otra luz (p. ej. la luna de la noche v3);
+    el tono pasa a ser ambiente + color * lambert, por canal.
+    Render propio: (imagen RGB, máscara del modelo, máscara del contorno)."""
     pal = cargar_paleta() if paleta is None else paleta
     me = _malla_eval(obj)
     v, t = _tris(me)
@@ -765,10 +791,14 @@ def _render(obj, vista="rts", res=128, paleta=None, intensidad=0.65, fondo=(0x18
     luz /= np.linalg.norm(luz)
     lam = np.clip(n @ luz, 0, 1)
     tono = 0.45 + 0.55 * lam if luz_on else np.ones(len(t))
+    if luz_color is not None:
+        tono = np.asarray(luz_color[0])[None, :] + np.asarray(luz_color[1])[None, :] * lam[:, None]
+    else:
+        tono = np.repeat(tono[:, None], 3, 1)
     img = np.zeros((res, res, 3))
     img[:] = fondo
     m = ib >= 0
-    img[m] = base[ib[m]] * tono[ib[m], None]
+    img[m] = base[ib[m]] * tono[ib[m]]
     if uvt is not None and m.any():
         from PIL import Image
         tex = np.asarray(Image.open(obj["tbd_textura"]).convert("RGB")).astype(np.float64)
@@ -787,7 +817,7 @@ def _render(obj, vista="rts", res=128, paleta=None, intensidad=0.65, fondo=(0x18
         uv = (L[:, :, None] * uvt[k]).sum(1)
         cx = np.clip((uv[:, 0] * tw).astype(np.int64), 0, tw - 1)
         cy = np.clip(((1 - uv[:, 1]) * th).astype(np.int64), 0, th - 1)
-        img[py, px] = tex[cy, cx] * tono[k, None]
+        img[py, px] = tex[cy, cx] * tono[k]
     if intensidad > 0 and m.any():
         idx = indice_paleta(img[m], pal)
         img[m] = img[m] * (1 - intensidad) + pal[idx] * intensidad
@@ -1300,6 +1330,7 @@ def exportar_unity(obj, ruta, formato="FBX", armature=None, extra=()):
     for x in extra:   # hijos animables (ruedas, torre, rotores): van en el mismo FBX con su jerarquía
         x.select_set(True)
     if formato.upper() == "FBX":
+        _parche_fbx_nietos()
         bpy.ops.export_scene.fbx(filepath=ruta, use_selection=True, object_types={"MESH"},
                                  apply_scale_options="FBX_SCALE_ALL", axis_forward="-Z", axis_up="Y",
                                  bake_space_transform=True, use_mesh_modifiers=True, mesh_smooth_type="FACE",
