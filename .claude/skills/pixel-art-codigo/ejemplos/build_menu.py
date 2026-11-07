@@ -471,8 +471,71 @@ def muestra(out):
     hoja.save(out / "muestra_menu_5_variantes.png")
 
 
+# --- Piezas finales (variante A = D-N115, Mak y Lucía 07-11 01:09) --------------------------------
+def exportar(out):
+    import json
+    out = Path(out)
+    fondo("A").save(out / "ui_menu_fondo_noche.png")
+    for e in ("normal", "encima", "pulsado", "inactivo"):
+        boton("A", e, 32, 20).save(out / f"ui_menu_boton_{e}.png")
+    import build_mapa_frentes as mf
+    pan = Image.new("RGBA", (12, 12), (0, 0, 0, 0)); mf.caja(pan, 0, 0, 12, 12, "navy", "bone", "grey_brown")
+    pan.save(out / "ui_menu_panel.png")
+    sep = Image.new("RGBA", (1, 1), PAL["grey_brown"]); sep.save(out / "ui_menu_separador.png")
+    pista = Image.new("RGBA", (2, 2), (0, 0, 0, 0)); pp = pista.load()
+    pp[0, 0] = pp[1, 0] = PAL["grey_brown"]; pp[0, 1] = pp[1, 1] = PAL["olive_shadow"]
+    pista.save(out / "ui_deslizador_pista.png")
+    Image.new("RGBA", (1, 1), PAL["beige"]).save(out / "ui_deslizador_relleno.png")
+    for enc in (False, True):
+        im = Image.new("RGBA", (5, 8), (0, 0, 0, 0))
+        tmp = Image.new("RGBA", (20, 20), (0, 0, 0, 0))
+        deslizador(tmp, 2, 5, 0, 0, encima=enc)
+        im = tmp.crop((0, 2, 5, 10))
+        im.save(out / f"ui_deslizador_mando_{'encima' if enc else 'normal'}.png")
+    for on in (False, True):
+        im = Image.new("RGBA", (9, 9), (0, 0, 0, 0)); casilla(im, 0, 0, on)
+        im.save(out / f"ui_casilla_{'si' if on else 'no'}.png")
+    for d, n in ((-1, "izq"), (1, "dcha")):
+        im = Image.new("RGBA", (4, 7), (0, 0, 0, 0)); flecha(im, 0, 3, d)
+        im.save(out / f"ui_flecha_{n}.png")
+    velo = Image.new("RGBA", (4, 4), (0, 0, 0, 0)); vp = velo.load()
+    for y in range(4):
+        for x in range(4):
+            if BAYER[y][x] < 8:
+                vp[x, y] = PAL["navy"]
+    velo.save(out / "ui_velo_navy_4x4.png")
+    (out / "ui_menu.json").write_text(json.dumps({
+        "variante": "A = D-N115; sustituye a ui_menu_fondo (el atardecer)",
+        "base": [640, 360], "escala_1080": 3,
+        "fondo": {"png": "ui_menu_fondo_noche", "tamano": [640, 360]},
+        "logo": {"png": "ui_logo_via_muerta", "x": 24, "y": 24},
+        "botones": {"png": "ui_menu_boton_{normal|encima|pulsado|inactivo}", "slice": {"left": 10, "top": 3, "right": 3, "bottom": 3},
+                    "tamano": [132, 20], "x": 24, "y0": 120, "paso": 26,
+                    "orden": BOTONES, "texto": {"x": 14, "color": {"normal": "#d4d0cc", "encima": "#f0dc9c", "pulsado": "#b4a080", "inactivo": "#605c48"}},
+                    "continuar": "inactivo si no hay partida guardada"},
+        "opciones": {"velo": "ui_velo_navy_4x4 en mosaico sobre toda la pantalla", "panel": "ui_menu_panel (slice 4), 300x176 centrado",
+                     "titulo": "«Opciones» a (12, 8), 11 px, cream; separador ui_menu_separador en y 24",
+                     "filas": {"volumen": ["Volumen general", "Música", "Efectos"], "y0": 34, "paso": 20,
+                               "deslizador": "ui_deslizador_pista (estirada a 120 px) + ui_deslizador_relleno (2 px de alto en la fila 0, ancho × valor) + ui_deslizador_mando_{normal|encima} centrado en el valor; x 130",
+                               "resolucion": "y 98: ui_flecha_izq en x 130, ui_flecha_dcha en x 246, el valor centrado en x 190",
+                               "pantalla_completa": "y 118: ui_casilla_{si|no} en x 130"},
+                     "botones": "Aplicar y Volver con ui_menu_boton_*, 90x18, abajo a la derecha"},
+        "colores": "sin rojo ni ámbar; horda en 1c200c solo en sus siluetas",
+    }, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def maqueta(out):
+    out = Path(out)
+    pantalla("A").resize((1920, 1080), Image.NEAREST).save(out / "maqueta_1080_menu.png")
+    pantalla("A", True).resize((1920, 1080), Image.NEAREST).save(out / "maqueta_1080_menu_opciones.png")
+
+
 if __name__ == "__main__":
     OUT = Path(next((a for a in sys.argv[1:] if not a.startswith("--")), "out_menu"))
     OUT.mkdir(parents=True, exist_ok=True)
-    muestra(OUT)
+    if "--muestra" in sys.argv:
+        muestra(OUT)
+    else:
+        exportar(OUT)
+        maqueta(OUT)
     print("ok")

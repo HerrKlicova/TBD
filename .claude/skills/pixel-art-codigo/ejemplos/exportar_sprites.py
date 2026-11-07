@@ -56,6 +56,7 @@ import build_avisos_sara  # noqa: E402
 import build_tren_vista  # noqa: E402
 import build_mapa_frentes  # noqa: E402
 import build_vfx_nh90  # noqa: E402
+import build_menu  # noqa: E402
 
 PIVOTE = [0.5, 0.53]
 
@@ -189,6 +190,7 @@ def prototipo_noche(out):
     build_tren_vista.exportar(out)                       # vista cercana del tren (D-N110): esquema, cajas, franja y avisos
     build_mapa_frentes.exportar(out)                     # mapa de frentes de Sagunto (variante A): fondo, placas, teselas y dato de carreteras
     build_vfx_nh90.exportar(out)                         # polvo del rotor en la losa, MAG de puerta y sombra del NH90 (estilo A, sombra D)
+    build_menu.exportar(out)                             # menú principal de noche (variante A): fondo, botones y piezas de Opciones
 
 
 if __name__ == "__main__":
