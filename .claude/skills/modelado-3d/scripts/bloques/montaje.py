@@ -156,3 +156,50 @@ def separar_piezas(o, grupos):
         if "tbd_piezas" in x:
             del x["tbd_piezas"]
     return [o] + hijos
+
+
+# ---------------------------------------------------------------- capa de emisión (luces encendidas de noche)
+
+def capa_emision(o, fuentes, pieza="luz", empuje=0.015, filtro=None):
+    """Duplica las caras de las piezas «fuentes» (cristales, faros…) 1,5 cm hacia fuera, en la pieza nueva «pieza» (en
+    COLORES, el color de la luz encendida). Llamar justo después de Taller.objeto(), ANTES de marcar_piezas. Con
+    separar_piezas({"Emision": [pieza]}) sale un hijo que se enciende de noche encima de los cristales apagados.
+    filtro(centro) -> bool limita qué caras se duplican."""
+    nombres = [m.name.split(".")[0] if m else "" for m in o.data.materials]
+    idx = {i for i, n in enumerate(nombres) if n in fuentes}
+    if pieza not in nombres:
+        o.data.materials.append(bpy.data.materials.get(pieza) or bpy.data.materials.new(pieza))
+        nombres.append(pieza)
+    k = nombres.index(pieza)
+    b = bmesh.new()
+    b.from_mesh(o.data)
+    caras = [f for f in b.faces if f.material_index in idx and (filtro is None or filtro(f.calc_center_median()))]
+    r = bmesh.ops.duplicate(b, geom=caras)
+    nuevas = [g for g in r["geom"] if isinstance(g, bmesh.types.BMFace)]
+    for f in nuevas:
+        f.material_index = k
+        n = f.normal.copy()
+        for v in f.verts:
+            v.co += n * empuje
+    b.to_mesh(o.data)
+    b.free()
+    return len(nuevas)
+
+
+def anadir_cajas(o, cajas, pieza):
+    """Añade cajas [(centro, tamaño)] al objeto ya hecho, en la pieza (material) «pieza» (la crea si no está)."""
+    nombres = [m.name.split(".")[0] if m else "" for m in o.data.materials]
+    if pieza not in nombres:
+        o.data.materials.append(bpy.data.materials.get(pieza) or bpy.data.materials.new(pieza))
+        nombres.append(pieza)
+    k = nombres.index(pieza)
+    b = bmesh.new()
+    b.from_mesh(o.data)
+    for c, t in cajas:
+        r = bmesh.ops.create_cube(b, size=1.0)
+        for v in r["verts"]:
+            v.co = Vector((v.co.x * t[0] + c[0], v.co.y * t[1] + c[1], v.co.z * t[2] + c[2]))
+        for f in {f for v in r["verts"] for f in v.link_faces}:
+            f.material_index = k
+    b.to_mesh(o.data)
+    b.free()

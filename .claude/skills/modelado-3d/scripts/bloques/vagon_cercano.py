@@ -24,24 +24,45 @@ les dé emisión de noche. Jerarquía: SM_…_LODn └─ Ventanillas (solo en 0
 import math
 import os
 from taller import Taller
-from montaje import marcar_piezas, separar_piezas
+from montaje import marcar_piezas, separar_piezas, capa_emision, anadir_cajas
 import vagon_tropa_r2 as R2
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 ASPECTO = VAR % 6
 PIEZAS = ["casco", "bastidor", "rueda", "ventana", "puerta", "fuelle", "metal", "sacos", "chapa", "tablero",
-          "contenedor", "contenedor2", "cisterna", "carga", "optica"]
+          "contenedor", "contenedor2", "cisterna", "carga", "optica", "foco", "luz"]
 COLORES = {"casco": "50541c", "bastidor": "48403c", "rueda": "48403c", "ventana": "60546c", "puerta": "605c48",
            "fuelle": "48403c", "metal": "48403c", "sacos": "847c34", "chapa": "605c48", "tablero": "605c48",
            "contenedor": "6c7874", "contenedor2": "847c34", "cisterna": "94948c", "carga": "88885c",
-           "optica": "60546c"}
+           "optica": "60546c", "foco": "48403c", "luz": "f0dc9c"}
 if ASPECTO == 5:
     COLORES = dict(COLORES, contenedor="605c48")
 ABAJO_CASCO = "50541c"
 L_MIN = 28.0
 # techo b8b8b8 en los coches (D-N42, como la locomotora); canto del parapeto en 70784c en el de tropa (Lucía, R2)
 VALOR_PIEZAS = {"casco": (("70784c" if ASPECTO == 2 else "b8b8b8"), "50541c", "50541c")}
-VENTANILLAS = {"Ventanillas": ["ventana"]}
+VENTANILLAS = {"Ventanillas": ["ventana"], "Emision": ["luz"]}
+# De noche (coordinador, 7-nov 00:57: el tren se veía demasiado oscuro en la vista cercana), en el v2 y el v3: faroles
+# (pieza «foco», apagados en 48403c) y una capa «Emision» 1,5 cm por fuera en f0dc9c que Marcos enciende de noche. En
+# el de tropa se encienden también las aspilleras (la luz de los faroles de dentro). Posiciones SIN VERIFICAR.
+L2, L3 = 19.9, 19.9
+
+
+def _faroles(o):
+    if ASPECTO == 2:
+        y0, z = L2 / 2, R2.ZT + R2.HP
+        cajas = [((x, y, z + 0.14), (0.18, 0.18, 0.26)) for x in (-1.42, 1.42) for y in (-6.0, 0.0, 6.0)]
+        cajas += [((x, s * (y0 - 0.38), 0.98), (0.2, 0.08, 0.2)) for x in (-1.15, 1.15) for s in (-1, 1)]
+        fuentes = ("foco", "optica")
+    else:
+        y0 = L3 / 2
+        cajas = [((x, s * (y0 - 0.43), 0.92), (0.2, 0.08, 0.2)) for x in (-1.15, 1.15) for s in (-1, 1)]
+        # balizas en los costados del contenedor (2,44 de ancho, a 2 cm de la chapa): en la vista lateral de Marcos los
+        # faroles de las puertas quedaban tapados por el propio contenedor
+        cajas += [((x, y, 3.5), (0.08, 0.2, 0.22)) for x in (-1.28, 1.28) for y in (-5.0, 0.0, 5.0)]
+        fuentes = ("foco",)
+    anadir_cajas(o, cajas, "foco")
+    capa_emision(o, fuentes)
 # Normales inclinadas hacia arriba, como el soldado: con la luz casi cenital del juego los costados verticales (casi
 # todo lo que se ve de un contenedor o de una caja de 23 m) caían a media luz, a valores de la horda. Vale para el
 # R2 de tropa también desde el 7-nov 00:16 (Lucía: en la vista lateral del tren sus costados caían a valores de la horda).
@@ -166,7 +187,9 @@ def _cisterna(t, fino):
 
 def construir(nombre="SM_Vagon", lod=0):
     if ASPECTO == 2:
-        return marcar_piezas(R2.construir(nombre, lod))
+        o = R2.construir(nombre, lod)
+        _faroles(o)
+        return marcar_piezas(o)
     t = Taller(PIEZAS)
     fino = lod == 0
     if ASPECTO in (0, 1):
@@ -175,7 +198,10 @@ def construir(nombre="SM_Vagon", lod=0):
         _portacontenedores(t, fino, ASPECTO == 5)
     else:
         _cisterna(t, fino)
-    return marcar_piezas(t.objeto(nombre, bisel=0))
+    o = t.objeto(nombre, bisel=0)
+    if ASPECTO == 3:
+        _faroles(o)
+    return marcar_piezas(o)
 
 
 def separar(o, lod):
