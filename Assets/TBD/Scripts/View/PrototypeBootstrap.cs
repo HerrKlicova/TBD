@@ -32,6 +32,7 @@ namespace TBD.View
     public partial class PrototypeBootstrap : MonoBehaviour
     {
         // Paleta de 32 colores aprobada (docs/arte/paleta_propuesta_32.hex del proyecto de diseño)
+        public static string[] PaletteHexPublic { get { return PaletteHex; } }
         static readonly string[] PaletteHex =
         {
             "000000", "340000", "1c200c", "181c30", "4c1008", "442c0c", "303424", "283440",

@@ -365,7 +365,7 @@ namespace TBD.View
             float u = _uw.StockShots / (float)WeaponCatalog.ShotsPerU;
             GUI.Label(new Rect(20 * k, 16 * k, 900 * k, 40 * k), $"munición {u:0.0} u   ·   abatidos {_nightKills}   ·   pila {_pileNearStation}", _nStyle);
             int wv = Mathf.Max(0, CurrentWave());
-            GUI.Label(new Rect(W - 900 * k, 16 * k, 880 * k, 40 * k), $"oleada {wv + 1}/{_ng.P.Waves.Length}   ·   estación {Mathf.CeilToInt(100f * _ng.StationHp / Mathf.Max(1, _ng.StationHpMax))} %   tren {Mathf.CeilToInt(100f * _ng.TrainHp / Mathf.Max(1, _ng.TrainHpMax))} %", _nStyle);
+            GUI.Label(new Rect(W - 820 * k, 16 * k, 800 * k, 40 * k), $"oleada {wv + 1}/{_ng.P.Waves.Length}   ·   estación {Mathf.CeilToInt(100f * _ng.StationHp / Mathf.Max(1, _ng.StationHpMax))} %   tren {Mathf.CeilToInt(100f * _ng.TrainHp / Mathf.Max(1, _ng.TrainHpMax))} %", _nStyle);
             // rótulo de oleada
             if (Time.unscaledTime < _bannerUntil)
             {

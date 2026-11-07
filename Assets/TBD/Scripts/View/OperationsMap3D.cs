@@ -321,6 +321,9 @@ namespace TBD.View
         {
             if (_a == null) return;                      // entrada directa a la zona (noche o prueba): el mapa no se ha construido
             HandleInput();
+            { var kbv = UnityEngine.InputSystem.Keyboard.current; if (kbv != null && kbv.vKey.wasPressedThisFrame && !TrainCloseView.Active)
+                { int idx = 0; for (int si = 0; si < _a.Services.Count; si++) if (_a.Services[si].Train.State == RailTrainState.EnMarcha) { idx = si; break; } TrainCloseView.Toggle(idx); } }
+            if (TrainCloseView.Active) return;           // mientras dura la vista cercana, el mapa no atiende la entrada
             long fieldTick = _a.Tick / NetConst.FieldEvery;
             if (fieldTick != _lastFieldTick) { _lastFieldTick = fieldTick; UpdateTexture(); UpdateDetailTexture(); }
             UpdateNetwork();
