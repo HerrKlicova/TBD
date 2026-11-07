@@ -24,9 +24,10 @@ namespace TBD.Sim
         /// </summary>
         /// <param name="combat">Parámetros de combate (de balance_combate.csv).</param>
         /// <param name="ammoShots">Munición del tren para esta zona, en disparos equivalentes.</param>
-        public static Entity Populate(EntityManager em, int zombies, bool siege, uint seed, CombatParams combat, long ammoShots, bool hasTrain, ZoneKind kind = ZoneKind.Station, bool perimeter = true)
+        public static Entity Populate(EntityManager em, int zombies, bool siege, uint seed, CombatParams combat, long ammoShots, bool hasTrain, ZoneKind kind = ZoneKind.Station, bool perimeter = true, float trainX = float.NaN)
         {
             bool cutting = kind == ZoneKind.Cutting;
+            float tx0 = cutting ? CuttingLevel.TrainX : float.IsNaN(trainX) ? Level.TrainMinX : math.clamp(trainX, Level.TrainMinX, Level.TrainMaxX);   // trainX: dónde espera el tren (la noche lo pone en Level.TrainNightX, QA-35)
             if (cutting) hasTrain = true;                                   // la emboscada siempre es sobre un tren
             var root = em.CreateEntity(typeof(ZoneTag), typeof(SimClock), typeof(ZoneInfo), typeof(TrainState), typeof(SimHash), typeof(ZoneAmmo), typeof(CombatConfig));
             em.SetComponentData(root, new ZoneAmmo { ShotsLeft = ammoShots });
@@ -34,7 +35,7 @@ namespace TBD.Sim
             em.SetComponentData(root, new SimClock { Tick = 0, NextSimId = 1, Alpha = 1f });
             em.SetComponentData(root, new ZoneInfo { GateOpen = false, ForceFlow = true, GoalCell = 0, HasTrain = hasTrain, Kind = kind,
                 TrainMin = cutting ? CuttingLevel.TrainMinX : Level.TrainMinX, TrainMax = cutting ? CuttingLevel.TrainMaxX : Level.TrainMaxX });
-            em.SetComponentData(root, new TrainState { X = cutting ? CuttingLevel.TrainX : Level.TrainMinX, Speed = 0f, Dir = 1 });
+            em.SetComponentData(root, new TrainState { X = tx0, Speed = 0f, Dir = 1 });
 
             int n = SimConst.GridW * SimConst.GridH;
 
@@ -53,7 +54,7 @@ namespace TBD.Sim
             var solids = em.GetBuffer<Solid>(root);
             // perimeter = false: zona de la red (Sagunto con sus piezas ya construidas, D-N63): los muros y la puerta salen de Works.Snapshot (los pone la vista con BuildWall), no del perímetro fijo
             foreach (var s in cutting ? CuttingLevel.CreateSolids() : Level.CreateSolids()) { if (!perimeter && !cutting && s.Kind == 0) continue; solids.Add(s); }
-            if (hasTrain) solids.Add(Level.TrainSolid(cutting ? CuttingLevel.TrainX : Level.TrainMinX));   // D-N27: el tren empieza parado, así que es muro
+            if (hasTrain) solids.Add(Level.TrainSolid(tx0));   // D-N27: el tren empieza parado, así que es muro
 
             SolidIndex.Rebuild(solids, em.GetBuffer<SolidBucketStart>(root), em.GetBuffer<SolidBucketRef>(root));
 
