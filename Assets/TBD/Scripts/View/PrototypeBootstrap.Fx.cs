@@ -66,17 +66,24 @@ namespace TBD.View
         void NightAudio()
         {
             if (_ng == null) return;
-            float o = _orthoSize; float zf = Mathf.Clamp01((o - 14f) / 20f);
-            Sfx.Loop("sfx_amb_estacion_pequena_1", 0.5f, false);
-            Sfx.Loop("sfx_amb_viento_1", Mathf.Clamp01((o - 30f) / 40f) * 0.6f, false);
+            float o = _orthoSize; float far01 = Mathf.Clamp01((o - 14f) / 40f);
+            Sfx.Ear(_focus, o, _yaw);                                                         // oyente RTS en el foco de la camara (Nuria): todo suena en 3D con atenuacion
+            // ambiente: bajo y cada vez mas vacio al alejar la camara (Eugenio 8 y 20)
+            Sfx.Loop("sfx_amb_estacion_pequena_1", 0.22f * (1f - 0.85f * far01), false);
+            Sfx.Loop("sfx_amb_viento_1", 0.10f * far01, false);
+            // horda: solo se oye si te acercas, y bajito (Eugenio 17)
             float hv = Mathf.Min(1f, _total / 150f);
-            Sfx.Loop("sfx_horda_cerca_1", o < 14f ? hv : 0f, false); Sfx.Loop("sfx_horda_media_1", o >= 14f && o < 34f ? hv : 0f, false); Sfx.Loop("sfx_horda_lejos_1", o >= 34f ? hv : 0f, false);
-            Sfx.Loop("sfx_tren_ralenti_1", 0.25f, false);
-            bool vam = false, dra = false, heli = false;
-            foreach (var v in _vehs) { if (v.Go == null) continue; if (v.Heli) { if (v.State == 2 || v.State == 1) heli = true; } else if (Mathf.Abs(v.Speed) > 0.5f) { if (v.Name.StartsWith("Drag")) dra = true; else vam = true; } }
-            Sfx.Loop("sfx_vamtac_motor_1", vam ? 0.35f : 0f, false); Sfx.Loop("sfx_dragon_motor_1", dra ? 0.4f : 0f, false); Sfx.Loop("sfx_nh90_rotor_1", heli ? 0.5f : 0f, false);
+            Sfx.Loop("sfx_horda_cerca_1", o < 12f ? 0.22f * hv : 0f, false); Sfx.Loop("sfx_horda_media_1", 0f, false); Sfx.Loop("sfx_horda_lejos_1", 0f, false);
+            Sfx.LoopAt("tren_ralenti", "sfx_tren_ralenti_1", new Vector3(110f, 0f, 64.5f), 0.25f, 60f);
+            // motores y rotor: uno por vehiculo, en su posicion (Eugenio 19 y 21)
+            foreach (var v in _vehs)
+            {
+                if (v.Go == null) continue; var p3 = new Vector3(v.Pos.x, v.Alt, v.Pos.y);
+                if (v.Heli) Sfx.LoopAt("rotor_" + v.Name, "sfx_nh90_rotor_1", p3, (v.State == 1 || v.State == 2) ? 0.5f : 0f, 120f);
+                else Sfx.LoopAt("motor_" + v.Name, v.Name.StartsWith("Drag") ? "sfx_dragon_motor_1" : "sfx_vamtac_motor_1", p3, Mathf.Abs(v.Speed) > 0.5f ? 0.5f : 0f, 60f);
+            }
             bool attack = _ng.State == NightState.Jugando && (_pileNearStation > 0 || _nearTrain > 0);
-            if (attack && !_alarmOn && Time.unscaledTime - _alarmT > 20f) { _alarmT = Time.unscaledTime; Sfx.Play("alarma_ataque", Vector3.zero, 0.8f, 1f); }
+            if (attack && !_alarmOn && Time.unscaledTime - _alarmT > 20f) { _alarmT = Time.unscaledTime; Sfx.Play("alarma_ataque", Vector3.zero, 0.6f, 1f); }
             _alarmOn = attack;
         }
 

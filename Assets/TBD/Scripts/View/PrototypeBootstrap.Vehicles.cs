@@ -69,7 +69,13 @@ namespace TBD.View
             foreach (var v in _vehs)
             {
                 if (v.Go == null) continue;
-                if (!v.Heli) GroundStep(v, dt); else HeliStep(v, dt);
+                if (v.Heli)                                                                  // el NH90 sale solo cuando hay horda y vuelve a su plataforma cuando no queda ninguna (Eugenio: «no despega ni dispara»); la orden del jugador manda
+                {
+                    if (v.Fire && v.State == 0 && !v.HasTarget && _zomPos.Count > 30 && v.Ammo > 0.05f) { v.State = 1; v.StateT = 0f; v.Target = new Vector2(100f, 64f); v.HasTarget = true; Debug.Log("[NOCHE] NH90 despega: hay horda"); }
+                    else if (v.State == 2 && !v.HasTarget && _zomPos.Count == 0) { v.Target = v.Home; v.HasTarget = true; v.State = 3; }
+                    HeliStep(v, dt);
+                }
+                else GroundStep(v, dt);
                 if (_bot != null && !_noVehResup && v.Ammo < 0.3f && _ng != null && _ng.Tick % 30 == 0) StartVehicleResupply(v); VehicleResupply(v); VehicleFire(v, z, dt);
             }
         }
@@ -184,7 +190,7 @@ namespace TBD.View
             if (_trMat == null) { _trMat = new Material(Shader.Find("Universal Render Pipeline/Unlit")); _trMat.SetColor("_BaseColor", new Color32(0xf0, 0xdc, 0x9c, 255)); }
             SpawnTracer(new Vector3(v.Pos.x, v.Alt + (v.Heli ? 1.5f : 2.2f), v.Pos.y), new Vector3(tp.x, 0.8f, tp.y), dragon ? 150f : 200f, dragon ? 0.14f : 0.07f, dragon ? 7f : 5f);
             SpawnFlash(new Vector3(v.Pos.x, v.Alt + (v.Heli ? 1.5f : 2.2f), v.Pos.y), dragon ? 1.1f : 0.5f);
-            Sfx.PlayDist(dragon ? "canon_30" : "ametralladora", _orthoSize, 1f, dragon ? 0.5f : 0.25f); if (dragon) { Sfx.Play("impacto_30mm", Vector3.zero, 0.7f, 0.5f); Sfx.Play("cola_urbana", Vector3.zero, 0.4f, 0.5f); }
+            Sfx.PlayDistAt(dragon ? "canon_30" : "ametralladora", new Vector3(v.Pos.x, v.Alt + 2f, v.Pos.y), 1f, dragon ? 0.5f : 0.25f); if (dragon) { Sfx.Play("impacto_30mm", Vector3.zero, 0.7f, 0.5f); Sfx.Play("cola_urbana", Vector3.zero, 0.4f, 0.5f); }
         }
 
         // ---------------------------------------------------------------- atropello

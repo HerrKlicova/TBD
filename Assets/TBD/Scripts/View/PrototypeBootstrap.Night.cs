@@ -162,13 +162,20 @@ namespace TBD.View
             if (_ng.State == NightState.Derrota && !_endDismissed) return;            // derrota: el mundo se para
             _spawns.Clear();
             { var st0 = _ng.State; _ng.Attack(_pileNearStation, _nearTrain); _ng.Step(_spawns); if (st0 == NightState.Jugando && _ng.State != NightState.Jugando) NightEnded(); if (_ng.State == NightState.Derrota) return; }
+            // D-N136: una sola horda al entrar; la noche se gana al acabar con ella (sin esperar al amanecer)
+            if (_ng.State == NightState.Jugando && _ng.P.Waves.Length == 1 && _ng.Tick > _ng.WaveStartTick(0) + 450 && _spawnedTotal >= _ng.WaveTotal(0) && _total == 0)
+            {
+                _ng.State = NightState.Victoria; _ng.NightsSurvived++;
+                _ng.Report = new NightReport { Night = _ng.NightIndex, CloseTick = _ng.Tick, Spawned = _spawnedTotal, StationAlive = _ng.StationHp > 0, TrainAlive = _ng.TrainHp > 0, IntegrityPermil = _ng.IntegrityPermil, WallPermil = _ng.WallPermil };
+                NightEnded();
+            }
             playing = _ng.State == NightState.Jugando;
 
             // oleadas: líneas de registro y rótulo
             int wv = CurrentWave();
             if (playing && wv != _lastWave && wv >= 0)
             {
-                _lastWave = wv; _nightWaveTotal = _ng.WaveTotal(wv); _waveBannerT0 = Time.unscaledTime; Sfx.Play("aviso_horda", Vector3.zero, 0.7f, 1f); Sfx.Play("horda_acercandose", Vector3.zero, 0.7f, 1f);
+                _lastWave = wv; _nightWaveTotal = _ng.WaveTotal(wv); _waveBannerT0 = Time.unscaledTime;
                 string time = $"{_ng.P.StartHour + _ng.P.Waves[wv].StartMinute / 60:00}:{_ng.P.Waves[wv].StartMinute % 60:00}".Replace("24:", "00:");
                 _bannerText = $"{TimeStr()} · OLEADA {wv + 1}\nLa Colmena se acerca por el oeste"; _bannerUntil = Time.unscaledTime + 4f; Sfx.Play("sfx_alerta_oleada", 0.8f, 1f);
                 Debug.Log($"[NOCHE] oleada={wv + 1} hora={TimeStr()} total={_nightWaveTotal} ammo_u={_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.0} recargas={_resupplies} pila={_pileWall} muro_permil={_ng.WallPermil} bajas={_nightLost}");
@@ -324,6 +331,7 @@ namespace TBD.View
         /// <summary>«Seguir» (D-N91): abre la noche siguiente con las mismas oleadas a +10 % y reinicia los contadores del parte; el mundo no se detuvo.</summary>
         void NextNight()
         {
+            _reportClosed = true; return;                                                // D-N136/137: al ganar se sigue en el mundo, sin reiniciar
             var np = _ng.P; np.ScalePermil = np.ScalePermil * 11 / 10;
             if (_ng.BeginNextNight(np)) { _reportClosed = false; _lastWave = -1; _nightKills = 0; _nightShotsSpent = 0; _nightLost = 0; _endStars = 0; _bannerText = $"{TimeStr()}. Noche {_ng.NightIndex + 1}.\nAguanta hasta el amanecer."; _bannerUntil = Time.unscaledTime + 4f; }
             else _reportClosed = true;
@@ -349,7 +357,7 @@ namespace TBD.View
             var pl = _uw.Find(s.Platoon); if (pl == null) return; Infantryman man = null; foreach (var m in pl.Men) if (m.Id == s.Man) { man = m; break; }
             if (man == null) return;
             if (_trMat == null) { _trMat = new Material(Shader.Find("Universal Render Pipeline/Unlit")); _trMat.SetColor("_BaseColor", new Color32(0xf0, 0xdc, 0x9c, 255)); }
-            if (s.Splash) { Sfx.PlayDist("granada_40", _orthoSize, 1f, 0.25f); Sfx.Play("explosion_granada", Vector3.zero, 0.7f, 0.3f); } else if (s.Kind == InfKind.Ametrallador) Sfx.PlayDist("ametralladora", _orthoSize, 1f, 0.2f); else if (s.Kind == InfKind.Tirador) { Sfx.PlayDist("tirador", _orthoSize, 1f, 0.2f); Sfx.Play("cola_urbana", Vector3.zero, 0.3f, 0.4f); } else Sfx.PlayDist("fusil_rafaga", _orthoSize, 1f, 0.12f);
+            if (s.Splash) { Sfx.PlayDistAt("granada_40", new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f), 1f, 0.25f); Sfx.Play("explosion_granada", Vector3.zero, 0.7f, 0.3f); } else if (s.Kind == InfKind.Ametrallador) Sfx.PlayDistAt("ametralladora", new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f), 1f, 0.2f); else if (s.Kind == InfKind.Tirador) { Sfx.PlayDistAt("tirador", new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f), 1f, 0.2f); Sfx.Play("cola_urbana", Vector3.zero, 0.3f, 0.4f); } else Sfx.PlayDistAt("fusil_rafaga", new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f), 1f, 0.12f);
             var from = new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f); var to = new Vector3(s.AimX / 1000f, 0.8f, s.AimY / 1000f);
             // trazadora que viaja (no un rayo): 1 de cada 3 balas en fusileros, 1 de cada 4 en ametralladoras, todas en tiradores y granadas (Lucia §4.1)
             bool tracer = s.Splash || s.Kind == InfKind.Tirador || UnityEngine.Random.value < (s.Kind == InfKind.Ametrallador ? 0.25f : 0.34f);
@@ -483,19 +491,13 @@ namespace TBD.View
                 if (dragged && _rmbW0Ok && TryGround(mp, out var g1)) IssueFormationOrder(_rmbW0, g1, _attackNext);
                 else if ((mp - _rmbStart).magnitude < 6f && !OverNightUi(mp)) { if (_selVeh != null) { if (TryGround(mp, out var gv)) VehicleOrder(_selVeh, gv); } else IssueMove(mp, false); Sfx.Play("ui_orden", Vector3.zero, 0.6f, 0.05f); }
             }
-            if (_selVeh != null)
-            {
-                if (kb.aKey.wasPressedThisFrame) { _selVeh.Fire = true; Debug.Log($"[NOCHE] {_selVeh.Name}: fuego libre"); }
-                if (kb.gKey.wasPressedThisFrame) { _selVeh.Fire = false; Debug.Log($"[NOCHE] {_selVeh.Name}: alto el fuego"); }
-                if (kb.tKey.wasPressedThisFrame) StartVehicleResupply(_selVeh);
-            }
-            else if (kb.aKey.wasPressedThisFrame) _attackNext = true;
-            if (kb.sKey.wasPressedThisFrame) foreach (var id in _sel) { _uw.Hold(id); _uw.SetHoldFire(id, false); }
-            if (kb.dKey.wasPressedThisFrame && TryGround(mp, out var gp)) foreach (var id in _sel) { var pl = _uw.Find(id); if (pl != null) _uw.DeployAt(id, IMath.Atan2((int)(gp.z * 1000f) - pl.AY, (int)(gp.x * 1000f) - pl.AX)); }
+            // teclas de la noche (D-N137..144; WASD mueve la camara): 1-5 pelotones, 6-8 vehiculos (doble pulsacion = centrar), G alterna el fuego de los vehiculos, T recarga, Esc pausa
+            NightSelectKeys(kb);
+            if (kb.gKey.wasPressedThisFrame) { _vehFire = !_vehFire; foreach (var vv in _vehs) vv.Fire = _vehFire; Debug.Log("[NOCHE] fuego de los vehiculos: " + (_vehFire ? "libre" : "alto el fuego")); }
+            if (kb.tKey.wasPressedThisFrame) { if (_selVeh != null) StartVehicleResupply(_selVeh); else foreach (var id in _sel) _uw.Resupply(id); }
             if (kb.rKey.wasPressedThisFrame && kb.leftShiftKey.isPressed) foreach (var id in _sel) _uw.Resupply(id);
-            if (kb.gKey.wasPressedThisFrame) foreach (var id in _sel) { var pl = _uw.Find(id); if (pl != null) _uw.SetHoldFire(id, !pl.HoldFire); }
-            if (kb.tKey.wasPressedThisFrame) foreach (var id in _sel) _uw.Resupply(id);
-            { float zf = Mathf.Clamp01(_total / 3000f); Sfx.Loop("mus_oleada", _total > 200 ? 0.55f : 0.0f, true); }
+            if (kb.escapeKey.wasPressedThisFrame && _ng != null && _ng.State == NightState.Jugando) _paused = !_paused;      // pausa (D-N137)
+            { float zf = Mathf.Clamp01(_total / 3000f); }
             NightAudio();
             UpdateNightSoldiers(); UpdateVehicleViews();
             while (_blood.Count > 0 && Time.unscaledTime > _blood.Peek().t) { var o = _blood.Dequeue(); if (o.go != null) Destroy(o.go); }
@@ -559,6 +561,7 @@ namespace TBD.View
         {
             if (_ng == null) return;
             NightOverlay();
+            if (_paused && _ng != null && _ng.State == NightState.Jugando) { PauseMenuGUI(); }
             if (NightKitGUI()) return;
             float W = Screen.width, H = Screen.height, k = H / 1080f;
             if (_nPx == null) { _nPx = new Texture2D(1, 1); _nPx.SetPixel(0, 0, Color.white); _nPx.Apply(); }

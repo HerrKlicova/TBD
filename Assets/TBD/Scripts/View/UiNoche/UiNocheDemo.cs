@@ -130,17 +130,7 @@ namespace TBD.View.UiNoche
                     UiNocheKit.Fotograma("ui_tarjeta_sin_municion", x + 8, y + 8, 2, fr);
                 }
             }
-            // órdenes (abajo a la derecha)
-            UiNocheKit.Slice("ui_panel", new Rect(506, 280, 130, 76));
-            string[] ordenes = { "ordenes/vm_ordenes_seguir_16", "ordenes/vm_ordenes_desplegar_16", "ordenes/vm_ordenes_aguantar_16", "ordenes/vm_ordenes_escoltar_16", "ordenes/vm_ordenes_embarcar_16" };   // iconos de órdenes que ya están en Icons/ordenes
-            string[] teclas = { null, "a", "s", "d", "e" };
-            for (int i = 0; i < ordenes.Length; i++)
-            {
-                float x = 512 + (i % 3) * 40, y = 286 + (i / 3) * 34;
-                UiNocheKit.Slice(i == 0 ? "ui_boton_encima" : "ui_boton_normal", new Rect(x, y, 36, 31));
-                UiNocheKit.Pieza(ordenes[i], x + 10, y + 3);
-                if (teclas[i] != null) UiNocheKit.Pieza("ui_tecla_" + teclas[i], x + 11, y + 17);
-            }
+            // el panel de iconos de ordenes se retira (D-N144; la interfaz v2 de Lucia lo sustituira)
         }
 
         public static void Menu(IUiNocheDatos d, float t, bool opciones)

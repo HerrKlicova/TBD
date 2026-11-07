@@ -32,6 +32,44 @@ namespace TBD.View
             for (int i = 0; i <= N; i++) { float a = i * Mathf.PI * 2f / N; var q = ToGui(new Vector3(c.x + Mathf.Cos(a) * r, 0.06f, c.z + Mathf.Sin(a) * r)); if (i > 0) OvLine(prev, q, w, col, al); prev = q; }
         }
 
+        bool _vehFire = true; float _lastDigitT = -1f; int _lastDigit = -1;
+        /// <summary>1-5 elige el pelotón (Mayus suma), 6-8 los vehiculos; pulsar dos veces seguidas centra la camara en ellos (D-N139).</summary>
+        void NightSelectKeys(UnityEngine.InputSystem.Keyboard kb)
+        {
+            var keys = new[] { kb.digit1Key, kb.digit2Key, kb.digit3Key, kb.digit4Key, kb.digit5Key, kb.digit6Key, kb.digit7Key, kb.digit8Key };
+            for (int d = 0; d < keys.Length; d++)
+            {
+                if (!keys[d].wasPressedThisFrame) continue;
+                bool dbl = _lastDigit == d && Time.unscaledTime - _lastDigitT < 0.4f; _lastDigit = d; _lastDigitT = Time.unscaledTime; Vector3? at = null;
+                if (d < 5)
+                {
+                    if (d >= _uw.Platoons.Count) continue; var pl = _uw.Platoons[d]; _selVeh = null; if (!kb.leftShiftKey.isPressed) _sel.Clear(); if (!_sel.Contains(pl.Id)) _sel.Add(pl.Id);
+                    if (dbl) { float cx = 0f, cy = 0f; int n = 0; foreach (var m in pl.Men) if (m.Alive) { cx += m.X; cy += m.Y; n++; } if (n > 0) at = new Vector3(cx / (1000f * n), 0f, cy / (1000f * n)); }
+                }
+                else
+                {
+                    int k = d - 5, vi = 0; Veh pick = null; foreach (var v in _vehs) { if (v.Go == null || v.Name == "VAMTAC 2") continue; if (vi++ == k) { pick = v; break; } }
+                    if (pick == null) continue; _selVeh = pick; _sel.Clear(); if (dbl) at = new Vector3(pick.Pos.x, 0f, pick.Pos.y);
+                }
+                if (at.HasValue) _focus = at.Value;
+                Sfx.Play("ui_clic", Vector3.zero, 0.5f, 0.05f);
+            }
+        }
+
+        /// <summary>Menu de pausa (Esc): Continuar, Salir al mapa y Menu principal.</summary>
+        void PauseMenuGUI()
+        {
+            OvEnsure(); float W = Screen.width, H = Screen.height, k = H / 1080f;
+            var old = GUI.color; GUI.color = new Color(0.094f, 0.11f, 0.188f, 0.72f); GUI.DrawTexture(new Rect(0, 0, W, H), _ovTex); GUI.color = old;
+            var st = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = Mathf.RoundToInt(44 * k) }; st.normal.textColor = OvHueso;
+            GUI.Label(new Rect(0, H * 0.28f, W, 70 * k), "Pausa", st);
+            var bs = new GUIStyle(GUI.skin.button) { fontSize = Mathf.RoundToInt(26 * k) };
+            float bw = 360 * k, bh = 58 * k, x = (W - bw) * 0.5f, y = H * 0.40f;
+            if (GUI.Button(new Rect(x, y, bw, bh), "Continuar", bs)) _paused = false;
+            if (GUI.Button(new Rect(x, y + bh + 14 * k, bw, bh), "Salir al mapa", bs)) { _paused = false; LeaveToMap(); }
+            if (GUI.Button(new Rect(x, y + 2 * (bh + 14 * k), bw, bh), "Menú principal", bs)) { _paused = false; NetSession.Reset(); NightRun.Active = false; UnityEngine.SceneManagement.SceneManager.LoadScene("Menu"); }
+        }
+
         /// <summary>Teclas de formacion (F1-F4) y arrastre del frente. Se llama en NightUpdate.</summary>
         void OrdersUpdate()
         {

@@ -480,6 +480,12 @@ namespace TBD.View
         {
             var kb = Keyboard.current;
             if (kb == null) return;
+            if (NightRun.Active && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-debug") < 0)   // D-N137: de noche las teclas de depuracion (4 = zombis, 7-9 gradacion, B, H, N...) solo con -debug
+            {
+                if (kb.mKey.wasPressedThisFrame) LeaveToMap();                                                    // el mundo es uno: M sale al mapa y la noche sigue (D-N91)
+                if (kb.f9Key.wasPressedThisFrame) SaveScreenshot();
+                return;
+            }
             if (kb.digit1Key.wasPressedThisFrame) Push(CmdType.SpawnRoof, 500);
             if (kb.digit2Key.wasPressedThisFrame) Push(CmdType.ToggleGate);
             if (kb.digit3Key.wasPressedThisFrame) Push(CmdType.ToggleTrain);
@@ -503,7 +509,7 @@ namespace TBD.View
             if (kb.periodKey.wasPressedThisFrame) _paletteMix = Mathf.Min(1f, _paletteMix + 0.25f);
             if (kb.pKey.wasPressedThisFrame) _paused = !_paused;
             if (kb.f3Key.wasPressedThisFrame) ToggleCheck();
-            if (kb.mKey.wasPressedThisFrame) { if (NightRun.Active) { _outHintUntil = Time.unscaledTime + 2.5f; _outHintPos = new Vector2(Screen.width * 0.5f - 120f, Screen.height * 0.5f); } else LeaveToMap(); }   // de noche el mapa no esta disponible: sale el aviso y no se reinicia nada (Lucia, D-N91)
+            if (kb.mKey.wasPressedThisFrame) LeaveToMap();
             if (kb.f9Key.wasPressedThisFrame)
             {
                 if (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed) SaveScreenshotWithMask(); else SaveScreenshot();
@@ -543,7 +549,7 @@ namespace TBD.View
             Vector3 fwd = Quaternion.Euler(0f, _yaw, 0f) * Vector3.forward;
             Vector3 right = Quaternion.Euler(0f, _yaw, 0f) * Vector3.right;
             Vector3 pan = Vector3.zero;
-            bool wasd = !_nightOn;                                                  // de noche A, S, D y E son órdenes: la cámara va con flechas, bordes de pantalla y Z X (girar)
+            bool wasd = true;                                                      // D-N137: WASD mueve la camara tambien de noche (las ordenes ya no usan A/S/D)                                                  // de noche A, S, D y E son órdenes: la cámara va con flechas, bordes de pantalla y Z X (girar)
             if ((wasd && kb.wKey.isPressed) || kb.upArrowKey.isPressed) pan += fwd;
             if ((wasd && kb.sKey.isPressed) || kb.downArrowKey.isPressed) pan -= fwd;
             if ((wasd && kb.aKey.isPressed) || kb.leftArrowKey.isPressed) pan -= right;
