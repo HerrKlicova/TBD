@@ -585,6 +585,45 @@ namespace TBD.Sim.Tests
                     var cr2 = new ContactResult(); w.ZombieContact(new List<Target>(), 900, 2, cr2);
                     check(onlyA && sumC == cr.Contacts && sumD == cr.Damage && cr2.Hurt.Count == 0, $"el contacto de la horda sale por pelotón: solo el A ({cr.Hurt[0].Contacts} contactos, {cr.Hurt[0].Damage} de vida), el B lejos no; sin zombis, nada");
                 }
+                {
+                    // ------------------------------------------------ traza de la noche: la herramienta que compara la zona de Unity con NightSim
+                    string nj = TBD.Net.BalanceSource.Read("noche_sagunto.json"); int t0 = NightTraceTools.FirstWaveTick(nj, null, 1);
+                    var refT = NightTraceTools.Reference(nj, null, 1, t0, 9000, 30);
+                    var csv = refT.ToCsv(); var back = NightTrace.FromCsv(csv);
+                    bool rt = back.Rows.Count == refT.Rows.Count && back.Source == "NightSim" && back.ToCsv() == csv && refT.Rows.Count == 301 && refT.Rows[0].Tick == t0 && refT.Rows[300].Tick == t0 + 9000;
+                    var lastR = refT.Rows[refT.Rows.Count - 1]; int peakR = 0; foreach (var rw in refT.Rows) peakR = Math.Max(peakR, rw.Pile); bool mono = true; for (int i = 1; i < refT.Rows.Count; i++) mono &= refT.Rows[i].Spawned >= refT.Rows[i - 1].Spawned && refT.Rows[i].Kills >= refT.Rows[i - 1].Kills;
+                    check(rt && mono && peakR > 50 && lastR.Spawned > 1500, $"traza de referencia de NightSim: {refT.Rows.Count} filas (1 por segundo, 9.000 ticks desde la O1), ida y vuelta por CSV idéntica; al final entraron {lastR.Spawned}, abatidos {lastR.Kills}, pila máxima {peakR}, muro {lastR.WallPpm / 10000.0:0.0} %");
+                    // la misma traza contra sí misma: todo correcto
+                    var same = NightTraceTools.Compare(refT, NightTrace.FromCsv(csv)); 
+                    check(same.Ok && same.Warns == 0, $"una traza contra sí misma no da fallos ni avisos ({same.Oks} correctas)");
+                    // la zona de Noche15: la pila siempre a 0, el muro al 100 % y 6.845 vivos → debe fallar y decir por qué
+                    var broken = NightTrace.FromCsv(csv); broken.Source = "zona rota"; for (int i = 0; i < broken.Rows.Count; i++) { var r = broken.Rows[i]; r.Pile = 0; r.WallPpm = 1_000_000; broken.Rows[i] = r; }
+                    var rb = NightTraceTools.Compare(refT, broken);
+                    check(!rb.Ok && rb.Text.Contains("la pila de la zona es 0") && rb.Text.Contains("el muro de la zona no baja"), "la zona de Noche15 (pila 0 y muro al 100 %) da FALLO con las dos causas: pila no contada y muro que no baja");
+                    // entradas distintas (la zona no usa NightGame.Step) y conservación rota
+                    var badSp = NightTrace.FromCsv(csv); var rr = badSp.Rows[100]; rr.Spawned += 5; badSp.Rows[100] = rr; var lr = badSp.Rows[badSp.Rows.Count - 1]; lr.Alive += 400; badSp.Rows[badSp.Rows.Count - 1] = lr;
+                    var rs2 = NightTraceTools.Compare(refT, badSp);
+                    check(!rs2.Ok && rs2.Text.Contains("zombis que entran: difieren en 1 de") && rs2.Text.Contains("conservación rota"), "detecta que las entradas de la zona no coinciden con NightGame y que no se conservan los zombis");
+                    // pila que existe pero con otra escala de muro: AVISO, no fallo
+                    var scaled = NightTrace.FromCsv(csv); scaled.Source = "zona con muro 2x"; for (int i = 0; i < scaled.Rows.Count; i++) { var r = scaled.Rows[i]; r.WallPpm = 1_000_000 - (1_000_000 - r.WallPpm) / 2; scaled.Rows[i] = r; }
+                    var rsc = NightTraceTools.Compare(refT, scaled);
+                    check(rsc.Ok && rsc.Warns >= 1 && rsc.Text.Contains("veces el esperado"), $"un muro que se gasta a la mitad (otra escala de vida) da AVISO con la razón, no fallo ({rsc.Warns} avisos)");
+                    // una zona con la pila que cuadra en tiempo pero sin fuego: avisa de los abatidos
+                    var noFire = NightTrace.FromCsv(csv); for (int i = 0; i < noFire.Rows.Count; i++) { var r = noFire.Rows[i]; r.Kills = 0; r.Alive = r.Spawned; noFire.Rows[i] = r; }
+                    var rn = NightTraceTools.Compare(refT, noFire);
+                    check(rn.Text.Contains("abatidos: 0 en la zona"), "sin abatidos en la zona avisa de que el fuego no se aplica");
+                    // el grabador: solo guarda dentro de la ventana y cada N ticks
+                    var rec = new NightTraceRecorder("zona", 1000, 300, 30); for (int tk = 0; tk < 2000; tk++) rec.Sample(tk, tk, 1, 0, 960_000, 960_000, 0, 5, 0, 0);
+                    check(rec.Trace.Rows.Count == 11 && rec.Trace.Rows[0].Tick == 1000 && rec.Trace.Rows[10].Tick == 1300 && rec.Trace.Rows[0].WallPpm == 1_000_000 && rec.Done, "el grabador guarda un tick de cada 30 dentro de la ventana (11 filas) y convierte la vida del muro a ppm");
+                }
+                {
+                    // los valores por defecto de NightSimParams son los de nightsim_params.json (Hugo) y NightSim los lee de ahí
+                    var dj = NightSimParams.Default(); var fj = NightSimParams.FromJson(TBD.Net.BalanceSource.Read("nightsim_params.json")); var sim0 = NightSim.FromJson(TBD.Net.BalanceSource.Read("noche_sagunto.json"), null, 1);
+                    bool same = dj.FortX0 == fj.FortX0 && dj.FortX1 == fj.FortX1 && dj.FortY0 == fj.FortY0 && dj.FortY1 == fj.FortY1 && dj.StationX == fj.StationX && dj.StationY == fj.StationY && dj.WallHp == fj.WallHp && dj.WallDmgPerZombieS == fj.WallDmgPerZombieS
+                        && dj.StationHp == fj.StationHp && dj.StationDmgPerZombieS == fj.StationDmgPerZombieS && dj.ZombieSpeedMmS == fj.ZombieSpeedMmS && dj.ContactRadiusMm == fj.ContactRadiusMm && dj.ContactCasualtyPmPerS == fj.ContactCasualtyPmPerS && dj.PileRadiusMm == fj.PileRadiusMm;
+                    var cut = NightSimParams.FromJson("{\"NightSimParams\": {\"WallHp\": 777}}"); var none = NightSimParams.FromJson(null);
+                    check(same && fj.WallHp == 1_200_000 && sim0.WallHp == 1_200_000 && sim0.SP.WallHp == fj.WallHp && cut.WallHp == 777 && cut.StationHp == dj.StationHp && none.WallHp == dj.WallHp, $"NightSimParams: el código coincide con nightsim_params.json (muro {fj.WallHp}), NightSim lo lee de ahí, un JSON parcial solo cambia lo que dice y sin JSON valen los del código");
+                }
                 // ---------------------------------------------------- elección del vehículo: solo uno LIBRE, entero, con plazas y combustible
                 Func<UnitsWorld, TransportDirector> mk = w => new TransportDirector(w, RoadMap.Sagunto(rj));
                 var sr1 = new StepResult(); var noT = new List<Target>();
@@ -710,6 +749,9 @@ namespace TBD.Sim.Tests
                     var trF = d.Transit(job2.Id); bool footOk = trF.Active && trF.Route == TransitRoute.Campo && trF.Class == TransitClass.Peloton && trF.ProgressPm >= 0 && trF.ProgressPm < 1000 && trF.SecondsLeft > 0;
                     var estF = d.Estimate(pl2.Id, 140_000, 70_000, TransportMode.APie); // ya tiene orden: no hay estimación
                     check(footOk && !estF.Ok, $"a pie: tipo de ruta «campo», clase pelotón, avance {trF.ProgressPm / 10.0:0.0} %, faltan {trF.SecondsLeft} s");
+                    int fp0 = TransportDirector.FootPenaltyPm; TransportDirector.LoadBalance(new CsvTable(TBD.Net.BalanceSource.Read("balance_unidades.csv"))); int fpCsv = TransportDirector.FootPenaltyPm;
+                    TransportDirector.LoadBalance(new CsvTable("clave;valor;escala;nota\ninfanteria_campo_traves_permil;500;1000;x")); int fp5 = TransportDirector.FootPenaltyPm; TransportDirector.LoadBalance(new CsvTable("clave;valor;escala;nota\notra;1;1;x")); int fpDef = TransportDirector.FootPenaltyPm; TransportDirector.FootPenaltyPm = fp0;
+                    check(fpCsv == 700 && fp5 == 500 && fpDef == 700, $"la penalización a campo través sale de balance_unidades.csv (infanteria_campo_traves_permil = {fpCsv}); otro valor se respeta ({fp5}) y sin fila vale 700 ({fpDef})");
                     bool cx = d.Cancel(job2.Id); check(cx && job2.Phase == TransportPhase.Cancelado && pl2.SpeedMmS == speed0 && !pl2.Moving, "cancelar la marcha a pie: se para y recupera su velocidad");
                 }
             }
@@ -781,7 +823,7 @@ namespace TBD.Sim.Tests
                 var sim = NightSim.FromJson(json, null, 7);
                 check(sim.Night.P.Waves.Length == 6 && sim.Night.WaveTotal(0) == 760 && sim.Night.WaveTotal(5) == 4250 && sim.Units.StockShots == 52 * 2000 && sim.MaterialsU == 40 && sim.FuelU == 30, "crear la noche desde noche_sagunto.json (normal): 6 oleadas de 760 a 4.250 zombis, 52 u de munición (104.000 disparos), 40 de materiales y 30 de combustible");
                 var easy = NightSim.FromJson(json, "facil", 7); var hard = NightSim.FromJson(json, "dificil", 7);
-                check(easy.Night.WaveTotal(0) == 650 && easy.Night.WaveTotal(5) == 3620 && hard.Night.WaveTotal(0) == 980 && hard.Night.WaveTotal(5) == 5450, "dificultad fácil (650…3.620) y difícil (980…5.450) desde el mismo JSON");
+                check(easy.Night.WaveTotal(0) == 650 && easy.Night.WaveTotal(5) == 3620 && hard.Night.WaveTotal(0) == 1030 && hard.Night.WaveTotal(5) == 5700, "dificultad fácil (650…3.620) y difícil (1.030…5.700, escala 1140) desde el mismo JSON");
                 bool bad = false; try { Mini.Parse("{\"a\": [1, 2"); } catch (FormatException) { bad = true; }
                 check(bad && (long)((System.Collections.Generic.Dictionary<string, object>)Mini.Parse("{\"a\": -12}"))["a"] == -12, "el lector de JSON mínimo rechaza un texto truncado y lee enteros con signo");
 

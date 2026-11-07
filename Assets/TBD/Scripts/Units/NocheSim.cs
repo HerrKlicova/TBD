@@ -26,9 +26,22 @@ namespace TBD.Units
             return new NightSimParams
             {
                 FortX0 = 70000, FortX1 = 156000, FortY0 = 44000, FortY1 = 85000, StationX = 113000, StationY = 64500,
-                StationHp = 60000, WallHp = 960000, ZombieSpeedMmS = 1500, WallDmgPerZombieS = 1, StationDmgPerZombieS = 20,
+                StationHp = 60000, WallHp = 1200000, ZombieSpeedMmS = 1500, WallDmgPerZombieS = 1, StationDmgPerZombieS = 20,
                 ContactRadiusMm = 1200, ContactCasualtyPmPerS = 14, PileRadiusMm = 1500,
             };
+        }
+
+        /// <summary>Lee de nightsim_params.json (Hugo) el objeto «NightSimParams» sobre los valores por defecto del código; lo que no esté se queda como está.</summary>
+        public static NightSimParams FromJson(string json)
+        {
+            var p = Default(); if (json == null) return p;
+            var root = Mini.Parse(json) as Dictionary<string, object>; if (root == null || !root.ContainsKey("NightSimParams")) return p;
+            var o = root["NightSimParams"] as Dictionary<string, object>; if (o == null) return p;
+            Func<string, int, int> g = (k, d) => o.ContainsKey(k) && o[k] is long ? (int)(long)o[k] : d;
+            p.FortX0 = g("FortX0", p.FortX0); p.FortX1 = g("FortX1", p.FortX1); p.FortY0 = g("FortY0", p.FortY0); p.FortY1 = g("FortY1", p.FortY1); p.StationX = g("StationX", p.StationX); p.StationY = g("StationY", p.StationY);
+            p.WallHp = g("WallHp", p.WallHp); p.WallDmgPerZombieS = g("WallDmgPerZombieS", p.WallDmgPerZombieS); p.StationHp = g("StationHp", p.StationHp); p.StationDmgPerZombieS = g("StationDmgPerZombieS", p.StationDmgPerZombieS);
+            p.ZombieSpeedMmS = g("ZombieSpeedMmS", p.ZombieSpeedMmS); p.ContactRadiusMm = g("ContactRadiusMm", p.ContactRadiusMm); p.ContactCasualtyPmPerS = g("ContactCasualtyPmPerS", p.ContactCasualtyPmPerS); p.PileRadiusMm = g("PileRadiusMm", p.PileRadiusMm);
+            return p;
         }
     }
 
@@ -110,7 +123,8 @@ namespace TBD.Units
             var est = res0 != null && res0.ContainsKey("estrellas") ? res0["estrellas"] as Dictionary<string, object> : null;
             if (est != null) np.Stars = new StarRules { Two = Tier(est["dos"] as Dictionary<string, object>), Three = Tier(est["tres"] as Dictionary<string, object>) };
             var rec = (Dictionary<string, object>)root["recursos_iniciales"];
-            return new NightSim(np, NightSimParams.Default(), (int)(long)rec["municion_u"], (int)(long)rec["materiales_u"], (int)(long)rec["combustible_u"], seed);
+            var spj = TBD.Net.BalanceSource.Read("nightsim_params.json");          // el balance de Hugo manda sobre el código; sin archivo, valen los de Default()
+            return new NightSim(np, NightSimParams.FromJson(spj), (int)(long)rec["municion_u"], (int)(long)rec["materiales_u"], (int)(long)rec["combustible_u"], seed);
         }
 
         /// <summary>Los cinco pelotones de la noche, dentro del recinto junto al muro oeste.</summary>

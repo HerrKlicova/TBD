@@ -48,6 +48,7 @@
     <Compile Include="..\..\Assets\TBD\Scripts\Units\Vehiculos.cs" Link="Units\Vehiculos.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Units\Helicoptero.cs" Link="Units\Helicoptero.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Units\Transporte.cs" Link="Units\Transporte.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Units\NocheTraza.cs" Link="Units\NocheTraza.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Relief.cs" Link="Net\Relief.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\RailNet.cs" Link="Net\RailNet.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Sim\SimTypes.cs" Link="Sim\SimTypes.cs" />

@@ -4,9 +4,9 @@ pila_cadaveres_permil;100;1000;fracción de abatidos junto al muro que también 
 pila_baja_mm_hora;150;1;cuando cesa la presión
 pila_ventana_horas;1;1;se calcula por pulso de 1 h
 muro_sacos_altura_mm;1200;1;
-muro_sacos_materiales_por_m;1;1;
+muro_sacos_materiales_por_m;200;1000;D-N44: 2 u por cada 10 m, antes 1 u por m
 muro_hesco_altura_mm;2100;1;
-muro_hesco_materiales_por_m;2;1;
+muro_hesco_materiales_por_m;600;1000;D-N44: 6 u por cada 10 m, antes 2 u por m
 anden_fortificado_altura_mm;1500;1;
 puerta_altura_mm;2000;1;
 brecha_entran_permil_hora;250;1000;de los zombis en contacto, por hora mientras pila >= altura

@@ -9,7 +9,7 @@ Todo en mm, ticks a 30 Hz, enteros. La zona ya hace casi todo; lo que falla (Sar
 3. **Pila y desgaste del muro** (lo que NO está conectado en la zona real):
    - *Pila* = zombis **vivos, fuera del recinto, a ≤ 1,5 m del muro** (`PileRadiusMm`), contando mientras el muro esté en pie. NightSim los cuenta uno por uno cada tick (`pile`, pico `PeakPile`).
    - *Desgaste*: cada zombi de la pila quita `WallDmgPerZombieS` (= 1) punto de muro **por segundo** → `resto += pila × 1; daño = resto / 30; resto %= 30; WallHp -= daño`. Resto exacto, sin flotantes.
-   - `WallHp` de partida **960.000** (8.000 por u de muro de la partida; Hugo, `nightsim_params.json`). Con vida 0 el muro **deja de bloquear** (los zombis pasan y van al edificio). En el juego real, la vida es la de las piezas de `Obras`, y el daño debe repartirse entre las piezas que tocan los zombis; la suma normalizada es lo que va a `Night.WallPermil`.
+   - `WallHp` de partida **1.200.000** (10.000 por u de muro de la partida; Hugo, v3 aprobada por Mak, `nightsim_params.json`; NightSim lo lee de ese JSON). Con vida 0 el muro **deja de bloquear** (los zombis pasan y van al edificio). En el juego real, la vida es la de las piezas de `Obras`, y el daño debe repartirse entre las piezas que tocan los zombis; la suma normalizada es lo que va a `Night.WallPermil`.
    - Si la zona calcula la pila (`CellPile`, la que ya usa `Vehicle.PileAhead`), el dato está: falta **sumar, por tick, los zombis de las celdas pegadas a un muro y aplicarlos como daño** a ese muro. Sara midió pila = 0 con 6.845 vivos: o no se rellena `CellPile` para los muros de Obras, o no se lee.
 4. **Atacantes del edificio y del tren**: `Night.CountAttackers(zombisVivos, out aEdificio, out aTren)` y luego `Night.Attack(aEdificio, aTren)`. `zombisVivos` es una lista de `Target {Id, X, Y}` (mm). Un zombi a ≤ 1,5 m del rectángulo del edificio (98–114 × 75–83 m) o del tren (74–154 × 62,9–66,1 m) cuenta; 20 de vida por zombi y segundo (edificio 60.000, tren 120.000). Si una llega a 0, el siguiente `Night.Step` es **derrota**.
 5. **Fuego**: `Units.Step(zombisVivos, res)`. Para cada `res.Hits[i]`: matar al zombi con `TargetId`, `Units.NoteKill(h.Platoon)`. `res.AmmoSpent` es lo gastado. (Los disparos de vehículos y helicóptero son locales: `StepWeapons`, devuelven sus propios `TargetHit`.)
@@ -21,16 +21,18 @@ Todo en mm, ticks a 30 Hz, enteros. La zona ya hace casi todo; lo que falla (Sar
 
 | Dificultad | Recargas permitidas en toda la noche | Resultado |
 |---|---|---|
-| normal | sin límite (el bot hizo 38) | **victoria** 05:59, 2 estrellas, muro 65 % |
-| normal | 8 | derrota 04:11 |
-| normal | 5 | derrota 03:52 |
-| normal | 3 | derrota 03:25 |
-| fácil | sin límite (36) / 3 | victoria 3 estrellas / derrota 03:54 |
-| difícil | sin límite (42) / 3 | victoria 1 estrella, muro 14 % / derrota 02:52 |
+| normal (850) | sin límite (el bot hizo 38) | **victoria** 05:59, 2 estrellas, muro 72 % |
+| normal | 8 | derrota 04:30 |
+| normal | 5 | derrota 04:11 |
+| normal | 3 | derrota 03:49 |
+| fácil (725) | sin límite (36) / 3 | victoria 3 estrellas, muro 82 % / derrota 04:15 |
+| difícil (1140, 18.240 zombis) | sin límite (42) / 3 | victoria 2 estrellas, muro 25 % / derrota 03:11 |
 
-Lectura: **la noche se gana reabasteciendo unas 36–42 veces**, no con 3. Un jugador de prueba que recarga 3 veces pierde también en NightSim (a las 03:25 en normal; en la zona real a las 04:45 porque el muro no se gasta, ver arriba). Así que hay **dos** cosas distintas:
+(Datos de la v3 de Hugo: muro 1.200.000 y difícil a 1140.)
+
+Lectura: **la noche se gana reabasteciendo unas 36–42 veces**, no con 3. Un jugador de prueba que recarga 3 veces pierde también en NightSim (a las 03:49 en normal; en la zona real a las 04:45 porque el muro no se gasta, ver arriba). Así que hay **dos** cosas distintas:
 - Si el jugador de Noche15 solo hace 3 recargas, perder es **lo esperado**; para la prueba debe seguir la regla del bot (reponer al bajar del 30 %, mirando cada ~150 ticks).
-- Con el muro desconectado, la derrota llega por el tren, no por el muro: es un fallo de conexión, no de calibración. Hasta conectarlo, la calibración (tren 120.000, O1/O2, muro 960.000) **no se puede juzgar** en la zona real.
+- Con el muro desconectado, la derrota llega por el tren, no por el muro: es un fallo de conexión, no de calibración. Hasta conectarlo, la calibración (tren 120.000, O1/O2, muro 1.200.000) **no se puede juzgar** en la zona real.
 - Si diseño cree que 38 recargas a mano son demasiadas, la palanca no es el muro: es la dotación por pelotón o un reabastecimiento automático dentro del recinto. Decisión de Hugo y Mak; yo puedo medir cualquier variante en NightSim.
 
 ## Hipótesis sin verificar (no la he visto en la zona)

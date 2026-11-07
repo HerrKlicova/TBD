@@ -1,0 +1,101 @@
+{
+  "_nota": "Hugo, 7-nov 01:20. Valores propuestos para NightSimParams (PR #24, Units/NocheSim.cs). Medidos con la cola de unidades.py (D-N72), que reproduce la derrota actual: con los valores de ahora y los 5 pelotones al 90-100 % de su fuego teórico, el muro cae entre las 02:33 y las 04:01; NightSim dio 02:55. Explicación en docs/economia/nightsim-calibracion.md. | v2 02:20 con la medición de Sara (docs/qa/resultado-nightsim-calibrado.md): WallHp 960000 y munición 50. La tabla esperado_con_la_propuesta es de la v1 (cola) y queda solo como referencia: la zona apila más que la cola.",
+  "NightSimParams": {
+    "FortX0": 70000,
+    "FortX1": 156000,
+    "FortY0": 44000,
+    "FortY1": 85000,
+    "StationX": 113000,
+    "StationY": 64500,
+    "WallHp": 1200000,
+    "WallDmgPerZombieS": 1,
+    "StationHp": 60000,
+    "StationDmgPerZombieS": 20,
+    "ZombieSpeedMmS": 1500,
+    "ContactRadiusMm": 1200,
+    "ContactCasualtyPmPerS": 14,
+    "PileRadiusMm": 1500
+  },
+  "cambios": {
+    "WallHp": "v2 (02:20): 300600 -> 960000 = 8000 por u del muro de partida. Sara midió con 300600 que el muro cae en la O6 (consumo total estimado ~510.000 zombi·s, porque la zona apila ~10 veces más que mi cola en la O4: 947 frente a ~80). Con 960000 deberían quedar ~45-50 % al amanecer",
+    "WallDmgPerZombieS": "6 -> 1. Con WallHp nuevo equivale a multiplicar el aguante por 15",
+    "StationHp": "6000 -> 60000. 100 zombis dentro derriban el edificio en 30 s en lugar de 3 s: la brecha da tiempo a reaccionar. Valor de diseño, sin medir",
+    "sin_cambio": "ZombieSpeedMmS 1500 (dentro de 1,2-2,0 m/s), ContactCasualtyPmPerS 14 (coincide con D-N27: 0,014 bajas por zombi en contacto), radios",
+    "WallHp_v3": "v3, D-N121 (05:10): 960000 -> 1200000 = 10000 por u. Con el 60 % del fuego (Sara, 40 % de impactos perdidos) el muro caía a las 05:48-05:51, unos 24 s reales antes del amanecer, con una pila de ~4.500: faltaban ~110.000 zombi·s. +240.000 deja el doble de margen"
+  },
+  "AddDefaultForce_propuesto": {
+    "_por_que": "Las oleadas 5 y 6 meten el 10 % y el 20 % por O4 (borde este). Con todos junto al muro oeste, el muro este queda a 65-77 m y los fusiles (60 m) no llegan. Además, los lanzagranadas tienen mínimo de 15 m: a 9 m del muro no disparan a la pila",
+    "fusileros": [
+      86000,
+      56000
+    ],
+    "granaderos": [
+      113000,
+      64500
+    ],
+    "ametralladores": [
+      113000,
+      56000
+    ],
+    "tiradores": [
+      113000,
+      74000
+    ],
+    "zapadores": [
+      140000,
+      64500
+    ],
+    "nota": "x, y en mm. Los del centro cubren los dos muros (43 m)"
+  },
+  "bot_reabastecimiento": {
+    "regla": "Resupply(p) cuando AmmoShots < 30 % del AmmoCap del pelotón",
+    "esperado_normal": "unos 34 u gastadas (13.090 zombis a 388/u), unas 20 reposiciones en la noche",
+    "aviso": "sin reabastecer, la dotación de los 5 pelotones (7,3 u) se acaba en la oleada 3"
+  },
+  "esperado_con_la_propuesta": {
+    "_lectura": "Muro restante al amanecer, solo los 5 pelotones (sin Dragón ni NH90), por fracción del fuego teórico",
+    "facil_725": {
+      "100": "92 %",
+      "93": "86 %",
+      "80": "65 %",
+      "70": "41 %",
+      "60": "8 %"
+    },
+    "normal_850": {
+      "100": "70 %",
+      "93": "57 %",
+      "80": "24 %",
+      "70": "cae 05:43",
+      "60": "cae 05:20"
+    },
+    "dificil_1000": {
+      "100": "28 %",
+      "93": "8 %",
+      "80": "cae 05:26",
+      "70": "cae 05:07",
+      "60": "cae 04:11"
+    },
+    "con_dragon_y_nh90_normal": {
+      "80": "87 %",
+      "70": "67 %",
+      "60": "37 %",
+      "50": "cae 05:45"
+    },
+    "criterio_para_sara": "con el bot actual (~93 %) normal debe ganar con 45-70 % de muro. Si cae, o si queda más del 85 %, avisad y lo ajusto"
+  },
+  "Stars_segun_D_N77": {
+    "0": "derrota",
+    "1": "victoria",
+    "2": "victoria + bajas <= 6 + munición restante >= 8 u",
+    "3": "victoria + bajas <= 2 + munición restante >= 15 u + ni el Dragón ni el NH90 perdidos",
+    "nota": "Ahora Stars() usa muro en pie y cero bajas. Restante = StockShots + AmmoShots de los pelotones vivos, entre 2000"
+  },
+  "municion": "v2 (02:20): noche_sagunto.json recursos_iniciales.municion_u 45 -> 50, para cumplir >= 33 u tras la O4 (Sara midió 28,2). Al amanecer deberían quedar ~8 u (★★ de D-N77 posible)",
+  "esperado_v2_normal": {
+    "muro_al_amanecer": "45-55 % (estimado de la medición de Sara, no de la cola)",
+    "municion_tras_O4": "~33 u",
+    "municion_al_amanecer": "~8 u",
+    "facil_725": "muro ~80 %",
+    "pendiente": "si en normal queda < 40 % o > 70 %, WallHp proporcional: el consumo medido manda"
+  }
+}

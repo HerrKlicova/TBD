@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace TBD.Units
 {
-    // Orden de transporte (norma del mundo persistente, D-N96): un pelotón a pie recibe «ir a X»; solo embarca en un vehículo LIBRE, que va por carreteras habilitadas
+    // Orden de transporte (norma del mundo persistente, D-N96; registro conjunto con el tránsito para el mapa de frentes y los 3 s de «puesto bajo ataque»: D-N120): un pelotón a pie recibe «ir a X»; solo embarca en un vehículo LIBRE, que va por carreteras habilitadas
     // o por la caja de la vía (nunca campo a través); llegan, desembarca y el vehículo queda libre. La infantería a pie sin vehículo puede ir a campo través, más despacio.
     // El ETA sale calculado antes de decidir (Estimate) y se expone para el mapa de frentes (Bruno), que lee mapa_sagunto_carreteras.json.
     // Todo en enteros (mm, bam16, ticks); LOCAL como los vehículos (los pelotones sí están en la simulación: Embark/Disembark/Move son sus órdenes).
@@ -302,7 +302,9 @@ namespace TBD.Units
         public const int CornerS = 4;                   // por vértice con giro de más de 45°: frenar, girar y volver a acelerar (medido con el piloto automático, ver pruebas)
         public const int OverheadS = 5;                 // arranque, giros y parada: calibrado con la tabla de Hugo (eta_zona_s_reales: Dragón 20 m → 6 s … 130 m → 16 s)
         public const int ClockX = 28;                   // D-N72
-        public const int FootPenaltyPm = 700;           // a campo través la infantería va al 70 % (provisional: Hugo debe confirmarlo)
+        public static int FootPenaltyPm = 700;          // a campo través la infantería va al 70 % de su velocidad: dato de balance_unidades.csv (infanteria_campo_traves_permil, D-N119 de Hugo); 700 si falta
+        /// <summary>Lee de balance_unidades.csv la fila infanteria_campo_traves_permil (escala 1000). Llamar al cargar el balance, junto a VehicleCatalog.Load.</summary>
+        public static void LoadBalance(TBD.Net.CsvTable t) { FootPenaltyPm = IMath.Clamp((int)t.TryValue("infanteria_campo_traves_permil", 700), 100, 1000); }
         public const int PivotStep = 450;               // giro en el sitio: 2,5° por tick (≈ 74°/s)
         public const int BoardTicks = 90;               // 3 s
         public const int MaxAccessMm = 60_000;           // un acceso más largo sería campo a través (D-N96): el destino a más de 60 m de una carretera habilitada o de la vía no tiene ruta

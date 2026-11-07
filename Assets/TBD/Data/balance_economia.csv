@@ -1,6 +1,7 @@
 clave;valor;escala;nota
 tren_vagones_carga;5;1;vagones de carga por tren
 tren_u_por_vagon;20;1;u por vagón (1 u = 1 palé)
+tren_vagon_pasajeros_plazas;40;1;D-N64: 1 vagón de pasajeros por tren, APARTE de los 5 de carga (si quitara uno de carga, el equilibrado pasa del 14 al 35 %)
 tren_vel_kmh;60;1;km/h de juego en vía abierta (D-N11)
 tren_horas_utiles_dia;16;1;horas de servicio por tren y día
 tren_horas_carga_viaje;4000;1000;cargar y descargar 5 vagones
