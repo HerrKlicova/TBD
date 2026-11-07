@@ -25,13 +25,16 @@ VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 
 PIEZAS = ["fachada", "zocalo", "carpinteria", "tejado", "placa", "cornisa", "chimenea", "metal", "moldura", "tabla",
           "hollin", "saco", "escombro"]
-COLORES = {"fachada": "d4d0cc", "zocalo": "605c48", "carpinteria": "543820", "tejado": "a86c50", "placa": "283440",
-           "cornisa": "94948c", "chimenea": "605c48", "metal": "1c200c",
+COLORES = {"fachada": "d4d0cc", "zocalo": "605c48", "carpinteria": "543820", "tejado": "a86c50", "placa": "48403c",
+           "cornisa": "94948c", "chimenea": "605c48", "metal": "48403c",
            "moldura": "642030", "tabla": "845c28", "hollin": "48403c", "saco": "b4a080", "escombro": "94948c"}
 # Lucía (17:25): la estación de Sagunt es blanca (cal d4d0cc, como la casa baja) con recercados, pilastras y frontón en
 # granate oscuro 642030 (no es el rojo de alerta 982420: entregar con --permitir 642030); carpintería en 543820.
 PERMITIR = ("642030",)
 FACCION = "neutro"
+# D-N80 (7-nov): nada por debajo de 48403c (283440 es de la horda; 1c200c y 303424 bajo el suelo); normales subidas
+NORMALES_ARRIBA = True
+NORMALES_INCLINACION = 1.0
 PRESUPUESTO = {0: (200, 3500), 1: (100, 1800)}
 CUERPO = 7.0      # ancho del cuerpo central adelantado (foto 2)
 SALIENTE = 0.4

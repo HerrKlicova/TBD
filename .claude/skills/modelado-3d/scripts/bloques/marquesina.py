@@ -21,8 +21,11 @@ from taller import Taller
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 
 PIEZAS = ["chapa", "pilar", "viga", "onda", "canalon"]
-COLORES = {"chapa": "94948c", "pilar": "50541c", "viga": "50541c", "onda": "6c7874", "canalon": "283440"}
+COLORES = {"chapa": "94948c", "pilar": "50541c", "viga": "50541c", "onda": "6c7874", "canalon": "48403c"}
 FACCION = "neutro"
+# D-N80 (7-nov): nada por debajo de 48403c (283440 es de la horda; 1c200c y 303424 bajo el suelo); normales subidas
+NORMALES_ARRIBA = True
+NORMALES_INCLINACION = 1.0
 PRESUPUESTO = {0: (100, 2500), 1: (60, 1500)}
 LARGO, FONDO, ALTO = 30.0, 5.0, 3.8
 YP = -FONDO / 2 + 0.9      # fila de pilares en el borde de la vía (fotos E2)

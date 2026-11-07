@@ -21,10 +21,13 @@ from taller import Taller
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 
 PIEZAS = ["acero", "zapata", "aislador", "hilo", "mensula"]
-COLORES = {"acero": "6c7874", "zapata": "94948c", "aislador": "1c200c", "hilo": "1c200c", "mensula": "6c7874"}
+COLORES = {"acero": "6c7874", "zapata": "94948c", "aislador": "48403c", "hilo": "48403c", "mensula": "6c7874"}
 # LOD1 (Lucía 16:51): la ménsula salía a cuadros claro y oscuro; va como barra sólida oscura de 2 px
-COLORES_LOD1 = {"mensula": "303424"}
+COLORES_LOD1 = {"mensula": "605c48"}   # 48403c en sombra caía a L* 19 (banda de la horda)
 FACCION = "neutro"
+# D-N80 (7-nov): nada por debajo de 48403c (283440 es de la horda; 1c200c y 303424 bajo el suelo); normales subidas
+NORMALES_ARRIBA = True
+NORMALES_INCLINACION = 1.0
 PRESUPUESTO = {0: (60, 1600), 1: (30, 300)}
 UMBRAL_CONTORNO = {1: 9.0}
 
