@@ -1,0 +1,221 @@
+{
+ "variante": "A, plano táctico oscuro = D-N113 (Mak 00:55, Lucía 01:00)",
+ "base": [
+  640,
+  360
+ ],
+ "escala_1080": 3,
+ "px_por_metro": 1.8,
+ "fondo": {
+  "png": "ui_mapa_fondo_sagunto",
+  "tamano": [
+   1829,
+   1829
+  ],
+  "mundo_a_px": "x = 929.14 + 1.27279 * (X - Z);  y = 1254.97 - 1.27279 * (X + Z)",
+  "nota": "girado 45° como la cámara (D-N93): arriba = +X+Z. Lleva la vía y el muro; las carreteras con estado no"
+ },
+ "carreteras": {
+  "dato": "mapa_sagunto_carreteras.json",
+  "habilitada": "ui_mapa_carretera_habilitada_{x|z}",
+  "no_habilitada": "ui_mapa_carretera_no_habilitada_{x|z} + ui_mapa_aspa_7 cada 24 px",
+  "uso": "cada tramo va a lo largo de X (tesela _x) o de Z (_z): la columna 0 y la fila «ancla» de la tesela caen sobre el eje del tramo; se estampa cada «paso» (en _z, de derecha a izquierda)"
+ },
+ "teselas": {
+  "ui_mapa_carretera_habilitada_x": {
+   "tamano": [
+    6,
+    10
+   ],
+   "ancla": [
+    0,
+    7
+   ],
+   "paso": [
+    6,
+    -6
+   ]
+  },
+  "ui_mapa_carretera_habilitada_z": {
+   "tamano": [
+    6,
+    10
+   ],
+   "ancla": [
+    0,
+    2
+   ],
+   "paso": [
+    -6,
+    -6
+   ]
+  },
+  "ui_mapa_carretera_no_habilitada_x": {
+   "tamano": [
+    6,
+    9
+   ],
+   "ancla": [
+    0,
+    7
+   ],
+   "paso": [
+    6,
+    -6
+   ]
+  },
+  "ui_mapa_carretera_no_habilitada_z": {
+   "tamano": [
+    6,
+    10
+   ],
+   "ancla": [
+    0,
+    2
+   ],
+   "paso": [
+    -6,
+    -6
+   ]
+  },
+  "ui_mapa_via_x": {
+   "tamano": [
+    6,
+    10
+   ],
+   "ancla": [
+    0,
+    7
+   ],
+   "paso": [
+    6,
+    -6
+   ]
+  },
+  "ui_mapa_via_z": {
+   "tamano": [
+    6,
+    10
+   ],
+   "ancla": [
+    0,
+    2
+   ],
+   "paso": [
+    -6,
+    -6
+   ]
+  },
+  "ui_mapa_ruta_via_x": {
+   "tamano": [
+    6,
+    8
+   ],
+   "ancla": [
+    0,
+    7
+   ],
+   "paso": [
+    6,
+    -6
+   ]
+  },
+  "ui_mapa_ruta_via_z": {
+   "tamano": [
+    6,
+    8
+   ],
+   "ancla": [
+    0,
+    1
+   ],
+   "paso": [
+    -6,
+    -6
+   ]
+  },
+  "ui_mapa_ruta_carretera_x": {
+   "tamano": [
+    6,
+    8
+   ],
+   "ancla": [
+    0,
+    7
+   ],
+   "paso": [
+    6,
+    -6
+   ]
+  },
+  "ui_mapa_ruta_carretera_z": {
+   "tamano": [
+    6,
+    8
+   ],
+   "ancla": [
+    0,
+    1
+   ],
+   "paso": [
+    -6,
+    -6
+   ]
+  },
+  "ui_mapa_ruta_hecha_x": {
+   "tamano": [
+    6,
+    6
+   ],
+   "ancla": [
+    0,
+    5
+   ],
+   "paso": [
+    6,
+    -6
+   ]
+  },
+  "ui_mapa_ruta_hecha_z": {
+   "tamano": [
+    6,
+    6
+   ],
+   "ancla": [
+    0,
+    0
+   ],
+   "paso": [
+    -6,
+    -6
+   ]
+  }
+ },
+ "sitios": {
+  "placa": "ui_mapa_placa_{ok|aviso|ataque|base} (20x20, slice 3; aviso y ataque, 2 f de 500 ms; el aviso parpadea solo 3 s, D-N109)",
+  "iconos": {
+   "estacion": "ui_frente_estacion_16",
+   "tren": "ui_frente_tren_16",
+   "paso_nivel": "ui_frente_paso_nivel_16",
+   "helipuerto": "ui_mapa_helipuerto_16 (con ui_mapa_placa_base)"
+  },
+  "etiqueta": "ui_mapa_etiqueta (slice 3, 13 px de alto) 12 px por debajo de la placa (por encima si queda a menos de 40 px del borde de abajo o es el paso a nivel); nombre y % en la letra de UI Toolkit",
+  "vida": "1 px bajo el texto, en la fila 11 de la etiqueta: ui_mapa_vida_fondo + ui_mapa_vida_{ok|aviso|ataque} estirado a (ancho − 6) × vida"
+ },
+ "unidades": {
+  "chip": "ui_mapa_unidad (13x13, slice 3)",
+  "iconos": {
+   "vehiculo": "ui_mm_vehiculo",
+   "peloton": "ui_mm_peloton",
+   "helicoptero": "ui_mapa_nh90_11x9"
+  },
+  "eta": "a 9 px a la derecha del chip: ui_eta_placa + ui_eta_reloj_7 (x 2, y 1) + «ETA mm:ss» con ui_letras_3x5 y ui_digitos_3x5 (x 11, y 2, paso 4)"
+ },
+ "rutas": {
+  "falta": "ui_mapa_ruta_{via|carretera}_{x|z}; aire: ui_mapa_ruta_aire_punto cada 4 px en línea recta",
+  "hecha": "ui_mapa_ruta_hecha_{x|z} (1 px grey_brown)",
+  "fin": "ui_mapa_ruta_fin_{via|carretera|aire}: 8 direcciones de 11x11, 45° cada una empezando por la derecha, en sentido antihorario",
+  "marcha": "las teselas avanzan 3 px por fotograma (aire, 2) para que la ruta se mueva hacia el destino"
+ },
+ "colores": "rojo #982420 solo en el ataque; ámbar solo en el aviso; H del helipuerto en grey_light (E6 y foto H7 de Paula); nada en 283440"
+}

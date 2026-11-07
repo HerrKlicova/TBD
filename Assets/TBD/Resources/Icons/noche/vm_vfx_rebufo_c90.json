@@ -1,0 +1,139 @@
+{
+ "frames": [
+  {
+   "filename": "vm_vfx_rebufo_c90 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 64,
+    "h": 32
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 64,
+    "h": 32
+   },
+   "sourceSize": {
+    "w": 64,
+    "h": 32
+   },
+   "duration": 83
+  },
+  {
+   "filename": "vm_vfx_rebufo_c90 1",
+   "frame": {
+    "x": 64,
+    "y": 0,
+    "w": 64,
+    "h": 32
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 64,
+    "h": 32
+   },
+   "sourceSize": {
+    "w": 64,
+    "h": 32
+   },
+   "duration": 83
+  },
+  {
+   "filename": "vm_vfx_rebufo_c90 2",
+   "frame": {
+    "x": 128,
+    "y": 0,
+    "w": 64,
+    "h": 32
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 64,
+    "h": 32
+   },
+   "sourceSize": {
+    "w": 64,
+    "h": 32
+   },
+   "duration": 83
+  },
+  {
+   "filename": "vm_vfx_rebufo_c90 3",
+   "frame": {
+    "x": 192,
+    "y": 0,
+    "w": 64,
+    "h": 32
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 64,
+    "h": 32
+   },
+   "sourceSize": {
+    "w": 64,
+    "h": 32
+   },
+   "duration": 83
+  },
+  {
+   "filename": "vm_vfx_rebufo_c90 4",
+   "frame": {
+    "x": 256,
+    "y": 0,
+    "w": 64,
+    "h": 32
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 64,
+    "h": 32
+   },
+   "sourceSize": {
+    "w": 64,
+    "h": 32
+   },
+   "duration": 83
+  }
+ ],
+ "meta": {
+  "image": "vm_vfx_rebufo_c90.png",
+  "size": {
+   "w": 320,
+   "h": 32
+  },
+  "format": "RGBA8888",
+  "viaMuerta": {
+   "fps": 12,
+   "loop": false,
+   "frames": 5,
+   "frameSize": [
+    64,
+    32
+   ],
+   "pivot": [
+    0.625,
+    0.5
+   ],
+   "texel_m": 0.1,
+   "blend": "alfa",
+   "capa": "VFX_HD",
+   "origen": "pixelvm, build_armas.py"
+  }
+ }
+}

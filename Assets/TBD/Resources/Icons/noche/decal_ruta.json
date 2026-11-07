@@ -1,0 +1,10 @@
+{
+ "meta": {
+  "viaMuerta": {
+   "texel_m": 0.1,
+   "wrapU": true,
+   "teselas": "decal_ruta_*_16 repite a lo largo (U) cada 1,6 m; la punta *_fin va al final, mirando a +X",
+   "minimapa": "ui_mm_ruta_* repite cada 4 px sobre la ruta"
+  }
+ }
+}

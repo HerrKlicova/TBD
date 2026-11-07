@@ -1,0 +1,24 @@
+{
+ "meta": {
+  "viaMuerta": {
+   "frameSize": [
+    8,
+    8
+   ],
+   "columnas": [
+    "andar0",
+    "andar1",
+    "andar2",
+    "andar3",
+    "cadaver"
+   ],
+   "fps_andar": 6,
+   "loop_andar": true,
+   "pivot": [
+    0.5,
+    0.5
+   ],
+   "nota": "D-N58: sin contorno ni variantes"
+  }
+ }
+}

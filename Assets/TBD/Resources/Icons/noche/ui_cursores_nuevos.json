@@ -1,0 +1,32 @@
+{
+ "ui_cursor_seleccionar": {
+  "hotspot": [
+   1,
+   1
+  ]
+ },
+ "ui_cursor_mantener": {
+  "hotspot": [
+   7,
+   8
+  ]
+ },
+ "ui_cursor_emplazar": {
+  "hotspot": [
+   7,
+   14
+  ]
+ },
+ "ui_cursor_embarcar": {
+  "hotspot": [
+   9,
+   10
+  ]
+ },
+ "ui_cursor_no_valido": {
+  "hotspot": [
+   8,
+   8
+  ]
+ }
+}

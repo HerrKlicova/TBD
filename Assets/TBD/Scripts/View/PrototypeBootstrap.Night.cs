@@ -33,7 +33,7 @@ namespace TBD.View
         bool _nightOn, _nightInit; NightGame _ng; UnitsWorld _uw; readonly List<SpawnPoint> _spawns = new List<SpawnPoint>(); StepResult _res = new StepResult();
         readonly List<Target> _tgt = new List<Target>(); readonly HashSet<uint> _killSet = new HashSet<uint>();
         int _nightKills, _nightLost, _nightShotsSpent; int _lastWave = -1; float _bannerUntil; string _bannerText = "";
-        float _fpsLogT; bool _debugHud; float _nightT0; int _shotsTaken; float _lastStep; string _endReason = "";
+        int _resupplies; float _fpsLogT; bool _debugHud; float _nightT0; int _shotsTaken; float _lastStep; string _endReason = "";
         readonly List<int> _sel = new List<int>();
         bool _selDrag; Vector2 _selStart; bool _rmbDown; Vector2 _rmbStart; bool _attackNext;
         static readonly Vector2 StationC = new Vector2(113f, 64.5f), TrainC = new Vector2(143f, 64.5f);
@@ -97,10 +97,10 @@ namespace TBD.View
             int wv = CurrentWave();
             if (playing && wv != _lastWave && wv >= 0)
             {
-                _lastWave = wv; _nightWaveTotal = _ng.WaveTotal(wv);
+                _lastWave = wv; _nightWaveTotal = _ng.WaveTotal(wv); _waveBannerT0 = Time.unscaledTime;
                 string time = $"{_ng.P.StartHour + _ng.P.Waves[wv].StartMinute / 60:00}:{_ng.P.Waves[wv].StartMinute % 60:00}".Replace("24:", "00:");
                 _bannerText = $"{TimeStr()} · OLEADA {wv + 1}\nLa Colmena se acerca por el oeste"; _bannerUntil = Time.unscaledTime + 4f; Sfx.Play("sfx_alerta_oleada", 0.8f, 1f);
-                Debug.Log($"[NOCHE] oleada={wv + 1} hora={TimeStr()} total={_nightWaveTotal} ammo_u={_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.0}");
+                Debug.Log($"[NOCHE] oleada={wv + 1} hora={TimeStr()} total={_nightWaveTotal} ammo_u={_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.0} recargas={_resupplies} pila={_pileNearStation} bajas={_nightLost}");
             }
 
             // zombis nuevos (en los dos mundos, en el mismo punto)
@@ -133,6 +133,8 @@ namespace TBD.View
             _res.Clear(); _uw.Step(_tgt, _res);
             _nightShotsSpent += _res.AmmoSpent;
             _contact.Clear(); _nightLost += _uw.ZombieContact(_tgt, 900, 2, _contact);
+            if (_uw.Tick % 15 == 0 && _uw.StockShots > 0)                                // reabastecimiento automatico: bajo el 30 % de su dotacion, del almacen (la T queda como recarga anticipada)
+                foreach (var plr in _uw.Platoons) if (plr.AliveCount() > 0 && plr.AmmoCap > 0 && plr.AmmoShots * 100 < plr.AmmoCap * 30 && _uw.Resupply(plr.Id) > 0) _resupplies++;
             VehiclesTick(default(NativeSnapshot)); if (_vehHits.Count > 0) { KillZombies(_vehHits); _vehHits.Clear(); }
             if (_res.Hits.Count > 0) KillZombies(_res.Hits);
             for (int i = 0; i < _res.Shots.Count; i++) NightShotFx(_res.Shots[i]);
@@ -187,7 +189,7 @@ namespace TBD.View
             float left = a.StockShots / (float)WeaponCatalog.ShotsPerU;
             int stars = !win ? 0 : (_nightLost <= 2 && left >= 15f ? 3 : (_nightLost <= 6 && left >= 8f ? 2 : 1));
             _endStars = stars;
-            Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} estrellas={stars} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 hora_fin={TimeStr()}");
+            Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} estrellas={stars} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 recargas={_resupplies} hora_fin={TimeStr()}");
             _endReason = win ? "06:00. Amanece en Sagunto.\nLa estación resiste." : "Sagunto ha caído.";
         }
         int _endStars; bool _endDismissed, _reportClosed;
@@ -351,10 +353,18 @@ namespace TBD.View
         void NightDemoFlags()
         {
             var ca = System.Environment.GetCommandLineArgs(); float tt = Time.realtimeSinceStartup - _nightT0;
+            if (System.Array.IndexOf(ca, "-nightwin") >= 0 && _ng.State == NightState.Jugando) { _ng.StationHp = _ng.StationHpMax; _ng.TrainHp = _ng.TrainHpMax; }   // prueba: estacion y tren inmortales, para ver el parte de victoria y «Seguir»
+            if (System.Array.IndexOf(ca, "-nightdense") >= 0 && tt > 20f && _demoStep == 0)
+            {
+                _demoStep = 1; var pts = new List<SpawnPoint>(); var rr = new System.Random(5);
+                for (int i = 0; i < 10000; i++) pts.Add(new SpawnPoint { Wave = 0, Entry = 0, X = 2000 + rr.Next(0, 8000), Y = 56000 + rr.Next(0, 17000) });
+                SpawnZombies(pts); Debug.Log("[NOCHE] prueba: -nightdense, 10.000 zombis por O1");
+            }
             if (System.Array.IndexOf(ca, "-nightlose") >= 0 && tt > 15f && _demoStep == 0 && _ng.State == NightState.Jugando) { _demoStep = 1; _ng.StationHp = 0; Debug.Log("[NOCHE] prueba: -nightlose, la estacion cae"); }
             if (System.Array.IndexOf(ca, "-vehdemo") >= 0)
             {
                 if (tt > 8f && _demoStep == 0) { _demoStep = 1; foreach (var v in _vehs) { if (v.Name == "VAMTAC 1") VehicleOrder(v, new Vector3(55f, 0f, 53f)); if (v.Name == "NH90") VehicleOrder(v, new Vector3(120f, 0f, 44f)); } Debug.Log("[NOCHE] prueba: VAMTAC 1 hacia el muro oeste, NH90 despega"); }
+                if (Time.frameCount % 60 == 0) foreach (var v in _vehs) if (v.Name == "VAMTAC 1" || v.Name == "NH90") Debug.Log($"[NOCHE] veh {v.Name} pos=({v.Pos.x:0.0};{v.Pos.y:0.0}) alt={v.Alt:0.0} vel={v.Speed:0.0}");
                 foreach (var t in new[] { 12f, 20f, 30f }) if (tt > t && _shotsDemo < (t == 12f ? 1 : t == 20f ? 2 : 3)) { _shotsDemo++; SaveScreenshot(); }
             }
         }
@@ -382,6 +392,7 @@ namespace TBD.View
         void NightGUI()
         {
             if (_ng == null) return;
+            if (NightKitGUI()) return;
             float W = Screen.width, H = Screen.height, k = H / 1080f;
             if (_nPx == null) { _nPx = new Texture2D(1, 1); _nPx.SetPixel(0, 0, Color.white); _nPx.Apply(); }
             if (_nStyle == null) { var f = Font.CreateDynamicFontFromOSFont(new[] { "Consolas", "Lucida Console", "Courier New" }, 20); _nStyle = new GUIStyle(GUI.skin.label) { font = f, richText = true }; _nBig = new GUIStyle(_nStyle) { alignment = TextAnchor.MiddleCenter }; }
@@ -393,9 +404,9 @@ namespace TBD.View
             _nStyle.normal.textColor = bone;
             GUI.Label(new Rect(W * 0.5f - 90 * k, 10 * k, 200 * k, 44 * k), $"<b>{TimeStr()}</b>", _nBig);
             float u = _uw.StockShots / (float)WeaponCatalog.ShotsPerU;
-            float inPl = 0f; bool empty = false; foreach (var pl0 in _uw.Platoons) { inPl += pl0.AmmoShots / (float)WeaponCatalog.ShotsPerU; if (pl0.AliveCount() > 0 && pl0.AmmoShots <= 0) empty = true; }
+            float inPl = 0f; bool empty = false; foreach (var pl0 in _uw.Platoons) { inPl += pl0.AmmoShots / (float)WeaponCatalog.ShotsPerU; if (pl0.AliveCount() > 0 && pl0.AmmoShots <= 0 && _uw.StockShots <= 0) empty = true; }
             GUI.Label(new Rect(20 * k, 16 * k, 900 * k, 40 * k), $"munición {u + inPl:0.0} u (almacén {u:0.0})   ·   abatidos {_nightKills}   ·   pila {_pileNearStation}", _nStyle);
-            if (empty) { var cs0 = _nStyle.normal.textColor; _nStyle.normal.textColor = new Color32(0xe0, 0x8c, 0x30, 255); GUI.Label(new Rect(20 * k, 70 * k, 900 * k, 40 * k), "SIN MUNICIÓN en algún pelotón: T para recargar", _nStyle); _nStyle.normal.textColor = cs0; }
+            if (empty) { var cs0 = _nStyle.normal.textColor; _nStyle.normal.textColor = new Color32(0xe0, 0x8c, 0x30, 255); GUI.Label(new Rect(20 * k, 70 * k, 900 * k, 40 * k), "SIN MUNICIÓN: el almacén está vacío", _nStyle); _nStyle.normal.textColor = cs0; }
             int wv = Mathf.Max(0, CurrentWave());
             GUI.Label(new Rect(W - 820 * k, 16 * k, 800 * k, 40 * k), $"oleada {wv + 1}/{_ng.P.Waves.Length}   ·   estación {Mathf.CeilToInt(100f * _ng.StationHp / Mathf.Max(1, _ng.StationHpMax))} %   tren {Mathf.CeilToInt(100f * _ng.TrainHp / Mathf.Max(1, _ng.TrainHpMax))} %", _nStyle);
             // rótulo de oleada

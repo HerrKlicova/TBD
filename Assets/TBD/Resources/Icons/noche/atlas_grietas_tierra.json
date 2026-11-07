@@ -1,0 +1,38 @@
+{
+ "meta": {
+  "viaMuerta": {
+   "celda": [
+    64,
+    64
+   ],
+   "texel_m": 0.1,
+   "rects": {
+    "grieta_tierra_1": [
+     0,
+     0,
+     64,
+     64
+    ],
+    "grieta_tierra_2": [
+     64,
+     0,
+     64,
+     64
+    ],
+    "grieta_tierra_3": [
+     128,
+     0,
+     64,
+     64
+    ],
+    "grieta_tierra_4": [
+     192,
+     0,
+     64,
+     64
+    ]
+   },
+   "colocacion": "como las de asfalto, sobre suelo_seca: 1 cada 40–80 m², giro y espejo al azar"
+  }
+ }
+}

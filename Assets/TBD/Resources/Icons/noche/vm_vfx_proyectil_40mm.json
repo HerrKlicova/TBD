@@ -1,0 +1,73 @@
+{
+ "frames": [
+  {
+   "filename": "vm_vfx_proyectil_40mm 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   },
+   "duration": 83
+  },
+  {
+   "filename": "vm_vfx_proyectil_40mm 1",
+   "frame": {
+    "x": 16,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   },
+   "duration": 83
+  }
+ ],
+ "meta": {
+  "image": "vm_vfx_proyectil_40mm.png",
+  "size": {
+   "w": 32,
+   "h": 16
+  },
+  "format": "RGBA8888",
+  "viaMuerta": {
+   "fps": 12,
+   "loop": true,
+   "frames": 2,
+   "frameSize": [
+    16,
+    16
+   ],
+   "pivot": [
+    0.7,
+    0.5
+   ],
+   "texel_m": 0.1,
+   "blend": "alfa",
+   "capa": "VFX_HD",
+   "origen": "pixelvm, build_armas.py"
+  }
+ }
+}

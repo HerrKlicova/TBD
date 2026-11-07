@@ -1,0 +1,61 @@
+{
+ "frames": [
+  {
+   "filename": "ui_aviso_entrada 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 32,
+    "h": 24
+   },
+   "duration": 150
+  },
+  {
+   "filename": "ui_aviso_entrada 1",
+   "frame": {
+    "x": 32,
+    "y": 0,
+    "w": 32,
+    "h": 24
+   },
+   "duration": 150
+  },
+  {
+   "filename": "ui_aviso_entrada 2",
+   "frame": {
+    "x": 64,
+    "y": 0,
+    "w": 32,
+    "h": 24
+   },
+   "duration": 150
+  },
+  {
+   "filename": "ui_aviso_entrada 3",
+   "frame": {
+    "x": 96,
+    "y": 0,
+    "w": 32,
+    "h": 24
+   },
+   "duration": 150
+  }
+ ],
+ "meta": {
+  "image": "ui_aviso_entrada.png",
+  "viaMuerta": {
+   "loop": true,
+   "frames": 4,
+   "frameSize": [
+    32,
+    24
+   ],
+   "pivot": [
+    0.5,
+    0.5
+   ],
+   "texel_m": 0.1,
+   "origen": "pixelvm, build_marcadores.py"
+  }
+ }
+}

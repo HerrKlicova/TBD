@@ -1,0 +1,20 @@
+{
+ "meta": {
+  "viaMuerta": {
+   "m_por_px": 4,
+   "X": [
+    -250,
+    506
+   ],
+   "Z": [
+    -200,
+    480
+   ],
+   "yaw": 45,
+   "lado_px": 256,
+   "px": "x = (X + 250) / 4 - 94.5; y = (480 - Z) / 4 - 85; u = 128.0 + 0.7071 * (x + y); v = 128.0 + 0.7071 * (y - x)",
+   "nota": "D-N93: sustituye a ui_minimapa_base_sagunto (sin girar). Esquinas en navy del panel; el marco de cámara (ui_mm_camara, slice 2) queda recto. Supongo que yaw 45 en Unity = mirar a +X+Z.",
+   "origen": "sagunto_zonas_1m.png (Álvaro, mr-mak-workspace 4d02e00)"
+  }
+ }
+}

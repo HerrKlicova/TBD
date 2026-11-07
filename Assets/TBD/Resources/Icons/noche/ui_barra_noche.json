@@ -1,0 +1,1 @@
+{"ancho_px": 64, "horas": [22, 6], "px_por_hora": 8, "relleno": "recortar a lo ancho: progreso * 64", "marca": "centrada en x = progreso * 63", "posicion": "justo debajo del panel del reloj (64x22), con luna a la izquierda y sol a la derecha"}

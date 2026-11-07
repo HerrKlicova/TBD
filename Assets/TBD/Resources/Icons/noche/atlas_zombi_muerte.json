@@ -1,0 +1,26 @@
+{
+ "meta": {
+  "viaMuerta": {
+   "frameSize": [
+    32,
+    32
+   ],
+   "frames": 5,
+   "fps": 8,
+   "loop": false,
+   "pivot": [
+    0.5,
+    0.53
+   ],
+   "filas": [
+    "beige_oliva",
+    "beige_pizarra",
+    "gris_oliva",
+    "gris_pizarra",
+    "piedra_oliva",
+    "piedra_pizarra"
+   ],
+   "nota": "mismo orden de filas que atlas_zombi_andar; el \u00faltimo se queda"
+  }
+ }
+}

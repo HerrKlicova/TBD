@@ -1,0 +1,15 @@
+{
+ "image": "bg_tren_sierra_dia.png",
+ "size": [
+  640,
+  56
+ ],
+ "wrapX": true,
+ "parallax": 0.08,
+ "pixelesJuego": [
+  320,
+  180
+ ],
+ "origen": "pixelvm, build_parallax_tren.py",
+ "nota": "parallax = fracci\u00f3n de la velocidad del primer plano; sugerido, Marcos decide"
+}

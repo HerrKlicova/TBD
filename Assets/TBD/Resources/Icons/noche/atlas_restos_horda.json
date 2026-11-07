@@ -1,0 +1,50 @@
+{
+ "meta": {
+  "viaMuerta": {
+   "celda": [
+    32,
+    32
+   ],
+   "texel_m": 0.1,
+   "rects": {
+    "restos_horda_1": [
+     0,
+     0,
+     32,
+     32
+    ],
+    "restos_horda_2": [
+     32,
+     0,
+     32,
+     32
+    ],
+    "restos_horda_3": [
+     64,
+     0,
+     32,
+     32
+    ],
+    "restos_horda_4": [
+     96,
+     0,
+     32,
+     32
+    ],
+    "restos_horda_5": [
+     128,
+     0,
+     32,
+     32
+    ],
+    "restos_horda_6": [
+     160,
+     0,
+     32,
+     32
+    ]
+   },
+   "colocacion": "un decal donde cae cada zombi abatido, giro y espejo al azar; máx. ~400 vivos (los más viejos se apagan con tramado)"
+  }
+ }
+}

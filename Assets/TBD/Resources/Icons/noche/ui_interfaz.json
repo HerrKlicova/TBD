@@ -1,0 +1,406 @@
+{
+ "meta": {
+  "viaMuerta": {
+   "ui_panel": {
+    "size": [
+     24,
+     24
+    ],
+    "slice": [
+     4,
+     4,
+     4,
+     4
+    ]
+   },
+   "ui_recurso_slot": {
+    "size": [
+     56,
+     20
+    ],
+    "slice": [
+     4,
+     4,
+     4,
+     4
+    ]
+   },
+   "ui_tarjeta_unidad": {
+    "size": [
+     40,
+     48
+    ],
+    "slice": [
+     3,
+     3,
+     3,
+     3
+    ]
+   },
+   "ui_tarjeta_unidad_sel": {
+    "size": [
+     40,
+     48
+    ],
+    "slice": [
+     3,
+     3,
+     3,
+     3
+    ]
+   },
+   "ui_seleccion": {
+    "size": [
+     16,
+     16
+    ],
+    "slice": [
+     5,
+     5,
+     5,
+     5
+    ]
+   },
+   "ui_seleccion_encima": {
+    "size": [
+     16,
+     16
+    ],
+    "slice": [
+     5,
+     5,
+     5,
+     5
+    ]
+   },
+   "ui_boton_normal": {
+    "size": [
+     48,
+     16
+    ],
+    "slice": [
+     4,
+     4,
+     4,
+     4
+    ]
+   },
+   "ui_boton_encima": {
+    "size": [
+     48,
+     16
+    ],
+    "slice": [
+     4,
+     4,
+     4,
+     4
+    ]
+   },
+   "ui_boton_pulsado": {
+    "size": [
+     48,
+     16
+    ],
+    "slice": [
+     4,
+     4,
+     4,
+     4
+    ]
+   },
+   "ui_boton_inactivo": {
+    "size": [
+     48,
+     16
+    ],
+    "slice": [
+     4,
+     4,
+     4,
+     4
+    ]
+   },
+   "ui_alerta_aviso": {
+    "size": [
+     24,
+     24
+    ],
+    "slice": [
+     4,
+     4,
+     4,
+     4
+    ]
+   },
+   "ui_alerta_ataque": {
+    "size": [
+     24,
+     24
+    ],
+    "slice": [
+     4,
+     4,
+     4,
+     4
+    ]
+   },
+   "ui_alerta_info": {
+    "size": [
+     24,
+     24
+    ],
+    "slice": [
+     4,
+     4,
+     4,
+     4
+    ]
+   },
+   "ui_barra_efectivos": {
+    "size": [
+     32,
+     3
+    ],
+    "slice": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   "ui_barra_municion": {
+    "size": [
+     32,
+     3
+    ],
+    "slice": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   "ui_barra_combustible": {
+    "size": [
+     32,
+     3
+    ],
+    "slice": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   "ui_barra_baja": {
+    "size": [
+     32,
+     3
+    ],
+    "slice": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   "ui_cartel_oleada": {
+    "size": [
+     300,
+     58
+    ],
+    "slice": [
+     6,
+     6,
+     6,
+     6
+    ]
+   },
+   "ui_barra_recarga": {
+    "size": [
+     32,
+     3
+    ],
+    "slice": [
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   "ui_cursor_normal": {
+    "size": [
+     16,
+     16
+    ],
+    "slice": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "hotspot": [
+     1,
+     1
+    ]
+   },
+   "ui_cursor_mover": {
+    "size": [
+     16,
+     16
+    ],
+    "slice": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "hotspot": [
+     8,
+     8
+    ]
+   },
+   "ui_cursor_atacar": {
+    "size": [
+     16,
+     16
+    ],
+    "slice": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "hotspot": [
+     8,
+     8
+    ]
+   },
+   "ui_cursor_construir": {
+    "size": [
+     16,
+     16
+    ],
+    "slice": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "hotspot": [
+     3,
+     12
+    ]
+   },
+   "ui_indicador_entrada": {
+    "size": [
+     64,
+     24
+    ],
+    "frames": 2,
+    "frameSize": [
+     32,
+     24
+    ],
+    "fps": 4,
+    "loop": true,
+    "nota": "mira a la derecha; se gira hacia la entrada activa fuera de cuadro; placa de 16x12 en 1,6 para «O1»–«O4»"
+   },
+   "ui_orden_mover": {
+    "size": [
+     64,
+     16
+    ],
+    "frames": 4,
+    "frameSize": [
+     16,
+     16
+    ],
+    "fps": 12,
+    "loop": false
+   },
+   "ui_orden_atacar": {
+    "size": [
+     64,
+     16
+    ],
+    "frames": 4,
+    "frameSize": [
+     16,
+     16
+    ],
+    "fps": 12,
+    "loop": false
+   },
+   "vm_ordenes_mover": {
+    "size": [
+     32,
+     32
+    ],
+    "tecla": "clic derecho"
+   },
+   "vm_ordenes_atacar": {
+    "size": [
+     32,
+     32
+    ],
+    "tecla": "A"
+   },
+   "vm_ordenes_mantener": {
+    "size": [
+     32,
+     32
+    ],
+    "tecla": "S"
+   },
+   "vm_ordenes_emplazar": {
+    "size": [
+     32,
+     32
+    ],
+    "tecla": "D"
+   },
+   "vm_ordenes_embarcar": {
+    "size": [
+     32,
+     32
+    ],
+    "tecla": "E"
+   },
+   "vm_ordenes_desembarcar": {
+    "size": [
+     32,
+     32
+    ],
+    "tecla": "E"
+   },
+   "decal_linea_central_64x2": {
+    "texel_m": 0.1,
+    "nota": "quad plano sobre el asfalto; la central y el arcén se repiten en x"
+   },
+   "decal_arcen_64x1": {
+    "texel_m": 0.1,
+    "nota": "quad plano sobre el asfalto; la central y el arcén se repiten en x"
+   },
+   "decal_helipuerto_128": {
+    "texel_m": 0.1,
+    "nota": "quad plano sobre el asfalto; la central y el arcén se repiten en x"
+   },
+   "ui_logo_via_muerta": {
+    "size": [
+     178,
+     31
+    ],
+    "nota": "título provisional (el del GDD); se escala x2–x4"
+   },
+   "ui_menu_fondo": {
+    "size": [
+     480,
+     270
+    ],
+    "nota": "x4 a 1920x1080; logo arriba a la izquierda, botones en la columna izquierda"
+   }
+  }
+ }
+}

@@ -1,0 +1,13 @@
+{
+ "meta": {
+  "viaMuerta": {
+   "frames": 4,
+   "frameSize": [
+    11,
+    11
+   ],
+   "loop": true,
+   "duration_ms": 120
+  }
+ }
+}

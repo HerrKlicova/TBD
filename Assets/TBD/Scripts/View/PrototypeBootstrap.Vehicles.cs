@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using TBD.Units;
+using TBD.Sim;
 
 namespace TBD.View
 {
@@ -87,9 +88,23 @@ namespace TBD.View
             v.Speed = Mathf.MoveTowards(v.Speed, desired, (desired > v.Speed ? accel : 6f) * dt);
             v.Steer = Mathf.MoveTowards(v.Steer, steerCmd * maxSteer, 120f * dt);
             v.Heading += v.Speed / wheelbase * Mathf.Tan(v.Steer * Mathf.Deg2Rad) * Mathf.Rad2Deg * dt;
-            float hr = v.Heading * Mathf.Deg2Rad; v.Pos += new Vector2(Mathf.Sin(hr), Mathf.Cos(hr)) * v.Speed * dt;
+            float hr = v.Heading * Mathf.Deg2Rad; var np = v.Pos + new Vector2(Mathf.Sin(hr), Mathf.Cos(hr)) * v.Speed * dt;
+            if (WallBlocks(v.Pos, np)) { if (v.Speed > 1f) Debug.Log($"[NOCHE] choque {v.Name} contra el muro en ({v.Pos.x:0.0};{v.Pos.y:0.0})"); v.Speed = 0f; v.HasTarget = false; np = v.Pos; }
+            v.Pos = np;
             v.Pos.x = Mathf.Clamp(v.Pos.x, 5f, 505f); v.Pos.y = Mathf.Clamp(v.Pos.y, 5f, 475f);
             v.SpinWheel += v.Speed / 0.55f * Mathf.Rad2Deg * dt;
+        }
+
+        /// <summary>¿El tramo a-b cruza un muro del recinto? Oeste (puerta cerrada), norte y este: macizos; sur: macizo salvo la puerta de vehiculos E4 (X 95-103).</summary>
+        static bool WallBlocks(Vector2 a, Vector2 b)
+        {
+            float x0 = Level.FortX0, x1 = Level.FortX1, y0 = Level.FortY0, y1 = Level.FortY1;
+            bool Cross(float wallC, float v0, float v1) { return (v0 - wallC) * (v1 - wallC) < 0f; }
+            if (Cross(x0, a.x, b.x) && b.y > y0 - 1f && b.y < y1 + 1f) return true;                  // oeste
+            if (Cross(x1, a.x, b.x) && b.y > y0 - 1f && b.y < y1 + 1f) return true;                  // este
+            if (Cross(y1, a.y, b.y) && b.x > x0 - 1f && b.x < x1 + 1f) return true;                  // norte
+            if (Cross(y0, a.y, b.y) && b.x > x0 - 1f && b.x < x1 + 1f && !(b.x >= 95f && b.x <= 103f)) return true;   // sur (E4 abierta)
+            return false;
         }
 
         void HeliStep(Veh v, float dt)

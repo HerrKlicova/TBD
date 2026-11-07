@@ -65,8 +65,72 @@ namespace TBD.View
             catch (System.Exception e) { _msg = "No se pudo cargar la partida: " + e.Message; }
         }
 
+        sealed class DatosMenu : TBD.View.UiNoche.IUiNocheDatos
+        {
+            public string Reloj { get { return "22:00"; } } public float ProgresoNoche { get { return 0f; } } public int Municion { get { return 0; } } public int Materiales { get { return 0; } }
+            public int Combustible { get { return 0; } } public int Pila { get { return 0; } } public int Bajas { get { return 0; } } public float PrimeraOleadaEn { get { return -1f; } }
+            readonly System.Collections.Generic.List<TBD.View.UiNoche.Aviso> _a = new System.Collections.Generic.List<TBD.View.UiNoche.Aviso>();
+            readonly System.Collections.Generic.List<TBD.View.UiNoche.Frente> _f = new System.Collections.Generic.List<TBD.View.UiNoche.Frente>();
+            readonly System.Collections.Generic.List<TBD.View.UiNoche.Tarjeta> _t = new System.Collections.Generic.List<TBD.View.UiNoche.Tarjeta>();
+            public System.Collections.Generic.IReadOnlyList<TBD.View.UiNoche.Aviso> Avisos { get { return _a; } }
+            public System.Collections.Generic.IReadOnlyList<TBD.View.UiNoche.Frente> Frentes { get { return _f; } }
+            public System.Collections.Generic.IReadOnlyList<TBD.View.UiNoche.Tarjeta> Tarjetas { get { return _t; } }
+            public TBD.View.UiNoche.Parte Parte { get { return default(TBD.View.UiNoche.Parte); } }
+            public bool HayPartidaGuardada { get { return NetSession.HasSave; } }
+        }
+        readonly DatosMenu _datosMenu = new DatosMenu(); bool _dragSlider; int _sliderIdx = -1;
+
+        /// <summary>Menú con el arte de Bruno (kit UiNoche, base 640×360). El kit solo pinta: los clics van con botones transparentes sobre las piezas.</summary>
+        bool KitMenu()
+        {
+            if (UiNoche.UiNocheKit.Tex("ui_menu_fondo_noche") == null) return false;
+            Styles();
+            UiNoche.UiNocheVistas.OpcVal[0] = _volume; UiNoche.UiNocheVistas.OpcVal[1] = _music; UiNoche.UiNocheVistas.OpcVal[2] = _sfx;
+            UiNoche.UiNocheKit.Begin(); UiNoche.UiNocheVistas.Menu(_datosMenu, Time.unscaledTime, _page == Page.Opciones); UiNoche.UiNocheKit.End();
+            int e = UiNoche.UiNocheKit.Escala; var o = UiNoche.UiNocheKit.Origen;
+            Rect R(float bx, float by, float bw, float bh) { return new Rect(o.x + bx * e, o.y + by * e, bw * e, bh * e); }
+            if (_page == Page.Principal)
+            {
+                bool has = NetSession.HasSave;
+                if (GUI.Button(R(24, 120, 132, 20), GUIContent.none, GUIStyle.none)) StartGame();
+                if (has && GUI.Button(R(24, 146, 132, 20), GUIContent.none, GUIStyle.none)) ContinueGame();
+                if (GUI.Button(R(24, 172, 132, 20), GUIContent.none, GUIStyle.none)) _page = Page.Controles;
+                if (GUI.Button(R(24, 198, 132, 20), GUIContent.none, GUIStyle.none)) _page = Page.Opciones;
+                if (GUI.Button(R(24, 224, 132, 20), GUIContent.none, GUIStyle.none)) Quit();
+                if (!string.IsNullOrEmpty(_msg)) GUI.Label(R(24, 250, 400, 14), _msg, _small);
+            }
+            else if (_page == Page.Opciones)
+            {
+                float x = 170, y = 92; var ev = Event.current; var mp = ev.mousePosition;
+                for (int i = 0; i < 3; i++)
+                {
+                    var track = R(x + 130 - 4, y + 34 + i * 20 + 2, 128, 12);
+                    if (ev.type == EventType.MouseDown && ev.button == 0 && track.Contains(mp)) { _dragSlider = true; _sliderIdx = i; }
+                    if (_dragSlider && _sliderIdx == i && (ev.type == EventType.MouseDrag || ev.type == EventType.MouseDown))
+                    {
+                        float nv = Mathf.Clamp01((mp.x - R(x + 130, 0, 0, 0).x) / (120f * e));
+                        if (i == 0) { _volume = nv; AudioListener.volume = nv; PlayerPrefs.SetFloat("tbd.vol", nv); } else if (i == 1) { _music = MusicVolume = nv; PlayerPrefs.SetFloat("tbd.mus", nv); } else { _sfx = SfxVolume = nv; PlayerPrefs.SetFloat("tbd.sfx", nv); }
+                    }
+                }
+                if (ev.type == EventType.MouseUp) _dragSlider = false;
+                if (GUI.Button(R(x + 130, y + 118, 18, 16), GUIContent.none, GUIStyle.none)) { _full = !_full; Screen.fullScreen = _full; }
+                if (GUI.Button(R(x + 102, y + 148, 90, 18), GUIContent.none, GUIStyle.none)) { PlayerPrefs.Save(); _page = Page.Principal; }
+                if (GUI.Button(R(x + 200, y + 148, 90, 18), GUIContent.none, GUIStyle.none)) _page = Page.Principal;
+            }
+            else
+            {
+                var r = R(150, 90, 340, 200); GUI.Box(r, GUIContent.none); GUI.Label(new Rect(r.x + 14, r.y + 10, r.width - 28, r.height - 20),
+                    "<b>En la zona</b>\nclic o arrastre: elegir · clic derecho: mover · A+clic: atacar moviéndose · S: mantener · D: emplazar · G: alto el fuego · T: recargar\n" +
+                    "cámara: flechas o bordes · Z acerca · X aleja · botón derecho arrastrando: girar · R F: inclinar · F2: depuración · F5: guardar\n" +
+                    "<b>Mapa</b>: V vista cercana del tren.\n<b>Objetivo</b>: resiste hasta el amanecer.", _txt);
+                if (GUI.Button(R(250, 296, 140, 20), "Volver")) _page = Page.Principal;
+            }
+            return true;
+        }
+
         void OnGUI()
         {
+            if (KitMenu()) return;
             Styles(); _t += Time.unscaledDeltaTime;
             GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _bg);
             float W = Screen.width, H = Screen.height, u = Mathf.Max(10, H / 54f);
@@ -129,7 +193,20 @@ namespace TBD.View
 #endif
         }
 
+        float _shotT = -1f;
         void Update()
+        {
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-menu-shot") >= 0)       // QA: capturas del menu a los 6 s (principal) y 12 s (opciones)
+            {
+                if (_shotT < 0f) _shotT = Time.realtimeSinceStartup; float tt = Time.realtimeSinceStartup - _shotT;
+                if (tt > 6f && _shotN == 0) { _shotN = 1; ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.dataPath, "..", "Captures", "menu_principal.png")); }
+                if (tt > 8f && _shotN == 1) { _shotN = 2; _page = Page.Opciones; }
+                if (tt > 12f && _shotN == 2) { _shotN = 3; ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.dataPath, "..", "Captures", "menu_opciones.png")); }
+            }
+            UpdateInput();
+        }
+        int _shotN;
+        void UpdateInput()
         {
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.escapeKey.wasPressedThisFrame && _page != Page.Principal) _page = Page.Principal;

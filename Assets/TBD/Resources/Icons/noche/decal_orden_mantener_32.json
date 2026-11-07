@@ -1,0 +1,61 @@
+{
+ "frames": [
+  {
+   "filename": "decal_orden_mantener_32 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 32,
+    "h": 32
+   },
+   "duration": 83
+  },
+  {
+   "filename": "decal_orden_mantener_32 1",
+   "frame": {
+    "x": 32,
+    "y": 0,
+    "w": 32,
+    "h": 32
+   },
+   "duration": 83
+  },
+  {
+   "filename": "decal_orden_mantener_32 2",
+   "frame": {
+    "x": 64,
+    "y": 0,
+    "w": 32,
+    "h": 32
+   },
+   "duration": 83
+  },
+  {
+   "filename": "decal_orden_mantener_32 3",
+   "frame": {
+    "x": 96,
+    "y": 0,
+    "w": 32,
+    "h": 32
+   },
+   "duration": 83
+  }
+ ],
+ "meta": {
+  "image": "decal_orden_mantener_32.png",
+  "viaMuerta": {
+   "loop": false,
+   "frames": 4,
+   "frameSize": [
+    32,
+    32
+   ],
+   "pivot": [
+    0.5,
+    0.5
+   ],
+   "texel_m": 0.1,
+   "origen": "pixelvm, build_marcadores.py"
+  }
+ }
+}

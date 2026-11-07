@@ -1,0 +1,14 @@
+{
+ "meta": {
+  "viaMuerta": {
+   "pivot": [
+    0.0,
+    0.5
+   ],
+   "texel_m": 0.1,
+   "radio_m": 25.6,
+   "grados": 60,
+   "nota": "vértice en el pelotón, mirando a +X local; si el alcance real es otro, se regenera con cono_emplazar(r)"
+  }
+ }
+}

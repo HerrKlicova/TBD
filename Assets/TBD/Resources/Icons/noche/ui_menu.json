@@ -1,0 +1,72 @@
+{
+ "variante": "A (Mak, 07-11 01:08); sustituye a ui_menu_fondo (el atardecer)",
+ "base": [
+  640,
+  360
+ ],
+ "escala_1080": 3,
+ "fondo": {
+  "png": "ui_menu_fondo_noche",
+  "tamano": [
+   640,
+   360
+  ]
+ },
+ "logo": {
+  "png": "ui_logo_via_muerta",
+  "x": 24,
+  "y": 24
+ },
+ "botones": {
+  "png": "ui_menu_boton_{normal|encima|pulsado|inactivo}",
+  "slice": {
+   "left": 10,
+   "top": 3,
+   "right": 3,
+   "bottom": 3
+  },
+  "tamano": [
+   132,
+   20
+  ],
+  "x": 24,
+  "y0": 120,
+  "paso": 26,
+  "orden": [
+   "Jugar",
+   "Continuar",
+   "Cómo se juega",
+   "Opciones",
+   "Salir"
+  ],
+  "texto": {
+   "x": 14,
+   "color": {
+    "normal": "#d4d0cc",
+    "encima": "#f0dc9c",
+    "pulsado": "#b4a080",
+    "inactivo": "#605c48"
+   }
+  },
+  "continuar": "inactivo si no hay partida guardada"
+ },
+ "opciones": {
+  "velo": "ui_velo_navy_4x4 en mosaico sobre toda la pantalla",
+  "panel": "ui_menu_panel (slice 4), 300x176 centrado",
+  "titulo": "«Opciones» a (12, 8), 11 px, cream; separador ui_menu_separador en y 24",
+  "filas": {
+   "volumen": [
+    "Volumen general",
+    "Música",
+    "Efectos"
+   ],
+   "y0": 34,
+   "paso": 20,
+   "deslizador": "ui_deslizador_pista (estirada a 120 px) + ui_deslizador_relleno (2 px de alto en la fila 0, ancho × valor) + ui_deslizador_mando_{normal|encima} centrado en el valor; x 130",
+   "resolucion": "y 98: ui_flecha_izq en x 130, ui_flecha_dcha en x 246, el valor centrado en x 190",
+   "pantalla_completa": "y 118: ui_casilla_{si|no} en x 130"
+  },
+  "botones": "Aplicar y Volver con ui_menu_boton_*, 90x18, abajo a la derecha"
+ },
+ "colores": "sin rojo ni ámbar; horda en 1c200c solo en sus siluetas"
+}

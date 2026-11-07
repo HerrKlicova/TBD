@@ -1,0 +1,1 @@
+{"frames": 2, "frameSize": [40, 48], "duration_ms": 500, "parpadeo_s": 3, "despues": "fijo en el fotograma 0", "uso": "encima de ui_tarjeta_unidad mientras el pelotón no tenga munición; parpadea los 3 primeros segundos (D-N109) y luego se queda fija en ámbar hasta que se recarga con T"}

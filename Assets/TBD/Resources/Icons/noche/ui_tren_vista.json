@@ -1,0 +1,65 @@
+{
+ "variante": "A + fila de aviso de la C (aprobada por Mak, 07-11 00:46)",
+ "base": [
+  640,
+  360
+ ],
+ "escala_1080": 3,
+ "franja": {
+  "png": "ui_tren_franja",
+  "y": 326,
+  "alto": 34,
+  "estirar": "horizontal a 640; la fila 0 es el filete"
+ },
+ "esquema": {
+  "centro_x": 320,
+  "y": 333,
+  "orden": "locomotora a la derecha (el tren va hacia +X)",
+  "coches": [
+   "loco",
+   "tropa",
+   "contenedor"
+  ],
+  "paso_x": 31,
+  "caja": {
+   "png": "ui_tren_caja",
+   "visible": "ui_tren_caja_visible",
+   "atacado": "ui_tren_caja_atacado",
+   "slice": 2,
+   "atacado_frames": 2,
+   "duration_ms": 500
+  },
+  "silueta": {
+   "png": "ui_tren_coche_<tipo>_22x8",
+   "x": 3,
+   "y": 2
+  },
+  "barra": {
+   "x": 3,
+   "y": 14,
+   "ancho": 22,
+   "alto": 2,
+   "fondo": "ui_tren_barra_fondo",
+   "relleno": {
+    "alta (>=50 %)": "ui_tren_barra_alta",
+    "media (25-50 %)": "ui_tren_barra_media",
+    "baja (<25 %)": "ui_tren_barra_baja"
+   }
+  }
+ },
+ "triangulo": {
+  "png": "ui_tren_triangulo_ataque",
+  "sobre": "la caja atacada, 13 px por encima de la franja",
+  "parpadeo": "visible en el fotograma 0 de la caja atacada"
+ },
+ "flecha": {
+  "png": "ui_tren_flecha_ataque",
+  "uso": "en el mundo, sobre el trozo atacado; si está fuera de cuadro, pegada al borde por donde atacan"
+ },
+ "textos": [
+  "Vista del tren (9 px, cream, x 10, y 334)",
+  "V: volver al mapa (9 px, beige, x 10, y 346)"
+ ],
+ "aviso": "fila de la columna de avisos: ui_alerta_ataque + ui_aviso_tren_atacado_16 + ui_panel con «Tren atacado · vagón N»",
+ "colores": "vida en hueso, beige y ocre (sin ámbar); rojo #982420 solo para el ataque"
+}

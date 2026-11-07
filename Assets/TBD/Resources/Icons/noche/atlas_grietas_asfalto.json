@@ -1,0 +1,63 @@
+{
+ "meta": {
+  "viaMuerta": {
+   "celda": [
+    64,
+    64
+   ],
+   "texel_m": 0.1,
+   "rects": {
+    "grieta_asfalto_1": [
+     0,
+     0,
+     64,
+     64
+    ],
+    "grieta_asfalto_2": [
+     64,
+     0,
+     64,
+     64
+    ],
+    "grieta_asfalto_3": [
+     128,
+     0,
+     64,
+     64
+    ],
+    "grieta_asfalto_4": [
+     192,
+     0,
+     64,
+     64
+    ],
+    "grieta_asfalto_5": [
+     0,
+     64,
+     64,
+     64
+    ],
+    "grieta_asfalto_6": [
+     64,
+     64,
+     64,
+     64
+    ],
+    "grieta_asfalto_7": [
+     128,
+     64,
+     64,
+     64
+    ],
+    "grieta_asfalto_8": [
+     192,
+     64,
+     64,
+     64
+    ]
+   },
+   "colocacion": "quads planos dispersos, giro de 90° y espejo al azar, 1 cada 60–100 m²; nunca alineados a la tesela",
+   "base": "suelo_asfalto_liso_1..4_64: una por celda de 6,4 m con hash, giro de 90° y espejo"
+  }
+ }
+}

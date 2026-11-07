@@ -1,0 +1,73 @@
+{
+ "frames": [
+  {
+   "filename": "vm_vfx_fogonazo_g36e 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 24
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 24
+   },
+   "sourceSize": {
+    "w": 24,
+    "h": 24
+   },
+   "duration": 83
+  },
+  {
+   "filename": "vm_vfx_fogonazo_g36e 1",
+   "frame": {
+    "x": 24,
+    "y": 0,
+    "w": 24,
+    "h": 24
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 24
+   },
+   "sourceSize": {
+    "w": 24,
+    "h": 24
+   },
+   "duration": 83
+  }
+ ],
+ "meta": {
+  "image": "vm_vfx_fogonazo_g36e.png",
+  "size": {
+   "w": 48,
+   "h": 24
+  },
+  "format": "RGBA8888",
+  "viaMuerta": {
+   "fps": 12,
+   "loop": false,
+   "frames": 2,
+   "frameSize": [
+    24,
+    24
+   ],
+   "pivot": [
+    0.125,
+    0.5
+   ],
+   "texel_m": 0.1,
+   "blend": "alfa",
+   "capa": "VFX_HD",
+   "origen": "pixelvm, build_armas.py"
+  }
+ }
+}

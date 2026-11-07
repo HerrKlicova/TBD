@@ -1,0 +1,73 @@
+{
+ "frames": [
+  {
+   "filename": "vm_vfx_luz_ventanilla 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 8
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 8
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 8
+   },
+   "duration": 400
+  },
+  {
+   "filename": "vm_vfx_luz_ventanilla 1",
+   "frame": {
+    "x": 16,
+    "y": 0,
+    "w": 16,
+    "h": 8
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 8
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 8
+   },
+   "duration": 400
+  }
+ ],
+ "meta": {
+  "image": "vm_vfx_luz_ventanilla.png",
+  "size": {
+   "w": 32,
+   "h": 8
+  },
+  "format": "RGBA8888",
+  "viaMuerta": {
+   "fps": 12,
+   "loop": true,
+   "frames": 2,
+   "frameSize": [
+    16,
+    8
+   ],
+   "pivot": [
+    0.5,
+    0.5
+   ],
+   "texel_m": 0.1,
+   "blend": "aditivo",
+   "capa": "VFX_HD",
+   "origen": "pixelvm, build_vfx_tren.py"
+  }
+ }
+}
