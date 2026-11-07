@@ -862,6 +862,13 @@ namespace TBD.Sim.Tests
                 check(g.State == NightState.Derrota && g.Tick == g.TotalTicks && g.EndedByTrain && !g.EndedByStation, "en el mismo tick de las 06:00 cae la locomotora: DERROTA, no victoria");
                 var g2 = new NightGame(NightParams.Default(), 1); while (g2.Tick < g2.TotalTicks - 1) g2.Step(true, true, sp); g2.Step(false, true, sp);
                 check(g2.State == NightState.Derrota && g2.EndedByStation, "en el mismo tick de las 06:00 cae el edificio de viajeros: DERROTA");
+                // D-N133: causa y recuentos
+                check(g.Cause == DefeatCause.Tren && g.DefeatHeadline() == "El tren ha caído." && g.TrainsAlive == 0 && g.StationsAlive == 1, "D-N133: sin tren la causa es el tren y el titular «El tren ha caído.»");
+                check(g2.Cause == DefeatCause.Estacion && g2.DefeatHeadline() == "Sagunto ha caído." && g2.StationsAlive == 0, "D-N133: sin estación la causa es la estación y el titular «Sagunto ha caído.»");
+                { var gc = new NightGame(NightParams.Default(), 1); gc.Step(2, 1, sp); check(gc.State == NightState.Jugando && gc.Cause == DefeatCause.Ninguna && gc.DefeatHeadline() == "" && gc.StationsAlive == 2, "D-N133: con estaciones y trenes vivos se sigue jugando, sin causa");
+                  gc.Step(1, 0, sp); check(gc.State == NightState.Derrota && gc.Cause == DefeatCause.Tren && gc.TrainsAlive == 0, "D-N133: con 0 trenes vivos (y 1 estación) se pierde por el tren");
+                  var gx = new NightGame(NightParams.Default(), 1); gx.Step(0, 0, sp); check(gx.Cause == DefeatCause.Ambas && gx.DefeatHeadline("Castellón") == "Castellón y el tren han caído.", "D-N133: si caen las dos a la vez, las dos causas");
+                  var ge = new NightGame(NightParams.Default(), 1); var gf = new NightGame(NightParams.Default(), 1); for (int i = 0; i < 300; i++) { ge.Step(true, true, sp); gf.Step(3, 2, sp); } check(ge.Hash() == gf.Hash(), "D-N133: los recuentos no cambian el hash"); }
                 var g3 = new NightGame(NightParams.Default(), 1); while (g3.Tick < 5000) g3.Step(true, true, sp); g3.Step(false, false, sp);
                 int t0 = g3.Tick; g3.Step(true, true, sp);
                 check(g3.State == NightState.Derrota && g3.DefeatTick == 5001 && g3.Tick == t0 && sp.Count == 0, "la derrota es definitiva: el reloj se para y no entra nadie más");
