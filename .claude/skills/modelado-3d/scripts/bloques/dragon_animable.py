@@ -27,7 +27,7 @@ PIEZAS = D.PIEZAS
 VAR = 1   # pintura lisa, como el real (Eugenio 7-nov 09:20 rechazó el camuflaje por caras); TBD_VARIANTE es ahora el
           # grado de uso de la textura horneada (textura_real.py): 0 parque, 1 campaña, 2 árido, 3 embarrado, 4 castigado
 TEXTURA_REAL = True
-COLORES = A.colores(VAR, dict(D.COLORES, optica="60546c", goma="48403c", metal="48403c", visor="88885c"))  # visor: no confundir con el punto de selección (Lucía 09:28)
+COLORES = A.colores(VAR, dict(D.COLORES, optica="48403c", goma="48403c", metal="48403c", visor="88885c"))  # visor: no confundir con el punto de selección (Lucía 09:28)
 COLORES_LOD1 = D.COLORES_LOD1
 ABAJO_CASCO = "50541c"      # caras de abajo del casco y de las costuras (por defecto caían en 442c0c)
 L_MIN = 28.0                # D-N80 también en las costuras: las del costado 50541c no tienen paso oscuro válido y se quedan

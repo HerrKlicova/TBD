@@ -23,7 +23,7 @@ PIEZAS = V.PIEZAS
 VAR = 1   # pintura lisa, como el real (Eugenio 7-nov 09:20 rechazó el camuflaje por caras); TBD_VARIANTE es ahora el
           # grado de uso de la textura horneada (textura_real.py): 0 parque, 1 campaña, 2 árido, 3 embarrado, 4 castigado
 TEXTURA_REAL = True
-COLORES = A.colores(VAR, dict(V.COLORES, goma="48403c", optica="60546c", metal="48403c"))
+COLORES = A.colores(VAR, dict(V.COLORES, goma="48403c", optica="48403c", metal="48403c"))  # cristal 48403c, oscuro de la familia 303424: el 60546c violeta salía de noche como una raya azul (Lucía 09:40)
 VALOR_PIEZAS = A.valores(VAR, {"casco": ("70784c", "50541c", "50541c")})
 ABAJO_CASCO = "50541c"
 L_MIN = 28.0
