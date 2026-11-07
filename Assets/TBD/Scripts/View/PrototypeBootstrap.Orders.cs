@@ -148,6 +148,18 @@ namespace TBD.View
                     }
                 }
             }
+            // recuadro de seleccion al arrastrar con el boton izquierdo (hueso, relleno tenue), por encima del mundo
+            if (_selDrag && UnityEngine.InputSystem.Mouse.current != null && UnityEngine.InputSystem.Mouse.current.leftButton.isPressed)
+            {
+                var mpq = UnityEngine.InputSystem.Mouse.current.position.ReadValue(); var ds = mpq - _selStart;
+                if (ds.magnitude > 6f)
+                {
+                    float x0 = Mathf.Min(_selStart.x, mpq.x), x1 = Mathf.Max(_selStart.x, mpq.x), y0 = Screen.height - Mathf.Max(_selStart.y, mpq.y), y1 = Screen.height - Mathf.Min(_selStart.y, mpq.y);
+                    OvEnsure(); var oldc = GUI.color; GUI.color = new Color(OvHueso.r, OvHueso.g, OvHueso.b, 0.12f); GUI.DrawTexture(Rect.MinMaxRect(x0, y0, x1, y1), _ovTex); GUI.color = oldc;
+                    OvLine(new Vector2(x0, y0), new Vector2(x1, y0), 2f, OvHueso, 0.95f); OvLine(new Vector2(x0, y1), new Vector2(x1, y1), 2f, OvHueso, 0.95f);
+                    OvLine(new Vector2(x0, y0), new Vector2(x0, y1), 2f, OvHueso, 0.95f); OvLine(new Vector2(x1, y0), new Vector2(x1, y1), 2f, OvHueso, 0.95f);
+                }
+            }
             // formacion activa
             { var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(11, Screen.height / 70), wordWrap = false, clipping = TextClipping.Overflow }; st.normal.textColor = OvHueso; if (_sel.Count > 0 && _selVeh == null) GUI.Label(new Rect(12f, Screen.height * 0.80f - st.fontSize * 1.6f, Screen.width * 0.6f, st.fontSize * 1.6f), "Formación " + _curForm + "  (F1 línea · F2 cuña · F3 columna · F4 bloque) · clic derecho y arrastrar = frente", st); }
         }

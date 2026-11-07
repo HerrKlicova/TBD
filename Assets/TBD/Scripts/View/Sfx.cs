@@ -11,6 +11,9 @@ namespace TBD.View
     /// - Un pool de fuentes: cada una con su tono (el tono ya no se comparte entre disparos) y topes de voces por grupo.
     /// - Bucles con fundido de entrada y de salida. No se pausan: bajan a 0 y paran tras 3 s; al volver arrancan en un punto al azar.
     /// - Sin «normalize»: la mezcla viene en los archivos (D-N134). Las reglas de importación están en Editor/AudioImportRules.cs.
+    /// - Noche55 (Nuria, 7-nov): GlobalGain 0,45 (-7 dB) en todo, también música; oído a 22 m como mínimo y curva sin meseta.
+    ///   closeGain preparado pero desactivado (CloseGainMin = 1): con el oído a 22 m, cualquier valor < 1 hace que el zoom
+    ///   máximo suene MÁS FLOJO que ortho 14 y el volumen deja de bajar de forma progresiva al alejar (ver LEEME).
     /// Llamadas nuevas: Sfx.Ear(foco, ortho, yaw) cada fotograma; Sfx.PlayAt / PlayDistAt con posición; Sfx.LoopAt para emisores 3D.
     /// </summary>
     public sealed class Sfx : MonoBehaviour
@@ -19,6 +22,9 @@ namespace TBD.View
         const float MaxDist = 220f;          // a partir de aquí no se oye nada
         const int PoolSize = 40;             // fuentes para efectos sueltos
         const float FadeIn = 0.6f, FadeOut = 0.8f;
+        const float GlobalGain = 0.45f;      // Noche55: todo a -7 dB (efectos, bucles y música). Va aquí porque los volúmenes del menú están en PlayerPrefs
+        const float EarMinH = 22f;           // Noche55: altura mínima del oído (antes 12): con el zoom al máximo ya no queda todo a volumen completo
+        const float CloseGainMin = 1f;       // Noche55: ganancia de los efectos 3D con la cámara lo más cerca (ortho 8). 1 = desactivado; 0.6 = propuesta del coordinador
         static readonly Dictionary<string, int> Cap = new Dictionary<string, int>
         { { "arma", 12 }, { "impacto", 8 }, { "zombi", 4 }, { "muro", 3 }, { "veh", 4 }, { "ui", 2 }, { "alerta", 2 }, { "otro", 6 } };
         static readonly Dictionary<string, int> Prio = new Dictionary<string, int>      // menor = más importante
@@ -31,7 +37,7 @@ namespace TBD.View
         readonly Dictionary<string, int> _nvar = new Dictionary<string, int>();
         readonly List<Voice> _pool = new List<Voice>();
         readonly Dictionary<string, LoopV> _loops = new Dictionary<string, LoopV>();
-        Transform _ear; AnimationCurve _curve; float _duckUntil;
+        Transform _ear; AnimationCurve _curve; float _duckUntil; float _ortho = 26f;
 
         sealed class Voice { public AudioSource A; public string Group; public float Started; }
         sealed class LoopV { public AudioSource A; public float Target, Cur, SilentSince = -1f; public bool Music, Spatial; }
@@ -47,9 +53,9 @@ namespace TBD.View
 
         void Init()
         {
-            // atenuación: plana hasta 15 m, -5 dB a 44 m, -13 dB a 100 m, -22 dB a 150 m, silencio a 220 m
-            _curve = new AnimationCurve(new Keyframe(0f, 1f), new Keyframe(0.07f, 1f), new Keyframe(0.2f, 0.55f),
-                                        new Keyframe(0.45f, 0.22f), new Keyframe(0.7f, 0.08f), new Keyframe(1f, 0f));
+            // atenuación sin meseta (Noche55): -2 dB a 11 m, -6 dB a 44 m, -14 dB a 100 m, -23 dB a 154 m, silencio a 220 m
+            _curve = new AnimationCurve(new Keyframe(0f, 1f), new Keyframe(0.05f, 0.8f), new Keyframe(0.2f, 0.5f),
+                                        new Keyframe(0.45f, 0.2f), new Keyframe(0.7f, 0.07f), new Keyframe(1f, 0f));
             var e = new GameObject("Oido"); e.transform.SetParent(transform, false); _ear = e.transform;
             for (int k = 0; k < PoolSize; k++) _pool.Add(new Voice { A = NewSource(gameObject, true) });
             EnsureListener();
@@ -74,12 +80,15 @@ namespace TBD.View
         /// <summary>LLAMAR CADA FOTOGRAMA desde la cámara de la partida: foco en el suelo, tamaño ortográfico y giro de la cámara.</summary>
         public static void Ear(Vector3 focus, float ortho, float yawDeg)
         {
-            var s = I; float h = Mathf.Clamp(ortho * 1.6f, 12f, 140f);
+            var s = I; s._ortho = ortho; float h = Mathf.Clamp(ortho * 1.6f, EarMinH, 140f);
             s._ear.position = new Vector3(focus.x, h, focus.z); s._ear.rotation = Quaternion.Euler(0f, yawDeg, 0f);
             if (Time.frameCount % 60 == 0) s.EnsureListener();       // por si una escena trae su propio listener
         }
 
         static float EarDist(Vector3 p) => Vector3.Distance(I._ear.position, p);
+
+        /// <summary>Noche55: ganancia extra para lo que suena en 3D, menor cuanto más cerca está la cámara (ortho 8 → CloseGainMin, ortho 28+ → 1).</summary>
+        float CloseGain() => Mathf.Lerp(CloseGainMin, 1f, Mathf.Clamp01((_ortho - 8f) / 20f));
 
         AudioClip Clip(string n) { if (_clips.TryGetValue(n, out var c)) return c; c = Resources.Load<AudioClip>("Audio/" + n); _clips[n] = c; return c; }
 
@@ -128,7 +137,7 @@ namespace TBD.View
             if (c == null) return; var v = Grab(group); if (v == null) return;
             if (group == "alerta") _duckUntil = Time.unscaledTime + 1.5f;
             float duck = group != "alerta" && group != "ui" && Time.unscaledTime < _duckUntil ? 0.55f : 1f;
-            v.A.Stop(); v.A.clip = c; v.A.pitch = pitch; v.A.volume = Mathf.Clamp01(vol * duck * MainMenu.SfxVolume);
+            v.A.Stop(); v.A.clip = c; v.A.pitch = pitch; v.A.volume = Mathf.Clamp01(vol * duck * MainMenu.SfxVolume * GlobalGain * (pos.HasValue ? CloseGain() : 1f));
             v.A.spatialBlend = pos.HasValue ? 1f : 0f; if (pos.HasValue) v.A.transform.position = pos.Value;
             v.Group = group; v.Started = Time.unscaledTime; v.A.Play();
         }
@@ -201,7 +210,7 @@ namespace TBD.View
             {
                 float rate = l.Target > l.Cur ? dt / FadeIn : dt / FadeOut; l.Cur = Mathf.MoveTowards(l.Cur, l.Target, rate);
                 float master = l.Music ? MainMenu.MusicVolume : MainMenu.SfxVolume;
-                l.A.volume = l.Cur * master * (l.Music || l.Spatial ? 1f : duck);
+                l.A.volume = l.Cur * master * GlobalGain * (l.Spatial ? CloseGain() : 1f) * (l.Music || l.Spatial ? 1f : duck);
                 if (l.Cur > 0.001f)
                 {
                     l.SilentSince = -1f;

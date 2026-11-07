@@ -319,7 +319,7 @@ namespace TBD.View
 
         void KillZombies(List<TargetHit> hits)
         {
-            if (hits.Count > 0 && _orthoSize < 14f) { Sfx.Play("impacto_carne", Vector3.zero, 0.5f, 0.05f); Sfx.Play("zombi_caida", Vector3.zero, 0.4f, 0.08f); if (UnityEngine.Random.Range(0, 4) == 0) Sfx.Play("zombi_muerte", Vector3.zero, 0.4f, 0.2f); }
+            // (los sonidos 2D de impacto/caida/muerte se quitan: Nuria, zombi_caida 3D en KillZombies)
             _killSet.Clear(); for (int i = 0; i < hits.Count; i++) _killSet.Add((uint)hits[i].TargetId);
             foreach (var wld in new[] { _worldA, _worldB })
             {
@@ -329,7 +329,7 @@ namespace TBD.View
                 {
                     var zs = q.ToComponentDataArray<Zombie>(Allocator.Temp); var es = q.ToEntityArray(Allocator.Temp);
                     for (int i = 0; i < zs.Length; i++)
-                        if (_killSet.Contains(zs[i].SimId)) { em.DestroyEntity(es[i]); if (wld == _worldA) { _nightKills++; BloodAt(zs[i].Pos); Sfx.Play("sfx_zombi_muerte", 0.3f, 0.2f, 0.9f + (_nightKills % 5) * 0.04f); } }
+                        if (_killSet.Contains(zs[i].SimId)) { em.DestroyEntity(es[i]); if (wld == _worldA) { _nightKills++; BloodAt(zs[i].Pos); if (UnityEngine.Random.Range(0, 10) == 0) Sfx.PlayAt("zombi_caida", new Vector3(zs[i].Pos.x, 0.3f, zs[i].Pos.z), 0.3f, 0.25f); } }
                     zs.Dispose(); es.Dispose();
                 }
             }
@@ -380,7 +380,7 @@ namespace TBD.View
             var pl = _uw.Find(s.Platoon); if (pl == null) return; Infantryman man = null; foreach (var m in pl.Men) if (m.Id == s.Man) { man = m; break; }
             if (man == null) return;
             if (_trMat == null) { _trMat = new Material(Shader.Find("Universal Render Pipeline/Unlit")); _trMat.SetColor("_BaseColor", new Color32(0xf0, 0xdc, 0x9c, 255)); }
-            if (s.Splash) { Sfx.PlayDistAt("granada_40", new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f), 1f, 0.25f); Sfx.Play("explosion_granada", Vector3.zero, 0.7f, 0.3f); } else if (s.Kind == InfKind.Ametrallador) Sfx.PlayDistAt("ametralladora", new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f), 1f, 0.2f); else if (s.Kind == InfKind.Tirador) { Sfx.PlayDistAt("tirador", new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f), 1f, 0.2f); Sfx.Play("cola_urbana", Vector3.zero, 0.3f, 0.4f); } else Sfx.PlayDistAt("fusil_rafaga", new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f), 1f, 0.12f);
+            if (s.Splash) { Sfx.PlayDistAt("granada_40", new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f), 1f, 0.25f); Sfx.PlayAt("explosion_granada", new Vector3(s.AimX / 1000f, 0.5f, s.AimY / 1000f), 0.7f, 0.3f); } else if (s.Kind == InfKind.Ametrallador) Sfx.PlayDistAt("ametralladora", new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f), 1f, 0.2f); else if (s.Kind == InfKind.Tirador) { Sfx.PlayDistAt("tirador", new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f), 1f, 0.2f); Sfx.PlayAt("cola_urbana", new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f), 0.3f, 0.4f); } else Sfx.PlayDistAt("fusil_rafaga", new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f), 1f, 0.12f);
             var from = new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f); var to = new Vector3(s.AimX / 1000f, 0.8f, s.AimY / 1000f);
             // trazadora que viaja (no un rayo): 1 de cada 3 balas en fusileros, 1 de cada 4 en ametralladoras, todas en tiradores y granadas (Lucia §4.1)
             bool tracer = s.Splash || s.Kind == InfKind.Tirador || UnityEngine.Random.value < (s.Kind == InfKind.Ametrallador ? 0.25f : 0.34f);
@@ -462,6 +462,7 @@ namespace TBD.View
         // ---------------------------------------------------------------- entrada y órdenes
         void NightUpdate()
         {
+            AudioListener.pause = _paused && _nightOn;                                // al pausar se silencia todo (Eugenio)
             ColorCases();
             OrdersUpdate();
             UpdateFx();

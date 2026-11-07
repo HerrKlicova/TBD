@@ -14,5 +14,5 @@ noche_contacto_mm;900;1;Nacho a210bd3, pendiente de la medición de Sara
 noche_contacto_danio_tick;2;1;soldado de 100 de vida, pendiente de la medición de Sara
 noche_oleadas;1;1;D-N136: una sola horda desde el borde oeste, repartida a lo ancho; entra durante 180 s
 noche_oleada1_minuto;0;1;minutos de juego desde las 22:00 (22:00)
-noche_oleada1_zombis;8600;1;
+noche_oleada1_zombis;4700;1;
 noche_oleada1_llegada_s;180;1;segundos REALES en los que entra la oleada

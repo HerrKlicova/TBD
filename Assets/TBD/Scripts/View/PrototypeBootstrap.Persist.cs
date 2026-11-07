@@ -32,7 +32,7 @@ namespace TBD.View
         void Update()
         {
             var s = NightRun.Session; if (s == null || !s.Away || s.Sim == null) return;
-            if (SceneManager.GetActiveScene().name != "SampleScene") Sfx.Loop("sfx_batalla_mapa_1", s.Sim.Night.State == NightState.Jugando ? 0.3f : 0f, false);
+            if (SceneManager.GetActiveScene().name != "SampleScene") Sfx.Loop("sfx_batalla_mapa_1", s.Sim.Night.State == NightState.Jugando ? 0.15f : 0f, false);
             if (s.Sim.Night.State != NightState.Jugando) return;
             _acc += Mathf.Min(Time.unscaledDeltaTime, 0.25f);
             int steps = 0;
