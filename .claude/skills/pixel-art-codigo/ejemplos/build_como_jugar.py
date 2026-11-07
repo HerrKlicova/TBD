@@ -3,8 +3,9 @@
 Encargo de Mak (23:44). Las teclas son las de plan-noche-7nov §8: mover (clic derecho), Atacar (A), Mantener (S),
 Emplazar (D, solo ametralladores) y Embarcar o desembarcar (E). La selección es clic y arrastre (§2, fila 3) y el
 zoom es la rueda (D-N70). La cámara (build Noche05 de Marcos, vía Lucía): flechas, bordes de la pantalla, Z y X,
-rueda y arrastre con el botón central. Z acerca y X aleja, como la rueda (decisión de Mak, 7-nov 00:17).
-  ui_tecla_{z,x}, ui_tecla_flechas (26x15), ui_icono_borde_pantalla (16x12), ui_tecla_raton_central (17x12)
+rueda y arrastre con el botón central. Z acerca y X aleja, como la rueda; clic derecho y arrastre gira; R y F
+inclinan (Marcos, 7-nov 00:29).
+  ui_tecla_{z,x,r,f}, ui_tecla_raton_giro (17x12), ui_tecla_flechas (26x15), ui_icono_borde_pantalla (16x12), ui_tecla_raton_central (17x12)
   ui_tecla_{a,s,d,e}             tecla de 14x14 con la letra dibujada a mano (sin fuente)
   ui_tecla_raton_rueda           ratón de 9x12 con la rueda marcada
   Reabasteciendo y alto el fuego existen en la lógica de Nacho (PR #24: Resupply y SetHoldFire).
@@ -29,6 +30,8 @@ LETRAS = {
     "e": ["####", "#...", "###.", "#...", "####"],
     "z": ["####", "...#", "..#.", ".#..", "####"],
     "x": ["#..#", "#..#", ".##.", "#..#", "#..#"],
+    "r": ["###.", "#..#", "###.", "#.#.", "#..#"],
+    "f": ["####", "#...", "###.", "#...", "#..."],
 }
 
 
@@ -192,6 +195,18 @@ def raton_central():
     return s
 
 
+def raton_giro():
+    """Ratón con el botón derecho marcado y una flecha curva de giro a la derecha (17x12)."""
+    import build_maquetas as m
+    s = Sprite(17, 12)
+    s.stamp(m.tecla_raton("dcho"), 0, 0)
+    for x, y in ((11, 4), (12, 3), (13, 3), (14, 3), (15, 4), (16, 5), (16, 6), (15, 7)):
+        s.set(x, y, "bone")
+    for x, y in ((14, 7), (15, 8), (16, 8)):
+        s.set(x, y, "bone")
+    return s
+
+
 CONTROLES = [   # (icono, texto). icono: ("tecla", letra) | ("raton", "izq"/"dcho") | ("rueda",)
     (("raton", "izq"), "Clic y arrastre: seleccionar pelotones"),
     (("raton", "dcho"), "Clic derecho: mover"),
@@ -200,9 +215,11 @@ CONTROLES = [   # (icono, texto). icono: ("tecla", letra) | ("raton", "izq"/"dch
     (("tecla", "d"), "Emplazar (ametralladores)"),
     (("tecla", "e"), "Embarcar o desembarcar"),
     (("rueda",), "Rueda: acercar y alejar"),
-    (("flechas",), "Flechas o bordes de la pantalla: mover la cámara"),
-    (("central",), "Botón central y arrastre: mover la cámara"),
+    (("flechas",), "Flechas o borde de pantalla: mover"),
+    (("central",), "Botón central y arrastre: mover"),
     (("zx",), "Z y X: acercar y alejar (como la rueda)"),
+    (("raton_giro",), "Clic derecho y arrastre: girar la cámara"),
+    (("rf",), "R y F: inclinar la cámara"),
 ]
 ESTADOS_TEXTO = [("emplazado", "Emplazado"), ("embarcado", "Embarcado"), ("sin_municion", "Sin munición"),
                  ("reabasteciendo", "Reabasteciendo"), ("alto_el_fuego", "Alto el fuego")]
@@ -221,7 +238,7 @@ def cartel():
     m.texto(fondo, (W // 2, y0 + 28), "Aguanta en Sagunto de las 22:00 al amanecer. Si cae la estación o el tren, se acaba.", 9,
             "beige", centro=True, sombra=False)
     for i, (ic, t) in enumerate(CONTROLES):
-        y = y0 + 48 + i * 19
+        y = y0 + 46 + i * 17
         tx = x0 + 38
         if ic[0] == "tecla":
             m.pega(fondo, tecla(ic[1]), x0 + 16, y)
@@ -234,10 +251,14 @@ def cartel():
         elif ic[0] == "central":
             m.pega(fondo, raton_central(), x0 + 18, y + 1)
             tx = x0 + 42
-        elif ic[0] == "zx":
-            m.pega(fondo, tecla("z"), x0 + 8, y)
-            m.pega(fondo, tecla("x"), x0 + 24, y)
+        elif ic[0] in ("zx", "rf"):
+            a, b = ic[0]
+            m.pega(fondo, tecla(a), x0 + 8, y)
+            m.pega(fondo, tecla(b), x0 + 24, y)
             tx = x0 + 44
+        elif ic[0] == "raton_giro":
+            m.pega(fondo, raton_giro(), x0 + 18, y + 1)
+            tx = x0 + 42
         else:
             s = rueda_raton()
             m.pega(fondo, s, x0 + 18, y + 1)
@@ -260,6 +281,7 @@ def exportar(out):
     flechas().img.save(out / "ui_tecla_flechas.png")
     borde_pantalla().img.save(out / "ui_icono_borde_pantalla.png")
     raton_central().img.save(out / "ui_tecla_raton_central.png")
+    raton_giro().img.save(out / "ui_tecla_raton_giro.png")
     for l in LETRAS:
         s = tecla(l)
         s.img.save(out / f"ui_tecla_{l}.png")
