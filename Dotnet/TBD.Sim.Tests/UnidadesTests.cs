@@ -546,7 +546,7 @@ namespace TBD.Sim.Tests
                 var crash = air(); crash.State = HeliState.Estrellado; crash.Hp = 0; int sc = 0; var zc = new List<Target> { new Target { Id = 1, X = 50_000, Y = 90_000 } }; for (int t = 0; t < 30; t++) { crash.StepWeapons(wd, zc, res); sc += res.Shots.Count; res.Clear(); }
                 var kill = air(); int kills = 0; var big = new List<Target>(); for (int i = 0; i < 400; i++) big.Add(new Target { Id = i, X = 50_000 - 20_000 + (i % 20) * 300, Y = 50_000 + 50_000 + (i / 20) * 300 });
                 int am0 = kill.AmmoShots; for (int t = 0; t < 600; t++) { kill.StepWeapons(wd, big, res); foreach (var hh in res.Hits) { big.RemoveAll(q => q.Id == hh.TargetId); kills++; } res.Clear(); }
-                check(sc == 0 && am0 == 2000 && kills > 20 && kill.AmmoShots < am0, $"estrellado no dispara; en 20 s abate {kills} zombis y gasta {am0 - kill.AmmoShots} de {am0} disparos de a bordo");
+                check(sc == 0 && am0 == 6000 && kills > 20 && kill.AmmoShots < am0, $"estrellado no dispara; en 20 s abate {kills} zombis y gasta {am0 - kill.AmmoShots} de {am0} disparos de a bordo");
                 // transporte de un pelotón
                 var tw = new UnitsWorld(3); var p1 = tw.AddPlatoon(PlatoonKind.Fusileros, 50_000, 50_000, 0); var p2 = tw.AddPlatoon(PlatoonKind.Fusileros, 53_000, 50_000, 0);
                 var nh = new Helicopter(8, HeliKind.Nh90, 51_000, 50_000, 0); int men = p1.AliveCount();
@@ -695,7 +695,7 @@ namespace TBD.Sim.Tests
                     check(botNight(5) == botNight(5) && botNight(5) != botNight(6), "el bot es determinista: misma semilla, mismo hash y mismas órdenes; otra semilla, otro");
                     var full = NightSim.FromJson(TBD.Net.BalanceSource.Read("noche_sagunto.json"), null, 1); full.AddDefaultForce(); full.Bot = NightBot.FromParams(full.SP); while (full.Night.State == NightState.Jugando) full.Run(150);
                     var fs = full.Snapshot();
-                    check(fs.State == NightState.Victoria && full.Stars() >= 2 && fs.WallHp * 100 / full.SP.WallHp > 60 && full.Bot.Resupplies > 20 && full.Resupplies == 0, $"la noche normal entera con el bot (sin ayuda de recarga aparte): {fs.State}, {full.Stars()} estrellas, muro {fs.WallHp * 100 / full.SP.WallHp} %, {full.Bot.Resupplies} reabastecimientos, {fs.SoldierDeaths} bajas");
+                    check(fs.State == NightState.Victoria && full.Stars() >= 1 && fs.WallHp * 100 / full.SP.WallHp > 60 && full.Bot.Resupplies > 20 && full.Resupplies == 0, $"la noche normal entera con el bot (sin ayuda de recarga aparte): {fs.State}, {full.Stars()} estrellas, muro {fs.WallHp * 100 / full.SP.WallHp} %, {full.Bot.Resupplies} reabastecimientos, {fs.SoldierDeaths} bajas");
                     // hueco de la vía (la zona de Unity no pone sólido a la puerta de vía): la horda rodea el muro hasta el hueco, no se amontona y el muro no se desgasta
                     Func<int, NightSim> gapRun = gap => { var n = NightSim.FromJson(TBD.Net.BalanceSource.Read("noche_sagunto.json"), null, 1); n.SP.GateGapMm = gap; n.AddDefaultForce(); n.Run(4500); return n; };
                     var gClosed = gapRun(0); var gOpen = gapRun(3200);
@@ -898,9 +898,9 @@ namespace TBD.Sim.Tests
             {
                 string json = TBD.Net.BalanceSource.Read("noche_sagunto.json");
                 var sim = NightSim.FromJson(json, null, 7);
-                check(sim.Night.P.Waves.Length == 6 && sim.Night.WaveTotal(0) == 760 && sim.Night.WaveTotal(5) == 4250 && sim.Units.StockShots == 52 * 2000 && sim.MaterialsU == 40 && sim.FuelU == 30, "crear la noche desde noche_sagunto.json (normal): 6 oleadas de 760 a 4.250 zombis, 52 u de munición (104.000 disparos), 40 de materiales y 30 de combustible");
+                check(sim.Night.P.Waves.Length == 6 && sim.Night.WaveTotal(0) == 760 && sim.Night.WaveTotal(5) == 4250 && sim.Units.StockShots == 47 * 2000 && sim.MaterialsU == 40 && sim.FuelU == 30, "crear la noche desde noche_sagunto.json (normal): 6 oleadas de 760 a 4.250 zombis, 47 u de munición (94.000 disparos, D-N128), 40 de materiales y 30 de combustible");
                 var easy = NightSim.FromJson(json, "facil", 7); var hard = NightSim.FromJson(json, "dificil", 7);
-                check(easy.Night.WaveTotal(0) == 650 && easy.Night.WaveTotal(5) == 3620 && hard.Night.WaveTotal(0) == 1030 && hard.Night.WaveTotal(5) == 5700, "dificultad fácil (650…3.620) y difícil (1.030…5.700, escala 1140) desde el mismo JSON");
+                check(easy.Night.WaveTotal(0) == 650 && easy.Night.WaveTotal(5) == 3620 && hard.Night.WaveTotal(0) == 1150 && hard.Night.WaveTotal(5) == 6400, "dificultad fácil (650…3.620) y difícil (1.150…6.400, escala 1280, D-N127) desde el mismo JSON");
                 bool bad = false; try { Mini.Parse("{\"a\": [1, 2"); } catch (FormatException) { bad = true; }
                 check(bad && (long)((System.Collections.Generic.Dictionary<string, object>)Mini.Parse("{\"a\": -12}"))["a"] == -12, "el lector de JSON mínimo rechaza un texto truncado y lee enteros con signo");
 

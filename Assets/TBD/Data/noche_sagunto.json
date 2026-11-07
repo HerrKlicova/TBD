@@ -16,10 +16,10 @@
   "escala_oleadas_permil": {
     "facil": 725,
     "normal": 850,
-    "dificil": 1140
+    "dificil": 1280
   },
   "recursos_iniciales": {
-    "municion_u": 52,
+    "municion_u": 47,
     "materiales_u": 40,
     "combustible_u": 30,
     "nota": "en el almacén de Sagunto; aparte, cada pelotón, el Dragón y el NH90 llevan su dotación (unas 10 u en total); el muro de partida (D-N63) ya está construido"
@@ -206,11 +206,11 @@
         "hora": "22:20",
         "minuto_juego": 20,
         "llegada_s_reales": 30,
-        "total": 1030,
+        "total": 1150,
         "por_entrada": {
-          "O1": 515,
-          "O2": 309,
-          "O3": 206,
+          "O1": 575,
+          "O2": 345,
+          "O3": 230,
           "O4": 0
         }
       },
@@ -219,11 +219,11 @@
         "hora": "23:20",
         "minuto_juego": 80,
         "llegada_s_reales": 45,
-        "total": 1710,
+        "total": 1920,
         "por_entrada": {
-          "O1": 855,
-          "O2": 513,
-          "O3": 342,
+          "O1": 960,
+          "O2": 576,
+          "O3": 384,
           "O4": 0
         }
       },
@@ -232,11 +232,11 @@
         "hora": "00:40",
         "minuto_juego": 160,
         "llegada_s_reales": 60,
-        "total": 2280,
+        "total": 2560,
         "por_entrada": {
-          "O1": 1140,
-          "O2": 684,
-          "O3": 456,
+          "O1": 1280,
+          "O2": 768,
+          "O3": 512,
           "O4": 0
         }
       },
@@ -245,11 +245,11 @@
         "hora": "02:00",
         "minuto_juego": 240,
         "llegada_s_reales": 70,
-        "total": 3420,
+        "total": 3840,
         "por_entrada": {
-          "O1": 1710,
-          "O2": 1026,
-          "O3": 684,
+          "O1": 1920,
+          "O2": 1152,
+          "O3": 768,
           "O4": 0
         }
       },
@@ -258,12 +258,12 @@
         "hora": "03:20",
         "minuto_juego": 320,
         "llegada_s_reales": 90,
-        "total": 4100,
+        "total": 4610,
         "por_entrada": {
-          "O1": 1640,
-          "O2": 1230,
-          "O3": 820,
-          "O4": 410
+          "O1": 1844,
+          "O2": 1383,
+          "O3": 922,
+          "O4": 461
         }
       },
       {
@@ -271,12 +271,12 @@
         "hora": "04:40",
         "minuto_juego": 400,
         "llegada_s_reales": 100,
-        "total": 5700,
+        "total": 6400,
         "por_entrada": {
-          "O1": 1710,
-          "O2": 1710,
-          "O3": 1140,
-          "O4": 1140
+          "O1": 1920,
+          "O2": 1920,
+          "O3": 1280,
+          "O4": 1280
         }
       }
     ]
@@ -354,14 +354,25 @@
       }
     },
     {
+      "unidad": "vamtac",
+      "dotacion_mil_u": 3000,
+      "fuego_continuo_s": 200,
+      "recarga_s": 20,
+      "recarga_u_mil": 3000,
+      "donde": "junto al tren o al depósito",
+      "disparos": {
+        "ametralladora_pesada": 2000
+      }
+    },
+    {
       "unidad": "nh90",
-      "dotacion_mil_u": 1000,
-      "fuego_continuo_s": 100,
+      "dotacion_mil_u": 3000,
+      "fuego_continuo_s": 300,
       "recarga_s": 30,
-      "recarga_u_mil": 1000,
+      "recarga_u_mil": 3000,
       "donde": "posado en el helipuerto (también repone 4 u de combustible)",
       "disparos": {
-        "ametralladora_puerta": 2000
+        "ametralladora_puerta": 6000
       }
     }
   ],

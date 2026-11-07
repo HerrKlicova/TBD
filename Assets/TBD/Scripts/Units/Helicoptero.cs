@@ -45,7 +45,7 @@ namespace TBD.Units
             new HeliStats { Key = "chinook", TankU = 6, FuelFlyE4s = 270, FuelGroundE4s = 90, Seats = 24, AmmoBoardMilliU = 1000, CruiseAltMm = 30000, ContactAltMm = 3000, ArmorPm = 900, DoorGuns = new[] { WeaponId.MgPuerta, WeaponId.MgPuerta }, NoseWeapons = new WeaponId[0], Name = "Chinook", MaxFwdMmS = 55000, MaxBackMmS = 10000, MaxStrafeMmS = 14000, AccelMmS2 = 6500, DragMmS2 = 4000, MaxClimbMmS = 7000, MaxDescentMmS = 7000, VertAccelMmS2 = 4500, YawRatePerTick = 360, MaxTilt = 2400, TiltRatePerTick = 120, SpoolUpPerTick = 5, SpoolDownPerTick = 3, CeilingMm = 100000, HardLandMmS = 3000, Hp = 1100 },
             // NH90 de las FAMET (Paula A2): el helicóptero del MVP. Valores de Hugo en el CSV (una prueba los compara); lo demás (rotor, caída) es de jugabilidad.
             new HeliStats { Key = "nh90", Name = "NH90", MaxFwdMmS = 45000, MaxBackMmS = 9000, MaxStrafeMmS = 14000, AccelMmS2 = 5000, DragMmS2 = 7000, MaxClimbMmS = 6000, MaxDescentMmS = 4000, VertAccelMmS2 = 4000, YawRatePerTick = 364, MaxTilt = 2730, TiltRatePerTick = 180,
-                SpoolUpPerTick = 8, SpoolDownPerTick = 4, CeilingMm = 60000, HardLandMmS = 4500, Hp = 3000, ArmorPm = 900, CruiseAltMm = 30000, ContactAltMm = 3000, Seats = 12, AmmoBoardMilliU = 1000, FuelFlyE4s = 270, FuelGroundE4s = 90, TankU = 6,
+                SpoolUpPerTick = 8, SpoolDownPerTick = 4, CeilingMm = 60000, HardLandMmS = 4500, Hp = 3000, ArmorPm = 900, CruiseAltMm = 30000, ContactAltMm = 3000, Seats = 12, AmmoBoardMilliU = 3000, FuelFlyE4s = 270, FuelGroundE4s = 90, TankU = 6,
                 DoorGuns = new[] { WeaponId.MgPuerta, WeaponId.MgPuerta }, NoseWeapons = new WeaponId[0] },
         };
         public static HeliStats Get(HeliKind k) { return Table[(int)k]; }
