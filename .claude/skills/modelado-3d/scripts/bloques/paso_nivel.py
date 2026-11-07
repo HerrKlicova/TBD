@@ -4,7 +4,8 @@ Fotos F3 de Paula (manifest_entorno.json): F3_paso_a_nivel_1 (Gata de Gorgos, FG
 (Paterna, Camí de Campanar, Metrovalencia). Lo que se toma: semibarreras de brazo largo a rayas con el mecanismo en un
 armario gris galvanizado, con el soporte acodado y el contrapeso; poste gris con dos focos redondos sobre placa negra y
 viseras (F3_2 los lleva dobles, lado a lado); armarios de señalización grises a pie de vía.
-Las rayas del brazo van en d4d0cc y 48403c: el rojo de la foto está vetado (982420 es el rojo de alerta del juego).
+Las bandas del brazo van anchas en b8b8b8 y 48403c (Lucía, 7-nov): el rojo de la foto está vetado (982420 es el rojo
+de alerta). Brazos y postes de al menos 2 px a ortho 26. Los focos solo parpadean en 982420 mientras cruza un tren.
 Los focos van apagados en 48403c y salen en los hijos «Luces_A» y «Luces_B» (focos izquierdo y derecho, que en la
 realidad parpadean alternos), con el mismo origen que el paso, para que Marcos les dé emisión.
 MEDIDAS SIN VERIFICAR (estimadas sobre las fotos): calzada de 7 m, brazo de 3,9 m a 1,0 m del suelo, armario de
@@ -17,8 +18,8 @@ Jerarquía (mira a +Z en Unity):
   │                          local (la Barrera_2 va girada 180° sobre la vertical), así que los dos suben con el mismo
   │                          signo de giro sobre su X local (unos 85°).
   └─ Luces_A, Luces_B        focos para la emisión (transformación identidad)
-Variantes (TBD_VARIANTE % 5): 0 caseta de obra con tejado de teja; 1 focos dobles en cada poste y caseta de ladrillo
-de cubierta plana; 2 abandonado: la Barrera_2 partida (el trozo caído queda en el suelo) y una señal inclinada; 3 puesto
+Variantes (TBD_VARIANTE % 5): 0 caseta de obra con tejado de teja; 1 focos dobles en cada poste y caseta de cubierta
+plana; 2 abandonado: la Barrera_2 partida (el trozo caído queda en el suelo) y una señal inclinada; 3 puesto
 militar: sacos terreros y bloques de hormigón; 4 con poste de catenaria y farola, caseta metálica.
 """
 import math, os
@@ -29,11 +30,11 @@ VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 ASPECTO = VAR % 5
 PIEZAS = ["armario", "raya_clara", "raya_oscura", "poste", "cabeza", "foco", "placa", "pared", "teja", "puerta",
           "ventana", "sacos", "hormigon", "metal"]
-COLORES = {"armario": "94948c", "raya_clara": "d4d0cc", "raya_oscura": "48403c", "poste": "6c7874",
+COLORES = {"armario": "94948c", "raya_clara": "b8b8b8", "raya_oscura": "48403c", "poste": "6c7874",
            "cabeza": "48403c", "foco": "48403c", "placa": "d4d0cc", "pared": "b4a080", "teja": "7c3c18",
            "puerta": "605c48", "ventana": "60546c", "sacos": "847c34", "hormigon": "b8b8b8", "metal": "605c48"}
 if ASPECTO == 1:
-    COLORES = dict(COLORES, pared="6c4038")                # ladrillo (8c5048 es de la familia roja, vetada)
+    COLORES = dict(COLORES, pared="605c48")                # ladrillo oscuro (Lucía: 6c4038 caía cerca de la horda)
 if ASPECTO == 4:
     COLORES = dict(COLORES, pared="94948c", teja="6c7874")
 FACCION = "neutro"
@@ -48,16 +49,16 @@ LARGO = 3.9
 def _brazo(m, piv, s, largo, fino, roto=False):
     """Brazo desde el pivote hacia s·(−Y): rayas alternas, contrapeso detrás y soporte acodado (F3_1)."""
     x, y, z = piv
-    paso = 0.45 if fino else 0.65
+    paso = 0.8 if fino else 1.0                    # bandas anchas (Lucía, 7-nov)
     n = max(1, int(round(largo / paso)))
     d = largo / n
     for k in range(n):
         y0 = y - s * (0.1 + k * d + 0.01)              # 2 cm entre rayas: si se tocan, limpiar() funde los
         y1 = y - s * (0.1 + (k + 1) * d - 0.01)        # vértices y quedan aristas no manifold
-        m.barra((x, y0, z), (x, y1, z), 0.12 if fino else 0.22, 0.1 if fino else 0.2,
+        m.barra((x, y0, z), (x, y1, z), 0.24 if fino else 0.32, 0.2 if fino else 0.3,   # ≥ 2 px a ortho 26
                 "raya_clara" if k % 2 == 0 else "raya_oscura")
-    m.caja((x, y + s * 0.35, z), (0.16, 0.5, 0.2), "raya_oscura")                          # contrapeso
-    m.cilindro((x, y, z), 0.11, 0.3, "X", 8, "armario")                                     # eje
+    m.caja((x, y + s * 0.4, z), (0.3, 0.5, 0.32), "raya_oscura")                          # contrapeso
+    m.cilindro((x, y, z), 0.2, 0.4, "X", 8, "armario")                                     # eje
 
 
 def _senal(m, c, cara, doble, fino, inclinada=0.0):
@@ -65,7 +66,7 @@ def _senal(m, c, cara, doble, fino, inclinada=0.0):
     x, y, _ = c
     h = 2.8
     top = (x + cara * math.sin(inclinada) * h, y, h * math.cos(inclinada))
-    m.barra((x, y, 0.0), top, 0.1 if fino else 0.3, 0.1 if fino else 0.3, "poste")
+    m.barra((x, y, 0.0), top, 0.18 if fino else 0.3, 0.18 if fino else 0.3, "poste")
     focos = []
     alturas = (2.55, 2.0) if doble else (2.55,)
     for zz in alturas:
@@ -79,8 +80,9 @@ def _senal(m, c, cara, doble, fino, inclinada=0.0):
     # cruz de San Andrés bajo los focos
     zc = 1.55 * math.cos(inclinada)
     xc = x + cara * (math.sin(inclinada) * zc + 0.1)
-    for a in (0.6, -0.6):
-        m.caja((xc, y, zc), (0.04, 1.2, 0.18), "placa", rot_x=a)
+    if fino:                                    # en el LOD1 la cruz era un garabato a tamaño de juego (Lucía)
+        for a in (0.6, -0.6):
+            m.caja((xc, y, zc), (0.06, 1.3, 0.26), "placa", rot_x=a)
     return focos
 
 
@@ -127,7 +129,7 @@ def construir(nombre="SM_PasoNivel", lod=0):
     if a == 2:                                                                              # trozo de brazo caído
         for k in range(4):
             m.barra((-3.7 + 0.15 * k, -1.2 + 0.45 * k, 0.06), (-3.56 + 0.15 * k, -0.78 + 0.45 * k, 0.06),
-                    0.12 if fino else 0.22, 0.1 if fino else 0.2, "raya_clara" if k % 2 else "raya_oscura")
+                    0.24 if fino else 0.32, 0.2 if fino else 0.3, "raya_clara" if k % 2 else "raya_oscura")
     if a == 3:                                                                              # puesto militar
         for fila in range(3):
             for k in range(5 - fila):
