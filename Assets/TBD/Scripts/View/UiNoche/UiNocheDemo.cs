@@ -250,7 +250,7 @@ namespace TBD.View.UiNoche
             float bw = 120, total = botones.Length * bw + (botones.Length - 1) * 8, bx = 320 - total / 2, by = y0 + ph - 26;
             for (int i = 0; i < botones.Length; i++)
             {
-                UiNocheKit.Slice(i == 0 ? "ui_boton_encima" : "ui_boton_normal", new Rect(bx + i * (bw + 8), by, bw, 18));
+                var rb = new Rect(bx + i * (bw + 8), by, bw, 18); UiNocheKit.Slice(i == 0 ? "ui_boton_principal" : "ui_boton_normal", rb); if (i == 0) UiNocheKit.Pieza("ui_boton_cuna", rb.x + 4, rb.y + rb.height / 2 - 3);   // boton principal opcion C (Bruno/Lucia): contraste 5,2:1
                 UiNocheKit.Texto(bx + i * (bw + 8) + bw / 2, by + 3, botones[i], UiNocheKit.Hueso, 9, TextAnchor.UpperCenter);
             }
         }

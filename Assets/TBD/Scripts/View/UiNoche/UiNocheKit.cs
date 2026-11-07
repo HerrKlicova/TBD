@@ -32,6 +32,7 @@ namespace TBD.View.UiNoche
             { "ui_tarjeta_unidad", new RectOffset(3, 3, 3, 3) },
             { "ui_tarjeta_unidad_sel", new RectOffset(3, 3, 3, 3) },
             { "ui_boton_normal", new RectOffset(4, 4, 4, 4) },
+            { "ui_boton_principal", new RectOffset(4, 4, 4, 4) },
             { "ui_boton_encima", new RectOffset(4, 4, 4, 4) },
             { "ui_boton_pulsado", new RectOffset(4, 4, 4, 4) },
             { "ui_boton_inactivo", new RectOffset(4, 4, 4, 4) },
