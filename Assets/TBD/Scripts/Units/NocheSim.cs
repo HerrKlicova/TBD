@@ -199,6 +199,7 @@ namespace TBD.Units
             // 4) los pelotones disparan; los impactos abaten
             _targets.Clear(); _ids.Clear();
             for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) { _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); }
+            if (Bot != null) Bot.Step(Units, _targets, Night.Tick);          // el bot da sus órdenes antes del fuego, con la misma API que el jugador
             int before = TotalAmmo();
             Units.Step(_targets, _res);
             foreach (var h in _res.Hits)
@@ -218,6 +219,8 @@ namespace TBD.Units
             }
         }
 
+        /// <summary>Bot opcional (-nightbot): si no es null, da órdenes cada tick (ataque-movimiento al muro amenazado y reabastecimiento al 30 %). Ver NocheBot.cs.</summary>
+        public NightBot Bot;
         public int LastPile;
 
         bool NearWall(int x, int y)
