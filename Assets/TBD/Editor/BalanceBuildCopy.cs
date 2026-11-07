@@ -18,6 +18,7 @@ namespace TBD.EditorTools
             Directory.CreateDirectory(dst);
             int n = 0;
             foreach (var f in Directory.GetFiles(src, "*.csv")) { File.Copy(f, Path.Combine(dst, Path.GetFileName(f)), true); n++; }
+            foreach (var f in Directory.GetFiles(src, "estacion_*.json")) { File.Copy(f, Path.Combine(dst, Path.GetFileName(f)), true); n++; }   // dato por estación (EstacionVista.Load)
             AssetDatabase.Refresh();
             Debug.Log("[TBD] " + n + " CSV de balance copiados a StreamingAssets/Data");
         }

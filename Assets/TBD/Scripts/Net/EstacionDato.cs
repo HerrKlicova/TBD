@@ -33,7 +33,7 @@ namespace TBD.Net
         public readonly List<EstacionCarretera> Carreteras = new List<EstacionCarretera>();
         public readonly List<EstacionSitio> Sitios = new List<EstacionSitio>();
         public float CuartelX = float.NaN, CuartelZ = float.NaN;
-        public string InteligenciaTipo; public float InteligenciaX = float.NaN, InteligenciaZ = float.NaN;
+        public string InteligenciaTipo; public float InteligenciaX = float.NaN, InteligenciaZ = float.NaN, InteligenciaYaw;
         public readonly List<EstacionParada> ParadasAsalto = new List<EstacionParada>();
         public readonly List<string> OrdenLiberacion = new List<string>();
 
@@ -52,7 +52,7 @@ namespace TBD.Net
             foreach (var v in List(root, "vias")) d.Vias.Add(Points(v, "vias"));
             foreach (var a in List(root, "andenes")) { var r = Floats(a, "andenes"); if (r.Length != 4) throw new FormatException("andén: hacen falta 4 números"); d.Andenes.Add(r); }
             if (root.ContainsKey("recinto")) d.Recinto = Points(root["recinto"], "recinto");
-            foreach (var o in List(root, "puertas")) { var p = Obj(o, "puertas"); var xz = Floats(p["pos"], "puertas"); d.Puertas.Add(new EstacionPuerta { Tipo = Req<string>(p, "tipo"), X = xz[0], Z = xz[1] }); }
+            foreach (var o in List(root, "puertas")) { var p = Obj(o, "puertas"); var xz = XZ(p["pos"], "puertas"); d.Puertas.Add(new EstacionPuerta { Tipo = Req<string>(p, "tipo"), X = xz[0], Z = xz[1] }); }
             foreach (var o in List(root, "piezas"))
             {
                 var p = Obj(o, "piezas"); var pos = Floats(p["pos"], "piezas");
@@ -65,11 +65,11 @@ namespace TBD.Net
                 d.Carreteras.Add(new EstacionCarretera { Id = Req<string>(c, "id"), Nombre = Opt<string>(c, "nombre"), Tramo = Points(c["tramo"], "carreteras"), Habilitada = c.ContainsKey("habilitada") && c["habilitada"] is bool b && b });
             }
             if (root.TryGetValue("sitios", out var so) && so is Dictionary<string, object> sitios)
-                foreach (var kv in sitios) { var xz = Floats(kv.Value, "sitios"); d.Sitios.Add(new EstacionSitio { Id = kv.Key, X = xz[0], Z = xz[1] }); }
-            if (root.TryGetValue("sitio_cuartel", out var cu) && cu != null) { var xz = Floats(cu, "sitio_cuartel"); d.CuartelX = xz[0]; d.CuartelZ = xz[1]; }
+                foreach (var kv in sitios) { var xz = XZ(kv.Value, "sitios"); d.Sitios.Add(new EstacionSitio { Id = kv.Key, X = xz[0], Z = xz[1] }); }
+            if (root.TryGetValue("sitio_cuartel", out var cu) && cu != null) { var xz = XZ(cu, "sitio_cuartel"); d.CuartelX = xz[0]; d.CuartelZ = xz[1]; }
             if (root.TryGetValue("sitio_inteligencia", out var io) && io is Dictionary<string, object> intel)
-            { d.InteligenciaTipo = Opt<string>(intel, "tipo"); var xz = Floats(intel["pos"], "sitio_inteligencia"); d.InteligenciaX = xz[0]; d.InteligenciaZ = xz[1]; }
-            foreach (var o in List(root, "paradas_asalto")) { var p = Obj(o, "paradas_asalto"); var xz = Floats(p["pos"], "paradas_asalto"); d.ParadasAsalto.Add(new EstacionParada { Via = Opt<string>(p, "via"), X = xz[0], Z = xz[1] }); }
+            { d.InteligenciaTipo = Opt<string>(intel, "tipo"); var xz = XZ(intel["pos"], "sitio_inteligencia"); d.InteligenciaX = xz[0]; d.InteligenciaZ = xz[1]; d.InteligenciaYaw = intel.ContainsKey("yaw") ? Num(intel["yaw"]) : 0f; }
+            foreach (var o in List(root, "paradas_asalto")) { var p = Obj(o, "paradas_asalto"); var xz = XZ(p["pos"], "paradas_asalto"); d.ParadasAsalto.Add(new EstacionParada { Via = Opt<string>(p, "via"), X = xz[0], Z = xz[1] }); }
             foreach (var o in List(root, "orden_liberacion")) d.OrdenLiberacion.Add(o as string ?? throw new FormatException("orden_liberacion: hace falta texto"));
             foreach (var s in d.OrdenLiberacion) if (d.FindSitio(s) < 0) throw new FormatException("orden_liberacion: el sitio «" + s + "» no está en «sitios»");
             return d;
@@ -119,6 +119,15 @@ namespace TBD.Net
             var l = o as List<object> ?? throw new FormatException(what + ": se esperaba una lista de números");
             var r = new float[l.Count]; for (int i = 0; i < r.Length; i++) r[i] = Num(l[i]); return r;
         }
+        /// <summary>Un punto del plano: [x, z] o [x, y, z] (Álvaro usa los dos) → { x, z }.</summary>
+        static float[] XZ(object o, string what)
+        {
+            var p = Floats(o, what);
+            if (p.Length == 2) return p;
+            if (p.Length == 3) return new[] { p[0], p[2] };
+            throw new FormatException(what + ": un punto es [x, z] o [x, y, z]");
+        }
+
         /// <summary>[[x, z], [x, z], …] → x0, z0, x1, z1, …</summary>
         static float[] Points(object o, string what)
         {

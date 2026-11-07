@@ -1,0 +1,1297 @@
+{
+ "estacion": "castellon",
+ "variante": 1,
+ "estado": "Asediada",
+ "origen": "centro del edificio en la línea de su fachada; la vía hacia -Z de Unity",
+ "instancias": [
+  {
+   "prefab": "SM_KitCuerpo_v0",
+   "pos_blender": [
+    -30.0,
+    6.5,
+    0.0
+   ],
+   "pos_unity": [
+    30.0,
+    0.0,
+    -6.5
+   ],
+   "giro_y_unity": -0.0,
+   "parametros": {
+    "fondo": 13.0
+   }
+  },
+  {
+   "prefab": "SM_KitCuerpo_v0",
+   "pos_blender": [
+    -26.0,
+    6.5,
+    0.0
+   ],
+   "pos_unity": [
+    26.0,
+    0.0,
+    -6.5
+   ],
+   "giro_y_unity": -0.0,
+   "parametros": {
+    "fondo": 13.0
+   }
+  },
+  {
+   "prefab": "SM_KitCuerpo_v1",
+   "pos_blender": [
+    -22.0,
+    6.5,
+    0.0
+   ],
+   "pos_unity": [
+    22.0,
+    0.0,
+    -6.5
+   ],
+   "giro_y_unity": -0.0,
+   "parametros": {
+    "fondo": 13.0
+   }
+  },
+  {
+   "prefab": "SM_KitCuerpo_v0",
+   "pos_blender": [
+    -18.0,
+    6.5,
+    0.0
+   ],
+   "pos_unity": [
+    18.0,
+    0.0,
+    -6.5
+   ],
+   "giro_y_unity": -0.0,
+   "parametros": {
+    "fondo": 13.0
+   }
+  },
+  {
+   "prefab": "SM_KitRemate_v2",
+   "pos_blender": [
+    -14.0,
+    6.5,
+    0.0
+   ],
+   "pos_unity": [
+    14.0,
+    0.0,
+    -6.5
+   ],
+   "giro_y_unity": -0.0,
+   "parametros": {
+    "fondo": 13.0,
+    "alto": 11.5
+   }
+  },
+  {
+   "prefab": "SM_KitCuerpo_v6",
+   "pos_blender": [
+    -10.0,
+    6.5,
+    0.0
+   ],
+   "pos_unity": [
+    10.0,
+    0.0,
+    -6.5
+   ],
+   "giro_y_unity": -0.0,
+   "parametros": {
+    "fondo": 13.0
+   }
+  },
+  {
+   "prefab": "SM_KitCuerpo_v6",
+   "pos_blender": [
+    -6.0,
+    6.5,
+    0.0
+   ],
+   "pos_unity": [
+    6.0,
+    0.0,
+    -6.5
+   ],
+   "giro_y_unity": -0.0,
+   "parametros": {
+    "fondo": 13.0
+   }
+  },
+  {
+   "prefab": "SM_KitRemate_v0",
+   "pos_blender": [
+    0.0,
+    6.5,
+    0.0
+   ],
+   "pos_unity": [
+    -0.0,
+    0.0,
+    -6.5
+   ],
+   "giro_y_unity": -0.0,
+   "parametros": {
+    "fondo": 13.0,
+    "alto": 11.5
+   }
+  },
+  {
+   "prefab": "SM_KitCuerpo_v6",
+   "pos_blender": [
+    6.0,
+    6.5,
+    0.0
+   ],
+   "pos_unity": [
+    -6.0,
+    0.0,
+    -6.5
+   ],
+   "giro_y_unity": -0.0,
+   "parametros": {
+    "fondo": 13.0
+   }
+  },
+  {
+   "prefab": "SM_KitCuerpo_v6",
+   "pos_blender": [
+    10.0,
+    6.5,
+    0.0
+   ],
+   "pos_unity": [
+    -10.0,
+    0.0,
+    -6.5
+   ],
+   "giro_y_unity": -0.0,
+   "parametros": {
+    "fondo": 13.0
+   }
+  },
+  {
+   "prefab": "SM_KitRemate_v2",
+   "pos_blender": [
+    14.0,
+    6.5,
+    0.0
+   ],
+   "pos_unity": [
+    -14.0,
+    0.0,
+    -6.5
+   ],
+   "giro_y_unity": -0.0,
+   "parametros": {
+    "fondo": 13.0,
+    "alto": 11.5
+   }
+  },
+  {
+   "prefab": "SM_KitCuerpo_v0",
+   "pos_blender": [
+    18.0,
+    6.5,
+    0.0
+   ],
+   "pos_unity": [
+    -18.0,
+    0.0,
+    -6.5
+   ],
+   "giro_y_unity": -0.0,
+   "parametros": {
+    "fondo": 13.0
+   }
+  },
+  {
+   "prefab": "SM_KitCuerpo_v1",
+   "pos_blender": [
+    22.0,
+    6.5,
+    0.0
+   ],
+   "pos_unity": [
+    -22.0,
+    0.0,
+    -6.5
+   ],
+   "giro_y_unity": -0.0,
+   "parametros": {
+    "fondo": 13.0
+   }
+  },
+  {
+   "prefab": "SM_KitCuerpo_v0",
+   "pos_blender": [
+    26.0,
+    6.5,
+    0.0
+   ],
+   "pos_unity": [
+    -26.0,
+    0.0,
+    -6.5
+   ],
+   "giro_y_unity": -0.0,
+   "parametros": {
+    "fondo": 13.0
+   }
+  },
+  {
+   "prefab": "SM_KitCuerpo_v0",
+   "pos_blender": [
+    30.0,
+    6.5,
+    0.0
+   ],
+   "pos_unity": [
+    -30.0,
+    0.0,
+    -6.5
+   ],
+   "giro_y_unity": -0.0,
+   "parametros": {
+    "fondo": 13.0
+   }
+  },
+  {
+   "prefab": "SM_KitRemate_v5",
+   "pos_blender": [
+    -32.25,
+    6.5,
+    0.0
+   ],
+   "pos_unity": [
+    32.25,
+    0.0,
+    -6.5
+   ],
+   "giro_y_unity": -0.0,
+   "parametros": {
+    "fondo": 13.0,
+    "alto": 8.0
+   }
+  },
+  {
+   "prefab": "SM_KitRemate_v5",
+   "pos_blender": [
+    32.25,
+    6.5,
+    0.0
+   ],
+   "pos_unity": [
+    -32.25,
+    0.0,
+    -6.5
+   ],
+   "giro_y_unity": -180.0,
+   "parametros": {
+    "fondo": 13.0,
+    "alto": 8.0
+   }
+  },
+  {
+   "prefab": "SM_KitAnden_v0",
+   "pos_blender": [
+    -55.0,
+    -4.0,
+    0.0
+   ],
+   "pos_unity": [
+    55.0,
+    0.0,
+    4.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v2",
+   "pos_blender": [
+    -45.0,
+    -4.0,
+    0.0
+   ],
+   "pos_unity": [
+    45.0,
+    0.0,
+    4.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v4",
+   "pos_blender": [
+    -35.0,
+    -4.0,
+    0.0
+   ],
+   "pos_unity": [
+    35.0,
+    0.0,
+    4.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v0",
+   "pos_blender": [
+    -25.0,
+    -4.0,
+    0.0
+   ],
+   "pos_unity": [
+    25.0,
+    0.0,
+    4.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v0",
+   "pos_blender": [
+    -15.0,
+    -4.0,
+    0.0
+   ],
+   "pos_unity": [
+    15.0,
+    0.0,
+    4.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v4",
+   "pos_blender": [
+    -5.0,
+    -4.0,
+    0.0
+   ],
+   "pos_unity": [
+    5.0,
+    0.0,
+    4.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v2",
+   "pos_blender": [
+    5.0,
+    -4.0,
+    0.0
+   ],
+   "pos_unity": [
+    -5.0,
+    0.0,
+    4.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v0",
+   "pos_blender": [
+    15.0,
+    -4.0,
+    0.0
+   ],
+   "pos_unity": [
+    -15.0,
+    0.0,
+    4.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v4",
+   "pos_blender": [
+    25.0,
+    -4.0,
+    0.0
+   ],
+   "pos_unity": [
+    -25.0,
+    0.0,
+    4.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v0",
+   "pos_blender": [
+    35.0,
+    -4.0,
+    0.0
+   ],
+   "pos_unity": [
+    -35.0,
+    0.0,
+    4.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v2",
+   "pos_blender": [
+    45.0,
+    -4.0,
+    0.0
+   ],
+   "pos_unity": [
+    -45.0,
+    0.0,
+    4.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v3",
+   "pos_blender": [
+    55.0,
+    -4.0,
+    0.0
+   ],
+   "pos_unity": [
+    -55.0,
+    0.0,
+    4.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v5",
+   "pos_blender": [
+    -55.0,
+    -13.0,
+    0.0
+   ],
+   "pos_unity": [
+    55.0,
+    0.0,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v5",
+   "pos_blender": [
+    -45.0,
+    -13.0,
+    0.0
+   ],
+   "pos_unity": [
+    45.0,
+    0.0,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v5",
+   "pos_blender": [
+    -35.0,
+    -13.0,
+    0.0
+   ],
+   "pos_unity": [
+    35.0,
+    0.0,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v5",
+   "pos_blender": [
+    -25.0,
+    -13.0,
+    0.0
+   ],
+   "pos_unity": [
+    25.0,
+    0.0,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v5",
+   "pos_blender": [
+    -15.0,
+    -13.0,
+    0.0
+   ],
+   "pos_unity": [
+    15.0,
+    0.0,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v5",
+   "pos_blender": [
+    -5.0,
+    -13.0,
+    0.0
+   ],
+   "pos_unity": [
+    5.0,
+    0.0,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v5",
+   "pos_blender": [
+    5.0,
+    -13.0,
+    0.0
+   ],
+   "pos_unity": [
+    -5.0,
+    0.0,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v5",
+   "pos_blender": [
+    15.0,
+    -13.0,
+    0.0
+   ],
+   "pos_unity": [
+    -15.0,
+    0.0,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v5",
+   "pos_blender": [
+    25.0,
+    -13.0,
+    0.0
+   ],
+   "pos_unity": [
+    -25.0,
+    0.0,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v5",
+   "pos_blender": [
+    35.0,
+    -13.0,
+    0.0
+   ],
+   "pos_unity": [
+    -35.0,
+    0.0,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v5",
+   "pos_blender": [
+    45.0,
+    -13.0,
+    0.0
+   ],
+   "pos_unity": [
+    -45.0,
+    0.0,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitAnden_v5",
+   "pos_blender": [
+    55.0,
+    -13.0,
+    0.0
+   ],
+   "pos_unity": [
+    -55.0,
+    0.0,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v0",
+   "pos_blender": [
+    -54.0,
+    -3.5,
+    0.68
+   ],
+   "pos_unity": [
+    54.0,
+    0.68,
+    3.5
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v3",
+   "pos_blender": [
+    -48.0,
+    -3.5,
+    0.68
+   ],
+   "pos_unity": [
+    48.0,
+    0.68,
+    3.5
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v0",
+   "pos_blender": [
+    -42.0,
+    -3.5,
+    0.68
+   ],
+   "pos_unity": [
+    42.0,
+    0.68,
+    3.5
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v0",
+   "pos_blender": [
+    -30.0,
+    -3.5,
+    0.68
+   ],
+   "pos_unity": [
+    30.0,
+    0.68,
+    3.5
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v3",
+   "pos_blender": [
+    -24.0,
+    -3.5,
+    0.68
+   ],
+   "pos_unity": [
+    24.0,
+    0.68,
+    3.5
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v0",
+   "pos_blender": [
+    -18.0,
+    -3.5,
+    0.68
+   ],
+   "pos_unity": [
+    18.0,
+    0.68,
+    3.5
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v0",
+   "pos_blender": [
+    -6.0,
+    -3.5,
+    0.68
+   ],
+   "pos_unity": [
+    6.0,
+    0.68,
+    3.5
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v4",
+   "pos_blender": [
+    0.0,
+    -3.5,
+    0.68
+   ],
+   "pos_unity": [
+    -0.0,
+    0.68,
+    3.5
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v0",
+   "pos_blender": [
+    6.0,
+    -3.5,
+    0.68
+   ],
+   "pos_unity": [
+    -6.0,
+    0.68,
+    3.5
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v0",
+   "pos_blender": [
+    18.0,
+    -3.5,
+    0.68
+   ],
+   "pos_unity": [
+    -18.0,
+    0.68,
+    3.5
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v4",
+   "pos_blender": [
+    24.0,
+    -3.5,
+    0.68
+   ],
+   "pos_unity": [
+    -24.0,
+    0.68,
+    3.5
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v0",
+   "pos_blender": [
+    30.0,
+    -3.5,
+    0.68
+   ],
+   "pos_unity": [
+    -30.0,
+    0.68,
+    3.5
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v0",
+   "pos_blender": [
+    42.0,
+    -3.5,
+    0.68
+   ],
+   "pos_unity": [
+    -42.0,
+    0.68,
+    3.5
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v4",
+   "pos_blender": [
+    48.0,
+    -3.5,
+    0.68
+   ],
+   "pos_unity": [
+    -48.0,
+    0.68,
+    3.5
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v0",
+   "pos_blender": [
+    54.0,
+    -3.5,
+    0.68
+   ],
+   "pos_unity": [
+    -54.0,
+    0.68,
+    3.5
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v2",
+   "pos_blender": [
+    -27.0,
+    -13.0,
+    0.68
+   ],
+   "pos_unity": [
+    27.0,
+    0.68,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v2",
+   "pos_blender": [
+    -21.0,
+    -13.0,
+    0.68
+   ],
+   "pos_unity": [
+    21.0,
+    0.68,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v2",
+   "pos_blender": [
+    -15.0,
+    -13.0,
+    0.68
+   ],
+   "pos_unity": [
+    15.0,
+    0.68,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v2",
+   "pos_blender": [
+    -9.0,
+    -13.0,
+    0.68
+   ],
+   "pos_unity": [
+    9.0,
+    0.68,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v2",
+   "pos_blender": [
+    -3.0,
+    -13.0,
+    0.68
+   ],
+   "pos_unity": [
+    3.0,
+    0.68,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v2",
+   "pos_blender": [
+    3.0,
+    -13.0,
+    0.68
+   ],
+   "pos_unity": [
+    -3.0,
+    0.68,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v2",
+   "pos_blender": [
+    9.0,
+    -13.0,
+    0.68
+   ],
+   "pos_unity": [
+    -9.0,
+    0.68,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v2",
+   "pos_blender": [
+    15.0,
+    -13.0,
+    0.68
+   ],
+   "pos_unity": [
+    -15.0,
+    0.68,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v2",
+   "pos_blender": [
+    21.0,
+    -13.0,
+    0.68
+   ],
+   "pos_unity": [
+    -21.0,
+    0.68,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitMarquesina_v2",
+   "pos_blender": [
+    27.0,
+    -13.0,
+    0.68
+   ],
+   "pos_unity": [
+    -27.0,
+    0.68,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v0",
+   "pos_blender": [
+    -40.0,
+    -2.6,
+    0.68
+   ],
+   "pos_unity": [
+    40.0,
+    0.68,
+    2.6
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v0",
+   "pos_blender": [
+    -40.0,
+    -13.0,
+    0.68
+   ],
+   "pos_unity": [
+    40.0,
+    0.68,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v0",
+   "pos_blender": [
+    -12.0,
+    -2.6,
+    0.68
+   ],
+   "pos_unity": [
+    12.0,
+    0.68,
+    2.6
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v0",
+   "pos_blender": [
+    -12.0,
+    -13.0,
+    0.68
+   ],
+   "pos_unity": [
+    12.0,
+    0.68,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v0",
+   "pos_blender": [
+    12.0,
+    -2.6,
+    0.68
+   ],
+   "pos_unity": [
+    -12.0,
+    0.68,
+    2.6
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v0",
+   "pos_blender": [
+    12.0,
+    -13.0,
+    0.68
+   ],
+   "pos_unity": [
+    -12.0,
+    0.68,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v0",
+   "pos_blender": [
+    40.0,
+    -2.6,
+    0.68
+   ],
+   "pos_unity": [
+    -40.0,
+    0.68,
+    2.6
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v0",
+   "pos_blender": [
+    40.0,
+    -13.0,
+    0.68
+   ],
+   "pos_unity": [
+    -40.0,
+    0.68,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v1",
+   "pos_blender": [
+    -50.0,
+    -2.4,
+    0.68
+   ],
+   "pos_unity": [
+    50.0,
+    0.68,
+    2.4
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v1",
+   "pos_blender": [
+    -30.0,
+    -2.4,
+    0.68
+   ],
+   "pos_unity": [
+    30.0,
+    0.68,
+    2.4
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v1",
+   "pos_blender": [
+    -10.0,
+    -2.4,
+    0.68
+   ],
+   "pos_unity": [
+    10.0,
+    0.68,
+    2.4
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v1",
+   "pos_blender": [
+    10.0,
+    -2.4,
+    0.68
+   ],
+   "pos_unity": [
+    -10.0,
+    0.68,
+    2.4
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v1",
+   "pos_blender": [
+    30.0,
+    -2.4,
+    0.68
+   ],
+   "pos_unity": [
+    -30.0,
+    0.68,
+    2.4
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v1",
+   "pos_blender": [
+    50.0,
+    -2.4,
+    0.68
+   ],
+   "pos_unity": [
+    -50.0,
+    0.68,
+    2.4
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v1",
+   "pos_blender": [
+    -36.0,
+    -13.0,
+    0.68
+   ],
+   "pos_unity": [
+    36.0,
+    0.68,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v1",
+   "pos_blender": [
+    36.0,
+    -13.0,
+    0.68
+   ],
+   "pos_unity": [
+    -36.0,
+    0.68,
+    13.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v2",
+   "pos_blender": [
+    -20.0,
+    -2.4,
+    0.68
+   ],
+   "pos_unity": [
+    20.0,
+    0.68,
+    2.4
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v2",
+   "pos_blender": [
+    20.0,
+    -14.6,
+    0.68
+   ],
+   "pos_unity": [
+    -20.0,
+    0.68,
+    14.6
+   ],
+   "giro_y_unity": -180.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v3",
+   "pos_blender": [
+    -16.0,
+    -2.4,
+    0.68
+   ],
+   "pos_unity": [
+    16.0,
+    0.68,
+    2.4
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v3",
+   "pos_blender": [
+    16.0,
+    -2.4,
+    0.68
+   ],
+   "pos_unity": [
+    -16.0,
+    0.68,
+    2.4
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v4",
+   "pos_blender": [
+    6.0,
+    -3.0,
+    0.68
+   ],
+   "pos_unity": [
+    -6.0,
+    0.68,
+    3.0
+   ],
+   "giro_y_unity": -0.0
+  },
+  {
+   "prefab": "SM_KitSueltas_v5",
+   "pos_blender": [
+    60.0,
+    -9.0,
+    0.0
+   ],
+   "pos_unity": [
+    -60.0,
+    0.0,
+    9.0
+   ],
+   "giro_y_unity": -0.0
+  }
+ ],
+ "convencion": "pos_unity = (-x, z, -y) de Blender y giro_y_unity = -giro de Blender (exportador -Z/Y: Blender -Y sale a +Z de Unity, medido por Marcos; el importador de Unity invierte X). SIN VERIFICAR en Unity: compáralo con el FBX del montaje de la misma variante."
+}
