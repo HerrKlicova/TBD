@@ -184,9 +184,11 @@ namespace TBD.View.UiNoche
         /// <summary>Velo tramado en navy (ui_velo_navy_4x4 en mosaico), detrás del panel de Opciones y de la derrota.</summary>
         public static void Velo()
         {
-            var t = Tex("ui_velo_navy_4x4"); if (t == null) return;
-            t.wrapMode = TextureWrapMode.Repeat;
-            GUI.DrawTextureWithTexCoords(new Rect(0, 0, BaseW, BaseH), t, new Rect(0, 0, BaseW / 4f, BaseH / 4f));
+            // D-N129: nunca tramado. Velo liso navy 181c30 al 60 %, sin la textura 4x4.
+            if (_veloTex == null) { _veloTex = new Texture2D(1, 1); _veloTex.SetPixel(0, 0, Color.white); _veloTex.Apply(); }
+            var old = GUI.color; GUI.color = new Color(0x18 / 255f, 0x1c / 255f, 0x30 / 255f, 0.6f);
+            GUI.DrawTexture(new Rect(0, 0, BaseW, BaseH), _veloTex); GUI.color = old;
         }
+        static Texture2D _veloTex;
     }
 }

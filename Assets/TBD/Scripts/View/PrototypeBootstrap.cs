@@ -846,10 +846,11 @@ namespace TBD.View
                 default: // noche: el azul viene de la luna y del ambiente (#283440 a #404460) sobre el albedo ocre de siempre; la gradación
                          // solo baja la saturación, sin teñir, para que el ámbar del foco siga siendo ámbar (no salmón)
                     // noche v3 de Bruno elegida por Lucia (qa24, D-N129): luna fria (0,40; 0,55; 1,0) a 0,45, ambiente azul (0,03; 0,045; 0,10), filtro (0,78; 0,86; 1), sat -10, exposicion 0; sin cuantizador ni tramado
-                    _grade.colorFilter.Override(new Color(0.78f, 0.86f, 1f));
-                    _grade.postExposure.Override(0f);
-                    _grade.saturation.Override(-10f);
-                    SetLight(new Color(0.40f, 0.55f, 1.0f), 0.45f, new Color(0.03f, 0.045f, 0.10f), 50f);
+                    // luz de noche E de Bruno elegida por Lucia (D-N129): filtro blanco, exposicion +1,4, saturacion -50, luna (0,75; 0,80; 1,0) a 0,45, ambiente (0,03; 0,045; 0,10), focos 90
+                    _grade.colorFilter.Override(Color.white);
+                    _grade.postExposure.Override(1.4f);
+                    _grade.saturation.Override(-50f);
+                    SetLight(new Color(0.75f, 0.80f, 1.0f), 0.45f, new Color(0.03f, 0.045f, 0.10f), 50f);
                     SetFloodlights(90f);
                     break;
             }
@@ -1179,8 +1180,9 @@ namespace TBD.View
             _capturing = true;
             yield return new WaitForEndOfFrame();
             var full = ScreenCapture.CaptureScreenshotAsTexture();
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-capdirecta") >= 0) File.WriteAllBytes(path.Replace(".png", "_full.png"), full.EncodeToPNG());   // QA (Bruno): el mismo fotograma sin Blit
             int w = Mathf.Max(2, full.width / 2), h = Mathf.Max(2, full.height / 2);
-            var rt = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.ARGB32);
+            var rt = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);   // Linear: sin recodificar a sRGB (Bruno, prueba -capdirecta: la pantalla estaba bien)
             rt.filterMode = FilterMode.Point;
             Graphics.Blit(full, rt);
             var prev = RenderTexture.active;
@@ -1939,12 +1941,11 @@ namespace TBD.View
                     var c = pix[py * W + px]; int i = py * W + px;
                     if (c.a == 0) { pixNight[i] = c; continue; }
                     float x = X0 + (px + 0.5f) * Texel, z = Z0 + (py + 0.5f) * Texel;
-                    bool lit = false;
-                    foreach (float ly in lampY) { float dx = x - (Level.FortX0 - 7.5f), dz = z - ly; if (dx * dx + dz * dz < 11f * 11f) lit = true; }
-                    if (lit) { pixNight[i] = c; continue; }
+                    float dLamp = 1e9f;
+                    foreach (float ly in lampY) { float dx = x - (Level.FortX0 - 7.5f), dz = z - ly; dLamp = Mathf.Min(dLamp, Mathf.Sqrt(dx * dx + dz * dz)); }
                     int zone = ZoneAt(x, z, px, py);
                     Color32 mean = zone == 2 ? mRod : zone == 4 ? mAsf : zone == 5 ? mLabr : zone == 9 ? water : mApis;
-                    float k = 0.2f;                                                         // 20 % del detalle
+                    float k = Mathf.Lerp(1f, 0.7f, Mathf.Clamp01((dLamp - 9f) / 2f));        // D-N129 (Bruno): 70 % del detalle (sin cuantizador ya no hay nieve) y fundido a 100 % entre 11 y 9 m del foco, sin corte seco
                     pixNight[i] = SnapSub(new Color32((byte)(mean.r + (c.r - mean.r) * k), (byte)(mean.g + (c.g - mean.g) * k), (byte)(mean.b + (c.b - mean.b) * k), 255));
                 }
             _groundNightTex = new Texture2D(W, H, TextureFormat.RGBA32, false, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp, name = "Suelo muestra (noche)" };

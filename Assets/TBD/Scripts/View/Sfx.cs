@@ -27,6 +27,38 @@ namespace TBD.View
             s._one.pitch = pitch; s._one.PlayOneShot(c, vol * MainMenu.SfxVolume);
         }
 
+        /// <summary>
+        /// Efecto con distancia ligada al zoom y variantes al azar (Eugenio, 7-nov). Convencion de nombres en Resources/Audio:
+        /// sfx_&lt;evento&gt;_&lt;cerca|media|lejos&gt;_&lt;n&gt;  (n = 1..8). Si no existe esa variante prueba sfx_&lt;evento&gt;_&lt;distancia&gt; y por ultimo sfx_&lt;evento&gt; (el clip de siempre).
+        /// «ortho» es el tamano ortografico de la camara: &lt; 14 cerca, &lt; 34 media, mas lejos «lejos». Volumen: cerca 1, media 0,7, lejos 0,45.
+        /// </summary>
+        public static void PlayDist(string evento, float ortho, float vol = 1f, float minGap = 0.08f, float pitchJitter = 0.04f)
+        {
+            string d = ortho < 14f ? "cerca" : ortho < 34f ? "media" : "lejos"; float dv = d == "cerca" ? 1f : d == "media" ? 0.7f : 0.45f;
+            var s = I; float now = Time.unscaledTime; if (s._last.TryGetValue(evento, out var t0) && now - t0 < minGap) return; s._last[evento] = now;
+            AudioClip c = null;
+            for (int tries = 0; tries < 3 && c == null; tries++) { int n = s.Variants(evento, d); if (n <= 0) break; c = s.Clip("sfx_" + evento + "_" + d + "_" + Random.Range(1, n + 1)); }
+            if (c == null) c = s.Clip("sfx_" + evento + "_" + d); if (c == null) c = s.Clip("sfx_" + evento); if (c == null) return;
+            s._one.pitch = 1f + Random.Range(-pitchJitter, pitchJitter); s._one.PlayOneShot(c, vol * dv * MainMenu.SfxVolume);
+        }
+        /// <summary>Efecto sin distancia (impactos, zombis, muros, tren, motores, rotor, ambientes, interfaz, alertas; Nuria): carga sfx_&lt;evento&gt;_&lt;1..8&gt; al azar sin repetir la ultima y con el tono a +-5 %. Si no hay variantes, usa sfx_&lt;evento&gt;.</summary>
+        public static void Play(string evento, Vector3 pos, float vol = 1f, float minGap = 0.08f)
+        {
+            var s = I; float now = Time.unscaledTime; if (s._last.TryGetValue(evento, out var t0) && now - t0 < minGap) return; s._last[evento] = now;
+            int n = 0; while (n < 8 && s.Clip("sfx_" + evento + "_" + (n + 1)) != null) n++;
+            AudioClip c = null;
+            if (n > 0) { int k = Random.Range(1, n + 1); if (n > 1 && s._lastVar.TryGetValue(evento, out var lv) && lv == k) k = k % n + 1; s._lastVar[evento] = k; c = s.Clip("sfx_" + evento + "_" + k); }
+            if (c == null) c = s.Clip("sfx_" + evento); if (c == null) return;
+            s._one.pitch = 1f + Random.Range(-0.05f, 0.05f); s._one.PlayOneShot(c, vol * MainMenu.SfxVolume);
+        }
+        readonly Dictionary<string, int> _lastVar = new Dictionary<string, int>();
+        readonly Dictionary<string, int> _nvar = new Dictionary<string, int>();
+        int Variants(string evento, string d)
+        {
+            string k = evento + "|" + d; if (_nvar.TryGetValue(k, out var n)) return n;
+            n = 0; while (n < 8 && Clip("sfx_" + evento + "_" + d + "_" + (n + 1)) != null) n++; _nvar[k] = n; return n;
+        }
+
         /// <summary>Bucle con nombre (música o ambiente). volumen 0 lo pausa.</summary>
         public static void Loop(string name, float vol, bool music)
         {

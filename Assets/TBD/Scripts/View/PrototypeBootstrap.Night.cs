@@ -346,7 +346,7 @@ namespace TBD.View
             var pl = _uw.Find(s.Platoon); if (pl == null) return; Infantryman man = null; foreach (var m in pl.Men) if (m.Id == s.Man) { man = m; break; }
             if (man == null) return;
             if (_trMat == null) { _trMat = new Material(Shader.Find("Universal Render Pipeline/Unlit")); _trMat.SetColor("_BaseColor", new Color32(0xf0, 0xdc, 0x9c, 255)); }
-            if (s.Splash) Sfx.Play("sfx_granada_40", 0.8f, 0.25f); else if (s.Kind == InfKind.Ametrallador) Sfx.Play("sfx_ametralladora", 0.5f, 0.45f, 1f + (s.Man % 5) * 0.01f); else Sfx.Play("sfx_fusil_rafaga", 0.35f, 0.18f, 0.97f + (s.Man % 7) * 0.01f);
+            if (s.Splash) Sfx.PlayDist("granada_40", _orthoSize, 0.8f, 0.25f); else if (s.Kind == InfKind.Ametrallador) Sfx.PlayDist("ametralladora", _orthoSize, 0.5f, 0.45f); else Sfx.PlayDist("fusil_rafaga", _orthoSize, 0.35f, 0.18f);
             var from = new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f); var to = new Vector3(s.AimX / 1000f, 0.8f, s.AimY / 1000f);
             // trazadora que viaja (no un rayo): 1 de cada 3 balas en fusileros, 1 de cada 4 en ametralladoras, todas en tiradores y granadas (Lucia §4.1)
             bool tracer = s.Splash || s.Kind == InfKind.Tirador || UnityEngine.Random.value < (s.Kind == InfKind.Ametrallador ? 0.25f : 0.34f);
@@ -433,7 +433,7 @@ namespace TBD.View
             if (!_capDirDone && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-capdirecta") >= 0 && Time.realtimeSinceStartup - _nightT0 >= 30f)   // QA (Bruno): MISMO fotograma, captura de siempre vs. captura directa a resolucion completa sin Blit
             {
                 _capDirDone = true; string dd = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(dd);
-                StartCoroutine(CaptureRoutine(System.IO.Path.Combine(dd, "capdirecta_1_siempre.png"))); ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dd, "capdirecta_2_directa.png"));
+                StartCoroutine(CaptureRoutine(System.IO.Path.Combine(dd, "capdirecta_1_siempre.png")));
             }
             { var cl = System.Environment.GetCommandLineArgs(); for (int li = 0; li + 1 < cl.Length; li++) if (cl[li] == "-leaveat" && float.TryParse(cl[li + 1], out var lt) && Time.realtimeSinceStartup - _nightT0 >= lt && !_leaving && !NightRun.LeftOnce && _nightInit && _ng != null && _ng.State == NightState.Jugando) { NightRun.LeftOnce = true; Debug.Log("[NOCHE] prueba: -leaveat, salgo al mapa tick " + _ng.Tick); LeaveToMap(); } }   // QA: sale al mapa a los N s reales
             if (!_nightOn) return;
