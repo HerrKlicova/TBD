@@ -598,6 +598,17 @@ namespace TBD.Sim.Tests
                 nh.Controls(-1000, 0, 0, 0); int gt = 0; while (nh.IsAirborne && gt < 3000) { nh.Step(); nh.CarryPassengers(tw); gt++; }
                 bool unl = nh.Unload(tw, p1.Id);
                 check(unl && p1.Aboard == 0 && nh.State == HeliState.EnTierra && IMath.Dist(p1.AX - nh.X, p1.AY - nh.Y) >= 7_000, "posado, el pelotón baja a un costado y vuelve a ser suyo");
+                // D-N143: un pelotón por helicóptero, descarga con U y aterrizaje en un claro de 20 × 20 m
+                {
+                    var tw3 = new UnitsWorld(4); var q1 = tw3.AddPlatoon(PlatoonKind.Tiradores, 50_000, 50_000, 0); var q2 = tw3.AddPlatoon(PlatoonKind.Tiradores, 52_000, 50_000, 0);
+                    var nh3 = new Helicopter(10, HeliKind.Nh90, 51_000, 50_000, 0);
+                    bool a1 = nh3.Board(tw3, q1.Id), a2 = nh3.Board(tw3, q2.Id);
+                    check(a1 && !a2 && q1.AliveCount() + q2.AliveCount() <= 12, "D-N143: el NH90 lleva un pelotón; el segundo no sube aunque quepan las plazas");
+                    check(nh3.UnloadAll(tw3) == 1 && q1.Aboard == 0, "D-N143: posado, U baja a todos los que lleva");
+                    var blocks = new List<RectMm> { new RectMm(98000, 75000, 114000, 83000) };
+                    check(Helicopter.LandingClear(140000, 30000, blocks, null) && !Helicopter.LandingClear(110000, 70000, blocks, null), "D-N143: aterriza en un claro de 20 × 20 m, no encima del edificio");
+                    check(!Helicopter.LandingClear(140000, 30000, blocks, new List<Target> { new Target { X = 145000, Y = 35000 } }), "D-N143: con un zombi en el claro no aterriza");
+                }
             }
             {
                 // arco de las granadas para la vista, y francotiradores que prefieren a los especiales

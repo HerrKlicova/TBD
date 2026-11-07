@@ -251,7 +251,27 @@ namespace TBD.Units
             var p = world.Find(platoon); var s = HeliCatalog.Get(Kind);
             if (p == null || State != HeliState.EnTierra || p.Aboard != 0 || s.Seats <= 0) return false;
             if (IMath.Dist(p.AX - X, p.AY - Y) > 20000) return false;
+            if (OnePlatoon && PlatoonsAboard(world) > 0) return false;      // D-N143: en el MVP, un pelotón por helicóptero (la cifra real del NH90 está SIN VERIFICAR)
             return p.AliveCount() <= s.Seats - world.SeatsUsed(CarrierId);
+        }
+        /// <summary>D-N143 (Eugenio): capacidad de un pelotón, sea cual sea su tamaño (MVP). false = solo cuentan las plazas.</summary>
+        public bool OnePlatoon = true;
+        public int PlatoonsAboard(UnitsWorld world) { int n = 0; for (int i = 0; i < world.Platoons.Count; i++) if (world.Platoons[i].Aboard == CarrierId) n++; return n; }
+        /// <summary>D-N143 (tecla U): baja a todos los que lleva, solo posado. Devuelve cuántos pelotones bajan.</summary>
+        public int UnloadAll(UnitsWorld world)
+        {
+            if (State != HeliState.EnTierra) return 0; int n = 0;
+            for (int i = 0; i < world.Platoons.Count; i++) if (world.Platoons[i].Aboard == CarrierId && Unload(world, world.Platoons[i].Id)) n++;
+            return n;
+        }
+        /// <summary>D-N143: ¿se puede aterrizar en (x, y)? Hace falta un claro de 20 × 20 m (±halfMm) sin edificios, muros ni vehículos («blocked», rectángulos en mm)
+        /// y sin zombis dentro. El helipuerto es un claro más. Entero y sin azar.</summary>
+        public static bool LandingClear(int x, int y, IList<RectMm> blocked, IList<Target> zombies, int halfMm = 10000)
+        {
+            int x0 = x - halfMm, x1 = x + halfMm, y0 = y - halfMm, y1 = y + halfMm;
+            if (blocked != null) for (int i = 0; i < blocked.Count; i++) { var r = blocked[i]; if (r.X0 < x1 && r.X1 > x0 && r.Y0 < y1 && r.Y1 > y0) return false; }
+            if (zombies != null) for (int i = 0; i < zombies.Count; i++) { var z = zombies[i]; if (z.X >= x0 && z.X <= x1 && z.Y >= y0 && z.Y <= y1) return false; }
+            return true;
         }
         public bool Board(UnitsWorld world, int platoon) { return CanBoard(world, platoon) && world.Embark(platoon, CarrierId, HeliCatalog.Get(Kind).Seats - world.SeatsUsed(CarrierId)); }
         public void CarryPassengers(UnitsWorld world) { world.CarryAboard(CarrierId, X, Y, Yaw); }
