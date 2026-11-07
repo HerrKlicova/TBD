@@ -22,6 +22,9 @@ VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 
 PIEZAS = ["chapa", "pilar", "viga", "onda", "canalon"]
 COLORES = {"chapa": "94948c", "pilar": "50541c", "viga": "50541c", "onda": "6c7874", "canalon": "48403c"}
+# D-N80 (7-nov): en las vistas de juego del LOD1 la cara en sombra de pilares y cerchas (50541c) y el canalón (48403c)
+# caían a L* 19; en el LOD1 suben un escalón: verde 70784c y canalón 605c48
+COLORES_LOD1 = {"pilar": "70784c", "viga": "70784c", "canalon": "605c48"}
 FACCION = "neutro"
 # D-N80 (7-nov): nada por debajo de 48403c (283440 es de la horda; 1c200c y 303424 bajo el suelo); normales subidas
 NORMALES_ARRIBA = True
@@ -75,12 +78,23 @@ def construir(nombre="SM_Marquesina", lod=0):
         if VAR == 3 and i == 2:
             caida = -0.9                                                           # tramo que cuelga del pilar caído
         t.tejado((x0, 0, ALTO + 0.2 + caida), 5.98, FONDO, 0.6, "chapa", aguas=1)
-        # chapa ondulada (Lucía 16:51): tiras de 0,25 m en 6c7874 cada 0,5 m sobre la chapa, con su pendiente
-        for k in range(12):
-            if VAR == 5 and r_.random() < 0.3:
-                continue                                                           # chapa vieja: tiras sueltas
-            x = x0 - 3.0 + 0.25 + k * 0.5
-            t.caja((x, 0, ALTO + 0.5 + 0.02 + caida), (0.25, FONDO / math.cos(a), 0.02), "onda", rot_x=a)
+        if lod == 0:
+            # chapa ondulada (Lucía 16:51): tiras de 0,25 m en 6c7874 cada 0,5 m sobre la chapa, con su pendiente
+            for k in range(12):
+                if VAR == 5 and r_.random() < 0.3:
+                    continue                                                       # chapa vieja: tiras sueltas
+                x = x0 - 3.0 + 0.25 + k * 0.5
+                t.caja((x, 0, ALTO + 0.5 + 0.02 + caida), (0.25, FONDO / math.cos(a), 0.02), "onda", rot_x=a)
+        else:
+            # LOD1 (Lucía 7-nov, nota 1 de la D-N123): las tiras de 0,25 m salían en damero de 1 px. Van como bandas
+            # de chapa a lo largo de la pieza (en X), de 1,0 m con huecos de 1,0 m (2 px o más también a tamaño de
+            # juego), siguiendo la pendiente.
+            for k in range(3):
+                if VAR == 5 and r_.random() < 0.3:
+                    continue                                                       # chapa vieja: bandas que faltan
+                y = -2.0 + k * 2.0
+                z = ALTO + 0.5 + 0.02 + caida + y * math.tan(a)
+                t.caja((x0, y, z), (5.9, 1.0 / math.cos(a), 0.02), "onda", rot_x=a)
     # canalón más oscuro en el borde de la vía (roto en la v5)
     if VAR == 5:
         t.caja((-largo / 4 - 0.5, -FONDO / 2 - 0.1, ALTO + 0.15), (largo / 2 - 1.0, 0.25, 0.25), "canalon")

@@ -77,14 +77,18 @@ def construir(nombre="SM_PosteCatenaria", lod=0):
         for x in (0.6, 3.0):
             xx, zz = _rot((lado * -x, zl - 0.25), piv, -da if lado < 0 else da) if d else (lado * -x, zl - 0.25)
             fino.cilindro((xx, 0, zz), 0.07, 0.4, "Z", 6, "aislador")
-    # hilo cortado (solo LOD0): cae desde la punta; en la v4 llega al suelo y queda tendido en el balasto
-    tip = _rot((-3.0, zm), (0.0, zm), math.radians(15)) if VAR == 2 else (-3.0, zm)
+    # hilo cortado (solo LOD0). Lucía (7-nov, nota 2 de la D-N123): los tramos de 0,03 m salían como cables de 1 px
+    # sueltos. Ahora es un solo tramo de 0,34 m (2 px) que cuelga pegado a la punta de la ménsula; el tramo en diagonal
+    # que quedaba suelto se quita. En la v4 cae hasta el suelo y queda tendido en el balasto, también a 2 px.
+    # La punta de la ménsula está en +X (caja() pone lado * -cx con lado = -1). Antes el hilo se calculaba en -3,0 y
+    # quedaba flotando lejos del poste: esos eran los «cables sueltos» de la nota.
+    tip = _rot((3.0, zm), (0.0, zm), math.radians(-15)) if VAR == 2 else (3.0, zm)
+    hg = 0.34
     if VAR == 4:
-        fino.caja((tip[0], 0, tip[1] / 2), (0.03, 0.03, tip[1]), "hilo")
-        fino.caja((tip[0] - 1.8, -0.4, 0.03), (3.6, 0.03, 0.03), "hilo", rot_z=math.radians(12))
+        fino.caja((tip[0], 0, tip[1] / 2), (hg, hg, tip[1] - 0.1), "hilo")
+        fino.caja((tip[0] + 1.9, -0.3, hg / 2 + 0.02), (3.4, hg, hg), "hilo", rot_z=math.radians(-12))
     else:
-        fino.caja((tip[0], 0, tip[1] - 1.25 - 0.2), (0.03, 0.03, 2.5), "hilo")
-        fino.caja((tip[0], -0.6, tip[1] - 2.7), (0.03, 1.2, 0.03), "hilo", rot_x=math.radians(-25))
+        fino.caja((tip[0], 0, tip[1] - 1.0 - 0.05), (hg, hg, 2.0), "hilo")
     o = t.objeto(nombre, bisel=0)
     if VAR == 1:   # inclinado 6° hacia el lado contrario a la vía, girando sobre la zapata
         from mathutils import Matrix
