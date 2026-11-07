@@ -9,7 +9,7 @@ Sacos de 0,85 × 0,48 × 0,3 m en 4 hiladas trabadas, dos a lo ancho (LOD0); en 
 hilada se funden en bloques. Todo DE MEMORIA (K3_control_1 de Paula para la forma de los sacos): SIN VERIFICAR.
 Colores: sacos 88885c, sacos nuevos de la reparación y arena derramada b4a080, andamio 6c7874 con tablones 605c48,
 ingenieros 50541c con el casco 70784c, el chaleco 6c7874 y la cara a86c50.
-Variantes (TBD_VARIANTE % 5) = estados: 0 sano; 1 dañado (sacos sueltos arriba, alguno caído fuera); 2 muy dañado
+Variantes (TBD_VARIANTE % 5) = estados: 0 sano; 1 dañado (una muesca en la hilada de arriba y sacos caídos fuera); 2 muy dañado
 (media hilada de arriba fuera, mordiscos y arena derramada); 3 brecha (un hueco de 1,8 m casi hasta el suelo con los
 sacos y la arena desparramados); 4 en reparación (la brecha a medio rellenar con sacos nuevos, andamio de tubo encima,
 un palé de sacos y la cuadrilla de tres ingenieros).
@@ -54,6 +54,10 @@ def _queda(a, f, x0, x1, lado):
     if a == 0:
         return True
     if a == 1:
+        if f == FILAS - 1 and -1.1 < xc < 0.5:               # muesca de ~1,6 m en la hilada de arriba (Lucía: ≥ 2 px)
+            return False
+        if f == FILAS - 2 and -0.6 < xc < 0.1 and lado < 0:  # y medio saco de la de debajo, hacia fuera
+            return False
         return not (f == FILAS - 1 and r < 0.22)
     if a == 2:
         if f == FILAS - 1:
