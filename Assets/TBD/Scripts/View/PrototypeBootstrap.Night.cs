@@ -87,6 +87,7 @@ namespace TBD.View
                 using (var q = wld.EntityManager.CreateEntityQuery(typeof(Zombie))) wld.EntityManager.DestroyEntity(q);
             }
             _targetOrtho = 26f; _focus = new Vector3(96f, 0f, 64f);
+            { var cf = System.Environment.GetCommandLineArgs(); for (int fi = 0; fi + 1 < cf.Length; fi++) if (cf[fi] == "-focus") { var pr = cf[fi + 1].Split((char)44); if (pr.Length == 2 && float.TryParse(pr[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var fx0) && float.TryParse(pr[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var fz0)) _focus = new Vector3(fx0, 0f, fz0); else Debug.LogWarning("[NOCHE] -focus x,z"); } else if (cf[fi] == "-zoom0" && float.TryParse(cf[fi + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var zz0)) _targetOrtho = zz0; }   // QA: encuadre inicial
             ApplyGrade(2);
             _paletteMix = 0f;                                          // D-N129 (Lucia y Bruno): el mundo no pasa por el cuantizador; la paleta queda solo en los albedos y la interfaz
             { var ca2 = System.Environment.GetCommandLineArgs(); for (int i2 = 0; i2 + 1 < ca2.Length; i2++) if (ca2[i2] == "-luz") NightLightPass(ca2[i2 + 1]); }
