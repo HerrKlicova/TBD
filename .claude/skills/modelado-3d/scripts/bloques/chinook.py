@@ -31,10 +31,14 @@ PIEZAS = ["casco", "mancha", "optica", "interior", "pala", "cubo", "goma", "meta
 COLORES = {"casco": "50541c", "mancha": "845c28", "optica": "60546c", "interior": "48403c", "pala": "94948c",
            "cubo": "845c28", "goma": "48403c", "metal": "605c48", "arma": "48403c", "disco": "94948c",
            "caja": "88885c"}
-VALOR_PIEZAS = {"casco": ("b4a080", "50541c", "50541c")}
+VALOR_PIEZAS = {"casco": ("b4a080", "88885c", "70784c")}   # costados claros (Lucía: L* ≥ 28 a la sombra)
 FACCION = "propio"
 PRESUPUESTO = {0: (300, 5000), 1: (200, 3000)}
 UMBRAL_CONTORNO = {0: 0.06, 1: 0.25}
+# normales inclinadas hacia arriba (Lucía, 7-nov): los costados planos del fuselaje caían a L* 12-13, en la banda de
+# la horda (D-N80)
+NORMALES_ARRIBA = True
+NORMALES_INCLINACION = 1.0
 HUB_D = (0.0, -5.925, 4.9)
 HUB_T = (0.0, 5.925, 5.45)
 R_ROTOR = 9.15
