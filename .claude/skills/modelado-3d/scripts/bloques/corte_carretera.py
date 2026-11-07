@@ -9,7 +9,7 @@ Colores: hormigón b8b8b8, vallas b8b8b8 (galvanizado), cinta en bandas d4d0cc /
 coches 6c7874 / 605c48 / quemado 48403c con óxido 7c3c18, cristales 60546c, escombro b8b8b8 / 94948c / b4a080 (ladrillo
 claro, el rojizo cae en la familia vetada), sacos 847c34, hierros 48403c.
 Origen en el suelo, en el centro del corte. La carretera va a lo largo de Y y el corte la cruza a lo largo de X (calzada
-de unos 7 m). Variantes (TBD_VARIANTE % 5): 0 New Jersey en chicane; 1 dos coches cruzados; 2 vallas con cinta;
+de unos 7 m). Variantes (TBD_VARIANTE % 5): 0 New Jersey en chicane; 1 dos coches cruzados; 2 vallas de obra con lona a bandas (Lucía, 7-nov: la cinta fina se la comía el contorno);
 3 escombros con una New Jersey volcada; 4 control militar: New Jersey, sacos, alambrada y un coche.
 """
 import math, os
@@ -87,11 +87,12 @@ def _valla(m, x0, y, fino):
 
 
 def _cinta(m, x0, x1, y, z, fino):
-    n = max(2, int(round(abs(x1 - x0) / 0.5)))
+    """Lona de valla de obra en bandas anchas d4d0cc / 48403c (el rojo real está vetado)."""
+    n = max(2, int(round(abs(x1 - x0) / 0.6)))
     d = (x1 - x0) / n
     for k in range(n):
         a, b = x0 + k * d + 0.01, x0 + (k + 1) * d - 0.01
-        m.caja(((a + b) / 2, y + 0.08, z), (abs(b - a), 0.03, 0.18 if fino else 0.24),
+        m.caja(((a + b) / 2, y + 0.08, z), (abs(b - a), 0.06, 0.8 if fino else 0.85),
                "cinta_clara" if k % 2 == 0 else "cinta_oscura")
 
 
@@ -122,8 +123,8 @@ def construir(nombre="SM_CorteCarretera", lod=0):
     elif a == 2:                                      # vallas con cinta
         for x in (-2.55, 0.0, 2.55):
             _valla(m, x, 0.0, fino)
-        for z in (0.45, 0.85):
-            _cinta(m, -3.75, 3.75, 0.0, z, fino)
+        _cinta(m, -3.75, 3.75, 0.0, 0.6, fino)        # lona a bandas de casi toda la altura (Lucía: ≥ 2 px a ortho 26;
+        #                                               un tablón de 0,3 m de canto se veía casi de perfil desde arriba)
         if fino:
             _valla(m, 4.2, 1.6, fino)
     elif a == 3:                                      # escombros con una New Jersey volcada
