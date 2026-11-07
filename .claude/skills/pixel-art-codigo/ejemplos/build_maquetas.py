@@ -296,14 +296,17 @@ def pantalla_final(victoria, estrellas=2):
             for x in range(W):
                 if BAYER[y % 4][x % 4] < 11:
                     px[x, y] = PAL["navy"]
-    pw, ph = 340, 250                                   # D-N104: dos filas más (integridad y muro)
+    # D-N104: dos filas más (integridad y muro). D-N106: el parte no es modal y no puede tapar la columna de avisos
+    # de la izquierda: empieza en y = 84 (252 px a 1080p) y se compacta para acabar antes de las tarjetas.
+    pw, ph = (340, 216) if victoria else (340, 250)
+    paso = 16 if victoria else 18
     p = ui.panel(pw, ph)
     if not victoria:                                    # el marco rojo de la derrota se queda (Lucía)
         for y in (0, ph - 1):
             p.hline(0, pw - 1, y, "red_bright")
         for x in (0, pw - 1):
             p.vline(x, 0, ph - 1, "red_bright")
-    x0, y0 = W // 2 - pw // 2, 46
+    x0, y0 = W // 2 - pw // 2, (84 if victoria else 46)
     pega(im, p, x0, y0)
     texto(im, (W // 2, y0 + 10), "Parte de la noche" if victoria else "Sagunto ha caído", 13, "cream" if victoria else "bone", centro=True)
     if victoria:                                        # de 1 a 3 estrellas; con derrota no hay
@@ -315,9 +318,9 @@ def pantalla_final(victoria, estrellas=2):
     iconos = [rh.zombis_16(), reduce_16(rh.bajas()), reduce_16(a1.municion()), reduce_16(a1.municion()),
               reduce_16(a1.combustible()), rh.integridad_16(), rh.muro_16(),
               rh.amanecer_16() if victoria else rh.caida_16()]
-    ty = y0 + (56 if victoria else 40)
+    ty = y0 + (52 if victoria else 40)
     for i, (k, v) in enumerate(RESULTADOS[victoria]):
-        y = ty + i * 18
+        y = ty + i * paso
         if i % 2 == 0:
             for xx in range(x0 + 8, x0 + pw - 8):
                 for yy in range(y - 2, y + 13):

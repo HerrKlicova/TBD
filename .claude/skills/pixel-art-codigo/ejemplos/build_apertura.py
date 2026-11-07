@@ -1,7 +1,8 @@
 """Apertura de la noche (D-N91: el tren llega y la cámara se abre a la estación sin cortes). Bruno (Arte técnico).
 
 Encargo de Mak (7-nov, 00:17). La letra la pone UI Toolkit; aquí van las placas, los iconos y la barra.
-  ui_rotulo_inicio        9-slice 40x30 (slice 9): placa del rótulo «Sagunto · 22:00 · Noche 1», con doble filete
+  ui_rotulo_inicio        9-slice 40x30 (slice 9): placa del rótulo «Sagunto · 22:00 · Noche 1» (y debajo, pequeña,
+                          «Aguanta hasta el amanecer», D-N106), con doble filete
                           beige arriba y abajo y rombos en los extremos. Sin rojo: es información.
   ui_rotulo_filete_64     filete de 64x3 para separar «Sagunto» de «22:00 · Noche 1» si va en dos líneas
   ui_icono_luna_9         luna de la noche (va delante de «Noche 1»)
@@ -177,6 +178,7 @@ def exportar(out):
     r = rotulo()
     r.img.save(out / "ui_rotulo_inicio.png")
     (out / "ui_rotulo_inicio.json").write_text('{"slice": 9, "texto": "Sagunto · 22:00 · Noche 1", '
+                                              '"tercera_linea": "Aguanta hasta el amanecer (pequeña, D-N106)", '
                                               '"uso": "centro de la pantalla mientras la cámara se abre a la estación; '
                                               'entra y sale en 0,3 s, dura unos 3 s"}', encoding="utf-8")
     fi, lu = filete(), luna()
@@ -229,7 +231,7 @@ def maqueta(prog=0.0, cuenta="01:30", urgente=False):
     m.pega(im, barra_marca(), bx + int(prog * 63) - 1, by - 2)
     m.pega(im, luna7(), bx - 9, by - 2); m.pega(im, sol(), bx + 66, by - 2)
     # rótulo de inicio
-    rw, rh = 220, 52
+    rw, rh = 220, 64
     base = rotulo()
     placa = Image.new("RGBA", (rw, rh), (0, 0, 0, 0))
     sl = 9                                           # 9-slice a mano para la maqueta
@@ -244,6 +246,7 @@ def maqueta(prog=0.0, cuenta="01:30", urgente=False):
     m.pega(im, filete(120), W // 2 - 60, y0 + 28)
     m.pega(im, luna(), W // 2 - 50, y0 + 33)
     m.texto(im, (W // 2 + 6, y0 + 33), "22:00 · Noche 1", 9, "beige", centro=True)
+    m.texto(im, (W // 2, y0 + 46), "Aguanta hasta el amanecer", 8, "grey_light", centro=True, sombra=False)
     # aviso de primera oleada, a la derecha del reloj
     aw, ah = 150, 18
     pl = placa_oleada(urgente).img
