@@ -61,6 +61,7 @@ namespace TBD.View.UiNoche
     /// <summary>Las pantallas, separadas de la prueba para que Marcos las llame con sus datos.</summary>
     public static class UiNocheVistas
     {
+        public static bool SinTarjetas;   // interfaz v2: sin las tarjetas del kit antiguo
         public static float[] OpcVal = { .8f, .55f, .9f };
         static void Recurso(int i, string icono, int valor)
         {
@@ -114,8 +115,8 @@ namespace TBD.View.UiNoche
                 else UiNocheKit.Pieza(g, x + 96, y + 9);
                 UiNocheKit.Pieza("ui_boton_ir_normal", x + 130, y + 2);
             }
-            // tarjetas de los pelotones (abajo)
-            for (int i = 0; i < d.Tarjetas.Count && i < 5; i++)
+            // tarjetas de los pelotones (abajo): con la interfaz v2 las pinta PrototypeBootstrap.HudV2
+            for (int i = 0; !SinTarjetas && i < d.Tarjetas.Count && i < 5; i++)
             {
                 var c = d.Tarjetas[i];
                 float x = 176 + i * 58, y = 292;

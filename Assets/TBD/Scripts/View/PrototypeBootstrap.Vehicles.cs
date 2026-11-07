@@ -76,7 +76,7 @@ namespace TBD.View
                     HeliStep(v, dt);
                 }
                 else GroundStep(v, dt);
-                if (_bot != null && !_noVehResup && v.Ammo < 0.3f && _ng != null && _ng.Tick % 30 == 0) StartVehicleResupply(v); VehicleResupply(v); VehicleFire(v, z, dt);
+                if (_bot != null && !_noVehResup && (!v.Heli || v.State == 0) && v.Ammo < 0.3f && _ng != null && _ng.Tick % 30 == 0) StartVehicleResupply(v); VehicleResupply(v); VehicleFire(v, z, dt);
             }
         }
 

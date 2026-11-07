@@ -75,7 +75,8 @@ namespace TBD.View
             UiNocheKit.Begin();
             UiNocheVistas.Hud(d, t);
             int vi = 0;
-            foreach (var v in _vehs)                                                        // tarjetas de vehículos (el kit solo trae las de los pelotones): Dragón, VAMTAC 1 y NH90
+            UiNocheVistas.SinTarjetas = true;                                               // interfaz v2 (Bruno, estilo 1): las tarjetas las pinta NightHudV2
+            foreach (var v in UiNocheVistas.SinTarjetas ? new List<Veh>() : _vehs)                                                        // tarjetas de vehículos (el kit solo trae las de los pelotones): Dragón, VAMTAC 1 y NH90
             {
                 if (v.Go == null || v.Name == "VAMTAC 2") continue; float x = 4 + vi * 58, y = 292; vi++;
                 UiNocheKit.Slice(_selVeh == v ? "ui_tarjeta_unidad_sel" : "ui_tarjeta_unidad", new Rect(x, y, 56, 64));
@@ -93,8 +94,9 @@ namespace TBD.View
             if ((lost && !_endDismissed) || won) UiNocheVistas.ParteNoche(d.Parte, t);
             UiNocheKit.End();
             // clics (coordenadas de pantalla): tarjetas de pelotones y de vehículos, botones del parte
-            int ci = 0; foreach (var pl in _uw.Platoons) { if (ci >= 5) break; var r = ScreenRect(176 + ci * 58, 292, 56, 64); if (GUI.Button(r, GUIContent.none, GUIStyle.none)) { _selVeh = null; if (!Event.current.shift) _sel.Clear(); if (!_sel.Contains(pl.Id)) _sel.Add(pl.Id); Sfx.Play("sfx_ui_clic", 0.5f); } ci++; }
-            vi = 0; foreach (var v in _vehs) { if (v.Go == null || v.Name == "VAMTAC 2") continue; var r = ScreenRect(4 + vi * 58, 292, 56, 64); vi++; if (GUI.Button(r, GUIContent.none, GUIStyle.none)) { _selVeh = v; _sel.Clear(); Sfx.Play("sfx_ui_clic", 0.5f); } }
+            int ci = 0; foreach (var pl in _uw.Platoons) { if (ci >= 5 || UiNocheVistas.SinTarjetas) break; var r = ScreenRect(176 + ci * 58, 292, 56, 64); if (GUI.Button(r, GUIContent.none, GUIStyle.none)) { _selVeh = null; if (!Event.current.shift) _sel.Clear(); if (!_sel.Contains(pl.Id)) _sel.Add(pl.Id); Sfx.Play("sfx_ui_clic", 0.5f); } ci++; }
+            vi = 0; foreach (var v in UiNocheVistas.SinTarjetas ? new List<Veh>() : _vehs) { if (v.Go == null || v.Name == "VAMTAC 2") continue; var r = ScreenRect(4 + vi * 58, 292, 56, 64); vi++; if (GUI.Button(r, GUIContent.none, GUIStyle.none)) { _selVeh = v; _sel.Clear(); Sfx.Play("sfx_ui_clic", 0.5f); } }
+            if (UiNocheVistas.SinTarjetas) NightHudV2();
             if (won) { if (GUI.Button(ScreenRect(260, 272, 120, 18), GUIContent.none, GUIStyle.none)) NextNight(); }
             else if (lost && !_endDismissed)
             {

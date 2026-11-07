@@ -16,7 +16,7 @@
   "escala_oleadas_permil": {
     "facil": 725,
     "normal": 850,
-    "dificil": 1140
+    "dificil": 1115
   },
   "recursos_iniciales": {
     "municion_u": 47,
@@ -46,11 +46,11 @@
         "hora": "22:00",
         "minuto_juego": 0,
         "llegada_s_reales": 180,
-        "total": 3410,
+        "total": 6240,
         "por_entrada": {
-          "O1": 1705,
-          "O2": 1023,
-          "O3": 682,
+          "O1": 3120,
+          "O2": 1872,
+          "O3": 1248,
           "O4": 0
         }
       }
@@ -61,11 +61,11 @@
         "hora": "22:00",
         "minuto_juego": 0,
         "llegada_s_reales": 180,
-        "total": 4000,
+        "total": 7310,
         "por_entrada": {
-          "O1": 2000,
-          "O2": 1200,
-          "O3": 800,
+          "O1": 3655,
+          "O2": 2193,
+          "O3": 1462,
           "O4": 0
         }
       }
@@ -76,11 +76,11 @@
         "hora": "22:00",
         "minuto_juego": 0,
         "llegada_s_reales": 180,
-        "total": 5360,
+        "total": 9590,
         "por_entrada": {
-          "O1": 2680,
-          "O2": 1608,
-          "O3": 1072,
+          "O1": 4795,
+          "O2": 2877,
+          "O3": 1918,
           "O4": 0
         }
       }
