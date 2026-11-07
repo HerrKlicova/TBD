@@ -197,10 +197,18 @@ def hornear(obj, mascaras, ruta_png, lod, uso, paleta, piezas_por_cara=None):
     lado = np.abs(nz) < 0.7
     arriba = nz >= 0.7
     # 1) variación grande de tono de la pintura (sin manchas: ±5 %)
-    c *= (0.95 + 0.10 * fbm(q, 0.6, 1))[:, None]
-    # pintura descolorida por el sol en zonas del techo (la foto: el verde de arriba es más claro y desigual)
-    sol = arriba & chapa & (fbm(q, 1.6, 2) > 0.62)
-    c[sol] = c[sol] * 0.75 + _hex("88885c") * 0.25
+    c *= (0.98 + 0.04 * fbm(q, 0.6, 1))[:, None]   # ±2 %: no cambia de paso de paleta (sin islas)
+    # pintura descolorida por el sol (Lucía 09:28): un degradado amplio, más claro en el centro del techo, con un
+    # solo paso de paleta entre zonas y sin islas sueltas -> una elipse por vehículo con el borde apenas ondulado
+    techo = arriba & chapa
+    if techo.any():
+        qt = q[techo]
+        xa = max(np.abs(qt[:, 0]).max(), 0.3)
+        y0_, y1_ = qt[:, 1].min(), qt[:, 1].max()
+        ya, yc = max((y1_ - y0_) / 2, 0.3), (y0_ + y1_) / 2
+        r = np.sqrt((q[:, 0] / xa) ** 2 + ((q[:, 1] - yc) / ya) ** 2)
+        sol = techo & (r < 0.62 + 0.06 * (fbm(q, 0.25, 2) - 0.5))
+        c[sol] = c[sol] * 0.72 + _hex("88885c") * 0.28
     # 2) juntas de paneles y remaches en la chapa: rejilla en el plano de cada cara
     # chapas grandes e irregulares (no una cuadrícula): el paso a lo largo varía chapa a chapa con un hash
     paso_y = 1.55
@@ -222,7 +230,7 @@ def hornear(obj, mascaras, ruta_png, lod, uso, paleta, piezas_por_cara=None):
         c[chapa & ((lado & r_y) | r_x)] = c[chapa & ((lado & r_y) | r_x)] * 0.5 + _hex("88885c") * 0.5
     # 3) bordes con la pintura gastada (desgaste en las aristas vivas, roto por ruido)
     db = dborde[m]
-    gasto = (db < (0.06 if lod == 0 else 0.09)) & (ruido(q, 6.0, 3) < 0.25 + 0.7 * P["gasto"]) & tocar & ~goma
+    gasto = (db < (0.04 if lod == 0 else 0.07)) & (ruido(q, 8.0, 3) < 0.1 + 0.55 * P["gasto"]) & tocar & ~goma
     c[gasto] = c[gasto] * 0.4 + _hex("88885c") * 0.6 if P["oxido"] == 0 else c[gasto] * 0.3 + _hex("94948c") * 0.7
     # 4) regueros: bajan por los costados desde el borde de arriba
     if P["regueros"] > 0:
@@ -232,7 +240,10 @@ def hornear(obj, mascaras, ruta_png, lod, uso, paleta, piezas_por_cara=None):
         c[reg] *= 0.8
     # 5) polvo en las caras de arriba (zonas blandas de ruido; más en los rincones = menos en el centro de los paneles)
     pv = fbm(q, 2.6, 7, oct=3)      # grano fino: polvo, no manchas (Lucía/Eugenio: nada de parches)
-    amt = np.clip((pv - (1 - P["polvo"]) * 0.7) / 0.25, 0, 1) * (0.3 + 0.35 * P["polvo"])
+    if P["polvo"] >= 0.6:   # árido: capa de polvo que cubre de verdad (se lee como polvo, no como camuflaje)
+        amt = np.clip((pv - (1 - P["polvo"]) * 0.7) / 0.25, 0, 1) * (0.3 + 0.35 * P["polvo"])
+    else:                   # poco polvo: grano suelto de un texel, nunca zonas (Lucía 09:28: sin islas en el techo)
+        amt = (ruido(q, 14.0, 7) > 1 - 0.22 * P["polvo"]) * 0.45
     amt = np.where(arriba, amt, amt * 0.3) * tocar
     c = c * (1 - amt[:, None]) + _hex(P["c_polvo"]) * amt[:, None]
     # 6) suciedad de la parte baja, con el borde irregular
@@ -246,7 +257,8 @@ def hornear(obj, mascaras, ruta_png, lod, uso, paleta, piezas_por_cara=None):
         c[goma & (q[:, 2] < 0.9)] = c[goma & (q[:, 2] < 0.9)] * 0.6 + _hex("605c48") * 0.4
     # 8) óxido en los bordes gastados y en algún reguero (castigado)
     if P["oxido"] > 0:
-        ox = gasto & (ruido(q, 3.0, 10) < P["oxido"])
+        # solo en bordes y aristas, fino y roto (Lucía 09:28: nada de marcos alrededor de las chapas; foto S4/S5)
+        ox = (db < (0.025 if lod == 0 else 0.05)) & tocar & ~goma & chapa & (ruido(q, 9.0, 10) < 0.45 * P["oxido"])
         c[ox] = _hex("7c3c18")
     # cuantizado a la paleta (Lab, sin tramado y sin colores de la horda); lo que no se toca conserva su color
     cand = np.nonzero(permit)[0]
