@@ -27,6 +27,7 @@ namespace TBD.View
             _full = Screen.fullScreen;
             var cam = Camera.main; if (cam == null) { var go = new GameObject("Cámara del menú"); cam = go.AddComponent<Camera>(); go.AddComponent<AudioListener>(); }
             cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = Dark;
+            Sfx.StopAllLoops(); Sfx.Loop("mus_menu", 0.8f, true);
             var cla = System.Environment.GetCommandLineArgs(); if (System.Array.IndexOf(cla, "-stress10k") >= 0 || System.Array.IndexOf(cla, "-stress10k-sagunto") >= 0) { NightRun.Active = false; SceneManager.LoadScene("Union"); }   // pruebas de rendimiento: sin la noche
             else if (System.Array.IndexOf(cla, "-menu-auto") >= 0) StartGame();       // pruebas: arranca directo
         }
@@ -57,7 +58,7 @@ namespace TBD.View
             return nv;
         }
 
-        void StartGame() { NetSession.Reset(); NightRun.Active = true; SceneManager.LoadScene("Union"); }
+        void StartGame() { Sfx.Play("sfx_ui_clic"); Sfx.StopLoop("mus_menu"); NetSession.Reset(); NightRun.Active = true; SceneManager.LoadScene("Union"); }
         void ContinueGame()
         {
             try { NetSession.LoadGame(); NightRun.Active = false; SceneManager.LoadScene("Union"); }
@@ -94,7 +95,7 @@ namespace TBD.View
                     GUI.DrawTexture(r, _panel);
                     GUI.Label(new Rect(r.x + u, r.y + u * 0.6f, r.width - u * 2f, r.height - u),
                         "<b>Mapa de operaciones</b>\nClic en un nodo: ir allí. Rueda: zoom. WASD: mover. Clic en un tren: seleccionarlo.\n\n" +
-                        "<b>En la zona</b>\nWASD / flechas: mover la cámara · Q E: girar · R F: inclinar · rueda: zoom (cada muesca 15 %)\n" +
+                        "<b>En la zona</b>\nWASD / flechas: mover la cámara · botón dcho.: girar · R F: inclinar · rueda: zoom (cada muesca 15 %)\n" +
                         "Alejar del todo y una muesca más: aviso; otra seguida: vuelves al mapa (M también)\n" +
                         "7 / 8 / 9: hora (día, tarde, noche) · [ ]: pixelado · , .: paleta · F9: captura · F10: grabar\n" +
                         "N: asignar o quitar obreros · B: modo obra (clic para poner muros) · H: cambia de pieza\n\n" +

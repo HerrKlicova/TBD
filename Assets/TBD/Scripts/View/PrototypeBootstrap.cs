@@ -531,8 +531,9 @@ namespace TBD.View
 
             // ---- cámara libre: rotación, inclinación y zoom continuos (GDD §11, v1.10)
             float dt = Time.unscaledDeltaTime;
-            if (_nightOn ? kb.zKey.isPressed : kb.qKey.isPressed) _yaw -= 70f * dt;
-            if (_nightOn ? kb.xKey.isPressed : kb.eKey.isPressed) _yaw += 70f * dt;
+            if (!_nightOn && kb.qKey.isPressed) _yaw -= 70f * dt;
+            if (!_nightOn && kb.eKey.isPressed) _yaw += 70f * dt;
+            if (_nightOn) { if (kb.zKey.isPressed) _targetOrtho = Mathf.Max(6f, _targetOrtho * (1f - 1.2f * dt)); if (kb.xKey.isPressed) _targetOrtho = Mathf.Min(70f, _targetOrtho * (1f + 1.2f * dt)); }
             if (kb.rKey.isPressed) _pitch = Mathf.Min(80f, _pitch + 40f * dt);
             if (kb.fKey.isPressed) _pitch = Mathf.Max(20f, _pitch - 40f * dt);
 

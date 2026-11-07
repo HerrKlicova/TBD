@@ -319,6 +319,7 @@ namespace TBD.View
 
         void Update()
         {
+            if (_a == null) return;                      // entrada directa a la zona (noche o prueba): el mapa no se ha construido
             HandleInput();
             long fieldTick = _a.Tick / NetConst.FieldEvery;
             if (fieldTick != _lastFieldTick) { _lastFieldTick = fieldTick; UpdateTexture(); UpdateDetailTexture(); }
@@ -599,6 +600,7 @@ namespace TBD.View
 
         void OnGUI()
         {
+            if (_a == null) return;
             EnsureStyles();
             var g = _a.Graph;
             foreach (var n in g.Nodes)

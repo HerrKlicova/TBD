@@ -15,6 +15,7 @@ namespace TBD.EditorTools
             if (!assetPath.StartsWith("Assets/TBD/Resources/Models/")) return;
             var mi = (ModelImporter)assetImporter;
             if (assetPath.Contains("/Models/Suelo/")) mi.importNormals = ModelImporterNormals.Import;
+            if (assetPath.Contains("/Models/Vehiculos/")) mi.importNormals = ModelImporterNormals.Import;   // vehiculos y helicopteros de Teo
             if (assetPath.Contains("/Models/Infanteria/")) { mi.importNormals = ModelImporterNormals.Import; mi.animationType = ModelImporterAnimationType.Generic; mi.importAnimation = true; }   // soldados de Teo: Generic (no Humanoid), 4 clips
             if (assetPath.Contains("/Models/Suelo/")) mi.isReadable = true;   // la capa C se combina por trozo en una sola malla: hace falta leer las mallas en la build   // matas y piedras de Teo: normales horneadas hacia arriba (D-N67)
             mi.importBlendShapes = false;
