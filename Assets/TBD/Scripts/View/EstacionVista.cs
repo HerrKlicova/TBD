@@ -138,6 +138,14 @@ namespace TBD.View
                 go = Model("Cisterna", "SM_VagonCisterna_v" + k + "_" + TankNames[k] + "_LOD1", parent);
                 if (go != null) { AddTankDecals(go.transform); res.Tanks.Add(go.transform); }
             }
+            else if (name.Contains("/SM_"))
+            {
+                // pieza de Teo nombrada por su carpeta y su malla (puesto_frente/SM_PuestoFrente, puerta_vehiculos/SM_PuertaVehiculos): 5 variantes vN
+                int slash = name.IndexOf('/');
+                string folder = name.Substring(0, slash), mesh = name.Substring(slash + 1);
+                int k = p.Variante >= 0 ? p.Variante : EstacionDato.VariantOf(p.X, p.Z, 5);
+                go = Model(folder, mesh + "_v" + k + "_LOD1", parent);
+            }
             if (go == null) { go = Placeholder(parent, name); res.Missing.Add(name + " (" + p.X + ", " + p.Z + ")"); }
             float yaw = p.Yaw + (name == "vagon_cisterna" ? 90f : 0f);      // el JSON da el vagón a lo largo de la vía (X) y el modelo de Teo va a lo largo de Z
             go.transform.localPosition = pos; go.transform.localRotation = Quaternion.Euler(0f, yaw, 0f) * go.transform.localRotation;

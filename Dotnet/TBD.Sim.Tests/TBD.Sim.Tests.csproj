@@ -27,6 +27,7 @@
     <Compile Include="EstacionesTests.cs" />
     <Compile Include="ProduccionTests.cs" />
     <Compile Include="EstacionDatoTests.cs" />
+    <Compile Include="BucleTests.cs" />
     <Compile Include="HorarioTests.cs" />
     <Compile Include="TallerTests.cs" />
     <Compile Include="DisparoIndiceTests.cs" />
