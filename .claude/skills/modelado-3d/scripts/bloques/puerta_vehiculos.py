@@ -4,7 +4,7 @@ Cotas del código de Nacho (PR #24, rama nacho/unidades-noche): `PieceKind.Puert
 largo del muro, centrada en su X0..X1), `Obras.HeightMm(PuertaVeh)` = 2100 mm, en el muro sur de SACOS (1,2 m de alto y
 1,0 m de grueso en la vista: `WallHalf × 0,5` de semigrosor) en X −18.000..−10.000 locales. Se abre sola con un
 vehículo propio a ≤ 20 m (180 ticks; D-N72 y la adenda de Nacho en decisiones-noche.md). Los sacos del muro de Marcos
-van en 88885c (`_mWall`) y los HESCO en 50541c con el relleno en b4a080 (muestra de piezas): aquí se usan los mismos.
+van en 88885c (`_mWall`) y los HESCO en 50541c con el relleno en b4a080 (muestra de piezas); aquí los HESCO van en 70784c (Lucía, 7-nov: la horda se amontona contra la puerta y tiene que recortarse contra un muro claro).
 Lo que NO está en el código y va estimado (SIN VERIFICAR): hojas de 3,98 m (4 m menos las holguras de 1 cm), jambas de
 0,9 m de ancho por fuera de los 8 m (así las hojas miden los 4 m pedidos y la jamba tapa el final del muro de sacos) y
 2,4 m de alto, y el diseño de cada hoja (de memoria: puertas de obra y de recinto militar, sin foto).
@@ -26,7 +26,7 @@ from montaje import Montaje, separar as _separar
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 ASPECTO = VAR % 5
 PIEZAS = ["sacos", "hesco", "relleno", "hormigon", "marco", "chapa", "tablon", "fleje", "malla", "alambre", "placa"]
-COLORES = {"sacos": "88885c", "hesco": "50541c", "relleno": "b4a080", "hormigon": "b8b8b8", "marco": "6c7874",
+COLORES = {"sacos": "88885c", "hesco": "70784c", "relleno": "b4a080", "hormigon": "b8b8b8", "marco": "6c7874",
            "chapa": "94948c", "tablon": "b4a080", "fleje": "48403c", "malla": "70784c", "alambre": "48403c",
            "placa": "d4d0cc"}
 FACCION = "propio"
