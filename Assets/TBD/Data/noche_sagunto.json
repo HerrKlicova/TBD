@@ -19,7 +19,7 @@
     "dificil": 1090
   },
   "recursos_iniciales": {
-    "municion_u": 50,
+    "municion_u": 52,
     "materiales_u": 40,
     "combustible_u": 30,
     "nota": "en el almacén de Sagunto; aparte, cada pelotón, el Dragón y el NH90 llevan su dotación (unas 10 u en total); el muro de partida (D-N63) ya está construido"
@@ -45,12 +45,12 @@
         "n": 1,
         "hora": "22:20",
         "minuto_juego": 20,
-        "llegada_s_reales": 40,
-        "total": 440,
+        "llegada_s_reales": 30,
+        "total": 650,
         "por_entrada": {
-          "O1": 220,
-          "O2": 132,
-          "O3": 88,
+          "O1": 325,
+          "O2": 195,
+          "O3": 130,
           "O4": 0
         }
       },
@@ -58,12 +58,12 @@
         "n": 2,
         "hora": "23:20",
         "minuto_juego": 80,
-        "llegada_s_reales": 50,
-        "total": 870,
+        "llegada_s_reales": 45,
+        "total": 1090,
         "por_entrada": {
-          "O1": 435,
-          "O2": 261,
-          "O3": 174,
+          "O1": 545,
+          "O2": 327,
+          "O3": 218,
           "O4": 0
         }
       },
@@ -125,12 +125,12 @@
         "n": 1,
         "hora": "22:20",
         "minuto_juego": 20,
-        "llegada_s_reales": 40,
-        "total": 510,
+        "llegada_s_reales": 30,
+        "total": 760,
         "por_entrada": {
-          "O1": 255,
-          "O2": 153,
-          "O3": 102,
+          "O1": 380,
+          "O2": 228,
+          "O3": 152,
           "O4": 0
         }
       },
@@ -138,12 +138,12 @@
         "n": 2,
         "hora": "23:20",
         "minuto_juego": 80,
-        "llegada_s_reales": 50,
-        "total": 1020,
+        "llegada_s_reales": 45,
+        "total": 1280,
         "por_entrada": {
-          "O1": 510,
-          "O2": 306,
-          "O3": 204,
+          "O1": 640,
+          "O2": 384,
+          "O3": 256,
           "O4": 0
         }
       },
@@ -205,12 +205,12 @@
         "n": 1,
         "hora": "22:20",
         "minuto_juego": 20,
-        "llegada_s_reales": 40,
-        "total": 650,
+        "llegada_s_reales": 30,
+        "total": 980,
         "por_entrada": {
-          "O1": 325,
-          "O2": 195,
-          "O3": 130,
+          "O1": 490,
+          "O2": 294,
+          "O3": 196,
           "O4": 0
         }
       },
@@ -218,12 +218,12 @@
         "n": 2,
         "hora": "23:20",
         "minuto_juego": 80,
-        "llegada_s_reales": 50,
-        "total": 1310,
+        "llegada_s_reales": 45,
+        "total": 1640,
         "por_entrada": {
-          "O1": 655,
-          "O2": 393,
-          "O3": 262,
+          "O1": 820,
+          "O2": 492,
+          "O3": 328,
           "O4": 0
         }
       },

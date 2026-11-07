@@ -31,6 +31,7 @@ namespace TBD.Units
         public int FlightTicks;             // retardo hasta el impacto
         public int HalfConeBam;             // 0 = sin límite; si no, semi-ángulo del arco de tiro (bam16) alrededor del rumbo del pelotón
         public int MinCluster;              // explosivos de área: no se disparan con menos de estos zombis en el radio (el granadero usa su fusil)
+        public bool PrefersSpecials;        // francotirador: un zombi especial a tiro va antes que cualquier otro (solo código)
         public bool Explosive { get { return RadiusMm > 0; } }
     }
 
@@ -42,7 +43,7 @@ namespace TBD.Units
         static Weapon W(string key, int cad, int cls, int range, int min, int blank, int slope, int floor, int cost, int radius, int leth, int cap, int pierce, int deploy, int flight, int cone = 0, int cluster = 1)
         {
             return new Weapon { Key = key, CadenceTicks = cad, AmmoClass = cls, RangeMm = range * 1000, MinRangeMm = min * 1000, HitBlankPm = blank, HitSlopePmPerM = slope, HitMinPm = floor, CostShots = cost,
-                RadiusMm = radius, LethalityPm = leth, CapKills = cap, Pierce = pierce, DeployTicks = deploy, FlightTicks = flight, HalfConeBam = cone, MinCluster = cluster };
+                RadiusMm = radius, LethalityPm = leth, CapKills = cap, Pierce = pierce, DeployTicks = deploy, FlightTicks = flight, HalfConeBam = cone, MinCluster = cluster, PrefersSpecials = key == "fusil_precision" || key == "fusil_antimaterial" };
         }
 
         static Weapon[] Defaults()

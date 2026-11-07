@@ -13,12 +13,14 @@ namespace TBD.Units
     public enum Formation : byte { Linea = 0, Columna = 1, Cuna = 2, Circulo = 3 }
 
     /// <summary>Objetivo que le da la zona al pelotón: identificador estable y posición en mm.</summary>
-    public struct Target { public int Id; public int X, Y; }
+    public struct Target { public int Id; public int X, Y; public bool Special; }      // Special: zombi especial (los tiradores lo prefieren)
 
     public struct FireEvent
     {
         public int Platoon, Man; public InfKind Kind; public WeaponId Weapon; public int TargetId; public int AimX, AimY;
         public bool Hit; public bool Splash; public int FlightTicks;
+        public int FromX, FromY;               // dónde está el tirador
+        public int ArcPeakMm;                  // altura del vértice de la parábola (granadas, cohetes con vuelo); 0 = tiro directo
     }
     public struct TargetHit { public int TargetId; public int Damage; public int Platoon; public WeaponId Weapon; }
 
@@ -26,12 +28,15 @@ namespace TBD.Units
     public struct Blast { public int X, Y, RadiusMm; public WeaponId Weapon; }
 
     public struct Casualty { public int Platoon, Man, X, Y; }
+    /// <summary>Contacto de la horda con un pelotón en un tick: zombis pegados a sus soldados (suma de contactos) y vida quitada.</summary>
+    public struct PlatoonHurt { public int Platoon, Contacts, Damage; }
     /// <summary>Resultado de UnitsWorld.ZombieContact: quién ha caído y cuánto contacto hubo este tick.</summary>
     public sealed class ContactResult
     {
         public readonly List<Casualty> Fallen = new List<Casualty>();
         public int Contacts, Touches, Damage;                 // contactos zombi-soldado, y vida quitada
-        public void Clear() { Fallen.Clear(); Contacts = Touches = Damage = 0; }
+        public readonly List<PlatoonHurt> Hurt = new List<PlatoonHurt>();   // por pelotón con contacto este tick (para «puesto bajo ataque» en el mapa); solo salida, no entra en el hash
+        public void Clear() { Fallen.Clear(); Hurt.Clear(); Contacts = Touches = Damage = 0; }
     }
 
     public sealed class StepResult
@@ -72,6 +77,7 @@ namespace TBD.Units
         public int AmmoShots, AmmoCap;       // munición propia en disparos equivalentes
         public int AmmoSpent, Kills, Losses;      // Losses: soldados caídos del pelotón (por contacto de zombis)
         public int LastFireTick = -1000;
+        public int Aboard;                   // 0 = a pie; si no, id del transporte (vehículo = su Id, helicóptero = 1000 + su Id): ni se mueve, ni dispara, ni lo tocan los zombis
         public int AliveCount() { int n = 0; for (int i = 0; i < Men.Count; i++) if (Men[i].Alive) n++; return n; }
     }
 
@@ -173,6 +179,56 @@ namespace TBD.Units
             return false;
         }
 
+        // ------------------------------------------------------------ monturas (vehículos y helicópteros) y embarque
+        /// <summary>Generador de las monturas: NO entra en el hash (los vehículos y el helicóptero son locales en el prototipo; solo sus bajas entran como orden).</summary>
+        public IRng MountRng = new IRng(0xB07);
+
+        /// <summary>Una montura dispara a targets[targetIdx]: cadencia y munición los lleva quien llama (ref). Devuelve true si disparó. La explosión cae ya (sin impactos pendientes).
+        /// «ownerId» sale en los eventos como Platoon (convención: vehículo −1 − Id, helicóptero −1001 − Id).</summary>
+        public bool MountFire(int ownerId, int sx, int sy, WeaponId wid, ref int cooldown, ref int ammoShots, IList<Target> targets, int targetIdx, StepResult res)
+        {
+            if (cooldown > 0 || targetIdx < 0 || targets == null || targetIdx >= targets.Count) return false;
+            var w = WeaponCatalog.Table[(int)wid];
+            if (ammoShots < w.CostShots) return false;
+            cooldown = w.CadenceTicks; ammoShots -= w.CostShots; res.AmmoSpent += w.CostShots;
+            var saved = Rng; Rng = MountRng;
+            Shoot(ownerId, 0, InfKind.Servidor, wid, w, sx, sy, targets[targetIdx], targets, res, true);
+            MountRng = Rng; Rng = saved;
+            return true;
+        }
+
+        /// <summary>Sube un pelotón entero a un transporte con «seatsFree» plazas libres. No sube si no cabe, ya va a bordo o no existe. Para en seco al pelotón.</summary>
+        public bool Embark(int platoon, int carrierId, int seatsFree)
+        {
+            var p = Find(platoon); if (p == null || p.Aboard != 0) return false;
+            int n = p.AliveCount(); if (n == 0 || n > seatsFree || carrierId == 0) return false;
+            p.Aboard = carrierId; p.Moving = false; p.AttackMove = false; p.Deploy = false;
+            return true;
+        }
+
+        /// <summary>El transporte lleva a sus pasajeros: pelotón y soldados quedan en (x, y) con ese rumbo.</summary>
+        public void CarryAboard(int carrierId, int x, int y, int heading)
+        {
+            for (int i = 0; i < Platoons.Count; i++)
+            {
+                var p = Platoons[i]; if (p.Aboard != carrierId) continue;
+                p.AX = x; p.AY = y; p.TX = x; p.TY = y; p.Heading = heading & 0xFFFF;
+                for (int k = 0; k < p.Men.Count; k++) { p.Men[k].X = x; p.Men[k].Y = y; p.Men[k].Heading = heading & 0xFFFF; }
+            }
+        }
+
+        /// <summary>Plazas ocupadas en un transporte.</summary>
+        public int SeatsUsed(int carrierId) { int n = 0; for (int i = 0; i < Platoons.Count; i++) if (Platoons[i].Aboard == carrierId) n += Platoons[i].AliveCount(); return n; }
+
+        /// <summary>Baja un pelotón en (x, y): se coloca allí con su formación y se queda parado. Devuelve false si no iba a bordo.</summary>
+        public bool Disembark(int platoon, int x, int y, int heading)
+        {
+            var p = Find(platoon); if (p == null || p.Aboard == 0) return false;
+            p.Aboard = 0; p.AX = p.TX = x; p.AY = p.TY = y; p.Heading = heading & 0xFFFF; p.Moving = false;
+            for (int k = 0; k < p.Men.Count; k++) { p.Men[k].X = x; p.Men[k].Y = y; }
+            return true;
+        }
+
         // ------------------------------------------------------------ daño de los zombis (cuerpo a cuerpo)
         /// <summary>Regla (la misma que la zona, balance_combate: zombi_danio_tick y cuerpo_a_cuerpo_mm): cada zombi vivo a menos de «radiusMm» de un soldado
         /// le quita «dmgPerTick» de vida ESTE tick. Es proximidad pura: sin azar, sin orden (se cuentan contactos por soldado). Un zombi toca a todos los
@@ -185,7 +241,7 @@ namespace TBD.Units
             _cx.Clear(); _cy.Clear(); _cp.Clear(); _cm.Clear();
             for (int a = 0; a < Platoons.Count; a++)
             {
-                var p = Platoons[a];
+                var p = Platoons[a]; if (p.Aboard != 0) continue;
                 for (int b = 0; b < p.Men.Count; b++)
                 {
                     var m = p.Men[b]; if (!m.Alive) continue;
@@ -219,20 +275,21 @@ namespace TBD.Units
                         }
             }
             int fallen = 0;
+            if (res != null) { if (_pc.Length < Platoons.Count) { _pc = new int[Platoons.Count]; _pd = new int[Platoons.Count]; } for (int a = 0; a < Platoons.Count; a++) { _pc[a] = 0; _pd[a] = 0; } }
             for (int i = 0; i < n; i++)
             {
                 if (_touch[i] == 0) continue;
                 var p = Platoons[_cp[i]]; var m = p.Men[_cm[i]];
                 int dmg = (int)Math.Min((long)_touch[i] * dmgPerTick, int.MaxValue / 2);
                 m.Hp -= dmg;
-                if (res != null) { res.Contacts += _touch[i]; res.Damage += dmg; }
+                if (res != null) { res.Contacts += _touch[i]; res.Damage += dmg; _pc[_cp[i]] += _touch[i]; _pd[_cp[i]] += dmg; }
                 if (!m.Alive) { fallen++; p.Losses++; if (res != null) res.Fallen.Add(new Casualty { Platoon = p.Id, Man = m.Id, X = m.X, Y = m.Y }); }
             }
-            if (res != null) res.Touches = touches;
+            if (res != null) { res.Touches = touches; for (int a = 0; a < Platoons.Count; a++) if (_pc[a] > 0) res.Hurt.Add(new PlatoonHurt { Platoon = Platoons[a].Id, Contacts = _pc[a], Damage = _pd[a] }); }
             return fallen;
         }
         readonly List<int> _cx = new List<int>(), _cy = new List<int>(), _cp = new List<int>(), _cm = new List<int>();
-        int[] _head = new int[0], _next = new int[0], _touch = new int[0];
+        int[] _head = new int[0], _next = new int[0], _touch = new int[0], _pc = new int[0], _pd = new int[0];
 
         public void NoteKill(int platoon) { var p = Find(platoon); if (p != null) p.Kills++; }
 
@@ -281,6 +338,7 @@ namespace TBD.Units
             {
                 var p = Platoons[pi];
                 if (p.AliveCount() == 0) continue;
+                if (p.Aboard != 0) { for (int i = 0; i < p.Men.Count; i++) { p.Men[i].Moving = false; p.Men[i].Firing = false; } continue; }      // a bordo: lo lleva el transporte
                 MovePlatoon(p);
                 ComputeSlots(p);
                 MoveMen(p);
@@ -332,17 +390,25 @@ namespace TBD.Units
         }
 
         // ------------------------------------------------------------ disparo
-        int Pick(Weapon w, Infantryman m, Platoon p, IList<Target> targets)
+        int Pick(Weapon w, Infantryman m, Platoon p, IList<Target> targets) { return PickAt(w, m.X, m.Y, p.Heading, w.HalfConeBam, targets, 0); }
+
+        /// <summary>Blanco de un arma desde (sx, sy): el más cercano dentro del alcance y del arco (halfCone 0 = 360°; empate: id menor). «extraZ» (mm de altura del tirador)
+        /// se suma en vertical al alcance (helicóptero). Si el arma prefiere especiales (Weapon.PrefersSpecials), un especial a tiro gana a cualquier normal.</summary>
+        public int PickAt(Weapon w, int sx, int sy, int center, int halfCone, IList<Target> targets, int extraZ)
         {
-            long best = long.MaxValue; int bi = -1;
-            long r2 = (long)w.RangeMm * w.RangeMm, min2 = (long)w.MinRangeMm * w.MinRangeMm;
+            long best = long.MaxValue; int bi = -1; bool bestSpecial = false;
+            long r2 = (long)w.RangeMm * w.RangeMm - (long)extraZ * extraZ, min2 = (long)w.MinRangeMm * w.MinRangeMm;
+            if (r2 <= 0) return -1;
             for (int t = 0; t < targets.Count; t++)
             {
-                long ex = targets[t].X - m.X, ey = targets[t].Y - m.Y, d2 = ex * ex + ey * ey;
+                long ex = targets[t].X - sx, ey = targets[t].Y - sy, d2 = ex * ex + ey * ey;
                 if (d2 > r2 || d2 < min2) continue;
-                if (d2 > best || (d2 == best && targets[t].Id > targets[bi].Id)) continue;
-                if (w.HalfConeBam > 0 && Math.Abs(IMath.Diff(IMath.Atan2((int)ey, (int)ex), p.Heading)) > w.HalfConeBam) continue;
-                best = d2; bi = t;
+                bool sp = w.PrefersSpecials && targets[t].Special;
+                if (bi >= 0 && bestSpecial && !sp) continue;
+                bool better = bi < 0 || (sp && !bestSpecial) || d2 < best || (d2 == best && targets[t].Id < targets[bi].Id);
+                if (!better) continue;
+                if (halfCone > 0 && Math.Abs(IMath.Diff(IMath.Atan2((int)ey, (int)ex), center)) > halfCone) continue;
+                best = d2; bi = t; bestSpecial = sp;
             }
             return bi;
         }
@@ -385,12 +451,19 @@ namespace TBD.Units
 
         void Fire(Platoon p, Infantryman m, int slot, WeaponId wid, Weapon w, Target tg, IList<Target> targets, StepResult res)
         {
-            int dist = IMath.Dist(tg.X - m.X, tg.Y - m.Y);
             if (slot == 0) m.Cd0 = w.CadenceTicks; else m.Cd1 = w.CadenceTicks;
             m.Heading = IMath.Atan2(tg.Y - m.Y, tg.X - m.X);
             m.Firing = true; p.LastFireTick = Tick;
             p.AmmoShots -= w.CostShots; p.AmmoSpent += w.CostShots; res.AmmoSpent += w.CostShots;
-            var ev = new FireEvent { Platoon = p.Id, Man = m.Id, Kind = m.Kind, Weapon = wid, TargetId = tg.Id, AimX = tg.X, AimY = tg.Y, FlightTicks = w.FlightTicks };
+            Shoot(p.Id, m.Id, m.Kind, wid, w, m.X, m.Y, tg, targets, res, false);
+        }
+
+        /// <summary>Resuelve un disparo desde (sx, sy): puntería por distancia, perforación y explosión. La munición y la cadencia las lleva quien llama.
+        /// «immediate»: la explosión cae ya (monturas de vehículos y helicópteros, que no usan la lista de impactos pendientes del hash).</summary>
+        void Shoot(int platoonId, int manId, InfKind kind, WeaponId wid, Weapon w, int sx, int sy, Target tg, IList<Target> targets, StepResult res, bool immediate)
+        {
+            int dist = IMath.Dist(tg.X - sx, tg.Y - sy);
+            var ev = new FireEvent { Platoon = platoonId, Man = manId, Kind = kind, Weapon = wid, TargetId = tg.Id, AimX = tg.X, AimY = tg.Y, FlightTicks = immediate ? 0 : w.FlightTicks, FromX = sx, FromY = sy, ArcPeakMm = immediate ? 0 : ArcPeak(w.FlightTicks) };
             bool directHit = false;
             if (w.HitBlankPm > 0)
             {
@@ -401,29 +474,32 @@ namespace TBD.Units
                 ev.Hit = directHit;
                 if (directHit)
                 {
-                    res.Hits.Add(new TargetHit { TargetId = tg.Id, Damage = KillDamage, Platoon = p.Id, Weapon = wid });
+                    res.Hits.Add(new TargetHit { TargetId = tg.Id, Damage = KillDamage, Platoon = platoonId, Weapon = wid });
                     // perforación: con horda densa, un zombi extra detrás del primero al 50 %
                     if (w.Pierce > 0 && CountNear(targets, tg.X, tg.Y, DenseRadiusMm, DenseNeighbours + 1) > DenseNeighbours)
                         for (int k = 0; k < w.Pierce; k++)
                         {
-                            int ex = PickBehind(m, tg, targets, res, wid, p.Id);
-                            if (ex >= 0 && Rng.Below(2) == 0) res.Hits.Add(new TargetHit { TargetId = targets[ex].Id, Damage = KillDamage, Platoon = p.Id, Weapon = wid });
+                            int ex = PickBehind(sx, sy, tg, targets);
+                            if (ex >= 0 && Rng.Below(2) == 0) res.Hits.Add(new TargetHit { TargetId = targets[ex].Id, Damage = KillDamage, Platoon = platoonId, Weapon = wid });
                         }
                 }
             }
             if (w.Explosive)
             {
                 ev.Splash = true; if (w.HitBlankPm == 0) ev.Hit = true;
-                if (w.FlightTicks > 0) _pending.Add(new Pending { DueTick = Tick + w.FlightTicks, X = tg.X, Y = tg.Y, Platoon = p.Id, Weapon = wid });
-                else Explode(tg.X, tg.Y, w, wid, p.Id, directHit ? tg.Id : -1, targets, res);
+                if (w.FlightTicks > 0 && !immediate) _pending.Add(new Pending { DueTick = Tick + w.FlightTicks, X = tg.X, Y = tg.Y, Platoon = platoonId, Weapon = wid });
+                else Explode(tg.X, tg.Y, w, wid, platoonId, directHit ? tg.Id : -1, targets, res);
             }
             res.Shots.Add(ev);
         }
 
-        int PickBehind(Infantryman m, Target tg, IList<Target> targets, StepResult res, WeaponId wid, int platoon)
+        /// <summary>Altura del vértice de la parábola de una granada con ese tiempo de vuelo (g = 9,81 m/s²): g·T²/8. Para que la vista dibuje el arco.</summary>
+        static int ArcPeak(int flightTicks) { if (flightTicks <= 0) return 0; long t = flightTicks; return (int)(9810L * t * t / (8L * IMath.TickRate * IMath.TickRate)); }
+
+        int PickBehind(int sx, int sy, Target tg, IList<Target> targets)
         {
             long best = long.MaxValue; int bi = -1; long r2 = (long)DenseRadiusMm * DenseRadiusMm;
-            int ux = tg.X - m.X, uy = tg.Y - m.Y;
+            int ux = tg.X - sx, uy = tg.Y - sy;
             for (int t = 0; t < targets.Count; t++)
             {
                 if (targets[t].Id == tg.Id) continue;
@@ -479,7 +555,7 @@ namespace TBD.Units
                 var p = Platoons[i];
                 ulong ph = IMath.Mix((ulong)(uint)p.Id + ((ulong)(uint)p.AX << 20) + ((ulong)(uint)p.AY << 40) + (ulong)p.Heading * 0x9E3779B1UL);
                 ph ^= IMath.Mix((ulong)(uint)p.TX + ((ulong)(uint)p.TY << 32) + ((p.Moving ? 1UL : 0UL) << 63) + ((p.HoldFire ? 1UL : 0UL) << 62) + ((p.AttackMove ? 1UL : 0UL) << 61) + ((p.Deploy ? 1UL : 0UL) << 60) + ((ulong)p.Form << 56) + ((ulong)(uint)(p.FinalHeading + 1) << 20));
-                ph += IMath.Mix((ulong)(uint)p.SpacingMm + ((ulong)(uint)p.AmmoSpent << 24) + ((ulong)(uint)p.Kills << 48)) + IMath.Mix((ulong)(uint)p.Losses + 0x105) + IMath.Mix((ulong)(uint)p.AmmoShots + ((ulong)(uint)p.AmmoCap << 32) + 11)
+                ph += IMath.Mix((ulong)(uint)p.SpacingMm + ((ulong)(uint)p.AmmoSpent << 24) + ((ulong)(uint)p.Kills << 48)) + IMath.Mix((ulong)(uint)p.Losses + ((ulong)(uint)p.Aboard << 32) + 0x105) + IMath.Mix((ulong)(uint)p.AmmoShots + ((ulong)(uint)p.AmmoCap << 32) + 11)
                     + IMath.Mix((ulong)(uint)(p.LastFireTick + 1000) + ((ulong)p.Kind << 40) + ((ulong)(uint)p.SpeedMmS << 20));
                 for (int j = 0; j < p.Men.Count; j++)
                 {
@@ -501,7 +577,7 @@ namespace TBD.Units
             foreach (var p in Platoons)
             {
                 w.Int(p.Id); w.Byte((byte)p.Kind); w.Int(p.AX); w.Int(p.AY); w.Int(p.Heading); w.Byte((byte)p.Form); w.Bool(p.Moving); w.Bool(p.AttackMove); w.Int(p.TX); w.Int(p.TY); w.Int(p.FinalHeading);
-                w.Bool(p.Deploy); w.Bool(p.HoldFire); w.Int(p.SpacingMm); w.Int(p.SpeedMmS); w.Int(p.AmmoShots); w.Int(p.AmmoCap); w.Int(p.AmmoSpent); w.Int(p.Kills); w.Int(p.Losses); w.Int(p.LastFireTick);
+                w.Bool(p.Deploy); w.Bool(p.HoldFire); w.Int(p.SpacingMm); w.Int(p.SpeedMmS); w.Int(p.AmmoShots); w.Int(p.AmmoCap); w.Int(p.AmmoSpent); w.Int(p.Kills); w.Int(p.Losses); w.Int(p.Aboard); w.Int(p.LastFireTick);
                 w.Int(p.Men.Count);
                 foreach (var m in p.Men)
                 {
@@ -522,7 +598,7 @@ namespace TBD.Units
             for (int i = 0; i < np; i++)
             {
                 var p = new Platoon { Id = r.Int(), Kind = (PlatoonKind)r.Byte(), AX = r.Int(), AY = r.Int(), Heading = r.Int(), Form = (Formation)r.Byte(), Moving = r.Bool(), AttackMove = r.Bool(), TX = r.Int(), TY = r.Int(), FinalHeading = r.Int() };
-                p.Deploy = r.Bool(); p.HoldFire = r.Bool(); p.SpacingMm = r.Int(); p.SpeedMmS = r.Int(); p.AmmoShots = r.Int(); p.AmmoCap = r.Int(); p.AmmoSpent = r.Int(); p.Kills = r.Int(); p.Losses = r.Int(); p.LastFireTick = r.Int();
+                p.Deploy = r.Bool(); p.HoldFire = r.Bool(); p.SpacingMm = r.Int(); p.SpeedMmS = r.Int(); p.AmmoShots = r.Int(); p.AmmoCap = r.Int(); p.AmmoSpent = r.Int(); p.Kills = r.Int(); p.Losses = r.Int(); p.Aboard = r.Int(); p.LastFireTick = r.Int();
                 if ((int)p.Kind >= PlatoonCatalog.Table.Length) throw new SaveException(SaveError.Corrupt, "tipo de pelotón no válido");
                 int nm = r.Int(); if (nm < 0 || nm > 1000) throw new SaveException(SaveError.Corrupt, "número de soldados no válido");
                 for (int j = 0; j < nm; j++)

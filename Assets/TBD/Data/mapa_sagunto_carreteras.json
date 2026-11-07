@@ -1,0 +1,12 @@
+{
+ "nota": "Dato que lee el mapa de frentes (D-N113): qué carreteras puede usar un vehículo de tierra. Marcos lo cambia aquí, no en el dibujo. Coordenadas del mundo en metros; cada tramo va a lo largo de X o de Z. Valores del prototipo aprobados por Mak (07-11 00:55); sin verificar contra el nivel final.",
+ "carreteras": [
+  {"id": "calle_estacion", "nombre": "Calle de la Estación", "tramo": [[59, 20], [59, 160]], "habilitada": true},
+  {"id": "carretera_vieja", "nombre": "Carretera vieja", "tramo": [[-250, 23], [222, 23]], "habilitada": true},
+  {"id": "carretera_vieja_este", "nombre": "Carretera vieja (pasado el Palancia)", "tramo": [[222, 23], [320, 23]], "habilitada": false, "motivo": "camión cruzado en el puente"},
+  {"id": "paso_superior", "nombre": "Paso superior", "tramo": [[-20, -22], [-20, 150]], "habilitada": false, "motivo": "coches abandonados encima"}
+ ],
+ "via": [[-250, 64.5], [330, 64.5]],
+ "recinto": [[68, 43], [157, 43], [157, 87], [68, 87]],
+ "sitios": {"estacion": [112, 78], "tren": [-68, 64.5], "paso_nivel": [59, 62], "helipuerto": [180, 44]}
+}

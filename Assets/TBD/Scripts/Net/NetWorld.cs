@@ -1349,8 +1349,9 @@ namespace TBD.Net
         ///   Hugo, así que el HESCO no llega a los 54 u: son ~40 u, y el total se mantiene en ~120 u / nivel 4,0 acortando las alas.
         /// - El resto del perímetro, en sacos. El lado este también cruza la vía, así que lleva su propia puerta de vía (8 u, la regla de PlanWall),
         ///   que queda bloqueada cerrada (GateMode 2): en la zona la vía acaba dentro del fuerte, y en automático los dos extremos se abrirían con el tren dentro.
-        /// - Una puerta peatonal en el lado este (el de la retaguardia), 2 nidos y 3 focos.
-        /// Coste total ≈ 120,2 u (nivel 4.008 ‰). No se descuenta del almacén: el stock del día 1 no se toca.
+        /// - La puerta de vehículos de 8 m en el muro sur (X 95–103 de la zona; 10 u, automática: se abre sola con un vehículo propio cerca), que sustituye a la puerta
+        ///   peatonal, 2 nidos y 3 focos.
+        /// Coste total ≈ 122,6 u (el muro de sacos del sur pierde 8 m = 1,6 u; la puerta suma 10 u y la peatonal se quita, −6 u). No se descuenta del almacén: el stock del día 1 no se toca.
         /// </summary>
         public static void SagunteStart(NetWorld w)
         {
@@ -1372,14 +1373,24 @@ namespace TBD.Net
                 w.Works.Add(sag, plan);
                 Finish(w, sag, plan);
             }
+            void VehicleGate(int x, int y)
+            {
+                var plan = Obras.PlanVehicleGate(P, x, y, true, Plenty, Plenty);
+                if (!plan.Ok) throw new InvalidOperationException("puerta de vehículos de Sagunto: " + plan.Why);
+                w.Works.Add(sag, plan);
+                Finish(w, sag, plan);
+            }
             int X = FortHalfX, Y = FortHalfY, A = HescoWing;
+            int VehGateX0 = -18_000, VehGateX1 = VehGateX0 + P.VehGateWidthMm;
             Wall(PieceKind.Hesco, -X, -Y, -X, Y);                            // frente oeste: de la esquina sur a la norte, la puerta de vía en el cruce con y = 0
             Wall(PieceKind.Hesco, -X + A, Y, -X, Y);                         // ala norte (hacia el oeste)
             Wall(PieceKind.Hesco, -X, -Y, -X + A, -Y);                       // ala sur
             Wall(PieceKind.Sacos, -X + A, Y, X, Y);                          // norte, el resto
             Wall(PieceKind.Sacos, X, Y, X, -Y);                              // este
-            Wall(PieceKind.Sacos, X, -Y, -X + A, -Y);                        // sur, el resto
-            Point(PieceKind.Puerta, X, -8_000);                              // puerta peatonal, en la retaguardia
+            // sur: sacos con la PUERTA DE VEHÍCULOS (Álvaro §9, Hugo D-N72) de 8 m en X 95–103 de la zona = −18.000 a −10.000 mm locales; sustituye a la puerta peatonal
+            Wall(PieceKind.Sacos, X, -Y, VehGateX1, -Y);
+            VehicleGate(VehGateX0 + (VehGateX1 - VehGateX0) / 2, -Y);
+            Wall(PieceKind.Sacos, VehGateX0, -Y, -X + A, -Y);
             Point(PieceKind.Nido, -X + 3_500, 7_000); Point(PieceKind.Nido, -X + 3_500, -7_000);          // dos nidos junto a la puerta de vía, por dentro
             Point(PieceKind.Foco, -X + 2_500, 15_000); Point(PieceKind.Foco, -X + 2_500, -15_000); Point(PieceKind.Foco, 0, Y - 2_000);
             var l = w.Works.At(sag);
