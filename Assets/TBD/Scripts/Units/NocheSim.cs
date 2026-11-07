@@ -204,14 +204,7 @@ namespace TBD.Units
         public void ExportZombies(List<Target> into) { into.Clear(); for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) into.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); }
         public int ZombiesAlive { get { return AliveZombies(); } }
 
-        /// <summary>Crea la noche a partir del texto de noche_sagunto.json de Hugo (D-N74). «difficulty»: facil, normal o dificil (null = la del JSON).</summary>
-        static StarTier Tier(Dictionary<string, object> d)
-        {
-            var t = new StarTier { IntegrityMinPm = (int)(long)d["integridad_min_permil"], WallMinPm = (int)(long)d["muro_min_permil"], MaxLosses = (int)(long)d["bajas_max"], AmmoMinMilliU = (int)(long)d["municion_min_permil_u"] };
-            object nv; if (d.TryGetValue("sin_vehiculos_perdidos", out nv) && nv is bool) t.NoVehiclesLost = (bool)nv;
-            return t;
-        }
-
+        /// <summary>Crea la noche a partir del texto de noche_sagunto.json de Hugo (D-N74). «difficulty»: facil, normal o dificil (null = la del JSON). Sin estrellas (D-N149): resultados ya no se lee.</summary>
         public static NightSim FromJson(string json, string difficulty = null, uint seed = 1)
         {
             var root = Mini.Parse(json) as Dictionary<string, object>;
@@ -227,9 +220,6 @@ namespace TBD.Units
                 np.Waves[i] = new WaveSpec { StartMinute = (int)(long)o["minuto_juego"], Zombies = (int)(long)o["total"], ArrivalSeconds = (int)(long)o["llegada_s_reales"],
                     EntryCount = new[] { (int)(long)pe["O1"], (int)(long)pe["O2"], (int)(long)pe["O3"], (int)(long)pe["O4"] } };
             }
-            var res0 = root.ContainsKey("resultados") ? root["resultados"] as Dictionary<string, object> : null;
-            var est = res0 != null && res0.ContainsKey("estrellas") ? res0["estrellas"] as Dictionary<string, object> : null;
-            if (est != null) np.Stars = new StarRules { Two = Tier(est["dos"] as Dictionary<string, object>), Three = Tier(est["tres"] as Dictionary<string, object>) };
             var rec = (Dictionary<string, object>)root["recursos_iniciales"];
             var spj = TBD.Net.BalanceSource.Read("nightsim_params.json");          // el balance de Hugo manda sobre el código; sin archivo, valen los de Default()
             var sim = new NightSim(np, NightSimParams.FromJson(spj), (int)(long)rec["municion_u"], (int)(long)rec["materiales_u"], (int)(long)rec["combustible_u"], seed);
@@ -474,15 +464,6 @@ namespace TBD.Units
                 Resupplies = Resupplies, WallHp = WallHp, StationHp = StationHp, VehicleKills = VehicleKills };
         }
 
-        /// <summary>Estrellas de la partida (D-N74 pendiente de Lucía): 0 si se pierde; 1 por ganar; +1 si el muro sigue en pie; +1 si no cae ningún soldado.</summary>
-        /// <summary>Estrellas (D-N104, Lucía; umbrales de Hugo en noche_sagunto.json → resultados.estrellas): ganar = 1; 2 y 3 exigen integridad, muro, bajas y munición
-        /// restante (y, en 3, ningún vehículo perdido: VehiclesLost, lo anota la zona). Se da la mayor que se cumpla; con derrota, 0.</summary>
-        public int Stars()
-        {
-            int integrity = Night.State == NightState.Victoria ? Night.Report.IntegrityPermil : Night.IntegrityPermil;
-            int wall = Night.State == NightState.Victoria ? Night.Report.WallPermil : Night.WallPermil;
-            return Night.P.Stars.Stars(Night.State, integrity, wall, SoldierDeaths, AmmoMilliU(), VehiclesLost > 0);
-        }
         /// <summary>Munición restante en milésimas de u: almacén + dotación de los pelotones que siguen vivos (D-N77).</summary>
         public int AmmoMilliU() { long shots = Units.StockShots; foreach (var p in Units.Platoons) if (p.AliveCount() > 0) shots += p.AmmoShots; return (int)(shots * 1000 / WeaponCatalog.ShotsPerU); }
         public int VehiclesLost;

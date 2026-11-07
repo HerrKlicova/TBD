@@ -346,20 +346,17 @@ namespace TBD.View
             _nightLost = total - alive;
             float left = a.StockShots / (float)WeaponCatalog.ShotsPerU;
             _endStationF = _ng.StationHp / (float)Mathf.Max(1, _ng.StationHpMax); _endTrainF = _ng.TrainHp / (float)Mathf.Max(1, _ng.TrainHpMax);   // el parte congela estas cifras: despues del amanecer la horda sigue y no debe vaciar la barra (Sara)
-            int integ = win ? _ng.Report.IntegrityPermil : _ng.IntegrityPermil, wallP = win ? _ng.Report.WallPermil : _ng.WallPermil; long shots = a.StockShots; foreach (var p0 in a.Platoons) if (p0.AliveCount() > 0) shots += p0.AmmoShots;
-            int stars = _ng.P.Stars.Stars(_ng.State, integ, wallP, _nightLost, (int)(shots * 1000 / WeaponCatalog.ShotsPerU), false);
-            _endStars = stars;
-            Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} estrellas={stars} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 recargas={_resupplies} desync={_desync} hora_fin={TimeStr()}");
-            _endReason = win ? (_ng.WonByClear ? $"{TimeStr()}. Sagunto resiste.\nLa horda ha caído." : "06:00. Amanece en Sagunto.\nLa estación resiste.") : _ng.DefeatHeadline();   // D-N136/D-N146
+            Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 recargas={_resupplies} desync={_desync} hora_fin={TimeStr()}");
+            _endReason = win ? (_ng.WonByClear ? $"{TimeStr()}. Sagunto resiste.\nLa horda ha caído." : "06:00. Sagunto resiste.\nAmanece.") : _ng.DefeatHeadline();   // D-N136/D-N146
         }
-        int _endStars; bool _endDismissed, _reportClosed;
+        bool _endDismissed, _reportClosed;
 
         /// <summary>«Seguir» (D-N91): abre la noche siguiente con las mismas oleadas a +10 % y reinicia los contadores del parte; el mundo no se detuvo.</summary>
         void NextNight()
         {
             _reportClosed = true; return;                                                // D-N136/137: al ganar se sigue en el mundo, sin reiniciar
             var np = _ng.P; np.ScalePermil = np.ScalePermil * 11 / 10;
-            if (_ng.BeginNextNight(np)) { _reportClosed = false; _lastWave = -1; _nightKills = 0; _nightShotsSpent = 0; _nightLost = 0; _endStars = 0; _bannerText = $"{TimeStr()}. Noche {_ng.NightIndex + 1}.\nAguanta hasta el amanecer."; _bannerUntil = Time.unscaledTime + 4f; }
+            if (_ng.BeginNextNight(np)) { _reportClosed = false; _lastWave = -1; _nightKills = 0; _nightShotsSpent = 0; _nightLost = 0; _bannerText = $"{TimeStr()}. Noche {_ng.NightIndex + 1}.\nAguanta hasta el amanecer."; _bannerUntil = Time.unscaledTime + 4f; }
             else _reportClosed = true;
         }
 
@@ -671,7 +668,6 @@ namespace TBD.View
                 sbb.AppendLine($"integridad             {integ} %");
                 if (won) sbb.AppendLine($"muro                   {rp.WallPermil / 10} %");
                 sbb.AppendLine($"hora                   {TimeStr()}");
-                if (won) sbb.AppendLine($"estrellas              {new string('★', _endStars)}{new string('☆', 3 - _endStars)}");
                 GUI.Label(new Rect(r.x + 60 * k, r.y + 170 * k, r.width - 120 * k, 380 * k), sbb.ToString(), _nStyle);
                 if (won)
                 {

@@ -194,19 +194,8 @@ namespace TBD.View.UiNoche
             float pw = 340, ph = 214, x0 = 320 - pw / 2, y0 = p.victoria ? 84 : 60;
             UiNocheKit.Slice(p.victoria ? "ui_parte_panel" : "ui_parte_panel_derrota", new Rect(x0, y0, pw, ph));
             UiNocheKit.Pieza(p.victoria ? "ui_parte_cabecera_amanecer" : "ui_parte_cabecera_caida", 320 - 48, y0 + 4);
-            UiNocheKit.Texto(320, y0 + 20, p.victoria ? "Amanece en Sagunto" : (string.IsNullOrEmpty(p.titulo) ? "Sagunto ha caído" : p.titulo), p.victoria ? UiNocheKit.Crema : UiNocheKit.Hueso, 11, TextAnchor.UpperCenter);
+            UiNocheKit.Texto(320, y0 + 20, p.victoria ? "Sagunto resiste" : (string.IsNullOrEmpty(p.titulo) ? "Sagunto ha caído" : p.titulo), p.victoria ? UiNocheKit.Crema : UiNocheKit.Hueso, 11, TextAnchor.UpperCenter);
             float y = y0 + 40;
-            if (p.victoria)
-            {
-                for (int k = 0; k < 3; k++)   // una cada 0,4 s con ui_parte_estrella_aparece (4 f de 80 ms)
-                {
-                    float tk = t % 6f - k * .4f;
-                    float ex = 320 - 38 + k * 26, ey = y - 2;
-                    if (k < p.estrellas && tk >= 0 && tk < .32f) UiNocheKit.Fotograma("ui_parte_estrella_aparece", ex, ey, 4, Mathf.FloorToInt(tk / .08f));
-                    else UiNocheKit.Pieza(k < p.estrellas && tk >= .32f ? "ui_parte_estrella_llena_24" : "ui_parte_estrella_vacia_24", ex, ey);
-                }
-                y += 24;
-            }
             (string icono, string nombre, string valor)[] filas =
             {
                 ("ui_resultado_zombis_16", "Zombis abatidos", p.zombis.ToString("N0")),

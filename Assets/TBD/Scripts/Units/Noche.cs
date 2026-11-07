@@ -19,30 +19,8 @@ namespace TBD.Units
     public struct NightReport
     {
         public int Night, CloseTick, Spawned; public bool StationAlive, TrainAlive;
-        /// <summary>Filas 7 y 8 del parte (D-N104, Lucía): integridad = mín(vida del edificio, vida del tren) en ‰ del máximo; muro = vida que queda en las piezas de muro / suma de máximos, en ‰.</summary>
+        /// <summary>Filas del parte (D-N104, Lucía; sin estrellas desde la D-N149): integridad = mín(vida del edificio, vida del tren) en ‰ del máximo; muro = vida que queda en las piezas de muro / suma de máximos, en ‰.</summary>
         public int IntegrityPermil, WallPermil;
-    }
-
-    /// <summary>Un escalón de estrellas (D-N104): todo en ‰ y enteros. Los umbrales los pone Hugo en noche_sagunto.json (resultados.estrellas).</summary>
-    public struct StarTier { public int IntegrityMinPm, WallMinPm, MaxLosses, AmmoMinMilliU; public bool NoVehiclesLost; }
-    public struct StarRules
-    {
-        public StarTier Two, Three;
-        public static StarRules Default()
-        {
-            return new StarRules { Two = new StarTier { IntegrityMinPm = 400, WallMinPm = 250, MaxLosses = 6, AmmoMinMilliU = 8000 },
-                                   Three = new StarTier { IntegrityMinPm = 750, WallMinPm = 500, MaxLosses = 2, AmmoMinMilliU = 15000, NoVehiclesLost = true } };
-        }
-        static bool Meets(StarTier t, int integrity, int wall, int losses, int ammoMilliU, bool vehiclesLost)
-        { return integrity >= t.IntegrityMinPm && wall >= t.WallMinPm && losses <= t.MaxLosses && ammoMilliU >= t.AmmoMinMilliU && !(t.NoVehiclesLost && vehiclesLost); }
-        /// <summary>0 derrota (o noche sin cerrar), 1 ganar, 2 y 3 si se cumplen TODOS los umbrales de su escalón; se da la mayor que se cumpla.</summary>
-        public int Stars(NightState state, int integrity, int wall, int losses, int ammoMilliU, bool vehiclesLost)
-        {
-            if (state != NightState.Victoria) return 0;
-            if (Meets(Three, integrity, wall, losses, ammoMilliU, vehiclesLost)) return 3;
-            if (Meets(Two, integrity, wall, losses, ammoMilliU, vehiclesLost)) return 2;
-            return 1;
-        }
     }
 
     public struct WaveSpec { public int StartMinute; public int Zombies; public int ArrivalSeconds; public int[] EntryCount; }   // EntryCount (opcional): reparto exacto por entrada
@@ -63,7 +41,6 @@ namespace TBD.Units
         public int StationHp, TrainHp, StationDmgPerZombieS, TrainDmgPerZombieS;
         // Contacto zombi-soldado: igual que la zona (balance_combate: cuerpo_a_cuerpo_mm = 900, zombi_danio_tick = 2 por zombi y tick).
         public int ContactRadiusMm, ContactDmgPerTick;
-        public StarRules Stars;
         // Regla de «pegado» (UNA para la zona y para NightSim): un zombi vivo ataca al edificio o al tren si está a menos de AttackReachMm del rectángulo
         // (distancia del punto al rectángulo, 0 dentro). Coordenadas de la zona en mm: edificio de viajeros x 98-114, y 75-83 m (PrototypeBootstrap);
         // tren en la vía (y = 64,5 ± 1,6 m), de x 74 a 154 m (Hugo: el tren ocupa el andén). VALORES DE DISEÑO SIN MEDIR.
@@ -77,9 +54,9 @@ namespace TBD.Units
             return new NightParams
             {
                 ClockX = 28, StartHour = 22, EndHour = 6, ScalePermil = 850, FrontPct = 55, FrontTimePct = 25,
-                StationHp = 60000, TrainHp = 120000, Stars = StarRules.Default(), AttackReachMm = 1500, StationRect = new RectMm(98000, 75000, 114000, 83000), TrainRect = new RectMm(81000, 62900, 145000, 66100), StationDmgPerZombieS = 20, TrainDmgPerZombieS = 20, ContactRadiusMm = 900, ContactDmgPerTick = 2, WinOnClear = true,
+                StationHp = 60000, TrainHp = 120000, AttackReachMm = 1500, StationRect = new RectMm(98000, 75000, 114000, 83000), TrainRect = new RectMm(81000, 62900, 145000, 66100), StationDmgPerZombieS = 20, TrainDmgPerZombieS = 20, ContactRadiusMm = 900, ContactDmgPerTick = 2, WinOnClear = true,
                 // D-N136 (Lucía y Hugo, 7-nov 13:50): una sola horda de 4.700 (escala 1000) a las 22:00, que entra durante 180 s (D-N136b) por las cuatro entradas (30/30/20/20)
-                Waves = new[] { new WaveSpec { StartMinute = 0, Zombies = 4700, ArrivalSeconds = 180, EntryCount = new[] { 30, 30, 20, 20 } } },
+                Waves = new[] { new WaveSpec { StartMinute = 0, Zombies = 8600, ArrivalSeconds = 180, EntryCount = new[] { 50, 30, 20, 0 } } },
                 // Álvaro (sagunto-nivel.md §9.5), zona de 256 × 128 m: (X, Z) en metros → (X, Y) en mm
                 Entries = new[]
                 {

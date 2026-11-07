@@ -33,7 +33,6 @@ namespace TBD.View.UiNoche
     public struct Parte
     {
         public bool victoria; public string titulo;   // titular de la derrota (D-N133: «El tren ha caído» / «Sagunto ha caído»)
-        public int estrellas;     // D-N104
         public int zombis, bajas, municionGastada, municionRestante;
         public float estacion, tren, muro; // 0..1
     }
@@ -89,7 +88,7 @@ namespace TBD.View.UiNoche
         public IReadOnlyList<Aviso> Avisos => _avisos;
         public IReadOnlyList<Frente> Frentes => _frentes;
         public IReadOnlyList<Tarjeta> Tarjetas => _tarjetas;
-        public Parte Parte { get; set; } = new Parte { victoria = true, estrellas = 2, zombis = 1284, bajas = 3, municionGastada = 37, municionRestante = 13, estacion = .92f, tren = .64f, muro = .48f };
+        public Parte Parte { get; set; } = new Parte { victoria = true, zombis = 1284, bajas = 3, municionGastada = 37, municionRestante = 13, estacion = .92f, tren = .64f, muro = .48f };
         public bool HayPartidaGuardada => false;
     }
 }

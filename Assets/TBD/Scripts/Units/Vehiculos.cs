@@ -284,4 +284,207 @@ namespace TBD.Units
             return fwd >= 0 && fwd <= s.LengthMm / 2 + 700 && Math.Abs(side) <= s.WidthMm / 2 + 150;
         }
     }
+
+    /// <summary>Punto en mm (camino de un vehículo).</summary>
+    public struct PointMm { public int X, Y; public PointMm(int x, int y) { X = x; Y = y; } }
+
+    /// <summary>Búsqueda de caminos de los vehículos (Eugenio, 7-nov: «se quedan pillados en los muros»). Rejilla de celdas (por defecto 1 m) sobre los mismos
+    /// obstáculos de la D-N139 (edificios, muros, tren y vehículos aparcados), inflados con el radio del vehículo. A* de 8 vecinos sin cortar esquinas
+    /// (coste 10 recto y 14 en diagonal, heurística octil) y camino alisado por línea de vista. Enteros y desempates por índice: determinista.
+    /// No entra en ningún hash (los vehículos son locales en el prototipo). Una rejilla por radio: la zona guarda una por tipo de vehículo.</summary>
+    public sealed class NavGrid
+    {
+        public readonly int X0, Y0, Cell, W, H;
+        readonly byte[] _static;            // 1 = celda bloqueada por los obstáculos fijos (inflados)
+        readonly int[] _dyn; int _stamp;     // obstáculos de cada búsqueda (otros vehículos): celda bloqueada si _dyn == _stamp
+        public int InflateMm { get; private set; }
+        public int MaxExpand = 250000;       // tope de nodos por búsqueda (si no hay camino en un mapa grande, no se cuelga)
+        public int LastExpanded;             // nodos que abrió la última búsqueda (diagnóstico)
+
+        public NavGrid(int x0, int y0, int x1, int y1, int cellMm = 1000)
+        {
+            X0 = x0; Y0 = y0; Cell = Math.Max(100, cellMm);
+            W = Math.Max(1, (x1 - x0 + Cell - 1) / Cell); H = Math.Max(1, (y1 - y0 + Cell - 1) / Cell);
+            _static = new byte[W * H]; _dyn = new int[W * H];
+            _g = new int[W * H]; _from = new int[W * H]; _seen = new int[W * H]; _closed = new int[W * H];
+        }
+
+        /// <summary>Marca los obstáculos fijos inflados en «inflateMm» (radio del vehículo más margen). Se rehace cuando cambian (obra nueva, muro roto).</summary>
+        public void Build(IList<RectMm> obstacles, int inflateMm)
+        {
+            InflateMm = Math.Max(0, inflateMm); Array.Clear(_static, 0, _static.Length);
+            if (obstacles != null) for (int i = 0; i < obstacles.Count; i++) Stamp(_static, null, 1, obstacles[i], InflateMm);
+        }
+
+        void Stamp(byte[] b, int[] d, int v, RectMm r, int infl)
+        {
+            // una celda se bloquea si su centro cae dentro del rectángulo inflado
+            int cx0 = CeilDiv(r.X0 - infl - X0 - Cell / 2, Cell), cx1 = FloorDiv(r.X1 + infl - X0 - Cell / 2, Cell);
+            int cy0 = CeilDiv(r.Y0 - infl - Y0 - Cell / 2, Cell), cy1 = FloorDiv(r.Y1 + infl - Y0 - Cell / 2, Cell);
+            cx0 = Math.Max(cx0, 0); cy0 = Math.Max(cy0, 0); cx1 = Math.Min(cx1, W - 1); cy1 = Math.Min(cy1, H - 1);
+            for (int y = cy0; y <= cy1; y++) for (int x = cx0; x <= cx1; x++) { if (b != null) b[y * W + x] = (byte)v; else d[y * W + x] = v; }
+        }
+        static int FloorDiv(int a, int b) { return a >= 0 ? a / b : -((-a + b - 1) / b); }
+        static int CeilDiv(int a, int b) { return -FloorDiv(-a, b); }
+
+        public bool InGrid(int cx, int cy) { return cx >= 0 && cy >= 0 && cx < W && cy < H; }
+        public int CellX(int xMm) { return IMath.Clamp(FloorDiv(xMm - X0, Cell), 0, W - 1); }
+        public int CellY(int yMm) { return IMath.Clamp(FloorDiv(yMm - Y0, Cell), 0, H - 1); }
+        public int CenterX(int cx) { return X0 + cx * Cell + Cell / 2; }
+        public int CenterY(int cy) { return Y0 + cy * Cell + Cell / 2; }
+        bool Free(int i) { return _static[i] == 0 && _dyn[i] != _stamp; }
+        public bool FreeAt(int xMm, int yMm) { int cx = FloorDiv(xMm - X0, Cell), cy = FloorDiv(yMm - Y0, Cell); return InGrid(cx, cy) && Free(cy * W + cx); }
+
+        // A*: montículo binario de índices con clave (f, h, índice) para que el orden sea siempre el mismo
+        readonly int[] _g, _from, _seen, _closed; int _search;
+        readonly List<long> _heap = new List<long>();
+        void Push(int f, int h, int i) { long k = ((long)f << 42) | ((long)Math.Min(h, (1 << 20) - 1) << 22) | (uint)i; _heap.Add(k); int c = _heap.Count - 1; while (c > 0) { int p = (c - 1) / 2; if (_heap[p] <= _heap[c]) break; var t = _heap[p]; _heap[p] = _heap[c]; _heap[c] = t; c = p; } }
+        long Pop() { long top = _heap[0]; int last = _heap.Count - 1; _heap[0] = _heap[last]; _heap.RemoveAt(last); int c = 0; while (true) { int l = 2 * c + 1, r = l + 1, m = c; if (l < _heap.Count && _heap[l] < _heap[m]) m = l; if (r < _heap.Count && _heap[r] < _heap[m]) m = r; if (m == c) break; var t = _heap[m]; _heap[m] = _heap[c]; _heap[c] = t; c = m; } return top; }
+        static int Octile(int dx, int dy) { dx = Math.Abs(dx); dy = Math.Abs(dy); return 10 * Math.Max(dx, dy) + 4 * Math.Min(dx, dy); }
+
+        /// <summary>La celda libre más cercana a (cx, cy) en anillos crecientes (radio máximo «maxR» celdas); −1 si no hay. Orden fijo: determinista.</summary>
+        int NearestFree(int cx, int cy, int maxR)
+        {
+            cx = IMath.Clamp(cx, 0, W - 1); cy = IMath.Clamp(cy, 0, H - 1);
+            if (Free(cy * W + cx)) return cy * W + cx;
+            for (int r = 1; r <= maxR; r++)
+            {
+                int best = -1, bd = int.MaxValue;
+                for (int dy = -r; dy <= r; dy++) for (int dx = -r; dx <= r; dx++)
+                {
+                    if (Math.Abs(dx) != r && Math.Abs(dy) != r) continue;
+                    int x = cx + dx, y = cy + dy; if (!InGrid(x, y) || !Free(y * W + x)) continue;
+                    int d = dx * dx + dy * dy; if (d < bd) { bd = d; best = y * W + x; }
+                }
+                if (best >= 0) return best;
+            }
+            return -1;
+        }
+
+        /// <summary>Camino de (sx, sy) a (tx, ty) en mm, sin pasar por obstáculos fijos ni por «dynamic» (otros vehículos; inflados con el mismo radio).
+        /// Rellena «path» con los puntos de paso ya alisados (sin el de salida; el último es el destino, o la celda libre más cercana si el destino está tapado).
+        /// Si la salida está dentro de un obstáculo inflado (vehículo pegado al muro), sale por la celda libre más cercana. Devuelve false si no hay camino.</summary>
+        public bool FindPath(int sx, int sy, int tx, int ty, List<PointMm> path, IList<RectMm> dynamic = null)
+        {
+            path.Clear(); _stamp++; if (_stamp == int.MaxValue) { Array.Clear(_dyn, 0, _dyn.Length); _stamp = 1; }
+            if (dynamic != null) for (int i = 0; i < dynamic.Count; i++) Stamp(null, _dyn, _stamp, dynamic[i], InflateMm);
+            int s = NearestFree(CellX(sx), CellY(sy), 8), t = NearestFree(CellX(tx), CellY(ty), 30);
+            LastExpanded = 0;
+            if (s < 0 || t < 0) return false;
+            bool exactGoal = t == CellY(ty) * W + CellX(tx) && FreeAt(tx, ty);
+            if (s == t) { path.Add(exactGoal ? new PointMm(tx, ty) : new PointMm(CenterX(t % W), CenterY(t / W))); return true; }
+            _search++; if (_search == int.MaxValue) { Array.Clear(_seen, 0, _seen.Length); Array.Clear(_closed, 0, _closed.Length); _search = 1; }
+            _heap.Clear();
+            int tcx = t % W, tcy = t / W;
+            _seen[s] = _search; _g[s] = 0; _from[s] = -1; Push(Octile(s % W - tcx, s / W - tcy), Octile(s % W - tcx, s / W - tcy), s);
+            bool found = false;
+            while (_heap.Count > 0)
+            {
+                long k = Pop(); int i = (int)(k & 0x3FFFFF);
+                if (_closed[i] == _search) continue;
+                _closed[i] = _search;
+                if (i == t) { found = true; break; }
+                if (++LastExpanded > MaxExpand) break;
+                int cx = i % W, cy = i / W;
+                for (int n = 0; n < 8; n++)
+                {
+                    int dx = n == 0 ? 1 : n == 1 ? -1 : n == 2 ? 0 : n == 3 ? 0 : n == 4 ? 1 : n == 5 ? 1 : n == 6 ? -1 : -1;
+                    int dy = n == 0 ? 0 : n == 1 ? 0 : n == 2 ? 1 : n == 3 ? -1 : n == 4 ? 1 : n == 5 ? -1 : n == 6 ? 1 : -1;
+                    int x = cx + dx, y = cy + dy; if (!InGrid(x, y)) continue;
+                    int j = y * W + x; if (!Free(j) || _closed[j] == _search) continue;
+                    if (dx != 0 && dy != 0 && (!Free(cy * W + x) || !Free(y * W + cx))) continue;     // sin cortar esquinas
+                    int g = _g[i] + (dx != 0 && dy != 0 ? 14 : 10);
+                    if (_seen[j] == _search && g >= _g[j]) continue;
+                    _seen[j] = _search; _g[j] = g; _from[j] = i;
+                    int h = Octile(x - tcx, y - tcy); Push(g + h, h, j);
+                }
+            }
+            if (!found) return false;
+            // celdas de la meta a la salida, y alisado por línea de vista (string pulling)
+            var cells = _cells; cells.Clear(); for (int c = t; c >= 0; c = _from[c]) cells.Add(c); cells.Reverse();
+            int a = 0; int ax = sx, ay = sy; if (!FreeAt(sx, sy)) { ax = CenterX(s % W); ay = CenterY(s / W); path.Add(new PointMm(ax, ay)); }
+            while (a < cells.Count - 1)
+            {
+                int b = cells.Count - 1;
+                while (b > a + 1 && !LineFree(ax, ay, CenterX(cells[b] % W), CenterY(cells[b] / W))) b--;
+                a = b; ax = CenterX(cells[a] % W); ay = CenterY(cells[a] / W);
+                path.Add(new PointMm(ax, ay));
+            }
+            if (exactGoal) { if (path.Count > 0 && LineFree(path.Count > 1 ? path[path.Count - 2].X : sx, path.Count > 1 ? path[path.Count - 2].Y : sy, tx, ty)) path[path.Count - 1] = new PointMm(tx, ty); else path.Add(new PointMm(tx, ty)); }
+            return true;
+        }
+        readonly List<int> _cells = new List<int>();
+
+        /// <summary>¿El tramo recto de a a b va todo por celdas libres? Muestra cada cuarto de celda (conservador).</summary>
+        public bool LineFree(int ax, int ay, int bx, int by)
+        {
+            int d = IMath.Dist(bx - ax, by - ay), step = Math.Max(1, Cell / 4), n = d / step + 1;
+            for (int k = 0; k <= n; k++) { int x = ax + (int)((long)(bx - ax) * k / n), y = ay + (int)((long)(by - ay) * k / n); if (!FreeAt(x, y)) return false; }
+            return true;
+        }
+
+        /// <summary>Los muros del recinto (D-N139) como rectángulos de «thickMm»: oeste, norte y este macizos; sur con la puerta de vehículos E4 de gateX0 a gateX1.
+        /// Coordenadas de la zona en mm (fuerte X 70-156, Y 44-85 m; E4 en X 95-103 m).</summary>
+        public static void FortWalls(List<RectMm> into, int x0, int y0, int x1, int y1, int gateX0, int gateX1, int thickMm = 600)
+        {
+            int h = thickMm / 2;
+            into.Add(new RectMm(x0 - h, y0 - h, x0 + h, y1 + h));     // oeste (puerta cerrada)
+            into.Add(new RectMm(x1 - h, y0 - h, x1 + h, y1 + h));     // este
+            into.Add(new RectMm(x0 - h, y1 - h, x1 + h, y1 + h));     // norte
+            into.Add(new RectMm(x0 - h, y0 - h, gateX0, y0 + h));     // sur, a la izquierda de E4
+            into.Add(new RectMm(gateX1, y0 - h, x1 + h, y0 + h));     // sur, a la derecha de E4
+        }
+    }
+
+    /// <summary>Lo que sigue un vehículo por su camino (NavGrid): punto al que apuntar con avance anticipado (giro suave: cambia de tramo antes de llegar
+    /// a la esquina) y detección de atasco: si quiere moverse y en «StuckTicks» (2 s) no avanza «StuckMm», recalcula la ruta desde donde está.</summary>
+    public sealed class VehicleNav
+    {
+        public readonly List<PointMm> Path = new List<PointMm>();
+        public int Index;                                   // punto de paso actual
+        public int GoalX, GoalY; public bool HasGoal;
+        public int AdvanceMm = 3500;                        // a esta distancia de un punto de paso ya se apunta al siguiente (radio de giro)
+        public int ArriveMm = 1500;
+        public int StuckTicks = 2 * IMath.TickRate, StuckMm = 400;
+        public int Replans, Failures;                       // recálculos por atasco y búsquedas sin camino
+        int _anchorX, _anchorY, _anchorTick, _tick;
+
+        /// <summary>Nueva orden de ir a (tx, ty). Devuelve false si no hay camino (el vehículo se queda quieto).</summary>
+        public bool SetGoal(NavGrid g, int x, int y, int tx, int ty, IList<RectMm> dynamic = null)
+        {
+            GoalX = tx; GoalY = ty; HasGoal = true; _anchorX = x; _anchorY = y; _anchorTick = _tick;
+            return Plan(g, x, y, dynamic);
+        }
+
+        bool Plan(NavGrid g, int x, int y, IList<RectMm> dynamic)
+        {
+            Index = 0;
+            if (!g.FindPath(x, y, GoalX, GoalY, Path, dynamic)) { Path.Clear(); HasGoal = false; Failures++; return false; }
+            return true;
+        }
+
+        public void Clear() { Path.Clear(); HasGoal = false; Index = 0; }
+
+        /// <summary>Una vez por tick: avanza el punto de paso y da a dónde apuntar. «moving»: el vehículo intenta moverse (acelerador puesto).
+        /// Devuelve false si ya llegó o no tiene ruta (entonces que frene). Si lleva 2 s atascado, recalcula desde (x, y) con los obstáculos de ahora.</summary>
+        public bool Steer(NavGrid g, int x, int y, out int aimX, out int aimY, IList<RectMm> dynamic = null)
+        {
+            _tick++;
+            aimX = x; aimY = y;
+            if (!HasGoal || Path.Count == 0) return false;
+            var last = Path[Path.Count - 1];
+            if (IMath.Dist(last.X - x, last.Y - y) <= ArriveMm) { Clear(); return false; }
+            while (Index < Path.Count - 1 && IMath.Dist(Path[Index].X - x, Path[Index].Y - y) <= AdvanceMm) Index++;
+            // atasco: no avanza StuckMm en StuckTicks
+            if (IMath.Dist(x - _anchorX, y - _anchorY) >= StuckMm) { _anchorX = x; _anchorY = y; _anchorTick = _tick; }
+            else if (_tick - _anchorTick >= StuckTicks)
+            {
+                Replans++; _anchorX = x; _anchorY = y; _anchorTick = _tick;
+                if (!Plan(g, x, y, dynamic)) return false;
+                HasGoal = true;
+            }
+            aimX = Path[Index].X; aimY = Path[Index].Y;
+            return true;
+        }
+    }
 }
