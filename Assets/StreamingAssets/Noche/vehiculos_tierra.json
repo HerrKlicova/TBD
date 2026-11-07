@@ -20,8 +20,8 @@
       "armas": {
         "canon_30": {
           "cantidad": 1,
-          "zombis_por_u_horda": 597,
-          "zombis_por_u_sueltos": 205
+          "zombis_por_u_horda": 1397,
+          "zombis_por_u_sueltos": 456
         },
         "ametralladora_ligera": {
           "cantidad": 1,
@@ -105,8 +105,8 @@
       "armas": {
         "canon_30": {
           "cantidad": 1,
-          "zombis_por_u_horda": 597,
-          "zombis_por_u_sueltos": 205
+          "zombis_por_u_horda": 1397,
+          "zombis_por_u_sueltos": 456
         },
         "ametralladora_ligera": {
           "cantidad": 1,

@@ -78,6 +78,8 @@ namespace TBD.Units
         public int AmmoShots, AmmoCap;       // munición propia en disparos equivalentes
         public int AmmoSpent, Kills, Losses;      // Losses: soldados caídos del pelotón (por contacto de zombis)
         public int LastFireTick = -1000;
+        public int C90Left, C90Cap;           // D-N137: tiros de C90 que quedan y dotación (se reponen del almacén en Resupply, a arma_c90_coste_disparos cada uno)
+        public bool C90Order; public int C90X, C90Y;   // orden de disparar el C90 a ese punto: se cumple en el siguiente Step
         public int Aboard;                   // 0 = a pie; si no, id del transporte (vehículo = su Id, helicóptero = 1000 + su Id): ni se mueve, ni dispara, ni lo tocan los zombis
         public int AliveCount() { int n = 0; for (int i = 0; i < Men.Count; i++) if (Men[i].Alive) n++; return n; }
     }
@@ -132,6 +134,7 @@ namespace TBD.Units
             var spec = PlatoonCatalog.Get(kind);
             var p = new Platoon { Id = _nextPlatoon++, Kind = kind, AX = x, AY = y, Heading = heading & 0xFFFF, Form = form, SpeedMmS = spec.SpeedMmS };
             p.AmmoCap = (int)((long)spec.DotationPm * WeaponCatalog.ShotsPerU / 1000); p.AmmoShots = p.AmmoCap;
+            p.C90Cap = p.C90Left = Math.Max(0, spec.C90Shots);
             var list = new List<int>();
             for (int w = 0; w < spec.WeaponCount.Length; w++) for (int n = 0; n < spec.WeaponCount[w]; n++) list.Add(w);
             for (int i = 0; i < spec.Persons; i++)
@@ -189,12 +192,51 @@ namespace TBD.Units
         public bool SetFormation(int platoon, Formation f) { var p = Find(platoon); if (p == null) return false; p.Form = f; return true; }
         public bool SetHoldFire(int platoon, bool hold) { var p = Find(platoon); if (p == null) return false; p.HoldFire = hold; return true; }
 
-        /// <summary>Pasa munición del almacén común al pelotón hasta su dotación. Devuelve lo que pasó.</summary>
+        /// <summary>Pasa munición del almacén común al pelotón hasta su dotación y repone los C90 gastados (cada uno cuesta arma_c90_coste_disparos). Devuelve lo que pasó (en disparos equivalentes).</summary>
         public int Resupply(int platoon)
         {
             var p = Find(platoon); if (p == null) return 0;
-            int n = Math.Min(StockShots, p.AmmoCap - p.AmmoShots); if (n <= 0) return 0;
-            StockShots -= n; p.AmmoShots += n; return n;
+            int n = Math.Max(0, Math.Min(StockShots, p.AmmoCap - p.AmmoShots));
+            StockShots -= n; p.AmmoShots += n;
+            int c = WeaponCatalog.Table[(int)WeaponId.C90].CostShots;
+            while (p.C90Left < p.C90Cap && StockShots >= c && c >= 0) { StockShots -= c; p.C90Left++; n += c; if (c == 0) { p.C90Left = p.C90Cap; break; } }
+            return n;
+        }
+
+        /// <summary>D-N137 (Lucía): orden del jugador «C90 (C)»: el pelotón dispara un C90 al punto (x, y) en el siguiente Step. Nunca automático.
+        /// Se rechaza (false) si el pelotón no existe, no tiene vivos, va a bordo, no le quedan C90 o el punto está fuera de alcance (mínimo y máximo) de todos sus soldados.
+        /// Dispara el soldado vivo más cercano al punto que lo tenga a tiro. No gasta munición propia: el C90 se paga al reponerlo. El alto el fuego (G) no lo impide: es una orden expresa.</summary>
+        public bool OrderC90(int platoon, int x, int y)
+        {
+            var p = Find(platoon); if (p == null || p.Aboard != 0 || p.C90Left <= 0 || p.AliveCount() == 0) return false;
+            if (C90Shooter(p, x, y) < 0) return false;
+            p.C90Order = true; p.C90X = x; p.C90Y = y; return true;
+        }
+
+        int C90Shooter(Platoon p, int x, int y)
+        {
+            var w = WeaponCatalog.Table[(int)WeaponId.C90];
+            long r2 = (long)w.RangeMm * w.RangeMm, min2 = (long)w.MinRangeMm * w.MinRangeMm, best = long.MaxValue; int bi = -1;
+            for (int i = 0; i < p.Men.Count; i++)
+            {
+                var m = p.Men[i]; if (!m.Alive || m.Kind == InfKind.Servidor) continue;
+                long ex = x - m.X, ey = y - m.Y, d2 = ex * ex + ey * ey;
+                if (d2 > r2 || d2 < min2) continue;
+                if (d2 < best) { best = d2; bi = i; }
+            }
+            return bi;
+        }
+
+        void FireC90(Platoon p, IList<Target> targets, StepResult res)
+        {
+            if (!p.C90Order) return;
+            p.C90Order = false;
+            if (p.C90Left <= 0) return;
+            int mi = C90Shooter(p, p.C90X, p.C90Y); if (mi < 0) return;      // se movió y ya no llega: la orden se pierde y no gasta el tiro
+            var m = p.Men[mi]; var w = WeaponCatalog.Table[(int)WeaponId.C90];
+            p.C90Left--;
+            m.Heading = IMath.Atan2(p.C90Y - m.Y, p.C90X - m.X); m.Firing = true; p.LastFireTick = Tick;
+            Shoot(p.Id, m.Id, m.Kind, WeaponId.C90, w, m.X, m.Y, new Target { Id = -1, X = p.C90X, Y = p.C90Y }, targets ?? new List<Target>(), res, false);
         }
 
         public bool DamageMan(int platoon, int manId, int damage)
@@ -377,6 +419,7 @@ namespace TBD.Units
                 ComputeSlots(p);
                 MoveMen(p);
                 FireMen(p, targets, res);
+                FireC90(p, targets, res);
             }
         }
 
@@ -592,7 +635,8 @@ namespace TBD.Units
                 ulong ph = IMath.Mix((ulong)(uint)p.Id + ((ulong)(uint)p.AX << 20) + ((ulong)(uint)p.AY << 40) + (ulong)p.Heading * 0x9E3779B1UL);
                 ph ^= IMath.Mix((ulong)(uint)p.TX + ((ulong)(uint)p.TY << 32) + ((p.Moving ? 1UL : 0UL) << 63) + ((p.HoldFire ? 1UL : 0UL) << 62) + ((p.AttackMove ? 1UL : 0UL) << 61) + ((p.Deploy ? 1UL : 0UL) << 60) + ((ulong)p.Form << 56) + ((ulong)(uint)(p.FinalHeading + 1) << 20));
                 ph += IMath.Mix((ulong)(uint)p.SpacingMm + ((ulong)(uint)p.AmmoSpent << 24) + ((ulong)(uint)p.Kills << 48)) + IMath.Mix((ulong)(uint)p.Losses + ((ulong)(uint)p.Aboard << 32) + 0x105) + IMath.Mix((ulong)(uint)p.AmmoShots + ((ulong)(uint)p.AmmoCap << 32) + 11)
-                    + IMath.Mix((ulong)(uint)(p.LastFireTick + 1000) + ((ulong)p.Kind << 40) + ((ulong)(uint)p.SpeedMmS << 20));
+                    + IMath.Mix((ulong)(uint)(p.LastFireTick + 1000) + ((ulong)p.Kind << 40) + ((ulong)(uint)p.SpeedMmS << 20))
+                    + IMath.Mix((ulong)(uint)p.C90Left + ((ulong)(uint)p.C90Cap << 8) + ((p.C90Order ? 1UL : 0UL) << 16) + ((ulong)(uint)p.C90X << 17) + ((ulong)(uint)p.C90Y << 40) + 0xC90);
                 for (int j = 0; j < p.Men.Count; j++)
                 {
                     var m = p.Men[j];
@@ -614,6 +658,7 @@ namespace TBD.Units
             {
                 w.Int(p.Id); w.Byte((byte)p.Kind); w.Int(p.AX); w.Int(p.AY); w.Int(p.Heading); w.Byte((byte)p.Form); w.Bool(p.Moving); w.Bool(p.AttackMove); w.Int(p.TX); w.Int(p.TY); w.Int(p.FinalHeading);
                 w.Bool(p.Deploy); w.Bool(p.HoldFire); w.Int(p.SpacingMm); w.Int(p.SpeedMmS); w.Int(p.AmmoShots); w.Int(p.AmmoCap); w.Int(p.AmmoSpent); w.Int(p.Kills); w.Int(p.Losses); w.Int(p.Aboard); w.Int(p.LastFireTick);
+                w.Int(p.C90Left); w.Int(p.C90Cap); w.Bool(p.C90Order); w.Int(p.C90X); w.Int(p.C90Y);
                 w.Int(p.Men.Count);
                 foreach (var m in p.Men)
                 {
@@ -635,6 +680,7 @@ namespace TBD.Units
             {
                 var p = new Platoon { Id = r.Int(), Kind = (PlatoonKind)r.Byte(), AX = r.Int(), AY = r.Int(), Heading = r.Int(), Form = (Formation)r.Byte(), Moving = r.Bool(), AttackMove = r.Bool(), TX = r.Int(), TY = r.Int(), FinalHeading = r.Int() };
                 p.Deploy = r.Bool(); p.HoldFire = r.Bool(); p.SpacingMm = r.Int(); p.SpeedMmS = r.Int(); p.AmmoShots = r.Int(); p.AmmoCap = r.Int(); p.AmmoSpent = r.Int(); p.Kills = r.Int(); p.Losses = r.Int(); p.Aboard = r.Int(); p.LastFireTick = r.Int();
+                p.C90Left = r.Int(); p.C90Cap = r.Int(); p.C90Order = r.Bool(); p.C90X = r.Int(); p.C90Y = r.Int();
                 if ((int)p.Kind >= PlatoonCatalog.Table.Length) throw new SaveException(SaveError.Corrupt, "tipo de pelotón no válido");
                 int nm = r.Int(); if (nm < 0 || nm > 1000) throw new SaveException(SaveError.Corrupt, "número de soldados no válido");
                 for (int j = 0; j < nm; j++)
