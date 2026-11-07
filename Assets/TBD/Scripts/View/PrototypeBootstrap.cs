@@ -847,10 +847,11 @@ namespace TBD.View
                          // solo baja la saturación, sin teñir, para que el ámbar del foco siga siendo ámbar (no salmón)
                     // noche v3 de Bruno elegida por Lucia (qa24, D-N129): luna fria (0,40; 0,55; 1,0) a 0,45, ambiente azul (0,03; 0,045; 0,10), filtro (0,78; 0,86; 1), sat -10, exposicion 0; sin cuantizador ni tramado
                     // noche v3 de Bruno (D-N129) mientras Lucia no elija entre G1-G5 (qa29): filtro (0,78; 0,86; 1), exposicion 0, sat -10, luna (0,40; 0,55; 1,0) a 0,45, ambiente (0,03; 0,045; 0,10)
-                    _grade.colorFilter.Override(new Color(0.78f, 0.86f, 1f));
-                    _grade.postExposure.Override(0f);
-                    _grade.saturation.Override(-10f);
-                    SetLight(new Color(0.40f, 0.55f, 1.0f), 0.45f, new Color(0.03f, 0.045f, 0.10f), 50f);
+                    // G1 de Bruno elegida por Lucia (qa32; suelo L* 26,1, croma 4,7): filtro blanco, exposicion -0,45, sat -30, luna (0,75; 0,80; 1,0) a 0,45, ambiente (0,03; 0,045; 0,10)
+                    _grade.colorFilter.Override(Color.white);
+                    _grade.postExposure.Override(-0.45f);
+                    _grade.saturation.Override(-30f);
+                    SetLight(new Color(0.75f, 0.80f, 1.0f), 0.45f, new Color(0.03f, 0.045f, 0.10f), 50f);
                     SetFloodlights(90f);
                     break;
             }
@@ -1592,6 +1593,7 @@ namespace TBD.View
             var atA = Resources.Load<Texture2D>("Suelo/atlas_grietas_asfalto"); var atT = Resources.Load<Texture2D>("Suelo/atlas_grietas_tierra");
             if (atA == null || atT == null) return;
             var holder = new GameObject("Grietas (decals)").transform; holder.SetParent(root, false);
+            if (NightRun.Active) holder.gameObject.SetActive(false);   // Lucia: las grietas (decals cuadrados) se veian como rombos oscuros de bordes rectos; fuera de la version pulida
             var cache = new System.Collections.Generic.Dictionary<long, Material>();
             Material CrackMat(Texture2D at, int idx, bool mir)
             {
@@ -1632,7 +1634,7 @@ namespace TBD.View
         const float ChunkLoadR = 170f, ChunkKeepR = 300f;
         sealed class GroundSrc
         {
-            public Color32[] map, apis, labr, asf, rod, seca; public Color32[][] lisos; public Color32 mApis, mLabr, mAsf, mRod, mSeca;
+            public Color32[] map, apis, labr, asf, rod, seca, noche; public Color32[][] lisos; public Color32 mApis, mLabr, mAsf, mRod, mSeca;
         }
         sealed class GroundChunk { public int I, J; public Texture2D Day, Night; public Material Mat; public GameObject Go; public float Cx, Cz; public VegBatch Veg; }
 
@@ -1688,7 +1690,7 @@ namespace TBD.View
             if (mapTex == null || mapTex.width != MapW || mapTex.height != MapH || gs.apis == null || gs.labr == null || gs.asf == null || gs.rod == null) { Debug.LogWarning("[TBD] Falta el mapa de zonas completo o alguna textura del suelo"); return; }
             gs.map = mapTex.GetPixels32();
             Color32 Mean(Color32[] a) { long r = 0, g = 0, b = 0; int n = 0; foreach (var c in a) if (c.a > 0) { r += c.r; g += c.g; b += c.b; n++; } return n == 0 ? new Color32(0, 0, 0, 0) : new Color32((byte)(r / n), (byte)(g / n), (byte)(b / n), 255); }
-            gs.mApis = Mean(gs.apis); gs.mLabr = Mean(gs.labr); gs.mAsf = Mean(gs.asf); gs.mRod = Mean(gs.rod); gs.mSeca = gs.seca != null ? Mean(gs.seca) : gs.mApis;
+            gs.noche = Px("suelo_noche_A_64"); gs.mApis = Mean(gs.apis); gs.mLabr = Mean(gs.labr); gs.mAsf = Mean(gs.asf); gs.mRod = Mean(gs.rod); gs.mSeca = gs.seca != null ? Mean(gs.seca) : gs.mApis;
             var mk = Resources.Load<Texture2D>("Suelo/sagunto_sin_vegetacion_1m"); _vegMask = mk != null && mk.width == MapW && mk.height == MapH ? mk.GetPixels32() : null;
             _gs = gs; _chunkRoot = new GameObject("Suelo por trozos (D-N67)").transform; _chunkRoot.SetParent(root, false);
             _chunks.Clear(); _chunkPending.Clear(); while (_chunkDone.TryDequeue(out _)) { } _vegQueue.Clear();
@@ -1850,6 +1852,13 @@ namespace TBD.View
                     if (c.a == 0) { night[idx] = c; continue; }
                     float dLampC = 1e9f;
                     foreach (float ly in lampY) { float dx = x - (Level.FortX0 - 7.5f), dz = z - ly; dLampC = Mathf.Min(dLampC, Mathf.Sqrt(dx * dx + dz * dz)); }
+                    // Bruno/Lucia (D-N129): el suelo de noche usa la textura de detalle de 64 con la paleta de 32 (suelo_noche_A_64), tal cual, sin SnapSub ni mezcla con la media; bajo los focos queda el color de dia con un fundido entre 9 y 11 m
+                    if (gs.noche != null)
+                    {
+                        var nn = gs.noche[v * 64 + u]; float tl = Mathf.Clamp01((dLampC - 9f) / 2f);
+                        night[idx] = tl >= 1f ? nn : tl <= 0f ? c : (Color32)Color.Lerp(c, nn, tl); night[idx].a = 255;
+                        continue;
+                    }
                     Color32 mean = zone == 2 ? gs.mRod : zone == 4 ? gs.mAsf : zone == 5 ? gs.mLabr : zone == 0 ? gs.mSeca : zone == 9 ? water : zone == 8 ? cauce : gs.mApis;
                     // Lucia (D-N68): bajo la luna todo el suelo se ilumina como la tierra apisonada del recinto (huerta, asfalto, tierra seca y rodadas ~70 % hacia ella: la labrada, mas oscura,
                     // caia en #303424, el valor de la horda). Bajo focos y farolas (pixeles «lit») se queda el color real; el balasto (via, transparente) no entra.
@@ -1933,6 +1942,7 @@ namespace TBD.View
             // de los focos del muro oeste (centro a ~7,5 m del muro, radio ~11 m). Es una aproximación en CPU (no por la luz que recibe cada píxel).
             var meanByZone = new System.Collections.Generic.Dictionary<int, Color32>();
             Color32 Mean(Color32[] a) { long r = 0, g = 0, b = 0; int n = 0; foreach (var c in a) if (c.a > 0) { r += c.r; g += c.g; b += c.b; n++; } return n == 0 ? new Color32(0, 0, 0, 0) : new Color32((byte)(r / n), (byte)(g / n), (byte)(b / n), 255); }
+            var noche = Px("suelo_noche_A_64");
             Color32 mApis = Mean(apis), mLabr = Mean(labr), mAsf = Mean(asf), mRod = Mean(rod);
             var pixNight = new Color32[pix.Length];
             float[] lampY = { Level.FortY0 + 6f, (Level.GateY0 + Level.GateY1) * 0.5f, Level.FortY1 - 6f };
@@ -1947,6 +1957,11 @@ namespace TBD.View
                     int zone = ZoneAt(x, z, px, py);
                     Color32 mean = mApis;                                                   // Lucia (D-N129, regla 6): ningun parche; de noche todas las zonas (rodeno, asfalto, labrado y agua dudosa) se funden con el suelo base, sin aristas rectas
                     float k = Mathf.Lerp(1f, 0.7f, Mathf.Clamp01((dLamp - 9f) / 2f));        // D-N129 (Bruno): 70 % del detalle (sin cuantizador ya no hay nieve) y fundido a 100 % entre 11 y 9 m del foco, sin corte seco
+                    if (noche != null)
+                    {
+                        int uu = ((int)Mathf.Floor(x * 10f)) & 63, vv = ((int)Mathf.Floor(z * 10f)) & 63; var nn = noche[vv * 64 + uu]; float tl = Mathf.Clamp01((dLamp - 9f) / 2f);
+                        pixNight[i] = tl >= 1f ? nn : tl <= 0f ? c : (Color32)Color.Lerp(c, nn, tl); pixNight[i].a = 255; continue;
+                    }
                     pixNight[i] = SnapSub(new Color32((byte)(mean.r + (c.r - mean.r) * k), (byte)(mean.g + (c.g - mean.g) * k), (byte)(mean.b + (c.b - mean.b) * k), 255));
                 }
             _groundNightTex = new Texture2D(W, H, TextureFormat.RGBA32, false, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp, name = "Suelo muestra (noche)" };
