@@ -1,0 +1,334 @@
+{
+  "_nota": "D-N101 (Hugo). Vehículos de tierra para Marcos y Nacho. Fuente: VEHICULOS de unidades.py (también en balance_unidades.csv). Vida contra 2 de daño por tick y zombi en contacto (el soldado tiene 4000 desde D-N107); armadura = ‰ que se ignora. Combustible en E4 de u por segundo REAL (D-N76), también en el mapa. Coste de taller y reparación SIN MEDIR en sim_economia.",
+  "reglas": {
+    "vida_efectiva": "vida x 1000 / (1000 - armadura)",
+    "si_Vehiculos_cs_no_tiene_armadura": "Hp = vida efectiva / 100 (VAMTAC 400, Dragón 4000, Pizarro 7143)",
+    "reloj_mapa": "D-N72: 1 s real = 28 s de juego; ETA real = km / km_h x 3600 / 28",
+    "rutas": "D-N96: solo por carretera habilitada o por la caja de la vía; nunca campo a través"
+  },
+  "vehiculos": {
+    "dragon": {
+      "ref": "VCR 8x8 Dragón (Paula V1: 8 x 3 x 2,34 m, 30 t, torre de 30 mm)",
+      "papel": "la horda casi no lo araña (armadura 99 %); lo que lo mata es quedarse encajado: con pila >= 3 delante se para, como el tren",
+      "vida": 4000,
+      "armadura_permil": 990,
+      "vida_efectiva": 400000,
+      "aguante_rodeado_s": 180,
+      "aguante_rodeado_nota": "37 zombis pegados alrededor",
+      "bloqueo_pila": 3,
+      "plazas": 8,
+      "armas": {
+        "canon_30": {
+          "cantidad": 1,
+          "zombis_por_u_horda": 597,
+          "zombis_por_u_sueltos": 205
+        },
+        "ametralladora_ligera": {
+          "cantidad": 1,
+          "zombis_por_u_horda": 152,
+          "zombis_por_u_sueltos": 152
+        }
+      },
+      "municion_bordo_permil_u": 2000,
+      "recarga_s": 20,
+      "combustible": {
+        "deposito_u": 8,
+        "marcha_e4_s": 200,
+        "ralenti_e4_s": 60,
+        "repostar_s_por_u": 2,
+        "autonomia_marcha_s_reales": 400
+      },
+      "velocidad": {
+        "zona_mm_s": 12000,
+        "zona_horda_mm_s": 4000,
+        "acel_mm_s2": 3000,
+        "carretera_kmh": 80,
+        "via_kmh": 30
+      },
+      "taller": {
+        "materiales_u": 60,
+        "combustible_u": 15,
+        "dias": 2,
+        "reparar_u_por_1000_vida": 5
+      }
+    },
+    "vamtac": {
+      "ref": "URO VAMTAC ST5 con M2 de 12,7 mm (4,9 x 2,2 m, 7 t)",
+      "papel": "rápido y barato: enlace, reconocimiento y reabastecer; con 24 zombis pegados cae en unos 28 s; con pila >= 2 delante se para",
+      "vida": 2000,
+      "armadura_permil": 950,
+      "vida_efectiva": 40000,
+      "aguante_rodeado_s": 28,
+      "aguante_rodeado_nota": "24 zombis pegados alrededor",
+      "bloqueo_pila": 2,
+      "plazas": 4,
+      "armas": {
+        "ametralladora_pesada": {
+          "cantidad": 1,
+          "zombis_por_u_horda": 250,
+          "zombis_por_u_sueltos": 167
+        }
+      },
+      "municion_bordo_permil_u": 3000,
+      "recarga_s": 20,
+      "combustible": {
+        "deposito_u": 4,
+        "marcha_e4_s": 90,
+        "ralenti_e4_s": 25,
+        "repostar_s_por_u": 2,
+        "autonomia_marcha_s_reales": 444
+      },
+      "velocidad": {
+        "zona_mm_s": 19000,
+        "zona_horda_mm_s": 3000,
+        "acel_mm_s2": 3800,
+        "carretera_kmh": 90,
+        "via_kmh": 25
+      },
+      "taller": {
+        "materiales_u": 20,
+        "combustible_u": 5,
+        "dias": 1,
+        "reparar_u_por_1000_vida": 4
+      }
+    },
+    "pizarro": {
+      "ref": "VCI Pizarro (ASCOD) de orugas con Mauser de 30 mm (6,8 x 3,2 m, 28 t)",
+      "papel": "ariete de orugas: atraviesa la pila (se para con >= 6) y aguanta unos 6 min con 33 zombis pegados; lento y caro de combustible: de lejos, mejor en el tren",
+      "vida": 5000,
+      "armadura_permil": 993,
+      "vida_efectiva": 714286,
+      "aguante_rodeado_s": 361,
+      "aguante_rodeado_nota": "33 zombis pegados alrededor",
+      "bloqueo_pila": 6,
+      "plazas": 8,
+      "armas": {
+        "canon_30": {
+          "cantidad": 1,
+          "zombis_por_u_horda": 597,
+          "zombis_por_u_sueltos": 205
+        },
+        "ametralladora_ligera": {
+          "cantidad": 1,
+          "zombis_por_u_horda": 152,
+          "zombis_por_u_sueltos": 152
+        }
+      },
+      "municion_bordo_permil_u": 2500,
+      "recarga_s": 20,
+      "combustible": {
+        "deposito_u": 8,
+        "marcha_e4_s": 250,
+        "ralenti_e4_s": 80,
+        "repostar_s_por_u": 2,
+        "autonomia_marcha_s_reales": 320
+      },
+      "velocidad": {
+        "zona_mm_s": 14000,
+        "zona_horda_mm_s": 5000,
+        "acel_mm_s2": 2500,
+        "carretera_kmh": 50,
+        "via_kmh": 35
+      },
+      "taller": {
+        "materiales_u": 80,
+        "combustible_u": 20,
+        "dias": 3,
+        "reparar_u_por_1000_vida": 6
+      }
+    }
+  },
+  "eta_zona_s_reales": {
+    "parque -> tren (andén)": {
+      "m": 20,
+      "dragon": 6,
+      "vamtac": 6,
+      "pizarro": 7
+    },
+    "parque -> estación (edificio)": {
+      "m": 40,
+      "dragon": 8,
+      "vamtac": 8,
+      "pizarro": 9
+    },
+    "parque -> helipuerto (puerta sur y carretera)": {
+      "m": 95,
+      "dragon": 13,
+      "vamtac": 11,
+      "pizarro": 13
+    },
+    "parque -> paso a nivel (puerta sur, carretera vieja y calle de la Estación)": {
+      "m": 110,
+      "dragon": 14,
+      "vamtac": 12,
+      "pizarro": 14
+    },
+    "estación -> tren (andén)": {
+      "m": 15,
+      "dragon": 6,
+      "vamtac": 5,
+      "pizarro": 6
+    },
+    "estación -> helipuerto": {
+      "m": 120,
+      "dragon": 15,
+      "vamtac": 12,
+      "pizarro": 15
+    },
+    "tren -> helipuerto": {
+      "m": 115,
+      "dragon": 15,
+      "vamtac": 12,
+      "pizarro": 14
+    },
+    "estación -> paso a nivel": {
+      "m": 130,
+      "dragon": 16,
+      "vamtac": 13,
+      "pizarro": 15
+    }
+  },
+  "eta_red": {
+    "Sagunto -> Castellón": {
+      "km_via": 40,
+      "km_carretera": 44,
+      "dragon_carretera": {
+        "juego_min": 33,
+        "real_s": 71,
+        "combustible_u": 1.4
+      },
+      "dragon_via": {
+        "juego_min": 80,
+        "real_s": 171,
+        "combustible_u": 3.4
+      },
+      "vamtac_carretera": {
+        "juego_min": 29,
+        "real_s": 63,
+        "combustible_u": 0.6
+      },
+      "vamtac_via": {
+        "juego_min": 96,
+        "real_s": 206,
+        "combustible_u": 1.9
+      },
+      "pizarro_carretera": {
+        "juego_min": 53,
+        "real_s": 113,
+        "combustible_u": 2.8
+      },
+      "pizarro_via": {
+        "juego_min": 69,
+        "real_s": 147,
+        "combustible_u": 3.7
+      }
+    },
+    "Sagunto -> Valencia": {
+      "km_via": 30,
+      "km_carretera": 33,
+      "dragon_carretera": {
+        "juego_min": 25,
+        "real_s": 53,
+        "combustible_u": 1.1
+      },
+      "dragon_via": {
+        "juego_min": 60,
+        "real_s": 129,
+        "combustible_u": 2.6
+      },
+      "vamtac_carretera": {
+        "juego_min": 22,
+        "real_s": 47,
+        "combustible_u": 0.4
+      },
+      "vamtac_via": {
+        "juego_min": 72,
+        "real_s": 154,
+        "combustible_u": 1.4
+      },
+      "pizarro_carretera": {
+        "juego_min": 40,
+        "real_s": 85,
+        "combustible_u": 2.1
+      },
+      "pizarro_via": {
+        "juego_min": 51,
+        "real_s": 110,
+        "combustible_u": 2.8
+      }
+    },
+    "Sagunto -> Segorbe": {
+      "km_via": 35,
+      "km_carretera": 38,
+      "dragon_carretera": {
+        "juego_min": 29,
+        "real_s": 62,
+        "combustible_u": 1.2
+      },
+      "dragon_via": {
+        "juego_min": 70,
+        "real_s": 150,
+        "combustible_u": 3.0
+      },
+      "vamtac_carretera": {
+        "juego_min": 26,
+        "real_s": 55,
+        "combustible_u": 0.5
+      },
+      "vamtac_via": {
+        "juego_min": 84,
+        "real_s": 180,
+        "combustible_u": 1.6
+      },
+      "pizarro_carretera": {
+        "juego_min": 46,
+        "real_s": 99,
+        "combustible_u": 2.5
+      },
+      "pizarro_via": {
+        "juego_min": 60,
+        "real_s": 129,
+        "combustible_u": 3.2
+      }
+    },
+    "Sagunto -> Teruel": {
+      "km_via": 130,
+      "km_carretera": 143,
+      "dragon_carretera": {
+        "juego_min": 107,
+        "real_s": 230,
+        "combustible_u": 4.6
+      },
+      "dragon_via": {
+        "juego_min": 260,
+        "real_s": 557,
+        "combustible_u": 11.1
+      },
+      "vamtac_carretera": {
+        "juego_min": 95,
+        "real_s": 204,
+        "combustible_u": 1.8
+      },
+      "vamtac_via": {
+        "juego_min": 312,
+        "real_s": 669,
+        "combustible_u": 6.0
+      },
+      "pizarro_carretera": {
+        "juego_min": 172,
+        "real_s": 368,
+        "combustible_u": 9.2
+      },
+      "pizarro_via": {
+        "juego_min": 223,
+        "real_s": 478,
+        "combustible_u": 11.9
+      }
+    }
+  },
+  "lectura": [
+    "En la zona, de pedir a llegar pasan de 5 a 15 s reales: cualquier vehículo llega al tren o a la estación antes de que acabe de entrar una oleada.",
+    "En el mapa, la carretera es 2-3 veces más rápida que la vía; la vía queda para cuando la carretera está cortada.",
+    "El Pizarro no llega a Teruel con un depósito ni por carretera: de lejos se lleva en el tren (plataforma, regla pendiente de Lucía)."
+  ]
+}

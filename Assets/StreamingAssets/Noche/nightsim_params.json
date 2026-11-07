@@ -16,6 +16,21 @@
     "ContactCasualtyPmPerS": 14,
     "PileRadiusMm": 1500
   },
+  "NightVehicles": {
+    "_nota": "D-N128 (Hugo, 7-nov 09:35): munición de a bordo para unas 3 oleadas en fuego libre. 1 u = 200 salvas del Dragón, 250 disparos del VAMTAC y ~307 del NH90 (las equivalencias de la reserva anterior: 120 salvas = 0,6 u, 300 = 1,2 u, 400 = 1,3 u). ResupplyMilliU = coste de una recarga COMPLETA, con la misma semántica que los 0,6/1,2/1,3 u anteriores. La reserva sale del almacén: Sagunto 52 -> 47 u en noche_sagunto.json. El resto de campos, como los dejó Nacho",
+    "Dragon": {
+      "MaxShots": 400,
+      "ResupplyMilliU": 2000
+    },
+    "Vamtac": {
+      "MaxShots": 750,
+      "ResupplyMilliU": 3000
+    },
+    "Nh90": {
+      "MaxShots": 920,
+      "ResupplyMilliU": 3000
+    }
+  },
   "cambios": {
     "WallHp": "v2 (02:20): 300600 -> 960000 = 8000 por u del muro de partida. Sara midió con 300600 que el muro cae en la O6 (consumo total estimado ~510.000 zombi·s, porque la zona apila ~10 veces más que mi cola en la O4: 947 frente a ~80). Con 960000 deberían quedar ~45-50 % al amanecer",
     "WallDmgPerZombieS": "6 -> 1. Con WallHp nuevo equivale a multiplicar el aguante por 15",

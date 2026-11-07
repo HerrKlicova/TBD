@@ -56,6 +56,7 @@ namespace TBD.Units
         public int SoldierDeaths, SoldiersAlive;
         public int Resupplies;
         public int WallHp, StationHp;
+        public int VehicleKills;
     }
 
     public sealed class WaveStats
@@ -64,7 +65,40 @@ namespace TBD.Units
         public int HourAtStart, MinuteAtStart;
         public int Spawned, Kills, SoldierDeaths, Resupplies;
         public int PeakPile, AmmoSpentShots;
+        public int VehicleKills, VehicleResupplies;
         public int AliveAtEnd, AmmoLeftAtEnd, StockLeftAtEnd;
+    }
+
+    public enum NightVehKind : byte { Dragon = 0, Vamtac = 1, Nh90 = 2 }
+
+    /// <summary>Vehículo que dispara en NightSim (7-nov, Mak: fuego libre desde el principio). Copia la regla de la zona (PrototypeBootstrap.Vehicles.cs, VehicleFire):
+    /// blanco = el zombi vivo más cercano dentro del alcance; un disparo cada «PeriodTicks»; abate hasta «KillsPerShot» zombis a menos de «SplashMm» del blanco;
+    /// reserva propia en disparos (salvas) y recarga del almacén (coste en milésimas de u proporcional a lo gastado, «ResupplyTicks» sin moverse). Fijo en su sitio.
+    /// Reservas y coste de recarga completa: D-N128 (Hugo, 7-nov): Dragón 400 salvas / 2 u, VAMTAC 750 / 3 u, NH90 920 / 3 u (antes 120/0,6, 300/1,2, 400/1,3).
+    /// Entero y determinista. Va en NightSim.Hash solo si hay vehículos (sin vehículos el hash no cambia).</summary>
+    public sealed class NightVehicle
+    {
+        public string Name; public NightVehKind Kind; public int X, Y;
+        public int RangeMm, PeriodTicks, KillsPerShot, SplashMm, MaxShots, ResupplyMilliU, ResupplyTicks;
+        public bool Fire = true;            // fuego libre (A) / alto el fuego (G)
+        public bool Airborne;               // el helicóptero solo dispara en vuelo (en la zona: State == 2)
+        public int Shots, NextFireTick, ResupplyUntil = -1;
+        public int Kills, ShotsFired, Resupplies, ResupplyShotsSpent;
+
+        public static NightVehicle Make(string name, NightVehKind k, int x, int y)
+        {
+            var v = new NightVehicle { Name = name, Kind = k, X = x, Y = y };
+            switch (k)
+            {
+                case NightVehKind.Dragon: v.RangeMm = 55000; v.PeriodTicks = 30; v.KillsPerShot = 3; v.SplashMm = 3000; v.MaxShots = 400; v.ResupplyMilliU = 2000; v.ResupplyTicks = 600; break;
+                case NightVehKind.Vamtac: v.RangeMm = 40000; v.PeriodTicks = 9; v.KillsPerShot = 1; v.SplashMm = 1095; v.MaxShots = 750; v.ResupplyMilliU = 3000; v.ResupplyTicks = 600; break;
+                default: v.RangeMm = 70000; v.PeriodTicks = 9; v.KillsPerShot = 1; v.SplashMm = 1095; v.MaxShots = 920; v.ResupplyMilliU = 3000; v.ResupplyTicks = 900; break;
+            }
+            v.Shots = v.MaxShots; return v;
+        }
+        /// <summary>Coste de llenar la reserva, en disparos del almacén (1 u = WeaponCatalog.ShotsPerU): ResupplyMilliU × lo que falta / MaxShots.</summary>
+        public int RefillCostShots() { return MaxShots <= 0 ? 0 : (int)((long)ResupplyMilliU * WeaponCatalog.ShotsPerU / 1000 * (MaxShots - Shots) / MaxShots); }
+        public ulong Hash() { return IMath.Mix((ulong)(uint)Shots + ((ulong)(uint)NextFireTick << 32) + (ulong)Kind) + IMath.Mix((ulong)(uint)ResupplyUntil + ((ulong)(uint)Kills << 32) + (Fire ? 7UL : 11UL) + (Airborne ? 13UL : 0UL)); }
     }
 
     public sealed class NightSim
@@ -97,6 +131,27 @@ namespace TBD.Units
             for (int w = 0; w < np.Waves.Length; w++) Waves.Add(new WaveStats { Wave = w + 1, StartTick = Night.WaveStartTick(w), HourAtStart = (np.StartHour + np.Waves[w].StartMinute / 60) % 24, MinuteAtStart = np.Waves[w].StartMinute % 60 });
         }
 
+        /// <summary>Modo «fuera de pantalla» (Eugenio, 7-nov: el mundo es persistente y la noche no se para si el jugador sale al mapa o va a otra estación).
+        /// Se engancha a la noche y a los pelotones QUE YA EXISTEN (los de la zona): mismo NightGame (reloj, oleadas, edificio, tren) y mismo UnitsWorld (pelotones, munición,
+        /// almacén). No toca Night.P (el edificio sigue siendo el real). La vida del muro se pasa en «wallHp» (la de la zona). Los zombis vivos se pasan con ImportZombie.
+        /// Al volver a la zona, ExportZombies da los vivos para crearlos en ECS y WallHp la vida del muro. Ver Docs/noche-fuera-de-pantalla.md.</summary>
+        public NightSim(NightGame night, UnitsWorld units, NightSimParams sp, int wallHp, uint seed = 1)
+        {
+            SP = sp; Night = night; Units = units; _rng = new IRng(seed ^ 0xC0FFEE); WallHp = Math.Max(0, Math.Min(wallHp, sp.WallHp)); Attached = true; AutoPlatoonResupply = true; AutoVehicleResupply = true;      // Mak (7-nov): fuera de pantalla los vehículos también recargan solos al 30 %
+            var np = night.P;
+            for (int w = 0; w < np.Waves.Length; w++) Waves.Add(new WaveStats { Wave = w + 1, StartTick = night.WaveStartTick(w), HourAtStart = (np.StartHour + np.Waves[w].StartMinute / 60) % 24, MinuteAtStart = np.Waves[w].StartMinute % 60 });
+        }
+        /// <summary>true si se creó enganchado a una noche existente (modo fuera de pantalla).</summary>
+        public readonly bool Attached;
+        /// <summary>Recarga automática de los pelotones al 30 % (la regla de la zona, PrototypeBootstrap.Night.cs). Activa por defecto en el modo fuera de pantalla; con Bot no hace falta.</summary>
+        public bool AutoPlatoonResupply;
+
+        /// <summary>Añade un zombi vivo en (x, y) mm (al salir de la zona, uno por cada zombi de ECS). Devuelve su índice.</summary>
+        public int ImportZombie(int x, int y) { _z.Add(new Zomb { X = x, Y = y }); return _z.Count - 1; }
+        /// <summary>Los zombis vivos, en orden (al volver a la zona). La lista se vacía y se rellena.</summary>
+        public void ExportZombies(List<Target> into) { into.Clear(); for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) into.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); }
+        public int ZombiesAlive { get { return AliveZombies(); } }
+
         /// <summary>Crea la noche a partir del texto de noche_sagunto.json de Hugo (D-N74). «difficulty»: facil, normal o dificil (null = la del JSON).</summary>
         static StarTier Tier(Dictionary<string, object> d)
         {
@@ -125,7 +180,9 @@ namespace TBD.Units
             if (est != null) np.Stars = new StarRules { Two = Tier(est["dos"] as Dictionary<string, object>), Three = Tier(est["tres"] as Dictionary<string, object>) };
             var rec = (Dictionary<string, object>)root["recursos_iniciales"];
             var spj = TBD.Net.BalanceSource.Read("nightsim_params.json");          // el balance de Hugo manda sobre el código; sin archivo, valen los de Default()
-            return new NightSim(np, NightSimParams.FromJson(spj), (int)(long)rec["municion_u"], (int)(long)rec["materiales_u"], (int)(long)rec["combustible_u"], seed);
+            var sim = new NightSim(np, NightSimParams.FromJson(spj), (int)(long)rec["municion_u"], (int)(long)rec["materiales_u"], (int)(long)rec["combustible_u"], seed);
+            sim.VehicleParamsJson = spj;
+            return sim;
         }
 
         /// <summary>Los cinco pelotones de la noche, dentro del recinto junto al muro oeste.</summary>
@@ -205,11 +262,14 @@ namespace TBD.Units
             _targets.Clear(); _ids.Clear();
             for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) { _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); }
             if (Bot != null) Bot.Step(Units, _targets, Night.Tick);          // el bot da sus órdenes antes del fuego, con la misma API que el jugador
+            else if (AutoPlatoonResupply && Night.Tick % 15 == 0) ResupplyBot();   // fuera de pantalla: la misma recarga automática al 30 % que hace la zona cada 15 ticks
             int before = TotalAmmo();
             Units.Step(_targets, _res);
             foreach (var h in _res.Hits)
                 if (h.TargetId >= 0 && h.TargetId < _z.Count && _z[h.TargetId].Alive) { _z[h.TargetId].Alive = false; Kills++; Units.NoteKill(h.Platoon); if (cur != null) cur.Kills++; }
             if (cur != null) cur.AmmoSpentShots += _res.AmmoSpent;
+            // 4b) los vehículos (fuera de UnitsWorld; misma regla que la zona)
+            if (Vehicles.Count > 0) VehiclesStep(cur);
             // 5) contacto con los soldados
             _targets.Clear(); for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y });
             int fell = Units.ZombieContact(_targets, Night.P.ContactRadiusMm, Night.P.ContactDmgPerTick, _contact);
@@ -221,6 +281,78 @@ namespace TBD.Units
             {
                 bool over = (i + 1 < Waves.Count && Night.Tick >= Waves[i + 1].StartTick) || Night.State != NightState.Jugando;
                 if (over && Waves[i].EndTick < 0 && Night.Tick >= Waves[i].StartTick) { Waves[i].EndTick = Night.Tick; Waves[i].AliveAtEnd = AliveZombies(); Waves[i].AmmoLeftAtEnd = PlatoonAmmo(); Waves[i].StockLeftAtEnd = Units.StockShots; }
+            }
+        }
+
+        // ------------------------------------------------------------------------------------------------ vehículos
+        public readonly List<NightVehicle> Vehicles = new List<NightVehicle>();
+        public int VehicleKills, VehicleResupplies;
+        /// <summary>Recarga automática de los vehículos al bajar de este % de su reserva (−1 = nunca; el jugador la pide con T). Por defecto la hace el bot si lo hay.</summary>
+        public int VehicleResupplyBelowPct = 30;
+        public bool AutoVehicleResupply;
+
+        /// <summary>Los vehículos de la noche donde los pone la zona (InitVehicles): Dragón (99; 53), VAMTAC 1 (88; 53), VAMTAC 2 (80; 53), NH90 en el helipuerto (180; 44), en tierra.
+        /// «fire»: fuego libre desde el principio (decisión de Mak, 7-nov).</summary>
+        public void AddDefaultVehicles(bool fire = true)
+        {
+            Vehicles.Add(NightVehicle.Make("Dragón", NightVehKind.Dragon, 99000, 53000));
+            Vehicles.Add(NightVehicle.Make("VAMTAC 1", NightVehKind.Vamtac, 88000, 53000));
+            Vehicles.Add(NightVehicle.Make("VAMTAC 2", NightVehKind.Vamtac, 80000, 53000));
+            Vehicles.Add(NightVehicle.Make("NH90", NightVehKind.Nh90, 180000, 44000));
+            foreach (var v in Vehicles) v.Fire = fire;
+            ApplyVehicleParams();
+        }
+
+        /// <summary>Cifras de Hugo: nightsim_params.json → «NightVehicles»: { "Dragon": { "MaxShots": 240, ... }, "Vamtac": {...}, "Nh90": {..., "Airborne": true} }. Lo que no esté se queda.</summary>
+        public string VehicleParamsJson;
+        void ApplyVehicleParams()
+        {
+            if (VehicleParamsJson == null) return;
+            var root = Mini.Parse(VehicleParamsJson) as Dictionary<string, object>; if (root == null || !root.ContainsKey("NightVehicles")) return;
+            var all = root["NightVehicles"] as Dictionary<string, object>; if (all == null) return;
+            foreach (var v in Vehicles)
+            {
+                object o; if (!all.TryGetValue(v.Kind.ToString(), out o)) continue; var d = o as Dictionary<string, object>; if (d == null) continue;
+                Func<string, int, int> g = (k, def) => d.ContainsKey(k) && d[k] is long ? (int)(long)d[k] : def;
+                v.RangeMm = g("RangeMm", v.RangeMm); v.PeriodTicks = Math.Max(1, g("PeriodTicks", v.PeriodTicks)); v.KillsPerShot = g("KillsPerShot", v.KillsPerShot); v.SplashMm = g("SplashMm", v.SplashMm);
+                v.MaxShots = g("MaxShots", v.MaxShots); v.ResupplyMilliU = g("ResupplyMilliU", v.ResupplyMilliU); v.ResupplyTicks = g("ResupplyTicks", v.ResupplyTicks);
+                if (d.ContainsKey("Airborne") && d["Airborne"] is bool) v.Airborne = (bool)d["Airborne"];
+                if (d.ContainsKey("Fire") && d["Fire"] is bool) v.Fire = (bool)d["Fire"];
+                v.Shots = v.MaxShots;
+            }
+        }
+
+        /// <summary>Orden T del jugador: recarga del almacén si la reserva no está llena (&gt; 95 % no recarga, como la zona) y hay munición. Devuelve el coste en disparos (0 = no).</summary>
+        public int ResupplyVehicle(int index)
+        {
+            if (index < 0 || index >= Vehicles.Count) return 0; var v = Vehicles[index];
+            if (v.ResupplyUntil >= 0 || v.Shots * 100 > v.MaxShots * 95) return 0;
+            int cost = v.RefillCostShots(); if (cost <= 0 || Units.StockShots < cost) return 0;
+            Units.StockShots -= cost; v.ResupplyUntil = Night.Tick + v.ResupplyTicks; v.Resupplies++; v.ResupplyShotsSpent += cost; VehicleResupplies++;
+            var w = Current(); if (w != null) w.VehicleResupplies++;
+            return cost;
+        }
+
+        void VehiclesStep(WaveStats cur)
+        {
+            int tick = Night.Tick;
+            for (int vi = 0; vi < Vehicles.Count; vi++)
+            {
+                var v = Vehicles[vi];
+                if (v.ResupplyUntil >= 0 && tick >= v.ResupplyUntil) { v.Shots = v.MaxShots; v.ResupplyUntil = -1; }      // como la zona: al acabar, reserva llena
+                if ((AutoVehicleResupply || Bot != null) && VehicleResupplyBelowPct >= 0 && v.ResupplyUntil < 0 && v.Shots * 100 < v.MaxShots * VehicleResupplyBelowPct && (tick % 60) == 0) ResupplyVehicle(vi);
+                if (!v.Fire || v.Shots <= 0 || tick < v.NextFireTick) continue;
+                if (v.Kind == NightVehKind.Nh90 && !v.Airborne) continue;
+                long best = (long)v.RangeMm * v.RangeMm; int bi = -1;
+                for (int i = 0; i < _z.Count; i++) { var z = _z[i]; if (!z.Alive) continue; long dx = z.X - v.X, dy = z.Y - v.Y, d2 = dx * dx + dy * dy; if (d2 < best) { best = d2; bi = i; } }
+                if (bi < 0) continue;
+                v.NextFireTick = tick + v.PeriodTicks; v.Shots--; v.ShotsFired++;
+                int tx = _z[bi].X, ty = _z[bi].Y, left = v.KillsPerShot; long r2 = (long)v.SplashMm * v.SplashMm;
+                for (int i = 0; i < _z.Count && left > 0; i++)
+                {
+                    var z = _z[i]; if (!z.Alive) continue; long dx = z.X - tx, dy = z.Y - ty;
+                    if (dx * dx + dy * dy < r2) { z.Alive = false; left--; Kills++; VehicleKills++; v.Kills++; if (cur != null) { cur.Kills++; cur.VehicleKills++; } }
+                }
             }
         }
 
@@ -244,7 +376,7 @@ namespace TBD.Units
             int alive = 0; foreach (var p in Units.Platoons) alive += p.AliveCount();
             return new NightSnapshot { Tick = Night.Tick, Hour = Night.Hour, Minute = Night.Minute, State = Night.State, ZombiesSpawned = Spawned, ZombiesAlive = AliveZombies(), Kills = Kills,
                 PlatoonAmmoShots = PlatoonAmmo(), StockShots = Units.StockShots, PileAtWall = LastPile, PeakPile = PeakPile, SoldierDeaths = SoldierDeaths, SoldiersAlive = alive,
-                Resupplies = Resupplies, WallHp = WallHp, StationHp = StationHp };
+                Resupplies = Resupplies, WallHp = WallHp, StationHp = StationHp, VehicleKills = VehicleKills };
         }
 
         /// <summary>Estrellas de la partida (D-N74 pendiente de Lucía): 0 si se pierde; 1 por ganar; +1 si el muro sigue en pie; +1 si no cae ningún soldado.</summary>
@@ -265,6 +397,7 @@ namespace TBD.Units
             ulong h = Units.Hash() ^ Night.Hash();
             h += IMath.Mix((ulong)(uint)WallHp + ((ulong)(uint)Night.StationHp << 32) + 3) + IMath.Mix((ulong)(uint)Kills + ((ulong)(uint)SoldierDeaths << 32) + 5) + IMath.Mix(_rng.S ^ 0x77);
             for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) h += IMath.Mix((ulong)(uint)_z[i].X + ((ulong)(uint)_z[i].Y << 32) + (ulong)i);
+            for (int i = 0; i < Vehicles.Count; i++) h += Vehicles[i].Hash() * (ulong)(2 * i + 3);     // sin vehículos, el hash es el de siempre
             return h;
         }
     }
