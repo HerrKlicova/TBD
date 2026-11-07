@@ -699,24 +699,26 @@
    "variante": 1
   },
   {
-   "pieza": "puesto_frente/v2",
+   "pieza": "puesto_frente/SM_PuestoFrente",
    "pos": [
     238,
     0,
     26
    ],
    "yaw": 0,
-   "variante": 3
+   "variante": 2,
+   "nota": "modelo de Teo con 5 variantes (v0-v4), aprobado el 7-nov 04:05; v2 HESCO por defecto"
   },
   {
-   "pieza": "puerta_vehiculos",
+   "pieza": "puerta_vehiculos/SM_PuertaVehiculos",
    "pos": [
     64,
     0,
     29
    ],
    "yaw": 90,
-   "variante": 1
+   "variante": 1,
+   "nota": "modelo de Teo con 5 variantes (D-N111), aprobado el 7-nov 03:32"
   },
   {
    "pieza": "kit_paso",

@@ -168,6 +168,7 @@ namespace TBD.Sim.Tests
             EstacionesTests.Run(Check);
             ProduccionTests.Run(Check);
             EstacionDatoTests.Run(Check);
+            BucleTests.Run(Check);
             HorarioTests.Run(Check);
             TallerTests.Run(Check);
             DisparoIndiceTests.Run(Check);

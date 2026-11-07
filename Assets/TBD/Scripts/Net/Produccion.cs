@@ -194,3 +194,35 @@ namespace TBD.Net
         }
     }
 }
+
+namespace TBD.Net
+{
+    /// <summary>
+    /// Bucle mínimo Sagunto–Castellón (Hugo, castellon-bucle.md §4; Álvaro, castellon-nivel.md §4): Sagunto pone materiales y gente, Castellón
+    /// combustible, y un tren hace dos viajes redondos al día. Es un horario para la orden SetSchedule (lo puede poner el jugador o el escenario);
+    /// no cambia nada por sí solo. Las salidas dejan 4 h en cada andén para cargar y descargar (horas_carga de Hugo) y el viaje de 40 km dura
+    /// unos 40 min a 60 km/h, así que el redondo cabe en 8 h: Sagunto 06:00 → Castellón 10:00 → Sagunto 14:00 → Castellón 18:00 → Sagunto (noche).
+    /// </summary>
+    public static class BucleCastellon
+    {
+        public static readonly double[] Horas = { 6, 10, 14, 18 };
+
+        /// <summary>Payload de SetSchedule: en Sagunto carga «mat» de materiales y «per» personas y descarga el combustible; en Castellón al revés.</summary>
+        public static int[] Horario(NetWorld w, int mat = 60, int per = 0, int comb = 100)
+        {
+            int sag = -1, cas = -1;
+            foreach (var n in w.Graph.Nodes) { if (n.Name == "Sagunto") sag = n.Id; if (n.Name == "Castellón") cas = n.Id; }
+            if (sag < 0 || cas < 0) return null;
+            var d = new List<int>();
+            for (int k = 0; k < Horas.Length; k++)
+            {
+                bool atSag = k % 2 == 0;
+                d.Add(atSag ? sag : cas); d.Add((int)NetConst.Hours(Horas[k]));
+                // munición, combustible, materiales, personas (+ al tren, − a la estación)
+                if (atSag) { d.Add(0); d.Add(-comb); d.Add(mat); d.Add(per); }
+                else { d.Add(0); d.Add(comb); d.Add(-mat); d.Add(-per); }
+            }
+            return d.ToArray();
+        }
+    }
+}
