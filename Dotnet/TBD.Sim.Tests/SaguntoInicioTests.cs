@@ -20,7 +20,7 @@ namespace TBD.Sim.Tests
             var l = w.Works.At(sag);
 
             long e4 = 0, hescoMm = 0, sacosMm = 0;
-            int gates = 0, doors = 0, nests = 0, spots = 0, deposits = 0, unfinished = 0;
+            int gates = 0, vehGates = 0, doors = 0, nests = 0, spots = 0, deposits = 0, unfinished = 0;
             foreach (var p in l)
             {
                 e4 += p.CostE4;
@@ -31,6 +31,7 @@ namespace TBD.Sim.Tests
                     case PieceKind.Hesco: hescoMm += len; break;
                     case PieceKind.Sacos: sacosMm += len; break;
                     case PieceKind.PuertaVia: gates++; break;
+                    case PieceKind.PuertaVeh: vehGates++; break;
                     case PieceKind.Puerta: doors++; break;
                     case PieceKind.Nido: nests++; break;
                     case PieceKind.Foco: spots++; break;
@@ -41,13 +42,13 @@ namespace TBD.Sim.Tests
             Console.WriteLine($"         {l.Count} piezas, {u:0.00} u, HESCO {hescoMm / 1000.0:0.0} m, sacos {sacosMm / 1000.0:0.0} m, nivel {w.Works.LevelMil(sag)} ‰");
 
             check(bare.Works.Count(sag) == 0, "Mvp(false) sigue sin obras: las pruebas de obras parten de cero");
-            check(u >= 119.9 && u <= 122.0, $"el muro de partida cuesta 120 u (Hugo: vale hasta 124): {u:0.00} u");
+            check(u >= 119.9 && u <= 124.0, $"el muro de partida cuesta ~122,6 u con la puerta de vehículos de 10 u (Hugo: vale hasta 124): {u:0.00} u");
             check(w.Works.LevelMil(sag) >= 3_990 && w.Works.LevelMil(sag) <= 4_100, $"nivel de fortificación 4,0: {w.Works.LevelMil(sag)} ‰");
             check(unfinished == 0, "todo está terminado (Built y trabajo hecho): no hay obra en curso ni sube el ruido de obra el día 1");
-            check(gates == 2 && doors == 1 && nests == 2 && spots == 3 && deposits == 0, $"puertas de vía 2 (oeste y este), peatonal 1, nidos 2, focos 3, sin depósito ({gates}, {doors}, {nests}, {spots}, {deposits})");
+            check(gates == 2 && vehGates == 1 && doors == 0 && nests == 2 && spots == 3 && deposits == 0, $"puertas de vía 2 (oeste y este), de vehículos 1 (sustituye a la peatonal), nidos 2, focos 3, sin depósito ({gates}, {vehGates}, {doors}, {nests}, {spots}, {deposits})");
             check(hescoMm >= 60_000 && hescoMm <= 72_000, $"HESCO en el frente oeste y las alas: {hescoMm / 1000.0:0.0} m = {hescoMm * P.HescoPer10m / 10_000.0:0.0} u");
-            check(sacosMm >= 175_000 && sacosMm <= 190_000, $"el resto del perímetro en sacos: {sacosMm / 1000.0:0.0} m");
-            check(Math.Abs((hescoMm + sacosMm) - (2 * (86_000 + 41_000) - 4 * P.TrackHalfMm)) <= 40, $"el perímetro está completo: {(hescoMm + sacosMm) / 1000.0:0.0} m = 2 × (86 + 41) menos los dos huecos de 3,2 m de las puertas de vía");
+            check(sacosMm >= 165_000 && sacosMm <= 190_000, $"el resto del perímetro en sacos: {sacosMm / 1000.0:0.0} m");
+            check(Math.Abs((hescoMm + sacosMm) - (2 * (86_000 + 41_000) - 4 * P.TrackHalfMm - P.VehGateWidthMm)) <= 40, $"el perímetro está completo: {(hescoMm + sacosMm) / 1000.0:0.0} m = 2 × (86 + 41) menos los dos huecos de 3,2 m de las puertas de vía y el de 8 m de la de vehículos");
 
             // el frente oeste y la puerta de vía en la vía (y = 0)
             int westHesco = 0, westSacos = 0;
@@ -69,6 +70,42 @@ namespace TBD.Sim.Tests
             // todo cuenta para el nivel y el mantenimiento: dentro de 60 m del andén
             int counted = 0; foreach (var p in l) if (Obras.CountsForLevel(P, p)) counted++;
             check(counted == l.Count, $"las {l.Count} piezas están a ≤ 60 m del andén y cuentan (andén centrado en el recinto, D-N63)");
+
+            // puerta de vehículos E4 (Álvaro §9, Hugo D-N72): 8 m en el muro sur, X 95-103 de la zona = -18000..-10000 locales; sustituye a la peatonal
+            WorkPiece vg = default(WorkPiece); foreach (var p in l) if (p.IsVehGate) vg = p;
+            check(vg.IsVehGate && vg.Built && vg.CostE4 == 100_000 && vg.X0 == -18_000 && vg.X1 == -10_000 && vg.Y0 == vg.Y1 && vg.Y0 == -20_500, $"la puerta de vehículos está construida en el muro sur, X -18..-10 m (zona 95-103), y cuesta 10 u: ({vg.X0}..{vg.X1}, {vg.Y0}) {vg.CostE4 / 10_000.0} u");
+            check(vg.IsGate && vg.GateMode == 0, "cuenta como puerta (se abre y se cierra sola) y está en automático");
+            check(Obras.HeightMm(PieceKind.PuertaVeh) == Obras.HeightMm(PieceKind.PuertaVia) && P.PointPriceU(PieceKind.PuertaVeh) == 10, "es una pieza de muro: misma altura que la puerta de vía y 10 u");
+            int vfree = 0; foreach (var p in l) if (p.IsWall && p.Y0 == -20_500 && p.Y1 == -20_500 && Math.Max(p.X0, p.X1) > -18_000 && Math.Min(p.X0, p.X1) < -10_000) vfree++;
+            check(vfree == 0, "el muro sur no se solapa con la puerta: queda un hueco de 8 m");
+            // se abre sola con un vehículo propio a ≤ 20 m (180 ticks, como las de vía) y se cierra cuando se va
+            var wg = NetScenario.Mvp(); int gi = -1; for (int i = 0; i < wg.Works.At(sag).Count; i++) if (wg.Works.At(sag)[i].IsVehGate) gi = i;
+            var veh = new List<long> { -14_000, -20_500 + 15_000 }; var vfar = new List<long> { -14_000, -20_500 + 60_000 };
+            for (int t = 0; t < 179; t++) wg.Works.StepGates(sag, null, veh);
+            bool half = !ObrasState.GatePassable(wg.Works.P, wg.Works.At(sag)[gi]);
+            wg.Works.StepGates(sag, null, veh);
+            bool open = ObrasState.GatePassable(wg.Works.P, wg.Works.At(sag)[gi]);
+            check(half && open, "un vehículo a 15 m la abre en 180 ticks (a los 179 no deja pasar)");
+            for (int t = 0; t < 180; t++) wg.Works.StepGates(sag, null, vfar);
+            check(!ObrasState.GatePassable(wg.Works.P, wg.Works.At(sag)[gi]), "con el vehículo a 60 m se cierra en 180 ticks");
+            // un tren no la abre (solo los vehículos) y el modo del jugador la fuerza
+            for (int t = 0; t < 400; t++) wg.Works.StepGates(sag, new List<int> { -14_000 }, null);
+            check(!ObrasState.GatePassable(wg.Works.P, wg.Works.At(sag)[gi]), "un tren al lado no la abre: es una puerta de vehículos");
+            check(wg.Works.SetGateMode(sag, -14_000, -20_500, 1), "el jugador puede bloquearla abierta (a ≤ 5 m de su centro)");
+            for (int t = 0; t < 200; t++) wg.Works.StepGates(sag, null, null);
+            check(ObrasState.GatePassable(wg.Works.P, wg.Works.At(sag)[gi]), "bloqueada abierta se abre sin ningún vehículo");
+            check(!wg.Works.SetGateMode(sag, -14_000, -20_500 + 9_000, 2), "pero la orden a 9 m de su centro no la toca");
+            // rota, deja pasar siempre
+            var bw = wg.Works.At(sag)[gi]; bw.Broken = true; bw.GateMode = 0; wg.Works.At(sag)[gi] = bw;
+            check(ObrasState.GatePassable(wg.Works.P, wg.Works.At(sag)[gi]), "rota (escombros), deja pasar siempre");
+            // la orden del jugador: cuesta 10 u y 8 obrero·h, y no se coloca sobre la vía
+            var wo = NetScenario.Mvp(false); wo.Stock[sag, (int)Res.Materiales] = 900;
+            wo.Push(new NetCommand { Tick = wo.Tick, Type = NetCmdType.Materialize, Arg = sag }); wo.ApplyCommands();
+            wo.Push(new NetCommand { Tick = wo.Tick, Type = NetCmdType.PlaceWork, Arg = sag | ((int)PieceKind.PuertaVeh << 16), Payload = new[] { -14_000, -20_500, 1 } }); wo.ApplyCommands();
+            WorkPiece pv = default(WorkPiece); foreach (var p in wo.Works.At(sag)) if (p.IsVehGate) pv = p;
+            check(pv.IsVehGate && !pv.Built && wo.Stock[sag, (int)Res.Materiales] == 890 && pv.NeedE4 == wo.Works.P.WorkE4(PieceKind.PuertaVeh, 0) && pv.NeedE4 > 0, $"colocar la puerta descuenta 10 u ({900 - wo.Stock[sag, (int)Res.Materiales]}) y queda por construir");
+            check(!Obras.PlanVehicleGate(wo.Works.P, 0, 0, true, 900, 100).Ok && Obras.PlanVehicleGate(wo.Works.P, 0, 0, true, 900, 100).Why == "la vía queda libre", "no se coloca sobre la vía");
+            check(Obras.PlanVehicleGate(wo.Works.P, 0, -20_500, true, 9, 100).Cut, "con 9 u no se puede (no se corta)");
 
             // coherencia con el recinto de la zona (Level.cs): si Marcos vuelve a cambiar la escala, esto avisa
             check(Math.Abs((Level.FortX1 - Level.FortX0) * 500f - 43_000f) < 1f && Math.Abs((Level.FortY1 - Level.FortY0) * 500f - 20_500f) < 1f, $"las medidas coinciden con Level.cs (fuerte {Level.FortX1 - Level.FortX0} × {Level.FortY1 - Level.FortY0} m)");
