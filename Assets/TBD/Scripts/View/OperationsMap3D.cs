@@ -83,9 +83,16 @@ namespace TBD.View
             return p;
         }
 
+        float _mapT0;
+        void Update_NightReturn()
+        {
+            var s = NightRun.Session; if (s == null || !s.Away || _entering) return;
+            var cl = System.Environment.GetCommandLineArgs(); for (int i = 0; i + 1 < cl.Length; i++) if (cl[i] == "-returnafter" && float.TryParse(cl[i + 1], out var rt) && Time.realtimeSinceStartup - _mapT0 >= rt) { Debug.Log("[NOCHE] prueba: -returnafter, vuelvo a Sagunto"); EnterZone(0); }
+        }
         void Start()
         {
-            if (NightRun.Active) { EnterZone(0); return; }                                    // «Jugar»: directo a la noche de Sagunto (D-N71)
+            _mapT0 = Time.realtimeSinceStartup;
+            if (NightRun.Active && NightRun.Session == null) { EnterZone(0); return; }                                    // «Jugar»: directo a la noche de Sagunto (D-N71)
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k-sagunto") >= 0) { EnterZone(0); return; }       // prueba de rendimiento en la zona de Sagunto (con la muestra del suelo)
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k") >= 0 && NetSession.DebugForceAmbush()) { NetSession.PendingAmbush = true; UnityEngine.SceneManagement.SceneManager.LoadScene("SampleScene"); return; }   // prueba de rendimiento (D-N61)
             Application.targetFrameRate = 60;
@@ -336,6 +343,7 @@ namespace TBD.View
 
         void Update()
         {
+            Update_NightReturn();
             if (_a == null) return;                      // entrada directa a la zona (noche o prueba): el mapa no se ha construido
             HandleInput();
             { var kbv = UnityEngine.InputSystem.Keyboard.current; if (kbv != null && kbv.vKey.wasPressedThisFrame && !TrainCloseView.Active)

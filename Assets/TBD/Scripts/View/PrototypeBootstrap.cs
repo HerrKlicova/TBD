@@ -233,6 +233,7 @@ namespace TBD.View
             if (_zoneNode < 0 || _leaving) return;
             _leaving = true;
             int alive = _zombieQuery.CalculateEntityCount();
+            if (NightRun.Active && _nightInit && _ng != null) { SaveNightSession(); alive = 0; }      // noche persistente: los zombis pasan a NightSim, no a la mancha del mapa
             var ammo = _worldA.EntityManager.GetComponentData<ZoneAmmo>(_rootA);
             int usedUnits = (int)((ammo.ShotsFired + _combat.ShotsPerUnit - 1) / _combat.ShotsPerUnit);   // redondeo hacia arriba: una caja empezada se gasta
             if (_ambush)
@@ -243,7 +244,7 @@ namespace TBD.View
                 StartCoroutine(LeaveRoutine());
                 return;
             }
-            if (usedUnits > 0) NetSession.Push(TBD.Net.NetCmdType.ConsumeAmmo, _zoneNode, 0, usedUnits);
+            if (usedUnits > 0 && !NightRun.Active) NetSession.Push(TBD.Net.NetCmdType.ConsumeAmmo, _zoneNode, 0, usedUnits);
             // Diseño del hito 3 (Lucía): si se fuerza la salida, la tropa a pie se queda atrás. Hoy se pierde; cuando la tropa exista en
             // la red (S0) quedará como guarnición del nodo.
             int leftBehind = 0;

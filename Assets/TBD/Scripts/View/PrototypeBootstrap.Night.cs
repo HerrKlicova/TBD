@@ -20,6 +20,7 @@ namespace TBD.View
     public static class NightRun
     {
         public static bool Active;
+        public static NightSession Session;       // la noche persistente: sobrevive a la escena de la zona (D-N91)
         public static int Difficulty = 850;      // palanca única (D-N74): 725 fácil, 850 normal, 1000 difícil
     }
 
@@ -73,6 +74,12 @@ namespace TBD.View
             _pname[_uw.AddPlatoon(PlatoonKind.Granaderos, 98000, 57000, west, Formation.Cuna).Id] = "Granaderos";
             _pname[_uw.AddPlatoon(PlatoonKind.Tiradores, 98000, 72000, west, Formation.Cuna).Id] = "Tiradores";
             _pname[_uw.AddPlatoon(PlatoonKind.Zapadores, 88000, 76000, west, Formation.Cuna).Id] = "Zapadores";
+            bool resume = NightRun.Session != null && NightRun.Session.Away && NightRun.Session.Ng != null;
+            if (resume)                                                              // la noche ya existia: se reanuda con su NightGame y su UnitsWorld
+            {
+                var S = NightRun.Session; _ng = S.Ng; _uw = S.Uw; _pname.Clear(); foreach (var kv in S.PName) _pname[kv.Key] = kv.Value;
+                _wallMax = S.WallMax; _wallHp = S.WallHp; _lastWave = S.LastWave; _nightWaveTotal = S.WaveTotal; _fullTrace.Clear(); if (S.FullTrace != null) _fullTrace.Append(S.FullTrace.ToString());
+            }
             foreach (var wld in new[] { _worldA, _worldB })                          // sin los zombis iniciales de la zona: solo las oleadas
             {
                 if (wld == null || !wld.IsCreated) continue;
@@ -82,13 +89,16 @@ namespace TBD.View
             ApplyGrade(2);
             _paletteMix = 0f;                                          // D-N129 (Lucia y Bruno): el mundo no pasa por el cuantizador; la paleta queda solo en los albedos y la interfaz
             { var ca2 = System.Environment.GetCommandLineArgs(); for (int i2 = 0; i2 + 1 < ca2.Length; i2++) if (ca2[i2] == "-luz") NightLightPass(ca2[i2 + 1]); }
-            _bannerText = "22:00. El tren se detiene en Sagunto.\nAguanta hasta el amanecer."; _bannerUntil = Time.unscaledTime + 5f;
+            if (!resume) { _bannerText = "22:00. El tren se detiene en Sagunto.\nAguanta hasta el amanecer."; _bannerUntil = Time.unscaledTime + 5f; }
             NearWall(Vector2.zero); Debug.Log($"[NOCHE] muros_obras={_wallSegs.Count}");
             Debug.Log($"[NOCHE] reloj_x={_ng.P.ClockX} municion_u={_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.#} materiales_u=40 combustible_u=30 almacen_combustible_u=16");
             if (_sel.Count == 0) _sel.Add(_uw.Platoons[0].Id);
             InitVehicles();
-            _rec = new NightTraceRecorder("zona", 1285, 9000, 30);
+            _rec = resume && NightRun.Session.Rec != null ? NightRun.Session.Rec : new NightTraceRecorder("zona", 1285, 9000, 30);
+            if (resume && NightRun.Session.Bot != null) _bot = NightRun.Session.Bot;
+            if (!resume && NightRun.Session == null) NightRun.Session = new NightSession { Ng = _ng, Uw = _uw };
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-nightbot") >= 0) { try { _bot = NightBot.FromParams(NightSimParams.FromJson(BalanceSource.Read("nightsim_params.json"))); Debug.Log("[NOCHE] prueba: -nightbot (NightBot de Nacho)"); } catch (System.Exception e) { Debug.LogWarning("[TBD] NightBot: " + e.Message); } }
+            if (resume) ResumeNightSession();
         }
 
         // ---- QA (Bruno): doble codificacion sRGB en partida. -colorcasos recorre 5 casos, uno cada 6 s reales, con una captura en cada uno (F6 pasa al siguiente a mano)
@@ -248,7 +258,7 @@ namespace TBD.View
             }
             return false;
         }
-        readonly System.Text.StringBuilder _fullTrace = new System.Text.StringBuilder(); float _gateT = -10f; readonly HashSet<int> _gateWalled = new HashSet<int>(); readonly HashSet<float> _shotAtDone = new HashSet<float>(); int _diagN; float _diagT; float _endStationF = 1f, _endTrainF = 1f; int _pileNearStation, _nearTrain, _pileWall; float _wallHp, _wallMax; readonly List<Target> _allT = new List<Target>(); readonly ContactResult _contact = new ContactResult(); readonly float _contactR2 = 1200f * 1200f; readonly int _contactPpm = 1000000 * 14 / 1000 / 30;   // NightSimParams de Nacho: 1,2 m y 14 ‰ por zombi y segundo (por tick)
+        readonly System.Text.StringBuilder _fullTrace = new System.Text.StringBuilder(); float _gateT = -10f; readonly HashSet<int> _gateWalled = new HashSet<int>(); bool _capDirDone; readonly HashSet<float> _shotAtDone = new HashSet<float>(); int _diagN; float _diagT; float _endStationF = 1f, _endTrainF = 1f; int _pileNearStation, _nearTrain, _pileWall; float _wallHp, _wallMax; readonly List<Target> _allT = new List<Target>(); readonly ContactResult _contact = new ContactResult(); readonly float _contactR2 = 1200f * 1200f; readonly int _contactPpm = 1000000 * 14 / 1000 / 30;   // NightSimParams de Nacho: 1,2 m y 14 ‰ por zombi y segundo (por tick)
 
         int CurrentWave()
         {
@@ -292,6 +302,7 @@ namespace TBD.View
 
         void NightEnded()
         {
+            ClearNightSession();                                                      // la noche termino: se borra la sesion (el parte usa _ng y _uw locales)
             try { string d0 = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(d0); System.IO.File.WriteAllText(System.IO.Path.Combine(d0, "traza-noche.csv"), _fullTrace.ToString()); if (_rec != null && !_rec.Done) System.IO.File.WriteAllText(System.IO.Path.Combine(d0, "traza-zona.csv"), _rec.Trace.ToCsv()); } catch (System.Exception e0) { Debug.LogWarning("[TBD] traza noche: " + e0.Message); }
             bool win = _ng.State == NightState.Victoria; var a = _uw;
             int alive = 0, total = 0; foreach (var pl in a.Platoons) { alive += pl.AliveCount(); total += pl.Men.Count; }
@@ -335,9 +346,11 @@ namespace TBD.View
             if (man == null) return;
             if (_trMat == null) { _trMat = new Material(Shader.Find("Universal Render Pipeline/Unlit")); _trMat.SetColor("_BaseColor", new Color32(0xf0, 0xdc, 0x9c, 255)); }
             if (s.Splash) Sfx.Play("sfx_granada_40", 0.8f, 0.25f); else if (s.Kind == InfKind.Ametrallador) Sfx.Play("sfx_ametralladora", 0.5f, 0.45f, 1f + (s.Man % 5) * 0.01f); else Sfx.Play("sfx_fusil_rafaga", 0.35f, 0.18f, 0.97f + (s.Man % 7) * 0.01f);
-            var go = new GameObject("Trazadora"); var lr = go.AddComponent<LineRenderer>(); lr.material = _trMat; lr.startWidth = lr.endWidth = s.Splash ? 0.16f : 0.07f; lr.positionCount = 2;
-            lr.SetPosition(0, new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f)); lr.SetPosition(1, new Vector3(s.AimX / 1000f, 0.8f, s.AimY / 1000f)); lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            Destroy(go, 0.09f);
+            var from = new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f); var to = new Vector3(s.AimX / 1000f, 0.8f, s.AimY / 1000f);
+            // trazadora que viaja (no un rayo): 1 de cada 3 balas en fusileros, 1 de cada 4 en ametralladoras, todas en tiradores y granadas (Lucia §4.1)
+            bool tracer = s.Splash || s.Kind == InfKind.Tirador || UnityEngine.Random.value < (s.Kind == InfKind.Ametrallador ? 0.25f : 0.34f);
+            if (tracer) SpawnTracer(from, to, s.Splash ? 60f : 200f, s.Splash ? 0.16f : 0.07f, s.Splash ? 3f : 5f);
+            SpawnFlash(from + (to - from).normalized * 0.6f, s.Kind == InfKind.Ametrallador ? 0.5f : 0.38f);
         }
 
         // ---------------------------------------------------------------- soldados (vista)
@@ -415,6 +428,13 @@ namespace TBD.View
         void NightUpdate()
         {
             ColorCases();
+            UpdateFx();
+            if (!_capDirDone && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-capdirecta") >= 0 && Time.realtimeSinceStartup - _nightT0 >= 30f)   // QA (Bruno): MISMO fotograma, captura de siempre vs. captura directa a resolucion completa sin Blit
+            {
+                _capDirDone = true; string dd = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(dd);
+                StartCoroutine(CaptureRoutine(System.IO.Path.Combine(dd, "capdirecta_1_siempre.png"))); ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dd, "capdirecta_2_directa.png"));
+            }
+            { var cl = System.Environment.GetCommandLineArgs(); for (int li = 0; li + 1 < cl.Length; li++) if (cl[li] == "-leaveat" && float.TryParse(cl[li + 1], out var lt) && Time.realtimeSinceStartup - _nightT0 >= lt && !_leaving && _nightInit && _ng != null && _ng.State == NightState.Jugando) { Debug.Log("[NOCHE] prueba: -leaveat, salgo al mapa"); LeaveToMap(); } }   // QA: sale al mapa a los N s reales
             if (!_nightOn) return;
             var kb = Keyboard.current; var mouse = Mouse.current; if (kb == null || mouse == null) return;
             if (kb.f2Key.wasPressedThisFrame) _debugHud = !_debugHud;
