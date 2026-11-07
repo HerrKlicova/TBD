@@ -22,6 +22,21 @@ namespace TBD.Sim.Tests
         }
 
         /// <summary>Informe de calibración (no es una prueba): TBD_NIGHT_REPORT=1. Una noche con el bot de reabastecimiento limitado a N recargas en total (el jugador de la zona hizo 3).</summary>
+        /// <summary>TBD_BOT_REPORT=1: noche entera con el NightBot (sin bot de recarga aparte), por dificultad y semilla, para comparar con la fuerza fija por defecto.</summary>
+        public static void BotReport()
+        {
+            string json = TBD.Net.BalanceSource.Read("noche_sagunto.json");
+            foreach (var dif in new string[] { "facil", null, "dificil" })
+                foreach (uint seed in new uint[] { 1, 2, 3 })
+                    foreach (bool useBot in new bool[] { false, true })
+                    {
+                        var sim = NightSim.FromJson(json, dif, seed); sim.AddDefaultForce(); if (useBot) sim.Bot = NightBot.FromParams(sim.SP);
+                        while (sim.Night.State == NightState.Jugando) { sim.Run(150); if (!useBot) sim.ResupplyBot(); }
+                        var s = sim.Snapshot();
+                        Console.WriteLine($"[{dif ?? "normal"} s{seed} {(useBot ? "NightBot" : "fija+bot recarga")}] {s.State} {s.Hour:00}:{s.Minute:00} ★{sim.Stars()} muro {s.WallHp * 100 / Math.Max(1, sim.SP.WallHp)} % bajas {s.SoldierDeaths} munición {(s.PlatoonAmmoShots + s.StockShots) / 2000.0:0.0} u recargas {s.Resupplies} pila máx {s.PeakPile}{(useBot ? " | " + sim.Bot.Describe() : "")}");
+                    }
+        }
+
         public static void NightReport()
         {
             string json = TBD.Net.BalanceSource.Read("noche_sagunto.json");
@@ -623,6 +638,29 @@ namespace TBD.Sim.Tests
                         && dj.StationHp == fj.StationHp && dj.StationDmgPerZombieS == fj.StationDmgPerZombieS && dj.ZombieSpeedMmS == fj.ZombieSpeedMmS && dj.ContactRadiusMm == fj.ContactRadiusMm && dj.ContactCasualtyPmPerS == fj.ContactCasualtyPmPerS && dj.PileRadiusMm == fj.PileRadiusMm;
                     var cut = NightSimParams.FromJson("{\"NightSimParams\": {\"WallHp\": 777}}"); var none = NightSimParams.FromJson(null);
                     check(same && fj.WallHp == 1_200_000 && sim0.WallHp == 1_200_000 && sim0.SP.WallHp == fj.WallHp && cut.WallHp == 777 && cut.StationHp == dj.StationHp && none.WallHp == dj.WallHp, $"NightSimParams: el código coincide con nightsim_params.json (muro {fj.WallHp}), NightSim lo lee de ahí, un JSON parcial solo cambia lo que dice y sin JSON valen los del código");
+                }
+                {
+                    // ------------------------------------------------ NightBot (-nightbot): mismas órdenes que el jugador, determinista
+                    var bw = new UnitsWorld(91); var pf = bw.AddPlatoon(PlatoonKind.Fusileros, 100_000, 60_000, 0); var pg = bw.AddPlatoon(PlatoonKind.Granaderos, 110_000, 60_000, 0); var pz = bw.AddPlatoon(PlatoonKind.Zapadores, 120_000, 70_000, 0); var pm = bw.AddPlatoon(PlatoonKind.Ametralladores, 105_000, 66_000, 0);
+                    var sp0 = NightSimParams.Default(); var bot = NightBot.FromParams(sp0); bw.StockShots = 20_000; pf.AmmoShots = pf.AmmoCap * 20 / 100; int stock0 = bw.StockShots;
+                    // horda de 120 zombis pegada al lado X+ (este) del recinto, a unos 6 m fuera
+                    var hz = new List<Target>(); for (int i = 0; i < 120; i++) hz.Add(new Target { Id = i, X = sp0.FortX1 + 6_000 + (i % 4) * 1_000, Y = 55_000 + (i / 4) * 500 });
+                    bot.Step(bw, hz, 1); int ordersTick1 = bot.Orders; bot.Step(bw, hz, 0);
+                    check(ordersTick1 == 0 && bot.Decisions == 1, "el bot solo decide cada 60 ticks (en el tick 1 no hace nada, en el 0 sí)");
+                    check(pf.AmmoShots == pf.AmmoCap && bw.StockShots < stock0 && bot.Resupplies >= 1, $"reabastece con la orden del jugador al bajar del 30 % (el fusilero estaba al 20 %: ahora {pf.AmmoShots}/{pf.AmmoCap}, el almacén bajó {stock0 - bw.StockShots} disparos)");
+                    bool toEast = pf.Moving && pf.AttackMove && pf.TX > (sp0.FortX0 + sp0.FortX1) / 2 && pg.Moving && pg.AttackMove && pg.TX > (sp0.FortX0 + sp0.FortX1) / 2 && pm.Moving && pm.TX > (sp0.FortX0 + sp0.FortX1) / 2;
+                    int distF = sp0.FortX1 - pf.TX, distG = sp0.FortX1 - pg.TX;
+                    check(toEast && distG >= 15_000 && distG > distF && distF >= 2_000, $"con la horda al este, los pelotones de línea van hacia el muro este con ataque-movimiento; los lanzagranadas se quedan a {distG / 1000} m del muro (mínimo 15 m) y los fusileros a {distF / 1000} m");
+                    check(!pz.AttackMove && IMath.Dist(pz.TX - sp0.StationX, pz.TY - sp0.StationY) < 12_000 && pz.Moving, "los zapadores no van al muro: esperan junto al edificio");
+                    int o1 = bot.Orders; bot.Step(bw, hz, 60); check(bot.Orders == o1, "con la misma amenaza no repite órdenes (nada de saturar con órdenes iguales)");
+                    var off = NightBot.FromParams(sp0); off.Enabled = false; var w2 = new UnitsWorld(92); var q2 = w2.AddPlatoon(PlatoonKind.Fusileros, 100_000, 60_000, 0); w2.StockShots = 9000; q2.AmmoShots = 10; off.Step(w2, hz, 0);
+                    check(q2.AmmoShots == 10 && !q2.Moving && off.Orders == 0 && off.Decisions == 0, "con Enabled = false (sin la bandera) el bot no toca nada");
+                    // una noche entera con el bot: gana y es determinista
+                    Func<uint, ulong> botNight = seed => { var n = NightSim.FromJson(TBD.Net.BalanceSource.Read("noche_sagunto.json"), null, seed); n.AddDefaultForce(); n.Bot = NightBot.FromParams(n.SP); n.Run(9000); return n.Hash() ^ ((ulong)n.Bot.Orders << 40) ^ ((ulong)n.Bot.Resupplies << 52); };
+                    check(botNight(5) == botNight(5) && botNight(5) != botNight(6), "el bot es determinista: misma semilla, mismo hash y mismas órdenes; otra semilla, otro");
+                    var full = NightSim.FromJson(TBD.Net.BalanceSource.Read("noche_sagunto.json"), null, 1); full.AddDefaultForce(); full.Bot = NightBot.FromParams(full.SP); while (full.Night.State == NightState.Jugando) full.Run(150);
+                    var fs = full.Snapshot();
+                    check(fs.State == NightState.Victoria && full.Stars() >= 2 && fs.WallHp * 100 / full.SP.WallHp > 60 && full.Bot.Resupplies > 20 && full.Resupplies == 0, $"la noche normal entera con el bot (sin ayuda de recarga aparte): {fs.State}, {full.Stars()} estrellas, muro {fs.WallHp * 100 / full.SP.WallHp} %, {full.Bot.Resupplies} reabastecimientos, {fs.SoldierDeaths} bajas");
                 }
                 // ---------------------------------------------------- elección del vehículo: solo uno LIBRE, entero, con plazas y combustible
                 Func<UnitsWorld, TransportDirector> mk = w => new TransportDirector(w, RoadMap.Sagunto(rj));
