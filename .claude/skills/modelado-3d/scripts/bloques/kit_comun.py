@@ -19,8 +19,8 @@ COLORES = {"fachada": "d4d0cc", "zocalo": "605c48", "carpinteria": "543820", "te
 # D-N80 en el LOD1 (lo mismo que se aprobó en la marquesina de Sagunto): lo oscuro sube un escalón para que su sombra no
 # caiga bajo L* 20
 COLORES_LOD1 = {"pilar": "70784c", "canalon": "605c48", "metal": "605c48", "placa": "605c48",
-                "carpinteria": "6c4038"}   # 543820 en una fachada a la sombra cae a L* 18,5 en puertas enteras
-PERMITIR = ("642030",)          # granate de la estación de Sagunt (excepción aprobada por Lucía)
+                "carpinteria": "6c4038", "moldura": "8c5048"}   # 543820 en una fachada a la sombra cae a L* 18,5 en puertas enteras
+PERMITIR = ("642030", "8c5048")   # granate de Sagunt (Lucía) y su escalón de LOD1 (Lucía 7-nov 08:30: sombra L* ≥ 14)
 FACCION = "neutro"
 NORMALES_ARRIBA = True
 NORMALES_INCLINACION = 1.0

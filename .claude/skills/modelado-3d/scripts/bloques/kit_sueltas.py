@@ -2,7 +2,8 @@
 Fachada o frente hacia -Y (la vía). En el LOD1 nada fino baja de 0,34 m (2 px). Medidas típicas, SIN VERIFICAR.
 Variantes (TBD_VARIANTE): 0 banco de listones con patas de fundición; 1 farola de andén de 4,5 m con brazo; 2 cartel de
 estación de 3,6 x 1,1 m sobre dos postes (banda oscura para el nombre, decal de Bruno); 3 papelera con su poste; 4 carro
-de equipajes de dos ruedas; 5 caseta de enclavamiento de 3 x 3 m con tejado a dos aguas.
+de equipajes de dos ruedas; 5 caseta de enclavamiento de 3 x 3 m con tejado a dos aguas; 6 montón de escombro (2,6 x 1,8 m, estado Caída, en el andén
+o en la vía); 7 andamio de fachada de 4 x 1,2 m y 8 m de alto (estado Liberada: la estación en reconstrucción, D-N124).
 """
 import math
 from taller import Taller
@@ -49,7 +50,29 @@ def construir(nombre="SM_KitSuelta", lod=0, var=None):
         t.cilindro((0, 0.4, 0.3), 0.3, 0.1, "Y", 10, "metal")
         t.caja((-0.8, 0, 0.3), (0.08 if lod == 0 else 0.2, 0.5, 0.5), "pilar")          # pata
         t.caja((1.15, 0, 0.7), (0.8, g, g), "pilar", rot_y=math.radians(-20))            # lanza
-    else:         # caseta de enclavamiento
+    elif v == 6:  # montón de escombro: piedra y algún tablón, sin nada fino
+        for (x, y, z, a, b, c, r) in ((0, 0, 0.3, 1.6, 1.2, 0.6, 10), (-0.7, 0.3, 0.25, 0.9, 0.8, 0.5, -25),
+                                      (0.8, -0.2, 0.2, 0.9, 0.9, 0.4, 35), (0.1, 0.1, 0.7, 0.8, 0.6, 0.4, -15),
+                                      (-0.2, -0.6, 0.15, 0.6, 0.5, 0.3, 50)):
+            t.caja((x, y, z), (a, b, c), "escombro", rot_z=math.radians(r))
+        t.caja((0.2, 0.05, 0.75), (2.4, 0.22, 0.12 if lod == 0 else 0.34), "tabla", rot_z=math.radians(25),
+               rot_y=math.radians(12))
+        fino.caja((-0.9, -0.4, 0.3), (0.4, 0.3, 0.2), "fachada")                       # un trozo de muro encalado
+    elif v == 7:  # andamio de fachada (tubos y plataformas de tablas)
+        tb = 0.05 if lod == 0 else 0.2
+        for x in (-1.9, 0.0, 1.9):
+            for y in (-0.55, 0.55):
+                t.caja((x, y, 4.0), (tb, tb, 8.0), "metal")
+        for z in (2.0, 4.0, 6.0, 7.9):
+            t.caja((0, 0, z), (3.98, 1.2, 0.08 if lod == 0 else 0.2), "tabla")
+            t.caja((0, -0.6, z + 0.9), (3.98, tb, tb), "metal")                       # barandilla
+        if lod == 0:
+            for x0 in (-0.95, 0.95):
+                for z0 in (1.0, 3.0, 5.0, 7.0):
+                    t.caja((x0, -0.62, z0), (0.04, 0.04, 2.6), "metal", rot_y=math.radians(43))
+        else:
+            t.caja((0, -0.62, 3.0), (3.6, 0.04, 0.34), "metal", rot_y=math.radians(0))   # rodapié: 2 px
+    elif v == 5:  # caseta de enclavamiento
         A, F, H = 2.98, 2.98, 2.8
         t.caja((0, 0, H / 2), (A, F, H), "fachada")
         t.caja((0, 0, 0.35), (A + 0.04, F + 0.04, 0.7), "zocalo")
