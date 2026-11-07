@@ -33,7 +33,7 @@ namespace TBD.View
         bool _nightOn, _nightInit; NightGame _ng; UnitsWorld _uw; readonly List<SpawnPoint> _spawns = new List<SpawnPoint>(); StepResult _res = new StepResult();
         readonly List<Target> _tgt = new List<Target>(); readonly HashSet<uint> _killSet = new HashSet<uint>();
         int _nightKills, _nightLost, _nightShotsSpent; int _lastWave = -1; float _bannerUntil; string _bannerText = "";
-        int _resupplies; float _fpsLogT; bool _debugHud; float _nightT0; int _shotsTaken; float _lastStep; string _endReason = "";
+        NightBot _bot; NightTraceRecorder _rec; int _spawnedTotal; int _resupplies; float _fpsLogT; bool _debugHud; float _nightT0; int _shotsTaken; float _lastStep; string _endReason = "";
         readonly List<int> _sel = new List<int>();
         bool _selDrag; Vector2 _selStart; bool _rmbDown; Vector2 _rmbStart; bool _attackNext;
         static readonly Vector2 StationC = new Vector2(113f, 64.5f), TrainC = new Vector2(143f, 64.5f);
@@ -44,11 +44,13 @@ namespace TBD.View
         {
             _nightInit = true; _nightOn = true; _debugHud = false; _nightT0 = Time.realtimeSinceStartup;
             // oleadas, reloj, recursos y fuerza: noche_sagunto.json de Hugo (StreamingAssets/Noche), D-N74/D-N102. Sin el archivo, valores por defecto de Nacho.
+            BalanceSource.Reader = f => { var pth = System.IO.Path.Combine(Application.streamingAssetsPath, "Noche", f); return System.IO.File.Exists(pth) ? System.IO.File.ReadAllText(pth) : null; };
             NightSim sim = null; int stock = 50 * WeaponCatalog.ShotsPerU;
             try
             {
                 string path = System.IO.Path.Combine(Application.streamingAssetsPath, "Noche", "noche_sagunto.json");
                 string key = NightRun.Difficulty < 800 ? "facil" : NightRun.Difficulty <= 950 ? "normal" : "dificil";
+                { var cd = System.Environment.GetCommandLineArgs(); for (int i = 0; i + 1 < cd.Length; i++) if (cd[i] == "-dificultad" && (cd[i + 1] == "facil" || cd[i + 1] == "normal" || cd[i + 1] == "dificil")) key = cd[i + 1]; }   // QA: -dificultad facil|normal|dificil
                 sim = NightSim.FromJson(System.IO.File.ReadAllText(path), key, 77u); _ng = sim.Night; stock = sim.Units.StockShots;
             }
             catch (System.Exception e) { Debug.LogWarning("[TBD] noche_sagunto.json no se pudo leer (" + e.Message + "): valores por defecto"); _ng = new NightGame(NightParams.Default(), 77u); var pd = _ng.P; pd.ScalePermil = NightRun.Difficulty; _ng.P = pd; }
@@ -78,9 +80,12 @@ namespace TBD.View
             _targetOrtho = 26f; _focus = new Vector3(96f, 0f, 64f);
             ApplyGrade(2);
             _bannerText = "22:00. El tren se detiene en Sagunto.\nAguanta hasta el amanecer."; _bannerUntil = Time.unscaledTime + 5f;
+            NearWall(Vector2.zero); Debug.Log($"[NOCHE] muros_obras={_wallSegs.Count}");
             Debug.Log($"[NOCHE] reloj_x={_ng.P.ClockX} municion_u={_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.#} materiales_u=40 combustible_u=30 almacen_combustible_u=16");
             if (_sel.Count == 0) _sel.Add(_uw.Platoons[0].Id);
             InitVehicles();
+            _rec = new NightTraceRecorder("zona", 1285, 9000, 30);
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-nightbot") >= 0) { try { _bot = NightBot.FromParams(NightSimParams.FromJson(BalanceSource.Read("nightsim_params.json"))); Debug.Log("[NOCHE] prueba: -nightbot (NightBot de Nacho)"); } catch (System.Exception e) { Debug.LogWarning("[TBD] NightBot: " + e.Message); } }
         }
 
         // ---------------------------------------------------------------- un tick (30 Hz), antes de los sistemas de la zona
@@ -100,7 +105,7 @@ namespace TBD.View
                 _lastWave = wv; _nightWaveTotal = _ng.WaveTotal(wv); _waveBannerT0 = Time.unscaledTime;
                 string time = $"{_ng.P.StartHour + _ng.P.Waves[wv].StartMinute / 60:00}:{_ng.P.Waves[wv].StartMinute % 60:00}".Replace("24:", "00:");
                 _bannerText = $"{TimeStr()} · OLEADA {wv + 1}\nLa Colmena se acerca por el oeste"; _bannerUntil = Time.unscaledTime + 4f; Sfx.Play("sfx_alerta_oleada", 0.8f, 1f);
-                Debug.Log($"[NOCHE] oleada={wv + 1} hora={TimeStr()} total={_nightWaveTotal} ammo_u={_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.0} recargas={_resupplies} pila={_pileNearStation} bajas={_nightLost}");
+                Debug.Log($"[NOCHE] oleada={wv + 1} hora={TimeStr()} total={_nightWaveTotal} ammo_u={_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.0} recargas={_resupplies} pila={_pileWall} muro_permil={_ng.WallPermil} bajas={_nightLost}");
             }
 
             // zombis nuevos (en los dos mundos, en el mismo punto)
@@ -112,10 +117,10 @@ namespace TBD.View
             using (var q = emA.CreateEntityQuery(typeof(Zombie)))
             {
                 var zs = q.ToComponentDataArray<Zombie>(Allocator.Temp);
-                int nearStation = 0, nearTrain = 0; _zomPos.Clear(); _zomId.Clear();
+                int nearStation = 0, nearTrain = 0; _zomPos.Clear(); _zomId.Clear(); int wallPile = 0;
                 for (int i = 0; i < zs.Length; i++)
                 {
-                    var z = zs[i]; var pz = new Vector2(z.Pos.x, z.Pos.z); _zomPos.Add(pz); _zomId.Add(z.SimId);
+                    var z = zs[i]; var pz = new Vector2(z.Pos.x, z.Pos.z); _zomPos.Add(pz); _zomId.Add(z.SimId); if (NearWall(pz)) wallPile++;
                     if ((pz - StationC).sqrMagnitude < 64f) nearStation++;
                     if ((pz - TrainC).sqrMagnitude < 49f) nearTrain++;
                     bool near = false;
@@ -129,17 +134,55 @@ namespace TBD.View
                 zs.Dispose();
                 _allT.Clear(); for (int i = 0; i < _zomPos.Count; i++) _allT.Add(new Target { Id = (int)_zomId[i], X = (int)(_zomPos[i].x * 1000f), Y = (int)(_zomPos[i].y * 1000f) });
                 _ng.CountAttackers(_allT, out _pileNearStation, out _nearTrain);
+                _pileWall = wallPile;
+                if (_wallMax <= 0f) _wallMax = _wallHp = Mathf.Max(1200000, NightSimParams.Default().WallHp);
+                _wallHp = Mathf.Max(0f, _wallHp - wallPile * (NightSimParams.Default().WallDmgPerZombieS / 30f)); _ng.WallPermil = Mathf.RoundToInt(1000f * _wallHp / _wallMax);
             }
+            if (_bot != null) _bot.Step(_uw, _tgt, _ng.Tick);                          // -nightbot: el bot de Nacho decide como el jugador (ordenes, recarga al 30 %)
             _res.Clear(); _uw.Step(_tgt, _res);
             _nightShotsSpent += _res.AmmoSpent;
             _contact.Clear(); _nightLost += _uw.ZombieContact(_tgt, 900, 2, _contact);
+            _spawnedTotal += _spawns.Count;
+            if (_rec != null && !_rec.Done)
+            {
+                long shotsLeft = _uw.StockShots; foreach (var plx in _uw.Platoons) if (plx.AliveCount() > 0) shotsLeft += plx.AmmoShots;
+                _rec.Sample(_ng.Tick, _spawnedTotal, _zomPos.Count, _pileWall, (long)_wallHp, (long)_wallMax, _nightKills, (int)shotsLeft, _pileNearStation, _nearTrain);
+                if (_rec.Done)
+                {
+                    try
+                    {
+                        string dir = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(dir);
+                        System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "traza-zona.csv"), _rec.Trace.ToCsv());
+                        Debug.Log("[NOCHE-TRAZA] " + NightTraceTools.CompareWithReference(_rec.Trace).Text);
+                    }
+                    catch (System.Exception e) { Debug.LogWarning("[TBD] traza: " + e.Message); }
+                }
+            }
             if (_uw.Tick % 15 == 0 && _uw.StockShots > 0)                                // reabastecimiento automatico: bajo el 30 % de su dotacion, del almacen (la T queda como recarga anticipada)
                 foreach (var plr in _uw.Platoons) if (plr.AliveCount() > 0 && plr.AmmoCap > 0 && plr.AmmoShots * 100 < plr.AmmoCap * 30 && _uw.Resupply(plr.Id) > 0) _resupplies++;
             VehiclesTick(default(NativeSnapshot)); if (_vehHits.Count > 0) { KillZombies(_vehHits); _vehHits.Clear(); }
             if (_res.Hits.Count > 0) KillZombies(_res.Hits);
             for (int i = 0; i < _res.Shots.Count; i++) NightShotFx(_res.Shots[i]);
         }
-        int _pileNearStation, _nearTrain; readonly List<Target> _allT = new List<Target>(); readonly ContactResult _contact = new ContactResult(); readonly float _contactR2 = 1200f * 1200f; readonly int _contactPpm = 1000000 * 14 / 1000 / 30;   // NightSimParams de Nacho: 1,2 m y 14 ‰ por zombi y segundo (por tick)
+        readonly List<(Vector2 a, Vector2 b)> _wallSegs = new List<(Vector2, Vector2)>(); float _wallSegsT = -10f;
+
+        /// <summary>¿El zombi esta a 1,5 m o menos de un muro construido de las obras? Los segmentos salen de Works (se refrescan cada 2 s).</summary>
+        bool NearWall(Vector2 p)
+        {
+            if (Time.unscaledTime - _wallSegsT > 2f)
+            {
+                _wallSegsT = Time.unscaledTime; _wallSegs.Clear();
+                var pieces = NetSession.A != null && _zoneNode >= 0 ? NetSession.A.Works.At(_zoneNode) : null;
+                if (pieces != null) foreach (var w in pieces) if (w.IsWall && w.Built) _wallSegs.Add((new Vector2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f), new Vector2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f)));
+            }
+            for (int i = 0; i < _wallSegs.Count; i++)
+            {
+                var ab = _wallSegs[i].b - _wallSegs[i].a; float l2 = ab.sqrMagnitude; float t = l2 < 1e-6f ? 0f : Mathf.Clamp01(Vector2.Dot(p - _wallSegs[i].a, ab) / l2);
+                if ((_wallSegs[i].a + ab * t - p).sqrMagnitude < 2.25f) return true;
+            }
+            return false;
+        }
+        int _pileNearStation, _nearTrain, _pileWall; float _wallHp, _wallMax; readonly List<Target> _allT = new List<Target>(); readonly ContactResult _contact = new ContactResult(); readonly float _contactR2 = 1200f * 1200f; readonly int _contactPpm = 1000000 * 14 / 1000 / 30;   // NightSimParams de Nacho: 1,2 m y 14 ‰ por zombi y segundo (por tick)
 
         int CurrentWave()
         {
@@ -187,7 +230,8 @@ namespace TBD.View
             int alive = 0, total = 0; foreach (var pl in a.Platoons) { alive += pl.AliveCount(); total += pl.Men.Count; }
             _nightLost = total - alive;
             float left = a.StockShots / (float)WeaponCatalog.ShotsPerU;
-            int stars = !win ? 0 : (_nightLost <= 2 && left >= 15f ? 3 : (_nightLost <= 6 && left >= 8f ? 2 : 1));
+            int integ = win ? _ng.Report.IntegrityPermil : _ng.IntegrityPermil, wallP = win ? _ng.Report.WallPermil : _ng.WallPermil; long shots = a.StockShots; foreach (var p0 in a.Platoons) if (p0.AliveCount() > 0) shots += p0.AmmoShots;
+            int stars = _ng.P.Stars.Stars(_ng.State, integ, wallP, _nightLost, (int)(shots * 1000 / WeaponCatalog.ShotsPerU), false);
             _endStars = stars;
             Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} estrellas={stars} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 recargas={_resupplies} hora_fin={TimeStr()}");
             _endReason = win ? "06:00. Amanece en Sagunto.\nLa estación resiste." : "Sagunto ha caído.";
@@ -306,7 +350,9 @@ namespace TBD.View
             var kb = Keyboard.current; var mouse = Mouse.current; if (kb == null || mouse == null) return;
             if (kb.f2Key.wasPressedThisFrame) _debugHud = !_debugHud;
             NightDemoFlags();
-            if (Time.realtimeSinceStartup - _fpsLogT > 20f) { _fpsLogT = Time.realtimeSinceStartup; Debug.Log($"[NOCHE-FPS] hora={TimeStr()} fps={_fps:0} zombis={_total} abatidos={_nightKills} bajas={_nightLost} pila={_pileNearStation}"); }
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-nightshots") >= 0 && _ng.State != NightState.Jugando)       // captura de la pantalla final
+            { if (_endAt < 0f) _endAt = Time.realtimeSinceStartup; if (!_endShot && Time.realtimeSinceStartup - _endAt > 2f) { _endShot = true; SaveScreenshot(); } }
+            if (Time.realtimeSinceStartup - _fpsLogT > 20f) { _fpsLogT = Time.realtimeSinceStartup; Debug.Log($"[NOCHE-FPS] hora={TimeStr()} fps={_fps:0} zombis={_total} abatidos={_nightKills} bajas={_nightLost} pila={_pileWall} muro_permil={_ng.WallPermil}"); }
             { var ca = System.Environment.GetCommandLineArgs(); if (System.Array.IndexOf(ca, "-nightshots") >= 0) { float tt = Time.realtimeSinceStartup - _nightT0; foreach (float at in new[] { 12f, 40f, 90f, 150f }) if (tt >= at && _shotsTaken < Array.IndexOf(new[] { 12f, 40f, 90f, 150f }, at) + 1) { _shotsTaken++; SaveScreenshot(); } } }
             if (_ng.State == NightState.Derrota && !_endDismissed) { UpdateNightSoldiers(); return; }
             Vector2 mp = mouse.position.ReadValue();
@@ -348,11 +394,21 @@ namespace TBD.View
             if (want != _gradeIndex && !_nightGradeLock) ApplyGrade(want);
         }
         bool _nightGradeLock;
-        int _demoStep;
+        float _endAt = -1f; bool _endShot; int _demoStep, _botStep;
         /// <summary>Banderas de prueba para QA (Sara): -nightlose tumba la estacion a los 15 s; -vehdemo manda un VAMTAC contra el muro oeste y despega el NH90; -nightshots saca capturas.</summary>
         void NightDemoFlags()
         {
             var ca = System.Environment.GetCommandLineArgs(); float tt = Time.realtimeSinceStartup - _nightT0;
+            if (false && System.Array.IndexOf(ca, "-nightbot") >= 0 && tt > 3f && _botStep == 0)
+            {
+                _botStep = 1; int[] ys = { 56000, 64000, 60000, 68000, 72000 }; int i = 0; int x = (int)(Level.FortX0 * 1000f) + 7000;
+                foreach (var pl in _uw.Platoons) { _uw.AttackMove(pl.Id, x, ys[i++ % ys.Length]); }
+                Debug.Log("[NOCHE] prueba: -nightbot, los pelotones avanzan al muro oeste (ataque-movimiento) y recargan al 30 %");
+            }
+            if (false && System.Array.IndexOf(ca, "-nightbot") >= 0 && tt > 12f && _botStep == 1)
+            {
+                _botStep = 2; foreach (var pl in _uw.Platoons) if (_pname.TryGetValue(pl.Id, out var nm) && nm.StartsWith("Ametra")) _uw.DeployAt(pl.Id, 32768);
+            }
             if (System.Array.IndexOf(ca, "-nightwin") >= 0 && _ng.State == NightState.Jugando) { _ng.StationHp = _ng.StationHpMax; _ng.TrainHp = _ng.TrainHpMax; }   // prueba: estacion y tren inmortales, para ver el parte de victoria y «Seguir»
             if (System.Array.IndexOf(ca, "-nightdense") >= 0 && tt > 20f && _demoStep == 0)
             {

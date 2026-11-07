@@ -1,0 +1,14 @@
+nodo;km_desde_sagunto;rama;ciudad;apeadero;prod_municion;prod_combustible;prod_materiales;prod_viveres;alijo_municion;atraccion_x1000;nota
+Sagunto;0;0;1;0;0;0;80;0;0;1000;rama: 0 nudo, 1 sur, 2 norte, 3 interior
+Puçol;12;1;0;1;0;0;0;0;0;1000;rama: 0 nudo, 1 sur, 2 norte, 3 interior
+Valencia;30;1;1;0;0;0;0;30;120;2000;rama: 0 nudo, 1 sur, 2 norte, 3 interior
+Almenara;10;2;0;1;0;0;0;0;0;1000;rama: 0 nudo, 1 sur, 2 norte, 3 interior
+Nules;22;2;0;0;0;0;0;6;0;1000;rama: 0 nudo, 1 sur, 2 norte, 3 interior
+Castellón;40;2;1;0;0;60;0;0;0;1000;rama: 0 nudo, 1 sur, 2 norte, 3 interior
+Segorbe;35;3;0;1;0;0;0;6;0;1000;rama: 0 nudo, 1 sur, 2 norte, 3 interior
+Barracas;65;3;0;1;0;0;0;0;0;1000;rama: 0 nudo, 1 sur, 2 norte, 3 interior
+Teruel;130;3;1;0;0;0;20;12;50;1000;rama: 0 nudo, 1 sur, 2 norte, 3 interior
+Caminreal;200;3;0;1;0;0;0;0;0;1000;rama: 0 nudo, 1 sur, 2 norte, 3 interior
+Calamocha;215;3;0;1;0;0;0;0;0;1000;rama: 0 nudo, 1 sur, 2 norte, 3 interior
+Cariñena;260;3;0;0;0;0;0;6;0;1000;rama: 0 nudo, 1 sur, 2 norte, 3 interior
+Zaragoza;310;3;1;0;40;0;0;0;0;1000;rama: 0 nudo, 1 sur, 2 norte, 3 interior

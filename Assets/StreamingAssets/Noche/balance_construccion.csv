@@ -1,0 +1,47 @@
+clave;valor;escala;nota
+pieza_sacos_u_por_10m;2;1;defensiva, 150 m = 30 u = fundar = nivel 1, obra 2 obreros·h por 10 m
+pieza_hesco_u_por_10m;6;1;defensiva, 150 m = 90 u = nivel 3, obra 4 obreros·h por 10 m, altura 2100 mm (la de la pila)
+pieza_puerta_u;6;1;defensiva, obra 4 obreros·h
+pieza_puerta_via_u;8;1;D-N59 (Lucía): defensiva, cuenta para nivel y mantenimiento, deja pasar al tren
+obra_puerta_via_h;6;1;D-N59: obrero·h
+pieza_puerta_vehiculos_u;10;1;D-N72 (Álvaro y Hugo): puerta de 8 m en el muro sur para el Dragón, dos hojas de 4 m, defensiva, cuenta para nivel y mantenimiento
+obra_puerta_vehiculos_h;8;1;D-N72: obrero·h
+puerta_vehiculos_ancho_mm;8000;1;D-N72: el Dragón mide 3 m de ancho, cabe girando
+pieza_nido_u;8;1;defensiva, obra 6 obreros·h
+pieza_foco_u;2;1;defensiva, obra 2 obreros·h, 200 milésimas de combustible por noche
+pieza_anden_u;6;1;defensiva, obra 10 obreros·h, tras muro, el bono de carga solo en el andén de Sagunto
+pieza_deposito_u;5;1;NO defensiva: no suma nivel, obra 8 obreros·h
+almacen_base_u;100;1;por estación, Castellón produce 60 al día y no puede tirar producción
+almacen_deposito_extra_u;200;1;por depósito
+almacen_nudo_u;1000;1;Sagunto
+anden_sagunto_carga_permil;750;1000;-25 % de carga y descarga solo en Sagunto (si fuera en todas, la escasez baja de 55 a 43 %)
+obra_sondeo_permil_hora;83;1000;probabilidad de sondeo por hora de obra TRABAJANDO (06-18, de noche no hay sondeo): uno cada ~12 h
+obra_sondeo_permil_presupuesto_dia;50;1000;tamaño del sondeo: 5 % del presupuesto del día (~330 el día 9)
+obra_peso_asedio_permil;1500;1000;el nodo con obra EN CURSO (encargada y sin acabar, tambien de noche) pesa x1,5 para el objetivo del asedio
+obra_huella_muros_permil;500;1000;huella de una obra EN CURSO (tambien de noche) de muros, el puente y las obras grandes, 1500
+reparar_tramo_u;5;1;y 3 h con el tren de obras
+obra_hora_inicio;6;1;D-N59: todas las obras trabajan de 06:00 a 18:00 (12 h, = horas_obra_dia del modelo), de noche se para
+obra_hora_fin;18;1;D-N59
+reparar_tramo_h;3;1;D-N59: horas de juego con el tren de obras parado en el punto
+desgaste_fuera_perimetro_permil_dia;10;1000;D-N59: muros a más de 60 m: se desgastan sin mantenimiento posible (1 % de la vida que queda), el depósito no se desgasta
+puente_jiloca_obreros_h;192;1;80 u, 8 obreros x 12 h x 2 días
+cancelar_obra_empezada_permil;500;1000;
+muro_modulo_mm;10000;1;D-N59: validado (código de Nacho)
+muro_minimo_mm;1000;1;D-N59: validado
+perimetro_mm;60000;1;D-N59: radio desde el andén en el que las piezas cuentan para el nivel, cabe un perímetro de 150 m
+obra_sacos_h_por_10m;2;1;D-N59: obrero·h
+obra_hesco_h_por_10m;4;1;D-N59
+obra_puerta_h;4;1;D-N59
+obra_nido_h;6;1;D-N59
+obra_foco_h;2;1;D-N59
+obra_deposito_h;8;1;D-N59
+obra_anden_h;10;1;D-N59
+obra_obreros_max_pieza;4;1;D-N59: por pieza, el puente del Jiloca guarda 8 en su propia pieza (puente_jiloca_obreros_h 192 = 8 x 24 h)
+obras_guarnicion_minima;6;1;D-N59: personas que nunca trabajan (= retén). NO 12: con 12, una estación recién fundada (12 personas) no podría construir nada
+estacion_personas;40;1;D-N59: personas para subir de apeadero a estación (además del depósito)
+fundar_radio_tren_mm;5000;1;D-N59: el tren tiene que estar a 5 m o menos del emplazamiento
+taller_dias_tren;3;1;NO 2: con 2 días la prisa baja del 41 al 19 % de derrotas
+taller_rehabilitar_horas;36;1;D-N45: Tren 3 y tren de obras, con Chispas 29 h (+25 %), rehabilitar no es fabricar
+tren_obras_materiales;20;1;D-N45: tren viejo, sin tren de obras no hay puente
+tren_obras_combustible;5;1;D-N45
+tren_obras_obreros;8;1;D-N45: viajan a bordo
