@@ -37,3 +37,19 @@ Lectura: **la noche se gana reabasteciendo unas 36–42 veces**, no con 3. Un ju
 
 ## Hipótesis sin verificar (no la he visto en la zona)
 NightSim cierra el recinto (70–156 × 44–85 m). Si en la zona real la vía entra y sale por los extremos del recinto (y=64,5, x=70 y x=156) y esos huecos no tienen muro mientras no hay tren parado, los zombis pueden llegar al tren **sin tocar el muro**: llegan por el pasillo de la vía. Comprobar con una captura de la posición de los zombis que atacan el tren cuando el muro está al 100 %.
+
+## Por qué la pila sale 0 en la zona real (Noche18, 7-nov 02:40)
+
+Causa más probable (leída en el código de la zona, **no medida en Unity**): la puerta de vía (`PieceKind.PuertaVia`, `IsGate`) se dibuja como sprite y **no lleva sólido**
+(`SyncWorks`: «la puerta de vía va abierta al tren»), y el planificador de obras deja siempre «la vía libre» (hueco de 3,2 m, `via_hueco_mm`). Los muros son un anillo
+con un hueco justo en la y del andén, que es por donde apunta toda la horda (`StationY` = `TrackY` = 64,5 m). El flujo de la zona rodea el muro hasta el hueco y entra en fila:
+nadie se amontona contra un muro (pila 0), el muro no se desgasta (1000 ‰) y, sin pelotones que cubran el pasillo, la horda llega al tren (derrota a las 05:56).
+NightSim con el recinto cerrado nunca tuvo ese hueco: la horda se amontona (pila 140 en la oleada 1 con 4.500 ticks) y desgasta el muro.
+
+`NightSimParams.GateGapMm` (por defecto 0 = cerrado, lo medido hasta ahora; `nightsim_params.json` puede ponerlo) modela el hueco: la horda rodea hasta `FortX0 − 1 m` y cruza solo por
+|y − StationY| < GateGapMm/2. Con 3200: pila 0 en las oleadas 1–4 y 5–8 en las dos últimas, muro 99 % al amanecer (misma firma que la zona). Informe: `TBD_WAVE_REPORT=1`.
+
+Arreglo para la zona: la pila y el desgaste no existen mientras haya hueco. Hay que dar sólido al hueco cuando la puerta está cerrada (en la noche el tren está parado, así que cerrada
+mientras dure la noche): `Push(CmdType.BuildWall, 2100, (X0,Y0), (X1,Y1))` de la pieza `IsGate` construida, con la misma altura que el HESCO. Con el anillo cerrado, la pila vuelve a contar
+(150–250 en las oleadas 1 y 2 según NightSim). Segunda diferencia: los sacos miden 1,2 m y un zombi sube 0,6 m (`StepUp`) sobre cuerpos de 0,35 m, así que a la tercera capa de la pila
+pasa por encima; NightSim no deja pasar hasta que el muro cae. HESCO (2,1 m) necesita 5 capas.
