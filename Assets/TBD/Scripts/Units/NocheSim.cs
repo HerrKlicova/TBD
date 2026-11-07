@@ -74,6 +74,7 @@ namespace TBD.Units
     /// <summary>Vehículo que dispara en NightSim (7-nov, Mak: fuego libre desde el principio). Copia la regla de la zona (PrototypeBootstrap.Vehicles.cs, VehicleFire):
     /// blanco = el zombi vivo más cercano dentro del alcance; un disparo cada «PeriodTicks»; abate hasta «KillsPerShot» zombis a menos de «SplashMm» del blanco;
     /// reserva propia en disparos (salvas) y recarga del almacén (coste en milésimas de u proporcional a lo gastado, «ResupplyTicks» sin moverse). Fijo en su sitio.
+    /// Reservas y coste de recarga completa: D-N128 (Hugo, 7-nov): Dragón 400 salvas / 2 u, VAMTAC 750 / 3 u, NH90 920 / 3 u (antes 120/0,6, 300/1,2, 400/1,3).
     /// Entero y determinista. Va en NightSim.Hash solo si hay vehículos (sin vehículos el hash no cambia).</summary>
     public sealed class NightVehicle
     {
@@ -89,9 +90,9 @@ namespace TBD.Units
             var v = new NightVehicle { Name = name, Kind = k, X = x, Y = y };
             switch (k)
             {
-                case NightVehKind.Dragon: v.RangeMm = 55000; v.PeriodTicks = 30; v.KillsPerShot = 3; v.SplashMm = 3000; v.MaxShots = 120; v.ResupplyMilliU = 600; v.ResupplyTicks = 600; break;
-                case NightVehKind.Vamtac: v.RangeMm = 40000; v.PeriodTicks = 9; v.KillsPerShot = 1; v.SplashMm = 1095; v.MaxShots = 300; v.ResupplyMilliU = 1200; v.ResupplyTicks = 600; break;
-                default: v.RangeMm = 70000; v.PeriodTicks = 9; v.KillsPerShot = 1; v.SplashMm = 1095; v.MaxShots = 400; v.ResupplyMilliU = 1300; v.ResupplyTicks = 900; break;
+                case NightVehKind.Dragon: v.RangeMm = 55000; v.PeriodTicks = 30; v.KillsPerShot = 3; v.SplashMm = 3000; v.MaxShots = 400; v.ResupplyMilliU = 2000; v.ResupplyTicks = 600; break;
+                case NightVehKind.Vamtac: v.RangeMm = 40000; v.PeriodTicks = 9; v.KillsPerShot = 1; v.SplashMm = 1095; v.MaxShots = 750; v.ResupplyMilliU = 3000; v.ResupplyTicks = 600; break;
+                default: v.RangeMm = 70000; v.PeriodTicks = 9; v.KillsPerShot = 1; v.SplashMm = 1095; v.MaxShots = 920; v.ResupplyMilliU = 3000; v.ResupplyTicks = 900; break;
             }
             v.Shots = v.MaxShots; return v;
         }
@@ -136,7 +137,7 @@ namespace TBD.Units
         /// Al volver a la zona, ExportZombies da los vivos para crearlos en ECS y WallHp la vida del muro. Ver Docs/noche-fuera-de-pantalla.md.</summary>
         public NightSim(NightGame night, UnitsWorld units, NightSimParams sp, int wallHp, uint seed = 1)
         {
-            SP = sp; Night = night; Units = units; _rng = new IRng(seed ^ 0xC0FFEE); WallHp = Math.Max(0, Math.Min(wallHp, sp.WallHp)); Attached = true; AutoPlatoonResupply = true;
+            SP = sp; Night = night; Units = units; _rng = new IRng(seed ^ 0xC0FFEE); WallHp = Math.Max(0, Math.Min(wallHp, sp.WallHp)); Attached = true; AutoPlatoonResupply = true; AutoVehicleResupply = true;      // Mak (7-nov): fuera de pantalla los vehículos también recargan solos al 30 %
             var np = night.P;
             for (int w = 0; w < np.Waves.Length; w++) Waves.Add(new WaveStats { Wave = w + 1, StartTick = night.WaveStartTick(w), HourAtStart = (np.StartHour + np.Waves[w].StartMinute / 60) % 24, MinuteAtStart = np.Waves[w].StartMinute % 60 });
         }

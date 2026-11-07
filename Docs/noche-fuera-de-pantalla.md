@@ -19,7 +19,7 @@ Todo el estado de la noche vive en `PrototypeBootstrap` (escena de la zona): `_n
 
 - Los pelotones conservan la última orden (mantener, emplazado, ataque-movimiento) y disparan solos.
 - Recarga automática de los pelotones al 30 %, la misma regla que la zona aplica cada 15 ticks (`AutoPlatoonResupply`, activa por defecto en el modo enganchado).
-- Los vehículos siguen con el fuego en el estado en que estaban (fuego libre desde el principio, decisión de Mak). Fuera de pantalla **no recargan solos**, porque nadie pulsa T (`AutoVehicleResupply = false`). Si Mak prefiere que recarguen, es una línea.
+- Los vehículos siguen con el fuego en el estado en que estaban (fuego libre desde el principio, decisión de Mak). Fuera de pantalla **recargan solos** al bajar del 30 % (`AutoVehicleResupply = true`, decisión de Mak a las 08:30), con el coste y el tiempo de la zona.
 - El bot (`-nightbot`) sigue funcionando igual, en pantalla y fuera.
 
 ## Lo que se pierde (y es aceptable para el MVP)

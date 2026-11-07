@@ -250,7 +250,7 @@ vehiculo_vamtac_acel_mm_s2;3800;1;
 vehiculo_vamtac_giro_cdeg_s;5000;1;
 vehiculo_vamtac_bloqueo_pila;2;1;pila delante a partir de la cual se para (= tapón del tren)
 vehiculo_vamtac_plazas;4;1;
-vehiculo_vamtac_municion_bordo;1000;1000;‰ de u
+vehiculo_vamtac_municion_bordo;3000;1000;‰ de u
 vehiculo_vamtac_comb_marcha_e4_s;90;10000;D-N76: E4 de u por segundo REAL en marcha (0,54 u/min), se cobra cada 30 ticks
 vehiculo_vamtac_comb_ralenti_e4_s;25;10000;D-N76: parado con el motor encendido (0,15 u/min), apagado, 0
 vehiculo_vamtac_deposito_u;4;1;D-N76: sale lleno del almacén al empezar, a cero se queda inmóvil y sus armas siguen disparando
@@ -301,7 +301,7 @@ heli_nh90_altura_crucero_mm;30000;1;
 heli_nh90_altura_contacto_mm;3000;1;por debajo, los zombis pueden agarrarlo (posado o embarcando)
 heli_nh90_inclinacion_max_cdeg;1500;1;cabeceo a aceleración máxima (centésimas de grado)
 heli_nh90_plazas;12;1;
-heli_nh90_municion_bordo;1000;1000;‰ de u
+heli_nh90_municion_bordo;3000;1000;‰ de u
 heli_nh90_comb_vuelo_e4_s;270;10000;D-N76: E4 de u por segundo REAL en vuelo (1,62 u/min), se cobra cada 30 ticks
 heli_nh90_comb_suelo_e4_s;90;10000;D-N76: posado con los rotores girando (0,54 u/min), apagado, 0
 heli_nh90_deposito_u;6;1;D-N76: sale lleno, a cero baja en autorrotación a 4 m/s donde esté, aviso al 20 %
