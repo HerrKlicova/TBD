@@ -31,7 +31,7 @@ PIEZAS = ["casco", "mancha", "optica", "interior", "pala", "cubo", "goma", "meta
 COLORES = {"casco": "50541c", "mancha": "845c28", "optica": "60546c", "interior": "48403c", "pala": "94948c",
            "cubo": "845c28", "goma": "48403c", "metal": "605c48", "arma": "48403c", "disco": "94948c",
            "caja": "88885c"}
-VALOR_PIEZAS = {"casco": ("b4a080", "88885c", "70784c")}   # costados claros (Lucía: L* ≥ 28 a la sombra)
+VALOR_PIEZAS = {"casco": ("b4a080", "70784c", "50541c")}   # costados en 70784c con las normales subidas: L* 23,5 a la sombra, lejos de la horda (Lucía, 7-nov)
 FACCION = "propio"
 PRESUPUESTO = {0: (300, 5000), 1: (200, 3000)}
 UMBRAL_CONTORNO = {0: 0.06, 1: 0.25}
