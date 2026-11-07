@@ -2,7 +2,9 @@
 7-nov 01:45). Teo, 7-nov.
 
 Foto de Paula: K3_control_1.jpg (referencias-reales/entorno/, puesto de control con parapeto de sacos terreros apilados
-a soga, de unos 1,2 m). La tienda y la torre de luz van DE MEMORIA (fotos pedidas a Paula): SIN VERIFICAR. Medidas
+a soga, de unos 1,2 m). Forma de la tienda confirmada con K6_tienda_2 (modulares de pared baja y cumbrera) y la torre
+de luz con K7_foco_2 (Magnum en remolque). La lona de las fotos es beige, pero queda verde por legibilidad (Lucía,
+7-nov): color y cotas SIN VERIFICAR para un despliegue concreto. Medidas
 típicas: parapeto de sacos de 1,2 m de alto y 0,9 m de grueso, sacos de 0,85 × 0,3 m; tienda modular de pelotón de
 6 × 4,5 m con 1,75 m de pared y 2,9 m de cumbrera; mástil de 7 m; torre de luz en remolque de 7,5 m.
 Colores: sacos 88885c (como el muro de Marcos), HESCO 70784c con el relleno b4a080, tienda 50541c con el techo en 70784c
