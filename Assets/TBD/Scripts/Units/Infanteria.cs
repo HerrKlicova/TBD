@@ -28,12 +28,15 @@ namespace TBD.Units
     public struct Blast { public int X, Y, RadiusMm; public WeaponId Weapon; }
 
     public struct Casualty { public int Platoon, Man, X, Y; }
+    /// <summary>Contacto de la horda con un pelotón en un tick: zombis pegados a sus soldados (suma de contactos) y vida quitada.</summary>
+    public struct PlatoonHurt { public int Platoon, Contacts, Damage; }
     /// <summary>Resultado de UnitsWorld.ZombieContact: quién ha caído y cuánto contacto hubo este tick.</summary>
     public sealed class ContactResult
     {
         public readonly List<Casualty> Fallen = new List<Casualty>();
         public int Contacts, Touches, Damage;                 // contactos zombi-soldado, y vida quitada
-        public void Clear() { Fallen.Clear(); Contacts = Touches = Damage = 0; }
+        public readonly List<PlatoonHurt> Hurt = new List<PlatoonHurt>();   // por pelotón con contacto este tick (para «puesto bajo ataque» en el mapa); solo salida, no entra en el hash
+        public void Clear() { Fallen.Clear(); Hurt.Clear(); Contacts = Touches = Damage = 0; }
     }
 
     public sealed class StepResult
@@ -272,20 +275,21 @@ namespace TBD.Units
                         }
             }
             int fallen = 0;
+            if (res != null) { if (_pc.Length < Platoons.Count) { _pc = new int[Platoons.Count]; _pd = new int[Platoons.Count]; } for (int a = 0; a < Platoons.Count; a++) { _pc[a] = 0; _pd[a] = 0; } }
             for (int i = 0; i < n; i++)
             {
                 if (_touch[i] == 0) continue;
                 var p = Platoons[_cp[i]]; var m = p.Men[_cm[i]];
                 int dmg = (int)Math.Min((long)_touch[i] * dmgPerTick, int.MaxValue / 2);
                 m.Hp -= dmg;
-                if (res != null) { res.Contacts += _touch[i]; res.Damage += dmg; }
+                if (res != null) { res.Contacts += _touch[i]; res.Damage += dmg; _pc[_cp[i]] += _touch[i]; _pd[_cp[i]] += dmg; }
                 if (!m.Alive) { fallen++; p.Losses++; if (res != null) res.Fallen.Add(new Casualty { Platoon = p.Id, Man = m.Id, X = m.X, Y = m.Y }); }
             }
-            if (res != null) res.Touches = touches;
+            if (res != null) { res.Touches = touches; for (int a = 0; a < Platoons.Count; a++) if (_pc[a] > 0) res.Hurt.Add(new PlatoonHurt { Platoon = Platoons[a].Id, Contacts = _pc[a], Damage = _pd[a] }); }
             return fallen;
         }
         readonly List<int> _cx = new List<int>(), _cy = new List<int>(), _cp = new List<int>(), _cm = new List<int>();
-        int[] _head = new int[0], _next = new int[0], _touch = new int[0];
+        int[] _head = new int[0], _next = new int[0], _touch = new int[0], _pc = new int[0], _pd = new int[0];
 
         public void NoteKill(int platoon) { var p = Find(platoon); if (p != null) p.Kills++; }
 

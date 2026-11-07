@@ -21,6 +21,24 @@ namespace TBD.Sim.Tests
             return kills;
         }
 
+        /// <summary>Informe de calibración (no es una prueba): TBD_NIGHT_REPORT=1. Una noche con el bot de reabastecimiento limitado a N recargas en total (el jugador de la zona hizo 3).</summary>
+        public static void NightReport()
+        {
+            string json = TBD.Net.BalanceSource.Read("noche_sagunto.json");
+            foreach (var dif in new string[] { "facil", null, "dificil" })
+                foreach (int cap in new int[] { 1000, 8, 5, 3 })
+                {
+                    var sim = NightSim.FromJson(json, dif, 3); sim.AddDefaultForce(); int used = 0;
+                    while (sim.Night.State == NightState.Jugando)
+                    {
+                        sim.Run(150);
+                        foreach (var p in sim.Units.Platoons) if (used < cap && p.AmmoCap > 0 && p.AmmoShots * 100 < p.AmmoCap * 30) if (sim.Resupply(p.Id) > 0) used++;
+                    }
+                    var s = sim.Snapshot();
+                    Console.WriteLine($"[{dif ?? "normal"} recargas<={cap}] {s.State} a las {s.Hour:00}:{s.Minute:00} estrellas {sim.Stars()} muro {s.WallHp * 100 / Math.Max(1, sim.SP.WallHp)} % edificio {sim.Night.StationHp} tren {sim.Night.TrainHp} bajas {s.SoldierDeaths} munición {s.PlatoonAmmoShots + s.StockShots} abatidos {s.Kills}/{s.ZombiesSpawned} recargas {used}");
+                }
+        }
+
         public static void Run(Action<bool, string> check)
         {
             Console.WriteLine("[29] Infantería por pelotones, vehículo de tierra y helicóptero (noche del 7-nov)");
@@ -556,6 +574,16 @@ namespace TBD.Sim.Tests
                     var air = TransportDirector.AirTransit(HeliKind.Nh90, 180_000, 44_000, 280_000, 144_000, 30 * 10); var air0 = TransportDirector.AirTransit(HeliKind.Nh90, 180_000, 44_000, 280_000, 144_000, 0); var airEnd = TransportDirector.AirTransit(HeliKind.Nh90, 180_000, 44_000, 280_000, 144_000, 30 * 600);
                     check(legs && air.Active && air.Route == TransitRoute.Aire && air.Class == TransitClass.Helicoptero && air.ProgressPm > air0.ProgressPm && air.SecondsLeft < air0.SecondsLeft && air0.SecondsLeft == TransportDirector.EtaAirSeconds(HeliKind.Nh90, 180_000, 44_000, 280_000, 144_000) && !airEnd.Active && airEnd.ProgressPm == 1000 && airEnd.SecondsLeft == 0 && air.Heading == 8192,
                         $"tipo de ruta por tramo (carretera hasta el helipuerto; al este, por la vía) y tránsito aéreo en línea recta (a los 10 s: {air.ProgressPm / 10.0:0.0} %, faltan {air.SecondsLeft} de {air0.SecondsLeft} s, rumbo {air.Heading * 360 / 65536}°)");
+                }
+                {
+                    // puesto bajo ataque (D-N117): el contacto de la horda sale por pelotón, para que el mapa lo mantenga encendido unos segundos
+                    var w = new UnitsWorld(81); var pa = w.AddPlatoon(PlatoonKind.Fusileros, 50_000, 50_000, 0); var pb = w.AddPlatoon(PlatoonKind.Fusileros, 150_000, 50_000, 0);
+                    var zs = new List<Target>(); for (int i = 0; i < 12; i++) zs.Add(new Target { Id = 1 + i, X = 50_000 + (i % 4) * 200, Y = 50_000 + (i / 4) * 200 });
+                    var cr = new ContactResult(); int fallen = w.ZombieContact(zs, 900, 2, cr);
+                    int sumC = 0, sumD = 0; foreach (var h in cr.Hurt) { sumC += h.Contacts; sumD += h.Damage; }
+                    bool onlyA = cr.Hurt.Count == 1 && cr.Hurt[0].Platoon == pa.Id && cr.Hurt[0].Contacts > 0 && cr.Hurt[0].Damage > 0;
+                    var cr2 = new ContactResult(); w.ZombieContact(new List<Target>(), 900, 2, cr2);
+                    check(onlyA && sumC == cr.Contacts && sumD == cr.Damage && cr2.Hurt.Count == 0, $"el contacto de la horda sale por pelotón: solo el A ({cr.Hurt[0].Contacts} contactos, {cr.Hurt[0].Damage} de vida), el B lejos no; sin zombis, nada");
                 }
                 // ---------------------------------------------------- elección del vehículo: solo uno LIBRE, entero, con plazas y combustible
                 Func<UnitsWorld, TransportDirector> mk = w => new TransportDirector(w, RoadMap.Sagunto(rj));
