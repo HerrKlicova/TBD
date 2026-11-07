@@ -22,6 +22,28 @@ namespace TBD.Sim.Tests
         }
 
         /// <summary>Informe de calibración (no es una prueba): TBD_NIGHT_REPORT=1. Una noche con el bot de reabastecimiento limitado a N recargas en total (el jugador de la zona hizo 3).</summary>
+        /// <summary>TBD_VEH_REPORT=1: muchas partidas con NightBot, con y sin el fuego de los vehículos (Mak, 7-nov). TBD_SEEDS=N (por defecto 20; Hugo: 1000), TBD_DIF=facil|normal|dificil|todas.</summary>
+        public static void VehReport()
+        {
+            string json = TBD.Net.BalanceSource.Read("noche_sagunto.json");
+            int n = 20; int.TryParse(Environment.GetEnvironmentVariable("TBD_SEEDS") ?? "20", out n); if (n <= 0) n = 20;
+            string difs = Environment.GetEnvironmentVariable("TBD_DIF") ?? "todas";
+            Console.WriteLine("dificultad;vehiculos;partidas;victorias;estrellas_0;estrellas_1;estrellas_2;estrellas_3;muro_medio_pct;pila_max_media;abatidos_vehiculos_medio;recargas_vehiculos_medio;municion_final_media_u;bajas_medias");
+            foreach (var dif in difs == "todas" ? new[] { "facil", "normal", "dificil" } : new[] { difs })
+                foreach (bool veh in new[] { false, true })
+                {
+                    int wins = 0; var st = new int[4]; long wall = 0, pile = 0, vk = 0, vr = 0, ammo = 0, deaths = 0;
+                    for (int i = 0; i < n; i++)
+                    {
+                        var sim = NightSim.FromJson(json, dif, (uint)(i + 1)); sim.AddDefaultForce(); if (veh) sim.AddDefaultVehicles(true); sim.Bot = NightBot.FromParams(sim.SP);
+                        while (sim.Night.State == NightState.Jugando) sim.Run(300);
+                        if (sim.Night.State == NightState.Victoria) wins++; st[Math.Max(0, Math.Min(3, sim.Stars()))]++;
+                        wall += (long)sim.WallHp * 100 / Math.Max(1, sim.SP.WallHp); pile += sim.PeakPile; vk += sim.VehicleKills; vr += sim.VehicleResupplies; ammo += sim.AmmoMilliU(); deaths += sim.SoldierDeaths;
+                    }
+                    Console.WriteLine($"{dif};{(veh ? "si" : "no")};{n};{wins};{st[0]};{st[1]};{st[2]};{st[3]};{wall / n};{pile / n};{vk / n};{(vr * 10 / n) / 10.0:0.0};{(ammo / n) / 1000.0:0.0};{(deaths * 10 / n) / 10.0:0.0}");
+                }
+        }
+
         /// <summary>TBD_BOT_REPORT=1: noche entera con el NightBot (sin bot de recarga aparte), por dificultad y semilla, para comparar con la fuerza fija por defecto.</summary>
         public static void BotReport()
         {
@@ -1017,6 +1039,68 @@ namespace TBD.Sim.Tests
                 for (int t = 0; t < 330; t++) g.Step(); g.Controls(0, 1000, 0, 0); bool below = false;
                 for (int t = 0; t < 300; t++) { g.Step(); if (g.Z < g.GroundZ) below = true; }
                 check(!below, "el helicóptero nunca queda por debajo del relieve");
+            }
+            {
+                // noche FUERA DE PANTALLA (Eugenio, 7-nov): salir de la zona no para ni reinicia la noche; NightSim se engancha al mismo NightGame y UnitsWorld
+                string json = TBD.Net.BalanceSource.Read("noche_sagunto.json");
+                Func<bool, ulong> run = leave =>
+                {
+                    var zone = NightSim.FromJson(json, null, 5); zone.AddDefaultForce(); zone.Bot = NightBot.FromParams(zone.SP);
+                    zone.Run(4000);                                                   // 4.000 ticks «en pantalla»
+                    if (!leave) { zone.Run(6000); return zone.Hash(); }
+                    var exp = new List<Target>(); zone.ExportZombies(exp);
+                    var off = new NightSim(zone.Night, zone.Units, zone.SP, zone.WallHp, 5); foreach (var t in exp) off.ImportZombie(t.X, t.Y);
+                    off.Run(6000); return off.Hash();
+                };
+                {
+                    var zone = NightSim.FromJson(json, null, 5); zone.AddDefaultForce(); zone.Run(4000);
+                    int tick0 = zone.Night.Tick, sp0 = zone.Night.Spawned[0] + zone.Night.Spawned[1], ammo0 = zone.Units.StockShots, alive0 = zone.ZombiesAlive, wall0 = zone.WallHp;
+                    var exp = new List<Target>(); zone.ExportZombies(exp);
+                    var off = new NightSim(zone.Night, zone.Units, zone.SP, wall0, 5); foreach (var t in exp) off.ImportZombie(t.X, t.Y);
+                    check(off.Night == zone.Night && off.Units == zone.Units && off.ZombiesAlive == alive0 && off.WallHp == wall0 && off.Night.Tick == tick0 && off.Units.StockShots == ammo0,
+                        $"al salir de la zona la noche sigue donde estaba: mismo reloj (tick {tick0}), {alive0} zombis vivos, muro {wall0}, almacén {ammo0 / 2000.0:0.0} u (no se reinicia)");
+                    int k0 = off.Night.Tick; off.Run(9000);
+                    int spawned = 0; for (int w = 0; w < off.Night.Spawned.Length; w++) spawned += off.Night.Spawned[w];
+                    check(off.Night.Tick > k0 && spawned > sp0 && off.Kills > 0, $"fuera de pantalla el reloj avanza ({k0} → {off.Night.Tick}), siguen llegando oleadas ({sp0} → {spawned} zombis) y los pelotones disparan ({off.Kills} abatidos)");
+                    var back = new List<Target>(); off.ExportZombies(back); bool inRange = true; foreach (var t in back) if (t.X < -400000 || t.X > 600000 || t.Y < -400000 || t.Y > 600000) inRange = false;
+                    check(back.Count == off.ZombiesAlive && inRange, $"al volver a la zona, los {back.Count} zombis vivos salen con su posición para crearlos en ECS");
+                    while (off.Night.State == NightState.Jugando) off.Run(300);
+                    check(off.Night.State == NightState.Victoria || off.Night.State == NightState.Derrota, $"la noche puede acabar fuera de pantalla ({off.Night.State} a las {off.Night.Hour:00}:{off.Night.Minute:00})");
+                }
+                check(run(true) == run(true), "fuera de pantalla es determinista: dos salidas iguales dan el mismo hash");
+                {
+                    var a = NightSim.FromJson(json, null, 9); a.AddDefaultForce(); var b = NightSim.FromJson(json, null, 9); b.AddDefaultForce();
+                    var off = new NightSim(b.Night, b.Units, b.SP, b.WallHp, 9) { AutoPlatoonResupply = false };
+                    for (int t = 0; t < 3000; t++) { a.Step(); off.Step(); }
+                    check(a.Hash() == off.Hash() && a.Kills == off.Kills, $"engancharse sin zombis al principio es la misma noche que NightSim normal (3.000 ticks, {a.Kills} abatidos)");
+                }
+            }
+            {
+                // fuego de los vehículos en NightSim (Mak, 7-nov: fuego libre desde el principio; misma regla que la zona)
+                string json = TBD.Net.BalanceSource.Read("noche_sagunto.json");
+                var d = NightVehicle.Make("Dragón", NightVehKind.Dragon, 0, 0);
+                check(d.MaxShots == 120 && d.PeriodTicks == 30 && d.KillsPerShot == 3 && d.RangeMm == 55000 && d.RefillCostShots() == 0, "Dragón como en la zona: 120 salvas, 1 por segundo, 3 abatidos por salva, 55 m");
+                d.Shots = 60; check(d.RefillCostShots() == 600, $"recargar medio Dragón cuesta 0,3 u del almacén ({d.RefillCostShots()} disparos)");
+                var s0 = NightSim.FromJson(json, null, 3); s0.AddDefaultForce(); ulong h0 = s0.Hash();
+                var s1 = NightSim.FromJson(json, null, 3); s1.AddDefaultForce(); check(s1.Hash() == h0 && s1.Vehicles.Count == 0, "sin vehículos, el hash de NightSim es el de siempre");
+                var sv = NightSim.FromJson(json, null, 3); sv.AddDefaultForce(); sv.AddDefaultVehicles(true); sv.Bot = NightBot.FromParams(sv.SP);
+                var sn = NightSim.FromJson(json, null, 3); sn.AddDefaultForce(); sn.Bot = NightBot.FromParams(sn.SP);
+                for (int t = 0; t < 9000; t++) { sv.Step(); sn.Step(); }
+                var dr = sv.Vehicles[0]; var nh = sv.Vehicles[3];
+                check(sv.Vehicles.Count == 4 && sv.VehicleKills > 0 && dr.Kills > 0 && dr.ShotsFired > 0 && nh.Kills == 0, $"con fuego libre los vehículos abaten ({sv.VehicleKills} en 9.000 ticks; Dragón {dr.Kills}, VAMTAC {sv.Vehicles[1].Kills}+{sv.Vehicles[2].Kills}); el NH90 en tierra no dispara");
+                check(sv.LastPile <= sn.LastPile || sv.PeakPile <= sn.PeakPile, $"con vehículos la pila no crece (máx. {sv.PeakPile} frente a {sn.PeakPile})");
+                var sx = NightSim.FromJson(json, null, 3); sx.AddDefaultForce(); sx.AddDefaultVehicles(true); sx.Bot = NightBot.FromParams(sx.SP);
+                for (int t = 0; t < 9000; t++) sx.Step();
+                check(sx.Hash() == sv.Hash(), "con vehículos sigue siendo determinista (mismo hash en dos corridas)");
+                var sg = NightSim.FromJson(json, null, 3); sg.AddDefaultForce(); sg.AddDefaultVehicles(false); for (int t = 0; t < 9000; t++) sg.Step();
+                check(sg.VehicleKills == 0, "con alto el fuego no disparan");
+                // reserva vacía y recarga
+                var sr = NightSim.FromJson(json, null, 3); sr.AddDefaultForce(); sr.AddDefaultVehicles(true); var v0 = sr.Vehicles[0]; v0.Shots = 0; int stock0 = sr.Units.StockShots;
+                int cost = sr.ResupplyVehicle(0); check(cost == 1200 && sr.Units.StockShots == stock0 - 1200 && v0.ResupplyUntil == sr.Night.Tick + 600, $"recargar el Dragón vacío: 0,6 u del almacén y 20 s ({cost} disparos)");
+                check(sr.ResupplyVehicle(0) == 0, "no se puede pedir otra recarga mientras dura la primera");
+                v0.Fire = false; for (int t = 0; t < 601; t++) sr.Step(); check(v0.ResupplyUntil == -1 && v0.Shots == v0.MaxShots, "al acabar la recarga (20 s) la reserva vuelve a estar llena");
+                var sj = NightSim.FromJson(json, null, 3); sj.VehicleParamsJson = "{\"NightVehicles\": {\"Dragon\": {\"MaxShots\": 240}, \"Nh90\": {\"Airborne\": true}}}"; sj.AddDefaultVehicles(true);
+                check(sj.Vehicles[0].MaxShots == 240 && sj.Vehicles[0].Shots == 240 && sj.Vehicles[3].Airborne && sj.Vehicles[1].MaxShots == 300, "las cifras de Hugo (NightVehicles en nightsim_params.json) cambian solo lo que dicen");
             }
         }
     }
