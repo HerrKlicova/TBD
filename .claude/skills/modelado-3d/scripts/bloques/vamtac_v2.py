@@ -6,7 +6,7 @@ De las fotos de Paula (V2_vamtac_1.jpg, dominio público, OR-7 Pia Dunkel, Stead
 CC BY-SA 2.0, koldo hormaza, generación anterior): capó largo con rejilla de lamas, parabrisas casi vertical de dos
 hojas, cabina blindada de cuatro puertas con ventanillas pequeñas, caja trasera con el techo cayendo hacia atrás,
 soporte de bidones atrás, defensa delantera (bullbar), snorkel en el montante izquierdo, estribo bajo las puertas,
-aro en el techo con la ametralladora y escudo curvo detrás del tirador, faros en la defensa.
+aro en el techo con la ametralladora y escudo curvo delante del tirador (Lucía, 7-nov), faros en la defensa.
 SIN VERIFICAR (estimado del lateral): reparto capó/cabina/caja, alto del capó (1,45 m) y del aro.
 LOD1 con la regla de Bruno (6-nov, 0,17 m/px): nada de menos de 2 px (~0,35 m); el cañón engordado a 2 px; sin bullbar,
 snorkel, retrovisores, estribo ni bidones sueltos (el soporte queda como un bloque).
@@ -82,10 +82,16 @@ def construir(nombre="SM_V2_Vamtac", lod=0):
     r_c = 0.03 if lod == 0 else 0.15                                # cañón: 2 px en el LOD1 (Bruno)
     t.cilindro((0, -1.2, zt + 0.58), r_c, 1.1, "Y", 6, "metal")
     fino.caja((0.3, -0.25, zt + 0.5), (0.2, 0.3, 0.2), "carga")    # caja de munición
-    for k in range(5):                                             # escudo curvo detrás del tirador
+    # escudo curvo DELANTE del tirador, con el cañón asomando por una ranura en la chapa central (Lucía, 7-nov 00:10:
+    # antes estaba detrás). Las chapas laterales se curvan hacia atrás, rodeando al tirador
+    for k in range(5):
         ang = math.radians(-50 + k * 25)
-        t.caja((0.55 * math.sin(ang), 0.45 + 0.55 * (math.cos(ang) - 1) * -0.5, zt + 0.55),
-               (0.3, 0.05, 0.85), rot_z=-ang)
+        x, y = 0.55 * math.sin(ang), -0.85 + 0.275 * (1 - math.cos(ang))
+        if k == 2:                                                 # central partida: ranura de 0,16 m para el cañón
+            t.caja((x, y, zt + 0.31), (0.3, 0.05, 0.38), "casco")
+            t.caja((x, y, zt + 0.84), (0.3, 0.05, 0.32), "casco")
+        else:
+            t.caja((x, y, zt + 0.55), (0.3, 0.05, 0.85), "casco", rot_z=-ang)
     # atrás: soporte de bidones (bloque) y bidones sueltos de cerca
     t.caja((0.6, Y0 + 0.2, 1.35), (0.9, 0.4, 0.6), "carga")
     fino.caja((-0.55, Y0 + 0.15, 1.3), (0.5, 0.3, 0.45), "carga")

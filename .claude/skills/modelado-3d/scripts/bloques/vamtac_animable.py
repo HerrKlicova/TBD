@@ -41,7 +41,7 @@ def _grupo(c):
         if abs(y - ye) < 0.6 and 0.7 < abs(x) < 1.3 and z < 1.1:
             return "Rueda_%d%s" % (i + 1, "L" if x > 0 else "R")
     if abs(x) < 0.8 and -1.9 < y < 0.9 and z > ZT + 0.02:
-        if abs(x) < 0.2 and y < -0.2 and z > ZT + 0.45:
+        if abs(x) < 0.2 and y < -0.2 and ZT + 0.45 < z < ZT + 0.7:   # la chapa alta del escudo (ZT+0,84) va al aro
             return "Ametralladora"
         return "Aro"
     return None

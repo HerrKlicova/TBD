@@ -39,7 +39,7 @@ COLORES = {"uniforme": "88885c", "chaleco": "605c48", "yelmo": "88885c", "piel":
 # M1_soldado_1/_2, M2_casco_chaleco_1): boscoso en dos valores de verde, sin el arena del árido. Arriba 88885c (oliva
 # claro), costados 70784c (los de la revisión de las 23:17, que no caen en la horda con las normales inclinadas) y
 # abajo 50541c. El casco lleva funda boscosa: arriba 88885c y costados 50541c.
-VALOR_PIEZAS = {"uniforme": ("88885c", "70784c", "50541c"), "yelmo": ("88885c", "50541c", "50541c"),
+VALOR_PIEZAS = {"uniforme": ("b4a080", "70784c", "50541c"), "yelmo": ("b4a080", "50541c", "50541c"),
                 "chaleco": ("b4a080", "847c34", "605c48")}
 FACCION = "propio"
 # Normales inclinadas hacia arriba (n + 1,0·Z, normalizada; se exportan en el FBX: Normals = Import). Con la luz del
