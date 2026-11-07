@@ -227,7 +227,7 @@ namespace TBD.View
                     if (v.RotorMain != null) v.RotorMain.localRotation = v.RotorMainInit * Quaternion.Euler(0f, v.SpinMainDeg, 0f);
                     if (v.RotorTail != null) v.RotorTail.localRotation = v.RotorTailInit * Quaternion.Euler(v.SpinTailDeg, 0f, 0f);
                     if (v.Shadow != null) { float s = 6f + v.Alt * 0.12f; v.Shadow.transform.position = new Vector3(v.Pos.x, 0.14f, v.Pos.y); v.Shadow.transform.localScale = new Vector3(s, s * 1.5f, 1f); v.Shadow.transform.rotation = Quaternion.Euler(90f, v.Heading, 0f); v.Shadow.SetActive(v.Alt > 0.2f || v.Rpm > 0.1f); }
-                    Sfx.Loop("sfx_rotor_nh90", v.Rpm * Mathf.Clamp01(1f - Mathf.Abs(Camera.main != null ? (Camera.main.transform.position - t.position).magnitude / 400f : 0f)), false);
+                    // (el rotor suena en Fx.cs, NightAudio: un AudioSource 3D por helicoptero; el bucle MP3 viejo en 2D se ha quitado)
                 }
             }
         }

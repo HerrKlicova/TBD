@@ -193,14 +193,15 @@ namespace TBD.View
         public static void StopLoop(string name) { if (I._loops.TryGetValue(name, out var l)) l.Target = 0f; }
         public static void StopAllLoops() { foreach (var l in I._loops.Values) l.Target = 0f; }
 
+        float _duckCur = 1f;
         void Update()
         {
-            float dt = Time.unscaledDeltaTime, now = Time.unscaledTime; float duck = now < _duckUntil ? 0.55f : 1f;
+            float dt = Time.unscaledDeltaTime, now = Time.unscaledTime; _duckCur = Mathf.MoveTowards(_duckCur, now < _duckUntil ? 0.55f : 1f, dt / 0.25f); float duck = _duckCur;
             foreach (var l in _loops.Values)
             {
                 float rate = l.Target > l.Cur ? dt / FadeIn : dt / FadeOut; l.Cur = Mathf.MoveTowards(l.Cur, l.Target, rate);
                 float master = l.Music ? MainMenu.MusicVolume : MainMenu.SfxVolume;
-                l.A.volume = l.Cur * master * (l.Music ? 1f : duck);
+                l.A.volume = l.Cur * master * (l.Music || l.Spatial ? 1f : duck);
                 if (l.Cur > 0.001f)
                 {
                     l.SilentSince = -1f;
