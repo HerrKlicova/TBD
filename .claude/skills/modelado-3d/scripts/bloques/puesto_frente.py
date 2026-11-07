@@ -21,15 +21,15 @@ from montaje import Montaje, separar as _separar
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 ASPECTO = VAR % 5
 PIEZAS = ["sacos", "hesco", "relleno", "tienda", "puerta", "metal", "cabeza", "red", "caja", "pale", "banderin", "luz"]
-COLORES = {"sacos": "88885c", "hesco": "70784c", "relleno": "b4a080", "tienda": "50541c", "puerta": "48403c",
+COLORES = {"sacos": "88885c", "hesco": "70784c", "relleno": "b4a080", "tienda": "50541c", "puerta": "605c48",
            "metal": "6c7874", "cabeza": "48403c", "red": "50541c", "caja": "605c48", "pale": "b4a080",
            "banderin": "70784c", "luz": "f0dc9c"}
-VALOR_PIEZAS = {"tienda": ("70784c", "50541c")}
+VALOR_PIEZAS = {"tienda": ("847c34", "70784c")}   # paredes en 70784c con las normales a 1,0: la sombra fuera de la banda de la horda (Lucía, 7-nov)
 FACCION = "propio"
 PRESUPUESTO = {0: (300, 6000), 1: (150, 2500)}
 UMBRAL_CONTORNO = {0: 9.0, 1: 9.0}
 NORMALES_ARRIBA = True
-NORMALES_INCLINACION = 0.5
+NORMALES_INCLINACION = 1.0
 PARTES = ["puesto", "Luces"]
 PIV = {"Luces": (0, 0, 0)}
 CASA = [(-1.0, -1.0), (1.0, -1.0), (1.0, 0.2), (0.0, 1.0), (-1.0, 0.2)]   # sección de la tienda (x, z)
