@@ -5,7 +5,7 @@ despegando). Cotas DE MEMORIA (SIN VERIFICAR): 15,96 m de largo, 10,95 m de enve
 flecha del borde de ataque de unos 53°, deriva de unos 3,3 m sobre el eje del fuselaje. Forma: ala en delta baja, canards
 detrás de la cabina, una sola deriva, toma de aire bajo el morro (la «sonrisa»), dos toberas, cúpula de burbuja y el
 cañón BK-27 en la raíz del ala derecha. En vuelo con el tren recogido.
-Colores: gris claro de baja visibilidad (casco b8b8b8; claro d4d0cc arriba y 94948c abajo con VALOR_PIEZAS), cúpula
+Colores: gris de baja visibilidad (b8b8b8 arriba y en los costados, 6c7874 en el vientre: VALOR_PIEZAS), cúpula
 60546c, toberas 6c7874, interiores 48403c, bombas guiadas y Mk-82 en 88885c (oliva, como las reales), misiles d4d0cc y
 depósitos en el gris del casco. SIN escarapelas ni la cruz de San Andrés: las de verdad llevan rojo (D-N80).
 Piezas finas (Lucía, 7-nov): deriva, canards y misiles de 0,25 m o más en el LOD1 (≥ 2 px a ortho 26).
@@ -27,7 +27,9 @@ ASPECTO = VAR % 5
 PIEZAS = ["casco", "optica", "tobera", "interior", "bomba", "misil", "deposito", "boca"]
 COLORES = {"casco": "b8b8b8", "optica": "60546c", "tobera": "6c7874", "interior": "48403c", "bomba": "88885c",
            "misil": "d4d0cc", "deposito": "b8b8b8", "boca": "48403c"}
-VALOR_PIEZAS = {"casco": ("d4d0cc", "b8b8b8", "94948c")}
+# un escalón más oscuro (Lucía, 7-nov): d4d0cc es el color de la selección. Ella pidió costados en 94948c, pero
+# valor_partido lo veta para las piezas propias (gris del suelo y de la horda), así que los costados se quedan en b8b8b8
+VALOR_PIEZAS = {"casco": ("b8b8b8", "b8b8b8", "6c7874")}
 FACCION = "propio"
 PRESUPUESTO = {0: (300, 5000), 1: (200, 3000)}
 UMBRAL_CONTORNO = {0: 0.06, 1: 0.25}
