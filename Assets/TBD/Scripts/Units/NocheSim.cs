@@ -20,6 +20,7 @@ namespace TBD.Units
         public int StationDmgPerZombieS;
         public int ContactRadiusMm, ContactCasualtyPmPerS;  // soldado en contacto con un zombi: ‰ de caer por zombi y segundo
         public int PileRadiusMm;                        // «pegado al muro»
+        public int GateGapMm;                           // hueco de la vía en el muro oeste (en la zona de Unity la puerta de vía no tiene sólido: 3.200). 0 = recinto cerrado (lo medido hasta ahora)
 
         public static NightSimParams Default()
         {
@@ -40,7 +41,7 @@ namespace TBD.Units
             Func<string, int, int> g = (k, d) => o.ContainsKey(k) && o[k] is long ? (int)(long)o[k] : d;
             p.FortX0 = g("FortX0", p.FortX0); p.FortX1 = g("FortX1", p.FortX1); p.FortY0 = g("FortY0", p.FortY0); p.FortY1 = g("FortY1", p.FortY1); p.StationX = g("StationX", p.StationX); p.StationY = g("StationY", p.StationY);
             p.WallHp = g("WallHp", p.WallHp); p.WallDmgPerZombieS = g("WallDmgPerZombieS", p.WallDmgPerZombieS); p.StationHp = g("StationHp", p.StationHp); p.StationDmgPerZombieS = g("StationDmgPerZombieS", p.StationDmgPerZombieS);
-            p.ZombieSpeedMmS = g("ZombieSpeedMmS", p.ZombieSpeedMmS); p.ContactRadiusMm = g("ContactRadiusMm", p.ContactRadiusMm); p.ContactCasualtyPmPerS = g("ContactCasualtyPmPerS", p.ContactCasualtyPmPerS); p.PileRadiusMm = g("PileRadiusMm", p.PileRadiusMm);
+            p.ZombieSpeedMmS = g("ZombieSpeedMmS", p.ZombieSpeedMmS); p.ContactRadiusMm = g("ContactRadiusMm", p.ContactRadiusMm); p.ContactCasualtyPmPerS = g("ContactCasualtyPmPerS", p.ContactCasualtyPmPerS); p.PileRadiusMm = g("PileRadiusMm", p.PileRadiusMm); p.GateGapMm = g("GateGapMm", p.GateGapMm);
             return p;
         }
     }
@@ -70,7 +71,7 @@ namespace TBD.Units
     {
         sealed class Zomb { public int X, Y; public bool Alive = true; }
 
-        public readonly NightSimParams SP;
+        public NightSimParams SP;
         public readonly UnitsWorld Units;
         public readonly NightGame Night;
         public readonly List<WaveStats> Waves = new List<WaveStats>();
@@ -178,17 +179,21 @@ namespace TBD.Units
             for (int i = 0; i < _z.Count; i++)
             {
                 var z = _z[i]; if (!z.Alive) continue;
-                int dx = SP.StationX - z.X, dy = SP.StationY - z.Y, d = IMath.Dist(dx, dy);
-                if (d < 3500) continue;
+                int tx = SP.StationX, ty = SP.StationY;
+                bool gap = SP.GateGapMm > 0 && WallHp > 0;
+                if (gap && z.X < SP.FortX0 - 500 && !InFort(z.X, z.Y)) { tx = SP.FortX0 - 1000; }      // con hueco en la vía, la horda rodea el muro hasta la puerta (como el flujo de la zona)
+                int dx = tx - z.X, dy = ty - z.Y, d = IMath.Dist(dx, dy);
+                if (d < 3500 && tx == SP.StationX) continue;
+                if (d < 1) continue;
                 int nx = z.X + IMath.DivR((long)dx * speed, d), ny = z.Y + IMath.DivR((long)dy * speed, d);
-                if (WallHp > 0 && !InFort(z.X, z.Y) && InFort(nx, ny))
+                if (WallHp > 0 && !InFort(z.X, z.Y) && InFort(nx, ny) && !(gap && z.X <= SP.FortX0 && Math.Abs(ny - SP.StationY) < SP.GateGapMm / 2))
                 {
                     // choca con el muro: se queda pegado (si entra por X se corrige X; por Y, Y)
                     if (!InFort(nx, z.Y)) ny = z.Y; else if (!InFort(z.X, ny)) nx = z.X; else { nx = z.X; ny = z.Y; }
                     if (InFort(nx, ny)) { nx = z.X; ny = z.Y; }
                 }
                 z.X = nx; z.Y = ny;
-                if (WallHp > 0 && !InFort(z.X, z.Y) && NearWall(z.X, z.Y)) pile++;
+                if (WallHp > 0 && !InFort(z.X, z.Y) && NearWall(z.X, z.Y) && !(gap && Math.Abs(z.Y - SP.StationY) < SP.GateGapMm / 2 + 500)) pile++;      // los que cruzan el hueco no son pila
             }
             if (pile > PeakPile) PeakPile = pile;
             if (cur != null && pile > cur.PeakPile) cur.PeakPile = pile;

@@ -37,6 +37,22 @@ namespace TBD.Sim.Tests
                     }
         }
 
+        /// <summary>TBD_WAVE_REPORT=1: por oleada (normal, semilla 1, con NightBot o fuerza fija), ticks hasta el primer contacto con el muro, pila máxima, abatidos, recargas y munición. Variantes de velocidad del zombi para comparar con la zona.</summary>
+        public static void WaveReport()
+        {
+            string json = TBD.Net.BalanceSource.Read("noche_sagunto.json");
+            foreach (int gapMm in new int[] { 0, 3200 })
+                foreach (bool useBot in new bool[] { true, false })
+                {
+                    var sim = NightSim.FromJson(json, null, 1); sim.SP.GateGapMm = gapMm; sim.AddDefaultForce(); if (useBot) sim.Bot = NightBot.FromParams(sim.SP);
+                    int firstPile = -1;
+                    while (sim.Night.State == NightState.Jugando) { sim.Run(30); if (firstPile < 0 && sim.PeakPile > 0) firstPile = sim.Night.Tick; if (!useBot) sim.ResupplyBot(); }
+                    Console.WriteLine($"-- hueco de la vía {gapMm} mm, {(useBot ? "NightBot" : "fija")}: {sim.Night.State} a las {sim.Night.Hour:00}:{sim.Night.Minute:00}, edificio {sim.StationHp}, tren {sim.Night.TrainHp}, muro {sim.WallHp * 100 / Math.Max(1, sim.SP.WallHp)} %, primer contacto con el muro en el tick {firstPile}");
+                    foreach (var w in sim.Waves)
+                        Console.WriteLine($"   oleada {w.Wave} {w.HourAtStart:00}:{w.MinuteAtStart:00} zombis {w.Spawned} abatidos {w.Kills} pila máx {w.PeakPile} recargas {w.Resupplies} munición gastada {w.AmmoSpentShots / 2000.0:0.0} u bajas {w.SoldierDeaths} vivos al cierre {w.AliveAtEnd} duración {(w.EndTick < 0 ? -1 : (w.EndTick - w.StartTick) / 30)} s");
+                }
+        }
+
         public static void NightReport()
         {
             string json = TBD.Net.BalanceSource.Read("noche_sagunto.json");
@@ -661,6 +677,10 @@ namespace TBD.Sim.Tests
                     var full = NightSim.FromJson(TBD.Net.BalanceSource.Read("noche_sagunto.json"), null, 1); full.AddDefaultForce(); full.Bot = NightBot.FromParams(full.SP); while (full.Night.State == NightState.Jugando) full.Run(150);
                     var fs = full.Snapshot();
                     check(fs.State == NightState.Victoria && full.Stars() >= 2 && fs.WallHp * 100 / full.SP.WallHp > 60 && full.Bot.Resupplies > 20 && full.Resupplies == 0, $"la noche normal entera con el bot (sin ayuda de recarga aparte): {fs.State}, {full.Stars()} estrellas, muro {fs.WallHp * 100 / full.SP.WallHp} %, {full.Bot.Resupplies} reabastecimientos, {fs.SoldierDeaths} bajas");
+                    // hueco de la vía (la zona de Unity no pone sólido a la puerta de vía): la horda rodea el muro hasta el hueco, no se amontona y el muro no se desgasta
+                    Func<int, NightSim> gapRun = gap => { var n = NightSim.FromJson(TBD.Net.BalanceSource.Read("noche_sagunto.json"), null, 1); n.SP.GateGapMm = gap; n.AddDefaultForce(); n.Run(4500); return n; };
+                    var gClosed = gapRun(0); var gOpen = gapRun(3200);
+                    check(gClosed.PeakPile > 20 && gClosed.WallHp < gClosed.SP.WallHp && gOpen.PeakPile == 0 && gOpen.WallHp == gOpen.SP.WallHp, $"recinto cerrado: la oleada 1 amontona {gClosed.PeakPile} y gasta muro; con hueco de 3,2 m en la vía: pila {gOpen.PeakPile} y el muro intacto (así sale la zona real: pila 0, muro 1000 ‰)");
                 }
                 // ---------------------------------------------------- elección del vehículo: solo uno LIBRE, entero, con plazas y combustible
                 Func<UnitsWorld, TransportDirector> mk = w => new TransportDirector(w, RoadMap.Sagunto(rj));

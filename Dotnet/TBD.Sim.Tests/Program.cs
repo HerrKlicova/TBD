@@ -131,6 +131,7 @@ namespace TBD.Sim.Tests
                 Console.WriteLine(rpt.Text); Console.WriteLine(); Console.WriteLine(TBD.Units.NightTraceTools.SideBySide(TBD.Units.NightTraceTools.ReferenceFromData(), zt, 10)); return rpt.Ok ? 0 : 1;
             }
             if (Environment.GetEnvironmentVariable("TBD_BOT_REPORT") == "1") { UnidadesTests.BotReport(); return 0; }
+            if (Environment.GetEnvironmentVariable("TBD_WAVE_REPORT") == "1") { UnidadesTests.WaveReport(); return 0; }
             if (Environment.GetEnvironmentVariable("TBD_NIGHT_REPORT") == "1") { UnidadesTests.NightReport(); return 0; }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_UNITS") == "1")      // solo la sección [29] (unidades), para iterar rápido
             {
