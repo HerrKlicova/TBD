@@ -80,6 +80,7 @@ namespace TBD.View
                 if (v.Go == null) continue;
                 var kind = v.Heli ? NightVehKind.Nh90 : v.Name.StartsWith("Dragón") ? NightVehKind.Dragon : NightVehKind.Vamtac;
                 var nv = NightVehicle.Make(v.Name, kind, (int)(v.Pos.x * 1000f), (int)(v.Pos.y * 1000f));
+                try { NightVehicle.ApplyParams(nv, BalanceSource.Read("nightsim_params.json")); } catch (System.Exception) { }
                 nv.Shots = Mathf.Clamp((int)(v.Ammo * nv.MaxShots), 0, nv.MaxShots); nv.Fire = v.Fire; nv.Airborne = v.Heli && v.State == 2; nv.ResupplyUntil = v.ResupT;
                 sim.Vehicles.Add(nv);
             }
