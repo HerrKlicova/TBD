@@ -1,5 +1,5 @@
 {
- "nota": "Dato que lee el mapa de frentes (D-N111 si Lucía lo numera): qué carreteras puede usar un vehículo de tierra. Marcos lo cambia aquí, no en el dibujo. Coordenadas del mundo en metros; cada tramo va a lo largo de X o de Z. Valores del prototipo aprobados por Mak (07-11 00:55); sin verificar contra el nivel final.",
+ "nota": "Dato que lee el mapa de frentes (D-N113): qué carreteras puede usar un vehículo de tierra. Marcos lo cambia aquí, no en el dibujo. Coordenadas del mundo en metros; cada tramo va a lo largo de X o de Z. Valores del prototipo aprobados por Mak (07-11 00:55); sin verificar contra el nivel final.",
  "carreteras": [
   {"id": "calle_estacion", "nombre": "Calle de la Estación", "tramo": [[59, 20], [59, 160]], "habilitada": true},
   {"id": "carretera_vieja", "nombre": "Carretera vieja", "tramo": [[-250, 23], [222, 23]], "habilitada": true},

@@ -381,7 +381,7 @@ def sitio(im, v, clave, f=0, modo="placa"):
 def hud_mapa(im, titulo="Mapa de frentes", tecla="M"):
     import build_interfaz as ui
     import build_maquetas as m
-    m.pega(im, ui.panel(64, 22), W // 2 - 32, 4)
+    caja(im, W // 2 - 32, 4, 64, 22, "navy", "bone", "grey_brown")   # sin el 283440 de ui_panel (D-N113)
     m.texto(im, (W // 2, 8), "01:12", 11, centro=True)
     import build_maquetas as m2
     from PIL import ImageDraw
@@ -530,7 +530,7 @@ def muestra(out):
     hoja.save(out / "muestra_mapa_frentes_5_variantes.png")
 
 
-# --- Piezas finales (variante A, D-N111 si Lucía la numera) -----------------------------------
+# --- Piezas finales (variante A = D-N113) -----------------------------------
 ESC = 1.8                                                  # px de la base 640x360 por metro (x3 a 1080p)
 PASO = 6                                                   # periodo de las teselas diagonales
 
@@ -648,7 +648,7 @@ def exportar(out):
         h.save(out / f"ui_mapa_ruta_fin_{nombre}.png")
     kE = round(K * ESC, 5)
     (out / "ui_mapa_frentes.json").write_text(json.dumps({
-        "variante": "A, plano táctico oscuro (aprobada por Mak, 07-11 00:55)",
+        "variante": "A, plano táctico oscuro = D-N113 (Mak 00:55, Lucía 01:00)",
         "base": [640, 360], "escala_1080": 3, "px_por_metro": ESC,
         "fondo": {"png": "ui_mapa_fondo_sagunto", "tamano": list(fo.size),
                   "mundo_a_px": f"x = {ox:.2f} + {kE} * (X - Z);  y = {oy:.2f} - {kE} * (X + Z)",
