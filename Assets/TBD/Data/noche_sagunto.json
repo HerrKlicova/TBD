@@ -1,0 +1,485 @@
+{
+  "_nota": "D-N74 (Hugo): la noche de Sagunto. Generado por docs/economia/unidades/unidades.py; no editar a mano. Las cifras de unidades están en csv/balance_unidades.csv.",
+  "reloj_x": 28,
+  "hora_inicio": "22:00",
+  "hora_fin": "06:00",
+  "duracion_s_reales": 1028,
+  "victoria": "al amanecer siguen en pie el edificio de viajeros y el tren",
+  "derrota": "la horda destruye el edificio de viajeros o la locomotora",
+  "entradas": {
+    "O1": "vía",
+    "O2": "carretera",
+    "O3": "pueblo",
+    "O4": "puente"
+  },
+  "dificultad_por_defecto": "normal",
+  "escala_oleadas_permil": {
+    "facil": 725,
+    "normal": 850,
+    "dificil": 1140
+  },
+  "recursos_iniciales": {
+    "municion_u": 47,
+    "materiales_u": 40,
+    "combustible_u": 30,
+    "nota": "en el almacén de Sagunto; aparte, cada pelotón, el Dragón y el NH90 llevan su dotación (unas 10 u en total); el muro de partida (D-N63) ya está construido"
+  },
+  "fuerza": {
+    "pelotones": [
+      "fusileros",
+      "ametralladores",
+      "granaderos",
+      "tiradores",
+      "zapadores"
+    ],
+    "vehiculos": [
+      "dragon"
+    ],
+    "helicopteros": [
+      "nh90"
+    ]
+  },
+  "oleadas": {
+    "facil": [
+      {
+        "n": 1,
+        "hora": "22:20",
+        "minuto_juego": 20,
+        "llegada_s_reales": 30,
+        "total": 650,
+        "por_entrada": {
+          "O1": 325,
+          "O2": 195,
+          "O3": 130,
+          "O4": 0
+        }
+      },
+      {
+        "n": 2,
+        "hora": "23:20",
+        "minuto_juego": 80,
+        "llegada_s_reales": 45,
+        "total": 1090,
+        "por_entrada": {
+          "O1": 545,
+          "O2": 327,
+          "O3": 218,
+          "O4": 0
+        }
+      },
+      {
+        "n": 3,
+        "hora": "00:40",
+        "minuto_juego": 160,
+        "llegada_s_reales": 60,
+        "total": 1450,
+        "por_entrada": {
+          "O1": 725,
+          "O2": 435,
+          "O3": 290,
+          "O4": 0
+        }
+      },
+      {
+        "n": 4,
+        "hora": "02:00",
+        "minuto_juego": 240,
+        "llegada_s_reales": 70,
+        "total": 2180,
+        "por_entrada": {
+          "O1": 1090,
+          "O2": 654,
+          "O3": 436,
+          "O4": 0
+        }
+      },
+      {
+        "n": 5,
+        "hora": "03:20",
+        "minuto_juego": 320,
+        "llegada_s_reales": 90,
+        "total": 2610,
+        "por_entrada": {
+          "O1": 1044,
+          "O2": 783,
+          "O3": 522,
+          "O4": 261
+        }
+      },
+      {
+        "n": 6,
+        "hora": "04:40",
+        "minuto_juego": 400,
+        "llegada_s_reales": 100,
+        "total": 3620,
+        "por_entrada": {
+          "O1": 1086,
+          "O2": 1086,
+          "O3": 724,
+          "O4": 724
+        }
+      }
+    ],
+    "normal": [
+      {
+        "n": 1,
+        "hora": "22:20",
+        "minuto_juego": 20,
+        "llegada_s_reales": 30,
+        "total": 760,
+        "por_entrada": {
+          "O1": 380,
+          "O2": 228,
+          "O3": 152,
+          "O4": 0
+        }
+      },
+      {
+        "n": 2,
+        "hora": "23:20",
+        "minuto_juego": 80,
+        "llegada_s_reales": 45,
+        "total": 1280,
+        "por_entrada": {
+          "O1": 640,
+          "O2": 384,
+          "O3": 256,
+          "O4": 0
+        }
+      },
+      {
+        "n": 3,
+        "hora": "00:40",
+        "minuto_juego": 160,
+        "llegada_s_reales": 60,
+        "total": 1700,
+        "por_entrada": {
+          "O1": 850,
+          "O2": 510,
+          "O3": 340,
+          "O4": 0
+        }
+      },
+      {
+        "n": 4,
+        "hora": "02:00",
+        "minuto_juego": 240,
+        "llegada_s_reales": 70,
+        "total": 2550,
+        "por_entrada": {
+          "O1": 1275,
+          "O2": 765,
+          "O3": 510,
+          "O4": 0
+        }
+      },
+      {
+        "n": 5,
+        "hora": "03:20",
+        "minuto_juego": 320,
+        "llegada_s_reales": 90,
+        "total": 3060,
+        "por_entrada": {
+          "O1": 1224,
+          "O2": 918,
+          "O3": 612,
+          "O4": 306
+        }
+      },
+      {
+        "n": 6,
+        "hora": "04:40",
+        "minuto_juego": 400,
+        "llegada_s_reales": 100,
+        "total": 4250,
+        "por_entrada": {
+          "O1": 1275,
+          "O2": 1275,
+          "O3": 850,
+          "O4": 850
+        }
+      }
+    ],
+    "dificil": [
+      {
+        "n": 1,
+        "hora": "22:20",
+        "minuto_juego": 20,
+        "llegada_s_reales": 30,
+        "total": 1030,
+        "por_entrada": {
+          "O1": 515,
+          "O2": 309,
+          "O3": 206,
+          "O4": 0
+        }
+      },
+      {
+        "n": 2,
+        "hora": "23:20",
+        "minuto_juego": 80,
+        "llegada_s_reales": 45,
+        "total": 1710,
+        "por_entrada": {
+          "O1": 855,
+          "O2": 513,
+          "O3": 342,
+          "O4": 0
+        }
+      },
+      {
+        "n": 3,
+        "hora": "00:40",
+        "minuto_juego": 160,
+        "llegada_s_reales": 60,
+        "total": 2280,
+        "por_entrada": {
+          "O1": 1140,
+          "O2": 684,
+          "O3": 456,
+          "O4": 0
+        }
+      },
+      {
+        "n": 4,
+        "hora": "02:00",
+        "minuto_juego": 240,
+        "llegada_s_reales": 70,
+        "total": 3420,
+        "por_entrada": {
+          "O1": 1710,
+          "O2": 1026,
+          "O3": 684,
+          "O4": 0
+        }
+      },
+      {
+        "n": 5,
+        "hora": "03:20",
+        "minuto_juego": 320,
+        "llegada_s_reales": 90,
+        "total": 4100,
+        "por_entrada": {
+          "O1": 1640,
+          "O2": 1230,
+          "O3": 820,
+          "O4": 410
+        }
+      },
+      {
+        "n": 6,
+        "hora": "04:40",
+        "minuto_juego": 400,
+        "llegada_s_reales": 100,
+        "total": 5700,
+        "por_entrada": {
+          "O1": 1710,
+          "O2": 1710,
+          "O3": 1140,
+          "O4": 1140
+        }
+      }
+    ]
+  },
+  "municion_hud": [
+    {
+      "unidad": "fusileros",
+      "dotacion_mil_u": 1500,
+      "fuego_continuo_s": 58,
+      "recarga_s": 10,
+      "recarga_u_mil": 1500,
+      "donde": "junto al tren o al depósito de la estación",
+      "disparos": {
+        "fusil": 467,
+        "ametralladora_ligera": 1753,
+        "lanzagranadas": 19
+      }
+    },
+    {
+      "unidad": "ametralladores",
+      "dotacion_mil_u": 2000,
+      "fuego_continuo_s": 66,
+      "recarga_s": 10,
+      "recarga_u_mil": 2000,
+      "donde": "junto al tren o al depósito de la estación",
+      "disparos": {
+        "ametralladora_emplazada": 2000
+      }
+    },
+    {
+      "unidad": "granaderos",
+      "dotacion_mil_u": 2000,
+      "fuego_continuo_s": 100,
+      "recarga_s": 10,
+      "recarga_u_mil": 2000,
+      "donde": "junto al tren o al depósito de la estación",
+      "disparos": {
+        "lanzagranadas": 100
+      }
+    },
+    {
+      "unidad": "tiradores",
+      "dotacion_mil_u": 300,
+      "fuego_continuo_s": 171,
+      "recarga_s": 10,
+      "recarga_u_mil": 300,
+      "donde": "junto al tren o al depósito de la estación",
+      "disparos": {
+        "fusil_precision": 85,
+        "fusil": 342
+      }
+    },
+    {
+      "unidad": "zapadores",
+      "dotacion_mil_u": 1500,
+      "fuego_continuo_s": 118,
+      "recarga_s": 10,
+      "recarga_u_mil": 1500,
+      "donde": "junto al tren o al depósito de la estación",
+      "disparos": {
+        "fusil": 1421,
+        "carga_zapador": 7
+      }
+    },
+    {
+      "unidad": "dragon",
+      "dotacion_mil_u": 2000,
+      "fuego_continuo_s": 66,
+      "recarga_s": 20,
+      "recarga_u_mil": 2000,
+      "donde": "junto al tren o al depósito",
+      "disparos": {
+        "canon_30": 200,
+        "ametralladora_ligera": 1000
+      }
+    },
+    {
+      "unidad": "vamtac",
+      "dotacion_mil_u": 3000,
+      "fuego_continuo_s": 200,
+      "recarga_s": 20,
+      "recarga_u_mil": 3000,
+      "donde": "junto al tren o al depósito",
+      "disparos": {
+        "ametralladora_pesada": 2000
+      }
+    },
+    {
+      "unidad": "nh90",
+      "dotacion_mil_u": 3000,
+      "fuego_continuo_s": 300,
+      "recarga_s": 30,
+      "recarga_u_mil": 3000,
+      "donde": "posado en el helipuerto (también repone 4 u de combustible)",
+      "disparos": {
+        "ametralladora_puerta": 6000
+      }
+    }
+  ],
+  "combustible": {
+    "_nota": "D-N76 (Hugo). Consumo en E4 de u (1 u = 10.000) por segundo REAL; se cobra cada 30 ticks. Los 30 u de la noche incluyen los depósitos llenos.",
+    "total_noche_u": 30,
+    "almacen_inicial_u": 16,
+    "dragon": {
+      "deposito_u": 8,
+      "marcha_e4_s": 200,
+      "ralenti_e4_s": 60,
+      "apagado_e4_s": 0,
+      "repostar_s_por_u": 2,
+      "repostar_donde": "junto al depósito de la estación o al tren, del almacén de Sagunto",
+      "bidon_zapador_u": 2,
+      "bidon_zapador_s": 20,
+      "a_cero": "queda inmóvil; la torre y la coaxial siguen disparando con la batería; lo rescata un zapador con un bidón de 2 u (20 s) o se repone junto al tren",
+      "aviso_permil": 200
+    },
+    "nh90": {
+      "deposito_u": 6,
+      "vuelo_e4_s": 270,
+      "suelo_rotor_e4_s": 90,
+      "apagado_e4_s": 0,
+      "repostar_s_por_u": 2,
+      "repostar_donde": "solo posado en el helipuerto",
+      "a_cero": "baja en autorrotación a 4 m/s donde esté y queda posado; por debajo de 3 m la horda puede alcanzarlo",
+      "aviso_permil": 200
+    },
+    "comprobacion": {
+      "siempre_en_marcha_u": 48.3,
+      "racionado_u": 27.4,
+      "racionado_es": "el Dragón en marcha el 40 % de la noche y al ralentí el 30 %; el NH90, 10 min de vuelo en 4 salidas y 2 min posado con los rotores girando"
+    }
+  },
+  "resultados": {
+    "_nota": "D-N77 (Hugo). Pantalla al acabar la noche, con victoria o con derrota. Todo sale de contadores que ya existen (ZoneAmmo) o que añade D-N76 (combustible).",
+    "soldados_iniciales": 26,
+    "estadisticas": [
+      {
+        "id": "abatidos",
+        "texto": "Zombis abatidos",
+        "formato": "{abatidos} de {llegados}",
+        "calculo": "abatidos = suma de ZoneAmmo.Kills; llegados = zombis generados en la noche hasta el final (13.090 en normal si se llega a las 06:00)"
+      },
+      {
+        "id": "bajas",
+        "texto": "Bajas propias",
+        "formato": "{bajas} de {soldados} soldados{vehiculos}",
+        "calculo": "bajas = suma de ZoneAmmo.SoldiersLost; vehiculos = ' · Dragón perdido' y/o ' · NH90 perdido' si su vida llegó a 0"
+      },
+      {
+        "id": "municion",
+        "texto": "Munición gastada",
+        "formato": "{gastada} u · {zpu} zombis por u",
+        "calculo": "gastada = ZoneAmmo.ShotsFired / 2000 (una cifra decimal); zpu = Kills * 2000 / ShotsFired (entero; la referencia de la economía es 400)"
+      },
+      {
+        "id": "municion_restante",
+        "texto": "Munición restante",
+        "formato": "{restante} u",
+        "calculo": "restante = almacén de Sagunto + dotaciones de los pelotones vivos + munición a bordo del Dragón y del NH90, en u con una cifra decimal"
+      },
+      {
+        "id": "combustible",
+        "texto": "Combustible gastado",
+        "formato": "{gastado} de {total} u",
+        "calculo": "gastado = suma de lo cobrado por D-N76 (E4 / 10000); total = 30"
+      },
+      {
+        "id": "hora",
+        "texto": "Fin de la noche",
+        "formato_victoria": "Amanecer, 06:00",
+        "formato_derrota": "Cayó a las {hh:mm}, en la oleada {n}",
+        "calculo": "hora del reloj de la noche en el tick en que se cumplió la derrota; n = última oleada que había empezado a entrar"
+      }
+    ],
+    "nota": {
+      "derrota": 0,
+      "victoria_1": "ganar: siguen en pie al amanecer el edificio de viajeros y el tren",
+      "victoria_2": "ganar, y además bajas <= 25 % de los soldados (<= 6 de 26) y munición restante >= 8 u",
+      "victoria_3": "ganar, y además bajas <= 8 % (<= 2 de 26), munición restante >= 15 u y ni el Dragón ni el NH90 perdidos",
+      "regla": "se da la mayor que se cumpla; con derrota no hay estrellas, solo la hora",
+      "esperado": "con la cola de D-N72 en normal: jugador del 60 % (Eugenio) acaba con ~11 u, 2 estrellas si no pierde más de 6 soldados; jugador del 70 % (Sara) ~14 u, 3 estrellas solo afinando mejor que la media; jugador del 50 % ~7 u, 1 estrella"
+    },
+    "estrellas": {
+      "_nota": "D-N104 (Lucía; cifras de Hugo). Sustituye a la fórmula de nota. Todo en ‰ y enteros. integridad = min(vida edificio, vida tren) / máximo; muro = suma de vida de las piezas (destruidas = 0) / suma de máximos. Se da la mayor que se cumpla",
+      "dos": {
+        "integridad_min_permil": 400,
+        "muro_min_permil": 250,
+        "bajas_max": 6,
+        "municion_min_permil_u": 8000
+      },
+      "tres": {
+        "integridad_min_permil": 750,
+        "muro_min_permil": 500,
+        "bajas_max": 2,
+        "municion_min_permil_u": 15000,
+        "sin_vehiculos_perdidos": true
+      },
+      "calibracion": "medido por Sara (NightSim, bot ~93 %, sin Dragón ni NH90, antes del contacto a210bd3): normal 850, muro 66 %, ~13 u al amanecer: 2 estrellas (le falta munición para la 3.ª); difícil 1120, muro 9-11 %: 1 estrella. Se revisa con la medición nueva"
+    },
+    "textos": {
+      "victoria": "Sagunto resiste",
+      "derrota": "Sagunto ha caído",
+      "boton_repetir": "Repetir la noche",
+      "boton_menu": "Menú principal"
+    }
+  }
+}

@@ -120,6 +120,27 @@ namespace TBD.Sim.Tests
         {
             string dataDir = BalanceTests.DataDirPublic();           // el mismo lector que Unity, apuntando a la carpeta de datos del repositorio
             TBD.Net.BalanceSource.Reader = f => { var path = System.IO.Path.Combine(dataDir, f); return System.IO.File.Exists(path) ? System.IO.File.ReadAllText(path) : null; };
+            if (Environment.GetEnvironmentVariable("TBD_TRACE_REFERENCE") is string refOut && refOut.Length > 0)     // regenera la traza de referencia de NightSim (ruta del CSV de salida)
+            {
+                string nj = TBD.Net.BalanceSource.Read("noche_sagunto.json"); var rt = TBD.Units.NightTraceTools.Reference(nj, null, 1, TBD.Units.NightTraceTools.FirstWaveTick(nj, null, 1), 9000, 30);
+                System.IO.File.WriteAllText(refOut, rt.ToCsv()); Console.WriteLine($"traza de referencia: {rt.Rows.Count} filas en {refOut}"); return 0;
+            }
+            if (Environment.GetEnvironmentVariable("TBD_TRACE_COMPARE") is string zonePath && zonePath.Length > 0)    // compara la traza que ha grabado la zona de Unity (CSV) con la de NightSim
+            {
+                var zt = TBD.Units.NightTrace.FromCsv(System.IO.File.ReadAllText(zonePath)); var rpt = TBD.Units.NightTraceTools.CompareWithReference(zt);
+                Console.WriteLine(rpt.Text); Console.WriteLine(); Console.WriteLine(TBD.Units.NightTraceTools.SideBySide(TBD.Units.NightTraceTools.ReferenceFromData(), zt, 10)); return rpt.Ok ? 0 : 1;
+            }
+            if (Environment.GetEnvironmentVariable("TBD_BOT_REPORT") == "1") { UnidadesTests.BotReport(); return 0; }
+            if (Environment.GetEnvironmentVariable("TBD_VEH_REPORT") == "1") { UnidadesTests.VehReport(); return 0; }
+            if (Environment.GetEnvironmentVariable("TBD_WAVE_REPORT") == "1") { UnidadesTests.WaveReport(); return 0; }
+            if (Environment.GetEnvironmentVariable("TBD_KILL_TIMELINE") == "1") { UnidadesTests.KillTimeline(); return 0; }
+            if (Environment.GetEnvironmentVariable("TBD_NIGHT_REPORT") == "1") { UnidadesTests.NightReport(); return 0; }
+            if (Environment.GetEnvironmentVariable("TBD_ONLY_UNITS") == "1")      // solo la sección [29] (unidades), para iterar rápido
+            {
+                UnidadesTests.Run(Check);
+                Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos");
+                return _fail == 0 ? 0 : 1;
+            }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_PERF") == "1")       // solo las dos pruebas de coste, para repetirlas (criterio de Sara: 20 de 20 en verde con carga y 20 de 20 en rojo con TBD_PERF_INJECT=3)
             {
                 TestPerfOnly();
@@ -150,6 +171,7 @@ namespace TBD.Sim.Tests
             DisparoIndiceTests.Run(Check);
             SaguntoInicioTests.Run(Check);
             GuardadoTests.Run(Check);
+            UnidadesTests.Run(Check);
             GoldenTests.Run(Check);
             Console.WriteLine($"\nResumen: {_pass} correctas, {_fail} fallos");
             return _fail == 0 ? 0 : 1;

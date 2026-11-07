@@ -161,9 +161,36 @@ namespace TBD.Sim.Tests
             return true;
         }
 
+        /// <summary>Coste del índice con una zona de 1024 × 512 m y 10.000 zombis repartidos (medición pedida por Mak, 7-nov).</summary>
+        static void Medir1024(Action<bool, string> check)
+        {
+            const int N = 10000; var zs = new Zombie[N]; uint r = 12345;
+            Func<uint> rnd = () => { r ^= r << 13; r ^= r >> 17; r ^= r << 5; return r; };
+            for (int i = 0; i < N; i++) zs[i] = Zombie.Create((uint)i, new float2((rnd() % 102400) * 0.01f, (rnd() % 51200) * 0.01f), 0f);
+            var nz = new NativeArray<Zombie>(zs);
+            double bestBuild = 1e9, bestNear = 1e9, bestCount = 1e9; int hits = 0, nearHits = 0;
+            for (int rep = 0; rep < 7; rep++)
+            {
+                var sw = Stopwatch.StartNew(); for (int k = 0; k < 50; k++) { var g = new ZombieGrid(); g.Build(nz, false); g.Dispose(); } sw.Stop();
+                bestBuild = Math.Min(bestBuild, sw.Elapsed.TotalMilliseconds / 50);
+                var gg = new ZombieGrid(); gg.Build(nz, false);
+                sw = Stopwatch.StartNew(); for (int k = 0; k < 2000; k++) { float d2 = 60f * 60f; int nr = gg.Nearest(nz, new float2((k * 37) % 1024, (k * 91) % 512), ref d2); if (nr >= 0) nearHits++; } sw.Stop();
+                bestNear = Math.Min(bestNear, sw.Elapsed.TotalMilliseconds * 1000 / 2000);
+                sw = Stopwatch.StartNew(); for (int k = 0; k < 2000; k++) hits += gg.CountWithin(nz, new float2((k * 37) % 1024, (k * 91) % 512), 0.81f); sw.Stop();
+                bestCount = Math.Min(bestCount, sw.Elapsed.TotalMilliseconds * 1000 / 2000);
+                gg.Dispose();
+            }
+            // fuerza bruta de referencia para una consulta
+            var sb = Stopwatch.StartNew(); int bh = 0; for (int k = 0; k < 200; k++) { float d2 = 3600f, px = (k * 37) % 1024, pz = (k * 91) % 512; for (int i = 0; i < N; i++) { float dx = zs[i].Pos.x - px, dz = zs[i].Pos.z - pz; if (dx * dx + dz * dz < d2) bh++; } } sb.Stop();
+            double brute = sb.Elapsed.TotalMilliseconds * 1000 / 200;
+            Console.WriteLine($"         zona 1024 × 512 m, 10.000 zombis: construir la rejilla {bestBuild:0.000} ms; consulta Nearest(60 m) {bestNear:0.0} µs; CountWithin(0,9 m) {bestCount:0.0} µs; fuerza bruta {brute:0.0} µs por consulta (consultas con blanco {nearHits / 7} de 2000; hits {hits + bh})");
+            check(bestBuild < 3.0 && bestNear < brute, $"con 10.000 zombis en 1024 × 512 m la rejilla se construye en {bestBuild:0.000} ms y cada consulta cuesta {bestNear:0.0} µs (fuerza bruta {brute:0.0} µs)");
+        }
+
         public static void Run(Action<bool, string> check)
         {
             Console.WriteLine("[26] Índice espacial de disparos y cuerpo a cuerpo (ZombieGrid): igual que recorrer todos los zombis");
+            Medir1024(check);
             var cp = CombatParams.Default;
             var scenarios = new List<(string, Scenario)>
             {

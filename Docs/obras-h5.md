@@ -116,3 +116,10 @@ La noche para el trabajo pero no la obra. `WorkInProgress` (encargada y sin acab
 - `Mvp(false)` deja Sagunto sin obras: las pruebas de obras, taller, horario, estaciones, director y red parten de ahí. Pruebas: `SaguntoInicioTests.cs` ([27]); si Marcos cambia otra vez el recinto en `Level.cs`, las comprobaciones de medidas fallan.
 - Mantenimiento: 2 u al día de los materiales de Sagunto.
 - **Mantenimiento con remanente** (adenda de D-N63, Hugo): cada día `AccrueMaintenance` suma el 1 % exacto de la Σ del nivel al remanente del nodo (`MaintRem`, en E4·‰·‰; `MaintDen` = una u) y la estación tiene que poder cubrir `ceil(remanente)`; `SettleMaintenance` cobra `floor(remanente)` u y guarda la fracción (en el hash solo si no es 0). Si no puede cubrirlo, se aplica el desgaste y no se cobra nada ni se arrastra deuda. Sagunto paga 1,2 u al día de media; un apeadero de 30 u, 0,3 u. `MaintenanceU` es solo el techo para la interfaz.
+
+## Puerta de vehículos (7-nov, D-N72 y D-N111)
+
+`PieceKind.PuertaVeh` (8): pieza de 8 m (`VehGateWidthMm`) en un muro, de 10 u (`pieza_puerta_vehiculos_u`) y 8 obrero·h (`obra_puerta_vehiculos_h`). Es puerta (`IsGate`, `IsVehGate`),
+defensiva, y cuenta para el nivel y el mantenimiento. La orden `PlaceWork` con `Arg = nodo | (8 << 16)` y `Payload = [x, y]` (muro este u oeste, a lo largo de Y) o `[x, y, 1]` (muro norte o sur, a lo
+largo de X) la centra en (x, y). No se corta (sin materiales no se construye) y no puede cruzar la vía. `StepGates(nodo, trenes, vehiculosXY)`: se abre sola con un vehículo propio a ≤ `VehGateNearMm`
+(20 m), en 180 ticks como las de vía; un tren no la abre. `SetGateMode` la alcanza a ≤ 5 m de su centro. Sagunto de serie: una en X −18000..−10000 del muro sur, y sin puerta peatonal (muro 122,64 u).

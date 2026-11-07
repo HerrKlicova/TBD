@@ -30,6 +30,7 @@
     <Compile Include="DisparoIndiceTests.cs" />
     <Compile Include="SaguntoInicioTests.cs" />
     <Compile Include="GuardadoTests.cs" />
+    <Compile Include="UnidadesTests.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Hive.cs" Link="Net\Hive.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\HiveDirector.cs" Link="Net\HiveDirector.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\NetGolden.cs" Link="Net\NetGolden.cs" />
@@ -39,6 +40,16 @@
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Estaciones.cs" Link="Net\Estaciones.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Taller.cs" Link="Net\Taller.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Guardado.cs" Link="Net\Guardado.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Units\IMath.cs" Link="Units\IMath.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Units\Armas.cs" Link="Units\Armas.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Units\Noche.cs" Link="Units\Noche.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Units\NocheSim.cs" Link="Units\NocheSim.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Units\Infanteria.cs" Link="Units\Infanteria.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Units\Vehiculos.cs" Link="Units\Vehiculos.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Units\Helicoptero.cs" Link="Units\Helicoptero.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Units\Transporte.cs" Link="Units\Transporte.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Units\NocheTraza.cs" Link="Units\NocheTraza.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Units\NocheBot.cs" Link="Units\NocheBot.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Relief.cs" Link="Net\Relief.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\RailNet.cs" Link="Net\RailNet.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Sim\SimTypes.cs" Link="Sim\SimTypes.cs" />
