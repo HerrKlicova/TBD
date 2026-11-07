@@ -14,12 +14,15 @@ SIN VERIFICAR: los ángulos (propuesta: dirección ±35°, ametralladora de −1
 import bmesh
 import bpy
 from mathutils import Vector
+import os
 import vamtac_v2 as V
+import acabado as A
 from dragon_animable import _islas
 
 PIEZAS = V.PIEZAS
-COLORES = dict(V.COLORES, goma="48403c", optica="60546c", metal="48403c")
-VALOR_PIEZAS = {"casco": ("b4a080", "50541c", "50541c")}
+VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0) % 5   # acabado de camuflaje (acabado.py): 0 boscoso … 4 urbano
+COLORES = A.colores(VAR, dict(V.COLORES, goma="48403c", optica="60546c", metal="48403c"))
+VALOR_PIEZAS = A.valores(VAR, {"casco": ("b4a080", "50541c", "50541c")})
 ABAJO_CASCO = "50541c"
 L_MIN = 28.0
 EJES_Y = (-2.2, 1.7)
@@ -32,7 +35,9 @@ for i, y in enumerate(EJES_Y):
 
 
 def construir(nombre="SM_Vamtac", lod=0):
-    return V.construir(nombre, lod=lod)
+    o = V.construir(nombre, lod=lod)
+    A.aplicar(o, lod, VAR, base=("casco",))
+    return o
 
 
 def _grupo(c):

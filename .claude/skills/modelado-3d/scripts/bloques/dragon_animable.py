@@ -16,18 +16,21 @@ import math
 import bmesh
 import bpy
 from mathutils import Vector
+import os
 import dragon_v5 as D
+import acabado as A
 
 PIEZAS = D.PIEZAS
 # D-N80 (Bruno; Lucía 23:29: vale también para vehículos): ningún albedo propio bajo L* 28
 # y nada de valores de la horda: el metal (cañón, antenas) pasa de 1c200c a 48403c, como las armas del soldado, y las
 # caras de abajo del casco y de la torre se quedan en 50541c (por defecto caían en 442c0c)
-COLORES = dict(D.COLORES, optica="60546c", goma="48403c", metal="48403c")
+VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0) % 5   # acabado de camuflaje (acabado.py): 0 boscoso … 4 urbano
+COLORES = A.colores(VAR, dict(D.COLORES, optica="60546c", goma="48403c", metal="48403c"))
 COLORES_LOD1 = D.COLORES_LOD1
 ABAJO_CASCO = "50541c"      # caras de abajo del casco y de las costuras (por defecto caían en 442c0c)
 L_MIN = 28.0                # D-N80 también en las costuras: las del costado 50541c no tienen paso oscuro válido y se quedan
                             # lisas (antes iban a 303424); las del techo b4a080 siguen en 88885c
-VALOR_PIEZAS = {"casco": ("b4a080", "50541c", "50541c"), "torre": ("88885c", "50541c", "50541c")}
+VALOR_PIEZAS = A.valores(VAR, {"casco": ("b4a080", "50541c", "50541c"), "torre": ("88885c", "50541c", "50541c")})
 FACCION = getattr(D, "FACCION", "propio")
 PRESUPUESTO = getattr(D, "PRESUPUESTO", {})
 UMBRAL_CONTORNO = getattr(D, "UMBRAL_CONTORNO", {})
@@ -38,7 +41,9 @@ PIVOTE_CANON = (0.25, -0.75, TZ + 0.52)
 
 
 def construir(nombre="SM_VCR_Dragon", lod=0):
-    return D.construir(nombre, lod=lod)
+    o = D.construir(nombre, lod=lod)
+    A.aplicar(o, lod, VAR, base=("casco", "torre"))
+    return o
 
 
 def _islas(bm):

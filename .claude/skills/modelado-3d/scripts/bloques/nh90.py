@@ -23,12 +23,17 @@ Las MAG van fijas en el fuselaje (a 12–24 px no se ve si apuntan).
 """
 import math, os
 from montaje import Montaje, separar as _separar
+import acabado as A
 
-VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
+VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0) % 5   # acabado de camuflaje (acabado.py): 0 boscoso … 4 urbano
 PIEZAS = ["casco", "mancha", "optica", "interior", "pala", "cubo", "goma", "metal", "arma", "disco"]
 COLORES = {"casco": "50541c", "mancha": "845c28", "optica": "60546c", "interior": "48403c", "pala": "94948c",
            "cubo": "845c28", "goma": "48403c", "metal": "605c48", "arma": "48403c", "disco": "94948c"}
-VALOR_PIEZAS = {"casco": ("b4a080", "50541c", "50541c")}   # caras de abajo fijas: nunca 442c0c (horda)
+VALOR_PIEZAS = A.valores(VAR, {"casco": ("b4a080", "50541c", "50541c")})   # caras de abajo fijas: nunca 442c0c (horda)
+COLORES = A.colores(VAR, COLORES)
+if A.TABLA[VAR][0]:   # las manchas pintadas de la foto toman el pardo del acabado
+    COLORES["mancha"] = A.TABLA[VAR][2]["camo_a"][1]
+PIEZAS = PIEZAS + [p for p in A.TABLA[VAR][2] if p not in PIEZAS]
 FACCION = "propio"
 PRESUPUESTO = {0: (300, 4000), 1: (200, 2500)}
 UMBRAL_CONTORNO = {0: 0.06, 1: 0.25}
@@ -116,7 +121,9 @@ def construir(nombre="SM_NH90", lod=0):
     vs = [m.bm.verts.new((hx + R * math.cos(2 * math.pi * k / 16), hy + R * math.sin(2 * math.pi * k / 16), hz - 0.08))
           for k in range(16)]
     m.t._marcar([m.bm.faces.new((c0, vs[k], vs[(k + 1) % 16])) for k in range(16)], "disco")
-    return m.objeto(nombre)
+    o = m.objeto(nombre)
+    A.aplicar(o, lod, VAR, base=("casco",))
+    return o
 
 
 def separar(o, lod):
