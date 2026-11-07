@@ -52,6 +52,7 @@ import build_estados_vehiculo  # noqa: E402
 import build_apoyo_aereo  # noqa: E402
 import build_apertura  # noqa: E402
 import build_parte  # noqa: E402
+import build_avisos_sara  # noqa: E402
 
 PIVOTE = [0.5, 0.53]
 
@@ -181,6 +182,7 @@ def prototipo_noche(out):
     build_apoyo_aereo.exportar(out)                      # sombra y altura del helicóptero, helipuerto en 3 estados, humo, fuego, cráter
     build_apertura.exportar(out)                         # apertura (D-N91): rótulo de inicio, primera oleada, barra de la noche
     build_parte.exportar(out)                            # parte de la noche, victoria y derrota (variante A)
+    build_avisos_sara.exportar(out)                      # sin munición (T), muro o estación atacados, panel de vehículos
 
 
 if __name__ == "__main__":

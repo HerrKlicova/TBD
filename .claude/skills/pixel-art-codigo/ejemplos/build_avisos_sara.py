@@ -5,7 +5,12 @@ Encargo de Mak:
      es pasajero, se apaga al recargar).
   2. Aviso de muro o estación bajo ataque (rojo de ataque #982420, lenguaje de A2).
   3. Iconos del panel de vehículos: munición, combustible del NH90, embarcar y desembarcar.
-Cada grupo sale en 5 variantes (A–E) en una hoja; la que se apruebe se exporta con sus nombres finales.
+Cada grupo sale en 5 variantes (A–E) en una hoja (--muestra). Mak aprobó la A en las cuatro (7-nov 00:39):
+  ui_tarjeta_sin_municion   capa de 40x48 sobre ui_tarjeta_unidad, 2 f (500 ms): banda ámbar con la caja vacía y la T
+  ui_tecla_t_9 / ui_tecla_t tecla T pequeña (para la tarjeta y dentro del texto del HUD) y la de 14x14
+  Fila del HUD: ui_alerta_aviso + ui_estado_sin_municion_16 + texto «Sin munición · [ui_tecla_t_9] para recargar»
+  ui_aviso_{muro_atacado,estacion_atacada}_{32,16}   triángulo de A2 en la esquina, como «tren atacado»
+  ui_veh_{municion,combustible,embarcar,desembarcar}_{normal,encima}   botones de 16x16 del panel de vehículos
 """
 import math
 import sys
@@ -279,6 +284,48 @@ def icono_veh(nombre, v):
     return s
 
 
+# --- Exportar (variante A) -------------------------------------------------------------------
+def capa_tarjeta(f):
+    """Solo la capa de la variante A (transparente fuera de la banda), para ponerla encima de la tarjeta."""
+    s = Sprite(40, 48)
+    on = f == 0
+    s.rect(4, 27, 32, 9, "amber" if on else "ochre_dark")
+    s.hline(4, 35, 27, "cream" if on else "amber")
+    s.stamp(_mini_caja(), 6, 28)
+    s.stamp(tecla_t(), 26, 27)
+    return s
+
+
+def boton_veh(nombre, estado):
+    s = icono_veh(nombre, "A")
+    if estado == "encima":
+        s.replace(PAL["olive_dark"], PAL["olive"])
+    return s
+
+
+def exportar(out):
+    out = Path(out)
+    fr = [capa_tarjeta(f) for f in range(2)]
+    hoja = Image.new("RGBA", (80, 48), (0, 0, 0, 0))
+    for f, s in enumerate(fr):
+        hoja.alpha_composite(s.img, (40 * f, 0))
+    hoja.save(out / "ui_tarjeta_sin_municion.png")
+    (out / "ui_tarjeta_sin_municion.json").write_text(
+        '{"frames": 2, "frameSize": [40, 48], "duration_ms": 500, "loop": true, '
+        '"uso": "encima de ui_tarjeta_unidad mientras el pelotón no tenga munición; se quita al recargar (T)"}',
+        encoding="utf-8")
+    tecla_t().img.save(out / "ui_tecla_t_9.png")
+    tecla_t(False).img.save(out / "ui_tecla_t.png")
+    for tipo, nombre in (("muro", "muro_atacado"), ("estacion", "estacion_atacada")):
+        s32 = ataque(tipo, "A")
+        s32.img.save(out / f"ui_aviso_{nombre}_32.png")
+        reduce_16(s32).img.save(out / f"ui_aviso_{nombre}_16.png")
+    for n in ICONOS_VEH:
+        for e in ("normal", "encima"):
+            boton_veh(n, e).img.save(out / f"ui_veh_{n}_{e}.png")
+    return {"tarjeta": fr}
+
+
 # --- Hoja de muestra ------------------------------------------------------------------------
 def muestra(out):
     import build_maquetas as m
@@ -316,5 +363,7 @@ def muestra(out):
 if __name__ == "__main__":
     OUT = Path(next((a for a in sys.argv[1:] if not a.startswith("--")), "out_avisos_sara"))
     OUT.mkdir(parents=True, exist_ok=True)
-    muestra(OUT)
+    exportar(OUT)
+    if "--muestra" in sys.argv:
+        muestra(OUT)
     print("ok")
