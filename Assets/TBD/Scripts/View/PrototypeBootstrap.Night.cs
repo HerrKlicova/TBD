@@ -88,13 +88,10 @@ namespace TBD.View
         {
             if (!_nightOn || _ng == null) return;
             bool playing = _ng.State == NightState.Jugando;
-            if (!playing && !_endDismissed) return;                                   // pantalla final abierta: el mundo espera
+            if (_ng.State == NightState.Derrota && !_endDismissed) return;            // derrota: el mundo se para
             _spawns.Clear();
-            if (playing)
-            {
-                _ng.Attack(_pileNearStation, _nearTrain); _ng.Step(_spawns);
-                if (_ng.State != NightState.Jugando) { NightEnded(); return; }
-            }
+            { var st0 = _ng.State; _ng.Attack(_pileNearStation, _nearTrain); _ng.Step(_spawns); if (st0 == NightState.Jugando && _ng.State != NightState.Jugando) NightEnded(); if (_ng.State == NightState.Derrota) return; }
+            playing = _ng.State == NightState.Jugando;
 
             // oleadas: líneas de registro y rótulo
             int wv = CurrentWave();
@@ -193,7 +190,15 @@ namespace TBD.View
             Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} estrellas={stars} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 hora_fin={TimeStr()}");
             _endReason = win ? "06:00. Amanece en Sagunto.\nLa estación resiste." : "Sagunto ha caído.";
         }
-        int _endStars; bool _endDismissed;
+        int _endStars; bool _endDismissed, _reportClosed;
+
+        /// <summary>«Seguir» (D-N91): abre la noche siguiente con las mismas oleadas a +10 % y reinicia los contadores del parte; el mundo no se detuvo.</summary>
+        void NextNight()
+        {
+            var np = _ng.P; np.ScalePermil = np.ScalePermil * 11 / 10;
+            if (_ng.BeginNextNight(np)) { _reportClosed = false; _lastWave = -1; _nightKills = 0; _nightShotsSpent = 0; _nightLost = 0; _endStars = 0; _bannerText = $"{TimeStr()}. Noche {_ng.NightIndex + 1}.\nAguanta hasta el amanecer."; _bannerUntil = Time.unscaledTime + 4f; }
+            else _reportClosed = true;
+        }
 
         // ---------------------------------------------------------------- sangre (decal efímero)
         readonly Queue<(GameObject go, float t)> _blood = new Queue<(GameObject, float)>();
@@ -298,9 +303,10 @@ namespace TBD.View
             if (!_nightOn) return;
             var kb = Keyboard.current; var mouse = Mouse.current; if (kb == null || mouse == null) return;
             if (kb.f2Key.wasPressedThisFrame) _debugHud = !_debugHud;
+            NightDemoFlags();
             if (Time.realtimeSinceStartup - _fpsLogT > 20f) { _fpsLogT = Time.realtimeSinceStartup; Debug.Log($"[NOCHE-FPS] hora={TimeStr()} fps={_fps:0} zombis={_total} abatidos={_nightKills} bajas={_nightLost} pila={_pileNearStation}"); }
             { var ca = System.Environment.GetCommandLineArgs(); if (System.Array.IndexOf(ca, "-nightshots") >= 0) { float tt = Time.realtimeSinceStartup - _nightT0; foreach (float at in new[] { 12f, 40f, 90f, 150f }) if (tt >= at && _shotsTaken < Array.IndexOf(new[] { 12f, 40f, 90f, 150f }, at) + 1) { _shotsTaken++; SaveScreenshot(); } } }
-            if (_ng.State != NightState.Jugando && !_endDismissed) { UpdateNightSoldiers(); return; }
+            if (_ng.State == NightState.Derrota && !_endDismissed) { UpdateNightSoldiers(); return; }
             Vector2 mp = mouse.position.ReadValue();
             // selección: clic o arrastre de rectángulo (en pantalla) sobre los pelotones
             if (mouse.leftButton.wasPressedThisFrame && !OverNightUi(mp)) { _selDrag = true; _selStart = mp; }
@@ -340,6 +346,19 @@ namespace TBD.View
             if (want != _gradeIndex && !_nightGradeLock) ApplyGrade(want);
         }
         bool _nightGradeLock;
+        int _demoStep;
+        /// <summary>Banderas de prueba para QA (Sara): -nightlose tumba la estacion a los 15 s; -vehdemo manda un VAMTAC contra el muro oeste y despega el NH90; -nightshots saca capturas.</summary>
+        void NightDemoFlags()
+        {
+            var ca = System.Environment.GetCommandLineArgs(); float tt = Time.realtimeSinceStartup - _nightT0;
+            if (System.Array.IndexOf(ca, "-nightlose") >= 0 && tt > 15f && _demoStep == 0 && _ng.State == NightState.Jugando) { _demoStep = 1; _ng.StationHp = 0; Debug.Log("[NOCHE] prueba: -nightlose, la estacion cae"); }
+            if (System.Array.IndexOf(ca, "-vehdemo") >= 0)
+            {
+                if (tt > 8f && _demoStep == 0) { _demoStep = 1; foreach (var v in _vehs) { if (v.Name == "VAMTAC 1") VehicleOrder(v, new Vector3(55f, 0f, 53f)); if (v.Name == "NH90") VehicleOrder(v, new Vector3(120f, 0f, 44f)); } Debug.Log("[NOCHE] prueba: VAMTAC 1 hacia el muro oeste, NH90 despega"); }
+                foreach (var t in new[] { 12f, 20f, 30f }) if (tt > t && _shotsDemo < (t == 12f ? 1 : t == 20f ? 2 : 3)) { _shotsDemo++; SaveScreenshot(); }
+            }
+        }
+        int _shotsDemo;
 
         bool TryGround(Vector2 mp, out Vector3 p)
         {
@@ -419,24 +438,35 @@ namespace TBD.View
                 var mp = Mouse.current.position.ReadValue(); var r = Rect.MinMaxRect(Mathf.Min(_selStart.x, mp.x), H - Mathf.Max(_selStart.y, mp.y), Mathf.Max(_selStart.x, mp.x), H - Mathf.Min(_selStart.y, mp.y));
                 if (r.width > 6f) { Box(new Rect(r.x, r.y, r.width, 2), bone); Box(new Rect(r.x, r.yMax, r.width, 2), bone); Box(new Rect(r.x, r.y, 2, r.height), bone); Box(new Rect(r.xMax, r.y, 2, r.height), bone); }
             }
-            if (_ng.State != NightState.Jugando && !_endDismissed)
+            bool lost = _ng.State == NightState.Derrota, won = _ng.State == NightState.Victoria && !_reportClosed;
+            if ((lost && !_endDismissed) || won)
             {
-                Box(new Rect(0, 0, W, H), new Color(0f, 0f, 0f, 0.55f));
-                var r = new Rect(W * 0.5f - 420 * k, 220 * k, 840 * k, 600 * k); Box(r, dark);
+                if (lost) Box(new Rect(0, 0, W, H), new Color(0f, 0f, 0f, 0.55f));
+                var r = new Rect(W * 0.5f - 420 * k, 252 * k, 840 * k, lost ? 560 * k : 648 * k); Box(r, dark);
                 _nStyle.fontSize = Mathf.RoundToInt(34 * k); _nStyle.alignment = TextAnchor.UpperCenter;
                 GUI.Label(new Rect(r.x, r.y + 20 * k, r.width, 140 * k), $"<b>{_endReason}</b>", _nStyle);
                 _nStyle.fontSize = Mathf.RoundToInt(28 * k); _nStyle.alignment = TextAnchor.UpperLeft;
                 int alive = 0, total = 0; foreach (var pl in _uw.Platoons) { alive += pl.AliveCount(); total += pl.Men.Count; }
+                var rp = _ng.Report; int integ = won ? rp.IntegrityPermil / 10 : Mathf.CeilToInt(100f * Mathf.Min(_ng.StationHp / (float)Mathf.Max(1, _ng.StationHpMax), _ng.TrainHp / (float)Mathf.Max(1, _ng.TrainHpMax)));
                 var sbb = new StringBuilder();
                 sbb.AppendLine($"zombis abatidos        {_nightKills}");
                 sbb.AppendLine($"bajas                  {total - alive}");
                 sbb.AppendLine($"munición gastada       {_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} u");
                 sbb.AppendLine($"munición restante      {_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.0} u");
+                sbb.AppendLine($"integridad             {integ} %");
+                if (won) sbb.AppendLine($"muro                   {rp.WallPermil / 10} %");
                 sbb.AppendLine($"hora                   {TimeStr()}");
-                if (_ng.State == NightState.Victoria) sbb.AppendLine($"estrellas              {new string('★', _endStars)}{new string('☆', 3 - _endStars)}");
-                GUI.Label(new Rect(r.x + 60 * k, r.y + 170 * k, r.width - 120 * k, 300 * k), sbb.ToString(), _nStyle);
-                if (GUI.Button(new Rect(r.x + 60 * k, r.yMax - 110 * k, 320 * k, 70 * k), "Seguir jugando")) _endDismissed = true;       // el mundo sigue (D-N91)
-                if (GUI.Button(new Rect(r.xMax - 380 * k, r.yMax - 110 * k, 320 * k, 70 * k), "Menú principal")) { NetSession.Reset(); NightRun.Active = false; SceneManager.LoadScene("Menu"); }
+                if (won) sbb.AppendLine($"estrellas              {new string('★', _endStars)}{new string('☆', 3 - _endStars)}");
+                GUI.Label(new Rect(r.x + 60 * k, r.y + 170 * k, r.width - 120 * k, 380 * k), sbb.ToString(), _nStyle);
+                if (won)
+                {
+                    if (GUI.Button(new Rect(r.center.x - 160 * k, r.yMax - 100 * k, 320 * k, 64 * k), "Seguir")) NextNight();
+                }
+                else
+                {
+                    if (GUI.Button(new Rect(r.x + 60 * k, r.yMax - 100 * k, 320 * k, 64 * k), "Volver a empezar")) { NetSession.Reset(); NightRun.Active = true; SceneManager.LoadScene("Union"); }
+                    if (GUI.Button(new Rect(r.xMax - 380 * k, r.yMax - 100 * k, 320 * k, 64 * k), "Menú principal")) { NetSession.Reset(); NightRun.Active = false; SceneManager.LoadScene("Menu"); }
+                }
             }
         }
 

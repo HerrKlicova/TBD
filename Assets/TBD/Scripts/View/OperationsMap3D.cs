@@ -317,12 +317,30 @@ namespace TBD.View
         // ---------------------------------------------------------------- bucle
         void Push(NetCmdType type, int arg, long delay) { NetSession.Push(type, arg, delay); }
 
+        float _tvT0 = -1f; int _tvStep;
+        /// <summary>-trainview (QA): entra y sale de la vista cercana tres veces y hace capturas del tren y del mapa al volver.</summary>
+        void TrainViewDemo()
+        {
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-trainview") < 0) return;
+            if (_tvT0 < 0f) _tvT0 = Time.realtimeSinceStartup; float tt = Time.realtimeSinceStartup - _tvT0;
+            float[] at = { 4f, 8f, 10f, 14f, 16f, 20f, 23f }; // abre, captura, cierra, abre, cierra, abre, captura+cierra
+            if (_tvStep == 0 && tt > 4f) { TrainCloseView.Toggle(0); _tvStep = 1; Debug.Log("[VISTA] entra 1"); }
+            else if (_tvStep == 1 && tt > 8f) { ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.dataPath, "..", "Captures", "tren_vista_1.png")); _tvStep = 2; }
+            else if (_tvStep == 2 && tt > 9f) { TrainCloseView.Toggle(0); _tvStep = 3; Debug.Log("[VISTA] sale 1"); }
+            else if (_tvStep == 3 && tt > 11f) { TrainCloseView.Toggle(0); _tvStep = 4; Debug.Log("[VISTA] entra 2"); }
+            else if (_tvStep == 4 && tt > 14f) { TrainCloseView.Toggle(0); _tvStep = 5; Debug.Log("[VISTA] sale 2"); }
+            else if (_tvStep == 5 && tt > 16f) { TrainCloseView.Toggle(0); _tvStep = 6; Debug.Log("[VISTA] entra 3"); }
+            else if (_tvStep == 6 && tt > 20f) { TrainCloseView.Toggle(0); _tvStep = 7; Debug.Log("[VISTA] sale 3"); }
+            else if (_tvStep == 7 && tt > 23f) { ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.dataPath, "..", "Captures", "mapa_tras_vista.png")); _tvStep = 8; Debug.Log("[VISTA] mapa tras salir 3 veces"); }
+        }
+
         void Update()
         {
             if (_a == null) return;                      // entrada directa a la zona (noche o prueba): el mapa no se ha construido
             HandleInput();
             { var kbv = UnityEngine.InputSystem.Keyboard.current; if (kbv != null && kbv.vKey.wasPressedThisFrame && !TrainCloseView.Active)
                 { int idx = 0; for (int si = 0; si < _a.Services.Count; si++) if (_a.Services[si].Train.State == RailTrainState.EnMarcha) { idx = si; break; } TrainCloseView.Toggle(idx); } }
+            TrainViewDemo();
             if (TrainCloseView.Active) return;           // mientras dura la vista cercana, el mapa no atiende la entrada
             long fieldTick = _a.Tick / NetConst.FieldEvery;
             if (fieldTick != _lastFieldTick) { _lastFieldTick = fieldTick; UpdateTexture(); UpdateDetailTexture(); }

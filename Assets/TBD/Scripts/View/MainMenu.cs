@@ -28,7 +28,7 @@ namespace TBD.View
             var cam = Camera.main; if (cam == null) { var go = new GameObject("Cámara del menú"); cam = go.AddComponent<Camera>(); go.AddComponent<AudioListener>(); }
             cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = Dark;
             Sfx.StopAllLoops(); Sfx.Loop("mus_menu", 0.8f, true);
-            var cla = System.Environment.GetCommandLineArgs(); if (System.Array.IndexOf(cla, "-stress10k") >= 0 || System.Array.IndexOf(cla, "-stress10k-sagunto") >= 0) { NightRun.Active = false; SceneManager.LoadScene("Union"); }   // pruebas de rendimiento: sin la noche
+            var cla = System.Environment.GetCommandLineArgs(); if (System.Array.IndexOf(cla, "-stress10k") >= 0 || System.Array.IndexOf(cla, "-stress10k-sagunto") >= 0 || System.Array.IndexOf(cla, "-trainview") >= 0) { NightRun.Active = false; SceneManager.LoadScene("Union"); }   // pruebas de rendimiento: sin la noche
             else if (System.Array.IndexOf(cla, "-menu-auto") >= 0) StartGame();       // pruebas: arranca directo
         }
 
