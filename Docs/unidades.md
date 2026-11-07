@@ -40,7 +40,7 @@ Las estadísticas (`InfCatalog.Table`) son de partida; Hugo las calibra.
 
 **Soldados** — `UnitsWorld.ZombieContact(IList<Target> zombies, int radiusMm, int dmgPerTick, ContactResult res)`. Proximidad pura y sin azar, la misma regla que
 la zona (`balance_combate`: `cuerpo_a_cuerpo_mm` 900, `zombi_danio_tick` 2): cada zombi a ≤ radio de un soldado le quita `dmgPerTick` de vida ese tick; un zombi
-toca a todos los soldados de su radio. Un soldado tiene 100 de vida: un zombi lo abate en 50 ticks (1,7 s), tres en 17. Se llama UNA vez por tick, después de
+toca a todos los soldados de su radio. Un soldado tiene 100 de vida: con 4000 de vida (D-N107) un zombi lo abate en 2000 ticks (67 s) y tres en 667. Se llama UNA vez por tick, después de
 `Step` (disparo) y de mover a los zombis. Devuelve los caídos; `res.Fallen` dice (pelotón, soldado, X, Y) para la animación. `Platoon.Losses` cuenta las bajas
 y entra en el hash y el guardado. No depende del orden de la lista (probado). Coste medido: 0,16 ms por tick con 10.000 zombis y 40 soldados (dotnet, Release).
 Parámetros por defecto en `NightParams.ContactRadiusMm/ContactDmgPerTick` (CSV: `noche_contacto_mm`, `noche_contacto_danio_tick`).

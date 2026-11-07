@@ -2,10 +2,16 @@ clave;valor;escala;nota
 noche_reloj_x;28;1;D-N72: 1 s real = 28 s de juego, de 22:00 a 06:00 son 17,1 min reales
 noche_hora_inicio;22;1;
 noche_hora_fin;6;1;ganas si al amanecer siguen en pie el edificio de viajeros y el tren
-noche_municion_sagunto_u;45;1;además de la dotación de cada pelotón, el Dragón y el NH90 (unas 10 u)
+noche_municion_sagunto_u;50;1;además de la dotación de cada pelotón, el Dragón y el NH90 (unas 10 u)
 noche_materiales_u;40;1;para sacos y nidos entre oleadas (el muro de partida de 120 u ya está, D-N63)
-noche_escala_oleadas_permil;850;1000;D-N74: PALANCA ÚNICA, 850 por defecto (primera partida de Eugenio), fácil 725, difícil 1000
+noche_escala_oleadas_permil;850;1000;D-N74: PALANCA ÚNICA, 850 por defecto (primera partida de Eugenio), fácil 725, difícil 1090 (D-N103)
 noche_combustible_u;30;1;D-N76: total de la noche, con los depósitos llenos del Dragón (8) y del NH90 (6) incluidos: en el almacén quedan 16
+noche_estacion_vida;60000;1;D-N99: el edificio de viajeros, con 100 zombis dentro cae en 30 s
+noche_tren_vida;120000;1;D-N105 (Hugo): el tren blindado en el andén aguanta el doble que el edificio, con 100 zombis pegados cae en 60 s. Sin medir
+noche_estacion_danio_zombi_s;20;1;por zombi pegado y segundo real
+noche_tren_danio_zombi_s;20;1;por zombi pegado y segundo real
+noche_contacto_mm;900;1;Nacho a210bd3, pendiente de la medición de Sara
+noche_contacto_danio_tick;2;1;soldado de 100 de vida, pendiente de la medición de Sara
 noche_oleadas;6;1;todas desde el borde oeste, repartidas a lo ancho
 noche_oleada1_minuto;20;1;minutos de juego desde las 22:00 (22:20)
 noche_oleada1_zombis;600;1;

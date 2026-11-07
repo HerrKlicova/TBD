@@ -218,7 +218,7 @@ namespace TBD.Sim.Tests
             }
             {
                 var w = new UnitsWorld(1); var p = w.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0, Formation.Cuna);
-                int leader = p.Men[0].Id; bool died = w.DamageMan(p.Id, leader, 500);
+                int leader = p.Men[0].Id; bool died = w.DamageMan(p.Id, leader, 5000);
                 var res = new StepResult(); w.Step(null, res);
                 check(died && p.AliveCount() == 7, "muere un soldado y el pelotón sigue con 7");
                 var pts = new HashSet<(int, int)>(); foreach (var m in p.Men) if (m.Alive) pts.Add((m.SlotX, m.SlotY));
@@ -269,13 +269,13 @@ namespace TBD.Sim.Tests
                 zs.Add(new Target { Id = 3, X = man.X + 901, Y = man.Y });          // fuera
                 zs.Add(new Target { Id = 4, X = man.X - 20000, Y = man.Y });        // lejos
                 var cr = new ContactResult(); int fell = w.ZombieContact(zs, 900, 2, cr);
-                check(man.Hp == 100 - 2 * 2 && fell == 0 && cr.Touches >= 2, $"dos zombis a ≤ 900 mm quitan 2 × 2 de vida en un tick y el de 901 mm no (vida {man.Hp})");
+                check(man.Hp == 4000 - 2 * 2 && fell == 0 && cr.Touches >= 2, $"dos zombis a ≤ 900 mm quitan 2 × 2 de vida en un tick y el de 901 mm no (vida {man.Hp})");
                 // un zombi pegado mata a un soldado de 100 de vida en 50 ticks; tres, en 17
                 var w1 = mk(); var m1 = w1.Platoons[0].Men[0]; int t1 = 0; var one = new List<Target> { new Target { Id = 1, X = m1.X, Y = m1.Y } };
-                while (m1.Alive && t1 < 1000) { w1.ZombieContact(one, 900, 2, null); t1++; }
+                while (m1.Alive && t1 < 5000) { w1.ZombieContact(one, 900, 2, null); t1++; }
                 var w3 = mk(); var m3 = w3.Platoons[0].Men[0]; int t3 = 0; var three = new List<Target> { new Target { Id = 1, X = m3.X, Y = m3.Y }, new Target { Id = 2, X = m3.X + 100, Y = m3.Y }, new Target { Id = 3, X = m3.X, Y = m3.Y - 100 } };
-                var cr3 = new ContactResult(); int fell3 = 0; while (m3.Alive && t3 < 1000) { fell3 += w3.ZombieContact(three, 900, 2, cr3); t3++; }
-                check(t1 == 50 && t3 == 17, $"un zombi pegado abate a un soldado en {t1} ticks (1,7 s) y tres en {t3}");
+                var cr3 = new ContactResult(); int fell3 = 0; while (m3.Alive && t3 < 5000) { fell3 += w3.ZombieContact(three, 900, 2, cr3); t3++; }
+                check(t1 == 2000 && t3 == 667, $"un zombi pegado abate a un soldado de 4000 de vida en {t1} ticks (67 s) y tres en {t3} (22 s)");
                 check(fell3 == 1 && cr3.Fallen.Count == 1 && cr3.Fallen[0].Man == m3.Id && w3.Platoons[0].Losses == 1 && w3.Platoons[0].AliveCount() == total0 - 1, "el caído se informa (pelotón, soldado, posición) y cuenta como baja del pelotón");
                 // el orden de la lista no importa
                 var rz = new List<Target>(); var rng = new IRng(5); for (int i = 0; i < 400; i++) rz.Add(new Target { Id = i, X = 50000 + (int)(rng.Below(12000)) - 6000, Y = 50000 + (int)(rng.Below(12000)) - 6000 });
@@ -295,7 +295,7 @@ namespace TBD.Sim.Tests
                 // coste con 10.000 zombis
                 var big = new List<Target>(); var rg = new IRng(9); for (int i = 0; i < 10000; i++) big.Add(new Target { Id = i, X = 50000 + rg.Below(40000) - 20000, Y = 50000 + rg.Below(40000) - 20000 });
                 var wp = new UnitsWorld(3); for (int k = 0; k < 5; k++) wp.AddPlatoon(PlatoonKind.Fusileros, 40000 + k * 4000, 50000, 0);
-                var swp = Stopwatch.StartNew(); for (int i = 0; i < 100; i++) { foreach (var q in wp.Platoons) foreach (var mm in q.Men) mm.Hp = 100; wp.ZombieContact(big, 900, 2, null); } swp.Stop();
+                var swp = Stopwatch.StartNew(); for (int i = 0; i < 100; i++) { foreach (var q in wp.Platoons) foreach (var mm in q.Men) mm.Hp = 4000; wp.ZombieContact(big, 900, 2, null); } swp.Stop();
                 double ms = swp.Elapsed.TotalMilliseconds / 100;
                 Console.WriteLine($"         contacto con 10.000 zombis y {wp.Platoons.Count * wp.Platoons[0].Men.Count} soldados: {ms:0.000} ms por tick");
                 check(ms < 1.0, $"el contacto con 10.000 zombis cuesta {ms:0.000} ms por tick (< 1 ms)");
@@ -304,21 +304,21 @@ namespace TBD.Sim.Tests
                 // vida del edificio de viajeros y del tren
                 var P = NightParams.Default(); var sp = new List<SpawnPoint>();
                 var g = new NightGame(P, 1);
-                check(g.StationHp == 60000 && g.TrainHp == 40000 && g.StationAlive && g.TrainAlive, "la noche empieza con el edificio (60.000) y el tren (40.000) enteros");
+                check(g.StationHp == 60000 && g.TrainHp == 120000 && g.StationAlive && g.TrainAlive, "la noche empieza con el edificio (60.000) y el tren (120.000) enteros");
                 int t = 0; while (g.StationHp > 0 && t < 5000) { g.Attack(100, 0); g.Step(sp); t++; }
-                check(t == 900 && g.StationHp == 0 && g.TrainHp == 40000, $"100 zombis pegados al edificio lo derriban en {t} ticks (30 s: 100 × 20 por segundo)");
+                check(t == 900 && g.StationHp == 0 && g.TrainHp == 120000, $"100 zombis pegados al edificio lo derriban en {t} ticks (30 s: 100 × 20 por segundo)");
                 g.Step(sp);
                 check(g.State == NightState.Derrota && g.EndedByStation && !g.EndedByTrain, "con el edificio a 0 el siguiente tick es DERROTA por el edificio");
                 var g1 = new NightGame(P, 1); for (int i = 0; i < 30; i++) g1.Attack(1, 0);
                 check(g1.StationHp == 60000 - 20, $"un zombi pegado 30 ticks quita exactamente 20 (resto fraccionario exacto): {60000 - g1.StationHp}");
                 var g2 = new NightGame(P, 1); for (int i = 0; i < 300; i++) g2.Attack(0, 7);
-                check(g2.TrainHp == 40000 - 7 * 20 * 10 && g2.StationHp == 60000, "el tren se desgasta aparte: 7 zombis durante 10 s quitan 1.400");
+                check(g2.TrainHp == 120000 - 7 * 20 * 10 && g2.StationHp == 60000, "el tren se desgasta aparte: 7 zombis durante 10 s quitan 1.400");
                 var g3 = new NightGame(P, 1); while (g3.Tick < g3.TotalTicks - 1) g3.Step(sp);
                 g3.Attack(0, 100000); while (g3.TrainHp > 0) g3.Attack(0, 100000);
                 g3.Step(sp);
                 check(g3.State == NightState.Derrota && g3.EndedByTrain && g3.Tick == g3.TotalTicks, "si el tren cae en el tick de las 06:00 gana la derrota");
                 var g4 = new NightGame(P, 1); g4.Attack(50, 10); int rp = g4.RepairStation(1000000); int rt = g4.RepairTrain(5);
-                check(g4.StationHp == 60000 && rp > 0 && rt == 5 && g4.TrainHp <= 40000, "reparar suma sin pasar del máximo");
+                check(g4.StationHp == 60000 && rp > 0 && rt == 5 && g4.TrainHp <= 120000, "reparar suma sin pasar del máximo");
                 var g5 = new NightGame(P, 1); g5.Attack(10000, 10000); g5.Attack(10000, 10000); int rz = g5.RepairStation(100);
                 check(g5.StationHp > 0 || rz == 0, "una vida a 0 no se repara");
                 var h0 = new NightGame(P, 1); var h1 = new NightGame(P, 1); h1.Attack(1, 0);
@@ -327,6 +327,30 @@ namespace TBD.Sim.Tests
                 check(gl.Hash() == g2.Hash() && gl.TrainHp == g2.TrainHp, "la vida de edificio y tren viaja en el guardado");
                 var csv = NightParams.FromCsv(new CsvTable("clave;valor;escala;nota\nnoche_estacion_vida;1234;1;\nnoche_tren_vida;99;1;\nnoche_contacto_danio_tick;3;1;\n"));
                 check(csv.StationHp == 1234 && csv.TrainHp == 99 && csv.ContactDmgPerTick == 3 && csv.ContactRadiusMm == 900, "los parámetros se leen del CSV de la noche");
+            }
+            {
+                // estrellas D-N104: integridad, muro, bajas y munición, con los umbrales del JSON de Hugo
+                var json = TBD.Net.BalanceSource.Read("noche_sagunto.json"); var ns = NightSim.FromJson(json, null, 1); var R = ns.Night.P.Stars; var d = StarRules.Default();
+                check(R.Two.IntegrityMinPm == d.Two.IntegrityMinPm && R.Two.WallMinPm == 250 && R.Two.MaxLosses == 6 && R.Two.AmmoMinMilliU == 8000 && R.Three.IntegrityMinPm == 750 && R.Three.WallMinPm == 500 && R.Three.MaxLosses == 2 && R.Three.AmmoMinMilliU == 15000 && R.Three.NoVehiclesLost, "los umbrales de estrellas se leen de resultados.estrellas del JSON (y coinciden con los de código)");
+                var V = NightState.Victoria;
+                check(R.Stars(NightState.Derrota, 1000, 1000, 0, 99000, false) == 0 && R.Stars(NightState.Jugando, 1000, 1000, 0, 99000, false) == 0, "con derrota (o noche sin cerrar) no hay estrellas");
+                check(R.Stars(V, 1000, 90, 0, 99000, false) == 1, "el caso de Sara: muro al 9 % da como mucho 1 estrella aunque todo lo demás sea perfecto");
+                check(R.Stars(V, 400, 250, 6, 8000, false) == 2 && R.Stars(V, 399, 250, 6, 8000, false) == 1 && R.Stars(V, 400, 249, 6, 8000, false) == 1 && R.Stars(V, 400, 250, 7, 8000, false) == 1 && R.Stars(V, 400, 250, 6, 7999, false) == 1, "★★ en el límite justo de cada umbral: 400 ‰, 250 ‰, 6 bajas, 8 u (un punto menos, 1 estrella)");
+                check(R.Stars(V, 750, 500, 2, 15000, false) == 3 && R.Stars(V, 749, 500, 2, 15000, false) == 2 && R.Stars(V, 750, 499, 2, 15000, false) == 2 && R.Stars(V, 750, 500, 3, 15000, false) == 2 && R.Stars(V, 750, 500, 2, 14999, false) == 2 && R.Stars(V, 750, 500, 2, 15000, true) == 2, "★★★ en el límite justo de cada umbral (y sin perder un vehículo)");
+                // el parte lleva la integridad y el muro (filas 7 y 8) y la regla de «pegado» es única
+                var g = new NightGame(NightParams.Default(), 1); var sp = new List<SpawnPoint>();
+                var near = new List<Target> { new Target { Id = 1, X = 106000, Y = 76500 }, new Target { Id = 2, X = 90000, Y = 64000 }, new Target { Id = 3, X = 106000, Y = 74000 }, new Target { Id = 4, X = 50000, Y = 64500 }, new Target { Id = 5, X = 106000, Y = 67000 } };
+                int aS, aT; g.CountAttackers(near, out aS, out aT);
+                check(aS == 2 && aT == 2, $"pegado = a ≤ 1,5 m del edificio (2: dentro y a 1 m) o del tren (2: sobre la vía y a 1,1 m del borde) y un zombi lejano no cuenta ({aS}, {aT})");
+                for (int i = 0; i < 900; i++) g.Attack(0, 100);      // 100 zombis 30 s = 60.000 al tren: la mitad de 120.000
+                g.WallPermil = 640; while (g.State == NightState.Jugando) g.Step(sp);
+                check(g.State == NightState.Victoria && g.Report.IntegrityPermil == 500 && g.Report.WallPermil == 640, $"al amanecer el parte lleva integridad {g.Report.IntegrityPermil} ‰ (mín edificio-tren) y muro {g.Report.WallPermil} ‰");
+                var sw = new SaveWriter(); g.SaveState(sw); var gl = new NightGame(NightParams.Default(), 0); gl.LoadState(new SaveReader(sw.ToArray()));
+                check(gl.Hash() == g.Hash() && gl.Report.IntegrityPermil == 500 && gl.WallPermil == 640, "las dos medidas viajan en el guardado y en el hash");
+                // en NightSim el tren también recibe daño
+                var nsim = NightSim.FromJson(json, "dificil", 3); nsim.AddDefaultForce(); nsim.Units.Platoons.Clear();
+                nsim.Run(40000);
+                check(nsim.Night.TrainHp < nsim.Night.P.TrainHp || nsim.Night.State == NightState.Derrota, $"sin defensa, los zombis que llegan al andén dañan el tren (vida {nsim.Night.TrainHp} de {nsim.Night.P.TrainHp})");
             }
             {
                 // la derrota gana siempre
@@ -394,9 +418,9 @@ namespace TBD.Sim.Tests
             {
                 string json = TBD.Net.BalanceSource.Read("noche_sagunto.json");
                 var sim = NightSim.FromJson(json, null, 7);
-                check(sim.Night.P.Waves.Length == 6 && sim.Night.WaveTotal(0) == 510 && sim.Night.WaveTotal(5) == 4250 && sim.Units.StockShots == 45 * 2000 && sim.MaterialsU == 40 && sim.FuelU == 30, "crear la noche desde noche_sagunto.json (normal): 6 oleadas de 510 a 4.250 zombis, 45 u de munición (90.000 disparos), 40 de materiales y 30 de combustible");
+                check(sim.Night.P.Waves.Length == 6 && sim.Night.WaveTotal(0) == 510 && sim.Night.WaveTotal(5) == 4250 && sim.Units.StockShots == 50 * 2000 && sim.MaterialsU == 40 && sim.FuelU == 30, "crear la noche desde noche_sagunto.json (normal): 6 oleadas de 510 a 4.250 zombis, 50 u de munición (100.000 disparos), 40 de materiales y 30 de combustible");
                 var easy = NightSim.FromJson(json, "facil", 7); var hard = NightSim.FromJson(json, "dificil", 7);
-                check(easy.Night.WaveTotal(0) == 440 && easy.Night.WaveTotal(5) == 3620 && hard.Night.WaveTotal(0) == 600 && hard.Night.WaveTotal(5) == 5000, "dificultad fácil (440…3.620) y difícil (600…5.000) desde el mismo JSON");
+                check(easy.Night.WaveTotal(0) == 440 && easy.Night.WaveTotal(5) == 3620 && hard.Night.WaveTotal(0) == 650 && hard.Night.WaveTotal(5) == 5450, "dificultad fácil (440…3.620) y difícil (650…5.450) desde el mismo JSON");
                 bool bad = false; try { Mini.Parse("{\"a\": [1, 2"); } catch (FormatException) { bad = true; }
                 check(bad && (long)((System.Collections.Generic.Dictionary<string, object>)Mini.Parse("{\"a\": -12}"))["a"] == -12, "el lector de JSON mínimo rechaza un texto truncado y lee enteros con signo");
 
@@ -407,7 +431,7 @@ namespace TBD.Sim.Tests
                 while (sim.Night.State == NightState.Jugando)
                 {
                     sim.Run(150);
-                    foreach (var p in sim.Units.Platoons) if (p.AmmoShots * 4 < p.AmmoCap && sim.Resupply(p.Id) > 0) resup++;      // jugador automático mínimo: reabastece a un pelotón con < 25 %
+                    resup += sim.ResupplyBot();      // bot de Hugo: reabastece a un pelotón con < 30 % de su dotación
                 }
                 swc.Stop();
                 var snap = sim.Snapshot(); int spent = 0; foreach (var p in sim.Units.Platoons) spent += p.AmmoSpent;

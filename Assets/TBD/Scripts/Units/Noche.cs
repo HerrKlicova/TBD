@@ -14,10 +14,38 @@ namespace TBD.Units
     public enum NightState : byte { Jugando = 0, Victoria = 1, Derrota = 2 }
 
     /// <summary>Parte del amanecer: lo que le enseña la interfaz al cerrarse la noche.</summary>
-    public struct NightReport { public int Night, CloseTick, Spawned; public bool StationAlive, TrainAlive; }
+    public struct NightReport
+    {
+        public int Night, CloseTick, Spawned; public bool StationAlive, TrainAlive;
+        /// <summary>Filas 7 y 8 del parte (D-N104, Lucía): integridad = mín(vida del edificio, vida del tren) en ‰ del máximo; muro = vida que queda en las piezas de muro / suma de máximos, en ‰.</summary>
+        public int IntegrityPermil, WallPermil;
+    }
+
+    /// <summary>Un escalón de estrellas (D-N104): todo en ‰ y enteros. Los umbrales los pone Hugo en noche_sagunto.json (resultados.estrellas).</summary>
+    public struct StarTier { public int IntegrityMinPm, WallMinPm, MaxLosses, AmmoMinMilliU; public bool NoVehiclesLost; }
+    public struct StarRules
+    {
+        public StarTier Two, Three;
+        public static StarRules Default()
+        {
+            return new StarRules { Two = new StarTier { IntegrityMinPm = 400, WallMinPm = 250, MaxLosses = 6, AmmoMinMilliU = 8000 },
+                                   Three = new StarTier { IntegrityMinPm = 750, WallMinPm = 500, MaxLosses = 2, AmmoMinMilliU = 15000, NoVehiclesLost = true } };
+        }
+        static bool Meets(StarTier t, int integrity, int wall, int losses, int ammoMilliU, bool vehiclesLost)
+        { return integrity >= t.IntegrityMinPm && wall >= t.WallMinPm && losses <= t.MaxLosses && ammoMilliU >= t.AmmoMinMilliU && !(t.NoVehiclesLost && vehiclesLost); }
+        /// <summary>0 derrota (o noche sin cerrar), 1 ganar, 2 y 3 si se cumplen TODOS los umbrales de su escalón; se da la mayor que se cumpla.</summary>
+        public int Stars(NightState state, int integrity, int wall, int losses, int ammoMilliU, bool vehiclesLost)
+        {
+            if (state != NightState.Victoria) return 0;
+            if (Meets(Three, integrity, wall, losses, ammoMilliU, vehiclesLost)) return 3;
+            if (Meets(Two, integrity, wall, losses, ammoMilliU, vehiclesLost)) return 2;
+            return 1;
+        }
+    }
 
     public struct WaveSpec { public int StartMinute; public int Zombies; public int ArrivalSeconds; public int[] EntryCount; }   // EntryCount (opcional): reparto exacto por entrada
     public struct EntrySpec { public string Name; public int X0, Y0, X1, Y1; public int Weight; }   // rectángulo de aparición en mm y peso (‰ relativo)
+    public struct RectMm { public int X0, Y0, X1, Y1; public RectMm(int x0, int y0, int x1, int y1) { X0 = x0; Y0 = y0; X1 = x1; Y1 = y1; } }
     public struct SpawnPoint { public int Wave, Entry, X, Y; public bool Front; }
 
     public struct NightParams
@@ -33,13 +61,19 @@ namespace TBD.Units
         public int StationHp, TrainHp, StationDmgPerZombieS, TrainDmgPerZombieS;
         // Contacto zombi-soldado: igual que la zona (balance_combate: cuerpo_a_cuerpo_mm = 900, zombi_danio_tick = 2 por zombi y tick).
         public int ContactRadiusMm, ContactDmgPerTick;
+        public StarRules Stars;
+        // Regla de «pegado» (UNA para la zona y para NightSim): un zombi vivo ataca al edificio o al tren si está a menos de AttackReachMm del rectángulo
+        // (distancia del punto al rectángulo, 0 dentro). Coordenadas de la zona en mm: edificio de viajeros x 98-114, y 75-83 m (PrototypeBootstrap);
+        // tren en la vía (y = 64,5 ± 1,6 m), de x 74 a 154 m (Hugo: el tren ocupa el andén). VALORES DE DISEÑO SIN MEDIR.
+        public int AttackReachMm;
+        public RectMm StationRect, TrainRect;
 
         public static NightParams Default()
         {
             return new NightParams
             {
                 ClockX = 28, StartHour = 22, EndHour = 6, ScalePermil = 850, FrontPct = 55, FrontTimePct = 25,
-                StationHp = 60000, TrainHp = 40000, StationDmgPerZombieS = 20, TrainDmgPerZombieS = 20, ContactRadiusMm = 900, ContactDmgPerTick = 2,
+                StationHp = 60000, TrainHp = 120000, Stars = StarRules.Default(), AttackReachMm = 1500, StationRect = new RectMm(98000, 75000, 114000, 83000), TrainRect = new RectMm(74000, 62900, 154000, 66100), StationDmgPerZombieS = 20, TrainDmgPerZombieS = 20, ContactRadiusMm = 900, ContactDmgPerTick = 2,
                 Waves = new[]
                 {
                     new WaveSpec { StartMinute = 20, Zombies = 600, ArrivalSeconds = 40, EntryCount = new[] { 50, 30, 20, 0 } }, new WaveSpec { StartMinute = 80, Zombies = 1200, ArrivalSeconds = 50, EntryCount = new[] { 50, 30, 20, 0 } },
@@ -100,6 +134,10 @@ namespace TBD.Units
 
         // Vida actual (entra en el hash y en el guardado). El reloj y los zombis no la reparan: solo RepairStation/RepairTrain.
         public int StationHp, TrainHp;
+        /// <summary>‰ de vida que queda en el muro (piezas de muro, sacos y nidos; las destruidas cuentan 0). Lo calcula quien conoce las obras y lo anota aquí
+        /// (Obras.WallPermil en la red); NightGame lo copia al parte al amanecer. 1000 por defecto.</summary>
+        public int WallPermil = 1000;
+        public int IntegrityPermil { get { return (int)Math.Min((long)StationHp * 1000 / Math.Max(1, P.StationHp), (long)TrainHp * 1000 / Math.Max(1, P.TrainHp)); } }
         int _stationRem, _trainRem;                         // desgaste fraccionario (puntos·ticks / 30) para que dañar a ×1 zombi sea exacto
         public int StationHpMax { get { return P.StationHp; } }
         public int TrainHpMax { get { return P.TrainHp; } }
@@ -117,6 +155,25 @@ namespace TBD.Units
             if (atTrain > 0 && TrainHp > 0) { long acc = _trainRem + (long)atTrain * P.TrainDmgPerZombieS; int d = (int)Math.Min(acc / IMath.TickRate, TrainHp); _trainRem = (int)(acc % IMath.TickRate); TrainHp -= d; LastDmgTrain = d; }
         }
         public int LastDmgStation, LastDmgTrain;
+
+        /// <summary>Cuenta los zombis pegados al edificio y al tren con la regla de NightParams (alcance al rectángulo). Un zombi que toca ambos cuenta en los dos.
+        /// Úsalo con la lista de zombis vivos y pasa el resultado a Attack. O(zombis), sin orden ni azar.</summary>
+        public void CountAttackers(IList<Target> zombies, out int atStation, out int atTrain)
+        {
+            atStation = atTrain = 0; if (zombies == null) return;
+            long r2 = (long)P.AttackReachMm * P.AttackReachMm; var a = P.StationRect; var b = P.TrainRect;
+            for (int i = 0; i < zombies.Count; i++)
+            {
+                var z = zombies[i];
+                if (Dist2(z.X, z.Y, a) <= r2) atStation++;
+                if (Dist2(z.X, z.Y, b) <= r2) atTrain++;
+            }
+        }
+        static long Dist2(int x, int y, RectMm r)
+        {
+            long dx = x < r.X0 ? r.X0 - x : x > r.X1 ? x - r.X1 : 0, dy = y < r.Y0 ? r.Y0 - y : y > r.Y1 ? y - r.Y1 : 0;
+            return dx * dx + dy * dy;
+        }
         public bool StationAlive { get { return StationHp > 0; } }
         public bool TrainAlive { get { return TrainHp > 0; } }
         /// <summary>Reparación (la pagará la economía): suma sin pasar del máximo. Un edificio o un tren a 0 no se reparan: la partida ya acabó.</summary>
@@ -169,7 +226,7 @@ namespace TBD.Units
             {
                 State = NightState.Victoria; NightsSurvived++;
                 int sp = 0; for (int i = 0; i < Spawned.Length; i++) sp += Spawned[i];
-                Report = new NightReport { Night = NightIndex, CloseTick = Tick, Spawned = sp, StationAlive = stationAlive, TrainAlive = trainAlive };
+                Report = new NightReport { Night = NightIndex, CloseTick = Tick, Spawned = sp, StationAlive = stationAlive, TrainAlive = trainAlive, IntegrityPermil = IntegrityPermil, WallPermil = WallPermil };
             }
         }
 
@@ -207,7 +264,7 @@ namespace TBD.Units
 
         public ulong Hash()
         {
-            ulong h = IMath.Mix(0x20E0 ^ (ulong)(uint)Tick) + IMath.Mix(0x20E1 ^ Rng.S) + IMath.Mix(0x20E2 ^ (ulong)State ^ ((ulong)(uint)(DefeatTick + 1) << 8)) + IMath.Mix(0x20E3 ^ (ulong)(uint)P.ScalePermil ^ ((ulong)(uint)P.ClockX << 20)) + IMath.Mix(0x20E4 ^ (ulong)(uint)NightIndex ^ ((ulong)(uint)NightsSurvived << 20) ^ ((ulong)(uint)Report.CloseTick << 40)) + IMath.Mix(0x20E5 ^ (ulong)(uint)StationHp ^ ((ulong)(uint)TrainHp << 24)) + (_stationRem != 0 || _trainRem != 0 ? IMath.Mix(0x20E6 ^ (ulong)(uint)_stationRem ^ ((ulong)(uint)_trainRem << 16)) : 0UL);
+            ulong h = IMath.Mix(0x20E0 ^ (ulong)(uint)Tick) + IMath.Mix(0x20E1 ^ Rng.S) + IMath.Mix(0x20E2 ^ (ulong)State ^ ((ulong)(uint)(DefeatTick + 1) << 8)) + IMath.Mix(0x20E3 ^ (ulong)(uint)P.ScalePermil ^ ((ulong)(uint)P.ClockX << 20)) + IMath.Mix(0x20E4 ^ (ulong)(uint)NightIndex ^ ((ulong)(uint)NightsSurvived << 20) ^ ((ulong)(uint)Report.CloseTick << 40)) + IMath.Mix(0x20E5 ^ (ulong)(uint)StationHp ^ ((ulong)(uint)TrainHp << 24)) + IMath.Mix(0x20E7 ^ (ulong)(uint)WallPermil ^ ((ulong)(uint)Report.IntegrityPermil << 20) ^ ((ulong)(uint)Report.WallPermil << 40)) + (_stationRem != 0 || _trainRem != 0 ? IMath.Mix(0x20E6 ^ (ulong)(uint)_stationRem ^ ((ulong)(uint)_trainRem << 16)) : 0UL);
             for (int i = 0; i < Spawned.Length; i++) { h += IMath.Mix((ulong)(uint)Spawned[i] + ((ulong)i << 40) + 17); for (int e = 0; e < SpawnedEntry[i].Length; e++) h += IMath.Mix((ulong)(uint)SpawnedEntry[i][e] + ((ulong)i << 40) + ((ulong)e << 52) + 19); }
             return h;
         }
@@ -216,7 +273,7 @@ namespace TBD.Units
         {
             w.Int(Tick); w.Byte((byte)State); w.UInt(Rng.S); w.Int(DefeatTick); w.Bool(EndedByStation); w.Bool(EndedByTrain);
             w.Int(NightIndex); w.Int(NightsSurvived); w.Int(Report.Night); w.Int(Report.CloseTick); w.Int(Report.Spawned); w.Bool(Report.StationAlive); w.Bool(Report.TrainAlive);
-            w.Int(StationHp); w.Int(TrainHp); w.Int(_stationRem); w.Int(_trainRem);
+            w.Int(StationHp); w.Int(TrainHp); w.Int(_stationRem); w.Int(_trainRem); w.Int(WallPermil); w.Int(Report.IntegrityPermil); w.Int(Report.WallPermil);
             w.Int(Spawned.Length); for (int i = 0; i < Spawned.Length; i++) { w.Int(Spawned[i]); for (int e = 0; e < SpawnedEntry[i].Length; e++) w.Int(SpawnedEntry[i][e]); }
         }
 
@@ -224,7 +281,7 @@ namespace TBD.Units
         {
             Tick = r.Int(); State = (NightState)r.Byte(); Rng.S = r.UInt(); DefeatTick = r.Int(); EndedByStation = r.Bool(); EndedByTrain = r.Bool();
             NightIndex = r.Int(); NightsSurvived = r.Int(); Report = new NightReport { Night = r.Int(), CloseTick = r.Int(), Spawned = r.Int(), StationAlive = r.Bool(), TrainAlive = r.Bool() };
-            StationHp = r.Int(); TrainHp = r.Int(); _stationRem = r.Int(); _trainRem = r.Int();
+            StationHp = r.Int(); TrainHp = r.Int(); _stationRem = r.Int(); _trainRem = r.Int(); WallPermil = r.Int(); int ri = r.Int(), rw = r.Int(); Report.IntegrityPermil = ri; Report.WallPermil = rw;
             int n = r.Int(); if (n != Spawned.Length) throw new SaveException(SaveError.Corrupt, "otro número de oleadas");
             for (int i = 0; i < n; i++) { Spawned[i] = r.Int(); for (int e = 0; e < SpawnedEntry[i].Length; e++) SpawnedEntry[i][e] = r.Int(); }
         }
