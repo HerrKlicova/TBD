@@ -1,7 +1,7 @@
 """Iconos del HUD y VFX de disparo e impacto de las armas del ET (noche del 6-nov). Bruno (Arte técnico).
 
 Encargo de Mak (23:32). Referencias: lote militar de Paula (referencias-reales/militar/, M3 G36E, M4 MG4E,
-M7 G28). Del C90 y del AG36 no hay foto en el lote: van de memoria y están SIN VERIFICAR contra foto.
+M7 G28, y después M5 G36 con AG36 y M6 C90, que ya están verificados contra foto).
 Iconos: 48x16, mirando a la derecha, en hueso con sombra gris y contorno negro para leerse sobre el panel.
 Ningún color de icono es ámbar ni rojo (se quedan en pantalla). Los VFX pueden usar ámbar: duran ≤ 0,25 s
 (regla de Lucía), salvo el humo, que va en grises del suelo.
@@ -73,12 +73,13 @@ def icono_g36e():
 
 
 def icono_ag36():
-    """G36E con el lanzagranadas de 40 mm debajo del guardamanos (tubo gordo y su gatillo)."""
+    """G36E con el AG36 debajo (M5_g36_ag36_1 y _2 de Paula): tubo largo bajo el guardamanos que llega casi a la
+    boca, y la empuñadura y el gatillo propios del lanzagranadas delante del cargador."""
     s = Sprite(48, 16)
     _g36(s, dx=-2)
-    s.rect(28, 9, 14, 3, CUERPO)                 # tubo del AG36
-    s.rect(41, 9, 2, 3, CUERPO)
-    s.rect(30, 12, 2, 2, CUERPO)                 # gatillo del lanzagranadas
+    s.rect(27, 9, 16, 3, CUERPO)                 # tubo del AG36
+    s.rect(42, 9, 2, 3, CUERPO)                  # boca del tubo
+    s.poly([(27, 12), (30, 12), (29, 15), (26, 15)], CUERPO)   # empuñadura del AG36
     return _fin(s)
 
 
@@ -124,17 +125,18 @@ def icono_g28():
 
 
 def icono_c90():
-    """C90 (SIN VERIFICAR contra foto): tubo largo con boca trasera abocinada, bloque de mira y empuñadura."""
+    """C90 (M6_c90_1 y _2 de Paula): tubo recto sin abocinar, aros finos en los extremos, bloque de mira alto
+    hacia delante con su ocular y empuñadura plegable debajo."""
     s = Sprite(48, 16)
-    s.rect(4, 6, 40, 4, CUERPO)                  # tubo
-    s.rect(1, 5, 3, 6, CUERPO)                   # boca trasera
-    s.rect(43, 5, 3, 6, CUERPO)                  # tapa delantera
-    s.rect(24, 3, 6, 3, CUERPO)                  # mira
-    s.poly([(18, 10), (21, 10), (20, 14), (17, 14)], CUERPO)   # empuñadura
-    s.rect(28, 10, 2, 3, CUERPO)                 # asidero delantero
+    s.rect(3, 7, 41, 4, CUERPO)                  # tubo recto
+    s.rect(2, 6, 2, 6, CUERPO)                   # aro trasero
+    s.rect(43, 6, 2, 6, CUERPO)                  # aro delantero
+    s.rect(28, 2, 4, 5, CUERPO)                  # bloque de mira
+    s.rect(26, 2, 2, 2, CUERPO)                  # ocular hacia atrás
+    s.poly([(20, 11), (23, 11), (22, 15), (19, 15)], CUERPO)   # empuñadura
     s = _fin(s)
-    for x in range(10, 40, 9):                   # bandas del tubo
-        s.vline(x, 6, 9, SOMBRA)
+    for x in (16, 33):                           # bandas oscuras del tubo
+        s.vline(x, 7, 10, SOMBRA)
     return s
 
 
