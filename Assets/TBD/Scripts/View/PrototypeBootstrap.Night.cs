@@ -434,6 +434,7 @@ namespace TBD.View
             OrdersUpdate();
             UpdateFx();
             GradeSweepCheck();
+            ListObjsCheck();
             if (!_capDirDone && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-capdirecta") >= 0 && Time.realtimeSinceStartup - _nightT0 >= 30f)   // QA (Bruno): MISMO fotograma, captura de siempre vs. captura directa a resolucion completa sin Blit
             {
                 _capDirDone = true; string dd = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(dd);

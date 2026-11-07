@@ -111,7 +111,7 @@ namespace TBD.View
                 }
             }
             // formacion activa
-            { var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(11, Screen.height / 70) }; st.normal.textColor = OvHueso; if (_sel.Count > 0 && _selVeh == null) GUI.Label(new Rect(12f, Screen.height * 0.80f - st.fontSize * 2.3f, 420f, st.fontSize * 2f), "Formación " + _curForm + "  (F1 línea · F2 cuña · F3 columna · F4 círculo) · clic derecho y arrastrar = frente", st); }
+            { var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(11, Screen.height / 70), wordWrap = false, clipping = TextClipping.Overflow }; st.normal.textColor = OvHueso; if (_sel.Count > 0 && _selVeh == null) GUI.Label(new Rect(12f, Screen.height * 0.80f - st.fontSize * 1.6f, Screen.width * 0.6f, st.fontSize * 1.6f), "Formación " + _curForm + "  (F1 línea · F2 cuña · F3 columna · F4 círculo) · clic derecho y arrastrar = frente", st); }
         }
     }
 }

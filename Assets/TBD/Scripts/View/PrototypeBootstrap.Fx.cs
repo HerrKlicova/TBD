@@ -106,6 +106,21 @@ namespace TBD.View
             _paused = false;
         }
 
+        // ---- QA (Lucia): lista los objetos grandes que se ven en pantalla con su posicion en el mundo y en la captura de 1920x1080 (-listobjs)
+        bool _listDone;
+        void ListObjsCheck()
+        {
+            if (_listDone || System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-listobjs") < 0 || Time.realtimeSinceStartup - _nightT0 < 28f || _worldCam == null) return;
+            _listDone = true; int n = 0;
+            foreach (var r in FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None))
+            {
+                var b = r.bounds; if (b.size.x < 3f && b.size.z < 3f) continue; var vp = _worldCam.WorldToViewportPoint(b.center); if (vp.z < 0f || vp.x < 0f || vp.x > 1f || vp.y < 0f || vp.y > 1f) continue;
+                string path = r.gameObject.name; var tr = r.transform.parent; int d = 0; while (tr != null && d++ < 3) { path = tr.name + "/" + path; tr = tr.parent; }
+                Debug.Log($"[OBJ] {path} mundo=({b.center.x:0.0};{b.center.y:0.0};{b.center.z:0.0}) tam=({b.size.x:0.0};{b.size.y:0.0};{b.size.z:0.0}) pantalla=({vp.x * 1920:0};{(1f - vp.y) * 1080:0}) color={(r.sharedMaterial != null && r.sharedMaterial.HasProperty("_BaseColor") ? ColorUtility.ToHtmlStringRGB(r.sharedMaterial.GetColor("_BaseColor")) : "-")}"); n++;
+            }
+            Debug.Log("[OBJ] total " + n);
+        }
+
         void UpdateFx()
         {
             float now = Time.time;

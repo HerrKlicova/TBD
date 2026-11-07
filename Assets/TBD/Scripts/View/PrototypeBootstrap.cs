@@ -1848,19 +1848,18 @@ namespace TBD.View
                     }
                     int idx = py * W + px; day[idx] = c;
                     if (c.a == 0) { night[idx] = c; continue; }
-                    bool lit = false;
-                    foreach (float ly in lampY) { float dx = x - (Level.FortX0 - 7.5f), dz = z - ly; if (dx * dx + dz * dz < 11f * 11f) lit = true; }
-                    if (lit) { night[idx] = c; continue; }
+                    float dLampC = 1e9f;
+                    foreach (float ly in lampY) { float dx = x - (Level.FortX0 - 7.5f), dz = z - ly; dLampC = Mathf.Min(dLampC, Mathf.Sqrt(dx * dx + dz * dz)); }
                     Color32 mean = zone == 2 ? gs.mRod : zone == 4 ? gs.mAsf : zone == 5 ? gs.mLabr : zone == 0 ? gs.mSeca : zone == 9 ? water : zone == 8 ? cauce : gs.mApis;
                     // Lucia (D-N68): bajo la luna todo el suelo se ilumina como la tierra apisonada del recinto (huerta, asfalto, tierra seca y rodadas ~70 % hacia ella: la labrada, mas oscura,
                     // caia en #303424, el valor de la horda). Bajo focos y farolas (pixeles «lit») se queda el color real; el balasto (via, transparente) no entra.
                     Color32 tgt = mean;
-                    if (zone == 5 || zone == 4 || zone == 0 || zone == 2)
+                    if (zone == 5 || zone == 4 || zone == 0 || zone == 2 || zone == 9 || zone == 8)
                     {
-                        float kl = zone == 4 ? 0.85f : 0.7f;                                     // asfalto 85 % (Sara midio 6,6 con el 70 %); el resto 70 %
+                        float kl = 1f;                                                      // D-N129 (Lucia): ninguna zona se distingue de noche, todo se funde con la tierra apisonada                                     // asfalto 85 % (Sara midio 6,6 con el 70 %); el resto 70 %
                         mean = new Color32((byte)(mean.r + (gs.mApis.r - mean.r) * kl), (byte)(mean.g + (gs.mApis.g - mean.g) * kl), (byte)(mean.b + (gs.mApis.b - mean.b) * kl), 255);
                     }
-                    const float kn = 0.2f;
+                    float kn = Mathf.Lerp(1f, 0.7f, Mathf.Clamp01((dLampC - 9f) / 2f));      // 70 % del detalle (Bruno) y fundido a 100 % entre 11 y 9 m del foco, sin corte seco
                     night[idx] = SnapSub(new Color32((byte)Mathf.Clamp(mean.r + (c.r - tgt.r) * kn, 0, 255), (byte)Mathf.Clamp(mean.g + (c.g - tgt.g) * kn, 0, 255), (byte)Mathf.Clamp(mean.b + (c.b - tgt.b) * kn, 0, 255), 255));
                 }
             return new ChunkResult { I = ci, J = cj, W = W, H = H, Day = day, Night = night };
@@ -1946,7 +1945,7 @@ namespace TBD.View
                     float dLamp = 1e9f;
                     foreach (float ly in lampY) { float dx = x - (Level.FortX0 - 7.5f), dz = z - ly; dLamp = Mathf.Min(dLamp, Mathf.Sqrt(dx * dx + dz * dz)); }
                     int zone = ZoneAt(x, z, px, py);
-                    Color32 mean = zone == 2 ? mRod : zone == 4 ? mAsf : zone == 5 ? mLabr : zone == 9 ? water : mApis;
+                    Color32 mean = mApis;                                                   // Lucia (D-N129, regla 6): ningun parche; de noche todas las zonas (rodeno, asfalto, labrado y agua dudosa) se funden con el suelo base, sin aristas rectas
                     float k = Mathf.Lerp(1f, 0.7f, Mathf.Clamp01((dLamp - 9f) / 2f));        // D-N129 (Bruno): 70 % del detalle (sin cuantizador ya no hay nieve) y fundido a 100 % entre 11 y 9 m del foco, sin corte seco
                     pixNight[i] = SnapSub(new Color32((byte)(mean.r + (c.r - mean.r) * k), (byte)(mean.g + (c.g - mean.g) * k), (byte)(mean.b + (c.b - mean.b) * k), 255));
                 }
