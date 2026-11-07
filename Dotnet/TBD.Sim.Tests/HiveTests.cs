@@ -167,6 +167,7 @@ namespace TBD.Sim.Tests
                 // población de la mediana del día 10 del modelo de Hugo, en unidades de 10 personas (Mak/Hugo)
                 foreach (var kv in new System.Collections.Generic.Dictionary<string, int> { { "Valencia", 34 }, { "Castellón", 35 }, { "Teruel", 26 }, { "Segorbe", 10 }, { "Barracas", 9 }, { "Sagunto", 38 } })
                     ws.Stock[ws.Graph.Nodes.FindIndex(n => n.Name == kv.Key), (int)Res.Personas] = kv.Value * 10;
+                ws.Stations.Founded[ws.Graph.Nodes.FindIndex(n => n.Name == "Castellón")] = true;      // el día 10 del modelo Castellón ya está reclamada (desde el 7-nov empieza infestada)
                 string wts = ""; for (int n = 0; n < ws.Graph.Nodes.Count; n++) wts += ws.Graph.Nodes[n].Name + "=" + ws.Director.SiegeWeight(ws, n) + " ";
                 Console.WriteLine("         pesos con la población de Hugo: " + wts.Trim());
                 ws.Director.IgnoreAttention = true;

@@ -122,6 +122,7 @@ namespace TBD.Sim.Tests
             check(maint == 2, $"el techo que ve la interfaz es ceil(1 % de {u:0.0} u) = {maint} u al día");
             var wd = NetScenario.Mvp(); var bd = NetScenario.Mvp(false);
             wd.Services.Clear(); bd.Services.Clear();                      // sin trenes: nadie toca el almacén
+            wd.ProductionEnabled = false; bd.ProductionEnabled = false;     // ni la producción (Produccion.cs): se mide solo el mantenimiento
             long m0 = wd.Stock[sag, (int)Res.Materiales], b0 = bd.Stock[sag, (int)Res.Materiales];
             long start = wd.Tick;
             for (int k = 1; k <= 10; k++) { long tk = (start / NetConst.DayTicks + k) * NetConst.DayTicks - 1; wd.Tick = tk; bd.Tick = tk; wd.Step(); bd.Step(); }
@@ -131,7 +132,7 @@ namespace TBD.Sim.Tests
             check(-paid == expect && expect == 12, $"en 10 días Sagunto paga {-paid} u de mantenimiento (el 1 % exacto de {u:0.00} u: 12,02; con un ceil por día serían 20)");
             check(minLife == 1000 && wd.Works.MaintRem[sag] > 0 && wd.Works.MaintRem[sag] < ObrasState.MaintDen, $"la vida no baja, y el remanente (menos de 1 u) se guarda: {wd.Works.MaintRem[sag] / (double)ObrasState.MaintDen:0.000} u");
             ulong hw = wd.Hash();
-            var wd2 = NetScenario.Mvp(); wd2.Services.Clear();
+            var wd2 = NetScenario.Mvp(); wd2.Services.Clear(); wd2.ProductionEnabled = false;
             for (int k = 1; k <= 10; k++) { wd2.Tick = (start / NetConst.DayTicks + k) * NetConst.DayTicks - 1; wd2.Step(); }
             check(wd2.Hash() == hw && wd2.Works.MaintRem[sag] == wd.Works.MaintRem[sag], "el remanente entra en el hash: dos mundos iguales coinciden");
             wd2.Works.MaintRem[sag] += 1;
@@ -139,7 +140,7 @@ namespace TBD.Sim.Tests
             check(bd.Works.MaintRem[sag] == 0 && bd.Hash() == NetScenario.Mvp(false).Hash() || true, "sin obras el remanente es 0 y no entra en el hash");
 
             // un apeadero de 30 u pagaba más del triple con el ceil: ahora paga 0,3 u al día
-            var sm = NetScenario.Mvp(false); sm.Services.Clear();
+            var sm = NetScenario.Mvp(false); sm.Services.Clear(); sm.ProductionEnabled = false;
             foreach (var y in new[] { 3_000, -3_000 })
             {
                 var plan = Obras.PlanWall(sm.Works.P, PieceKind.Sacos, new[] { -37_500, y, 37_500, y }, 1_000_000, 1_000_000);

@@ -1,0 +1,1197 @@
+{
+ "id": "castellon",
+ "nombre": "Castellón",
+ "tamano": "principal",
+ "funcion": "combustible",
+ "estado_inicial": "infestada",
+ "nota": "Álvaro, 7-nov (castellon-nivel.md §6). Coordenadas locales de la zona de 256 × 128 m. Las variantes se eligen por hash de la posición (aquí, sha1 mod 5 de ilustración; la función real la decide Nacho). Recinto heredado de los supervivientes: C1 resiste y C2–C4 están ocupados.",
+ "vias": [
+  [
+   [
+    0,
+    57.5
+   ],
+   [
+    256,
+    57.5
+   ]
+  ],
+  [
+   [
+    0,
+    66.5
+   ],
+   [
+    256,
+    66.5
+   ]
+  ],
+  [
+   [
+    46,
+    44
+   ],
+   [
+    256,
+    44
+   ]
+  ],
+  [
+   [
+    46,
+    48
+   ],
+   [
+    230,
+    48
+   ]
+  ],
+  [
+   [
+    46,
+    52
+   ],
+   [
+    230,
+    52
+   ]
+  ],
+  [
+   [
+    146,
+    12
+   ],
+   [
+    214,
+    12
+   ]
+  ],
+  [
+   [
+    146,
+    17
+   ],
+   [
+    214,
+    17
+   ]
+  ],
+  [
+   [
+    146,
+    22
+   ],
+   [
+    214,
+    22
+   ]
+  ]
+ ],
+ "andenes": [
+  [
+   70,
+   60,
+   190,
+   64
+  ],
+  [
+   70,
+   69,
+   190,
+   73
+  ]
+ ],
+ "recinto": [
+  [
+   64,
+   4
+  ],
+  [
+   212,
+   4
+  ],
+  [
+   222,
+   14
+  ],
+  [
+   222,
+   90
+  ],
+  [
+   64,
+   90
+  ]
+ ],
+ "puertas": [
+  {
+   "tipo": "via",
+   "pos": [
+    64,
+    57.5
+   ]
+  },
+  {
+   "tipo": "via",
+   "pos": [
+    64,
+    66.5
+   ]
+  },
+  {
+   "tipo": "via",
+   "pos": [
+    222,
+    57.5
+   ]
+  },
+  {
+   "tipo": "via",
+   "pos": [
+    222,
+    66.5
+   ]
+  },
+  {
+   "tipo": "via",
+   "pos": [
+    222,
+    44
+   ]
+  },
+  {
+   "tipo": "vehiculos",
+   "pos": [
+    64,
+    29
+   ]
+  }
+ ],
+ "piezas": [
+  {
+   "pieza": "sagunto/edificio_viajeros",
+   "pos": [
+    105,
+    0,
+    79.5
+   ],
+   "yaw": 0,
+   "variante": 4
+  },
+  {
+   "pieza": "sagunto/edificio_viajeros",
+   "pos": [
+    155,
+    0,
+    79.5
+   ],
+   "yaw": 180,
+   "variante": 4
+  },
+  {
+   "pieza": "sagunto/marquesina",
+   "pos": [
+    82,
+    0,
+    71
+   ],
+   "yaw": 0,
+   "variante": 4
+  },
+  {
+   "pieza": "sagunto/marquesina",
+   "pos": [
+    106,
+    0,
+    71
+   ],
+   "yaw": 0,
+   "variante": 1
+  },
+  {
+   "pieza": "sagunto/marquesina",
+   "pos": [
+    130,
+    0,
+    71
+   ],
+   "yaw": 0,
+   "variante": 4
+  },
+  {
+   "pieza": "sagunto/marquesina",
+   "pos": [
+    154,
+    0,
+    71
+   ],
+   "yaw": 0,
+   "variante": 1
+  },
+  {
+   "pieza": "sagunto/marquesina",
+   "pos": [
+    178,
+    0,
+    71
+   ],
+   "yaw": 0,
+   "variante": 1
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    75,
+    0,
+    62
+   ],
+   "yaw": 0,
+   "variante": 1
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    75,
+    0,
+    71
+   ],
+   "yaw": 0,
+   "variante": 4
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    85,
+    0,
+    62
+   ],
+   "yaw": 0,
+   "variante": 2
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    85,
+    0,
+    71
+   ],
+   "yaw": 0,
+   "variante": 1
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    95,
+    0,
+    62
+   ],
+   "yaw": 0,
+   "variante": 2
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    95,
+    0,
+    71
+   ],
+   "yaw": 0,
+   "variante": 1
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    105,
+    0,
+    62
+   ],
+   "yaw": 0,
+   "variante": 0
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    105,
+    0,
+    71
+   ],
+   "yaw": 0,
+   "variante": 1
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    115,
+    0,
+    62
+   ],
+   "yaw": 0,
+   "variante": 0
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    115,
+    0,
+    71
+   ],
+   "yaw": 0,
+   "variante": 1
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    125,
+    0,
+    62
+   ],
+   "yaw": 0,
+   "variante": 2
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    125,
+    0,
+    71
+   ],
+   "yaw": 0,
+   "variante": 1
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    135,
+    0,
+    62
+   ],
+   "yaw": 0,
+   "variante": 3
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    135,
+    0,
+    71
+   ],
+   "yaw": 0,
+   "variante": 3
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    145,
+    0,
+    62
+   ],
+   "yaw": 0,
+   "variante": 1
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    145,
+    0,
+    71
+   ],
+   "yaw": 0,
+   "variante": 4
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    155,
+    0,
+    62
+   ],
+   "yaw": 0,
+   "variante": 0
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    155,
+    0,
+    71
+   ],
+   "yaw": 0,
+   "variante": 4
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    165,
+    0,
+    62
+   ],
+   "yaw": 0,
+   "variante": 0
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    165,
+    0,
+    71
+   ],
+   "yaw": 0,
+   "variante": 3
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    175,
+    0,
+    62
+   ],
+   "yaw": 0,
+   "variante": 2
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    175,
+    0,
+    71
+   ],
+   "yaw": 0,
+   "variante": 1
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    185,
+    0,
+    62
+   ],
+   "yaw": 0,
+   "variante": 2
+  },
+  {
+   "pieza": "kit/anden_10m",
+   "pos": [
+    185,
+    0,
+    71
+   ],
+   "yaw": 0,
+   "variante": 3
+  },
+  {
+   "pieza": "sagunto/bloque_pisos",
+   "pos": [
+    52.5,
+    0,
+    116
+   ],
+   "yaw": 0,
+   "variante": 3
+  },
+  {
+   "pieza": "sagunto/bloque_pisos",
+   "pos": [
+    69.5,
+    0,
+    116
+   ],
+   "yaw": 0,
+   "variante": 1
+  },
+  {
+   "pieza": "sagunto/bloque_pisos",
+   "pos": [
+    86.5,
+    0,
+    116
+   ],
+   "yaw": 0,
+   "variante": 0
+  },
+  {
+   "pieza": "sagunto/bloque_pisos",
+   "pos": [
+    103.5,
+    0,
+    116
+   ],
+   "yaw": 0,
+   "variante": 0
+  },
+  {
+   "pieza": "sagunto/bloque_pisos",
+   "pos": [
+    120.5,
+    0,
+    116
+   ],
+   "yaw": 0,
+   "variante": 0
+  },
+  {
+   "pieza": "sagunto/bloque_pisos",
+   "pos": [
+    137.5,
+    0,
+    116
+   ],
+   "yaw": 0,
+   "variante": 4
+  },
+  {
+   "pieza": "sagunto/bloque_pisos",
+   "pos": [
+    154.5,
+    0,
+    116
+   ],
+   "yaw": 0,
+   "variante": 4
+  },
+  {
+   "pieza": "sagunto/bloque_pisos",
+   "pos": [
+    171.5,
+    0,
+    116
+   ],
+   "yaw": 0,
+   "variante": 2
+  },
+  {
+   "pieza": "sagunto/bloque_pisos",
+   "pos": [
+    188.5,
+    0,
+    116
+   ],
+   "yaw": 0,
+   "variante": 2
+  },
+  {
+   "pieza": "sagunto/bloque_pisos",
+   "pos": [
+    205.5,
+    0,
+    116
+   ],
+   "yaw": 0,
+   "variante": 0
+  },
+  {
+   "pieza": "sagunto/bloque_pisos",
+   "pos": [
+    222.5,
+    0,
+    116
+   ],
+   "yaw": 0,
+   "variante": 2
+  },
+  {
+   "pieza": "sagunto/bloque_pisos",
+   "pos": [
+    239.5,
+    0,
+    116
+   ],
+   "yaw": 0,
+   "variante": 3
+  },
+  {
+   "pieza": "sagunto/paso_superior",
+   "pos": [
+    38,
+    0,
+    56
+   ],
+   "yaw": 90,
+   "variante": 3
+  },
+  {
+   "pieza": "sagunto/almacen_naranjas",
+   "pos": [
+    78,
+    0,
+    14
+   ],
+   "yaw": 90,
+   "variante": 1
+  },
+  {
+   "pieza": "sagunto/almacen_naranjas",
+   "pos": [
+    102,
+    0,
+    14
+   ],
+   "yaw": 90,
+   "variante": 2
+  },
+  {
+   "pieza": "sagunto/almacen_naranjas",
+   "pos": [
+    126,
+    0,
+    14
+   ],
+   "yaw": 90,
+   "variante": 3
+  },
+  {
+   "pieza": "sagunto/muelle_mercancias",
+   "pos": [
+    156,
+    0,
+    35.5
+   ],
+   "yaw": 0,
+   "variante": 1
+  },
+  {
+   "pieza": "sagunto/muelle_mercancias",
+   "pos": [
+    168,
+    0,
+    35.5
+   ],
+   "yaw": 0,
+   "variante": 2
+  },
+  {
+   "pieza": "sagunto/muelle_mercancias",
+   "pos": [
+    180,
+    0,
+    35.5
+   ],
+   "yaw": 0,
+   "variante": 2
+  },
+  {
+   "pieza": "sagunto/muelle_mercancias",
+   "pos": [
+    192,
+    0,
+    35.5
+   ],
+   "yaw": 0,
+   "variante": 4
+  },
+  {
+   "pieza": "sagunto/muelle_mercancias",
+   "pos": [
+    204,
+    0,
+    35.5
+   ],
+   "yaw": 0,
+   "variante": 3
+  },
+  {
+   "pieza": "sagunto/muelle_mercancias",
+   "pos": [
+    216,
+    0,
+    35.5
+   ],
+   "yaw": 0,
+   "variante": 1
+  },
+  {
+   "pieza": "puesto_frente/v2",
+   "pos": [
+    238,
+    0,
+    26
+   ],
+   "yaw": 0,
+   "variante": 3
+  },
+  {
+   "pieza": "puerta_vehiculos",
+   "pos": [
+    64,
+    0,
+    29
+   ],
+   "yaw": 90,
+   "variante": 1
+  },
+  {
+   "pieza": "kit_paso",
+   "pos": [
+    120,
+    0,
+    66.5
+   ],
+   "yaw": 0,
+   "variante": 0,
+   "luz": 9
+  },
+  {
+   "pieza": "vagon_cisterna",
+   "pos": [
+    159,
+    0,
+    44
+   ],
+   "yaw": 0,
+   "variante": 2
+  },
+  {
+   "pieza": "vagon_cisterna",
+   "pos": [
+    159,
+    0,
+    12
+   ],
+   "yaw": 0,
+   "variante": 2
+  },
+  {
+   "pieza": "vagon_cisterna",
+   "pos": [
+    159,
+    0,
+    17
+   ],
+   "yaw": 0,
+   "variante": 0
+  },
+  {
+   "pieza": "vagon_cisterna",
+   "pos": [
+    159,
+    0,
+    22
+   ],
+   "yaw": 0,
+   "variante": 3
+  },
+  {
+   "pieza": "vagon_cisterna",
+   "pos": [
+    178,
+    0,
+    44
+   ],
+   "yaw": 0,
+   "variante": 0
+  },
+  {
+   "pieza": "vagon_cisterna",
+   "pos": [
+    178,
+    0,
+    12
+   ],
+   "yaw": 0,
+   "variante": 0
+  },
+  {
+   "pieza": "vagon_cisterna",
+   "pos": [
+    178,
+    0,
+    17
+   ],
+   "yaw": 0,
+   "variante": 3
+  },
+  {
+   "pieza": "vagon_cisterna",
+   "pos": [
+    178,
+    0,
+    22
+   ],
+   "yaw": 0,
+   "variante": 1
+  },
+  {
+   "pieza": "vagon_cisterna",
+   "pos": [
+    197,
+    0,
+    44
+   ],
+   "yaw": 0,
+   "variante": 3
+  },
+  {
+   "pieza": "vagon_cisterna",
+   "pos": [
+    197,
+    0,
+    12
+   ],
+   "yaw": 0,
+   "variante": 3
+  },
+  {
+   "pieza": "vagon_cisterna",
+   "pos": [
+    197,
+    0,
+    17
+   ],
+   "yaw": 0,
+   "variante": 1
+  },
+  {
+   "pieza": "vagon_cisterna",
+   "pos": [
+    197,
+    0,
+    22
+   ],
+   "yaw": 0,
+   "variante": 4
+  },
+  {
+   "pieza": "kit/torreta_vigilancia",
+   "pos": [
+    67,
+    0,
+    87
+   ],
+   "yaw": 315,
+   "variante_por_estado": "Caída: vacía; Liberada: andamio",
+   "nota": "recinto heredado",
+   "variante": 2
+  },
+  {
+   "pieza": "kit/torreta_vigilancia",
+   "pos": [
+    219,
+    0,
+    87
+   ],
+   "yaw": 45,
+   "variante_por_estado": "Caída: vacía; Liberada: andamio",
+   "nota": "recinto heredado",
+   "variante": 2
+  },
+  {
+   "pieza": "kit/torreta_vigilancia",
+   "pos": [
+    215,
+    0,
+    10
+   ],
+   "yaw": 135,
+   "variante_por_estado": "Caída: vacía; Liberada: andamio",
+   "nota": "recinto heredado",
+   "variante": 2
+  },
+  {
+   "pieza": "kit/torreta_vigilancia",
+   "pos": [
+    67,
+    0,
+    7
+   ],
+   "yaw": 225,
+   "variante_por_estado": "Caída: vacía; Liberada: andamio",
+   "nota": "recinto heredado",
+   "variante": 2
+  },
+  {
+   "pieza": "kit/torreta_vigilancia",
+   "pos": [
+    219,
+    0,
+    49
+   ],
+   "yaw": 90,
+   "variante_por_estado": "Caída: vacía; Liberada: andamio",
+   "nota": "recinto heredado",
+   "variante": 1
+  },
+  {
+   "pieza": "kit/torreta_vigilancia",
+   "pos": [
+    67,
+    0,
+    36
+   ],
+   "yaw": 270,
+   "variante_por_estado": "Caída: vacía; Liberada: andamio",
+   "nota": "recinto heredado",
+   "variante": 1
+  },
+  {
+   "pieza": "castellon/talud_tierra_10m",
+   "pos": [
+    149,
+    0,
+    28
+   ],
+   "yaw": 90
+  },
+  {
+   "pieza": "castellon/talud_tierra_10m",
+   "pos": [
+    159,
+    0,
+    28
+   ],
+   "yaw": 90
+  },
+  {
+   "pieza": "castellon/talud_tierra_10m",
+   "pos": [
+    169,
+    0,
+    28
+   ],
+   "yaw": 90
+  },
+  {
+   "pieza": "castellon/talud_tierra_10m",
+   "pos": [
+    179,
+    0,
+    28
+   ],
+   "yaw": 90
+  },
+  {
+   "pieza": "castellon/talud_tierra_10m",
+   "pos": [
+    189,
+    0,
+    28
+   ],
+   "yaw": 90
+  },
+  {
+   "pieza": "castellon/talud_tierra_10m",
+   "pos": [
+    199,
+    0,
+    28
+   ],
+   "yaw": 90
+  },
+  {
+   "pieza": "castellon/talud_tierra_10m",
+   "pos": [
+    209,
+    0,
+    28
+   ],
+   "yaw": 90
+  },
+  {
+   "pieza": "castellon/talud_tierra_10m",
+   "pos": [
+    217,
+    0,
+    17
+   ],
+   "yaw": 0
+  },
+  {
+   "pieza": "castellon/talud_tierra_10m",
+   "pos": [
+    217,
+    0,
+    25
+   ],
+   "yaw": 0
+  },
+  {
+   "pieza": "kit_remate",
+   "variante": 2,
+   "pos": [
+    116,
+    0,
+    81.5
+   ],
+   "yaw": 180,
+   "fondo": 13
+  },
+  {
+   "pieza": "kit_cuerpo",
+   "variante": 6,
+   "pos": [
+    120,
+    0,
+    81.5
+   ],
+   "yaw": 180,
+   "fondo": 13
+  },
+  {
+   "pieza": "kit_cuerpo",
+   "variante": 6,
+   "pos": [
+    124,
+    0,
+    81.5
+   ],
+   "yaw": 180,
+   "fondo": 13
+  },
+  {
+   "pieza": "kit_remate",
+   "variante": 0,
+   "pos": [
+    130,
+    0,
+    81.5
+   ],
+   "yaw": 180,
+   "fondo": 13
+  },
+  {
+   "pieza": "kit_cuerpo",
+   "variante": 6,
+   "pos": [
+    136,
+    0,
+    81.5
+   ],
+   "yaw": 180,
+   "fondo": 13
+  },
+  {
+   "pieza": "kit_cuerpo",
+   "variante": 6,
+   "pos": [
+    140,
+    0,
+    81.5
+   ],
+   "yaw": 180,
+   "fondo": 13
+  },
+  {
+   "pieza": "kit_remate",
+   "variante": 2,
+   "pos": [
+    144,
+    0,
+    81.5
+   ],
+   "yaw": 180,
+   "fondo": 13
+  }
+ ],
+ "carreteras": [
+  {
+   "id": "ronda",
+   "nombre": "Ronda (paso superior sobre las vías)",
+   "tramo": [
+    [
+     38,
+     0
+    ],
+    [
+     38,
+     128
+    ]
+   ],
+   "habilitada": true
+  },
+  {
+   "id": "avenida_estacion",
+   "nombre": "Avenida de la Estación",
+   "tramo": [
+    [
+     38,
+     98
+    ],
+    [
+     256,
+     98
+    ]
+   ],
+   "habilitada": true
+  },
+  {
+   "id": "acceso_naves",
+   "nombre": "Acceso de vehículos por la puerta oeste hasta el depósito",
+   "tramo": [
+    [
+     38,
+     29
+    ],
+    [
+     144,
+     29
+    ]
+   ],
+   "habilitada": true
+  }
+ ],
+ "sitios": {
+  "C1_estacion": [
+   130,
+   79
+  ],
+  "C2_deposito": [
+   178,
+   22
+  ],
+  "C3_ronda": [
+   38,
+   56
+  ],
+  "C4_ramal": [
+   244,
+   44
+  ]
+ },
+ "sitio_cuartel": [
+  78,
+  14
+ ],
+ "sitio_inteligencia": {
+  "tipo": "radar",
+  "pos": [
+   206,
+   0,
+   82
+  ],
+  "yaw": 180,
+  "parcela": "X 201,5–210,5 y Z 78,5–85,5 con la v1/v2 (9 × 7 m); 5 m al andén lateral y 4,5 m al muro norte",
+  "variante_por_estado": {
+   "en_construccion": 3,
+   "Segura": 1,
+   "Caida": 4
+  },
+  "nota": "No existe al empezar (Castellón empieza infestada): se construye. Modelo de Teo, docs/arte/modelado-3d/radar/."
+ },
+ "paradas_asalto": [
+  {
+   "via": "oeste (Nules)",
+   "pos": [
+    -170,
+    57.5
+   ]
+  },
+  {
+   "via": "este (Vinaròs)",
+   "pos": [
+    430,
+    66.5
+   ]
+  },
+  {
+   "via": "ramal del Grau",
+   "pos": [
+    430,
+    44
+   ]
+  }
+ ],
+ "orden_liberacion": [
+  "C3_ronda",
+  "C4_ramal",
+  "C2_deposito",
+  "C1_estacion"
+ ]
+}

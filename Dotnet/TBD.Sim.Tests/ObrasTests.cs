@@ -11,7 +11,7 @@ namespace TBD.Sim.Tests
         const int Node = 0;                       // Valencia en el escenario MVP: 900 u de materiales
 
         /// <summary>Mundo MVP a las 08:00 y sin vía para las pruebas de coste, nivel y obra, cuyos muros se trazan por el andén (y = 0): la franja de la vía se prueba en [21].</summary>
-        static NetWorld Mvp0() { var w = NetScenario.Mvp(false); w.Works.P.TrackHalfMm = 0; w.Tick = NetConst.Hours(8); return w; }     // a las 08:00: en horario de obra (06:00–18:00); el escenario arranca a las 05:30
+        static NetWorld Mvp0() { var w = NetScenario.Mvp(false); w.ProductionEnabled = false; w.Works.P.TrackHalfMm = 0; w.Tick = NetConst.Hours(8); return w; }     // a las 08:00: en horario de obra (06:00–18:00); el escenario arranca a las 05:30
 
         static NetWorld WorldWithZone(int materials = 900)
         {
