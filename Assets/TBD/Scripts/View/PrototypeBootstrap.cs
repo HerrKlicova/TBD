@@ -572,7 +572,7 @@ namespace TBD.View
                     _targetOrtho = Mathf.Clamp(_targetOrtho * Mathf.Pow(0.85f, notches), 6f, 70f);
                     _zoomAtCursor = true;
                 }
-                if (mouse.rightButton.isPressed && !_buildMode)
+                if (((mouse.rightButton.isPressed && !(NightRun.Active && (_sel.Count > 0 || _selVeh != null))) || (NightRun.Active && mouse.middleButton.isPressed)) && !_buildMode)   // de noche con unidades elegidas, el boton derecho dibuja el frente y la camara gira con el central
                 {
                     Vector2 dd = mouse.delta.ReadValue();
                     _yaw += dd.x * 0.2f;

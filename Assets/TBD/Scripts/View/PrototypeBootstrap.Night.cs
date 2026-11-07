@@ -431,6 +431,7 @@ namespace TBD.View
         void NightUpdate()
         {
             ColorCases();
+            OrdersUpdate();
             UpdateFx();
             GradeSweepCheck();
             if (!_capDirDone && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-capdirecta") >= 0 && Time.realtimeSinceStartup - _nightT0 >= 30f)   // QA (Bruno): MISMO fotograma, captura de siempre vs. captura directa a resolucion completa sin Blit
@@ -441,7 +442,7 @@ namespace TBD.View
             { var cl = System.Environment.GetCommandLineArgs(); for (int li = 0; li + 1 < cl.Length; li++) if (cl[li] == "-leaveat" && float.TryParse(cl[li + 1], out var lt) && Time.realtimeSinceStartup - _nightT0 >= lt && !_leaving && !NightRun.LeftOnce && _nightInit && _ng != null && _ng.State == NightState.Jugando) { NightRun.LeftOnce = true; Debug.Log("[NOCHE] prueba: -leaveat, salgo al mapa tick " + _ng.Tick); LeaveToMap(); } }   // QA: sale al mapa a los N s reales
             if (!_nightOn) return;
             var kb = Keyboard.current; var mouse = Mouse.current; if (kb == null || mouse == null) return;
-            if (kb.f2Key.wasPressedThisFrame) _debugHud = !_debugHud;
+            if (kb.f12Key.wasPressedThisFrame) _debugHud = !_debugHud;   // F2 pasa a ser la formacion cuña (F1-F4)
             NightDemoFlags();
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-nightshots") >= 0 && _ng.State != NightState.Jugando)       // captura de la pantalla final
             { if (_endAt < 0f) _endAt = Time.realtimeSinceStartup; if (!_endShot && Time.realtimeSinceStartup - _endAt > 2f) { _endShot = true; SaveScreenshot(); } }
@@ -472,8 +473,14 @@ namespace TBD.View
                 }
             }
             // clic derecho sin arrastre = mover (con arrastre, gira la cámara como siempre)
-            if (mouse.rightButton.wasPressedThisFrame) { _rmbDown = true; _rmbStart = mp; }
-            if (mouse.rightButton.wasReleasedThisFrame && _rmbDown) { _rmbDown = false; if ((mp - _rmbStart).magnitude < 6f && !OverNightUi(mp)) { if (_selVeh != null) { if (TryGround(mp, out var gv)) VehicleOrder(_selVeh, gv); } else IssueMove(mp, false); Sfx.Play("ui_orden", Vector3.zero, 0.6f, 0.05f); } }
+            if (mouse.rightButton.wasPressedThisFrame) { _rmbDown = true; _rmbStart = mp; _rmbDragging = false; _rmbW0Ok = TryGround(mp, out _rmbW0); }
+            if (_rmbDown && mouse.rightButton.isPressed && _rmbW0Ok && _selVeh == null && _sel.Count > 0 && (mp - _rmbStart).magnitude >= 8f && TryGround(mp, out var gcur)) { _rmbDragging = true; _rmbW1 = gcur; }   // clic derecho y arrastrar = dibujar el frente
+            if (mouse.rightButton.wasReleasedThisFrame && _rmbDown)
+            {
+                _rmbDown = false; bool dragged = _rmbDragging; _rmbDragging = false;
+                if (dragged && _rmbW0Ok && TryGround(mp, out var g1)) IssueFormationOrder(_rmbW0, g1, _attackNext);
+                else if ((mp - _rmbStart).magnitude < 6f && !OverNightUi(mp)) { if (_selVeh != null) { if (TryGround(mp, out var gv)) VehicleOrder(_selVeh, gv); } else IssueMove(mp, false); Sfx.Play("ui_orden", Vector3.zero, 0.6f, 0.05f); }
+            }
             if (_selVeh != null)
             {
                 if (kb.aKey.wasPressedThisFrame) { _selVeh.Fire = true; Debug.Log($"[NOCHE] {_selVeh.Name}: fuego libre"); }
@@ -549,6 +556,7 @@ namespace TBD.View
         void NightGUI()
         {
             if (_ng == null) return;
+            NightOverlay();
             if (NightKitGUI()) return;
             float W = Screen.width, H = Screen.height, k = H / 1080f;
             if (_nPx == null) { _nPx = new Texture2D(1, 1); _nPx.SetPixel(0, 0, Color.white); _nPx.Apply(); }
