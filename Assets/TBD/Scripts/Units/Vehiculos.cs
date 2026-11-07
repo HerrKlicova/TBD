@@ -108,6 +108,7 @@ namespace TBD.Units
         public int AmmoShots;                       // munición de a bordo en disparos equivalentes
         public int TurretYaw;                       // rumbo absoluto de la torreta (bam16)
         public int[] MountCd;
+        public bool OnJob;                          // lo tiene reservado una orden de transporte (TransportDirector)
         int _fuelRem, _dmgRem;
         public int CarrierId { get { return Id; } }
 

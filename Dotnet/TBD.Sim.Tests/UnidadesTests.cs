@@ -510,6 +510,182 @@ namespace TBD.Sim.Tests
                 check(firstTarget == 2 && firstPlain == 3 && firstRifle == 1, $"el francotirador dispara primero al especial aunque esté a 120 m ({firstTarget}); sin especiales, al más cercano ({firstPlain}); el fusilero no distingue ({firstRifle})");
             }
             {
+                // ------------------------------------------------------------------ orden de transporte (D-N96): carreteras habilitadas y vía, vehículo libre, ETA para el mapa
+                string rj = TBD.Net.BalanceSource.Read("mapa_sagunto_carreteras.json");
+                var map = RoadMap.Sagunto(rj);
+                var dis = map.DisabledRoads();
+                check(dis.Count == 2 && dis[0].StartsWith("carretera_vieja_este") && dis[1].StartsWith("paso_superior"), $"el mapa de carreteras sale del JSON: {dis.Count} deshabilitadas con su motivo ({string.Join(" | ", dis)})");
+                var rHeli = map.Route(99_000, 53_000, 180_000, 44_000, 375, 600, 60_000);
+                check(rHeli.Ok && rHeli.LengthMm > 80_000 && rHeli.LengthMm < 140_000, $"ruta parque → helipuerto: {rHeli.LengthMm / 1000} m (carretera {rHeli.RoadMm / 1000}, vía {rHeli.ViaMm / 1000}, accesos {rHeli.AccessMm / 1000}); Hugo: 95 m");
+                var rPaso = map.Route(99_000, 53_000, 59_000, 62_000, 375, 600, 60_000);
+                check(rPaso.Ok && rPaso.LengthMm > 60_000, $"ruta parque → paso a nivel: {rPaso.LengthMm / 1000} m; Hugo: 110 m");
+                // lo deshabilitado no se usa: ni el paso superior ni el tramo de la carretera vieja pasado el Palancia (x > 222 m)
+                var rUp = map.Route(-20_000, -20_000, -20_000, 100_000, 375);
+                bool usesUp = false; for (int i = 0; i + 1 < rUp.Count; i++) if (rUp.Kinds[i] == RoadKind.Carretera && rUp.X[i] == -20_000 && rUp.X[i + 1] == -20_000) usesUp = true;
+                var rEast = map.Route(200_000, 23_000, 300_000, 23_000, 375); bool usesEast = false; for (int i = 0; i + 1 < rEast.Count; i++) if (rEast.Kinds[i] == RoadKind.Carretera && Math.Max(rEast.X[i], rEast.X[i + 1]) > 222_000) usesEast = true;
+                check(rUp.Ok && !usesUp && rEast.Ok && !usesEast && rEast.ViaMm > 50_000, $"no pasa por el paso superior (coches abandonados) ni por la carretera pasado el Palancia (camión): el este se hace por la vía ({rEast.ViaMm / 1000} m de vía)");
+                map.SetRoadEnabled("paso_superior", true); var rUp2 = map.Route(-20_000, -20_000, -20_000, 100_000, 375); bool usesUp2 = false; for (int i = 0; i + 1 < rUp2.Count; i++) if (rUp2.Kinds[i] == RoadKind.Carretera && rUp2.X[i] == -20_000 && rUp2.X[i + 1] == -20_000) usesUp2 = true;
+                map.SetRoadEnabled("paso_superior", false);
+                check(usesUp2 && rUp2.LengthMm < rUp.LengthMm, "al habilitar el paso superior, la ruta lo usa (el dato manda)");
+                var rNone = map.Route(99_000, 53_000, 300_000, 300_000, 375);
+                check(!rNone.Ok && rNone.Why.Contains("sin ruta"), $"un destino a campo abierto (más de 60 m de una carretera habilitada o de la vía) no tiene ruta: «{rNone.Why}»");
+                map.BlockNear(-250_000, 64_500, 1_000, true); var rBlk = map.Route(-240_000, 64_500, 100_000, 64_500, 375); map.BlockNear(-250_000, 64_500, 1_000, false);
+                check(map.Route(-240_000, 64_500, 100_000, 64_500, 375).Ok, "bloquear y desbloquear un punto de la red es reversible");
+                // tiempos: ETA real = km ÷ km/h × 3600 ÷ 28 (D-N72), igual que la tabla de Hugo (eta_red)
+                bool etaOk = TransportDirector.EtaMapSeconds(44_000, 80) == 71 && TransportDirector.EtaMapSeconds(40_000, 30) == 171 && TransportDirector.EtaMapSeconds(40_000, 25) == 206 && TransportDirector.EtaMapSeconds(44_000, 50) == 113 && TransportDirector.EtaMapSeconds(33_000, 90) == 47;
+                check(etaOk && TransportDirector.GameMinutes(71) == 33 && TransportDirector.GameMinutes(171) == 80 && TransportDirector.FuelE4For(VehicleKind.Dragon, 71) == 14_200 && TransportDirector.FuelE4For(VehicleKind.Dragon, 171) == 34_200 && TransportDirector.FuelE4For(VehicleKind.Vamtac, 63) == 5_670 && TransportDirector.FuelE4For(VehicleKind.Pizarro, 113) == 28_250,
+                    "ETA de ruta entre estaciones = tabla de Hugo (Dragón 44 km a 80 km/h: 71 s reales, 33 min de juego, 1,4 u; vía 171 s y 3,4 u; VAMTAC 206 s; Pizarro 113 s, 2,8 u)");
+                var tw = new UnitsWorld(1); var td = new TransportDirector(tw, map);
+                bool zoneEta = true; string zoneTxt = "";
+                foreach (var row in new[] { new object[] { 20, VehicleKind.Dragon, 6 }, new object[] { 40, VehicleKind.Dragon, 8 }, new object[] { 95, VehicleKind.Dragon, 13 }, new object[] { 110, VehicleKind.Dragon, 14 }, new object[] { 130, VehicleKind.Dragon, 16 },
+                                            new object[] { 95, VehicleKind.Vamtac, 11 }, new object[] { 130, VehicleKind.Vamtac, 13 }, new object[] { 95, VehicleKind.Pizarro, 13 }, new object[] { 130, VehicleKind.Pizarro, 15 } })
+                {
+                    var fake = new RoutePath { Ok = true, RoadMm = (int)row[0] * 1000L, LengthMm = (int)row[0] * 1000L }; int e = td.EtaZoneSeconds((VehicleKind)row[1], fake);
+                    zoneEta &= Math.Abs(e - (int)row[2]) <= 1; zoneTxt += $" {row[1].ToString().Substring(0, 3)}{row[0]}m={e}s({row[2]})";
+                }
+                check(zoneEta, "ETA de la zona = 5 s + longitud ÷ velocidad, dentro de ±1 s de la tabla de Hugo (eta_zona_s_reales):" + zoneTxt);
+                int vsl = td.ViaKmh(VehicleKind.Dragon) * 1000 / td.RoadKmh(VehicleKind.Dragon);
+                var viaOnly = new RoutePath { Ok = true, ViaMm = 100_000, LengthMm = 100_000 }; var roadOnly = new RoutePath { Ok = true, RoadMm = 100_000, LengthMm = 100_000 };
+                check(vsl == 375 && td.EtaZoneSeconds(VehicleKind.Dragon, viaOnly) > 2 * td.EtaZoneSeconds(VehicleKind.Dragon, roadOnly) - 10 && td.EtaZoneSeconds(VehicleKind.Dragon, viaOnly) < 3 * td.EtaZoneSeconds(VehicleKind.Dragon, roadOnly), $"por la vía el Dragón va a 30/80 de la carretera ({td.EtaZoneSeconds(VehicleKind.Dragon, viaOnly)} s frente a {td.EtaZoneSeconds(VehicleKind.Dragon, roadOnly)} s en 100 m)");
+                check(TransportDirector.EtaAirSeconds(HeliKind.Tigre, 180_000, 44_000, 180_000, 44_000) > 0 && TransportDirector.EtaAirSeconds(HeliKind.Tigre, 0, 0, 3_000_000, 0) > TransportDirector.EtaAirSeconds(HeliKind.Tigre, 0, 0, 300_000, 0), "los helicópteros van en línea recta: el ETA crece con la distancia");
+
+                {
+                    var w = new UnitsWorld(71); var pl = w.AddPlatoon(PlatoonKind.Fusileros, 99_000, 53_000, 0); var d = new TransportDirector(w, RoadMap.Sagunto(rj)); d.Vehicles.Add(new Vehicle(1, VehicleKind.Dragon, 99_500, 53_000, 0));
+                    var eR = d.Estimate(pl.Id, 180_000, 44_000, TransportMode.Vehiculo); var eV = d.Estimate(pl.Id, 300_000, 23_000, TransportMode.Vehiculo);
+                    bool legs = eR.RouteLegs.Count == eR.RouteX.Count - 1 && eR.RouteType == TransitRoute.Carretera && eV.RouteLegs.Contains(TransitRoute.Via) && eV.ViaMm > 50_000;
+                    var air = TransportDirector.AirTransit(HeliKind.Nh90, 180_000, 44_000, 280_000, 144_000, 30 * 10); var air0 = TransportDirector.AirTransit(HeliKind.Nh90, 180_000, 44_000, 280_000, 144_000, 0); var airEnd = TransportDirector.AirTransit(HeliKind.Nh90, 180_000, 44_000, 280_000, 144_000, 30 * 600);
+                    check(legs && air.Active && air.Route == TransitRoute.Aire && air.Class == TransitClass.Helicoptero && air.ProgressPm > air0.ProgressPm && air.SecondsLeft < air0.SecondsLeft && air0.SecondsLeft == TransportDirector.EtaAirSeconds(HeliKind.Nh90, 180_000, 44_000, 280_000, 144_000) && !airEnd.Active && airEnd.ProgressPm == 1000 && airEnd.SecondsLeft == 0 && air.Heading == 8192,
+                        $"tipo de ruta por tramo (carretera hasta el helipuerto; al este, por la vía) y tránsito aéreo en línea recta (a los 10 s: {air.ProgressPm / 10.0:0.0} %, faltan {air.SecondsLeft} de {air0.SecondsLeft} s, rumbo {air.Heading * 360 / 65536}°)");
+                }
+                // ---------------------------------------------------- elección del vehículo: solo uno LIBRE, entero, con plazas y combustible
+                Func<UnitsWorld, TransportDirector> mk = w => new TransportDirector(w, RoadMap.Sagunto(rj));
+                var sr1 = new StepResult(); var noT = new List<Target>();
+                {
+                    var w = new UnitsWorld(11); var pl = w.AddPlatoon(PlatoonKind.Fusileros, 95_000, 50_000, 0); var d = mk(w); int men = pl.AliveCount();
+                    var e0 = d.Estimate(pl.Id, 180_000, 44_000, TransportMode.Vehiculo);
+                    check(!e0.Ok && e0.Why.Contains("ningún vehículo libre"), $"sin vehículos no hay transporte: «{e0.Why}»");
+                    var busy = new Vehicle(1, VehicleKind.Dragon, 99_000, 53_000, 0); busy.OnJob = true; var other = new UnitsWorld(1);
+                    var pas = w.AddPlatoon(PlatoonKind.Fusileros, 99_500, 53_000, 0); var full = new Vehicle(2, VehicleKind.Dragon, 99_000, 54_000, 0); full.Board(w, pas.Id);
+                    var wreck = new Vehicle(3, VehicleKind.Dragon, 99_000, 55_000, 0); wreck.Hp = 0; var dry = new Vehicle(4, VehicleKind.Dragon, 99_000, 56_000, 0); dry.FuelE4 = 1000;
+                    d.Vehicles.AddRange(new[] { busy, full, wreck, dry });
+                    var e1 = d.Estimate(pl.Id, 180_000, 44_000, TransportMode.Vehiculo);
+                    check(!e1.Ok && e1.Why.Contains("combustible"), $"ocupado, con pasajeros, destruido o sin gasolina: ninguno vale ({(e1.Ok ? "elegido " + e1.VehicleId : e1.Why)})");
+                    var vam = new Vehicle(5, VehicleKind.Vamtac, 99_000, 57_000, 0);
+                    var small = new UnitsWorld(1); d.Vehicles.Clear(); d.Vehicles.Add(vam);
+                    var e2 = d.Estimate(pl.Id, 180_000, 44_000, TransportMode.Vehiculo);
+                    check(men <= 4 ? e2.Ok : (!e2.Ok && e2.Why.Contains("no cabe")), $"el pelotón de {men} no cabe en un VAMTAC de 4 plazas: {(e2.Ok ? "sí cabe" : e2.Why)}");
+                    var near = new Vehicle(6, VehicleKind.Dragon, 99_000, 53_000, 0); var farV = new Vehicle(7, VehicleKind.Dragon, 120_000, 60_000, 0);
+                    d.Vehicles.Clear(); d.Vehicles.AddRange(new[] { farV, near });
+                    var e3 = d.Estimate(pl.Id, 180_000, 44_000, TransportMode.Vehiculo);
+                    check(e3.Ok && e3.VehicleId == 6 && e3.RouteMm > 60_000 && e3.EtaTotalS > 8 && e3.EtaGameMin == TransportDirector.GameMinutes(e3.EtaTotalS) && e3.FuelE4 == e3.EtaTotalS * 200 && e3.RouteX.Count >= 2 && e3.ClockX == 28,
+                        $"de dos libres elige el que antes llega (el {e3.VehicleId}); ETA {e3.EtaTotalS} s reales = {e3.EtaGameMin} min de juego, {e3.RouteMm / 1000} m, {e3.FuelE4 / 10_000.0:0.0} u de gasolina, {e3.RouteX.Count} puntos de ruta");
+                    var e4 = d.Estimate(pl.Id, 300_000, 300_000, TransportMode.Vehiculo);
+                    var e5 = d.Estimate(pl.Id, 300_000, 300_000, TransportMode.VehiculoOPie);
+                    check(!e4.Ok && e4.Why.Contains("sin ruta") && e5.Ok && e5.OnFoot, $"destino sin carretera: con vehículo se niega («{e4.Why}»); VehiculoOPie va a pie ({e5.EtaTotalS} s)");
+                    string why; var nj = d.Order(pl.Id, 300_000, 300_000, TransportMode.Vehiculo, out why);
+                    check(nj == null && why != null && !near.OnJob && !farV.OnJob && d.Jobs.Count == 0, "una orden negada no reserva ningún vehículo ni crea trabajo");
+                }
+
+                // ---------------------------------------------------- una orden entera: el vehículo recoge, embarca, conduce, llega y desembarca
+                Func<uint, Tuple<UnitsWorld, TransportDirector, Platoon, Vehicle>> scene = (seed) =>
+                {
+                    var w = new UnitsWorld(seed); var pl = w.AddPlatoon(PlatoonKind.Fusileros, 94_000, 52_000, 0); var d = mk(w);
+                    var v = new Vehicle(1, VehicleKind.Dragon, 99_000, 53_000, 0); d.Vehicles.Add(v); return Tuple.Create(w, d, pl, v);
+                };
+                {
+                    var sc = scene(21u); var w = sc.Item1; var d = sc.Item2; var pl = sc.Item3; var v = sc.Item4; string why;
+                    var est = d.Estimate(pl.Id, 180_000, 44_000, TransportMode.Vehiculo);
+                    var job = d.Order(pl.Id, 180_000, 44_000, TransportMode.Vehiculo, out why);
+                    check(job != null && v.OnJob && job.Phase == TransportPhase.PelotonVaAlVehiculo && d.Estimate(pl.Id, 100_000, 44_000, TransportMode.Vehiculo).Why.Contains("ya tiene"), "la orden reserva el vehículo; el pelotón ya no admite otra orden mientras tanto");
+                    var tr0 = d.Transit(job.Id);
+                    bool seenBoard = false, seenRoute = false; int boardTick = -1, arriveTick = -1; ulong hBoard = 0; ulong hFree = w.Hash();
+                    int lastPm = -1, lastLeft = 1_000_000; bool monoPm = true, monoLeft = true, headOk = true, classOk = true, routeKinds = true; int samples = 0; TransitInfo trMid = default(TransitInfo);
+                    for (int t = 0; t < 30 * 120 && job.Phase != TransportPhase.Llegado && job.Phase != TransportPhase.Fallido; t++)
+                    {
+                        w.Step(noT, sr1); d.Step();
+                        if (!seenBoard && pl.Aboard == v.CarrierId) { seenBoard = true; boardTick = t; hBoard = w.Hash(); }
+                        if (job.Phase == TransportPhase.EnRuta) seenRoute = true;
+                        var tr = d.Transit(job.Id);
+                        if (tr.Active)
+                        {
+                            samples++; monoPm &= tr.ProgressPm >= lastPm; lastPm = tr.ProgressPm; monoLeft &= tr.SecondsLeft <= lastLeft + 1; lastLeft = Math.Min(lastLeft, tr.SecondsLeft);
+                            headOk &= tr.Heading == IMath.Atan2(tr.SegDy, tr.SegDx) && (tr.SegDx != 0 || tr.SegDy != 0); classOk &= job.Phase == TransportPhase.EnRuta ? tr.Class == TransitClass.Vehiculo : tr.Class == TransitClass.Peloton;
+                            routeKinds &= tr.Route == TransitRoute.Carretera || tr.Route == TransitRoute.Via; if (job.Phase == TransportPhase.EnRuta && t % 10 == 0 && tr.ProgressPm > 300 && trMid.TotalMm == 0) trMid = tr;
+                        }
+                        if (job.Phase == TransportPhase.Llegado) arriveTick = t;
+                    }
+                    for (int t = 0; t < 60; t++) { w.Step(noT, sr1); d.Step(); }
+                    int dx = IMath.Dist(pl.AX - 180_000, pl.AY - 44_000); double realS = w.Tick / 30.0;
+                    check(job.Phase == TransportPhase.Llegado && seenBoard && seenRoute, $"el pelotón embarca (tick {boardTick}), el vehículo conduce por la ruta y llega: fase final {job.Phase}");
+                    check(pl.Aboard == 0 && !v.OnJob && w.SeatsUsed(v.CarrierId) == 0 && dx < 15_000, $"desembarca y el vehículo queda libre; el pelotón está a {dx / 1000.0:0.0} m del destino");
+                    var trEnd = d.Transit(job.Id);
+                    check(tr0.Active && tr0.Class == TransitClass.Peloton && tr0.Route == TransitRoute.Carretera && tr0.ProgressPm == 0 && tr0.SecondsLeft >= est.EtaTotalS - 1 && !trEnd.Active && trEnd.SecondsLeft == 0,
+                        $"datos del mapa: al empezar, pelotón con avance 0 y ETA {tr0.SecondsLeft} s; al llegar, ya no está en tránsito");
+                    check(samples > 100 && monoPm && monoLeft && headOk && classOk && routeKinds && lastPm > 850, $"datos del mapa durante el viaje ({samples} muestras): el avance por distancia solo sube (hasta {lastPm / 10.0:0.0} %), los segundos que faltan solo bajan, el rumbo es el del tramo, pelotón → vehículo al embarcar");
+                    check(trMid.Active && trMid.Class == TransitClass.Vehiculo && trMid.TotalMm > 100_000 && trMid.DoneMm > 0 && trMid.DoneMm < trMid.TotalMm && trMid.SecondsLeft > 0 && trMid.SecondsLeft < est.EtaRouteS, $"a mitad de camino: {trMid.ProgressPm / 10.0:0.0} % ({trMid.DoneMm / 1000} de {trMid.TotalMm / 1000} m), faltan {trMid.SecondsLeft} s, rumbo {trMid.Heading * 360 / 65536}°");
+                    check(hBoard != hFree && w.Hash() != hBoard, "el estar a bordo cuenta en el hash de la simulación (Aboard)");
+                    check(est.EtaTotalS > 8 && realS - 2 < est.EtaTotalS * 1.4 && realS - 2 > est.EtaTotalS * 0.8, $"el ETA ({est.EtaTotalS} s) se parece al tiempo real del trayecto ({realS:0.0} s, incluyendo 2 s de espera extra): el mapa no miente");
+                    var free = d.Estimate(pl.Id, 100_000, 44_000, TransportMode.Vehiculo);
+                    check(free.Ok && free.VehicleId == 1, "tras llegar, el vehículo vuelve a estar libre para otra orden");
+                }
+                // un segundo recorrido idéntico da el mismo hash (determinismo del director y del piloto automático)
+                {
+                    ulong[] hs = new ulong[2]; int[] vx = new int[2];
+                    for (int k = 0; k < 2; k++)
+                    {
+                        var sc = scene(21u); string why; sc.Item2.Order(sc.Item3.Id, 180_000, 44_000, TransportMode.Vehiculo, out why);
+                        for (int t = 0; t < 30 * 40; t++) { sc.Item1.Step(noT, sr1); sc.Item2.Step(); }
+                        hs[k] = sc.Item1.Hash(); vx[k] = sc.Item4.X ^ (sc.Item4.Y << 12) ^ sc.Item4.Heading;
+                    }
+                    check(hs[0] == hs[1] && vx[0] == vx[1], "el mismo envío dos veces: mismo hash de la simulación y mismo punto del vehículo");
+                }
+                // el vehículo está lejos del pelotón: va a buscarlo por carretera
+                {
+                    var w = new UnitsWorld(31); var pl = w.AddPlatoon(PlatoonKind.Fusileros, 59_000, 62_000, 0); var d = mk(w); var v = new Vehicle(1, VehicleKind.Dragon, 99_000, 53_000, 0); d.Vehicles.Add(v); string why;
+                    var est = d.Estimate(pl.Id, 180_000, 44_000, TransportMode.Vehiculo);
+                    var job = d.Order(pl.Id, 180_000, 44_000, TransportMode.Vehiculo, out why);
+                    check(job != null && job.Phase == TransportPhase.VehiculoVaPorElPeloton && est.PickupMm > 50_000 && est.PickupX.Count >= 2 && est.EtaPickupS > 5, $"con el vehículo lejos primero va a recoger al pelotón: {est.PickupMm / 1000} m, {est.EtaPickupS} s");
+                    bool picked = false, boarded = false; for (int t = 0; t < 30 * 240 && job.Phase != TransportPhase.Llegado && job.Phase != TransportPhase.Fallido; t++) { w.Step(noT, sr1); d.Step();if (job.Phase == TransportPhase.PelotonVaAlVehiculo) picked = true; if (pl.Aboard != 0) boarded = true; }
+                    for (int t = 0; t < 60; t++) { w.Step(noT, sr1); d.Step(); }
+                    int dx = IMath.Dist(pl.AX - 180_000, pl.AY - 44_000);
+                    check(picked && boarded && job.Phase == TransportPhase.Llegado && dx < 15_000 && !v.OnJob && Math.Abs(w.Tick / 30.0 - est.EtaTotalS) < est.EtaTotalS * 0.35, $"recoge al pelotón, lo lleva al helipuerto ({dx / 1000.0:0.0} m del punto) y queda libre; total {w.Tick / 30.0:0.0} s reales (ETA {est.EtaTotalS} s)");
+                }
+                // cancelar a mitad de camino: el vehículo para, el pelotón baja donde está y queda libre
+                {
+                    var sc = scene(41u); var w = sc.Item1; var d = sc.Item2; var pl = sc.Item3; var v = sc.Item4; string why;
+                    var job = d.Order(pl.Id, 180_000, 44_000, TransportMode.Vehiculo, out why);
+                    for (int t = 0; t < 30 * 40 && job.Phase != TransportPhase.EnRuta; t++) { w.Step(noT, sr1); d.Step(); }
+                    for (int t = 0; t < 30 * 6; t++) { w.Step(noT, sr1); d.Step(); }
+                    bool wasAboard = pl.Aboard != 0 && v.SpeedMmS > 1000; int vxBefore = v.X;
+                    bool canceled = d.Cancel(job.Id); for (int t = 0; t < 60; t++) { w.Step(noT, sr1); d.Step(); v.Controls(0, 0, 1000); v.Step(); }
+                    check(wasAboard && canceled && job.Phase == TransportPhase.Cancelado && pl.Aboard == 0 && !v.OnJob && !d.Cancel(job.Id), "cancelar en ruta: el pelotón baja, el vehículo queda libre y no se puede cancelar dos veces");
+                }
+                // un vehículo destruido o sin gasolina por el camino: la orden falla limpiamente y suelta al pelotón
+                {
+                    var sc = scene(51u); var w = sc.Item1; var d = sc.Item2; var pl = sc.Item3; var v = sc.Item4; string why;
+                    var job = d.Order(pl.Id, 180_000, 44_000, TransportMode.Vehiculo, out why);
+                    for (int t = 0; t < 30 * 40 && job.Phase != TransportPhase.EnRuta; t++) { w.Step(noT, sr1); d.Step(); }
+                    for (int t = 0; t < 30 * 3; t++) { w.Step(noT, sr1); d.Step(); }
+                    v.FuelE4 = 0; w.Step(noT, sr1); d.Step();
+                    check(job.Phase == TransportPhase.Fallido && pl.Aboard == 0 && !v.OnJob, "si se queda sin gasolina en ruta, la orden falla y el pelotón baja");
+                }
+                // a pie: a campo través y más despacio (D-N96)
+                {
+                    var w = new UnitsWorld(61); var pl = w.AddPlatoon(PlatoonKind.Fusileros, 95_000, 52_000, 0); var d = mk(w); string why; int speed0 = pl.SpeedMmS;
+                    var est = d.Estimate(pl.Id, 140_000, 70_000, TransportMode.VehiculoOPie);
+                    var job = d.Order(pl.Id, 140_000, 70_000, TransportMode.VehiculoOPie, out why);
+                    int slow = pl.SpeedMmS; for (int t = 0; t < 30 * 200 && job.Phase == TransportPhase.APie; t++) { w.Step(noT, sr1); d.Step(); }
+                    int dx = IMath.Dist(pl.AX - 140_000, pl.AY - 70_000);
+                    long straight = IMath.Dist(140_000 - 95_000, 70_000 - 52_000);
+                    check(est.Ok && est.OnFoot && job.Phase == TransportPhase.Llegado && slow == speed0 * 700 / 1000 && pl.SpeedMmS == speed0 && dx < 5_000 && Math.Abs(w.Tick / 30.0 - est.EtaTotalS) < 6, $"sin vehículo, el pelotón va a campo través al 70 % ({speed0 / 1000.0:0.0} → {slow / 1000.0:0.0} m/s), llega ({w.Tick / 30.0:0.0} s; ETA {est.EtaTotalS}) y recupera su velocidad");
+                    var pl2 = w.AddPlatoon(PlatoonKind.Fusileros, 95_000, 52_000, 0); var job2 = d.Order(pl2.Id, 140_000, 70_000, TransportMode.APie, out why); for (int t = 0; t < 40; t++) { w.Step(noT, sr1); d.Step(); }
+                    var trF = d.Transit(job2.Id); bool footOk = trF.Active && trF.Route == TransitRoute.Campo && trF.Class == TransitClass.Peloton && trF.ProgressPm >= 0 && trF.ProgressPm < 1000 && trF.SecondsLeft > 0;
+                    var estF = d.Estimate(pl2.Id, 140_000, 70_000, TransportMode.APie); // ya tiene orden: no hay estimación
+                    check(footOk && !estF.Ok, $"a pie: tipo de ruta «campo», clase pelotón, avance {trF.ProgressPm / 10.0:0.0} %, faltan {trF.SecondsLeft} s");
+                    bool cx = d.Cancel(job2.Id); check(cx && job2.Phase == TransportPhase.Cancelado && pl2.SpeedMmS == speed0 && !pl2.Moving, "cancelar la marcha a pie: se para y recupera su velocidad");
+                }
+            }
+            {
                 // la derrota gana siempre
                 var g = new NightGame(NightParams.Default(), 1); var sp = new List<SpawnPoint>();
                 while (g.Tick < g.TotalTicks - 1) g.Step(true, true, sp);

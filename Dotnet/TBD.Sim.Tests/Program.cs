@@ -120,6 +120,12 @@ namespace TBD.Sim.Tests
         {
             string dataDir = BalanceTests.DataDirPublic();           // el mismo lector que Unity, apuntando a la carpeta de datos del repositorio
             TBD.Net.BalanceSource.Reader = f => { var path = System.IO.Path.Combine(dataDir, f); return System.IO.File.Exists(path) ? System.IO.File.ReadAllText(path) : null; };
+            if (Environment.GetEnvironmentVariable("TBD_ONLY_UNITS") == "1")      // solo la sección [29] (unidades), para iterar rápido
+            {
+                UnidadesTests.Run(Check);
+                Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos");
+                return _fail == 0 ? 0 : 1;
+            }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_PERF") == "1")       // solo las dos pruebas de coste, para repetirlas (criterio de Sara: 20 de 20 en verde con carga y 20 de 20 en rojo con TBD_PERF_INJECT=3)
             {
                 TestPerfOnly();
