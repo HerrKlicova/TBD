@@ -20,7 +20,7 @@ namespace TBD.Sim.Tests
             int c2 = d.FindSitio("C2_deposito");
             check(d.Sitios.Count == 4 && c2 >= 0 && d.Sitios[c2].X == 178f && d.Sitios[c2].Z == 22f && d.OrdenLiberacion.Count == 4 && d.OrdenLiberacion[0] == "C3_ronda" && d.OrdenLiberacion[3] == "C1_estacion",
                 "sitios C1–C4 (el depósito en (178; 22)) y orden de liberación C3, C4, C2, C1");
-            check(d.CuartelX == 78f && d.InteligenciaTipo == "radar" && d.InteligenciaX == 206f && d.ParadasAsalto.Count == 3 && d.ParadasAsalto[0].X == -170f,
+            check(d.CuartelX == 78f && d.CuartelZ == 14f && d.InteligenciaTipo == "radar" && d.InteligenciaX == 206f && d.InteligenciaZ == 82f && d.ParadasAsalto.Count == 3 && d.ParadasAsalto[0].X == -170f,
                 "cuartel (78; 14), radar (206; 82) y 3 paradas del tren de asalto (la oeste en x = −170)");
             bool det = true, range = true; int[] seen = new int[6];
             foreach (var p in d.Piezas) { int v = EstacionDato.VariantOf(p.X, p.Z, 6); det &= v == EstacionDato.VariantOf(p.X, p.Z, 6); range &= v >= 0 && v < 6; seen[v]++; }
