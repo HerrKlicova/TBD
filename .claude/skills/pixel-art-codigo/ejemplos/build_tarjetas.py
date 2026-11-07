@@ -2,12 +2,15 @@
 
 Encargo de Mak (23:47): las cinco escuadras (fusileros, granaderos, ametralladora, tiradores y C90) y los ocho
 vehículos y helicópteros (Lince, VAMTAC, Pizarro, Dragón, Cougar, Tigre, NH90 y Chinook). Tienen que leerse a 48 px.
-Referencias: lote militar de Paula (uniforme boscoso, casco y chaleco M2, G36E, MG4E, G28, NH90). Los vehículos
-salvo el NH90 no tienen foto en el lote: perfiles de memoria, SIN VERIFICAR contra foto.
+Referencias: lote militar de Paula (uniforme boscoso, casco y chaleco M2, G36E, MG4E, G28, NH90) y, desde el 7-nov,
+MV1 a MV7 (Lince, Cougar, Chinook, VAMTAC, Pizarro y Tigre) y V1 (Dragón, con cotas de V1_dragon_dimensiones.md).
+Lince, VAMTAC y Chinook van en verde liso; Pizarro y Dragón con camuflaje; Tigre y Cougar con las manchas claras de
+las FAMET. Cougar y Tigre llevan ruedas, no patines. Los blindados de tierra miran a la derecha y los helicópteros
+a la izquierda.
 Reglas: tropa propia con albedo ≥ L* 28 (nada de los valores de la horda), sin ámbar ni rojo, luz arriba a la
 izquierda, contorno negro. El fondo es transparente: lo pone la tarjeta (ui_tarjeta_unidad).
 Escuadras: busto con el arma de su tipo cruzada; las variantes cambian la piel, la barba, las gafas, el braga y el
-casco o el chambergo. Vehículos: perfil a la derecha; las variantes cambian las manchas del camuflaje, el número
+casco o el chambergo. Vehículos: de perfil; las variantes cambian las manchas del camuflaje (si lo llevan), el número
 táctico, el barro y los accesorios.
 """
 import math
@@ -216,8 +219,9 @@ def _barro(s, v, y0, y1):
                 s.set(x, y, "ochre_dark" if _h(x, y, 1211) < .5 else "brown")
 
 
-def _camo4(s, semilla):
-    """Camuflaje de manchas grandes (celdas de 4 px) para que a 48 px no se vuelva ruido."""
+def _camo4(s, semilla, arena=False):
+    """Camuflaje de manchas grandes (celdas de 4 px) para que a 48 px no se vuelva ruido. Con arena=True lleva
+    también las manchas claras del esquema de las FAMET (Tigre y Cougar en MV2_2 y MV7)."""
     obj = PAL["olive_dark"]
     for y in range(48):
         for x in range(48):
@@ -228,10 +232,20 @@ def _camo4(s, semilla):
                 s.set(x, y, "olive")
             elif h > .86:
                 s.set(x, y, "brown")
+            elif arena and .5 < h < .6:
+                s.set(x, y, "olive_grey")
 
 
-def _vehiculo_fin(s, v, y0, y1, xn, yn):
-    _camo4(s, 1220 + v)
+def _espejo(s):
+    """Dibujo hecho con el morro a la izquierda → morro a la derecha, como el Pizarro y el Dragón."""
+    s.img = s.img.transpose(Image.FLIP_LEFT_RIGHT)
+    s.px = s.img.load()
+
+
+def _vehiculo_fin(s, v, y0, y1, xn, yn, camo=True, arena=False):
+    """camo=False: verde liso (Lince, VAMTAC y Chinook en las fotos MV1, MV3 y MV4 de Paula)."""
+    if camo:
+        _camo4(s, 1220 + v, arena)
     _barro(s, v, y0, y1)
     _numero(s, xn, yn, v)
     s.outline()
@@ -239,31 +253,55 @@ def _vehiculo_fin(s, v, y0, y1, xn, yn):
 
 
 def lince(v):
+    """Contra MV1_lince_1/2: caja alta de techo largo, capó corto e inclinado delante, pasos de rueda oscuros,
+    ruedas grandes y mucha altura libre; verde liso, sin camuflaje. Se dibuja con el morro a la izquierda y se
+    gira: en la tarjeta mira a la derecha, como el Pizarro y el Dragón."""
     s = Sprite(48, 48)
-    s.poly([(3, 34), (3, 26), (10, 25), (14, 18), (34, 18), (37, 25), (45, 26), (45, 34)], "olive_dark")
-    s.rect(16, 20, 7, 5, "concrete"); s.rect(25, 20, 7, 5, "concrete")                 # ventanillas blindadas
-    s.hline(16, 22, 20, "concrete_light")
-    s.hline(4, 44, 26, "olive")
+    s.poly([(3, 32), (3, 25), (11, 23), (15, 15), (44, 15), (45, 17), (45, 32)], "olive_dark")
+    s.hline(15, 44, 15, "olive")                                                       # techo con luz
+    s.poly([(12, 23), (15, 17), (20, 17), (20, 23)], "concrete")                       # parabrisas
+    s.hline(15, 19, 17, "concrete_light")
+    s.rect(23, 18, 7, 5, "concrete"); s.rect(33, 18, 6, 5, "concrete")                 # ventanillas blindadas
+    s.vline(31, 16, 31, "grey_brown")                     # junta de puertas
+    s.vline(21, 16, 31, "grey_brown")
+    s.vline(14, 14, 24, "grey_brown")                                                  # snorkel en el montante
+    s.hline(3, 45, 25, "olive")
+    for cx in (12, 36):                                                                # pasos de rueda oscuros
+        s.ellipse(cx - 7, 27, cx + 7, 41, "grey_brown")
     if v % 2 == 0:
-        s.rect(20, 13, 8, 5, "olive_dark"); s.rect(28, 14, 7, 2, "grey_brown")         # torreta con arma
+        s.rect(26, 11, 7, 4, "olive_dark"); s.rect(33, 12, 7, 2, "grey_brown")         # ametralladora en el techo
     if v in (1, 4):
-        s.vline(8, 12, 25, "grey_brown")                                               # antena
-    _rueda(s, 11, 35, 5); _rueda(s, 37, 35, 5)
-    return _vehiculo_fin(s, v, 26, 40, 37, 28)
+        s.vline(42, 6, 15, "grey_brown")                                               # antena
+    _rueda(s, 12, 35, 6); _rueda(s, 36, 35, 6)
+    _espejo(s)
+    return _vehiculo_fin(s, v, 26, 42, 5, 25, camo=False)
 
 
 def vamtac(v):
+    """Contra MV4_vamtac_lateral_1/2: capó largo y bajo, cabina y caja abierta detrás (o la versión blindada con
+    puesto de tirador); verde liso. Se dibuja con el morro a la izquierda y se
+    gira: en la tarjeta mira a la derecha, como el Pizarro y el Dragón."""
     s = Sprite(48, 48)
-    s.poly([(2, 34), (2, 27), (9, 26), (13, 20), (32, 20), (34, 26), (46, 27), (46, 34)], "olive_dark")
-    s.rect(15, 21, 6, 4, "concrete"); s.rect(23, 21, 7, 4, "concrete")
-    s.hline(15, 20, 21, "concrete_light")
-    s.hline(3, 45, 28, "olive")
-    if v % 3 == 0:
-        s.rect(18, 15, 8, 5, "olive_dark"); s.rect(26, 16, 8, 2, "grey_brown")         # escudo y ametralladora
-    if v % 2 == 1:
-        s.rect(37, 22, 4, 5, "olive"); s.rect(41, 22, 3, 5, "olive")                   # bidones atrás
+    blindado = v % 2 == 0
+    s.poly([(2, 33), (2, 25), (14, 23), (18, 17), (31, 17), (31, 24), (46, 24), (46, 33)], "olive_dark")
+    s.poly([(15, 23), (18, 18), (22, 18), (22, 23)], "concrete")                       # parabrisas
+    s.rect(24, 19, 5, 4, "concrete")
+    s.hline(2, 13, 24, "olive")                                                         # capó con luz
+    s.rect(3, 26, 2, 2, "beige")                                  # faro
+    if blindado:
+        s.rect(31, 17, 15, 8, "olive_dark"); s.hline(31, 45, 17, "olive")              # caja blindada
+        s.rect(34, 19, 4, 3, "concrete")
+        s.rect(22, 12, 8, 5, "olive_dark"); s.rect(14, 12, 8, 2, "grey_brown")         # escudo y ametralladora
+    else:
+        s.hline(31, 46, 23, "olive_light")                                              # borde de la caja abierta
+        s.vline(46, 20, 24, "olive_dark"); s.vline(31, 17, 24, "olive_dark")
+        if v % 3 == 1:
+            s.vline(37, 13, 23, "grey_brown"); s.rect(33, 11, 10, 2, "grey_brown")     # lanzador en la caja
+    for cx in (10, 38):
+        s.ellipse(cx - 6, 28, cx + 6, 40, "grey_brown")
     _rueda(s, 10, 35, 5); _rueda(s, 38, 35, 5)
-    return _vehiculo_fin(s, v, 27, 40, 22, 28)
+    _espejo(s)
+    return _vehiculo_fin(s, v, 27, 40, 19, 26, camo=False)
 
 
 def pizarro(v):
@@ -271,10 +309,10 @@ def pizarro(v):
     s.poly([(2, 36), (2, 27), (8, 24), (38, 24), (46, 29), (46, 36)], "olive_dark")    # casco
     s.poly([(14, 24), (16, 17), (32, 17), (34, 24)], "olive_dark")                      # torre
     s.rect(32, 19, 14, 2, "grey_brown"); s.hline(32, 45, 19, "concrete")               # cañón de 30 mm
-    s.rect(2, 34, 44, 7, "grey_brown")                                                  # oruga
-    for x in range(5, 45, 7):
+    s.rect(2, 33, 44, 8, "grey_brown")                                                  # oruga
+    for x in range(7, 43, 6):                                                           # seis ruedas de rodadura (MV5)
         s.ellipse(x - 2, 35, x + 2, 39, "olive_grey")
-    s.hline(3, 45, 34, "concrete")
+    s.rect(3, 31, 42, 3, "olive_dark"); s.hline(3, 44, 33, "grey_brown")   # faldón
     if v % 2 == 0:
         s.rect(4, 26, 8, 3, "olive"); s.hline(4, 11, 26, "olive_light")                # cajones laterales
     if v in (1, 3, 5):
@@ -308,8 +346,10 @@ def cougar(v):
     s.rect(7, 23, 6, 4, "concrete"); s.hline(7, 12, 23, "concrete_light")
     s.rect(16, 23, 4, 4, "concrete"); s.rect(22, 23, 4, 4, "concrete")
     _rotor(s, 2, 44, 16, 21)
-    s.hline(8, 30, 36, "grey_brown"); s.vline(12, 33, 36, "grey_brown"); s.vline(26, 32, 36, "grey_brown")   # patines
-    return _vehiculo_fin(s, v, 0, 0, 27, 25)
+    s.rect(26, 30, 7, 3, "olive_dark")                                                  # barquilla del tren
+    s.vline(11, 33, 34, "grey_brown"); _rueda(s, 11, 36, 2)                             # rueda de morro (MV2: ruedas, no patines)
+    s.vline(29, 33, 34, "grey_brown"); _rueda(s, 29, 36, 2)
+    return _vehiculo_fin(s, v, 0, 0, 27, 25, arena=True)
 
 
 def tigre(v):
@@ -322,8 +362,11 @@ def tigre(v):
     s.rect(18, 14, 4, 3, "grey_brown")                                                  # visor en el mástil
     _rotor(s, 4, 40, 13, 20)
     s.rect(14, 30, 12, 3, "olive_grey"); s.rect(12, 33, 6, 2, "grey_brown"); s.rect(22, 33, 6, 2, "grey_brown")   # alas y lanzadores
-    s.rect(3, 29, 4, 2, "grey_brown")                                                   # cañón de morro
-    return _vehiculo_fin(s, v, 0, 0, 34, 25)
+    s.rect(5, 32, 4, 2, "grey_brown"); s.hline(2, 4, 33, "grey_brown")                 # cañón bajo el morro (MV7)
+    s.vline(13, 33, 35, "grey_brown"); _rueda(s, 13, 37, 2)                             # tren fijo
+    s.vline(27, 33, 35, "grey_brown"); _rueda(s, 27, 37, 2)
+    s.vline(43, 27, 29, "grey_brown"); s.rect(42, 30, 3, 2, "grey_brown")               # rueda de cola
+    return _vehiculo_fin(s, v, 0, 0, 34, 25, arena=True)
 
 
 def nh90(v):
@@ -350,7 +393,7 @@ def chinook(v):
     _rotor(s, 0, 22, 17, 9); _rotor(s, 28, 47, 10, 43)                                  # rotores en tándem
     s.rect(8, 18, 3, 3, "grey_brown")
     _rueda(s, 10, 35, 2); _rueda(s, 36, 35, 2); _rueda(s, 41, 35, 2)
-    return _vehiculo_fin(s, v, 0, 0, 22, 27)
+    return _vehiculo_fin(s, v, 0, 0, 22, 27, camo=False)                                # verde oliva liso (MV3)
 
 
 VEHICULOS = {"lince": lince, "vamtac": vamtac, "pizarro": pizarro, "dragon": dragon, "cougar": cougar,

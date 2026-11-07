@@ -194,10 +194,10 @@ def hud(im, cartel=True):
     import build_a6 as a6
     import build_a9_pelotones as a9
     from pixelvm import reduce_16
-    # barra de arriba: reloj y los tres recursos del almacén (munición 45, materiales 40, combustible 30)
+    # barra de arriba: reloj y los tres recursos del almacén (munición 50, D-N102, materiales 40, combustible 30)
     pega(im, ui.panel(64, 22), W // 2 - 32, 4)            # reloj arriba en el centro (D-N65)
     texto(im, (W // 2, 8), "22:47", 11, centro=True)
-    for i, (fn, v) in enumerate(((a1.municion, "45"), (a1.materiales, "40"), (a1.combustible, "30"))):
+    for i, (fn, v) in enumerate(((a1.municion, "50"), (a1.materiales, "40"), (a1.combustible, "30"))):
         x = 4 + i * 60
         pega(im, ui.recurso_slot(), x, 4)
         pega(im, reduce_16(fn()), x + 2, 6)
