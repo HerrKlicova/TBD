@@ -730,6 +730,12 @@ namespace TBD.View
             int shown = 0;
             var zws = _a.UndefendedWarnings();
             SonarAvisos(zws);
+            if (Puertas.EnApartadoConAsedio(_a).Count > 0)      // D-N177: el tren en el apartado de Nules con asedio anunciado
+            {
+                int zp = IconPx(16); shown++;
+                DrawIcon(new Rect(20, y - 2, zp, zp), "alertas/vm_alertas_" + AlertIcon(AlertKind.NodoAsediado) + "_16");
+                GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>" + Puertas.TextoApartado + "</color>", _small); y += Mathf.Max(_small.fontSize * 1.5f, zp + 4);
+            }
             y = DrawColmenaAviso(pw, y, ref shown);                  // D-N160: «La Colmena se agita» (ámbar), antes del Enjambre
             foreach (var zw in zws)       // aviso ámbar: la horda va a una zona sin tropa (Lucía, 8-nov; regla de Nacho)
             {

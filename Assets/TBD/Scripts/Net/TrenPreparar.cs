@@ -222,6 +222,24 @@ namespace TBD.Net
         /// <summary>D-N177: lo decide la red de Nacho (sin tropa ni vehículos a bordo y una estación sitiada en el camino hasta la próxima parada).</summary>
         public static string SinEscolta(NetWorld w, int service) { return w == null ? null : w.EscortWarning(service); }
 
+        public const string TextoApartado = "Saca el tren del apartado: con asedio, espera fuera de la puerta oeste.";
+
+        /// <summary>
+        /// D-N177 (Hugo y Lucía): con el asedio de Nules anunciado (o empezado), un tren parado dentro de Nules (en el apartado, Z 49, no a las puertas) cae siempre con un
+        /// pelotón de escolta según NightSim; fuera de la puerta oeste aguanta (tren-a-las-puertas.md). Devuelve los servicios a avisar.
+        /// </summary>
+        public static List<int> EnApartadoConAsedio(NetWorld w)
+        {
+            var l = new List<int>(); if (w == null) return l;
+            int nu = TrenPreparar.Nodo(w, "Nules"); if (nu < 0) return l;
+            bool asedio = w.Besieged(nu);
+            if (!asedio) foreach (var pl in w.Director.Active) if (pl.Kind == HiveDirector.PlanKind.Asedio && pl.Node == nu) asedio = true;
+            if (!asedio) foreach (var zw in w.UndefendedWarnings()) if (zw.Node == nu) asedio = true;
+            if (!asedio) return l;
+            for (int i = 0; i < w.Services.Count; i++) { var sv = w.Services[i]; if (!sv.Destroyed && sv.GateNode < 0 && w.TrainAtNode(sv, nu)) l.Add(i); }
+            return l;
+        }
+
         public static string AvisoSitiada(NetWorld w, int node) { return "Sin escolta: " + w.Graph.Nodes[node].Name + " está sitiada"; }
     }
 }

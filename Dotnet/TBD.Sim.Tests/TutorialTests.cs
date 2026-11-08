@@ -591,6 +591,17 @@ namespace TBD.Sim.Tests
                 var f2 = wg.GateFightFor(5250, 0, NetConst.TrainHpMax, sg); check(f2.Attackers == 0 && !f2.Destroyed, "Sagunto, puerta este sin escolta: intacto");
             }
 
+            // --- D-N177: aviso del apartado de Nules con asedio
+            {
+                var wa = NetScenario.Inicio(); int nu = TrenPreparar.Nodo(wa, "Nules");
+                check(Puertas.EnApartadoConAsedio(wa).Count == 0, "sin asedio en Nules, sin aviso");
+                var sv = wa.Services[0]; sv.Stops.Clear(); sv.Stops.Add(new ScheduleStop { Node = nu, Transfer = new int[NetConst.ResCount] }); sv.StopIndex = 0; sv.AtStop = true;
+                check(Puertas.EnApartadoConAsedio(wa).Count == 0, "tren en Nules sin asedio: sin aviso");
+                wa.Graph.Nodes[nu].State = NodeState.Asediada;
+                var la = Puertas.EnApartadoConAsedio(wa); check(la.Count == 1 && la[0] == 0 && Puertas.TextoApartado.StartsWith("Saca el tren del apartado"), "con asedio y el tren dentro de Nules: «Saca el tren del apartado…»");
+                sv.GateNode = nu; check(Puertas.EnApartadoConAsedio(wa).Count == 0, "si ya espera a las puertas, no se avisa");
+            }
+
             // --- D-N179: «Defiende Nules antes de la noche»
             {
                 var od = new ObjetivoDefensa(); od.Actualizar(NetConst.Hours(12), 0, false, false); check(od.Estado == EstadoDefensa.Inactivo, "día 1: aún no sale");
