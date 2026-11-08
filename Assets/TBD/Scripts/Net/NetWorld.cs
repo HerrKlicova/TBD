@@ -68,6 +68,8 @@ namespace TBD.Net
         public long LastAmbushDay = -1;    // como mucho una emboscada por tren y día (D-N39)
         public long LastDepartDay = -1;    // último día en que salió de alguna parada (informativo)
         public readonly List<long> DepartedDay = new List<long>();   // por parada: día de la última salida (no sale dos veces el mismo día)
+        public int GateNode = -1;          // D-N152: nodo a cuyas puertas espera (sitiado, o sin andén libre en su parada); -1 = ninguno
+        public long GateSinceTick = -1;    // D-N152: tick en que llegó a las puertas (entran por orden de llegada)
 
         public void SaveState(SaveWriter w)
         {
@@ -77,6 +79,7 @@ namespace TBD.Net
             w.Ints(Cargo);
             w.Int(StopIndex); w.Bool(AtStop); w.Bool(Held); w.Bool(ScheduleEdited); w.Bool(WorksTrain); w.Int(HaltAt); w.Bool(Ambushed); w.Long(LastAmbushDay); w.Long(LastDepartDay);
             w.Int(DepartedDay.Count); foreach (var d in DepartedDay) w.Long(d);
+            w.Int(GateNode); w.Long(GateSinceTick);
         }
 
         public static TrainService LoadState(SaveReader r)
@@ -92,6 +95,7 @@ namespace TBD.Net
             n = r.Int();
             if (n < 0 || n > r.Remaining) throw new SaveException(SaveError.Corrupt, "días de salida no válidos");
             for (int i = 0; i < n; i++) s.DepartedDay.Add(r.Long());
+            s.GateNode = r.Int(); s.GateSinceTick = r.Long();
             return s;
         }
 
@@ -418,7 +422,7 @@ namespace TBD.Net
             Director.SaveState(w);
             Production.SaveState(w);                    // NetVersion 2
             Embarque.SaveState(w);                      // NetVersion 3 (D-N166)
-            w.Ints(FoodRemMil); w.Long(StarvedTotal);   // NetVersion 4 (D-N176)
+            w.Ints(FoodRemMil); w.Ints(StarveRemMil); w.Long(StarvedTotal);   // NetVersion 4 (D-N176)
         }
 
         public void LoadState(SaveReader r)
@@ -458,7 +462,7 @@ namespace TBD.Net
             Director.LoadState(r);
             Production.LoadState(r);
             Embarque.LoadState(r);
-            ReadInto(r.Ints(), FoodRemMil, "víveres"); StarvedTotal = r.Long();
+            ReadInto(r.Ints(), FoodRemMil, "víveres"); ReadInto(r.Ints(), StarveRemMil, "hambre"); StarvedTotal = r.Long();
             Injections.Clear(); Retirements.Clear(); LostThisTick = 0; RetiredThisTick = 0;      // datos de QA del tick: empiezan limpios
         }
 
@@ -474,7 +478,7 @@ namespace TBD.Net
             Attraction = new int[g.Nodes.Count];
             BaseAttraction = new int[g.Nodes.Count];
             Stock = new int[g.Nodes.Count, NetConst.ResCount];
-            FoodRemMil = new int[g.Nodes.Count];
+            FoodRemMil = new int[g.Nodes.Count]; StarveRemMil = new int[g.Nodes.Count];
             Works = new ObrasState(g.Nodes.Count, BalanceSource.Obras());
             Stations = new StationState(g, BalanceSource.Stations());
             Taller = new TallerState(g, BalanceSource.Taller());
@@ -894,6 +898,8 @@ namespace TBD.Net
         /// <summary>Si falta, el nodo pierde FoodLossPermil ‰ de su gente por la fracción no cubierta (50 = el 5 % al día sin nada).</summary>
         public int FoodLossPermil = 50;
         public int[] FoodRemMil;
+        /// <summary>Hambre acumulada que aún no llega a una persona (milésimas, por nodo; Hugo): así un nodo pequeño con falta parcial también pierde gente, de media lo del modelo.</summary>
+        public int[] StarveRemMil;
         /// <summary>Personas perdidas por hambre (para QA y el informe). Va en el guardado, no en el hash (sale de las existencias).</summary>
         public long StarvedTotal;
 
@@ -910,7 +916,8 @@ namespace TBD.Net
                 int have = Math.Max(0, Stock[n, (int)Res.Viveres]);
                 if (have >= need) { Stock[n, (int)Res.Viveres] = have - need; continue; }
                 Stock[n, (int)Res.Viveres] = 0;
-                int lost = (int)((long)pob * FoodLossPermil * (need - have) / (1000L * need));     // falta = (need − have) / need
+                long hunger = StarveRemMil[n] + (long)pob * FoodLossPermil * (need - have) * 1000 / (1000L * need);     // falta = (need − have) / need; en milésimas de persona (Hugo)
+                int lost = (int)Math.Min(pob, hunger / 1000); StarveRemMil[n] = (int)(hunger % 1000);
                 if (lost > 0) { Stock[n, (int)Res.Personas] = pob - lost; StarvedTotal += lost; }
             }
         }
@@ -1154,6 +1161,7 @@ namespace TBD.Net
         void StepService(TrainService s)
         {
             var t = s.Train;
+            if (s.GateNode >= 0 && !TryEnterGate(s)) return;          // D-N152: espera a las puertas (ni sale ni sigue)
             if (s.AtStop)
             {
                 if (s.Held || s.Stops.Count < 2) return;
@@ -1191,12 +1199,85 @@ namespace TBD.Net
             {
                 t.OffsetMm = 0; t.Stop(); s.Held = true; s.HaltAt = -1;        // para justo en el nodo (la marcha sobrante del tick se pierde); TrainGo lo suelta
             }
+            else if (GatesEnabled && t.Leg != legBefore && t.State == RailTrainState.EnMarcha && t.Leg < t.Route.Count && Besieged(t.Route[t.Leg]))
+            {
+                t.OffsetMm = 0; t.Stop(); s.GateNode = t.Route[t.Leg]; s.GateSinceTick = Tick;          // D-N152: estación de paso sitiada: se queda a sus puertas hasta que acabe el asedio
+            }
             if (t.State == RailTrainState.Llegado)
             {
-                if (s.HaltAt >= 0 && s.Stops[s.StopIndex].Node == s.HaltAt) s.HaltAt = -1;     // llegó a su parada: ya está en el nodo
-                MakeNoise(s.Stops[s.StopIndex].Node);
+                int node = s.Stops[s.StopIndex].Node;
+                if (s.HaltAt >= 0 && node == s.HaltAt) s.HaltAt = -1;     // llegó a su parada: ya está en el nodo
+                MakeNoise(node);
                 s.AtStop = true;
+                if (GatesEnabled && (Besieged(node) || FreeSlots(node, s) <= 0)) { s.GateNode = node; s.GateSinceTick = Tick; }   // D-N152: sitiada o sin andén libre: a las puertas
             }
+        }
+
+        // ---------------------------------------------------------------- D-N152: el tren espera a las puertas
+        /// <summary>D-N152 (Eugenio; Lucía, 7-nov): si la estación está sitiada, el tren que llega o pasa por ella se queda a las puertas, fuera del muro, hasta
+        /// que acabe el asedio. En su parada, además, entra solo si queda andén libre (plazas: 2 en las principales y 1 en las demás, propuesta de Lucía;
+        /// ampliar la estación da más, D-N153). A las puertas no sale ni sigue, no carga ni descarga mercancía y solo baja la tropa (D-N166).
+        /// false lo apaga del todo (como antes de la D-N152).</summary>
+        public bool GatesEnabled = true;
+
+        static readonly string[] MainStations = { "Sagunto", "Valencia", "Castellón", "Teruel", "Zaragoza" };
+
+        /// <summary>Plazas de tren (andenes) de la estación: 2 en las principales y 1 en las demás. Sale de la topología, no del estado.</summary>
+        public int TrainSlots(int node)
+        {
+            if (node < 0 || node >= Graph.Nodes.Count) return 0;
+            return Array.IndexOf(MainStations, Graph.Nodes[node].Name) >= 0 ? 2 : 1;
+        }
+
+        /// <summary>Andenes libres en el nodo sin contar al tren «self»: plazas menos los trenes que están dentro (parados en el nodo y no a las puertas).</summary>
+        public int FreeSlots(int node, TrainService self = null)
+        {
+            int inside = 0;
+            foreach (var sv in Services) if (sv != self && sv.GateNode != node && TrainAtNode(sv, node)) inside++;
+            return TrainSlots(node) - inside;
+        }
+
+        /// <summary>¿Espera a las puertas de ese nodo? (Para el panel y la zona: la tropa de un tren a las puertas baja fuera del muro, D-N166.)</summary>
+        public bool AtGate(TrainService sv, int node) { return sv != null && sv.GateNode >= 0 && sv.GateNode == node; }
+
+        /// <summary>Trenes que esperan a las puertas del nodo, por orden de llegada (para la zona: el tren queda fuera del muro y se le puede atacar, D-N148).</summary>
+        public List<int> TrainsAtGate(int node)
+        {
+            var l = new List<int>();
+            for (int i = 0; i < Services.Count; i++) if (Services[i].GateNode == node && node >= 0) l.Add(i);
+            l.Sort((a, b) => Services[a].GateSinceTick != Services[b].GateSinceTick ? Services[a].GateSinceTick.CompareTo(Services[b].GateSinceTick) : a.CompareTo(b));
+            return l;
+        }
+
+        /// <summary>Por qué espera (texto para el panel), o null si no espera.</summary>
+        public string GateReason(int service)
+        {
+            if (service < 0 || service >= Services.Count || Services[service].GateNode < 0) return null;
+            int n = Services[service].GateNode;
+            return Besieged(n) ? "Espera a las puertas de " + Graph.Nodes[n].Name + ": la estación está sitiada" : "Espera a las puertas de " + Graph.Nodes[n].Name + ": no queda andén libre";
+        }
+
+        /// <summary>Un tren a las puertas entra (o sigue) cuando acaba el asedio y, si es su parada, queda andén libre. true si ha entrado.</summary>
+        bool TryEnterGate(TrainService s)
+        {
+            int n = s.GateNode;
+            if (!GatesEnabled) { s.GateNode = -1; s.GateSinceTick = -1; if (!s.AtStop && s.Train.State == RailTrainState.Detenido) s.Train.Go(); return true; }
+            if (Besieged(n)) return false;
+            if (s.AtStop)
+            {
+                if (FreeSlots(n, s) <= 0) return false;
+                int me = Services.IndexOf(s);                                     // por orden de llegada: antes entra el que lleva más esperando a sus puertas (empate: el de índice menor)
+                for (int i = 0; i < Services.Count; i++)
+                {
+                    var o = Services[i];
+                    if (o == s || o.GateNode != n || !o.AtStop) continue;
+                    if (o.GateSinceTick < s.GateSinceTick || (o.GateSinceTick == s.GateSinceTick && i < me)) return false;
+                }
+                s.GateNode = -1; s.GateSinceTick = -1; return true;
+            }
+            s.GateNode = -1; s.GateSinceTick = -1;
+            if (!s.Held && !s.Ambushed) s.Train.Go();
+            return true;
         }
 
         string EdgeName(RailEdge e) { return Graph.Nodes[e.A].Name + "–" + Graph.Nodes[e.B].Name; }
@@ -1220,7 +1301,7 @@ namespace TBD.Net
         public int MoveCargo(int service, int node, int[] delta)
         {
             if (service < 0 || service >= Services.Count || node < 0 || node >= Graph.Nodes.Count || delta == null || delta.Length != NetConst.ResCount) return -1;
-            var s = Services[service]; if (s.Ambushed || !TrainAtNode(s, node)) return -1;
+            var s = Services[service]; if (s.Ambushed || !TrainAtNode(s, node) || s.GateNode == node) return -1;   // a las puertas no hay andén (D-N152)
             int moved = 0;
             for (int r = 0; r < NetConst.ResCount; r++)
             {
@@ -1340,6 +1421,8 @@ namespace TBD.Net
                     }
             foreach (var sv in Services) if (sv.WorksTrain) h += Mix(0x70B5UL ^ ((ulong)(uint)sv.Train.Id << 32));
             foreach (var sv in Services) if (sv.HaltAt >= 0) h += Mix(0x4A17UL ^ ((ulong)(uint)sv.Train.Id << 32) ^ (ulong)(uint)(sv.HaltAt + 1));
+            foreach (var sv in Services) if (sv.GateNode >= 0) h += Mix(0xD152UL ^ ((ulong)(uint)sv.Train.Id << 32) ^ (ulong)(uint)(sv.GateNode + 1)) + Mix(0xD152AUL ^ ((ulong)(uint)sv.Train.Id << 40) ^ (ulong)sv.GateSinceTick);   // D-N152: 0 si nadie espera
+            if (!GatesEnabled) h += Mix(0xD152F0UL);
             h += Embarque.Hash();                                                 // D-N166: 0 sin pasajeros (no mueve los goldens)
             r.Trains = h;
             h = 0;
@@ -1348,6 +1431,7 @@ namespace TBD.Net
                 h += Mix(((ulong)(uint)n << 32) ^ (ulong)(uint)Attraction[n]);
                 for (int r2 = 0; r2 < NetConst.ResCount; r2++) h += Mix(((ulong)(uint)n << 40) ^ ((ulong)r2 << 32) ^ (ulong)(uint)Stock[n, r2]);
                 if (FoodRemMil[n] != 0) h += Mix(0xD176UL ^ ((ulong)(uint)n << 40) ^ (ulong)(uint)FoodRemMil[n]);
+                if (StarveRemMil[n] != 0) h += Mix(0x5D176UL ^ ((ulong)(uint)n << 40) ^ (ulong)(uint)StarveRemMil[n]);
             }
             h += Works.Hash();
             h += Stations.Hash();
