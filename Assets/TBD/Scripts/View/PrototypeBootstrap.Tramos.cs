@@ -16,7 +16,7 @@ namespace TBD.View
     public partial class PrototypeBootstrap
     {
         sealed class Seg { public int Id; public Vector2 A, B; public float Hp, Max; public bool Open; public string Name; public int Pile; public bool Queued; public int RebuildTick = -1; public bool IsGate; }
-        readonly List<Seg> _segs = new List<Seg>(); readonly bool _tramos = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-tramos") >= 0; bool _segsInit, _obras, _tt1, _tt2; float _mats = 40f; Seg _segSel; float _segMsgUntil; string _segMsg = ""; float _repairAcc;
+        readonly List<Seg> _segs = new List<Seg>(); readonly bool _tramos = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sintramos") < 0;   // activos por defecto (Lucia, 8-nov); -sintramos para medir el muro de un solo bloque bool _segsInit, _obras, _tt1, _tt2; float _mats = 40f; Seg _segSel; float _segMsgUntil; string _segMsg = ""; float _repairAcc;
         static readonly Color SgAmbar = new Color32(0xe0, 0x8c, 0x30, 255), SgRojo = new Color32(0x98, 0x24, 0x20, 255);
 
         void TramosInit()
