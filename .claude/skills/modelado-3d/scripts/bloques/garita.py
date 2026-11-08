@@ -4,8 +4,9 @@ puerta principal de (250; 59)). Teo (3), 8-nov.
 Sin foto de la garita de Bétera (la AE1 muestra la puerta, no la garita). Tipo genérico de garita de control militar:
 caseta de obra de 2,4 × 2,4 m y 2,6 m, cubierta plana con vuelo, ventanas corridas, puerta, barrera de brazo y una
 pequeña marquesina. Medidas SIN VERIFICAR.
-Colores: fachada d4d0cc con zócalo 94948c, cubierta b4a080 (arriba claro), carpintería 543820, cristal 48403c, barrera
-f0dc9c con franjas 48403c (el rojo está vetado, como en el paso a nivel), sacos 605c48, chapa 94948c, focos f0dc9c.
+Colores (Lucía, 8-nov 13:03): fachada b8b8b8 con zócalo 94948c, cubierta b4a080 (arriba claro), carpintería 6c7874 y
+cristal 605c48 (con 543820 y 48403c la sombra caía en la banda de la horda), barrera
+f0dc9c con franjas 605c48 (el rojo está vetado, como en el paso a nivel), sacos 605c48, chapa 94948c, focos f0dc9c.
 Disposición: origen en el suelo, en el centro de la caseta; la ventana principal y la barrera hacia −Y (= +Z de Unity
 con yaw 0). Jerarquía: SM_…_LODn con el hijo Barrera (pivote en el poste, x = +1,6). ABRIR = girar −80° sobre Y local.
 Variantes (TBD_VARIANTE % 5): 0 de obra, encalada; 1 prefabricada de chapa; 2 reforzada con sacos hasta la ventana;
@@ -17,9 +18,9 @@ from montaje import Montaje, separar as _separar
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0) % 5
 PIEZAS = ["fachada", "zocalo", "cubierta", "carpinteria", "cristal", "barrera", "franja", "sacos", "foco", "poste"]
-COLORES = {"fachada": "94948c" if VAR == 1 else "d4d0cc", "zocalo": "94948c" if VAR != 1 else "6c7874",
-           "cubierta": "b4a080", "carpinteria": "543820", "cristal": "48403c", "barrera": "f0dc9c",
-           "franja": "48403c", "sacos": "605c48", "foco": "f0dc9c", "poste": "6c7874"}
+COLORES = {"fachada": "94948c" if VAR == 1 else "b8b8b8", "zocalo": "94948c" if VAR != 1 else "6c7874",
+           "cubierta": "b4a080", "carpinteria": "6c7874", "cristal": "605c48", "barrera": "f0dc9c",
+           "franja": "605c48", "sacos": "605c48", "foco": "f0dc9c", "poste": "6c7874"}
 FACCION = "neutro"
 NORMALES_ARRIBA = True
 NORMALES_INCLINACION = 0.5

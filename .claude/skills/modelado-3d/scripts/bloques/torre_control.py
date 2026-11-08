@@ -5,8 +5,9 @@ Fotos AE1 de Paula (AE1_betera_torre_1 y _2, dominio público): fuste blanco cua
 FANAL acristalado de 8 lados que se abre hacia arriba (tronco de pirámide invertido), alero oscuro, barandilla con
 antenas en la azotea y ESCALERA EXTERIOR en zigzag dentro de una jaula metálica por un costado. Medidas SIN VERIFICAR,
 estimadas en la foto: unos 12 m hasta el alero (Álvaro), fuste de 3,2 m, fanal de 5,4 m arriba.
-Colores: fachada d4d0cc, cristal 48403c (nunca 60546c), carpintería y alero 543820 (el alero de la foto es rojizo; el
-rojo está vetado), escalera y antenas 6c7874, azotea b4a080 (arriba claro, D-N57), sacos 605c48, tablones a86c50.
+Colores (Lucía, 8-nov 13:03): fachada b8b8b8 (el d4d0cc en grande es el color de selección); cristal 605c48 y
+carpintería y alero 6c7874, porque con 48403c y 543820 las caras en sombra caían en la banda de la horda (L* 9–13; el
+alero rojizo de la foto está vetado), escalera y antenas 6c7874, azotea b4a080 (arriba claro, D-N57), sacos 605c48, tablones a86c50.
 Origen en el suelo, en el centro del fuste; la escalera en +X, el fanal mira a todos lados. «Fuera» no aplica.
 Variantes (TBD_VARIANTE % 5):
   0 la de la foto.
@@ -20,7 +21,7 @@ from taller import Taller
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0) % 5
 PIEZAS = ["fachada", "cristal", "carpinteria", "metal", "azotea", "sacos", "tablon", "sombra"]
-COLORES = {"fachada": "d4d0cc", "cristal": "48403c", "carpinteria": "543820", "metal": "6c7874", "azotea": "b4a080",
+COLORES = {"fachada": "b8b8b8", "cristal": "605c48", "carpinteria": "6c7874", "metal": "6c7874", "azotea": "b4a080",
            "sacos": "605c48", "tablon": "a86c50", "sombra": "605c48"}
 FACCION = "neutro"
 NORMALES_ARRIBA = True

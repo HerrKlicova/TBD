@@ -5,7 +5,7 @@ Sin foto de Paula todavía (pedida). De memoria, el pino carrasco tiene el tronc
 la copa irregular y abierta, en pisos de grumos (no un cono), y entre 8 y 15 m (SIN VERIFICAR). Mismo método que el
 naranjo aprobado: tronco con dos o tres ramas que entran en grumos de icosferas.
 Colores: copa con valor partido como el naranjo, arriba 88885c, costados 70784c y abajo 50541c (nunca 303424, que es
-de la horda); tronco 605c48 con la corteza más oscura 543820 en la base.
+de la horda); tronco 6c7874 (corteza gris) con la base 605c48; con 543820 la sombra caía en la banda de la horda (Lucía, 8-nov).
 Origen en el pie del tronco. Variantes (TBD_VARIANTE % 5): 0 típico (11 m); 1 joven (6 m, copa más densa);
 2 inclinado por el viento; 3 alto y abierto en dos pisos; 4 seco a medias (media copa sin hojas, ramas a la vista).
 """
@@ -14,7 +14,7 @@ from taller import Taller
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0) % 5
 PIEZAS = ["copa", "tronco", "base"]
-COLORES = {"copa": "70784c", "tronco": "605c48", "base": "543820"}
+COLORES = {"copa": "70784c", "tronco": "6c7874", "base": "605c48"}
 VALOR_PIEZAS = {"copa": ("88885c", "70784c", "50541c")}
 FACCION = "neutro"
 PRESUPUESTO = {0: (150, 1400), 1: (80, 700)}

@@ -5,7 +5,7 @@ Sin foto de Bétera (aerodromos.md: «hueco, sin foto libre de los hangares»). 
 nave de bóveda rebajada sobre muros de 6 m, portón corredero de dos hojas en el testero. Medidas SIN VERIFICAR (de
 memoria): 30 m de luz (X), 24 m de fondo (Y), muros de 6 m y clave a 10 m; hueco del portón de 24 × 7 m.
 Colores: cubierta 94948c con nervios 88885c (arriba claro), muros 70784c (militar), portón 6c7874 con bandas 605c48,
-interior 48403c, puerta peatonal 543820, sacos 605c48, red 50541c. Nada rojo ni ámbar.
+interior 605c48 (con 48403c el portón abierto caía en la banda de la horda), puerta peatonal 543820, sacos 605c48, red 50541c. Nada rojo ni ámbar.
 Disposición: origen en el suelo, en el centro de la planta; el portón en −Y de Blender (= +Z de Unity con yaw 0).
 Jerarquía: SM_…_LODn (la nave) con Porton_O y Porton_E (origen en el centro de cada hoja cerrada). ABRIR = trasladar
 cada hoja 12 m hacia fuera en X local (O hacia −X, E hacia +X); corren por delante del testero.
@@ -23,7 +23,7 @@ from montaje import Montaje, separar as _separar
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0) % 5
 PIEZAS = ["cubierta", "nervio", "muro", "porton", "banda", "interior", "puerta", "sacos", "red", "zocalo"]
 COLORES = {"cubierta": "94948c", "nervio": "88885c", "muro": "70784c", "porton": "6c7874", "banda": "605c48",
-           "interior": "48403c", "puerta": "543820", "sacos": "605c48", "red": "50541c", "zocalo": "94948c"}
+           "interior": "605c48", "puerta": "543820", "sacos": "605c48", "red": "50541c", "zocalo": "94948c"}
 FACCION = "neutro"
 NORMALES_ARRIBA = True
 NORMALES_INCLINACION = 0.5
