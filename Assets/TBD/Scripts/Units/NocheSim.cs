@@ -32,7 +32,7 @@ namespace TBD.Units
             {
                 FortX0 = 70000, FortX1 = 156000, FortY0 = 44000, FortY1 = 85000, StationX = 113000, StationY = 64500,
                 StationHp = 60000, WallHp = 1200000, ZombieSpeedMmS = 1500, WallDmgPerZombieS = 1, StationDmgPerZombieS = 20,
-                ContactRadiusMm = 1200, ContactCasualtyPmPerS = 14, PileRadiusMm = 1500, ClimbPileZ = 150, ClimbPermilS = 20,
+                ContactRadiusMm = 1200, ContactCasualtyPmPerS = 14, PileRadiusMm = 1500, ClimbPileZ = 150, ClimbPermilS = 240,
             };
         }
 
@@ -512,7 +512,7 @@ namespace TBD.Units
         }
 
         /// <summary>Tope de trepadores por segundo (0 = sin tope). Va fuera del hash si es 0.</summary>
-        public int ClimbMaxPerS; long _capAcc;
+        public int ClimbMaxPerS = 55; long _capAcc;     // calibrado con la Noche58a (8-nov): 240 ‰/s sobre la pila − 150, como mucho 55 por segundo
         int ClimbStep(int excess)
         {
             long acc = _climbRem + (long)excess * SP.ClimbPermilS; int n = (int)(acc / (1000L * IMath.TickRate)); _climbRem = acc % (1000L * IMath.TickRate);
