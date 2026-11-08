@@ -371,6 +371,39 @@ namespace TBD.Sim.Tests
                 check(AndenPuntos.FromJson(BalanceSource.Read("estacion_betera.json")) == null, "Bétera no tiene tren: sin puntos de andén");
             }
 
+            // --- escenario de inicio de la D-N156 (NetScenario.Inicio; red-inicio.md §5, escala-existencias.md de Hugo)
+            {
+                var w = NetScenario.Inicio(); w.DirectorEnabled = false;
+                int Id(string n) { return TrenPreparar.Nodo(w, n); }
+                int Sum(int node) { int t = 0; for (int r = 0; r < NetConst.ResCount; r++) t += w.Stock[node, r]; return t; }
+                check(Sum(Id("Valencia")) == 0 && Sum(Id("Teruel")) == 0, "Valencia (caída) y Teruel (bloqueada) sin existencias");
+                int sag = Id("Sagunto"), nul = Id("Nules");
+                check(w.Stock[sag, 0] == 150 && w.Stock[sag, 1] == 140 && w.Stock[sag, 2] == 100 && w.Stock[sag, 3] == 80, "reserva de red de Sagunto en u: 150 / 140 / 100 / 80 personas (Hugo)");
+                check(w.Stock[nul, 0] == 0 && w.Stations.Founded[nul] && Array.IndexOf(w.Stations.P.Sites, "Nules") < 0, "Nules propia desde el principio, con 0 u de munición (Lucía), y ya no se funda");
+                check(w.Services.Count == 2 && w.Services.TrueForAll(x => x.AtStop && x.Stops.Count == 1 && x.Stops[0].Node == sag), "los dos trenes esperan en Sagunto sin horario");
+                for (long i = 0; i < 2L * NetConst.DayTicks; i++) w.Step();
+                check(w.Services.TrueForAll(x => x.AtStop && x.Stops[x.StopIndex].Node == sag), "en dos días ningún tren sale solo (nada llega a Castellón infestada)");
+                int sv = TrenPreparar.TrenEn(w, sag);
+                var carga = new int[NetConst.ResCount]; carga[0] = 30;
+                check(sv >= 0 && w.SetSchedule(sv, TrenPreparar.Envio(w, sv, nul, carga)) == ScheduleResult.Ok, "el jugador puede mandar munición a Nules (objetivo de campaña)");
+            }
+
+            // --- almacén de la zona (regla de Hugo): min(tope, reserva) al empezar la partida y cada ataque; reponer entre ataques; lo que sobra vuelve
+            {
+                var w = NetScenario.Inicio(); int sag = TrenPreparar.Nodo(w, "Sagunto"), nul = TrenPreparar.Nodo(w, "Nules");
+                var az = new AlmacenZona(sag);
+                int movido = az.EmpiezaPartida(w);
+                check(az.Actual[0] == 47 && az.Actual[1] == 30 && az.Actual[2] == 40 && az.Actual[3] == 0 && w.Stock[sag, 0] == 103 && w.Stock[sag, 1] == 110 && w.Stock[sag, 2] == 60 && w.Stock[sag, 3] == 80 && movido == 117,
+                    "al empezar: 47 / 30 / 40 al almacén de la zona, el resto en la reserva (las personas no se mueven)");
+                az.EmpiezaAtaque(w); check(az.EnAtaque && az.Actual[0] == 47, "al empezar un ataque se llena hasta el tope (ya estaba lleno: no se mueve nada)");
+                az.Gastar(0, 40); check(az.Actual[0] == 7 && az.Reponer(w, 0, 10) == 0, "en pleno ataque no se repone a mano");
+                int dev = az.AcabaAtaque(w); check(!az.EnAtaque && az.Actual[0] == 0 && w.Stock[sag, 0] == 110 && dev == 7 + 30 + 40, "al acabar el ataque lo que sobra vuelve a la reserva");
+                check(az.Reponer(w, 0, 100) == 47 && az.Actual[0] == 47 && w.Stock[sag, 0] == 63, "entre ataques se repone a mano hasta el tope");
+                var an = new AlmacenZona(nul); an.EmpiezaAtaque(w);
+                check(an.Actual[0] == 0, "Nules empieza con la reserva a 0: el almacén de su zona también (la guarnición lleva su dotación)");
+                w.Stock[nul, 0] = 20; an.AcabaAtaque(w); an.EmpiezaAtaque(w); check(an.Actual[0] == 20 && w.Stock[nul, 0] == 0, "con 20 u traídas en tren, el siguiente ataque toma las 20 (menos que el tope)");
+            }
+
             // --- intro C
             var it = new IntroSecuencia();
             check(it.Tarjetas.Length == 5 && it.TextoEntero == "Día 41 desde el brote.", "intro C: 5 tarjetas y empieza por «Día 41 desde el brote.»");

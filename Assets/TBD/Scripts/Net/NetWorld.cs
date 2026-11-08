@@ -1449,6 +1449,34 @@ namespace TBD.Net
             for (int i = l.Count - plan.Pieces.Count; i < l.Count; i++) { var p = l[i]; p.Built = true; p.WorkE4 = p.NeedE4; l[i] = p; }
         }
 
+        /// <summary>
+        /// Arranque de la partida según la D-N156 (red-inicio.md §5 de Álvaro, con Lucía y Hugo, 8-nov). Parte de Mvp (que siguen usando las pruebas y los
+        /// goldens hasta que Nacho los pase a este) y cambia solo lo que dicen las decisiones:
+        /// - Valencia (caída) y Teruel (bloqueada), sin existencias.
+        /// - Los dos trenes, sin los horarios viejos (Castellón infestada recibía uno): esperan en Sagunto con una sola parada hasta que el jugador los envíe.
+        /// - Una sola unidad (escala-existencias.md de Hugo): la reserva de red de Sagunto es 150 u de munición, 140 de combustible, 100 de materiales y 80
+        ///   personas. Los 80 u de víveres de Hugo NO caben: la red tiene 4 recursos (Res) y no hay víveres (pendiente de Nacho y Hugo).
+        /// - Nules, propia desde el principio (ya no se funda), con 0 u de munición (Lucía: la guarnición lleva encima su dotación). PROTOTIPO: 12 personas.
+        /// Pendiente (no está aquí): Nules sin asedio la primera noche (director, Nacho), su recinto de 130 u (Obras), Bétera fuera de RailNet (vive en
+        /// AerodromoEstado) y cargar el almacén de la zona (Hugo y Marcos).
+        /// </summary>
+        public static NetWorld Inicio(bool saguntoWalls = true)
+        {
+            var w = Mvp(saguntoWalls);
+            int Id(string name) { foreach (var n in w.Graph.Nodes) if (n.Name == name) return n.Id; throw new ArgumentException(name); }
+            void Stock(string n, int mun, int comb, int mat, int per) { int i = Id(n); w.Stock[i, 0] = mun; w.Stock[i, 1] = comb; w.Stock[i, 2] = mat; w.Stock[i, 3] = per; }
+            Stock("Valencia", 0, 0, 0, 0); Stock("Teruel", 0, 0, 0, 0);
+            Stock("Sagunto", 150, 140, 100, 80);
+            Stock("Nules", 0, 0, 0, 12);
+            w.Stations.P.Sites = new[] { "Castellón" };
+            w.Stations.Founded[Id("Nules")] = true;
+            w.Services.Clear();
+            var cero = new int[NetConst.ResCount];
+            Add(w, 1, "1 Costa", new ScheduleStop { Node = Id("Sagunto"), DepartAt = NetConst.Hours(9), Transfer = (int[])cero.Clone() });
+            Add(w, 2, "2 Montaña", new ScheduleStop { Node = Id("Sagunto"), DepartAt = NetConst.Hours(7), Transfer = (int[])cero.Clone() });
+            return w;
+        }
+
         static void Add(NetWorld w, int id, string name, params ScheduleStop[] stops)
         {
             var s = new TrainService { Train = new RailTrain { Id = id, Name = name, SpeedMmPerTick = NetConst.TrainMmPerTick } };

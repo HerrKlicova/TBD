@@ -52,6 +52,7 @@
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Aerodromo.cs" Link="Net\Aerodromo.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\MapaGestos.cs" Link="Net\MapaGestos.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\SalidaTren.cs" Link="Net\SalidaTren.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Net\AlmacenZona.cs" Link="Net\AlmacenZona.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Tutorial\TutorialMotor.cs" Link="Tutorial\TutorialMotor.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Tutorial\TutorialGuion.cs" Link="Tutorial\TutorialGuion.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Tutorial\IntroSecuencia.cs" Link="Tutorial\IntroSecuencia.cs" />
