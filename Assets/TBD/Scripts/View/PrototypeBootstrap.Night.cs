@@ -40,7 +40,8 @@ namespace TBD.View
         bool _nightOn, _nightInit; NightGame _ng; UnitsWorld _uw; readonly List<SpawnPoint> _spawns = new List<SpawnPoint>(); StepResult _res = new StepResult();
         readonly List<Target> _tgt = new List<Target>(); readonly HashSet<uint> _killSet = new HashSet<uint>();
         int _nightKills, _nightLost, _nightShotsSpent; int _lastWave = -1; float _bannerUntil; string _bannerText = "";
-        NightBot _bot; NightTraceRecorder _rec; int _spawnedTotal; int _resupplies; float _fpsLogT; bool _debugHud; float _nightT0; int _shotsTaken; float _lastStep; string _endReason = "";
+        static uint SemillaQA { get { var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-semilla"); uint s = 0; return i >= 0 && i + 1 < a.Length && uint.TryParse(a[i + 1], out s) ? s * 7919u : 0u; } }   // QA (Hugo): semilla distinta por corrida
+        int _pilaMaxVista; NightBot _bot; NightTraceRecorder _rec; int _spawnedTotal; int _resupplies; float _fpsLogT; bool _debugHud; float _nightT0; int _shotsTaken; float _lastStep; string _endReason = "";
         readonly List<int> _sel = new List<int>();
         bool _selDrag; Vector2 _selStart; bool _rmbDown; Vector2 _rmbStart; bool _attackNext;
         static readonly Vector2 StationC = new Vector2(113f, 64.5f), TrainC = new Vector2(143f, 64.5f);
@@ -69,10 +70,10 @@ namespace TBD.View
                 var tn = new CsvTable(System.IO.File.ReadAllText(System.IO.Path.Combine(dir, "balance_noche.csv")));
                 var jp = _ng.P; var np = NightParams.FromCsv(tn); np.Waves = jp.Waves; np.Entries = jp.Entries; np.ClockX = jp.ClockX; np.ScalePermil = jp.ScalePermil;
                 np.EndHour = (np.StartHour + 23) % 24;                                  // D-N164: sin victoria por tiempo; solo se gana acabando con la horda
-                _ng = new NightGame(np, 77u);
+                _ng = new NightGame(np, 77u + SemillaQA);
             }
             catch (System.Exception e) { Debug.LogWarning("[TBD] balance_*.csv no se pudo leer (" + e.Message + "): valores por defecto de Nacho"); }
-            _uw = new UnitsWorld(1234u) { StockShots = stock };
+            _uw = new UnitsWorld(1234u + SemillaQA) { StockShots = stock };
             int west = 32768;                                                        // rumbo −X (hacia la puerta oeste)
             _pname.Clear();
             _pname[_uw.AddPlatoon(PlatoonKind.Fusileros, 88000, 54000, west, Formation.Linea).Id] = "Fusileros";
@@ -208,7 +209,7 @@ namespace TBD.View
                 { for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; bool inside = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; uint zid = _zomId[ci]; if (inside) { if (_insideIds.Add(zid)) { _climbSec++; _entTot++; float dW = zp.x - Level.FortX0, dE = Level.FortX1 - zp.x, dS = zp.y - Level.FortY0, dN = Level.FortY1 - zp.y; float mn = Mathf.Min(Mathf.Min(dW, dE), Mathf.Min(dS, dN)); _entSide[mn == dW ? 0 : mn == dS ? 1 : mn == dE ? 2 : 3]++; } } else _insideIds.Remove(zid); }
                   { var tr = _ng.P.TrainRect; float r = _ng.P.AttackReachMm / 1000f; float tx0 = tr.X0 / 1000f - r, tx1 = tr.X1 / 1000f + r, ty0 = tr.Y0 / 1000f - r, ty1 = tr.Y1 / 1000f + r; int tin = 0, tout = 0; for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; if (zp.x < tx0 || zp.x > tx1 || zp.y < ty0 || zp.y > ty1) continue; bool insideF = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; if (insideF) tin++; else tout++; } _trainIn = tin; _trainOut = tout; } }
                 _allT.Clear(); for (int i = 0; i < _zomPos.Count; i++) _allT.Add(new Target { Id = (int)_zomId[i], X = (int)(_zomPos[i].x * 1000f), Y = (int)(_zomPos[i].y * 1000f) });
-                _ng.CountAttackers(_allT, out _pileNearStation, out _nearTrain); TutorialHud.ComprobarC90(_uw, _allT, (cx, cy) => cx > (int)(Level.FortX0 * 1000f) + 1000 && cx < (int)(Level.FortX1 * 1000f) - 1000 && cy > (int)(Level.FortY0 * 1000f) + 1000 && cy < (int)(Level.FortY1 * 1000f) - 1000);
+                _ng.CountAttackers(_allT, out _pileNearStation, out _nearTrain); if (_pileNearStation > _pilaMaxVista) _pilaMaxVista = _pileNearStation; TutorialHud.ComprobarC90(_uw, _allT, (cx, cy) => cx > (int)(Level.FortX0 * 1000f) + 1000 && cx < (int)(Level.FortX1 * 1000f) - 1000 && cy > (int)(Level.FortY0 * 1000f) + 1000 && cy < (int)(Level.FortY1 * 1000f) - 1000);
                 if ((_nearTrain > 0 || _pileNearStation > 0) && _diagN < 6 && Time.unscaledTime - _diagT > 2f)
                 {
                     _diagN++; _diagT = Time.unscaledTime; var sbd = new System.Text.StringBuilder(); int k = 0;
@@ -355,7 +356,7 @@ namespace TBD.View
             _nightLost = total - alive;
             float left = a.StockShots / (float)WeaponCatalog.ShotsPerU;
             _endStationF = _ng.StationHp / (float)Mathf.Max(1, _ng.StationHpMax); _endTrainF = _ng.TrainHp / (float)Mathf.Max(1, _ng.TrainHpMax);   // el parte congela estas cifras: despues del amanecer la horda sigue y no debe vaciar la barra (Sara)
-            Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 recargas={_resupplies} desync={_desync} hora_fin={TimeStr()}");
+            Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 pila_max={_pilaMaxVista} recargas={_resupplies} desync={_desync} hora_fin={TimeStr()}");
             _endReason = win ? (_ng.WonByClear ? $"{TimeStr()}. Sagunto resiste.\nLa horda ha caído." : "06:00. Sagunto resiste.\nAmanece.") : _ng.DefeatHeadline();   // D-N136/D-N146
         }
         bool _endDismissed, _reportClosed;
