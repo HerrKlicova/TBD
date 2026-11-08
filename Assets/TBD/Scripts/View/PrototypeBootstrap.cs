@@ -108,6 +108,7 @@ namespace TBD.View
         Texture2D _panelTex;
 
         // ---- hito 3: zona materializada desde el mapa de operaciones
+        string _estacionZona;               // D-N173: nombre de la estación de esta zona, para su plantel (Plantel.Pelotones / Vehiculos)
         int _zoneNode = -1;                 // nodo de la red del que viene esta zona (-1 = prototipo suelto, 10.000 zombis)
         float _fadeStart;
         bool _leaving;

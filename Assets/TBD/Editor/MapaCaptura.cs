@@ -44,7 +44,9 @@ namespace TBD.EditorTools
         {
             m.Foco = foco; m.DistanciaObjetivo = dist;
             typeof(OperationsMap3D).GetField("_dist", F).SetValue(m, dist);
-            Call(m, "UpdateNetwork"); Call(m, "UpdateCamera"); Call(m, "UpdateDetail"); Call(m, "UpdateCamera");
+            Call(m, "UpdateNetwork"); Call(m, "UpdateCamera"); Call(m, "UpdateDetail");
+            if (dist < 14f) typeof(OperationsMap3D).GetMethod("BuildDetail", F).Invoke(m, new object[] { new Vector3(foco.x, 0f, foco.z) });     // el parche, en el acto (en el juego va en segundo plano)
+            Call(m, "UpdateCamera");
             var cam = (Camera)typeof(OperationsMap3D).GetField("_cam", F).GetValue(m);
             var rt = new RenderTexture(1600, 900, 24); cam.targetTexture = rt; cam.Render();
             RenderTexture.active = rt; var tex = new Texture2D(1600, 900, TextureFormat.RGB24, false); tex.ReadPixels(new Rect(0, 0, 1600, 900), 0, 0); tex.Apply();

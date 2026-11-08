@@ -97,7 +97,7 @@ namespace TBD.View
         void Start()
         {
             _mapT0 = Time.realtimeSinceStartup;
-            if (NightRun.Active && NightRun.Session == null) { EnterZone(0); return; }                                    // «Jugar»: directo a la noche de Sagunto (D-N71)
+            if (NightRun.Active && NightRun.Session == null) { EnterZone(ZonaArg()); return; }                            // «Jugar»: directo a la noche de Sagunto (D-N71); QA: -zona <nombre> entra en otra (D-N173, Sara)
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k-sagunto") >= 0) { EnterZone(0); return; }       // prueba de rendimiento en la zona de Sagunto (con la muestra del suelo)
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k") >= 0 && NetSession.DebugForceAmbush()) { NetSession.PendingAmbush = true; UnityEngine.SceneManagement.SceneManager.LoadScene("SampleScene"); return; }   // prueba de rendimiento (D-N61)
             Application.targetFrameRate = 60;
@@ -120,6 +120,15 @@ namespace TBD.View
                 _pitch = 50f;
                 NetSession.ReturnFromNode = -1;
             }
+        }
+
+        /// <summary>QA (Sara, D-N173): -zona &lt;nombre&gt; (Nules, Castellón...) elige la zona de la noche; sin ella o si no existe, Sagunto (nodo 0).</summary>
+        static int ZonaArg()
+        {
+            var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-zona"); if (i < 0 || i + 1 >= a.Length) return 0;
+            NetSession.Ensure(); string id = TrenPreparar.IdDe(a[i + 1]); int n = TrenPreparar.NodoPorId(NetSession.A, id);
+            if (n < 0) { Debug.LogWarning("[NOCHE] -zona " + a[i + 1] + ": no es un nodo de la red (Bétera es el aeródromo, va aparte); entro en Sagunto"); return 0; }
+            Debug.Log("[NOCHE] -zona " + a[i + 1] + " → nodo " + n); return n;
         }
 
         void SetupCamera()
@@ -428,9 +437,21 @@ namespace TBD.View
                 return;
             }
             var c = new Vector3(_focus.x, 0, _focus.z);
+            // el parche se calcula en segundo plano (pintar 512² téxeles tarda ~0,6–1 s): mientras, se queda el anterior (o el terreno grueso)
+            if (_detailJob != null)
+            {
+                if (!_detailJob.IsCompleted) return;
+                var job = _detailJob; _detailJob = null;
+                if (job.Status == System.Threading.Tasks.TaskStatus.RanToCompletion) AplicarDetalle(job.Result);
+                else Debug.LogWarning("[MAPA] el parche de detalle falló: " + job.Exception?.GetBaseException().Message);
+                return;
+            }
             if (_detail != null && _detail.activeSelf && (c - _detailCenter).magnitude < DetailSizeKm * 0.25f) return;
-            BuildDetail(c);
+            _detailJob = System.Threading.Tasks.Task.Run(() => CalcularDetalle(c));
         }
+
+        System.Threading.Tasks.Task<Detalle> _detailJob;
+        sealed class Detalle { public Vector3 Centro; public Vector3[] Verts; public Vector2[] Uvs; public Color32[] Cols; }
 
         /// <summary>La mancha de horda también de cerca (Lucía: al volver de una zona a 2,5 km tiene que verse alrededor de la estación).</summary>
         void UpdateDetailTexture()
@@ -481,12 +502,15 @@ namespace TBD.View
         }
 
         /// <summary>Téxeles del parche de detalle (Bruno: 512 = 23 m por téxel; si se nota el tirón al rehacerlo, 384). UltimoParcheMs mide lo que tarda.</summary>
-        const int DetailTW = 384;
+        const int DetailTW = 512;
         public static double UltimoParcheMs;
 
-        void BuildDetail(Vector3 center)
+        /// <summary>Síncrono (capturas por lotes): calcula y aplica en el acto.</summary>
+        void BuildDetail(Vector3 center) { AplicarDetalle(CalcularDetalle(center)); }
+
+        /// <summary>Solo datos, sin API de Unity: se puede llamar fuera del hilo principal (relieve, terreno grueso y grafo son de solo lectura).</summary>
+        Detalle CalcularDetalle(Vector3 center)
         {
-            _detailCenter = center;
             float half = DetailSizeKm * 0.5f;
             var verts = new Vector3[DetailN * DetailN];
             var uvs = new Vector2[DetailN * DetailN];
@@ -510,6 +534,15 @@ namespace TBD.View
             double dmx = DetailSizeKm / MapGeo.KmPerUnit / (TW - 1);
             cols = MapaTactico.Pintar(_relief, _a.Graph, MinX + (center.x - half) / MapGeo.KmPerUnit, dmx, MaxY - (center.z - half) / MapGeo.KmPerUnit, -dmx, TW, TW, true);
             UltimoParcheMs = sw.Elapsed.TotalMilliseconds;
+            return new Detalle { Centro = center, Verts = verts, Uvs = uvs, Cols = cols };
+        }
+
+        void AplicarDetalle(Detalle dt)
+        {
+            const int TW = DetailTW;
+            var center = dt.Centro; var verts = dt.Verts; var uvs = dt.Uvs; var cols = dt.Cols;
+            _detailCenter = center;
+            float half = DetailSizeKm * 0.5f;
             if (_detail == null)
             {
                 var tris = new int[(DetailN - 1) * (DetailN - 1) * 6];

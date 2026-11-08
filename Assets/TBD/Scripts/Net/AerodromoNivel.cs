@@ -162,7 +162,7 @@ namespace TBD.Net
     /// <summary>
     /// Zona de rearme de Bétera de Teo (betera-rearme, aprobada por Lucía): camión cisterna y remolque de munición. En P1 (helipuerto, 128; 104), a unos 7 m del
     /// helicóptero con el lado +X hacia él (yaw 180, porque quedan al este de P1): Repostando y Descargando mientras un NH90 rearma; en reposo, Aparcado y Cargado
-    /// (mejora de Lucía; solo cambia la malla). En P2 y P3, Aparcado y Tapado, fuera de los claros de 25 m y de sus balizas. Posiciones SIN VERIFICAR con Álvaro.
+    /// (mejora de Lucía; solo cambia la malla). En P2 y P3, Aparcado y Tapado, fuera de los claros de 25 m y de sus balizas. Posiciones de Álvaro (8-nov): fuera de P1 y de sus balizas.
     /// </summary>
     public static class RearmeBetera
     {
@@ -171,10 +171,10 @@ namespace TBD.Net
         public struct Sitio { public bool EsCamion, EnP1; public float X, Z, Yaw; public int Variante, VarianteRearme; }
         public static readonly Sitio[] Sitios =
         {
-            new Sitio { EsCamion = true, EnP1 = true, X = 135f, Z = 100f, Yaw = 180f, Variante = 0, VarianteRearme = 1 },
-            new Sitio { EsCamion = false, EnP1 = true, X = 135f, Z = 109f, Yaw = 180f, Variante = 0, VarianteRearme = 2 },
-            new Sitio { EsCamion = true, X = 31f, Z = 86f, Yaw = 90f, Variante = 0, VarianteRearme = 0 },
-            new Sitio { EsCamion = false, X = 226f, Z = 86f, Yaw = 90f, Variante = 3, VarianteRearme = 3 },
+            new Sitio { EsCamion = true, EnP1 = true, X = 152f, Z = 100f, Yaw = 180f, Variante = 0, VarianteRearme = 1 },
+            new Sitio { EsCamion = false, EnP1 = true, X = 152f, Z = 106.5f, Yaw = 180f, Variante = 0, VarianteRearme = 2 },
+            new Sitio { EsCamion = true, X = 31f, Z = 84f, Yaw = 90f, Variante = 0, VarianteRearme = 0 },
+            new Sitio { EsCamion = false, X = 226f, Z = 84f, Yaw = 90f, Variante = 3, VarianteRearme = 3 },
         };
         public static string Archivo(bool camion, int v) { return camion ? "SM_CamionCisterna_v" + v + "_" + Camion[v] : "SM_RemolqueMunicion_v" + v + "_" + Remolque[v]; }
     }

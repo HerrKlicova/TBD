@@ -131,13 +131,13 @@ namespace TBD.Net
 
     /// <summary>
     /// Carga visible de Teo sobre las plataformas Rgs (carga-vagones, aprobada por Lucía): un módulo por recurso, hijo del vagón en (0; 1,25; 0) y sin giro.
-    /// Lleno a partir de 2/3 de la capacidad, Mitad a partir de 1/3 y Vacío por debajo; Dañado y Destrozado según la vida del vagón (umbrales SUPUESTOS: por
-    /// debajo del 70 % y del 30 %). La tropa no lleva módulo (es el vagón R2). Capacidad de referencia por plataforma SUPUESTA en 30 u hasta que la fije Hugo.
+    /// Lleno a partir de 2/3 de la capacidad, Mitad a partir de 1/3 y Vacío por debajo; Dañado y Destrozado según la vida del vagón (por debajo del 70 % y del 30 %,
+    /// validados por Hugo). La tropa no lleva módulo (es el vagón R2). Capacidad por plataforma: 20 u (sim_economia de Hugo), así que la carga del objetivo de Nules llena justo una.
     /// </summary>
     public static class CargaVisible
     {
         public static readonly string[] Recurso = { "Municion", "Combustible", "Materiales", null, "Viveres" };
-        public const int CapacidadRefU = 30, DanadoPm = 700, DestrozadoPm = 300;
+        public const int CapacidadRefU = 20, DanadoPm = 700, DestrozadoPm = 300;     // Hugo: 20 u por plataforma (100 u por tren); umbrales validados
 
         public static string Estado(int u, int capacidad, int vidaPm = 1000)
         {
@@ -202,6 +202,49 @@ namespace TBD.Net
                 r.Add(new[] { float.Parse(c[3], ci), float.Parse(c[4], ci), float.Parse(c[5], ci), float.Parse(c[6], ci) });
             }
             return r;
+        }
+    }
+
+    /// <summary>
+    /// D-N152 (Eugenio; Lucía): un tren que llega a una estación sitiada se queda a las puertas y no entra hasta que acaba el asedio; tampoco entra si no le queda
+    /// plaza (una en las estaciones pequeñas y dos en las principales, propuesta de Lucía; ampliar la estación da más, D-N153). A las puertas solo baja la tropa
+    /// (D-N166): ni carga ni vehículos, porque hace falta el andén. Estado derivado, de solo lectura (no se guarda ni toca la simulación): lo usan el panel, la
+    /// zona y el tutorial. Las reglas que cambian la simulación (no mover carga a las puertas y que se le pueda atacar, D-N148) son de Nacho.
+    /// </summary>
+    public static class Puertas
+    {
+        static readonly string[] Principales = { "Sagunto", "Castellón", "Valencia" };
+        public static int Ampliacion;        // plazas extra por ampliar la estación (D-N153), cuando exista el modo construcción
+
+        public static int Plazas(NetWorld w, int node)
+        {
+            if (w == null || node < 0 || node >= w.Graph.Nodes.Count) return 0;
+            return (Array.IndexOf(Principales, w.Graph.Nodes[node].Name) >= 0 ? 2 : 1) + Ampliacion;
+        }
+
+        /// <summary>Servicios parados en ese nodo, por orden de llegada aproximado (el índice del servicio): los primeros Plazas ocupan el andén.</summary>
+        public static List<int> Parados(NetWorld w, int node)
+        {
+            var l = new List<int>();
+            if (w == null) return l;
+            for (int i = 0; i < w.Services.Count; i++) if (w.TrainAtNode(w.Services[i], node)) l.Add(i);
+            return l;
+        }
+
+        /// <summary>¿El tren está a las puertas de ese nodo (parado allí, pero fuera: estación sitiada o sin plaza)?</summary>
+        public static bool EnPuertas(NetWorld w, int service, int node)
+        {
+            if (w == null || service < 0 || service >= w.Services.Count || !w.TrainAtNode(w.Services[service], node)) return false;
+            if (w.Besieged(node)) return true;
+            var l = Parados(w, node); int k = l.IndexOf(service);
+            return k >= Plazas(w, node);
+        }
+
+        /// <summary>Texto para el panel y el aviso, o null si ha entrado.</summary>
+        public static string Motivo(NetWorld w, int service, int node)
+        {
+            if (!EnPuertas(w, service, node)) return null;
+            return w.Besieged(node) ? "Estación sitiada: espera a las puertas y solo baja la tropa" : "Sin plaza en la estación: espera a las puertas";
         }
     }
 }

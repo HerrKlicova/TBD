@@ -507,7 +507,7 @@ namespace TBD.Sim.Tests
                 {
                     var cd2 = EstacionDato.FromJson(BalanceSource.Read("estacion_castellon.json"));
                     check(BajadaSubterranea.SubidaS(cd2) == 30f, "subir del andén a la calle cuesta 30 s por pelotón (Nacho, SUPUESTO)");
-                    check(CargaVisible.Estado(20, 30) == "Lleno" && CargaVisible.Estado(19, 30) == "Mitad" && CargaVisible.Estado(10, 30) == "Mitad" && CargaVisible.Estado(9, 30) == "Vacio" && CargaVisible.Estado(30, 30, 500) == "Danado" && CargaVisible.Estado(30, 30, 200) == "Destrozado", "carga visible: Lleno desde 2/3, Mitad desde 1/3, Vacío por debajo; Dañado y Destrozado por la vida del vagón");
+                    check(CargaVisible.CapacidadRefU == 20 && CargaVisible.Estado(20, 20) == "Lleno" && CargaVisible.Estado(14, 20) == "Lleno" && CargaVisible.Estado(13, 20) == "Mitad" && CargaVisible.Estado(7, 20) == "Mitad" && CargaVisible.Estado(6, 20) == "Vacio" && CargaVisible.Estado(30, 30, 500) == "Danado" && CargaVisible.Estado(30, 30, 200) == "Destrozado", "carga visible (20 u por plataforma, Hugo): las 20 u del objetivo llenan una; Lleno desde 2/3, Mitad desde 1/3, Vacío por debajo; Dañado y Destrozado por la vida del vagón");
                     var rp = CargaVisible.Reparto(new[] { 20, 0, 30, 8, 5 }, 4);
                     check(rp[0] == 0 && rp[1] == 2 && rp[2] == 4 && rp[3] == -1 && CargaVisible.Archivo(4, "Lleno") == "SM_CargaViveres_Lleno" && CargaVisible.Archivo(3, "Lleno") == null, "una plataforma por recurso (munición, materiales, víveres); la tropa no lleva módulo");
                     check(AcopioViveres.LeerCapacidad(BalanceSource.Read("existencias_red.json")) && AcopioViveres.CapacidadRefU == 30, "capacidad de referencia del acopio de Nules: 30 u (Hugo)");
@@ -552,6 +552,33 @@ namespace TBD.Sim.Tests
                     check(bn.Contains("_e2_") || bn.Contains("_e3_"), "las barricadas de la plaza salen dañadas (e2 o e3): " + bn);
                 }
                 var nd = EstacionDato.FromJson(BalanceSource.Read("estacion_nules.json")); check(nd.Sub == null && !BajadaSubterranea.Tropa(nd, out _, out _, out _), "Nules es de superficie");
+            }
+
+            // --- D-N173: plantel propio por estación (el fallo de Eugenio: en todas salían las mismas unidades, helicóptero incluido)
+            {
+                var ps = Plantel.Pelotones("Sagunto"); var vs = Plantel.Vehiculos("Sagunto");
+                check(ps.Count == 5 && ps[0].Tipo == PlatoonKind.Fusileros && ps[0].X == 88000 && ps[0].Y == 54000 && ps[4].Tipo == PlatoonKind.Zapadores && ps[4].Nombre == "Zapadores", "Sagunto: los cinco pelotones de siempre, en sus sitios");
+                check(vs.Count == 3 && vs[0].Nombre == "Dragón" && vs[0].X == 99f && vs[1].Nombre == "VAMTAC 1" && vs[2].Nombre == "VAMTAC 2" && vs[2].X == 80f && !vs.Exists(v => v.Tipo == "nh90"), "Sagunto: Dragón y dos VAMTAC, sin NH90 (el aire sale de Bétera)");
+                check(Plantel.Pelotones("Nules").Count == 0 && Plantel.Vehiculos("Nules").Count == 0, "Nules fuera del tutorial: sin plantel propio (la guarnición es de la red)");
+                var pn = Plantel.Pelotones("Nules", tutorial: true); check(pn.Count == 1 && pn[0].Tipo == PlatoonKind.Fusileros && Plantel.Vehiculos("Nules", true).Count == 0, "Nules en el tutorial: el pelotón de fusileros del capítulo 3, sin vehículos");
+                check(Plantel.Pelotones("Castellón").Count == 0 && Plantel.Vehiculos("Castellón").Count == 0, "Castellón (infestada): sin unidades propias");
+                var pb = Plantel.Pelotones("Bétera"); check(pb.Count == 3 && pb[0].Nombre == "Fusileros 1" && pb[2].Nombre == "Fusileros 3" && Plantel.De("Bétera").NH90 == 2 && Plantel.Vehiculos("Bétera").Count == 0, "Bétera: tres pelotones de fusileros (numerados) y los dos NH90, sin vehículos de tierra");
+                check(Plantel.Pelotones("Valencia").Count == 0 && Plantel.Pelotones("Teruel").Count == 0, "Valencia y Teruel (caídas): sin unidades");
+            }
+
+            // --- D-N152: el tren espera a las puertas de una estación sitiada o sin plaza
+            {
+                var w = NetScenario.Inicio(); int sg = TrenPreparar.Nodo(w, "Sagunto"), nu = TrenPreparar.Nodo(w, "Nules");
+                check(Puertas.Plazas(w, sg) == 2 && Puertas.Plazas(w, nu) == 1, "plazas: 2 en Sagunto (principal) y 1 en Nules (pequeña)");
+                check(Puertas.Parados(w, sg).Count == 2 && !Puertas.EnPuertas(w, 0, sg) && !Puertas.EnPuertas(w, 1, sg), "los dos trenes de partida caben en Sagunto: ninguno a las puertas");
+                w.Graph.Nodes[sg].State = NodeState.Asediada;
+                check(Puertas.EnPuertas(w, 0, sg) && Puertas.EnPuertas(w, 1, sg) && Puertas.Motivo(w, 0, sg).StartsWith("Estación sitiada"), "con Sagunto sitiada, los dos esperan a las puertas (solo baja la tropa)");
+                w.Graph.Nodes[sg].State = NodeState.Segura;
+                check(!Puertas.EnPuertas(w, 0, sg) && Puertas.Motivo(w, 0, sg) == null, "acabado el asedio, el tren entra");
+                Puertas.Ampliacion = 0;
+                foreach (var sv in w.Services) { sv.Stops.Clear(); sv.Stops.Add(new ScheduleStop { Node = nu, DepartAt = 0, Transfer = new int[NetConst.ResCount] }); sv.StopIndex = 0; sv.AtStop = true; }
+                check(!Puertas.EnPuertas(w, 0, nu) && Puertas.EnPuertas(w, 1, nu) && Puertas.Motivo(w, 1, nu).StartsWith("Sin plaza"), "dos trenes en Nules (1 plaza): el segundo espera a las puertas");
+                Puertas.Ampliacion = 1; check(!Puertas.EnPuertas(w, 1, nu), "ampliando la estación (D-N153) entra el segundo"); Puertas.Ampliacion = 0;
             }
 
             // --- intro C

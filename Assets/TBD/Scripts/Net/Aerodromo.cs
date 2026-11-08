@@ -227,6 +227,53 @@ namespace TBD.Net
     {
         public sealed class Lista { public string[] Pelotones = new string[0]; public string[] Vehiculos = new string[0]; public int NH90; }
 
+        /// <summary>Un pelotón de la zona: tipo, nombre visible y sitio de partida (mm) con su rumbo.</summary>
+        public struct Puesto { public PlatoonKind Tipo; public string Nombre; public int X, Y, Rumbo; public Formation Formacion; }
+        /// <summary>Un vehículo de la zona: tipo (dragon, vamtac), nombre visible y sitio (m) con su rumbo.</summary>
+        public struct Coche { public string Tipo, Nombre; public float X, Z, Yaw; }
+
+        // los cinco sitios de partida de Sagunto (los de siempre, hacia la puerta oeste), en el orden del plantel
+        static readonly int[,] SitioPel = { { 88000, 54000 }, { 94000, 64000 }, { 98000, 57000 }, { 98000, 72000 }, { 88000, 76000 } };
+        static readonly float[] SitioVehX = { 99f, 88f, 80f, 72f };
+        const int Oeste = 32768;
+
+        /// <summary>
+        /// D-N173: los pelotones que salen en la zona de esa estación, con su sitio (el de los cinco de Sagunto, por orden). Sin plantel, la lista va vacía:
+        /// la zona no se inventa unidades (el fallo que vio Eugenio: en todas salían las mismas).
+        /// </summary>
+        public static List<Puesto> Pelotones(string estacion, bool tutorial = false)
+        {
+            var r = new List<Puesto>(); var l = De(estacion, tutorial); var cuenta = new Dictionary<PlatoonKind, int>();
+            for (int i = 0; i < l.Pelotones.Length; i++)
+            {
+                var k = Tipo(l.Pelotones[i]); cuenta[k] = cuenta.TryGetValue(k, out var c) ? c + 1 : 1;
+                int si = i % SitioPel.GetLength(0);
+                string nombre = Nombre(k); if (Array.FindAll(l.Pelotones, x => Tipo(x) == k).Length > 1) nombre += " " + cuenta[k];
+                r.Add(new Puesto { Tipo = k, Nombre = nombre, X = SitioPel[si, 0], Y = SitioPel[si, 1], Rumbo = Oeste, Formacion = i < 2 ? Formation.Linea : Formation.Cuna });
+            }
+            return r;
+        }
+
+        /// <summary>D-N173: los vehículos terrestres de la zona de esa estación (el NH90 sale de Bétera, no de aquí).</summary>
+        public static List<Coche> Vehiculos(string estacion, bool tutorial = false)
+        {
+            var r = new List<Coche>(); var l = De(estacion, tutorial); int nv = 0;
+            for (int i = 0; i < l.Vehiculos.Length; i++)
+            {
+                string t = l.Vehiculos[i];
+                string nombre = t == "dragon" ? "Dragón" : "VAMTAC " + (++nv);
+                r.Add(new Coche { Tipo = t, Nombre = nombre, X = SitioVehX[i % SitioVehX.Length], Z = 53f, Yaw = 180f });
+            }
+            return r;
+        }
+
+        public static PlatoonKind Tipo(string s)
+        {
+            switch (s) { case "ametralladores": return PlatoonKind.Ametralladores; case "granaderos": return PlatoonKind.Granaderos; case "tiradores": return PlatoonKind.Tiradores; case "zapadores": return PlatoonKind.Zapadores; default: return PlatoonKind.Fusileros; }
+        }
+
+        public static string Nombre(PlatoonKind k) { return k == PlatoonKind.Ametralladores ? "Ametralladores" : k == PlatoonKind.Granaderos ? "Granaderos" : k == PlatoonKind.Tiradores ? "Tiradores" : k == PlatoonKind.Zapadores ? "Zapadores" : "Fusileros"; }
+
         public static Lista De(string estacion, bool tutorial = false)
         {
             switch (estacion)
