@@ -34,6 +34,7 @@
     <Compile Include="SaguntoInicioTests.cs" />
     <Compile Include="GuardadoTests.cs" />
     <Compile Include="UnidadesTests.cs" />
+    <Compile Include="TutorialTests.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Hive.cs" Link="Net\Hive.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\HiveDirector.cs" Link="Net\HiveDirector.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\NetGolden.cs" Link="Net\NetGolden.cs" />
@@ -45,6 +46,10 @@
     <Compile Include="..\..\Assets\TBD\Scripts\Net\EstacionDato.cs" Link="Net\EstacionDato.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Taller.cs" Link="Net\Taller.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Guardado.cs" Link="Net\Guardado.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Tutorial\TutorialMotor.cs" Link="Tutorial\TutorialMotor.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Tutorial\TutorialGuion.cs" Link="Tutorial\TutorialGuion.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Tutorial\IntroSecuencia.cs" Link="Tutorial\IntroSecuencia.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Tutorial\C90Aviso.cs" Link="Tutorial\C90Aviso.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Units\IMath.cs" Link="Units\IMath.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Units\Armas.cs" Link="Units\Armas.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Units\Noche.cs" Link="Units\Noche.cs" />
