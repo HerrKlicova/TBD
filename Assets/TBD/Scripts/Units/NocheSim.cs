@@ -238,6 +238,28 @@ namespace TBD.Units
             Units.AddPlatoon(PlatoonKind.Zapadores, 140000, 64500, 0);
         }
 
+        /// <summary>Comparación con la zona (8-nov): la zona solo da a los pelotones los zombis a menos de 60 m del ancla de algún pelotón (PrototypeBootstrap.Night.cs, «_tgt»).
+        /// 0 (por defecto) = todos, como hasta ahora. No entra en el hash.</summary>
+        public int TargetRadiusMm;
+        bool NearPlatoon(int x, int y)
+        {
+            if (TargetRadiusMm <= 0) return true;
+            long r2 = (long)TargetRadiusMm * TargetRadiusMm;
+            foreach (var p in Units.Platoons) { long dx = x - p.AX, dy = y - p.AY; if (dx * dx + dy * dy < r2) return true; }
+            return false;
+        }
+
+        /// <summary>La fuerza tal como la pone la zona al empezar la noche (PrototypeBootstrap.Night.cs, InitNight): los cinco junto al muro oeste, mirando al oeste.</summary>
+        public void AddZoneForce()
+        {
+            int west = 32768;
+            Units.AddPlatoon(PlatoonKind.Fusileros, 88000, 54000, west, Formation.Linea);
+            Units.AddPlatoon(PlatoonKind.Ametralladores, 94000, 64000, west, Formation.Linea);
+            Units.AddPlatoon(PlatoonKind.Granaderos, 98000, 57000, west, Formation.Cuna);
+            Units.AddPlatoon(PlatoonKind.Tiradores, 98000, 72000, west, Formation.Cuna);
+            Units.AddPlatoon(PlatoonKind.Zapadores, 88000, 76000, west, Formation.Cuna);
+        }
+
         /// <summary>Bot de reabastecimiento de Hugo: a cada pelotón que baja del 30 % de su dotación le pasa munición del almacén. Devuelve cuántos pelotones ha repuesto.</summary>
         public int ResupplyBot()
         {
@@ -318,7 +340,7 @@ namespace TBD.Units
             { _targets.Clear(); for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); int aS, aT; Night.CountAttackers(_targets, out aS, out aT); Night.Attack(aS, aT); }
             // 4) los pelotones disparan; los impactos abaten
             _targets.Clear(); _ids.Clear();
-            for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) { _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); }
+            for (int i = 0; i < _z.Count; i++) if (_z[i].Alive && NearPlatoon(_z[i].X, _z[i].Y)) { _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); }
             if (Bot != null) Bot.Step(Units, _targets, Night.Tick);          // el bot da sus órdenes antes del fuego, con la misma API que el jugador
             else if (AutoPlatoonResupply && Night.Tick % 15 == 0) ResupplyBot();   // fuera de pantalla: la misma recarga automática al 30 % que hace la zona cada 15 ticks
             int before = TotalAmmo();
@@ -329,7 +351,7 @@ namespace TBD.Units
             // 4b) los vehículos (fuera de UnitsWorld; misma regla que la zona)
             if (Vehicles.Count > 0) VehiclesStep(cur);
             // 5) contacto con los soldados
-            _targets.Clear(); for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y });
+            _targets.Clear(); for (int i = 0; i < _z.Count; i++) if (_z[i].Alive && NearPlatoon(_z[i].X, _z[i].Y)) _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y });
             int fell = Units.ZombieContact(_targets, Night.P.ContactRadiusMm, Night.P.ContactDmgPerTick, _contact);
             SoldierDeaths += fell; if (cur != null) cur.SoldierDeaths += fell;
             // 6) limpieza cada 64 ticks para que la lista no crezca sin fin

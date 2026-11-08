@@ -33,6 +33,9 @@ namespace TBD.Sim.Tests
             int climbR = -1; int.TryParse(Environment.GetEnvironmentVariable("TBD_CLIMB_R") ?? "-1", out climbR);   // ClimbPermilS
             int trainX0 = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_TRAIN_X0") ?? "0", out trainX0);   // cola del tren en mm; el tren mide 64 m (74000 = como en la qa25)
             string vehs = Environment.GetEnvironmentVariable("TBD_VEH") ?? "ambos";
+            // comparación con la zona (8-nov): TBD_TGT_M = radio de blancos alrededor de los pelotones (la zona usa 60), TBD_FUERZA=zona (posiciones de InitNight), TBD_BOT=no (sin órdenes, solo la recarga automática al 30 %)
+            int tgtM = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_TGT_M") ?? "0", out tgtM);
+            bool zoneForce = Environment.GetEnvironmentVariable("TBD_FUERZA") == "zona", noBot = Environment.GetEnvironmentVariable("TBD_BOT") == "no";
             Console.WriteLine("dificultad;vehiculos;partidas;victorias;municion_p10_u;muro_medio_pct;pila_max_media;abatidos_vehiculos_medio;recargas_vehiculos_medio;municion_final_media_u;bajas_medias;derrotas_tren;derrotas_estacion;tren_final_medio_pct;estacion_final_media_pct;trepan_medio;muro_p50_pct");
             foreach (var dif in difs == "todas" ? new[] { "facil", "normal", "dificil" } : new[] { difs })
                 foreach (bool veh in vehs == "si" ? new[] { true } : vehs == "no" ? new[] { false } : new[] { false, true })
@@ -41,7 +44,7 @@ namespace TBD.Sim.Tests
                     for (int i = 0; i < n; i++)
                     {
                         var sim = NightSim.FromJson(json, dif, (uint)(i + 1)); if (climb >= 0) sim.SP.ClimbPileZ = climb; if (climbR >= 0) sim.SP.ClimbPermilS = climbR; if (trainX0 > 0) { var tp = sim.Night.P; tp.TrainRect = new RectMm(trainX0, tp.TrainRect.Y0, trainX0 + 64000, tp.TrainRect.Y1); sim.Night.P = tp; }
-                        sim.AddDefaultForce(); if (veh) sim.AddDefaultVehicles(true); sim.Bot = NightBot.FromParams(sim.SP);
+                        sim.TargetRadiusMm = tgtM * 1000; if (zoneForce) sim.AddZoneForce(); else sim.AddDefaultForce(); if (veh) sim.AddDefaultVehicles(true); if (noBot) sim.AutoPlatoonResupply = true; else sim.Bot = NightBot.FromParams(sim.SP);
                         while (sim.Night.State == NightState.Jugando) sim.Run(300);
                         if (sim.Night.State == NightState.Victoria) wins++; ammos.Add(sim.AmmoMilliU());
                         if (sim.Night.State == NightState.Derrota) { if (sim.Night.EndedByTrain) lostT++; if (sim.Night.EndedByStation) lostS++; }
