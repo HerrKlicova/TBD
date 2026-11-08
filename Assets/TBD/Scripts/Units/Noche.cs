@@ -229,9 +229,9 @@ namespace TBD.Units
             }
             // fin de partida: la derrota tiene prioridad sobre la victoria en el mismo tick
             if (!stationAlive || !trainAlive) { State = NightState.Derrota; DefeatTick = Tick; EndedByStation = !stationAlive; EndedByTrain = !trainAlive; }
-            else if (Tick >= TotalTicks || (P.WinOnClear && ZombiesAlive == 0 && Tick > _lastSpawnTick && AllSpawned))
+            else if (P.WinOnClear && ZombiesAlive == 0 && Tick > _lastSpawnTick && AllSpawned)      // D-N164 (Lucía, 8-nov): solo se gana acabando con la horda; a las 06:00 la que queda sigue atacando
             {
-                WonByClear = Tick < TotalTicks; State = NightState.Victoria; NightsSurvived++;
+                WonByClear = true; State = NightState.Victoria; NightsSurvived++;
                 int sp = 0; for (int i = 0; i < Spawned.Length; i++) sp += Spawned[i];
                 Report = new NightReport { Night = NightIndex, CloseTick = Tick, Spawned = sp, StationAlive = stationAlive, TrainAlive = trainAlive, IntegrityPermil = IntegrityPermil, WallPermil = WallPermil };
             }
