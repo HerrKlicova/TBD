@@ -208,7 +208,7 @@ namespace TBD.View
                 { for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; bool inside = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; uint zid = _zomId[ci]; if (inside) { if (_insideIds.Add(zid)) { _climbSec++; _entTot++; float dW = zp.x - Level.FortX0, dE = Level.FortX1 - zp.x, dS = zp.y - Level.FortY0, dN = Level.FortY1 - zp.y; float mn = Mathf.Min(Mathf.Min(dW, dE), Mathf.Min(dS, dN)); _entSide[mn == dW ? 0 : mn == dS ? 1 : mn == dE ? 2 : 3]++; } } else _insideIds.Remove(zid); }
                   { var tr = _ng.P.TrainRect; float r = _ng.P.AttackReachMm / 1000f; float tx0 = tr.X0 / 1000f - r, tx1 = tr.X1 / 1000f + r, ty0 = tr.Y0 / 1000f - r, ty1 = tr.Y1 / 1000f + r; int tin = 0, tout = 0; for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; if (zp.x < tx0 || zp.x > tx1 || zp.y < ty0 || zp.y > ty1) continue; bool insideF = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; if (insideF) tin++; else tout++; } _trainIn = tin; _trainOut = tout; } }
                 _allT.Clear(); for (int i = 0; i < _zomPos.Count; i++) _allT.Add(new Target { Id = (int)_zomId[i], X = (int)(_zomPos[i].x * 1000f), Y = (int)(_zomPos[i].y * 1000f) });
-                _ng.CountAttackers(_allT, out _pileNearStation, out _nearTrain); TutorialHud.ComprobarC90(_uw, _allT);
+                _ng.CountAttackers(_allT, out _pileNearStation, out _nearTrain); TutorialHud.ComprobarC90(_uw, _allT, (cx, cy) => cx > (int)(Level.FortX0 * 1000f) + 1000 && cx < (int)(Level.FortX1 * 1000f) - 1000 && cy > (int)(Level.FortY0 * 1000f) + 1000 && cy < (int)(Level.FortY1 * 1000f) - 1000);
                 if ((_nearTrain > 0 || _pileNearStation > 0) && _diagN < 6 && Time.unscaledTime - _diagT > 2f)
                 {
                     _diagN++; _diagT = Time.unscaledTime; var sbd = new System.Text.StringBuilder(); int k = 0;
@@ -348,7 +348,7 @@ namespace TBD.View
         void NightEnded()
         {
             if (_ng.State == NightState.Derrota) Sfx.Play("estacion_caida", Vector3.zero, 0.9f, 1f);
-            ClearNightSession();                                                      // la noche termino: se borra la sesion (el parte usa _ng y _uw locales)
+            if (_ng.State == NightState.Derrota) ClearNightSession(); else if (NightRun.Session != null) NightRun.Session.Reported = true;   // D-N170: tras ganar la sesion SE QUEDA (el mundo sigue; salir y entrar no vuelve a sacar «Sagunto resiste» ni otra horda); solo la derrota la borra
             try { string d0 = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(d0); System.IO.File.WriteAllText(System.IO.Path.Combine(d0, "traza-noche.csv"), _fullTrace.ToString()); if (_rec != null && !_rec.Done) System.IO.File.WriteAllText(System.IO.Path.Combine(d0, "traza-zona.csv"), _rec.Trace.ToCsv()); } catch (System.Exception e0) { Debug.LogWarning("[TBD] traza noche: " + e0.Message); }
             bool win = _ng.State == NightState.Victoria; var a = _uw;
             int alive = 0, total = 0; foreach (var pl in a.Platoons) { alive += pl.AliveCount(); total += pl.Men.Count; }

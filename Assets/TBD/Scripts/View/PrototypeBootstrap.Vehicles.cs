@@ -58,7 +58,8 @@ namespace TBD.View
             string[] w4 = { "Rueda_1L", "Rueda_1R", "Rueda_2L", "Rueda_2R" };
             MakeVeh("VAMTAC 1", "vamtac", "SM_Vamtac_Animable_LOD1", new Vector2(88f, 53f), 180f, false, w4, new[] { "Rueda_1L", "Rueda_1R" }, "Aro", "Ametralladora");
             MakeVeh("VAMTAC 2", "vamtac", "SM_Vamtac_Animable_LOD1", new Vector2(80f, 53f), 180f, false, w4, new[] { "Rueda_1L", "Rueda_1R" }, "Aro", "Ametralladora");
-            MakeVeh("NH90", "nh90", "SM_NH90_LOD1", new Vector2(180f, 44f), 270f, true, new string[0], new string[0], null, null);
+            // D-N173: Sagunto ya no tiene helipuerto ni NH90 de salida; el aire sale del aerodromo de Betera (AerodromoZona)
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-nh90sagunto") >= 0) MakeVeh("NH90", "nh90", "SM_NH90_LOD1", new Vector2(180f, 44f), 270f, true, new string[0], new string[0], null, null);
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-vehfuego") >= 0) foreach (var vf in _vehs) vf.Fire = true;   // prueba de techo (Sara): fuego libre desde el principio
         }
 
@@ -67,7 +68,7 @@ namespace TBD.View
         void RegisterVehs()
         {
             var L = NightRun.Vehs; while (L.Count < _vehs.Count) L.Add(new NightRun.VehInfo());
-            for (int i = 0; i < _vehs.Count; i++) { var v = _vehs[i]; var r = L[i]; r.Name = v.Name; r.Tipo = v.Heli ? "helicoptero" : v.Name.StartsWith("Drag") ? "dragon" : "vamtac"; r.Vivo = v.Go != null; }
+            for (int i = 0; i < _vehs.Count; i++) { var v = _vehs[i]; var r = L[i]; r.Name = v.Name; r.Tipo = v.Heli ? "helicoptero" : v.Name.StartsWith("Drag") ? "dragon" : "vamtac"; r.Vivo = v.Go != null; if (v.Go != null && v.Go.activeSelf == r.Embarcado) v.Go.SetActive(!r.Embarcado); }   // embarcado en el tren: oculto en la zona sin quitarlo de la lista (Iker)
         }
         void VehiclesTick(NativeSnapshot z)
         {

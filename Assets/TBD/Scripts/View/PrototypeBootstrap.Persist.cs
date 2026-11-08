@@ -22,7 +22,7 @@ namespace TBD.View
         public NightGame Ng; public UnitsWorld Uw; public NightSim Sim; public Dictionary<int, string> PName = new Dictionary<int, string>();
         public float WallHp, WallMax; public int Kills, Lost, ShotsSpent, SpawnedTotal, Resupplies, LastWave, WaveTotal;
         public NightBot Bot; public NightTraceRecorder Rec; public StringBuilder FullTrace;
-        public bool Away; public NightClock Clock;
+        public bool Away, Reported; public NightClock Clock;
     }
 
     /// <summary>Reloj de la noche mientras la zona no esta en pantalla: 30 Hz fijos, mismo ritmo que la zona.</summary>
@@ -107,7 +107,7 @@ namespace TBD.View
             if (s.Clock != null) Destroy(s.Clock.gameObject);
             s.Clock = null; s.Away = false; s.Sim = null;
             Debug.Log($"[NOCHE] vuelvo a la zona (tick {_ng.Tick}): {pts.Count} zombis recreados, hora {_ng.Hour:00}:{_ng.Minute:00}, muro {_ng.WallPermil}‰, estado {_ng.State}");
-            if (_ng.State != NightState.Jugando) NightEnded();
+            bool reportado = s.Reported; if (_ng.State != NightState.Jugando && !reportado) NightEnded(); else if (_ng.State == NightState.Victoria) _reportClosed = true;   // D-N170: el parte sale una sola vez
         }
 
         /// <summary>La noche acaba o se reinicia: se borra la sesion y el reloj de fondo.</summary>
