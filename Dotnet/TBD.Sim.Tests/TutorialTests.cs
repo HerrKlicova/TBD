@@ -107,22 +107,56 @@ namespace TBD.Sim.Tests
                 mapa = true; ms.Avanzar(0.1f); check(ms.Actual.Id == "3.3", "con el mapa ya abierto, la 3.2 se cierra sola aunque la señal llegara antes");
             }
 
-            // --- capítulo 3: el 3.11 espera a que el tren llegue a Nules
-            var m4 = TutorialGuion.Nuevo(new MemoriaEnRam()); m4.Arrancar(850);
-            while (m4.Actual != null && m4.Actual.Id != "3.10") { var p = m4.Actual; if (p.Cierre == Cierre.Segundos) Run1(m4, p.Segundos); else foreach (var s in p.Senales) m4.Senal(s); }
-            check(m4.Cabecera == "Capítulo 3 · Paso 10 de 13" && !m4.PideHordaEnEspera, "3.10: «Capítulo 3 · Paso 10 de 13» y sin horda en espera (no hay combate)");
-            Run1(m4, 5);
-            check(m4.Actual.Id == "3.11" && !m4.Visible && m4.Texto == null, "3.11 no sale hasta que el tren llega");
-            m4.Senal(TutorialGuion.Senales.PanelNulesAbierto);
-            check(m4.Actual.Id == "3.11", "abrir Nules antes de que llegue el tren no cierra el 3.11");
-            m4.Senal(TutorialGuion.Senales.TrenEnNules);
-            check(m4.Visible && m4.Actual.Id == "3.11", "con el tren en Nules sale el 3.11");
-            m4.Senal(TutorialGuion.Senales.PanelNulesAbierto);
-            check(m4.Actual.Id == "3.12", "y se cierra al abrir el panel de Nules");
-            // 3.7 se cierra también con «Sin apoyo»
-            var m5 = TutorialGuion.Nuevo(new MemoriaEnRam()); m5.Arrancar(850);
-            while (m5.Actual.Id != "3.7") { var p = m5.Actual; if (p.Cierre == Cierre.Segundos) Run1(m5, p.Segundos); else foreach (var s in p.Senales) m5.Senal(s); }
-            m5.Senal(TutorialGuion.Senales.SinApoyo); check(m5.Actual.Id == "3.8", "3.7 se cierra con «Sin apoyo»");
+            // --- capítulo 3 (D-N172): refuerzos de Nules. «{eta}» lo rellena la vista; el 3.12 espera al tren; si Sagunto está sitiada sale el 3.12b
+            {
+                Action<TutorialMotor, string> Hasta = (mm, id) => { while (mm.Actual != null && mm.Actual.Id != id) { var p = mm.Actual; if (!mm.Visible) { mm.Senal(p.Espera); continue; } if (p.Cierre == Cierre.Segundos) Run1(mm, p.Segundos); else foreach (var x in p.Senales) { mm.Senal(x); if (mm.Actual != p) break; } } };
+                var m4 = TutorialGuion.Nuevo(new MemoriaEnRam()); m4.Arrancar(850);
+                Hasta(m4, "3.1");
+                check(m4.Texto.StartsWith("El radar ve lo que viene esta noche") && Array.IndexOf(m4.Resalta, TutorialGuion.Resaltes.AvisoRadar) >= 0, "3.1 abre el capítulo con el aviso de radar resaltado");
+                Hasta(m4, "3.7");
+                m4.Senal(TutorialGuion.Senales.SinCarga); check(m4.Actual.Id == "3.8", "3.7 se cierra con «Sin carga»");
+                Hasta(m4, "3.10");
+                check(m4.Cabecera == "Capítulo 3 · Paso 10 de 13" && !m4.PideHordaEnEspera, "3.10: «Capítulo 3 · Paso 10 de 13» y sin horda en espera");
+                Run1(m4, 5.2f);
+                m4.Relleno = t => t.Replace("{eta}", "0:12");
+                check(m4.Actual.Id == "3.11" && m4.Texto.EndsWith("Los refuerzos llegan en 0:12."), "3.11 escribe el ETA real en lugar de «0:xx»");
+                m4.Senal(TutorialGuion.Senales.VueltaZona);
+                check(m4.Actual.Id == "3.12" && !m4.Visible, "3.12 no sale hasta que entra el tren");
+                m4.Senal(TutorialGuion.Senales.TrenEnSagunto);
+                check(m4.Visible && m4.Actual.Id == "3.12" && m4.Texto == "Ya están aquí. Descarga los refuerzos.", "con el tren en Sagunto sale el 3.12");
+                m4.Senal(TutorialGuion.Senales.RefuerzosEnTierra); check(m4.Actual.Id == "3.13", "refuerzos en tierra: 3.13");
+                m4.Senal(TutorialGuion.Senales.OrdenMover); check(m4.Estado == EstadoTutorial.Terminado, "3.13 acaba el tutorial con la orden de mover");
+                // 3.12b: Sagunto sitiada cuando entra el tren
+                var m5 = TutorialGuion.Nuevo(new MemoriaEnRam()); m5.Arrancar(850); bool sitiada = false;
+                m5.EstadoActual = x => x == TutorialGuion.Senales.SaguntoSitiada && sitiada;
+                Hasta(m5, "3.12"); check(!m5.Visible, "3.12 espera al tren (con asedio también)");
+                sitiada = true; m5.Senal(TutorialGuion.Senales.TrenEnSagunto);
+                check(m5.Actual.Id == "3.12b" && m5.Texto.StartsWith("Llegan tarde") && m5.Cabecera == "Capítulo 3 · Paso 12 de 13", "con Sagunto sitiada sale el 3.12b en lugar del 3.12");
+                m5.Senal(TutorialGuion.Senales.RefuerzosEnTierra); check(m5.Actual.Id == "3.12b", "el 3.12b no se cierra con «refuerzos en tierra»");
+                m5.Senal(TutorialGuion.Senales.TropaEnTierra); check(m5.Actual.Id == "3.13", "se cierra con la tropa en tierra (D-N166)");
+            }
+
+            // --- destacamento de Nules (D-N172) sobre la red: tren parado en Nules, embarque, viaje a Sagunto y descarga en casa
+            {
+                var w = NetScenario.Mvp(); w.DirectorEnabled = false;
+                int sag = TrenPreparar.Nodo(w, "Sagunto"), nul = TrenPreparar.Nodo(w, "Nules");
+                int n0 = w.Services.Count, sv = Destacamento.SembrarTren(w);
+                check(sv == n0 && Destacamento.SembrarTren(w) == sv && w.Services[sv].Train.Name.EndsWith("Nules"), "se crea un tren parado en Nules (una vez)");
+                check(TrenPreparar.TrenEn(w, nul) == sv, "TrenEn lo encuentra en Nules");
+                const int Pel = 77, Veh = 4;
+                check(w.LoadBlockReason(sv, PasajeroTipo.Peloton, Pel, nul) != null, "un pelotón que no es del destacamento no sube en Nules (está en Sagunto)");
+                Destacamento.Registrar(w, Pel, Veh); Destacamento.Registrar(w, Pel, Veh);
+                check(w.Embarque.AtStation(nul, PasajeroTipo.Peloton).Count == 1 && w.Embarque.AtStation(nul, PasajeroTipo.Vehiculo).Count == 1, "el destacamento está en Nules (un pelotón y un vehículo, sin duplicar)");
+                check(w.LoadBlockReason(sv, PasajeroTipo.Peloton, Pel, nul) == null && w.LoadPassenger(sv, PasajeroTipo.Peloton, Pel, nul) && w.LoadPassenger(sv, PasajeroTipo.Vehiculo, Veh, nul), "el pelotón y el Lince suben al tren de Nules");
+                var carga = new int[NetConst.ResCount]; carga[(int)Res.Materiales] = 20; w.Stock[nul, (int)Res.Materiales] = Math.Max(w.Stock[nul, (int)Res.Materiales], 20);
+                check(w.SetSchedule(sv, TrenPreparar.Envio(w, sv, sag, carga)) == ScheduleResult.Ok, "Preparar tren desde Nules: horario a Sagunto válido");
+                long eta = TrenPreparar.EtaDesdeParada(w, sv, sag);
+                long t0 = w.Tick; bool salio = false; var s = w.Services[sv];
+                while (w.Tick - t0 < NetConst.DayTicks / 2) { w.Step(); if (!s.AtStop) salio = true; if (salio && s.AtStop) break; }
+                check(salio && s.AtStop && s.Stops[s.StopIndex].Node == sag && s.Cargo[(int)Res.Materiales] == 20, $"llega a Sagunto con los materiales ({TrenPreparar.HhMm(w.Tick - t0)}, ETA {TrenPreparar.HhMm(eta)})");
+                check(w.SetSchedule(sv, TrenPreparar.Aparcar(w, sv)) == ScheduleResult.Ok, "se aparca en Sagunto");
+                check(w.UnloadPassengers(sv, sag) == 2 && w.Embarque.Aboard(sv, PasajeroTipo.Peloton).Count == 0 && w.Embarque.Find(PasajeroTipo.Peloton, Pel) < 0, "en casa bajan los dos y salen de la lista (son tropa de Sagunto)");
+            }
 
             // --- tarjeta suelta del C90: una vez, y solo con el tutorial en marcha
             var memc = new MemoriaEnRam(); var mc = TutorialGuion.Nuevo(memc); mc.Arrancar(850); mc.Senal(TutorialGuion.Senales.Empezar);
