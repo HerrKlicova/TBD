@@ -42,6 +42,7 @@ namespace TBD.Sim.Tests
             // D-N165 (8-nov): TBD_PIEZAS=sagunto carga los tramos con las piezas reales de Works.Snapshot(Sagunto) de NetWorld.Mvp(); TBD_VIDA_U = vida por u (A 10000, B 13010)
             bool piezas = Environment.GetEnvironmentVariable("TBD_PIEZAS") == "sagunto"; int vidaU = 10000; int.TryParse(Environment.GetEnvironmentVariable("TBD_VIDA_U") ?? "10000", out vidaU);
             var sagPieces = piezas ? SaguntoPieces(vidaU) : null;
+            int guard = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_GUARDIA") ?? "0", out guard);   // D-N168: pelotones de combate que se quedan dentro, junto al tren (el NightBot no los mueve)
             int spread = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_EMPUJE") ?? "0", out spread);   // D-N165 (b): PileSpreadPermil
             if (piezas) { long tot = 0; foreach (var q in sagPieces) tot += q.HpMax; Console.WriteLine($"# tramos de Works.Snapshot(Sagunto): {sagPieces.Count}, vida total {tot} a {vidaU} por u"); tramos = true; }
             Console.WriteLine("dificultad;vehiculos;partidas;victorias;municion_p10_u;muro_medio_pct;pila_max_media;abatidos_vehiculos_medio;recargas_vehiculos_medio;municion_final_media_u;bajas_medias;derrotas_tren;derrotas_estacion;tren_final_medio_pct;estacion_final_media_pct;trepan_medio;muro_p50_pct;sin_acabar;con_brecha;brecha_min_p50;brecha_hora_p50;brecha_tramo_moda;brecha_tramo_moda_n;reparados_medio;reconstruidos_medio;vida_reparada_media;tren_cae_min_p50;pila_max_p50;pila_max_p90;al_tren_pico_medio;al_tren_distintos_p50;nh90_vueltas_medio");
@@ -52,7 +53,7 @@ namespace TBD.Sim.Tests
                     for (int i = 0; i < n; i++)
                     {
                         var sim = NightSim.FromJson(json, dif, (uint)(i + 1 + seed0)); _clk = sim.Night.P.ClockX; if (climb >= 0) sim.SP.ClimbPileZ = climb; if (climbR >= 0) sim.SP.ClimbPermilS = climbR; if (climbMax >= 0) sim.ClimbMaxPerS = climbMax; if (trainX0 > 0) { var tp = sim.Night.P; tp.TrainRect = new RectMm(trainX0, tp.TrainRect.Y0, trainX0 + 64000, tp.TrainRect.Y1); sim.Night.P = tp; }
-                        sim.TargetRadiusMm = tgtM * 1000; if (zoneForce) sim.AddZoneForce(); else sim.AddDefaultForce(); if (veh) sim.AddDefaultVehicles(true); if (noBot) sim.AutoPlatoonResupply = true; else sim.Bot = NightBot.FromParams(sim.SP); if (tramos) { if (sagPieces != null) sim.EnableSegments(sagPieces); else sim.EnableSegments(); sim.AutoRepair = repairOn; sim.PileSpreadPermil = spread; }
+                        sim.TargetRadiusMm = tgtM * 1000; if (zoneForce) sim.AddZoneForce(); else sim.AddDefaultForce(); if (veh) sim.AddDefaultVehicles(true); if (noBot) sim.AutoPlatoonResupply = true; else sim.Bot = NightBot.FromParams(sim.SP); if (guard > 0 && sim.Bot != null) GuardTrain(sim, guard); if (tramos) { if (sagPieces != null) sim.EnableSegments(sagPieces); else sim.EnableSegments(); sim.AutoRepair = repairOn; sim.PileSpreadPermil = spread; }
                         int brk = -1, brkSeg = -1;
                         while (sim.Night.State == NightState.Jugando && sim.Night.Tick < sim.TickCap)
                         {
@@ -116,6 +117,20 @@ namespace TBD.Sim.Tests
             }
             Console.WriteLine($"climb_r;tope;partidas;victorias;entran_2235_p50;entran_2255_p50;tren_cae_n;tren_cae_hora_p50;pila_max_p50");
             Console.WriteLine($"{r};{cap};{n};{wins};{Median(a35)};{Median(a55)};{fall.Count};{BreachHour(fall)};{Median(piles)}");
+        }
+
+        /// <summary>D-N168: los «k» primeros pelotones de combate (ametralladores, granaderos, tiradores, fusileros) van junto al tren, por el norte (y = tren + 2,5 m),
+        /// repartidos a lo largo, y el NightBot no los mueve (Busy). Disparan y recargan como los demás.</summary>
+        static void GuardTrain(NightSim sim, int k)
+        {
+            var order = new[] { PlatoonKind.Ametralladores, PlatoonKind.Granaderos, PlatoonKind.Tiradores, PlatoonKind.Fusileros };
+            var tr = sim.Night.P.TrainRect; int n = 0;
+            foreach (var kind in order)
+            {
+                if (n >= k) break; var p = sim.Units.Platoons.Find(q => q.Kind == kind); if (p == null) continue;
+                int x = tr.X0 + (int)((long)(tr.X1 - tr.X0) * (2 * n + 1) / (2 * Math.Max(1, k))), y = tr.Y1 + 2500;
+                sim.Units.Move(p.Id, x, y); sim.Bot.Busy.Add(p.Id); n++;
+            }
         }
 
         static int P90(List<int> v) { if (v.Count == 0) return 0; v.Sort(); return v[Math.Min(v.Count - 1, v.Count * 9 / 10)]; }
