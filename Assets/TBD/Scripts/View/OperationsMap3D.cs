@@ -607,6 +607,7 @@ namespace TBD.View
             var kb = Keyboard.current;
             var mouse = Mouse.current;
             if (kb == null) return;
+            HandleInputInforme(kb);                                  // D-N160: pantalla del informe V1 (Tab abre y cierra, Esc cierra)
             HandleInputApp6(kb);                                     // D-N160: capa APP-6 del informe (tecla I)
             if (kb.spaceKey.wasPressedThisFrame) Push(_a.Paused ? NetCmdType.Resume : NetCmdType.Pause, 0, 0);
             if (kb.digit1Key.wasPressedThisFrame) Push(NetCmdType.SetSpeed, 1, 0);
@@ -717,6 +718,13 @@ namespace TBD.View
                 if (se != null) GUI.Label(new Rect(sp.x - 30, Screen.height - sp.y - 26 + _small.fontSize * 1.2f, 260, _small.fontSize * 2.2f), "<color=#E08C30>" + se + "</color>", _small);
             }
 
+            if (_informeOn)                                          // D-N160: pantalla del informe V1 (OperationsMap3D.InformeV1.cs); tapa el panel de avisos, la carga y el informe pequeño
+            {
+                SonarAvisos(_a.UndefendedWarnings());                // los avisos siguen sonando con el informe abierto
+                DrawInformeV1();
+                NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart);
+                return;
+            }
             float pw = Mathf.Min(460, Screen.width * 0.38f);
             float h = _small.fontSize * 14f;
             GUI.Box(new Rect(8, 8, pw, h), GUIContent.none, _panel);
@@ -750,7 +758,7 @@ namespace TBD.View
             DrawCargo(pw);
             DrawIntel();
             GUI.Label(new Rect(16, Screen.height - _small.fontSize * 2.4f, Screen.width, 30),
-                "WASD mover · Q E girar · R F inclinar · rueda zoom (a menos de 2 km de una estación se entra en la zona) · J ir a la alerta · I símbolos APP-6 · Espacio pausa · 1/2/3 velocidad · F8 emboscada de prueba · Intro entrar en la emboscada · F9 captura", _small);
+                "WASD mover · Q E girar · R F inclinar · rueda zoom (a menos de 2 km de una estación se entra en la zona) · J ir a la alerta · Tab informe · I símbolos APP-6 · Espacio pausa · 1/2/3 velocidad · F8 emboscada de prueba · Intro entrar en la emboscada · F9 captura", _small);
             NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart);
         }
 
@@ -810,7 +818,8 @@ namespace TBD.View
             float h = _small.fontSize * (2.2f + n * 1.6f + (_app6On ? 1.6f : 0f));
             float x = Screen.width - w - 8, y = 8;
             GUI.Box(new Rect(x, y, w, h), GUIContent.none, _panel);
-            GUI.Label(new Rect(x + 10, y + 4, w, 30), "<b>INFORME DE INTELIGENCIA</b>" + (n == 0 ? "  <color=#808080>sin novedades</color>" : ""), _small);
+            if (GUI.Button(new Rect(x, y, w, h), GUIContent.none, GUIStyle.none)) AbrirInforme(true);     // un clic abre el informe completo (V1)
+            GUI.Label(new Rect(x + 10, y + 4, w, 30), "<b>INFORME DE INTELIGENCIA</b> <color=#808080>(Tab)</color>" + (n == 0 ? "  <color=#808080>sin novedades</color>" : ""), _small);
             y += _small.fontSize * 1.8f;
             for (int i = _a.Intel.Count - n; i < _a.Intel.Count; i++)
             {
