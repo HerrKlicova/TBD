@@ -428,9 +428,21 @@ namespace TBD.View
                 return;
             }
             var c = new Vector3(_focus.x, 0, _focus.z);
+            // el parche se calcula en segundo plano (pintar 512² téxeles tarda ~0,6–1 s): mientras, se queda el anterior (o el terreno grueso)
+            if (_detailJob != null)
+            {
+                if (!_detailJob.IsCompleted) return;
+                var job = _detailJob; _detailJob = null;
+                if (job.Status == System.Threading.Tasks.TaskStatus.RanToCompletion) AplicarDetalle(job.Result);
+                else Debug.LogWarning("[MAPA] el parche de detalle falló: " + job.Exception?.GetBaseException().Message);
+                return;
+            }
             if (_detail != null && _detail.activeSelf && (c - _detailCenter).magnitude < DetailSizeKm * 0.25f) return;
-            BuildDetail(c);
+            _detailJob = System.Threading.Tasks.Task.Run(() => CalcularDetalle(c));
         }
+
+        System.Threading.Tasks.Task<Detalle> _detailJob;
+        sealed class Detalle { public Vector3 Centro; public Vector3[] Verts; public Vector2[] Uvs; public Color32[] Cols; }
 
         /// <summary>La mancha de horda también de cerca (Lucía: al volver de una zona a 2,5 km tiene que verse alrededor de la estación).</summary>
         void UpdateDetailTexture()
@@ -481,12 +493,15 @@ namespace TBD.View
         }
 
         /// <summary>Téxeles del parche de detalle (Bruno: 512 = 23 m por téxel; si se nota el tirón al rehacerlo, 384). UltimoParcheMs mide lo que tarda.</summary>
-        const int DetailTW = 384;
+        const int DetailTW = 512;
         public static double UltimoParcheMs;
 
-        void BuildDetail(Vector3 center)
+        /// <summary>Síncrono (capturas por lotes): calcula y aplica en el acto.</summary>
+        void BuildDetail(Vector3 center) { AplicarDetalle(CalcularDetalle(center)); }
+
+        /// <summary>Solo datos, sin API de Unity: se puede llamar fuera del hilo principal (relieve, terreno grueso y grafo son de solo lectura).</summary>
+        Detalle CalcularDetalle(Vector3 center)
         {
-            _detailCenter = center;
             float half = DetailSizeKm * 0.5f;
             var verts = new Vector3[DetailN * DetailN];
             var uvs = new Vector2[DetailN * DetailN];
@@ -510,6 +525,15 @@ namespace TBD.View
             double dmx = DetailSizeKm / MapGeo.KmPerUnit / (TW - 1);
             cols = MapaTactico.Pintar(_relief, _a.Graph, MinX + (center.x - half) / MapGeo.KmPerUnit, dmx, MaxY - (center.z - half) / MapGeo.KmPerUnit, -dmx, TW, TW, true);
             UltimoParcheMs = sw.Elapsed.TotalMilliseconds;
+            return new Detalle { Centro = center, Verts = verts, Uvs = uvs, Cols = cols };
+        }
+
+        void AplicarDetalle(Detalle dt)
+        {
+            const int TW = DetailTW;
+            var center = dt.Centro; var verts = dt.Verts; var uvs = dt.Uvs; var cols = dt.Cols;
+            _detailCenter = center;
+            float half = DetailSizeKm * 0.5f;
             if (_detail == null)
             {
                 var tris = new int[(DetailN - 1) * (DetailN - 1) * 6];

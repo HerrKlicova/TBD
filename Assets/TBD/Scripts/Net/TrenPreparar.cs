@@ -131,13 +131,13 @@ namespace TBD.Net
 
     /// <summary>
     /// Carga visible de Teo sobre las plataformas Rgs (carga-vagones, aprobada por Lucía): un módulo por recurso, hijo del vagón en (0; 1,25; 0) y sin giro.
-    /// Lleno a partir de 2/3 de la capacidad, Mitad a partir de 1/3 y Vacío por debajo; Dañado y Destrozado según la vida del vagón (umbrales SUPUESTOS: por
-    /// debajo del 70 % y del 30 %). La tropa no lleva módulo (es el vagón R2). Capacidad de referencia por plataforma SUPUESTA en 30 u hasta que la fije Hugo.
+    /// Lleno a partir de 2/3 de la capacidad, Mitad a partir de 1/3 y Vacío por debajo; Dañado y Destrozado según la vida del vagón (por debajo del 70 % y del 30 %,
+    /// validados por Hugo). La tropa no lleva módulo (es el vagón R2). Capacidad por plataforma: 20 u (sim_economia de Hugo), así que la carga del objetivo de Nules llena justo una.
     /// </summary>
     public static class CargaVisible
     {
         public static readonly string[] Recurso = { "Municion", "Combustible", "Materiales", null, "Viveres" };
-        public const int CapacidadRefU = 30, DanadoPm = 700, DestrozadoPm = 300;
+        public const int CapacidadRefU = 20, DanadoPm = 700, DestrozadoPm = 300;     // Hugo: 20 u por plataforma (100 u por tren); umbrales validados
 
         public static string Estado(int u, int capacidad, int vidaPm = 1000)
         {

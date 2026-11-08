@@ -17,15 +17,17 @@ namespace TBD.View
     ///   - las carreteras (PROTOTIPO, como el relieve: no son datos reales), paralelas a la vía, en 6c7874.
     /// El terreno no usa colores de la horda (1c200c, 442c0c ni la banda L* 9–13) ni ámbar: 1c200c es solo la mancha de horda,
     /// y el rojo 982420, solo donde la horda ataca un nodo o un tren (Lucía, 8-nov).
-    /// Rendimiento: las alturas se muestrean una vez por téxel (con un borde de 1), no cinco.
+    /// Rendimiento: de cerca, las alturas se muestrean cada 2 téxeles y se interpolan; tramos y nodos se filtran por el parche.
     /// </summary>
     public static class MapaTactico
     {
         static readonly Color32 Navy = Hex(0x181c30), Sombra = Hex(0x303424), GrisPardo = Hex(0x48403c), OlivaGris = Hex(0x605c48),
             Hormigon = Hex(0x6c7874), HormigonClaro = Hex(0x94948c), OlivaOscuro = Hex(0x50541c), OlivaClaro = Hex(0x88885c),
             Rojo = Hex(0x982420), Vino = Hex(0x642030);
-        static readonly Color32[] Bandas = { Sombra, GrisPardo, OlivaGris, Hormigon, HormigonClaro };
-        static readonly double[] Cortes = { 150, 500, 1000, 1500 };                   // m: límites entre bandas
+        // Relleno solo en tres valores oscuros (Iker, 8-nov: de lejos, 6c7874 y 94948c salían muy claros en la meseta). El 6c7874 queda
+        // para las curvas maestras; el 94948c, para la costa.
+        static readonly Color32[] Bandas = { Sombra, GrisPardo, OlivaGris };
+        static readonly double[] Cortes = { 200, 800 };                               // m: límites entre bandas
         static readonly int[,] Bayer = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 } };
 
         static Color32 Hex(int h) { return new Color32((byte)(h >> 16), (byte)(h >> 8), (byte)h, 255); }
@@ -51,10 +53,36 @@ namespace TBD.View
         /// </summary>
         public static Color32[] Pintar(IElevationSource rel, RailGraph g, double mx0, double dmx, double my0, double dmy, int w, int h, bool detalle)
         {
+            // Alturas: de cerca se muestrean cada 2 téxeles y se interpolan (el relieve es suave a esa escala): 4 veces menos HeightM.
+            int s = detalle ? 2 : 1, gw = (w + 1) / s + 3, gh = (h + 1) / s + 3;
+            var G = new double[gw * gh];
+            for (int j = 0; j < gh; j++)
+                for (int i = 0; i < gw; i++)
+                    G[j * gw + i] = rel.HeightM(mx0 + (i * s - 1) * dmx, my0 + (j * s - 1) * dmy);
             var H = new double[(w + 2) * (h + 2)];
             for (int y = -1; y <= h; y++)
                 for (int x = -1; x <= w; x++)
-                    H[(y + 1) * (w + 2) + (x + 1)] = rel.HeightM(mx0 + x * dmx, my0 + y * dmy);
+                {
+                    int i0 = (x + 1) / s, j0 = (y + 1) / s; double fx = ((x + 1) - i0 * s) / (double)s, fy = ((y + 1) - j0 * s) / (double)s;
+                    double a = G[j0 * gw + i0], b = G[j0 * gw + i0 + 1], c = G[(j0 + 1) * gw + i0], d = G[(j0 + 1) * gw + i0 + 1];
+                    H[(y + 1) * (w + 2) + (x + 1)] = (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy;
+                }
+            // Solo los tramos y los nodos que tocan el parche (de cerca, casi siempre uno o dos de cada).
+            double xMin = Math.Min(mx0, mx0 + (w - 1) * dmx), xMax = Math.Max(mx0, mx0 + (w - 1) * dmx);
+            double yMin = Math.Min(my0, my0 + (h - 1) * dmy), yMax = Math.Max(my0, my0 + (h - 1) * dmy);
+            var tramos = new System.Collections.Generic.List<RailEdge>(); var nodos = new System.Collections.Generic.List<RailNode>();
+            foreach (var e in g.Edges)
+            {
+                var A = g.Nodes[e.A]; var B = g.Nodes[e.B]; double m = 0.5;                      // 0,5 u = 1,75 km de margen (desvío y curva)
+                if (Math.Max(A.XMeters, B.XMeters) + m < xMin || Math.Min(A.XMeters, B.XMeters) - m > xMax || Math.Max(A.YMeters, B.YMeters) + m < yMin || Math.Min(A.YMeters, B.YMeters) - m > yMax) continue;
+                tramos.Add(e);
+            }
+            foreach (var n in g.Nodes)
+            {
+                double m = RadioPueblo(n.Name) * 1.25 / (MapGeo.KmPerUnit * 1000);
+                if (n.XMeters + m < xMin || n.XMeters - m > xMax || n.YMeters + m < yMin || n.YMeters - m > yMax) continue;
+                nodos.Add(n);
+            }
             double mTx = Math.Abs(dmx) * MapGeo.KmPerUnit * 1000.0, mTy = Math.Abs(dmy) * MapGeo.KmPerUnit * 1000.0;   // metros por téxel
             double paso = detalle ? 50 : 200, pasoFuerte = detalle ? 250 : 1000;
             var o = new Color32[w * h];
@@ -88,7 +116,7 @@ namespace TBD.View
                     if (Math.Floor(hc / paso) != Math.Floor(hE / paso) || Math.Floor(hc / paso) != Math.Floor(hS / paso))
                     {
                         bool fuerte = Math.Floor(hc / pasoFuerte) != Math.Floor(hE / pasoFuerte) || Math.Floor(hc / pasoFuerte) != Math.Floor(hS / pasoFuerte);
-                        if (fuerte || pend < 0.5) c = fuerte ? Bandas[Math.Min(k + 2, Bandas.Length - 1)] : Bandas[Math.Min(k + 1, Bandas.Length - 1)];
+                        if (fuerte || pend < 0.5) c = fuerte ? Hormigon : Bandas[Math.Min(k + 1, Bandas.Length - 1)];
                     }
                     double pxm = mx * MapGeo.KmPerUnit * 1000, pym = my * MapGeo.KmPerUnit * 1000;    // metros
                     // huerta del llano litoral (de cerca): parcelas de 220–480 x 260 m con lindes oscuras
@@ -103,7 +131,7 @@ namespace TBD.View
                     }
                     // carreteras (PROTOTIPO): una por tramo de vía, a 600 m hacia el mar y con una curva suave
                     double dCar = double.MaxValue;
-                    foreach (var e in g.Edges)
+                    foreach (var e in tramos)
                     {
                         var A = g.Nodes[e.A]; var B = g.Nodes[e.B];
                         double ax = A.XMeters + 600 / 3500.0, bx = B.XMeters + 600 / 3500.0;
@@ -117,7 +145,7 @@ namespace TBD.View
                     }
                     if (dCar < Math.Max(mTx, 18) * 0.8) c = Hormigon;
                     // pueblos: casco con borde irregular, manzanas de 70–110 m y calles de un téxel
-                    foreach (var n in g.Nodes)
+                    foreach (var n in nodos)
                     {
                         double dx = (mx - n.XMeters) * MapGeo.KmPerUnit * 1000, dy = (my - n.YMeters) * MapGeo.KmPerUnit * 1000;
                         double r = RadioPueblo(n.Name), d = Math.Sqrt(dx * dx + dy * dy);
