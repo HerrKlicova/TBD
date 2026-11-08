@@ -95,8 +95,22 @@ namespace TBD.View
             B.Push(c);
         }
 
+        // QA (Sara, reloj x103): el aviso «Horda en 3 h» debe durar 105 s +-2 entre que se anuncia y que empieza el asedio; se escribe en el log con realtimeSinceStartup
+        readonly System.Collections.Generic.Dictionary<long, float> _avisoT = new System.Collections.Generic.Dictionary<long, float>(); readonly System.Collections.Generic.HashSet<long> _asedioIniciado = new System.Collections.Generic.HashSet<long>();
+        void AvisoLog()
+        {
+            if (A == null || A.Director == null) return;
+            foreach (var pl in A.Director.Active)
+            {
+                if (pl.Kind != HiveDirector.PlanKind.Asedio) continue; long key = pl.StartTick * 1000L + pl.Node;
+                if (!_avisoT.ContainsKey(key)) { _avisoT[key] = Time.realtimeSinceStartup; Debug.Log($"[AVISO] Horda en 3 h anunciada: nodo {pl.Node}, tick {A.Tick}, empieza en el tick {pl.StartTick}, t = {Time.realtimeSinceStartup:0.0} s"); }
+                if (pl.Started && _asedioIniciado.Add(key)) Debug.Log($"[AVISO] asedio EMPIEZA: nodo {pl.Node}, tick {A.Tick}, t = {Time.realtimeSinceStartup:0.0} s, avisado hace {Time.realtimeSinceStartup - _avisoT[key]:0.0} s reales");
+            }
+        }
+
         void Update()
         {
+            AvisoLog();
             var kb5 = UnityEngine.InputSystem.Keyboard.current;
             if (kb5 != null && kb5.f5Key.wasPressedThisFrame) { bool ok = SaveGame(); Debug.Log(ok ? "[TBD] Partida guardada en " + SavePath : "[TBD] No hay partida que guardar"); }   // F5: guardado rapido
             _acc += Mathf.Min(Time.unscaledDeltaTime, 0.25f);

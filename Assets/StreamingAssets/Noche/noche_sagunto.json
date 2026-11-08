@@ -4,7 +4,7 @@
   "hora_inicio": "22:00",
   "hora_fin": "06:00",
   "duracion_s_reales": 279,
-  "victoria": "al amanecer siguen en pie el edificio de viajeros y el tren",
+  "victoria": "acabar con la horda con el edificio de viajeros y el tren en pie (D-N164: el amanecer ya no da la victoria)",
   "derrota": "la horda destruye el edificio de viajeros o la locomotora",
   "entradas": {
     "O1": "vía",
@@ -16,7 +16,7 @@
   "escala_oleadas_permil": {
     "facil": 725,
     "normal": 850,
-    "dificil": 1115
+    "dificil": 985
   },
   "recursos_iniciales": {
     "municion_u": 47,
@@ -76,11 +76,11 @@
         "hora": "22:00",
         "minuto_juego": 0,
         "llegada_s_reales": 180,
-        "total": 7250,
+        "total": 6400,
         "por_entrada": {
-          "O1": 3625,
-          "O2": 2175,
-          "O3": 1450,
+          "O1": 3200,
+          "O2": 1920,
+          "O3": 1280,
           "O4": 0
         }
       }
