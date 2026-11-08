@@ -103,6 +103,7 @@ namespace TBD.View
             Debug.Log($"[NOCHE] reloj_x={_ng.P.ClockX} municion_u={_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.#} materiales_u=40 combustible_u=30 almacen_combustible_u=16");
             if (_sel.Count == 0 && _uw.Platoons.Count > 0) _sel.Add(_uw.Platoons[0].Id);
             InitVehicles(); Debug.Log($"[NOCHE] vehículos de {_estacionZona}: {_vehs.Count} ({string.Join(", ", _vehs.ConvertAll(v => v.Name))})");
+            NaBegin();                                                                   // [NOCHE-ARMAS]: u y dotación al empezar (solo vista)
             _rec = resume && NightRun.Session.Rec != null ? NightRun.Session.Rec : new NightTraceRecorder("zona", 1285, 9000, 30);
             if (resume && NightRun.Session.Bot != null) _bot = NightRun.Session.Bot;
             LosInit();   // D-N174: linea de vision (sagunto_obstaculos_v1.csv de Alvaro); -sinlos la apaga
@@ -235,7 +236,7 @@ namespace TBD.View
                 if (_wallMax <= 0f) _wallMax = _wallHp = Mathf.Max(1200000, NightSimParams.Default().WallHp);
                 _wallHp = Mathf.Max(0f, _wallHp - wallPile * (NightSimParams.Default().WallDmgPerZombieS / 30f)); _ng.WallPermil = Mathf.RoundToInt(1000f * _wallHp / _wallMax);
             }
-            if (_bot != null) _bot.Step(_uw, _tgt, _ng.Tick);                          // -nightbot: el bot de Nacho decide como el jugador (ordenes, recarga al 30 %)
+            if (_bot != null) { NaResupAntes(); _bot.Step(_uw, _tgt, _ng.Tick); NaResupDespues(); }                          // -nightbot: el bot de Nacho decide como el jugador (ordenes, recarga al 30 %)
             _res.Clear(); _uw.Step(_tgt, _res);
             _nightShotsSpent += _res.AmmoSpent;
             _contact.Clear(); _nightLost += _uw.ZombieContact(_tgt, 900, 2, _contact);
@@ -261,8 +262,12 @@ namespace TBD.View
                 _fullTrace.Append($"{_ng.Tick},{TimeStr()},{_ng.StationHp},{_ng.TrainHp},{(long)_wallHp},{_zomPos.Count},{_pileWall},{_nearTrain},{_pileNearStation},{_nightKills},{_nightLost},{_climbSec},{_entTot},{_entSide[0]},{_entSide[1]},{_entSide[2]},{_entSide[3]},{Mathf.RoundToInt(TrainXEcs())},{_ng.P.TrainRect.X0 / 1000},{_ng.P.TrainRect.X1 / 1000},{_ng.P.TrainRect.Y0 / 1000},{_ng.P.TrainRect.Y1 / 1000},{_trainIn},{_trainOut}" + (char)10); _climbSec = 0;
             }
             if (_uw.Tick % 15 == 0 && _uw.StockShots > 0)                                // reabastecimiento automatico: bajo el 30 % de su dotacion, del almacen (la T queda como recarga anticipada)
+            {
+                NaResupAntes();
                 foreach (var plr in _uw.Platoons) if (plr.AliveCount() > 0 && plr.AmmoCap > 0 && plr.AmmoShots * 100 < plr.AmmoCap * 30 && _uw.Resupply(plr.Id) > 0) _resupplies++;
-            VehiclesTick(default(NativeSnapshot)); if (_vehHits.Count > 0) { KillZombies(_vehHits); _vehHits.Clear(); }
+                NaResupDespues();
+            }
+            VehiclesTick(default(NativeSnapshot)); if (_vehHits.Count > 0) { KillZombies(_vehHits, true); _vehHits.Clear(); } _naVehHitOwner.Clear(); _naVehHitAtropello.Clear();
             if (_res.Hits.Count > 0) KillZombies(_res.Hits);
             for (int i = 0; i < _res.Shots.Count; i++) NightShotFx(_res.Shots[i]);
             for (int i = 0; i < _res.Blasts.Count; i++) { var b = _res.Blasts[i]; VfxBlast(new Vector3(b.X / 1000f, 0f, b.Y / 1000f), b.RadiusMm / 1000f, b.Weapon); }
@@ -370,8 +375,10 @@ namespace TBD.View
             }
         }
 
-        void KillZombies(List<TargetHit> hits)
+        readonly Dictionary<uint, Vector2> _naMuertos = new Dictionary<uint, Vector2>();
+        void KillZombies(List<TargetHit> hits, bool deVehiculos = false)
         {
+            _naMuertos.Clear();
             // (los sonidos 2D de impacto/caida/muerte se quitan: Nuria, zombi_caida 3D en KillZombies)
             _killSet.Clear(); for (int i = 0; i < hits.Count; i++) _killSet.Add((uint)hits[i].TargetId);
             foreach (var wld in new[] { _worldA, _worldB })
@@ -382,11 +389,12 @@ namespace TBD.View
                 {
                     var zs = q.ToComponentDataArray<Zombie>(Allocator.Temp); var es = q.ToEntityArray(Allocator.Temp);
                     for (int i = 0; i < zs.Length; i++)
-                        if (_killSet.Contains(zs[i].SimId)) { em.DestroyEntity(es[i]); if (wld == _worldA) { _nightKills++; BloodAt(zs[i].Pos); if (UnityEngine.Random.Range(0, 10) == 0) Sfx.PlayAt("zombi_caida", new Vector3(zs[i].Pos.x, 0.3f, zs[i].Pos.z), 0.3f, 0.25f); } }
+                        if (_killSet.Contains(zs[i].SimId)) { em.DestroyEntity(es[i]); if (wld == _worldA) { _nightKills++; _naMuertos[zs[i].SimId] = new Vector2(zs[i].Pos.x, zs[i].Pos.z); BloodAt(zs[i].Pos); if (UnityEngine.Random.Range(0, 10) == 0) Sfx.PlayAt("zombi_caida", new Vector3(zs[i].Pos.x, 0.3f, zs[i].Pos.z), 0.3f, 0.25f); } }
                     zs.Dispose(); es.Dispose();
                 }
             }
             for (int i = 0; i < hits.Count; i++) _uw.NoteKill(hits[i].Platoon);
+            NaAtribuir(hits, _naMuertos, deVehiculos);                                   // [NOCHE-ARMAS]: a quién se le cuenta cada abatido y si estaba en la pila
         }
 
         void NightEnded()
@@ -400,6 +408,7 @@ namespace TBD.View
             float left = a.StockShots / (float)WeaponCatalog.ShotsPerU;
             _endStationF = _ng.StationHp / (float)Mathf.Max(1, _ng.StationHpMax); _endTrainF = _ng.TrainHp / (float)Mathf.Max(1, _ng.TrainHpMax);   // el parte congela estas cifras: despues del amanecer la horda sigue y no debe vaciar la barra (Sara)
             Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 pila_max={_pilaMaxVista} recargas={_resupplies} desync={_desync} hora_fin={TimeStr()}");
+            NaLog();                                                                     // [NOCHE-ARMAS] (Sara, Hugo): pelotones, vehículos, almacén y dotación
             _endReason = win ? (_ng.WonByClear ? $"{TimeStr()}. Sagunto resiste.\nLa horda ha caído." : "06:00. Sagunto resiste.\nAmanece.") : _ng.DefeatHeadline();   // D-N136/D-N146
         }
         bool _endDismissed, _reportClosed;
@@ -587,8 +596,8 @@ namespace TBD.View
             if (kb.cKey.wasPressedThisFrame && _sel.Count > 0 && _selVeh == null) { _c90Aim = true; _c90Msg = "C90: elige el punto en el suelo (clic); Esc cancela"; _c90MsgUntil = Time.unscaledTime + 4f; }
             if (_c90Aim && kb.escapeKey.wasPressedThisFrame) { _c90Aim = false; _c90MsgUntil = 0f; }
             if (kb.gKey.wasPressedThisFrame) { _vehFire = !_vehFire; foreach (var vv in _vehs) vv.Fire = _vehFire; Debug.Log("[NOCHE] fuego de los vehiculos: " + (_vehFire ? "libre" : "alto el fuego")); }
-            if (kb.tKey.wasPressedThisFrame) { if (_selVeh != null) StartVehicleResupply(_selVeh); else foreach (var id in _sel) _uw.Resupply(id); }
-            if (kb.rKey.wasPressedThisFrame && kb.leftShiftKey.isPressed) foreach (var id in _sel) _uw.Resupply(id);
+            if (kb.tKey.wasPressedThisFrame) { if (_selVeh != null) StartVehicleResupply(_selVeh); else { NaResupAntes(); foreach (var id in _sel) _uw.Resupply(id); NaResupDespues(); } }
+            if (kb.rKey.wasPressedThisFrame && kb.leftShiftKey.isPressed) { NaResupAntes(); foreach (var id in _sel) _uw.Resupply(id); NaResupDespues(); }
             if (kb.escapeKey.wasPressedThisFrame && _ng != null && _ng.State == NightState.Jugando) _paused = !_paused;      // pausa (D-N137)
             { float zf = Mathf.Clamp01(_total / 3000f); }
             NightAudio();

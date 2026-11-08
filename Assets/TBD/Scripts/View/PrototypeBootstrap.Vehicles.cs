@@ -104,7 +104,7 @@ namespace TBD.View
             if (!near || v.Speed > 0.5f) { Debug.Log($"[NOCHE] recarga de {v.Name}: debe estar parado junto al {(v.Heli ? "helipuerto" : "tren")}"); return; }
             var spec = VehSpec(v); float u = spec.ResupplyMilliU / 1000f * (1f - v.Ammo); long cost = (long)(u * WeaponCatalog.ShotsPerU);   // coste y tiempo de NightVehicle (nightsim_params.json de Hugo, D-N128)
             if (_uw.StockShots < cost) { Debug.Log($"[NOCHE] recarga de {v.Name}: falta municion en el almacen"); return; }
-            _uw.StockShots -= (int)cost; v.ResupU = u; v.ResupT = _ng.Tick + spec.ResupplyTicks; Sfx.Play("sfx_ui_clic", 0.6f);
+            _uw.StockShots -= (int)cost; NaVehRecarga(v, (int)cost / (float)WeaponCatalog.ShotsPerU); v.ResupU = u; v.ResupT = _ng.Tick + spec.ResupplyTicks; Sfx.Play("sfx_ui_clic", 0.6f);
             Debug.Log($"[NOCHE] recarga de {v.Name}: {u:0.0} u del almacen, lista a las {TimeStr()} + {(v.Heli ? 30 : 20)} s");
         }
 
@@ -221,9 +221,9 @@ namespace TBD.View
             if (best < 0) return;
             v.TurretYaw = Mathf.MoveTowardsAngle(v.TurretYaw, Mathf.Atan2(_zomPos[best].x - v.Pos.x, _zomPos[best].y - v.Pos.y) * Mathf.Rad2Deg - (v.Heli ? 0f : v.Heading), 120f * dt);
             if (_ng != null && _ng.Tick < v.FireTick) return;                              // cadencia por ticks de la simulacion (no por tiempo de pantalla)
-            bool dragon = v.Name.StartsWith("Dragón"); var vs = VehSpec(v); v.FireTick = (_ng != null ? _ng.Tick : 0) + vs.PeriodTicks; v.Ammo -= 1f / Mathf.Max(1, vs.MaxShots);   // Dragon 1 salva/s (120 salvas), VAMTAC y NH90 ~3 disparos/s (300-400)
+            bool dragon = v.Name.StartsWith("Dragón"); var vs = VehSpec(v); v.FireTick = (_ng != null ? _ng.Tick : 0) + vs.PeriodTicks; v.Ammo -= 1f / Mathf.Max(1, vs.MaxShots); NaVehDisparo(v);   // Dragon 1 salva/s (120 salvas), VAMTAC y NH90 ~3 disparos/s (300-400)
             int kills = dragon ? 3 : 1; var tp = _zomPos[best];
-            for (int i = 0; i < _zomPos.Count && kills > 0; i++) if ((_zomPos[i] - tp).sqrMagnitude < (dragon ? 9f : 1.2f)) { _vehHits.Add(new TargetHit { TargetId = (int)_zomId[i], Damage = 100, Platoon = -1 }); kills--; }
+            for (int i = 0; i < _zomPos.Count && kills > 0; i++) if ((_zomPos[i] - tp).sqrMagnitude < (dragon ? 9f : 1.2f)) { _vehHits.Add(new TargetHit { TargetId = (int)_zomId[i], Damage = 100, Platoon = -1 }); NaVehHit(v, false); kills--; }
             if (_trMat == null) { _trMat = new Material(Shader.Find("Universal Render Pipeline/Unlit")); _trMat.SetColor("_BaseColor", new Color32(0xf0, 0xdc, 0x9c, 255)); }
             VfxVehicleShot(v, new Vector3(tp.x, 0.8f, tp.y));                          // trazadora, fogonazo, humo y casquillos desde la boca del arma (Bruno)
             Sfx.PlayDistAt(dragon ? "canon_30" : "ametralladora", new Vector3(v.Pos.x, v.Alt + 2f, v.Pos.y), 1f, dragon ? 0.5f : 0.25f); if (dragon) { Sfx.PlayAt("cola_urbana", new Vector3(v.Pos.x, v.Alt + 2f, v.Pos.y), 0.4f, 0.5f); }
@@ -233,7 +233,7 @@ namespace TBD.View
         void RunOver(Veh v)
         {
             if (v.Heli || Mathf.Abs(v.Speed) < 2f) return; float hr = v.Heading * Mathf.Deg2Rad; var front = v.Pos + new Vector2(Mathf.Sin(hr), Mathf.Cos(hr)) * 3f; int n = 0;
-            for (int i = 0; i < _zomPos.Count && n < 40; i++) if ((_zomPos[i] - front).sqrMagnitude < 6f) { _vehHits.Add(new TargetHit { TargetId = (int)_zomId[i], Damage = 100, Platoon = -1 }); n++; }
+            for (int i = 0; i < _zomPos.Count && n < 40; i++) if ((_zomPos[i] - front).sqrMagnitude < 6f) { _vehHits.Add(new TargetHit { TargetId = (int)_zomId[i], Damage = 100, Platoon = -1 }); NaVehHit(v, true); n++; }
         }
 
         // ---------------------------------------------------------------- vista de los vehículos (cada fotograma)
