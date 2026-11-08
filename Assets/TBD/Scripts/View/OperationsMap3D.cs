@@ -710,6 +710,13 @@ namespace TBD.View
             string scaleTxt = _dist >= 10 ? $"{_dist:0} km" : $"{_dist * 1000:0} m";
             GUI.Label(new Rect(16, y, pw, 30), $"Distancia de cámara: {scaleTxt}", _small); y += _small.fontSize * 1.7f;
             int shown = 0;
+            foreach (var zw in _a.UndefendedWarnings())       // aviso ámbar: la horda va a una zona sin tropa (Lucía, 8-nov; regla de Nacho)
+            {
+                if (shown++ >= 4) break;
+                int zp = IconPx(16);
+                DrawIcon(new Rect(20, y - 2, zp, zp), "alertas/vm_alertas_" + AlertIcon(AlertKind.NodoAsediado) + "_16");
+                GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>" + zw.Text + "</color>", _small); y += Mathf.Max(_small.fontSize * 1.5f, zp + 4);
+            }
             foreach (var al in _a.Alerts)
             {
                 if (shown++ >= 4) break;

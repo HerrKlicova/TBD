@@ -45,7 +45,8 @@ namespace TBD.Tutorial
                 Cargas = "cargas_tren", ListaUnidades = "lista_unidades", ListaVehiculos = "lista_vehiculos", Eta = "eta_tren", BotonEnviar = "boton_enviar",
                 EstadoNules = "estado_nules", BotonDescargar = "boton_descargar",
                 AvisoRadar = "aviso_radar", ManchaHorda = "mancha_horda", TarjetasDestacamento = "tarjetas_destacamento", EstadoSagunto = "estado_sagunto", TrenAnden = "tren_anden",
-                Pila = "pila", AvisoPila = "aviso_pila", FlancoSur = "flanco_sur",   // D-N175: el punto del flanco sur (100; 34), TrenAnden.ObjetivoAtaque
+                Pila = "pila", AvisoPila = "aviso_pila", FlancoSur = "flanco_sur", Retirada = "retirada",   // retirada: flecha del flanco sur a R2 (tutorial-cap3-recorrido.md §4)
+                  // D-N175: el punto del flanco sur (100; 34), TrenAnden.ObjetivoAtaque
                 ClaroS1 = "claro_s1",           // capítulo 4: el claro S1 de Sagunto, (180; 44) m, fuera del muro (mr-mak 9163dcc)
                 NodoBetera = "nodo_betera", TarjetasNH90 = "tarjetas_nh90", ConPeloton = "con_peloton", FlechaBorde = "flecha_borde";
         }
@@ -131,7 +132,7 @@ namespace TBD.Tutorial
                     S("3.5", "Destino: Sagunto. Mira el ETA y envíalo.", R(Resaltes.NodoSagunto, Resaltes.Eta, Resaltes.BotonEnviar), Senales.TrenEnviado),
                     S("3.6", "Vuelve a Sagunto y aguanta: doble clic en Sagunto o acerca la cámara. La ayuda llega en {eta}.", R(Resaltes.NodoSagunto), Senales.VueltaZona),
                     p37,
-                    S("3.8", "Llévalos al flanco sur y dispara desde ahí. Si te pegas a la horda, irá a por ellos.", R(Resaltes.FlancoSur), Senales.OrdenMover, Senales.OrdenAtacar)   // D-N175,
+                    S("3.8", "Llévalos al flanco sur y limpia el muro. Si la horda se gira hacia ti, retrocede hacia el este sin dejar de disparar: corres más que ellos.", R(Resaltes.FlancoSur, Resaltes.Retirada), Senales.OrdenMover, Senales.OrdenAtacar)   // D-N175,
                 }
             };
         }

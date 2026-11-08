@@ -67,4 +67,42 @@ namespace TBD.Tutorial
 
         public void Reiniciar() { _hordaVista = false; _bajos.Clear(); }
     }
+
+    /// <summary>
+    /// Recorrido del capítulo 3 en Sagunto (docs/niveles/tutorial-cap3-recorrido.md de Álvaro; Lucía, 8-nov). La infantería va en línea recta, y de la puerta este
+    /// (192; 60) al flanco sur (100; 34) la recta cruza la esquina SE del fuerte (156; 44): por eso, una orden que sale del lado este y termina al sur del fuerte pasa
+    /// antes por el paso fijo (160; 40) y luego sigue sola al destino. La retirada: del flanco sur a R2 (160; 38), que es la parada normal, con R1 (130; 36) como paso
+    /// opcional y R3 (196; 51), el puesto F3 junto al tren, como refugio final. En mm de la zona.
+    /// </summary>
+    public sealed class RutaCap3
+    {
+        public const int PasoX = 160_000, PasoY = 40_000, EsquinaX = 156_000, EsquinaY = 44_000, LlegadaMm = 4_000;
+        public static readonly int[] FlancoSur = { 100_000, 34_000 }, R1 = { 130_000, 36_000 }, R2 = { 160_000, 38_000 }, R3 = { 196_000, 51_000 };
+        struct Pendiente { public int X, Y, Rumbo; public bool Ataque; }
+        readonly Dictionary<int, Pendiente> _pend = new Dictionary<int, Pendiente>();
+
+        /// <summary>¿Hay que rodear la esquina SE? (sale al este del fuerte y termina al oeste de la esquina y al sur del muro sur)</summary>
+        public static bool Rodea(int sx, int sy, int tx, int ty) { return sx > EsquinaX && tx < EsquinaX && ty < EsquinaY; }
+
+        /// <summary>Antes de dar la orden: si hay que rodear, cambia el destino por el paso fijo y guarda el de verdad. true si lo ha cambiado.</summary>
+        public bool Ajustar(int peloton, int sx, int sy, ref int tx, ref int ty, int rumbo, bool ataque)
+        {
+            _pend.Remove(peloton);
+            if (!Rodea(sx, sy, tx, ty)) return false;
+            _pend[peloton] = new Pendiente { X = tx, Y = ty, Rumbo = rumbo, Ataque = ataque };
+            tx = PasoX; ty = PasoY; return true;
+        }
+
+        /// <summary>Cada tick: si el pelotón ya está en el paso, devuelve la orden que le falta (al destino de verdad).</summary>
+        public bool Seguir(int peloton, int px, int py, out int tx, out int ty, out int rumbo, out bool ataque)
+        {
+            tx = ty = rumbo = 0; ataque = false;
+            if (!_pend.TryGetValue(peloton, out var p)) return false;
+            long dx = px - PasoX, dy = py - PasoY; if (dx * dx + dy * dy > (long)LlegadaMm * LlegadaMm) return false;
+            _pend.Remove(peloton); tx = p.X; ty = p.Y; rumbo = p.Rumbo; ataque = p.Ataque; return true;
+        }
+
+        public int Pendientes { get { return _pend.Count; } }
+        public IEnumerable<int> Ids { get { return new List<int>(_pend.Keys); } }
+    }
 }

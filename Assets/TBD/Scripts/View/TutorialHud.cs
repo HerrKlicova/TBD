@@ -128,6 +128,32 @@ namespace TBD.View
         public static void Objetivo(string clave, Rect pantalla) { if (_i != null) _i._obj[clave] = (pantalla, Time.frameCount); }
 
         /// <summary>
+        /// Flecha de retirada del capítulo 3 (Álvaro §4; Lucía): puntos en hueso del flanco sur a R2 (160; 38), la parada normal, con punta en R2; y una línea más fina
+        /// de R2 a R3 (196; 51), el puesto F3 junto al tren, que es el refugio final. Se dibuja en la zona con la cámara principal (x, z de la zona en metros).
+        /// </summary>
+        static void DibujarRetirada()
+        {
+            var cam = Camera.main; if (cam == null || SceneManager.GetActiveScene().name != "SampleScene") return;
+            Vector2 W2S(int[] p) { var v = cam.WorldToScreenPoint(new Vector3(p[0] / 1000f, 0.2f, p[1] / 1000f)); return new Vector2(v.x, Screen.height - v.y); }
+            var a = W2S(RutaCap3.FlancoSur); var b = W2S(RutaCap3.R2); var c = W2S(RutaCap3.R3);
+            float u = Mathf.Max(3f, Screen.height / 270f);
+            var hueso = new Color32(0xd4, 0xd0, 0xcc, 230);
+            Puntos(a, b, u * 1.2f, u * 3.2f, hueso);
+            Puntos(b, c, u * 0.7f, u * 3.2f, new Color32(0xd4, 0xd0, 0xcc, 150));
+            var d = (b - a).normalized; var n = new Vector2(-d.y, d.x);
+            for (int k = 0; k < 5; k++) { var q = b - d * (k * u); GUI.color = hueso; GUI.DrawTexture(new Rect(q.x + n.x * k * u - u * 0.6f, q.y + n.y * k * u - u * 0.6f, u * 1.2f, u * 1.2f), Texture2D.whiteTexture); GUI.DrawTexture(new Rect(q.x - n.x * k * u - u * 0.6f, q.y - n.y * k * u - u * 0.6f, u * 1.2f, u * 1.2f), Texture2D.whiteTexture); }
+            GUI.color = Color.white;
+        }
+
+        static void Puntos(Vector2 a, Vector2 b, float tam, float paso, Color c)
+        {
+            float l = Vector2.Distance(a, b); if (l < 1f || l > 20000f) return;
+            GUI.color = c;
+            for (float t = 0; t <= l; t += paso) { var q = Vector2.Lerp(a, b, t / l); GUI.DrawTexture(new Rect(q.x - tam * 0.5f, q.y - tam * 0.5f, tam, tam), Texture2D.whiteTexture); }
+            GUI.color = Color.white;
+        }
+
+        /// <summary>
         /// La zona lo llama con sus pelotones, sus zombis (en mm, como UnitsWorld) y su prueba de «dentro del recinto». Cuenta como mucho una vez por segundo.
         /// Regla de Lucía (8-nov): 40 zombis o más dentro del recinto a menos de 30 m de un pelotón de fusileros (C90Aviso).
         /// </summary>
@@ -404,7 +430,7 @@ namespace TBD.View
             float t = Time.unscaledTime;
             if (_m.Visible)
             {
-                foreach (var k in _m.Resalta) if (_obj.TryGetValue(k, out var o) && Time.frameCount - o.frame <= 2) Ring(o.r, t);
+                foreach (var k in _m.Resalta) if (_obj.TryGetValue(k, out var o) && Time.frameCount - o.frame <= 2) Ring(o.r, t); if (System.Array.IndexOf(_m.Resalta, TutorialGuion.Resaltes.Retirada) >= 0) DibujarRetirada();   // 3.8: flecha de retirada (Iker)
                 var p = _m.Actual;
                 float w = Mathf.Min(640f, Screen.width * 0.42f), pad = _txt.fontSize * 0.8f, x = 8f, y = Ancla();
                 if (p.Linea)

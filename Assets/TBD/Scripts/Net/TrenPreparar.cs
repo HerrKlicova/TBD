@@ -219,14 +219,8 @@ namespace TBD.Net
         /// <summary>Texto para el panel y el aviso, o null si no espera.</summary>
         public static string Motivo(NetWorld w, int service) { return w == null ? null : w.GateReason(service); }
 
-        /// <summary>D-N177: «Sin escolta: X está sitiada» si el tren va hacia una estación sitiada o espera a sus puertas por el asedio; null si no.</summary>
-        public static string SinEscolta(NetWorld w, int service)
-        {
-            if (w == null || service < 0 || service >= w.Services.Count) return null;
-            var sv = w.Services[service];
-            int n = sv.GateNode >= 0 ? sv.GateNode : !sv.AtStop && sv.StopIndex >= 0 && sv.StopIndex < sv.Stops.Count ? sv.Stops[sv.StopIndex].Node : -1;
-            return n >= 0 && w.Besieged(n) ? AvisoSitiada(w, n) : null;
-        }
+        /// <summary>D-N177: lo decide la red de Nacho (sin tropa ni vehículos a bordo y una estación sitiada en el camino hasta la próxima parada).</summary>
+        public static string SinEscolta(NetWorld w, int service) { return w == null ? null : w.EscortWarning(service); }
 
         public static string AvisoSitiada(NetWorld w, int node) { return "Sin escolta: " + w.Graph.Nodes[node].Name + " está sitiada"; }
     }
