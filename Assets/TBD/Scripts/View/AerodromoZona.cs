@@ -35,11 +35,13 @@ namespace TBD.View
             foreach (var c in n.Piezas)
             {
                 // la valla, con el kit de defensas de Teo por vida (valla_betera: e0 sana … e4 brecha); la variante 1 de la valla vieja era «sobre muro bajo»
-                var go = c.Carpeta == "valla_base" ? ModelEn("Defensas/valla_betera", RecintoPlan.VallaBetera(VidaValla, c.Variante == 1) + "_LOD1", piezas) ?? Model(c.Carpeta, c.Malla + "_v" + c.Variante + "_LOD1", piezas)
+                var go = c.Archivo != null ? ModelEn(c.Ruta, c.Archivo + "_LOD1", piezas)
+                       : c.Carpeta == "valla_base" ? ModelEn("Defensas/valla_betera", RecintoPlan.VallaBetera(VidaValla, c.Variante == 1) + "_LOD1", piezas) ?? Model(c.Carpeta, c.Malla + "_v" + c.Variante + "_LOD1", piezas)
                                                    : Model(c.Carpeta, c.Malla + "_v" + c.Variante + "_LOD1", piezas);
-                if (go == null) { go = Placeholder(piezas, c.Pieza); res.Missing.Add(c.Pieza + " (" + c.X + ", " + c.Z + ")"); }
+                if (go == null) { go = Placeholder(piezas, c.Pieza); res.Missing.Add(c.Pieza + (c.Archivo != null ? " [" + c.Ruta + "/" + c.Archivo + "]" : "") + " (" + c.X + ", " + c.Z + ")"); }
                 go.transform.localPosition = new Vector3(c.X, 0f, c.Z);
                 go.transform.localRotation = Quaternion.Euler(0f, c.Yaw, 0f) * go.transform.localRotation;
+                if (c.EscalaX != 0f && c.EscalaX != 1f) { var sc = go.transform.localScale; go.transform.localScale = new Vector3(sc.x * c.EscalaX, sc.y, sc.z); }
                 res.Placed++; if (c.Faldon) res.Faldon++;
             }
             var g = new GameObject("Guarnición de Bétera (sitio)"); g.transform.SetParent(root, false); g.transform.localPosition = new Vector3(n.CuartelX, 0f, n.CuartelZ);

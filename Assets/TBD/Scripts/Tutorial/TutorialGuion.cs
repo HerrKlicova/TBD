@@ -46,6 +46,7 @@ namespace TBD.Tutorial
                 EstadoNules = "estado_nules", BotonDescargar = "boton_descargar",
                 AvisoRadar = "aviso_radar", ManchaHorda = "mancha_horda", TarjetasDestacamento = "tarjetas_destacamento", EstadoSagunto = "estado_sagunto", TrenAnden = "tren_anden",
                 Pila = "pila", AvisoPila = "aviso_pila", FlancoSur = "flanco_sur",   // D-N175: el punto del flanco sur (100; 34), TrenAnden.ObjetivoAtaque
+                ClaroS1 = "claro_s1",           // capítulo 4: el claro S1 de Sagunto, (180; 44) m, fuera del muro (mr-mak 9163dcc)
                 NodoBetera = "nodo_betera", TarjetasNH90 = "tarjetas_nh90", ConPeloton = "con_peloton", FlechaBorde = "flecha_borde";
         }
 
@@ -155,13 +156,14 @@ namespace TBD.Tutorial
                     S("4.3", "Destino: Sagunto. Mira el ETA y envíalo.", R(Resaltes.NodoSagunto, Resaltes.Eta, Resaltes.BotonEnviar), Senales.NH90Enviado),
                     S("4.4", "Vuelve a Sagunto: doble clic en Sagunto o acerca la cámara.", R(Resaltes.NodoSagunto), Senales.VueltaZona),
                     p45,
-                    S("4.6", "Pósalo en un claro: tecla L. El cursor marca dónde cabe.", R(Resaltes.TarjetasNH90), Senales.NH90Posado),
+                    S("4.6", "Pósalo en un claro: tecla L. El cursor marca dónde cabe.", R(Resaltes.TarjetasNH90, Resaltes.ClaroS1), Senales.NH90Posado),      // aterriza en S1 (180; 44), fuera del muro
                     S("4.7", "Baja la tropa: tecla U.", R(Resaltes.TarjetasNH90), Senales.NH90Descargado),
                     T("4.8", "Cada salida gasta combustible de Bétera. Con poca munición vuelve solo a rearmar, y mientras tanto no lo tienes.", 6),
                 }
             };
         }
         public const string ClaveCap4 = "tutorial4.visto";
+        public const float ClaroS1X = 180f, ClaroS1Z = 44f;      // dónde aterriza el NH90 del capítulo 4 (m de la zona de Sagunto)
         public static TutorialMotor NuevoCap4(IMemoria mem) { return new TutorialMotor(new[] { Cap4() }, null, mem, ClaveCap4); }
 
         public static Suelta C90()

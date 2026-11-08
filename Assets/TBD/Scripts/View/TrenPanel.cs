@@ -220,7 +220,7 @@ namespace TBD.View
         readonly DobleClic _dobleClic = new DobleClic(); readonly SeguirTren _seguir = new SeguirTren();
         GUIStyle _t, _s, _b, _bOff; Texture2D _panel, _btn, _btnHot, _btnOff; int _sh;
         static readonly Color Bone = new Color32(0xd4, 0xd0, 0xcc, 255), Ink = new Color32(0x1c, 0x20, 0x0c, 255);
-        static readonly string[] ResNombre = { "Munición", "Combustible", "Materiales", "Personas" };
+        static readonly string[] ResNombre = { "Munición", "Combustible", "Materiales", "Personas", "Víveres" };   // D-N176: los víveres entran como 5.º recurso (Res.Viveres = 4) cuando Nacho los añada a la red
 
         void Update()
         {
@@ -297,6 +297,15 @@ namespace TBD.View
             Debug.Log("[TREN] descarga en " + W.Graph.Nodes[Destino].Name + " (el tren se queda)");
             TutorialHud.Senal(TutorialGuion.Senales.Descargado);
             if (hay) TutorialHud.Viaje.Descargado(Viaje, W.Graph.Nodes[Destino].Name);      // con asedio la carga no baja (D-N166): el objetivo espera
+        }
+
+        static readonly string[] IconoDe = { "municion", "combustible", "materiales", "poblacion", "viveres" };
+        static readonly Texture2D[] _iconos = new Texture2D[5];
+        static Texture2D Icono(int r)
+        {
+            if (r < 0 || r >= IconoDe.Length) return null;
+            if (_iconos[r] == null) _iconos[r] = Resources.Load<Texture2D>("Icons/cargas/vm_cargas_" + IconoDe[r] + (Screen.height >= 900 ? "_32" : "_16"));
+            return _iconos[r];
         }
 
         static Texture2D Tex(Color c) { var t = new Texture2D(1, 1); t.SetPixel(0, 0, c); t.Apply(); return t; }
@@ -445,7 +454,9 @@ namespace TBD.View
             var cargaR = new Rect(x0, yy, ww, lh * (NetConst.ResCount + 1)); TutorialHud.Objetivo(TutorialGuion.Resaltes.Cargas, cargaR);
             for (int res = 0; res < NetConst.ResCount; res++)
             {
-                GUI.Label(new Rect(x0, yy + u * 0.3f, ww * 0.5f, lh), $"{ResNombre[res]} <color=#a8a49c>(hay {W.Stock[org, res]})</color>", _s);
+                var ico = Icono(res); float ip = lh * 0.7f;                                     // iconos de carga de Bruno (pixel art, escala entera)
+                if (ico != null) GUI.DrawTexture(new Rect(x0, yy + (lh - ip) * 0.35f, ip, ip), ico, ScaleMode.ScaleToFit, true);
+                GUI.Label(new Rect(x0 + ip + u * 0.4f, yy + u * 0.3f, ww * 0.5f - ip, lh), $"{(res < ResNombre.Length ? ResNombre[res] : "Recurso " + res)} <color=#a8a49c>(hay {W.Stock[org, res]})</color>", _s);
                 if (Boton(new Rect(x0 + ww * 0.56f, yy, lh * 1.3f, lh * 0.9f), "−10")) Cargar(res, -10);
                 GUI.Label(new Rect(x0 + ww * 0.56f + lh * 1.45f, yy + u * 0.3f, lh * 1.6f, lh), $"<b>{_carga[res]}</b>", _s);
                 if (Boton(new Rect(x0 + ww * 0.56f + lh * 2.9f, yy, lh * 1.3f, lh * 0.9f), "+10")) Cargar(res, 10);

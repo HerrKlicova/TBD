@@ -14,7 +14,8 @@ namespace TBD.Net
     /// </summary>
     public sealed class AlmacenZona
     {
-        public static readonly int[] Topes = { 47, 30, 40, 0 };           // u: munición, combustible, materiales, personas (Hugo)
+        public static readonly int[] Topes = { 47, 30, 40, 0, 0 };        // u: munición, combustible, materiales, personas y víveres (Hugo: los víveres no cuentan en la zona, D-N176)
+        public static int Tope(int r) { return r >= 0 && r < Topes.Length ? Topes[r] : 0; }
         public readonly int Nodo;
         public readonly int[] Actual = new int[NetConst.ResCount];
         public bool EnAtaque { get; private set; }
@@ -27,7 +28,7 @@ namespace TBD.Net
             int n = 0;
             for (int r = 0; r < NetConst.ResCount; r++)
             {
-                int quiere = Math.Max(0, Topes[r] - Actual[r]), m = Math.Min(quiere, Math.Max(0, w.Stock[Nodo, r]));
+                int quiere = Math.Max(0, Tope(r) - Actual[r]), m = Math.Min(quiere, Math.Max(0, w.Stock[Nodo, r]));
                 w.Stock[Nodo, r] -= m; Actual[r] += m; n += m;
             }
             return n;
@@ -51,7 +52,7 @@ namespace TBD.Net
         public int Reponer(NetWorld w, int recurso, int cuanto)
         {
             if (EnAtaque || recurso < 0 || recurso >= NetConst.ResCount || cuanto <= 0) return 0;
-            int m = Math.Min(cuanto, Math.Min(Math.Max(0, Topes[recurso] - Actual[recurso]), Math.Max(0, w.Stock[Nodo, recurso])));
+            int m = Math.Min(cuanto, Math.Min(Math.Max(0, Tope(recurso) - Actual[recurso]), Math.Max(0, w.Stock[Nodo, recurso])));
             w.Stock[Nodo, recurso] -= m; Actual[recurso] += m;
             return m;
         }

@@ -1,0 +1,220 @@
+grupo;prefab;variante;x_m;y_m;z_m;yaw_grados;escala_x;en_zona_mvp;nota
+plataforma;helipuerto;4;128;0;104;0;1;si;P1: helipuerto v4 de Teo (losa de 30 m)
+plataforma;rearme_set;-1;172;0;104;90;1;si;rearme del NH90
+plataforma;SM_Hangar;-1;90;0;40;0;1;si;"40 × 25 m; portón a +Z (la plataforma); hijos Porton_O/Porton_E"
+plataforma;SM_Hangar;-1;160;0;40;0;1;si;"40 × 25 m; portón a +Z (la plataforma); hijos Porton_O/Porton_E"
+plataforma;SM_TorreControl;-1;224;0;4;0;1;si;"4 × 4 m; escalera a +X"
+reducto;SM_TorretaVigia;-1;4;0;121;0;1;si;torreta junto al HESCO norte
+reducto;SM_TorretaVigia;-1;252;0;121;0;1;si;torreta junto al HESCO norte
+reducto;SM_TorretaVigia;-1;-33;0;-33;180;1;no;esquina sur (post-MVP)
+reducto;SM_TorretaVigia;-1;273;0;-33;180;1;no;esquina sur (post-MVP)
+combustible;SM_TanqueCombustible;-1;249;0;-25;0;1;no;"eje a lo largo de X (yaw 0; con yaw 90 se pisaban); cubeto X 236–262, Z −28 a −8"
+combustible;SM_TanqueCombustible;-1;249;0;-18;0;1;no;"eje a lo largo de X (yaw 0; con yaw 90 se pisaban); cubeto X 236–262, Z −28 a −8"
+combustible;SM_TanqueCombustible;-1;249;0;-11;0;1;no;"eje a lo largo de X (yaw 0; con yaw 90 se pisaban); cubeto X 236–262, Z −28 a −8"
+polvorin;SM_Polvorin;-1;-18;0;-26;90;1;no;"puerta a +X; huella X −31,5 a −6,7"
+polvorin;SM_Polvorin;-1;-18;0;-8;90;1;no;"puerta a +X; huella X −31,5 a −6,7"
+reducto;SM_HescoEsquina;-1;276;0;124;0;1;no;"esquina exterior; el origen en la celda de esquina"
+reducto;SM_HescoEsquina;-1;276;0;-36;90;1;no;"esquina exterior; el origen en la celda de esquina"
+reducto;SM_HescoEsquina;-1;-36;0;-36;180;1;no;"esquina exterior; el origen en la celda de esquina"
+reducto;SM_HescoEsquina;-1;-36;0;124;270;1;no;"esquina exterior; el origen en la celda de esquina"
+reducto;SM_MuroHesco;-1;-28.108;0;124;0;1;no;tramo de 56.90 m: 5 de 10 m + 6 celdas
+reducto;SM_MuroHesco;-1;-18.108;0;124;0;1;no;tramo de 56.90 m: 5 de 10 m + 6 celdas
+reducto;SM_MuroHesco;-1;-8.108;0;124;0;1;no;tramo de 56.90 m: 5 de 10 m + 6 celdas
+reducto;SM_MuroHesco;-1;1.892;0;124;0;1;no;tramo de 56.90 m: 5 de 10 m + 6 celdas
+reducto;SM_MuroHesco;-1;11.892;0;124;0;1;no;tramo de 56.90 m: 5 de 10 m + 6 celdas
+reducto;SM_HescoCorto4;-1;19.112;0;124;0;1;no;resto del tramo de 56.90 m
+reducto;SM_HescoCorto2;-1;22.442;0;124;0;1;no;resto del tramo de 56.90 m
+reducto;SM_HescoRemate;-1;26.445;0;124;0;1;si;"remate contra puerta de vehículos R1; celda de esquina pegada a la jamba, brazo alejándose del hueco (izquierda)"
+reducto;SM_HescoRemateEspejo;-1;35.555;0;124;0;1;si;"remate contra puerta de vehículos R1; celda de esquina pegada a la jamba, brazo alejándose del hueco (derecha: versión espejo de Teo)"
+reducto;SM_MuroHesco;-1;43.39;0;124;0;1;si;tramo de 82.34 m: 8 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;53.39;0;124;0;1;si;tramo de 82.34 m: 8 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;63.39;0;124;0;1;si;tramo de 82.34 m: 8 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;73.39;0;124;0;1;si;tramo de 82.34 m: 8 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;83.39;0;124;0;1;si;tramo de 82.34 m: 8 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;93.39;0;124;0;1;si;tramo de 82.34 m: 8 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;103.39;0;124;0;1;si;tramo de 82.34 m: 8 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;113.39;0;124;0;1;si;tramo de 82.34 m: 8 de 10 m + 2 celdas
+reducto;SM_HescoCorto2;-1;119.5;0;124;0;1;si;resto del tramo de 82.34 m
+reducto;SM_HescoRemate;-1;123.445;0;124;0;1;si;"remate contra puerta de vehículos R2; celda de esquina pegada a la jamba, brazo alejándose del hueco (izquierda)"
+reducto;SM_HescoRemateEspejo;-1;132.555;0;124;0;1;si;"remate contra puerta de vehículos R2; celda de esquina pegada a la jamba, brazo alejándose del hueco (derecha: versión espejo de Teo)"
+reducto;SM_MuroHesco;-1;140.335;0;124;0;1;si;tramo de 83.34 m: 8 de 10 m + 3 celdas
+reducto;SM_MuroHesco;-1;150.335;0;124;0;1;si;tramo de 83.34 m: 8 de 10 m + 3 celdas
+reducto;SM_MuroHesco;-1;160.335;0;124;0;1;si;tramo de 83.34 m: 8 de 10 m + 3 celdas
+reducto;SM_MuroHesco;-1;170.335;0;124;0;1;si;tramo de 83.34 m: 8 de 10 m + 3 celdas
+reducto;SM_MuroHesco;-1;180.335;0;124;0;1;si;tramo de 83.34 m: 8 de 10 m + 3 celdas
+reducto;SM_MuroHesco;-1;190.335;0;124;0;1;si;tramo de 83.34 m: 8 de 10 m + 3 celdas
+reducto;SM_MuroHesco;-1;200.335;0;124;0;1;si;tramo de 83.34 m: 8 de 10 m + 3 celdas
+reducto;SM_MuroHesco;-1;210.335;0;124;0;1;si;tramo de 83.34 m: 8 de 10 m + 3 celdas
+reducto;SM_HescoCorto3;-1;217.0;0;124;0;1;si;resto del tramo de 83.34 m
+reducto;SM_HescoRemate;-1;221.445;0;124;0;1;si;"remate contra puerta de vehículos R3; celda de esquina pegada a la jamba, brazo alejándose del hueco (izquierda)"
+reducto;SM_HescoRemateEspejo;-1;230.555;0;124;0;1;si;"remate contra puerta de vehículos R3; celda de esquina pegada a la jamba, brazo alejándose del hueco (derecha: versión espejo de Teo)"
+reducto;SM_MuroHesco;-1;238.283;0;124;0;1;si;tramo de 39.90 m: 3 de 10 m + 9 celdas
+reducto;SM_MuroHesco;-1;248.283;0;124;0;1;si;tramo de 39.90 m: 3 de 10 m + 9 celdas
+reducto;SM_MuroHesco;-1;258.283;0;124;0;1;si;tramo de 39.90 m: 3 de 10 m + 9 celdas
+reducto;SM_HescoCorto4;-1;265.503;0;124;0;1;si;resto del tramo de 39.90 m
+reducto;SM_HescoCorto4;-1;269.943;0;124;0;1;si;resto del tramo de 39.90 m
+reducto;SM_HescoCorto1;-1;272.718;0;124;0;1;si;resto del tramo de 39.90 m
+reducto;SM_MuroHesco;-1;-28.388;0;-36;180;1;no;tramo de 61.90 m: 6 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;-18.388;0;-36;180;1;no;tramo de 61.90 m: 6 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;-8.388;0;-36;180;1;no;tramo de 61.90 m: 6 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;1.612;0;-36;180;1;no;tramo de 61.90 m: 6 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;11.612;0;-36;180;1;no;tramo de 61.90 m: 6 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;21.612;0;-36;180;1;no;tramo de 61.90 m: 6 de 10 m + 2 celdas
+reducto;SM_HescoCorto2;-1;27.722;0;-36;180;1;no;resto del tramo de 61.90 m
+reducto;SM_HescoRemate;-1;31.445;0;-36;180;1;no;"remate contra puerta de vehículos del vial oeste; celda de esquina pegada a la jamba, brazo alejándose del hueco (izquierda)"
+reducto;SM_HescoRemateEspejo;-1;40.555;0;-36;180;1;no;"remate contra puerta de vehículos del vial oeste; celda de esquina pegada a la jamba, brazo alejándose del hueco (derecha: versión espejo de Teo)"
+reducto;SM_MuroHesco;-1;48.39;0;-36;180;1;no;tramo de 162.34 m: 16 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;58.39;0;-36;180;1;no;tramo de 162.34 m: 16 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;68.39;0;-36;180;1;no;tramo de 162.34 m: 16 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;78.39;0;-36;180;1;no;tramo de 162.34 m: 16 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;88.39;0;-36;180;1;no;tramo de 162.34 m: 16 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;98.39;0;-36;180;1;no;tramo de 162.34 m: 16 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;108.39;0;-36;180;1;no;tramo de 162.34 m: 16 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;118.39;0;-36;180;1;no;tramo de 162.34 m: 16 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;128.39;0;-36;180;1;no;tramo de 162.34 m: 16 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;138.39;0;-36;180;1;no;tramo de 162.34 m: 16 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;148.39;0;-36;180;1;no;tramo de 162.34 m: 16 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;158.39;0;-36;180;1;no;tramo de 162.34 m: 16 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;168.39;0;-36;180;1;no;tramo de 162.34 m: 16 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;178.39;0;-36;180;1;no;tramo de 162.34 m: 16 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;188.39;0;-36;180;1;no;tramo de 162.34 m: 16 de 10 m + 2 celdas
+reducto;SM_MuroHesco;-1;198.39;0;-36;180;1;no;tramo de 162.34 m: 16 de 10 m + 2 celdas
+reducto;SM_HescoCorto2;-1;204.5;0;-36;180;1;no;resto del tramo de 162.34 m
+reducto;SM_HescoRemate;-1;208.445;0;-36;180;1;no;"remate contra puerta de vehículos del vial este; celda de esquina pegada a la jamba, brazo alejándose del hueco (izquierda)"
+reducto;SM_HescoRemateEspejo;-1;217.555;0;-36;180;1;no;"remate contra puerta de vehículos del vial este; celda de esquina pegada a la jamba, brazo alejándose del hueco (derecha: versión espejo de Teo)"
+reducto;SM_MuroHesco;-1;225.113;0;-36;180;1;no;tramo de 52.90 m: 5 de 10 m + 3 celdas
+reducto;SM_MuroHesco;-1;235.113;0;-36;180;1;no;tramo de 52.90 m: 5 de 10 m + 3 celdas
+reducto;SM_MuroHesco;-1;245.113;0;-36;180;1;no;tramo de 52.90 m: 5 de 10 m + 3 celdas
+reducto;SM_MuroHesco;-1;255.113;0;-36;180;1;no;tramo de 52.90 m: 5 de 10 m + 3 celdas
+reducto;SM_MuroHesco;-1;265.113;0;-36;180;1;no;tramo de 52.90 m: 5 de 10 m + 3 celdas
+reducto;SM_HescoCorto3;-1;271.778;0;-36;180;1;no;resto del tramo de 52.90 m
+reducto;SM_MuroHesco;-1;-36;0;-28.22;270;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;-36;0;-18.22;270;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;-36;0;-8.22;270;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;-36;0;1.78;270;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;-36;0;11.78;270;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;-36;0;21.78;270;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;-36;0;31.78;270;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;-36;0;41.78;270;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;-36;0;51.78;270;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;-36;0;61.78;270;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;-36;0;71.78;270;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;-36;0;81.78;270;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;-36;0;91.78;270;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;-36;0;101.78;270;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;-36;0;111.78;270;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_HescoCorto4;-1;-36;0;119.0;270;1;no;resto del tramo de 154.45 m
+reducto;SM_MuroHesco;-1;276;0;-28.22;90;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;276;0;-18.22;90;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;276;0;-8.22;90;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;276;0;1.78;90;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;276;0;11.78;90;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;276;0;21.78;90;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;276;0;31.78;90;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;276;0;41.78;90;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;276;0;51.78;90;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;276;0;61.78;90;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;276;0;71.78;90;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;276;0;81.78;90;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;276;0;91.78;90;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;276;0;101.78;90;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_MuroHesco;-1;276;0;111.78;90;1;no;tramo de 154.45 m: 15 de 10 m + 4 celdas
+reducto;SM_HescoCorto4;-1;276;0;119.0;90;1;no;resto del tramo de 154.45 m
+puertas;SM_PuertaVehiculos;-1;31;0;124;0;1;si;puerta norte, en la rodadura
+puertas;SM_PuertaVehiculos;-1;128;0;124;0;1;si;puerta norte, en la rodadura
+puertas;SM_PuertaVehiculos;-1;226;0;124;0;1;si;puerta norte, en la rodadura
+puertas;SM_PuertaVehiculos;-1;36;0;-36;180;1;no;puerta sur, en el vial
+puertas;SM_PuertaVehiculos;-1;213;0;-36;180;1;no;puerta sur, en el vial
+valla;SM_VallaBase;-1;-35;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;-25;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;-15;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;-5;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;5;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;15;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;25;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;35;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;45;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;55;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;65;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;75;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;85;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;95;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;105;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;115;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;125;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;135;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;145;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;155;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;165;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;175;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;185;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;195;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;205;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;215;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;225;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;235;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;245;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;255;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;265;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;275;0;176;0;1;no;valla norte de la base (faldón)
+valla;SM_VallaBase;-1;285;0;176;0;1;no;valla norte de la base (faldón)
+pinar;SM_Pino;-1;55.1;0;-57.4;270;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;61.2;0;-63.8;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;113.3;0;-63.5;0;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;101.3;0;-60.1;270;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;21.3;0;-69.4;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;227.7;0;180.0;180;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;260.7;0;183.0;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;255.1;0;198.5;0;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;275.5;0;189.1;270;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;-11.3;0;179.8;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;4.8;0;-61.5;270;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;237.2;0;-66.0;180;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;29.0;0;-47.9;270;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;246.6;0;-41.1;180;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;99.6;0;-60.4;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;41.8;0;-41.4;180;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;250.9;0;-51.5;0;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;126.1;0;180.1;180;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;141.9;0;-76.4;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;70.1;0;-78.1;180;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;27.3;0;-48.9;270;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;-30.9;0;196.6;270;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;160.9;0;-73.8;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;217.6;0;-41.0;270;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;5.8;0;-49.9;0;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;167.3;0;-64.9;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;61.8;0;-74.6;270;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;120.1;0;-60.2;180;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;138.6;0;183.9;0;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;-9.5;0;-58.5;180;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;136.4;0;-67.2;270;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;197.5;0;-49.1;0;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;28.3;0;-75.1;180;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;32.5;0;-59.5;180;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;-6.0;0;-65.4;270;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;174.8;0;-79.9;0;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;24.1;0;-54.0;270;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;17.9;0;-78.9;0;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;218.9;0;-58.7;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;286.9;0;-76.4;180;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;295.5;0;182.8;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;75.8;0;-69.8;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;30.6;0;178.7;270;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;38.6;0;193.8;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;212.6;0;-42.5;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;211.8;0;-75.5;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;33.4;0;-67.2;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;-16.6;0;195.6;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;199.9;0;-66.3;270;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;146.1;0;185.1;270;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;274.5;0;199.1;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;57.4;0;-64.2;270;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;117.2;0;-58.7;0;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;246.4;0;-73.1;180;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;-32.7;0;-66.4;180;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;-17.9;0;-54.1;180;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;162.7;0;-79.9;180;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;-15.1;0;196.7;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;212.6;0;186.5;270;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+pinar;SM_Pino;-1;263.3;0;-70.0;180;1;no;"pinar fuera del reducto (faldón; sin colisión)"

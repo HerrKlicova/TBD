@@ -323,6 +323,7 @@ namespace TBD.Sim.Tests
                 bool desf = true; for (int i = 0; i < 6; i++) if (sp.Desfase(i) < 0 || sp.Desfase(i) > 0.3f) desf = false;
                 check(cierres.Count == 6 && cierres.TrueForAll(x => x.Puerta >= 0) && desf, "un cierre por puerta, con un desfase de 0 a 0,3 s");
                 check(!ls.Exists(x => x.Clip.StartsWith("sfx_tren_silbato")) && ls.Exists(x => x.Cabeza && x.Clip.StartsWith("sfx_tren_arranque_electrico_")) && ls.Exists(x => x.Puerta == -1 && x.Clip.StartsWith("sfx_tren_aviso")), "silbato opcional; el arranque suena en la cabeza y el aviso en el andén");
+                check(ls.Exists(x => x.Cabeza && x.Clip.StartsWith("sfx_tren_pitido_electrico_")) && sp.PitidoAntesS >= 0.5f && sp.PitidoAntesS <= 1f && sp.PitidoAntesS < sp.ComprobacionS, "pitido de salida en la cabeza, de 0,5 a 1 s antes del arranque y después del cierre (Nuria)");
                 bool v = true; foreach (var x in son) { int k = x[x.Length - 1] - '0'; if (k < 1 || k > 5 || x[x.Length - 2] != '_') v = false; }
                 check(v, "todas las variantes son _1 a _5");
                 float t30 = SalidaTren.TiempoHasta(TipoTren.Electrico, 30), t60 = SalidaTren.TiempoHasta(TipoTren.Electrico, 60), t100 = SalidaTren.TiempoHasta(TipoTren.Electrico, 100);
@@ -476,6 +477,21 @@ namespace TBD.Sim.Tests
                 var w = NetScenario.Mvp();
                 check(TrenPreparar.NodoPorId(w, "sagunto") == TrenPreparar.Nodo(w, "Sagunto") && TrenPreparar.NodoPorId(w, "nules") == TrenPreparar.Nodo(w, "Nules") && TrenPreparar.NodoPorId(w, "castellon") == TrenPreparar.Nodo(w, "Castellón"), "los id sagunto, nules y castellon de los JSON encuentran su nodo en RailNet (sin tildes)");
                 check(TrenPreparar.NodoPorId(w, "betera") == -1 && TrenPreparar.IdDe("Puçol") == "pucol", "betera no está en RailNet (es el aeródromo, vive en AerodromoEstado); Puçol → pucol");
+            }
+
+            // --- Bétera v1: instancias de Álvaro (CSV), existencias del bloque «aerodromos» de Hugo y el claro S1 del capítulo 4
+            {
+                var nv = AerodromoNivel.FromJson(BalanceSource.Read("estacion_betera.json"));
+                nv.UsarInstancias(BalanceSource.Read("betera_instancias.csv"));
+                check(nv.Piezas.Count == 219, $"Bétera v1: 219 instancias ({nv.Piezas.Count})");
+                check(nv.Piezas.FindAll(c => c.Malla == "SM_HescoRemateEspejo").TrueForAll(c => c.Ruta == "Defensas/hesco" && c.Archivo.StartsWith("SM_HescoRemateEspejo_v") && c.Archivo.EndsWith("_e0_Sano")) && nv.Piezas.Exists(c => c.Malla == "SM_HescoRemateEspejo"), "los remates de la derecha usan SM_HescoRemateEspejo (sin escala −1)");
+                var t = nv.Piezas.Find(c => c.Malla == "SM_TorreControl"); check(t.Ruta == "Betera/torre_control" && t.Archivo.StartsWith("SM_TorreControl_v"), "SM_TorreControl → Betera/torre_control");
+                check(nv.Piezas.Find(c => c.Malla == "SM_MuroHesco").Ruta == "Defensas/muro" && nv.Piezas.Find(c => c.Malla == "SM_PuertaVehiculos").Archivo.Contains("_e0_Sano"), "tramos y puertas del reducto con el kit de defensas (estado sano)");
+                check(nv.Piezas.FindAll(c => c.Malla == "SM_TanqueCombustible").TrueForAll(c => c.Yaw == 0f), "los tanques llevan yaw 0 (Álvaro)");
+                var ae = AerodromoEstado.FromJson(BalanceSource.Read("estacion_betera.json")); ae.MunicionMilliU = 1; ae.CombustibleMilliU = 1;
+                check(ae.AplicarExistencias(BalanceSource.Read("existencias_red.json")) && ae.MunicionMilliU == 50_000 && ae.CombustibleMilliU == 70_000, "existencias de Bétera desde el bloque «aerodromos» de Hugo: 50 u y 70 u");
+                var p46 = Array.Find(TutorialGuion.Cap4().Pasos, p => p.Id == "4.6");
+                check(Array.IndexOf(p46.Resalta, TutorialGuion.Resaltes.ClaroS1) >= 0 && TutorialGuion.ClaroS1X == 180f && TutorialGuion.ClaroS1Z == 44f, "capítulo 4: el NH90 aterriza en S1 (180; 44), resaltado");
             }
 
             // --- intro C

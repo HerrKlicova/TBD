@@ -22,7 +22,8 @@ namespace TBD.Net
     {
         public const float AvisoS = 3f, CierreS = 3f, DesfasePuertaMaxS = 0.3f, ArranqueMinS = 2f, ArranqueMaxS = 5f;   // Nuria: arranque de 2 a 5 s tras el cierre
         public const string SonAviso = "sfx_tren_aviso_puertas", SonCierre = "sfx_tren_cierre_puertas", SonSilbato = "sfx_tren_silbato_salida",
-            SonArranqueElectrico = "sfx_tren_arranque_electrico", SonArranqueDiesel = "sfx_tren_arranque_diesel333";   // nombres de Nuria (docs/sonido/salida-tren/encargo.md), cada uno con variantes _1 a _5
+            SonArranqueElectrico = "sfx_tren_arranque_electrico", SonArranqueDiesel = "sfx_tren_arranque_diesel333",
+            SonPitidoElectrico = "sfx_tren_pitido_electrico", SonPitidoDiesel = "sfx_tren_pitido_diesel";      // pitido de salida (Nuria, D-N170): en la cabeza, de 0,5 a 1 s antes del arranque   // nombres de Nuria (docs/sonido/salida-tren/encargo.md), cada uno con variantes _1 a _5
 
         public readonly TipoTren Tipo;
         public readonly float VmaxMs;                 // velocidad de crucero que alcanza (m/s): la de la red, 60 km/h
@@ -33,6 +34,8 @@ namespace TBD.Net
 
         public readonly int NumPuertas; public readonly bool ConSilbato;
         public readonly float ComprobacionS;          // 2 a 5 s, con la semilla
+        public readonly float PitidoAntesS;           // 0,5 a 1 s antes del arranque (Nuria), con la semilla
+        public const float PitidoDistanciaMax = 400f;
         readonly float[] _desfase;                    // 0 a 0,3 s por puerta
 
         /// <summary>«semilla»: según el tren y la parada (p. ej. TrenPreparar.Semilla(tren, nodo, día)), para que dos salidas no suenen igual.</summary>
@@ -41,6 +44,7 @@ namespace TBD.Net
             Tipo = tipo; VmaxMs = vmaxKmh / 3.6f; _rng = semilla == 0 ? 1u : semilla; NumPuertas = Math.Max(0, puertas); ConSilbato = silbato;
             ComprobacionS = ArranqueMinS + (ArranqueMaxS - ArranqueMinS) * (Next() % 1001) / 1000f;
             _desfase = new float[NumPuertas]; for (int i = 0; i < NumPuertas; i++) _desfase[i] = DesfasePuertaMaxS * (Next() % 1001) / 1000f;
+            PitidoAntesS = 0.5f + 0.5f * (Next() % 1001) / 1000f;
         }
         uint _rng;
         uint Next() { _rng ^= _rng << 13; _rng ^= _rng >> 17; _rng ^= _rng << 5; return _rng; }
@@ -85,13 +89,14 @@ namespace TBD.Net
             if (l != null) foreach (var x in l) sonidos.Add(x.Clip);
         }
 
-        /// <summary>Avanza dt segundos reales y añade los sonidos que tocan, con dónde suenan. El tren no pita (Paula: no es obligatorio; Nuria).</summary>
+        /// <summary>Avanza dt segundos reales y añade los sonidos que tocan, con dónde suenan. El pitido de salida va en la cabeza, de 0,5 a 1 s antes del arranque (Nuria, D-N170; 400 m de distancia máxima).</summary>
         public void Avanzar(float dt, List<SonidoSalida> sonidos)
         {
             float t0 = T, fin = T + Math.Max(0f, dt);
             Sonar(t0, fin, 0f, SonAviso, -1, false, sonidos);
             for (int i = 0; i < NumPuertas; i++) Sonar(t0, fin, AvisoS + _desfase[i], SonCierre, i, false, sonidos);   // cada puerta con su desfase
             if (ConSilbato) Sonar(t0, fin, InicioArranque - 0.6f, SonSilbato, -1, false, sonidos);              // el silbato de dos tonos del jefe, justo antes de moverse
+            Sonar(t0, fin, InicioArranque - PitidoAntesS, Tipo == TipoTren.Electrico ? SonPitidoElectrico : SonPitidoDiesel, -1, true, sonidos);   // después del cierre y antes del arranque
             Sonar(t0, fin, InicioArranque, Tipo == TipoTren.Electrico ? SonArranqueElectrico : SonArranqueDiesel, -1, true, sonidos);
             while (T < fin)
             {

@@ -7,7 +7,7 @@ namespace TBD.View
 {
     /// <summary>
     /// Toca los sonidos de la salida del tren (SalidaTren; clips de Nuria aprobados por Eugenio el 8-nov) en 3D con Sfx.PlayAt y a volumen 1, porque la mezcla
-    /// ya va horneada. El aviso y el silbato suenan en el andén, el cierre en cada puerta y el arranque en la cabeza del tren. El tren no pita.
+    /// ya va horneada. El aviso y el silbato suenan en el andén, el cierre en cada puerta y el pitido y el arranque en la cabeza del tren (el pitido con 400 m de distancia máxima: lo ajusta Sfx).
     /// Uso en la zona (Marcos): var s = new SalidaTren(tipo, 60, TrenPreparar.SemillaSalida(tren, nodo, día), puertas, silbato); cada fotograma
     /// s.Avanzar(dt, lista); SalidaTrenSonido.Tocar(lista, puerta => posición, andén, cabeza); y mover el modelo s.Distancia metros.
     /// </summary>

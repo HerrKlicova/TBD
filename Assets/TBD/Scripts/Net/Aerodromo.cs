@@ -72,6 +72,22 @@ namespace TBD.Net
             return a;
         }
 
+        /// <summary>Existencias de partida del bloque «aerodromos» de existencias_red.json de Hugo (munición y combustible en u; no se reponen en el MVP).</summary>
+        public bool AplicarExistencias(string json)
+        {
+            if (json == null) return false;
+            var root = Mini.Parse(json) as Dictionary<string, object>;
+            if (root == null || !root.TryGetValue("aerodromos", out var a) || !(a is List<object> l)) return false;
+            foreach (var o in l)
+            {
+                var d = o as Dictionary<string, object>; if (d == null || !(d.TryGetValue("id", out var id) && (string)id == Id)) continue;
+                var r = d["reserva"] as Dictionary<string, object>;
+                MunicionMilliU = (int)Math.Round(Num(r["municion_u"]) * 1000); CombustibleMilliU = (int)Math.Round(Num(r["combustible_u"]) * 1000);
+                return true;
+            }
+            return false;
+        }
+
         static double Num(object o) { return o is double d ? d : o is long l ? l : o is int i ? i : Convert.ToDouble(o, System.Globalization.CultureInfo.InvariantCulture); }
 
         /// <summary>Segundos reales de vuelo para esa distancia, con el reloj del juego (NetConst.GameMsPerTick a 30 Hz).</summary>

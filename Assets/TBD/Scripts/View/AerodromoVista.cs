@@ -39,6 +39,7 @@ namespace TBD.View
         {
             string j = BalanceSource.Read("estacion_betera.json");
             try { _a = j != null ? AerodromoEstado.FromJson(j) : null; } catch (Exception e) { Debug.LogWarning("[AERO] estacion_betera.json no vale: " + e.Message); _a = null; }
+            if (_a != null && !_a.AplicarExistencias(BalanceSource.Read("existencias_red.json"))) Debug.Log("[AERO] sin existencias_red.json: 50 u y 70 u por defecto");
             if (_a == null) Debug.LogWarning("[AERO] sin datos de Bétera");
         }
 
