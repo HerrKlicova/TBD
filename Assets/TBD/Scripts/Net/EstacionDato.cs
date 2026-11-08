@@ -14,7 +14,7 @@ namespace TBD.Net
     public enum EstacionTamano : byte { Pequena = 0, Estacion = 1, Principal = 2, Aerodromo = 3 }   // Aerodromo: D-N173 (Bétera, tipo «aerodromo» en el JSON)
     public enum EstacionInicio : byte { Propia = 0, Abandonada = 1, Infestada = 2 }
 
-    public struct EstacionPieza { public string Pieza; public float X, Y, Z, Yaw; public int Variante; public float Fondo; }   // Variante −1 = por hash; Fondo 0 = el del módulo
+    public struct EstacionPieza { public string Pieza, Tipo; public float X, Y, Z, Yaw; public int Variante; public float Fondo; }   // Variante −1 = por hash; Fondo 0 = el del módulo
     public struct EstacionPuerta { public string Tipo; public float X, Z; }
     public struct EstacionCarretera { public string Id, Nombre; public float[] Tramo; public bool Habilitada; }   // Tramo: x0, z0, x1, z1, …
     public struct EstacionSitio { public string Id; public float X, Z; }
@@ -33,6 +33,12 @@ namespace TBD.Net
         public readonly List<EstacionCarretera> Carreteras = new List<EstacionCarretera>();
         public readonly List<EstacionSitio> Sitios = new List<EstacionSitio>();
         public float CuartelX = float.NaN, CuartelZ = float.NaN;
+        /// <summary>
+        /// Estación subterránea (Castellón v0.1, castellon-nivel.md §7; aprobada por Lucía el 8-nov): cota de las vías bajo losa y en trinchera, la losa (su
+        /// cara de arriba es la calle, cota 0), las trincheras abiertas y el vestíbulo de calle con la escalera al andén. null si la estación es de superficie.
+        /// </summary>
+        public Subterranea Sub;
+        public sealed class Subterranea { public float CotaVia, Intrados; public float[] Losa; public readonly List<float[]> Trincheras = new List<float[]>(); public float VestX, VestZ, VestYaw, VestAncho, VestFondo, Desnivel, SubidaS; public bool Bajada; public float BajadaX, BajadaZ, ViaVehZ, PlataformaX0, PlataformaX1; }
         public string InteligenciaTipo; public float InteligenciaX = float.NaN, InteligenciaZ = float.NaN, InteligenciaYaw;
         public readonly List<EstacionParada> ParadasAsalto = new List<EstacionParada>();
         public readonly List<string> OrdenLiberacion = new List<string>();
@@ -50,6 +56,27 @@ namespace TBD.Net
                 EstadoInicial = ParseInicio(Opt<string>(root, "estado_inicial")),
             };
             foreach (var v in List(root, "vias")) d.Vias.Add(Points(v, "vias"));
+            if (root.TryGetValue("subterranea", out var subO) && subO is Dictionary<string, object> sd)
+            {
+                var sub = new Subterranea { CotaVia = Num(sd["cota_via_m"]), Intrados = sd.ContainsKey("intrados_m") ? Num(sd["intrados_m"]) : 6.5f, Losa = Floats(sd["losa"], "losa") };
+                foreach (var t in List(sd, "trinchera")) sub.Trincheras.Add(Floats(t, "trinchera"));
+                if (sd.TryGetValue("vestibulo", out var vo) && vo is Dictionary<string, object> vd)
+                {
+                    var vp = Floats(vd["pos"], "vestibulo"); sub.VestX = vp[0]; sub.VestZ = vp.Length > 2 ? vp[2] : vp[1];
+                    sub.VestYaw = vd.ContainsKey("yaw") ? Num(vd["yaw"]) : 0f;
+                    if (vd.TryGetValue("huella", out var hu)) { var h = Floats(hu, "huella"); sub.VestAncho = h[0]; sub.VestFondo = h[1]; }
+                    if (vd.TryGetValue("desnivel_escalera_m", out var dn)) sub.Desnivel = Num(dn);
+                    if (vd.TryGetValue("tiempo_subida_s", out var ts)) sub.SubidaS = Num(ts);
+                }
+                if (sd.TryGetValue("bajada_vehiculos", out var bo) && bo is Dictionary<string, object> bd)
+                {
+                    // v0.2: los vehículos bajan en superficie, en la cabeza oeste del cargadero (el punto viene en mm)
+                    var pb = Floats(bd["punto_bajada_mm"], "bajada_vehiculos"); sub.Bajada = true; sub.BajadaX = pb[0] / 1000f; sub.BajadaZ = pb[1] / 1000f;
+                    if (bd.ContainsKey("via_z")) sub.ViaVehZ = Num(bd["via_z"]);
+                    if (bd.ContainsKey("vagon_plataforma_x")) { var px = Floats(bd["vagon_plataforma_x"], "vagon_plataforma_x"); sub.PlataformaX0 = px[0]; sub.PlataformaX1 = px[1]; }
+                }
+                d.Sub = sub;
+            }
             foreach (var a in List(root, "andenes")) { var r = Floats(a, "andenes"); if (r.Length != 4) throw new FormatException("andén: hacen falta 4 números"); d.Andenes.Add(r); }
             if (root.ContainsKey("recinto")) d.Recinto = Points(root["recinto"], "recinto");
             foreach (var o in List(root, "puertas")) { var p = Obj(o, "puertas"); var xz = XZ(p["pos"], "puertas"); d.Puertas.Add(new EstacionPuerta { Tipo = Req<string>(p, "tipo"), X = xz[0], Z = xz[1] }); }
@@ -57,7 +84,7 @@ namespace TBD.Net
             {
                 var p = Obj(o, "piezas"); var pos = Floats(p["pos"], "piezas");
                 if (pos.Length != 3) throw new FormatException("pieza: «pos» tiene que ser [x, y, z]");
-                d.Piezas.Add(new EstacionPieza { Pieza = Req<string>(p, "pieza"), X = pos[0], Y = pos[1], Z = pos[2], Yaw = p.ContainsKey("yaw") ? Num(p["yaw"]) : 0f, Variante = p.ContainsKey("variante") ? (int)Num(p["variante"]) : -1, Fondo = p.ContainsKey("fondo") ? Num(p["fondo"]) : 0f });
+                d.Piezas.Add(new EstacionPieza { Pieza = Req<string>(p, "pieza"), X = pos[0], Y = pos[1], Z = pos[2], Yaw = p.ContainsKey("yaw") ? Num(p["yaw"]) : 0f, Variante = p.ContainsKey("variante") ? (int)Num(p["variante"]) : -1, Fondo = p.ContainsKey("fondo") ? Num(p["fondo"]) : 0f, Tipo = p.TryGetValue("tipo", out var tp) ? tp as string : null });
             }
             foreach (var o in List(root, "carreteras"))
             {
@@ -138,5 +165,60 @@ namespace TBD.Net
         }
 
         public override string ToString() => string.Format(CultureInfo.InvariantCulture, "{0} ({1}, {2}): {3} piezas, {4} vías, {5} sitios", Nombre, Tamano, EstadoInicial, Piezas.Count, Vias.Count, Sitios.Count);
+    }
+
+    /// <summary>
+    /// Kit subterráneo de Castellón de Teo (entregas/teo-modelado/castellon, aprobado por Lucía el 8-nov) para castellon.json v0.4 de Álvaro: de la pieza del JSON
+    /// al archivo de Resources/Models/Castellon/&lt;carpeta&gt;. Variante −1 = por hash de la posición. La barricada sale en e2 o e3 por hash (LEEME: «en
+    /// Castellón salen sobre todo e2 y e3»); el vagón abandonado toma la variante de su «tipo» (cerrado, cisterna, coche, plataforma).
+    /// </summary>
+    public static class CastellonKit
+    {
+        public static readonly string[] Anden = { "Abandonada", "TechoCaido", "LosaRota", "Campamento", "Quemada" };
+        public static readonly string[] Catenaria = { "Rigida", "Flexible", "Colgando", "Caida", "Arrancada" };
+        public static readonly string[] Muro = { "Liso", "Pilotes", "Malla", "Agrietado", "Hiedra" };
+        public static readonly string[] Vestibulo = { "Abandonada", "Segura", "EnLiberacion", "Caida", "Liberada" };
+        public static readonly string[] Barricada = { "Coches", "Muebles", "Vallas", "Furgoneta", "Mixta" };
+        public static readonly string[] BarricadaEstado = { "Sano", "Danado", "MuyDanado", "Brecha" };
+        public static readonly string[] Vagon = { "Saqueado", "Volcado", "Cerrado", "Descarrilado", "Quemado" };
+
+        public static readonly Dictionary<string, string[]> Urbano = new Dictionary<string, string[]>
+        {
+            { "SM_Contenedor", new[] { "Verde", "Abierto", "Reciclaje", "Volcado", "Fila" } },
+            { "SM_ParadaBus", new[] { "Entera", "SinCristales", "Anuncio", "Refugio", "Caida" } },
+            { "SM_Quiosco", new[] { "Cerrado", "Abierto", "Loteria", "Saqueado", "Quemado" } },
+            { "SM_Senal", new[] { "Direccion", "Redonda", "Triangular", "Doble", "Doblada" } },
+            { "SM_Semaforo", new[] { "Simple", "Brazo", "Peatonal", "Doblado", "Caido" } },
+        };
+
+        static int V(EstacionPieza p, int n) { return p.Variante >= 0 ? Math.Min(p.Variante, n - 1) : EstacionDato.VariantOf(p.X, p.Z, n); }
+
+        /// <summary>Carpeta bajo Resources/Models y archivo (sin _LOD1) de una pieza «castellon/…» o «urbano/…»; false si no es del kit.</summary>
+        public static bool Archivo(EstacionPieza p, out string carpeta, out string archivo)
+        {
+            carpeta = archivo = null;
+            if (p.Pieza != null && p.Pieza.StartsWith("urbano/SM_") && Urbano.TryGetValue(p.Pieza.Substring(7), out var un))
+            {
+                int k = V(p, 5); carpeta = "Urbano"; archivo = p.Pieza.Substring(7) + "_v" + k + "_" + un[k]; return true;     // mobiliario urbano de Teo (urbano-extra)
+            }
+            switch (p.Pieza)
+            {
+                case "castellon/anden_losa": { int k = V(p, 5); carpeta = "Castellon/anden_losa"; archivo = "SM_AndenLosa_" + (p.Tipo == "Lateral" ? "Lateral" : "Central") + "_v" + k + "_" + Anden[k]; return true; }
+                case "castellon/catenaria_losa": { int k = V(p, 5); carpeta = "Castellon/catenaria_losa"; archivo = "SM_CatenariaLosa_v" + k + "_" + Catenaria[k]; return true; }
+                case "castellon/muro_trinchera": { int k = V(p, 5); carpeta = "Castellon/muro_trinchera"; archivo = "SM_MuroTrinchera_" + (p.Tipo == "Boca" ? "Boca" : "Muro") + "_v" + k + "_" + Muro[k]; return true; }
+                case "castellon/vestibulo": { int k = V(p, 5); carpeta = "Castellon/vestibulo"; archivo = "SM_VestibuloCastellon_v" + k + "_" + Vestibulo[k]; return true; }
+                case "castellon/barricada_civil":
+                {
+                    int a = V(p, 5), e = 2 + EstacionDato.VariantOf(p.X + 0.5f, p.Z, 2);
+                    carpeta = "Castellon/barricada_civil"; archivo = "SM_BarricadaCivil_v" + a + "_" + Barricada[a] + "_e" + e + "_" + BarricadaEstado[e]; return true;
+                }
+                case "castellon/vagon_abandonado":
+                {
+                    int k = p.Tipo == "cerrado" ? 2 : p.Tipo == "cisterna" ? 3 : p.Tipo == "plataforma" ? 4 : p.Tipo == "coche" ? EstacionDato.VariantOf(p.X, p.Z, 2) : V(p, 5);
+                    carpeta = "Castellon/vagon_abandonado"; archivo = "SM_VagonAbandonado_v" + k + "_" + Vagon[k]; return true;
+                }
+            }
+            return false;
+        }
     }
 }

@@ -13,7 +13,8 @@ namespace TBD.View
     /// </summary>
     public static class AerodromoZona
     {
-        public sealed class Result { public Transform Root; public int Placed, Faldon; public readonly List<string> Missing = new List<string>(); public readonly Dictionary<string, Vector3> Claros = new Dictionary<string, Vector3>(); }
+        public sealed class Result { public Transform Root; public int Placed, Faldon; public readonly List<string> Missing = new List<string>(); public readonly Dictionary<string, Vector3> Claros = new Dictionary<string, Vector3>();
+            public readonly List<GameObject> P1Reposo = new List<GameObject>(), P1Rearme = new List<GameObject>(); public bool Rearmando; }
         static readonly Dictionary<string, Material> Mats = new Dictionary<string, Material>();
         static Material _ground, _concrete, _apron, _mark, _missing;
 
@@ -44,8 +45,37 @@ namespace TBD.View
                 if (c.EscalaX != 0f && c.EscalaX != 1f) { var sc = go.transform.localScale; go.transform.localScale = new Vector3(sc.x * c.EscalaX, sc.y, sc.z); }
                 res.Placed++; if (c.Faldon) res.Faldon++;
             }
+            // rearme de Teo: en P1, las dos mallas (reposo y rearme) y se enciende una u otra; en P2 y P3, la del sitio
+            var rearme = new GameObject("Rearme").transform; rearme.SetParent(root, false);
+            foreach (var st in RearmeBetera.Sitios)
+            {
+                var a = Vehiculo(rearme, st, st.Variante, res);
+                if (!st.EnP1) continue;
+                res.P1Reposo.Add(a);
+                var b = Vehiculo(rearme, st, st.VarianteRearme, res); b.SetActive(false); res.P1Rearme.Add(b);
+            }
             var g = new GameObject("Guarnición de Bétera (sitio)"); g.transform.SetParent(root, false); g.transform.localPosition = new Vector3(n.CuartelX, 0f, n.CuartelZ);
             return res;
+        }
+
+        static GameObject Vehiculo(Transform parent, RearmeBetera.Sitio st, int v, Result res)
+        {
+            string f = RearmeBetera.Archivo(st.EsCamion, v);
+            var go = ModelEn("Betera/rearme", f + "_LOD1", parent);
+            if (go == null) { go = Placeholder(parent, f); res.Missing.Add(f + " (" + st.X + ", " + st.Z + ")"); }
+            go.transform.localPosition = new Vector3(st.X, 0f, st.Z); go.transform.localRotation = Quaternion.Euler(0f, st.Yaw, 0f) * go.transform.localRotation;
+            return go;
+        }
+
+        /// <summary>Cada fotograma (o al cambiar): con un NH90 rearmando, Repostando y Descargando en P1; en reposo, Aparcado y Cargado (mejora de Lucía).</summary>
+        public static void Actualizar(Result res, AerodromoEstado a) { SetRearme(res, a != null && a.AlgunoRearmando); }
+
+        public static void SetRearme(Result res, bool rearmando)
+        {
+            if (res == null || res.Rearmando == rearmando) return;
+            res.Rearmando = rearmando;
+            foreach (var g in res.P1Reposo) if (g != null) g.SetActive(!rearmando);
+            foreach (var g in res.P1Rearme) if (g != null) g.SetActive(rearmando);
         }
 
         public static int VidaValla = 5000;      // HP de cada tramo de valla (5.000 = sana); sin asedios en el MVP, siempre sana

@@ -218,3 +218,54 @@ pinar;SM_Pino;-1;162.7;0;-79.9;180;1;no;"pinar fuera del reducto (faldón; sin c
 pinar;SM_Pino;-1;-15.1;0;196.7;90;1;no;"pinar fuera del reducto (faldón; sin colisión)"
 pinar;SM_Pino;-1;212.6;0;186.5;270;1;no;"pinar fuera del reducto (faldón; sin colisión)"
 pinar;SM_Pino;-1;263.3;0;-70.0;180;1;no;"pinar fuera del reducto (faldón; sin colisión)"
+ambiente;SM_Balizas;0;122;0;120;0;1;si;P1, lado norte, 1 m por fuera del claro
+ambiente;SM_Balizas;0;122;0;88;0;1;si;P1, lado sur, 1 m por fuera del claro
+ambiente;SM_Balizas;0;144;0;98;90;1;si;P1, lado este, 1 m por fuera del claro
+ambiente;SM_Balizas;0;112;0;98;90;1;si;P1, lado oeste, 1 m por fuera del claro
+ambiente;SM_Balizas;0;134;0;120;0;1;si;P1, lado norte, 1 m por fuera del claro
+ambiente;SM_Balizas;0;134;0;88;0;1;si;P1, lado sur, 1 m por fuera del claro
+ambiente;SM_Balizas;0;144;0;110;90;1;si;P1, lado este, 1 m por fuera del claro
+ambiente;SM_Balizas;0;112;0;110;90;1;si;P1, lado oeste, 1 m por fuera del claro
+ambiente;SM_Balizas;0;25;0;117.5;0;1;si;P2, lado norte, 1 m por fuera del claro
+ambiente;SM_Balizas;0;25;0;90.5;0;1;si;P2, lado sur, 1 m por fuera del claro
+ambiente;SM_Balizas;0;44.5;0;98;90;1;si;P2, lado este, 1 m por fuera del claro
+ambiente;SM_Balizas;0;17.5;0;98;90;1;si;P2, lado oeste, 1 m por fuera del claro
+ambiente;SM_Balizas;0;37;0;117.5;0;1;si;P2, lado norte, 1 m por fuera del claro
+ambiente;SM_Balizas;0;37;0;90.5;0;1;si;P2, lado sur, 1 m por fuera del claro
+ambiente;SM_Balizas;0;44.5;0;110;90;1;si;P2, lado este, 1 m por fuera del claro
+ambiente;SM_Balizas;0;17.5;0;110;90;1;si;P2, lado oeste, 1 m por fuera del claro
+ambiente;SM_Balizas;0;220;0;117.5;0;1;si;P3, lado norte, 1 m por fuera del claro
+ambiente;SM_Balizas;0;220;0;90.5;0;1;si;P3, lado sur, 1 m por fuera del claro
+ambiente;SM_Balizas;0;239.5;0;98;90;1;si;P3, lado este, 1 m por fuera del claro
+ambiente;SM_Balizas;0;212.5;0;98;90;1;si;P3, lado oeste, 1 m por fuera del claro
+ambiente;SM_Balizas;0;232;0;117.5;0;1;si;P3, lado norte, 1 m por fuera del claro
+ambiente;SM_Balizas;0;232;0;90.5;0;1;si;P3, lado sur, 1 m por fuera del claro
+ambiente;SM_Balizas;0;239.5;0;110;90;1;si;P3, lado este, 1 m por fuera del claro
+ambiente;SM_Balizas;0;212.5;0;110;90;1;si;P3, lado oeste, 1 m por fuera del claro
+ambiente;SM_Balizas;1;94;0;173.5;0;1;si;C1, lado norte, 1 m por fuera del claro
+ambiente;SM_Balizas;1;94;0;146.5;0;1;si;C1, lado sur, 1 m por fuera del claro
+ambiente;SM_Balizas;1;113.5;0;154;90;1;si;C1, lado este, 1 m por fuera del claro
+ambiente;SM_Balizas;1;86.5;0;154;90;1;si;C1, lado oeste, 1 m por fuera del claro
+ambiente;SM_Balizas;1;106;0;173.5;0;1;si;C1, lado norte, 1 m por fuera del claro
+ambiente;SM_Balizas;1;106;0;146.5;0;1;si;C1, lado sur, 1 m por fuera del claro
+ambiente;SM_Balizas;1;113.5;0;166;90;1;si;C1, lado este, 1 m por fuera del claro
+ambiente;SM_Balizas;1;86.5;0;166;90;1;si;C1, lado oeste, 1 m por fuera del claro
+ambiente;SM_MangaViento;0;106;0;120;0;1;si;junto a P1, fuera de la losa (P1: X 113–143, Z 89–119)
+ambiente;SM_Caseta;0;116;0;30;0;1;si;Oficina, junto al hangar H1 (X 70–110), puerta al norte
+ambiente;SM_Caseta;1;186;0;30;0;1;si;Almacen, junto al hangar H2 (X 140–180), puerta al norte
+ambiente;SM_TorreLuz;0;-7;0;27;71;1;si;esquina de la plataforma (X −10–267, Z 24–123), focos hacia el centro (yaw SIN VERIFICAR: focos a +Z con yaw 0)
+ambiente;SM_TorreLuz;0;264;0;27;289;1;si;esquina de la plataforma (X −10–267, Z 24–123), focos hacia el centro (yaw SIN VERIFICAR: focos a +Z con yaw 0)
+ambiente;SM_TorreLuz;0;-7;0;120;109;1;si;esquina de la plataforma (X −10–267, Z 24–123), focos hacia el centro (yaw SIN VERIFICAR: focos a +Z con yaw 0)
+ambiente;SM_TorreLuz;0;264;0;120;251;1;si;esquina de la plataforma (X −10–267, Z 24–123), focos hacia el centro (yaw SIN VERIFICAR: focos a +Z con yaw 0)
+ambiente;SM_Vallas;3;21;0;121;0;1;si;conos con cinta al oeste de la salida a la pista (X 31)
+ambiente;SM_Vallas;3;41;0;121;0;1;si;conos con cinta al este de la salida a la pista (X 31)
+ambiente;SM_Vallas;3;118;0;121;0;1;si;conos con cinta al oeste de la salida a la pista (X 128)
+ambiente;SM_Vallas;3;138;0;121;0;1;si;conos con cinta al este de la salida a la pista (X 128)
+ambiente;SM_Vallas;3;216;0;121;0;1;si;conos con cinta al oeste de la salida a la pista (X 226)
+ambiente;SM_Vallas;3;236;0;121;0;1;si;conos con cinta al este de la salida a la pista (X 226)
+ambiente;SM_Vallas;2;25;0;-40;0;1;no;jersey a la entrada sur (puerta en X 36), por fuera
+ambiente;SM_Vallas;2;47;0;-40;0;1;no;jersey a la entrada sur (puerta en X 36), por fuera
+ambiente;SM_Vallas;0;36;0;-48;0;1;no;vallas de obra en chicane delante de la puerta sur (X 36), por fuera
+ambiente;SM_Vallas;2;202;0;-40;0;1;no;jersey a la entrada sur (puerta en X 213), por fuera
+ambiente;SM_Vallas;2;224;0;-40;0;1;no;jersey a la entrada sur (puerta en X 213), por fuera
+ambiente;SM_Vallas;0;213;0;-48;0;1;no;vallas de obra en chicane delante de la puerta sur (X 213), por fuera

@@ -39,6 +39,16 @@ namespace TBD.Net
 
         public bool DentroZona(float x, float z) { return x >= ZonaX0 && x <= ZonaX1 && z >= ZonaZ0 && z <= ZonaZ1; }
 
+        /// <summary>Ambiente del aeródromo de Teo (betera-ambiente): el nombre de cada variante v0–v4 va en el fichero.</summary>
+        public static readonly Dictionary<string, string[]> Ambiente = new Dictionary<string, string[]>
+        {
+            { "SM_Balizas", new[] { "Blancas", "Verdes", "EnL", "Rotas", "Conos" } },
+            { "SM_Caseta", new[] { "Oficina", "Almacen", "Apiladas", "Sacos", "Antena" } },
+            { "SM_MangaViento", new[] { "Inflada", "Media", "Caida", "Rota", "Base" } },
+            { "SM_TorreLuz", new[] { "Desplegada", "Plegada", "Cable", "Bidones", "Caida" } },
+            { "SM_Vallas", new[] { "Obra", "ObraL", "Jersey", "Conos", "Caidas" } },
+        };
+
         static readonly string[] PuertaVar = { "TuboChapa", "ChapaOndulada", "Tablones", "MallaEspino", "Blindada" };
 
         /// <summary>
@@ -49,6 +59,7 @@ namespace TBD.Net
         {
             int k = variante >= 0 ? variante : EstacionDato.VariantOf(x, z, 5);
             if (prefab == "helipuerto") { ruta = "Betera/helipuerto"; archivo = "SM_Helipuerto_v" + (variante >= 0 ? variante : 4); return; }
+            if (Ambiente.TryGetValue(prefab, out var amb)) { ruta = "Betera/ambiente"; archivo = prefab + "_v" + k + "_" + amb[k]; return; }   // ambiente de Teo (7b4478f)
             if (prefab == "rearme_set") { ruta = "Betera/rearme_set"; archivo = "SM_RearmeSet_v" + k; return; }
             if (prefab == "SM_MuroHesco") { ruta = "Defensas/muro"; archivo = RecintoPlan.Nombre("MuroHesco", MaterialMuro.Hesco, k, estado); return; }
             if (prefab == "SM_MuroSacos") { ruta = "Defensas/muro"; archivo = RecintoPlan.Nombre("MuroSacos", MaterialMuro.Sacos, k, estado); return; }
@@ -146,5 +157,25 @@ namespace TBD.Net
             if (faltan <= RotorS + SubidaS) { x = x1; z = z1; y = AlturaM * (faltan - RotorS) / SubidaS; return; }
             float d = (faltan - RotorS - SubidaS) * VelocidadMs; x = x1 - ex * d; z = z1 - ez * d; y = AlturaM;      // viene de atrás del rumbo de llegada
         }
+    }
+
+    /// <summary>
+    /// Zona de rearme de Bétera de Teo (betera-rearme, aprobada por Lucía): camión cisterna y remolque de munición. En P1 (helipuerto, 128; 104), a unos 7 m del
+    /// helicóptero con el lado +X hacia él (yaw 180, porque quedan al este de P1): Repostando y Descargando mientras un NH90 rearma; en reposo, Aparcado y Cargado
+    /// (mejora de Lucía; solo cambia la malla). En P2 y P3, Aparcado y Tapado, fuera de los claros de 25 m y de sus balizas. Posiciones SIN VERIFICAR con Álvaro.
+    /// </summary>
+    public static class RearmeBetera
+    {
+        public static readonly string[] Camion = { "Aparcado", "Repostando", "Protegido", "Averiado", "Quemado" };
+        public static readonly string[] Remolque = { "Cargado", "Cohetes", "Descargando", "Tapado", "Vacio" };
+        public struct Sitio { public bool EsCamion, EnP1; public float X, Z, Yaw; public int Variante, VarianteRearme; }
+        public static readonly Sitio[] Sitios =
+        {
+            new Sitio { EsCamion = true, EnP1 = true, X = 135f, Z = 100f, Yaw = 180f, Variante = 0, VarianteRearme = 1 },
+            new Sitio { EsCamion = false, EnP1 = true, X = 135f, Z = 109f, Yaw = 180f, Variante = 0, VarianteRearme = 2 },
+            new Sitio { EsCamion = true, X = 31f, Z = 86f, Yaw = 90f, Variante = 0, VarianteRearme = 0 },
+            new Sitio { EsCamion = false, X = 226f, Z = 86f, Yaw = 90f, Variante = 3, VarianteRearme = 3 },
+        };
+        public static string Archivo(bool camion, int v) { return camion ? "SM_CamionCisterna_v" + v + "_" + Camion[v] : "SM_RemolqueMunicion_v" + v + "_" + Remolque[v]; }
     }
 }

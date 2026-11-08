@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using TBD.Units;
 
 namespace TBD.Net
 {
@@ -125,6 +126,82 @@ namespace TBD.Net
             if (ticks < 0) return "—";
             long min = NetConst.GameMs(ticks) / 60000;
             return $"{min / 60}:{min % 60:00}";
+        }
+    }
+
+    /// <summary>
+    /// Carga visible de Teo sobre las plataformas Rgs (carga-vagones, aprobada por Lucía): un módulo por recurso, hijo del vagón en (0; 1,25; 0) y sin giro.
+    /// Lleno a partir de 2/3 de la capacidad, Mitad a partir de 1/3 y Vacío por debajo; Dañado y Destrozado según la vida del vagón (umbrales SUPUESTOS: por
+    /// debajo del 70 % y del 30 %). La tropa no lleva módulo (es el vagón R2). Capacidad de referencia por plataforma SUPUESTA en 30 u hasta que la fije Hugo.
+    /// </summary>
+    public static class CargaVisible
+    {
+        public static readonly string[] Recurso = { "Municion", "Combustible", "Materiales", null, "Viveres" };
+        public const int CapacidadRefU = 30, DanadoPm = 700, DestrozadoPm = 300;
+
+        public static string Estado(int u, int capacidad, int vidaPm = 1000)
+        {
+            if (vidaPm < DestrozadoPm) return "Destrozado";
+            if (vidaPm < DanadoPm) return "Danado";
+            if (capacidad <= 0) capacidad = CapacidadRefU;
+            return u * 3 >= capacidad * 2 ? "Lleno" : u * 3 >= capacidad ? "Mitad" : "Vacio";
+        }
+
+        /// <summary>Fichero del módulo (sin _LOD1); null para las personas.</summary>
+        public static string Archivo(int recurso, string estado) { return recurso < 0 || recurso >= Recurso.Length || Recurso[recurso] == null ? null : "SM_Carga" + Recurso[recurso] + "_" + estado; }
+
+        /// <summary>
+        /// Qué lleva cada plataforma: una por recurso con carga, en el orden del panel (munición, combustible, materiales, víveres). Si hay más recursos que
+        /// plataformas, los que sobran no se ven; las plataformas que sobran van sin módulo (recurso −1).
+        /// </summary>
+        public static int[] Reparto(int[] cargo, int plataformas)
+        {
+            var r = new int[Math.Max(0, plataformas)]; for (int i = 0; i < r.Length; i++) r[i] = -1;
+            int k = 0;
+            if (cargo != null) for (int res = 0; res < cargo.Length && k < r.Length; res++) if (Recurso.Length > res && Recurso[res] != null && cargo[res] > 0) r[k++] = res;
+            return r;
+        }
+    }
+
+    /// <summary>
+    /// Acopio de víveres de Nules de Teo (acopio_viveres, aprobado por Lucía): 5 pilas (nules_instancias.csv, grupo «viveres») que siguen a los víveres de Nules
+    /// con la regla de los vagones sobre la capacidad de referencia de Hugo (30 u: Lleno desde 20, Mitad desde 10). Saqueado si Nules cae y Quemado si arde.
+    /// Las variantes v0–v4 SON los estados: todas comparten origen y solo cambia la malla.
+    /// </summary>
+    public static class AcopioViveres
+    {
+        public static readonly string[] Estados = { "Lleno", "Mitad", "Vacio", "Saqueado", "Quemado" };
+        public static int CapacidadRefU = 30;
+
+        public static int Estado(int viveres, bool caida = false, bool quemada = false)
+        {
+            if (quemada) return 4;
+            if (caida) return 3;
+            return viveres * 3 >= CapacidadRefU * 2 ? 0 : viveres * 3 >= CapacidadRefU ? 1 : 2;
+        }
+
+        public static string Archivo(int estado) { return "SM_AcopioViveres_v" + estado + "_" + Estados[estado]; }
+
+        /// <summary>Lee la capacidad de referencia de Nules del bloque «viveres.capacidad_ref_u» de existencias_red.json.</summary>
+        public static bool LeerCapacidad(string json, string id = "nules")
+        {
+            if (!(Mini.Parse(json) is Dictionary<string, object> root) || !root.TryGetValue("viveres", out var v) || !(v is Dictionary<string, object> vd)) return false;
+            if (!vd.TryGetValue("capacidad_ref_u", out var c) || !(c is List<object> l)) return false;
+            foreach (var o in l) if (o is Dictionary<string, object> d && d.TryGetValue("id", out var i) && i as string == id && d.TryGetValue("u", out var u)) { CapacidadRefU = (int)Convert.ToDouble(u, System.Globalization.CultureInfo.InvariantCulture); return true; }
+            return false;
+        }
+
+        /// <summary>Las pilas del CSV de Álvaro (grupo «viveres»): x, y, z y yaw.</summary>
+        public static List<float[]> Pilas(string csv)
+        {
+            var r = new List<float[]>();
+            foreach (var raw in csv.Replace("\r", "").Split('\n'))
+            {
+                var c = raw.Split(';'); if (c.Length < 7 || c[0] != "viveres") continue;
+                var ci = System.Globalization.CultureInfo.InvariantCulture;
+                r.Add(new[] { float.Parse(c[3], ci), float.Parse(c[4], ci), float.Parse(c[5], ci), float.Parse(c[6], ci) });
+            }
+            return r;
         }
     }
 }

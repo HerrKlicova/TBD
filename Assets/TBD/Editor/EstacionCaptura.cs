@@ -45,6 +45,16 @@ namespace TBD.EditorTools
             Shot(cam, new Vector3(60f, 45f, 20f), new Vector3(130f, 0f, 70f), 50f, Path.Combine(outDir, id + "_estacion.png"));
             Shot(cam, new Vector3(150f, 30f, -25f), new Vector3(180f, 0f, 22f), 50f, Path.Combine(outDir, id + "_deposito.png"));
             Shot(cam, new Vector3(225f, 14f, 105f), new Vector3(206f, 2f, 82f), 45f, Path.Combine(outDir, id + "_radar.png"));
+            if (dato.Sub != null)
+            {
+                // estación subterránea: otra toma con los hijos «Losa» y «Cubierta» ocultos (lo que hará Marcos con la cámara cenital), para ver andenes, bocas y yaws
+                var ocultos = new System.Collections.Generic.List<GameObject>();
+                foreach (var t in root.GetComponentsInChildren<Transform>(true)) if ((t.name == "Losa" || t.name == "Cubierta") && t.gameObject.activeSelf) { t.gameObject.SetActive(false); ocultos.Add(t.gameObject); }
+                Debug.Log("[Estaciones] ocultos para la toma bajo losa: " + ocultos.Count);
+                Shot(cam, new Vector3(40f, 40f, 30f), new Vector3(110f, -8f, 64f), 50f, Path.Combine(outDir, id + "_bajo_losa.png"));
+                Shot(cam, new Vector3(130f, 150f, 20f), new Vector3(130f, -8f, 66f), 50f, Path.Combine(outDir, id + "_bajo_losa_cenital.png"));
+                foreach (var g in ocultos) g.SetActive(true);
+            }
             Object.DestroyImmediate(cam.gameObject);
             Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(Directory.GetParent(Application.dataPath).FullName, ScenePath)));
             EditorSceneManager.SaveScene(scene, ScenePath);

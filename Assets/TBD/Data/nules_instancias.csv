@@ -1,0 +1,264 @@
+grupo;prefab;variante;x_m;y_m;z_m;yaw_grados;escala_x;en_zona_mvp;nota
+via;SM_KitVia;-1;5;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;15;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;25;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;35;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;45;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;55;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;65;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;75;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;85;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;95;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;105;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;115;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;125;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;135;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;145;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;155;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;165;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;175;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;185;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;195;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;205;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;215;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;225;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;235;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;245;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;-1;255;0;66.4;0;1;si;"vía general 1 (ibérico); v0/v1 por semilla"
+via;SM_KitVia;2;5;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;15;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;25;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;35;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;45;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;55;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;65;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;75;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;85;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;95;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;105;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;115;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;125;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;135;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;145;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;155;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;165;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;175;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;185;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;195;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;205;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;215;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;225;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;235;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;245;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;2;255;0;62.6;0;1;si;vía general 2, tercer carril (v3 si está rota)
+via;SM_KitVia;-1;-1;0;49;0;1;no;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;SM_KitVia;-1;9;0;49;0;1;si;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;SM_KitVia;-1;19;0;49;0;1;si;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;SM_KitVia;-1;29;0;49;0;1;si;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;SM_KitVia;-1;39;0;49;0;1;si;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;SM_KitVia;-1;49;0;49;0;1;si;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;SM_KitVia;-1;59;0;49;0;1;si;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;SM_KitVia;-1;69;0;49;0;1;si;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;SM_KitVia;-1;79;0;49;0;1;si;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;SM_KitVia;-1;89;0;49;0;1;si;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;SM_KitVia;-1;99;0;49;0;1;si;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;SM_KitVia;-1;109;0;49;0;1;si;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;SM_KitVia;-1;119;0;49;0;1;si;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;SM_KitVia;-1;129;0;49;0;1;si;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;SM_KitVia;-1;139;0;49;0;1;si;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;SM_KitVia;-1;149;0;49;0;1;si;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;SM_KitVia;-1;159;0;49;0;1;si;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;SM_KitVia;-1;169;0;49;0;1;si;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;SM_KitVia;-1;179;0;49;0;1;si;"apartado del muelle (X −6 a 184; la aguja queda en el faldón)"
+via;via/topera;-1;185;0;49;0;1;si;la cara mira a −X, hacia el tren (v0–v5)
+anden;SM_KitAnden_F11;-1;30.881;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;30.881;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;40.643;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;40.643;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;50.405;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;50.405;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;60.167;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;60.167;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;69.929;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;69.929;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;79.69;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;79.69;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;89.452;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;89.452;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;99.214;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;99.214;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;108.976;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;108.976;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;118.738;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;118.738;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;128.5;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;128.5;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;138.262;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;138.262;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;148.024;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;148.024;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;157.786;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;157.786;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;167.548;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;167.548;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;177.31;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;177.31;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;187.071;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;187.071;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;196.833;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;196.833;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;206.595;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;206.595;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;216.357;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;216.357;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitAnden_F11;-1;226.119;0;73.7;180;0.9762;si;"andén 1 (11 m); borde hacia la vía (−Z) = yaw 180 con la convención de Teo"
+anden;SM_KitAnden_F7;-1;226.119;0;57.3;0;0.9762;si;"andén 2 (7 m); borde hacia la vía (+Z) = yaw 0 con la convención de Teo"
+anden;SM_KitMarquesina;-1;93;0.68;73.7;180;1;si;marquesina del andén (módulos de 6 m)
+anden;SM_KitMarquesina;-1;99;0.68;73.7;180;1;si;marquesina del andén (módulos de 6 m)
+anden;SM_KitMarquesina;-1;105;0.68;73.7;180;1;si;marquesina del andén (módulos de 6 m)
+anden;SM_KitMarquesina;-1;111;0.68;73.7;180;1;si;marquesina del andén (módulos de 6 m)
+anden;SM_KitMarquesina;-1;117;0.68;73.7;180;1;si;marquesina del andén (módulos de 6 m)
+anden;SM_KitMarquesina;-1;123;0.68;73.7;180;1;si;marquesina del andén (módulos de 6 m)
+anden;SM_KitMarquesina;-1;129;0.68;73.7;180;1;si;marquesina del andén (módulos de 6 m)
+anden;SM_KitMarquesina;-1;135;0.68;73.7;180;1;si;marquesina del andén (módulos de 6 m)
+anden;SM_KitMarquesina;-1;141;0.68;73.7;180;1;si;marquesina del andén (módulos de 6 m)
+anden;SM_KitMarquesina;-1;147;0.68;73.7;180;1;si;marquesina del andén (módulos de 6 m)
+anden;SM_KitMarquesina;-1;153;0.68;73.7;180;1;si;marquesina del andén (módulos de 6 m)
+anden;SM_KitMarquesina;-1;159;0.68;73.7;180;1;si;marquesina del andén (módulos de 6 m)
+catenaria;SM_poste_catenaria;-1;30;0;69.0;180;1;si;poste norte (ménsula hacia la vía 1)
+catenaria;SM_poste_catenaria;-1;30;0;60.0;0;1;si;poste sur (ménsula hacia la vía 2)
+catenaria;SM_poste_catenaria;-1;80;0;69.0;180;1;si;poste norte (ménsula hacia la vía 1)
+catenaria;SM_poste_catenaria;-1;80;0;60.0;0;1;si;poste sur (ménsula hacia la vía 2)
+catenaria;SM_poste_catenaria;-1;130;0;69.0;180;1;si;poste norte (ménsula hacia la vía 1)
+catenaria;SM_poste_catenaria;-1;130;0;60.0;0;1;si;poste sur (ménsula hacia la vía 2)
+catenaria;SM_poste_catenaria;-1;180;0;69.0;180;1;si;poste norte (ménsula hacia la vía 1)
+catenaria;SM_poste_catenaria;-1;180;0;60.0;0;1;si;poste sur (ménsula hacia la vía 2)
+catenaria;SM_poste_catenaria;-1;230;0;69.0;180;1;si;poste norte (ménsula hacia la vía 1)
+catenaria;SM_poste_catenaria;-1;230;0;60.0;0;1;si;poste sur (ménsula hacia la vía 2)
+edificio;SM_EdificioViajerosNules;1;115;0;104.5;180;1;si;"v1 = Segura (D-N124); fachada a la vía"
+edificio;SM_MarquesinaAdosada;-1;115;0;87.6;180;1;si;de la fachada (Z 96) al andén (Z 79,2)
+muelle;SM_MuelleCarga;4;95;0;44.4;0;1;si;cabeza oeste con topes
+muelle;SM_MuelleCarga;-1;105;0;44.4;0;1;si;"v0–v2 por semilla; el canto mira a +Z (la vía del apartado)"
+muelle;SM_MuelleCarga;-1;115;0;44.4;0;1;si;"v0–v2 por semilla; el canto mira a +Z (la vía del apartado)"
+muelle;SM_MuelleCarga;-1;125;0;44.4;0;1;si;"v0–v2 por semilla; el canto mira a +Z (la vía del apartado)"
+muelle;SM_MuelleCarga;-1;135;0;44.4;0;1;si;"v0–v2 por semilla; el canto mira a +Z (la vía del apartado)"
+muelle;SM_MuelleCarga;-1;145;0;44.4;0;1;si;"v0–v2 por semilla; el canto mira a +Z (la vía del apartado)"
+muelle;SM_MuelleCarga;-1;155;0;44.4;0;1;si;"v0–v2 por semilla; el canto mira a +Z (la vía del apartado)"
+muelle;SM_MuelleCarga;-1;165;0;44.4;0;1;si;"v0–v2 por semilla; el canto mira a +Z (la vía del apartado)"
+muelle;SM_MuelleCarga;3;176;0;44.4;0;1;si;rampa de 12 m (X 170–182)
+poligono;SM_NavePoligono_Modulo;-1;9;0;15.5;0;1;si;"nave oeste: módulo; la persiana mira a la calle (+Z); estado por semilla (e0–e4)"
+poligono;SM_NavePoligono_Modulo;-1;19;0;15.5;0;1;si;"nave oeste: módulo; la persiana mira a la calle (+Z); estado por semilla (e0–e4)"
+poligono;SM_NavePoligono_Modulo;-1;29;0;15.5;0;1;si;"nave oeste: módulo; la persiana mira a la calle (+Z); estado por semilla (e0–e4)"
+poligono;SM_NavePoligono_Modulo;-1;39;0;15.5;0;1;si;"nave oeste: módulo; la persiana mira a la calle (+Z); estado por semilla (e0–e4)"
+poligono;SM_NavePoligono_Modulo;-1;49;0;15.5;0;1;si;"nave oeste: módulo; la persiana mira a la calle (+Z); estado por semilla (e0–e4)"
+poligono;SM_NavePoligono_Modulo;-1;59;0;15.5;0;1;si;"nave oeste: módulo; la persiana mira a la calle (+Z); estado por semilla (e0–e4)"
+poligono;SM_NavePoligono_Testero;-1;3.85;0;15.5;0;1;si;nave oeste: testero oeste (cara de fuera −X)
+poligono;SM_NavePoligono_Testero;-1;64.15;0;15.5;180;1;si;nave oeste: testero este (girado 180°)
+poligono;SM_NavePoligono_Modulo;-1;196.8;0;15.5;0;1;si;"nave este: módulo; la persiana mira a la calle (+Z); estado por semilla (e0–e4)"
+poligono;SM_NavePoligono_Modulo;-1;206.8;0;15.5;0;1;si;"nave este: módulo; la persiana mira a la calle (+Z); estado por semilla (e0–e4)"
+poligono;SM_NavePoligono_Modulo;-1;216.8;0;15.5;0;1;si;"nave este: módulo; la persiana mira a la calle (+Z); estado por semilla (e0–e4)"
+poligono;SM_NavePoligono_Modulo;-1;226.8;0;15.5;0;1;si;"nave este: módulo; la persiana mira a la calle (+Z); estado por semilla (e0–e4)"
+poligono;SM_NavePoligono_Modulo;-1;236.8;0;15.5;0;1;si;"nave este: módulo; la persiana mira a la calle (+Z); estado por semilla (e0–e4)"
+poligono;SM_NavePoligono_Modulo;-1;246.8;0;15.5;0;1;si;"nave este: módulo; la persiana mira a la calle (+Z); estado por semilla (e0–e4)"
+poligono;SM_NavePoligono_Testero;-1;191.65;0;15.5;0;1;si;nave este: testero oeste (cara de fuera −X)
+poligono;SM_NavePoligono_Testero;-1;251.95;0;15.5;180;1;si;nave este: testero este (girado 180°)
+poligono;SM_Cooperativa;4;119;0;15.5;0;1;si;almacén citrícola (cooperativa del kit, v4), 90 × 28 m
+plaza;aerodromo/pino;-1;20.1;0;124.6;90;1;si;"plaza con jardín; sin colisión"
+plaza;SM_Palmera;-1;81.9;0;105.8;0;1;si;"plaza con jardín; sin colisión"
+plaza;SM_Palmera;-1;64.8;0;105.8;180;1;si;"plaza con jardín; sin colisión"
+plaza;aerodromo/pino;-1;76.3;0;123.7;270;1;si;"plaza con jardín; sin colisión"
+plaza;SM_Palmera;-1;50.8;0;108.2;270;1;si;"plaza con jardín; sin colisión"
+plaza;SM_Palmera;-1;35.6;0;124.6;0;1;si;"plaza con jardín; sin colisión"
+plaza;aerodromo/pino;-1;57.0;0;98.2;90;1;si;"plaza con jardín; sin colisión"
+plaza;SM_Palmera;-1;48.9;0;97.4;270;1;si;"plaza con jardín; sin colisión"
+plaza;SM_Palmera;-1;71.0;0;98.5;90;1;si;"plaza con jardín; sin colisión"
+plaza;aerodromo/pino;-1;20.0;0;115.7;270;1;si;"plaza con jardín; sin colisión"
+plaza;SM_Palmera;-1;27.3;0;119.2;270;1;si;"plaza con jardín; sin colisión"
+plaza;SM_Palmera;-1;25.6;0;106.6;0;1;si;"plaza con jardín; sin colisión"
+plaza;aerodromo/pino;-1;21.3;0;124.1;180;1;si;"plaza con jardín; sin colisión"
+plaza;SM_Palmera;-1;36.1;0;115.0;90;1;si;"plaza con jardín; sin colisión"
+plaza;SM_Farola;-1;20;0;93;0;1;si;farola en el borde de la plaza (v5–9 del pack urbano)
+plaza;SM_Farola;-1;36;0;93;0;1;si;farola en el borde de la plaza (v5–9 del pack urbano)
+plaza;SM_Farola;-1;52;0;93;0;1;si;farola en el borde de la plaza (v5–9 del pack urbano)
+plaza;SM_Farola;-1;68;0;93;0;1;si;farola en el borde de la plaza (v5–9 del pack urbano)
+plaza;SM_Farola;-1;84;0;93;0;1;si;farola en el borde de la plaza (v5–9 del pack urbano)
+plaza;SM_Banco;-1;40;0;96;180;1;si;banco mirando a la calle
+plaza;SM_Banco;-1;62;0;96;180;1;si;banco mirando a la calle
+plaza;SM_Banco;-1;84;0;96;180;1;si;banco mirando a la calle
+coches;SM_CocheCivil_Utilitario;2;32.2;0;81;270;1;si;aparcamiento en línea (estados 0–2)
+coches;SM_CocheCivil_Todoterreno;0;38.2;0;81;90;1;si;aparcamiento en línea (estados 0–2)
+coches;SM_CocheCivil_Utilitario;1;44.2;0;81;270;1;si;aparcamiento en línea (estados 0–2)
+coches;SM_CocheCivil_Berlina;0;50.2;0;81;90;1;si;aparcamiento en línea (estados 0–2)
+coches;SM_CocheCivil_Berlina;2;62.2;0;81;90;1;si;aparcamiento en línea (estados 0–2)
+coches;SM_CocheCivil_Todoterreno;0;68.2;0;81;90;1;si;aparcamiento en línea (estados 0–2)
+coches;SM_CocheCivil_Utilitario;0;98.2;0;81;90;1;si;aparcamiento en línea (estados 0–2)
+coches;SM_CocheCivil_Furgoneta;0;140.2;0;81;90;1;si;aparcamiento en línea (estados 0–2)
+coches;SM_CocheCivil_Utilitario;0;146.2;0;81;90;1;si;aparcamiento en línea (estados 0–2)
+coches;SM_CocheCivil_Todoterreno;1;152.2;0;81;270;1;si;aparcamiento en línea (estados 0–2)
+coches;SM_CocheCivil_Berlina;2;158.2;0;81;270;1;si;aparcamiento en línea (estados 0–2)
+coches;SM_CocheCivil_Berlina;0;164.2;0;81;270;1;si;aparcamiento en línea (estados 0–2)
+coches;SM_CocheCivil_Todoterreno;0;170.2;0;81;90;1;si;aparcamiento en línea (estados 0–2)
+coches;SM_CocheCivil_Furgoneta;0;206.2;0;81;90;1;si;aparcamiento en línea (estados 0–2)
+coches;SM_CocheCivil_Furgoneta;2;218.2;0;81;90;1;si;aparcamiento en línea (estados 0–2)
+coches;SM_CocheCivil_Todoterreno;1;224.2;0;81;90;1;si;aparcamiento en línea (estados 0–2)
+recinto;SM_HescoEsquina;-1;188;0;96;0;1;si;"esquina exterior; el origen en la celda de esquina"
+recinto;SM_HescoEsquina;-1;188;0;40;90;1;si;"esquina exterior; el origen en la celda de esquina"
+recinto;SM_HescoEsquina;-1;85;0;40;180;1;si;"esquina exterior; el origen en la celda de esquina"
+recinto;SM_HescoEsquina;-1;85;0;96;270;1;si;"esquina exterior; el origen en la celda de esquina"
+recinto;SM_MuroHesco;-1;92.808;0;96;0;1;si;tramo de 13.39 m: 1 de 10 m + 3 celdas
+recinto;SM_HescoCorto3;-1;99.473;0;96;0;1;si;resto del tramo de 13.39 m
+recinto;SM_HescoRemate;-1;103.945;0;96;0;1;si;"remate contra edificio de viajeros; celda de esquina pegada a la jamba, brazo alejándose del hueco (izquierda)"
+recinto;SM_HescoRemateEspejo;-1;126.055;0;96;0;1;si;"remate contra edificio de viajeros; celda de esquina pegada a la jamba, brazo alejándose del hueco (derecha: versión espejo de Teo)"
+recinto;SM_MuroHesco;-1;133.697;0;96;0;1;si;tramo de 56.39 m: 5 de 10 m + 6 celdas
+recinto;SM_MuroHesco;-1;143.697;0;96;0;1;si;tramo de 56.39 m: 5 de 10 m + 6 celdas
+recinto;SM_MuroHesco;-1;153.697;0;96;0;1;si;tramo de 56.39 m: 5 de 10 m + 6 celdas
+recinto;SM_MuroHesco;-1;163.697;0;96;0;1;si;tramo de 56.39 m: 5 de 10 m + 6 celdas
+recinto;SM_MuroHesco;-1;173.697;0;96;0;1;si;tramo de 56.39 m: 5 de 10 m + 6 celdas
+recinto;SM_HescoCorto4;-1;180.917;0;96;0;1;si;resto del tramo de 56.39 m
+recinto;SM_HescoCorto2;-1;184.248;0;96;0;1;si;resto del tramo de 56.39 m
+recinto;SM_MuroHesco;-1;92.502;0;40;180;1;si;tramo de 86.11 m: 8 de 10 m + 6 celdas
+recinto;SM_MuroHesco;-1;102.502;0;40;180;1;si;tramo de 86.11 m: 8 de 10 m + 6 celdas
+recinto;SM_MuroHesco;-1;112.502;0;40;180;1;si;tramo de 86.11 m: 8 de 10 m + 6 celdas
+recinto;SM_MuroHesco;-1;122.502;0;40;180;1;si;tramo de 86.11 m: 8 de 10 m + 6 celdas
+recinto;SM_MuroHesco;-1;132.502;0;40;180;1;si;tramo de 86.11 m: 8 de 10 m + 6 celdas
+recinto;SM_MuroHesco;-1;142.502;0;40;180;1;si;tramo de 86.11 m: 8 de 10 m + 6 celdas
+recinto;SM_MuroHesco;-1;152.502;0;40;180;1;si;tramo de 86.11 m: 8 de 10 m + 6 celdas
+recinto;SM_MuroHesco;-1;162.502;0;40;180;1;si;tramo de 86.11 m: 8 de 10 m + 6 celdas
+recinto;SM_HescoCorto4;-1;169.722;0;40;180;1;si;resto del tramo de 86.11 m
+recinto;SM_HescoCorto2;-1;173.053;0;40;180;1;si;resto del tramo de 86.11 m
+recinto;SM_HescoRemate;-1;176.665;0;40;180;1;si;"remate contra puerta de vehículos; celda de esquina pegada a la jamba, brazo alejándose del hueco (izquierda)"
+recinto;SM_HescoRemate;-1;85;0;45.945;270;1;si;"remate contra puerta de vía del apartado; celda de esquina pegada a la jamba, brazo alejándose del hueco (izquierda)"
+recinto;SM_HescoRemateEspejo;-1;85;0;52.055;270;1;si;"remate contra puerta de vía del apartado; celda de esquina pegada a la jamba, brazo alejándose del hueco (derecha: versión espejo de Teo)"
+recinto;SM_HescoCorto2;-1;85;0;56.15;270;1;si;resto del tramo de 2.64 m
+recinto;SM_HescoRemate;-1;85;0;60.245;270;1;si;"remate contra puerta de vía doble; celda de esquina pegada a la jamba, brazo alejándose del hueco (izquierda)"
+recinto;SM_HescoRemateEspejo;-1;85;0;68.755;270;1;si;"remate contra puerta de vía doble; celda de esquina pegada a la jamba, brazo alejándose del hueco (derecha: versión espejo de Teo)"
+recinto;SM_MuroHesco;-1;85;0;76.267;270;1;si;tramo de 21.69 m: 2 de 10 m + 2 celdas
+recinto;SM_MuroHesco;-1;85;0;86.267;270;1;si;tramo de 21.69 m: 2 de 10 m + 2 celdas
+recinto;SM_HescoCorto2;-1;85;0;92.377;270;1;si;resto del tramo de 21.69 m
+recinto;SM_MuroHesco;-1;188;0;47.902;90;1;si;tramo de 14.70 m: 1 de 10 m + 4 celdas
+recinto;SM_HescoCorto4;-1;188;0;55.122;90;1;si;resto del tramo de 14.70 m
+recinto;SM_HescoRemate;-1;188;0;60.245;90;1;si;"remate contra puerta de vía doble; celda de esquina pegada a la jamba, brazo alejándose del hueco (izquierda)"
+recinto;SM_HescoRemateEspejo;-1;188;0;68.755;90;1;si;"remate contra puerta de vía doble; celda de esquina pegada a la jamba, brazo alejándose del hueco (derecha: versión espejo de Teo)"
+recinto;SM_MuroHesco;-1;188;0;76.267;90;1;si;tramo de 21.69 m: 2 de 10 m + 2 celdas
+recinto;SM_MuroHesco;-1;188;0;86.267;90;1;si;tramo de 21.69 m: 2 de 10 m + 2 celdas
+recinto;SM_HescoCorto2;-1;188;0;92.377;90;1;si;resto del tramo de 21.69 m
+puertas;SM_PuertaViaDoble;-1;85;0;64.5;270;1;si;"oeste; fuera = oeste"
+puertas;SM_PuertaViaDoble;-1;188;0;64.5;90;1;si;"este; fuera = este"
+puertas;SM_PuertaVia;-1;85;0;49;270;1;si;"apartado; hueco de 5 m"
+puertas;SM_PuertaVehiculos;-1;181.22;0;40;180;1;si;"sur, al pie de la rampa; hueco X 177,22–185,22"
+viveres;SM_AcopioViveres;0;69.2;0;9;90;1;si;"hueco entre la nave oeste y el almacén citrícola (X 64,3–74); el patio de carga lo ocupa el claro N-C1"
+viveres;SM_AcopioViveres;2;69.2;0;22;90;1;si;"hueco entre la nave oeste y el almacén citrícola; deja 2 m a cada lado"
+viveres;SM_AcopioViveres;1;100;1.2;44.4;0;1;si;sobre el muelle (6 m de fondo frente a los 5,8 del muelle: sobresale 0,1 m por cada lado)
+viveres;SM_AcopioViveres;3;115;1.2;44.4;0;1;si;"sobre el muelle; deja libre X 120–140 para la bajada de la tropa (130; 44,5)"
+viveres;SM_AcopioViveres;4;155;1.2;44.4;0;1;si;"sobre el muelle; deja libre la rampa (X 170–182)"
+urbano;SM_ParadaBus;0;30;0;92.8;180;1;si;calle de la Estación, acera norte, frente a la plaza
+urbano;SM_ParadaBus;2;215;0;92.8;180;1;si;calle de la Estación, tramo este
+urbano;SM_Quiosco;0;76;0;99.5;180;1;si;plaza, frente a la calle
+urbano;SM_Quiosco;3;200;0;95;180;1;si;tramo este, saqueado
+urbano;SM_Contenedor;4;12;0;92.8;180;1;si;acera norte
+urbano;SM_Contenedor;0;196;0;92.8;180;1;si;acera norte
+urbano;SM_Contenedor;3;230;0;92.8;180;1;si;acera norte, volcado
+urbano;SM_Senal;0;4;0;92.8;180;1;si;dirección, entrada oeste
+urbano;SM_Senal;1;192;0;92.8;180;1;si;junto al muro este del recinto
+urbano;SM_Semaforo;1;80;0;92.8;270;1;si;brazo sobre la calzada (−X local = −Z con yaw 270)
+urbano;SM_Semaforo;2;190;0;92.8;180;1;si;peatonal

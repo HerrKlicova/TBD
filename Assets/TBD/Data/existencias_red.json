@@ -7,7 +7,7 @@
         "municion_u": 50,
         "combustible_u": 70,
         "materiales_u": 0,
-        "viveres_u": 0
+        "viveres_u": 20
       },
       "personas": 0,
       "tope_zona": {
@@ -16,9 +16,38 @@
         "materiales_u": 40
       },
       "se_repone": false,
-      "nota": "D-N173: base del aire; no se repone en el MVP; NH90: 1,8 u por rearme y unas 3 u de combustible por salida; no es nodo de RailNet: lo lee AerodromoEstado (betera.json)"
+      "nota": "D-N173: base del aire; no se repone en el MVP; NH90: 1,8 u por rearme y unas 3 u de combustible por salida; 20 u de víveres SIN consumo en el MVP: el jugador no puede llevárselos (Lucía, 8-nov 20:15); no es nodo de RailNet: lo lee AerodromoEstado (betera.json)"
     }
   ],
+  "viveres": {
+    "_nota": "D-N176 (Lucía, 8-nov): 5.º recurso de la red, con las reglas de sim_economia.py",
+    "consumo_u_por_persona_dia": 0.1,
+    "cobro": "una vez al día, junto al mantenimiento (víveres, luego munición de reposo, luego combustible de focos)",
+    "produccion_u_dia": [
+      {
+        "id": "nules",
+        "u_dia": 6
+      },
+      {
+        "id": "valencia",
+        "u_dia": 30
+      }
+    ],
+    "produccion_condicion": "solo si el nodo es del jugador y con la guarnición entera",
+    "capacidad_ref_u": [
+      {
+        "id": "nules",
+        "u": 30,
+        "nota": "solo visual (acopio de Teo): Lleno >= 20, Mitad >= 10, Vacío < 10; no es un tope (Hugo, 8-nov 20:20)"
+      }
+    ],
+    "sin_viveres": "el nodo queda a 0 y su población x (1 - 0,05 x fracción del consumo que falta) cada día; la producción baja sola con la gente",
+    "hambre_perdida_dia": 0.05,
+    "en_zona_de_noche": "no cuentan",
+    "no_consumen_en_mvp": [
+      "betera"
+    ]
+  },
   "unidad": "u",
   "u_municion_zombis": 400,
   "reglas": {
@@ -65,7 +94,7 @@
         "materiales_u": 40
       },
       "se_repone": true,
-      "nota": "0 u de munición (Lucía); la guarnición lleva su dotación; víveres solo de su producción; recinto de partida 124,3 u ya construido"
+      "nota": "0 u de munición y 0 de materiales (Lucía); el jugador los lleva en el tren de la munición; la guarnición lleva su dotación; víveres solo de su producción; recinto de partida 124,3 u ya construido; el tren del capítulo 3 sale con el depósito lleno y no cobra de la red"
     },
     {
       "id": "castellon",

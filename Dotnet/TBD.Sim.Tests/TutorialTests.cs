@@ -483,15 +483,75 @@ namespace TBD.Sim.Tests
             {
                 var nv = AerodromoNivel.FromJson(BalanceSource.Read("estacion_betera.json"));
                 nv.UsarInstancias(BalanceSource.Read("betera_instancias.csv"));
-                check(nv.Piezas.Count == 219, $"Bétera v1: 219 instancias ({nv.Piezas.Count})");
+                check(nv.Piezas.Count == 270, $"Bétera v1 con el ambiente: 270 instancias ({nv.Piezas.Count})");
                 check(nv.Piezas.FindAll(c => c.Malla == "SM_HescoRemateEspejo").TrueForAll(c => c.Ruta == "Defensas/hesco" && c.Archivo.StartsWith("SM_HescoRemateEspejo_v") && c.Archivo.EndsWith("_e0_Sano")) && nv.Piezas.Exists(c => c.Malla == "SM_HescoRemateEspejo"), "los remates de la derecha usan SM_HescoRemateEspejo (sin escala −1)");
                 var t = nv.Piezas.Find(c => c.Malla == "SM_TorreControl"); check(t.Ruta == "Betera/torre_control" && t.Archivo.StartsWith("SM_TorreControl_v"), "SM_TorreControl → Betera/torre_control");
                 check(nv.Piezas.Find(c => c.Malla == "SM_MuroHesco").Ruta == "Defensas/muro" && nv.Piezas.Find(c => c.Malla == "SM_PuertaVehiculos").Archivo.Contains("_e0_Sano"), "tramos y puertas del reducto con el kit de defensas (estado sano)");
                 check(nv.Piezas.FindAll(c => c.Malla == "SM_TanqueCombustible").TrueForAll(c => c.Yaw == 0f), "los tanques llevan yaw 0 (Álvaro)");
                 var ae = AerodromoEstado.FromJson(BalanceSource.Read("estacion_betera.json")); ae.MunicionMilliU = 1; ae.CombustibleMilliU = 1;
                 check(ae.AplicarExistencias(BalanceSource.Read("existencias_red.json")) && ae.MunicionMilliU == 50_000 && ae.CombustibleMilliU == 70_000, "existencias de Bétera desde el bloque «aerodromos» de Hugo: 50 u y 70 u");
+                check(ae.ViveresMilliU == 20_000 && ae.Personas == 24, "Bétera empieza con 20 u de víveres (Lucía, 8-nov) y 24 personas (SUPUESTO de Hugo)");
+                check(!ae.Consume, "Bétera está en «no_consumen_en_mvp» de Hugo: en el MVP no gasta víveres (Lucía, 8-nov)");
+                for (int d = 0; d < 30; d++) ae.ConsumirDia();
+                check(ae.ViveresMilliU == 20_000 && !ae.Hambre && ae.Personas == 24, "30 días después sigue con sus 20 u y sin aviso de hambre");
+                ae.Consume = true;      // la regla, por si se activa después del MVP
+                int dias = 0; while (!ae.Hambre && dias < 20) { ae.ConsumirDia(); dias++; }
+                check(dias == 9 && ae.ViveresMilliU == 0 && ae.Personas == 24, $"come 2,4 u al día: aguanta 8 días; el 9.º le falta 1,6 u y aún no pierde a nadie ({dias} días, {ae.Personas} personas)");
+                ae.ConsumirDia(); check(ae.Hambre && ae.Personas == 23, $"sin nada, pierde el 5 % (como ConsumeFood de Nacho): 24 → {ae.Personas}");
+                {
+                    var wi = NetScenario.Inicio(); int sg = TrenPreparar.NodoPorId(wi, "sagunto"), nu = TrenPreparar.NodoPorId(wi, "nules");
+                    check(wi.Stock[sg, (int)Res.Viveres] == 80 && wi.Stock[nu, (int)Res.Viveres] == 0, "Inicio: Sagunto con 80 u de víveres y Nules con 0 (existencias_red.json de Hugo)");
+                    bool sinViveres = true; foreach (var sv in wi.Services) foreach (var st in sv.Stops) if (st.Transfer != null && st.Transfer.Length > (int)Res.Viveres && st.Transfer[(int)Res.Viveres] != 0) sinViveres = false;
+                    check(sinViveres, "Inicio no trae horarios de víveres: solo llegan de Nules en los trenes que mande el jugador (Lucía, 8-nov)");
+                }
+                {
+                    var cd2 = EstacionDato.FromJson(BalanceSource.Read("estacion_castellon.json"));
+                    check(BajadaSubterranea.SubidaS(cd2) == 30f, "subir del andén a la calle cuesta 30 s por pelotón (Nacho, SUPUESTO)");
+                    check(CargaVisible.Estado(20, 30) == "Lleno" && CargaVisible.Estado(19, 30) == "Mitad" && CargaVisible.Estado(10, 30) == "Mitad" && CargaVisible.Estado(9, 30) == "Vacio" && CargaVisible.Estado(30, 30, 500) == "Danado" && CargaVisible.Estado(30, 30, 200) == "Destrozado", "carga visible: Lleno desde 2/3, Mitad desde 1/3, Vacío por debajo; Dañado y Destrozado por la vida del vagón");
+                    var rp = CargaVisible.Reparto(new[] { 20, 0, 30, 8, 5 }, 4);
+                    check(rp[0] == 0 && rp[1] == 2 && rp[2] == 4 && rp[3] == -1 && CargaVisible.Archivo(4, "Lleno") == "SM_CargaViveres_Lleno" && CargaVisible.Archivo(3, "Lleno") == null, "una plataforma por recurso (munición, materiales, víveres); la tropa no lleva módulo");
+                    check(AcopioViveres.LeerCapacidad(BalanceSource.Read("existencias_red.json")) && AcopioViveres.CapacidadRefU == 30, "capacidad de referencia del acopio de Nules: 30 u (Hugo)");
+                    check(AcopioViveres.Estado(20) == 0 && AcopioViveres.Estado(10) == 1 && AcopioViveres.Estado(9) == 2 && AcopioViveres.Estado(25, caida: true) == 3 && AcopioViveres.Archivo(3) == "SM_AcopioViveres_v3_Saqueado", "acopio: Lleno desde 20 u, Mitad desde 10, Vacío por debajo; Saqueado si Nules cae");
+                    var pil = AcopioViveres.Pilas(BalanceSource.Read("nules_instancias.csv"));
+                    check(pil.Count == 5 && pil[0][0] == 69.2f && pil[2][1] == 1.2f && pil[2][2] == 44.4f, "5 pilas de víveres en Nules: 2 junto al almacén y 3 sobre el muelle (Álvaro)");
+                    AerodromoNivel.Resolver("SM_TorreLuz", 2, 0, 0, 0, out var tr, out var ta);
+                    check(tr == "Betera/ambiente" && ta == "SM_TorreLuz_v2_Cable" && RearmeBetera.Archivo(true, 1) == "SM_CamionCisterna_v1_Repostando" && RearmeBetera.Archivo(false, 3) == "SM_RemolqueMunicion_v3_Tapado", "ambiente y rearme de Bétera con los nombres de Teo");
+                    var nv1 = AerodromoNivel.FromJson(BalanceSource.Read("estacion_betera.json")); nv1.UsarInstancias(BalanceSource.Read("betera_instancias.csv"));
+                    check(nv1.Piezas.Count == 270 && nv1.Piezas.FindAll(c => c.Ruta == "Betera/ambiente").Count == 51, $"betera_instancias v1: 270 filas, 51 de ambiente ({nv1.Piezas.Count})");
+                }
                 var p46 = Array.Find(TutorialGuion.Cap4().Pasos, p => p.Id == "4.6");
                 check(Array.IndexOf(p46.Resalta, TutorialGuion.Resaltes.ClaroS1) >= 0 && TutorialGuion.ClaroS1X == 180f && TutorialGuion.ClaroS1Z == 44f, "capítulo 4: el NH90 aterriza en S1 (180; 44), resaltado");
+            }
+
+            // --- Castellón subterránea (§7 de Álvaro, aprobada por Lucía): cota −8, losa, trincheras y vestíbulo
+            {
+                var cd = EstacionDato.FromJson(BalanceSource.Read("estacion_castellon.json"));
+                check(cd.Sub != null && cd.Sub.CotaVia == -8f && cd.Sub.Losa[0] == 70 && cd.Sub.Losa[2] == 190 && cd.Sub.Trincheras.Count == 2, "Castellón bajo losa: vías a −8 m, losa en X 70–190 y dos trincheras abiertas");
+                check(BajadaSubterranea.Tropa(cd, out float vx, out float vz, out float cota) && vx == 130 && vz == 81 && cota == -8f, "la tropa sube por la escalera del vestíbulo, en (130; 81)");
+                check(cd.Sub.VestAncho == 24 && cd.Sub.VestFondo == 14 && BajadaSubterranea.CargaderoZ0 == 34 && BajadaSubterranea.CargaderoZ1 == 37, "vestíbulo de 24 × 14 m; los vehículos bajan en el cargadero de superficie (Z 34–37)");
+                check(BajadaSubterranea.Vehiculos(cd, out float bx, out float bz, out float bv) && bx == 144f && bz == 38f && bv == 44f && cd.Sub.PlataformaX0 == 140 && cd.Sub.PlataformaX1 == 148, "v0.2: los vehículos bajan en superficie en (144; 38), con el tren en la vía 44 y la plataforma en X 140–148");
+                check(Math.Abs(BajadaSubterranea.Escalera(cd) - 7.1f) < 0.01f, "la escalera del vestíbulo sube 7,1 m");
+                check(!cd.Piezas.Exists(x => x.Pieza == "kit_cuerpo" || x.Pieza == "kit_remate" || x.Pieza.Contains("marquesina") || x.Pieza == "kit/anden_10m") && cd.Piezas.Exists(x => x.Pieza == "kit_paso" && x.Y == -8f) && cd.Piezas.Exists(x => x.Pieza == "castellon/vestibulo"), "sin edificio de superficie ni marquesinas; el paso a −8; vestíbulo como pieza");
+                {
+                    // v0.4 de Álvaro con el kit de Teo: 24 andenes y 24 catenarias abajo, 28 muros y 2 bocas, 4 barricadas y 4 vagones; todos con su archivo
+                    int an = 0, ca = 0, mu = 0, bo = 0, ba = 0, va = 0, abajo = 0, sinArchivo = 0; string falta = null;
+                    string dir = System.IO.Path.GetDirectoryName(typeof(TutorialTests).Assembly.Location);
+                    while (dir != null && !System.IO.Directory.Exists(System.IO.Path.Combine(dir, "Assets"))) dir = System.IO.Path.GetDirectoryName(dir);
+                    foreach (var x in cd.Piezas)
+                    {
+                        if (!CastellonKit.Archivo(x, out var kc, out var ka)) continue;
+                        if (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir, "Assets", "TBD", "Resources", "Models", kc.Replace('/', System.IO.Path.DirectorySeparatorChar), ka + "_LOD1.fbx"))) { sinArchivo++; falta ??= kc + "/" + ka; }
+                        switch (x.Pieza) { case "castellon/anden_losa": an++; if (x.Y == -8f) abajo++; break; case "castellon/catenaria_losa": ca++; if (x.Y == -8f) abajo++; break; case "castellon/muro_trinchera": if (x.Tipo == "Boca") bo++; else mu++; break; case "castellon/barricada_civil": ba++; break; case "castellon/vagon_abandonado": va++; break; }
+                    }
+                    check(cd.Piezas.Count == 150 && cd.Piezas.FindAll(x => x.Pieza.StartsWith("urbano/")).Count == 11 && an == 24 && ca == 24 && abajo == 48 && mu == 28 && bo == 2 && ba == 4 && va == 4, $"v0.4 con el mobiliario urbano: 150 piezas (11 urbanas); 24 andenes y 24 catenarias a −8, 28 muros y 2 bocas, 4 barricadas y 4 vagones ({cd.Piezas.Count}; {an}, {ca}, {abajo}, {mu}, {bo}, {ba}, {va})");
+                    check(dir != null && sinArchivo == 0, "cada pieza del kit y del mobiliario urbano tiene su FBX en Resources/Models" + (falta != null ? " (falta " + falta + ")" : ""));
+                    var boca = cd.Piezas.Find(x => x.Tipo == "Boca" && x.X == 70f); var bocaE = cd.Piezas.Find(x => x.Tipo == "Boca" && x.X == 190f);
+                    check(boca.Yaw == 90f && bocaE.Yaw == 270f, "bocas del túnel en X 70 (yaw 90) y X 190 (yaw 270)");
+                    check(!cd.Piezas.Exists(x => x.Pieza == "castellon/vagon_abandonado" && Math.Abs(x.Z - 44f) < 2f) && !cd.Piezas.Exists(x => x.Pieza != "vagon_cisterna" && x.Y == 0f && Math.Abs(x.Z - 44f) < 1f && x.X >= 140 && x.X <= 148), "la vía 44 queda libre en la plataforma de bajada de vehículos");
+                    var b0 = cd.Piezas.Find(x => x.Pieza == "castellon/barricada_civil"); CastellonKit.Archivo(b0, out _, out var bn);
+                    check(bn.Contains("_e2_") || bn.Contains("_e3_"), "las barricadas de la plaza salen dañadas (e2 o e3): " + bn);
+                }
+                var nd = EstacionDato.FromJson(BalanceSource.Read("estacion_nules.json")); check(nd.Sub == null && !BajadaSubterranea.Tropa(nd, out _, out _, out _), "Nules es de superficie");
             }
 
             // --- intro C

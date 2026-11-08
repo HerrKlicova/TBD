@@ -220,7 +220,7 @@ namespace TBD.View
         readonly DobleClic _dobleClic = new DobleClic(); readonly SeguirTren _seguir = new SeguirTren();
         GUIStyle _t, _s, _b, _bOff; Texture2D _panel, _btn, _btnHot, _btnOff; int _sh;
         static readonly Color Bone = new Color32(0xd4, 0xd0, 0xcc, 255), Ink = new Color32(0x1c, 0x20, 0x0c, 255);
-        static readonly string[] ResNombre = { "Munición", "Combustible", "Materiales", "Personas", "Víveres" };   // D-N176: los víveres entran como 5.º recurso (Res.Viveres = 4) cuando Nacho los añada a la red
+        static readonly string[] ResNombre = { "Munición", "Combustible", "Materiales", "Personas", "Víveres" };   // D-N176: los víveres son el 5.º recurso de la red (Res.Viveres = 4, nacho/sombra-reloj)
 
         void Update()
         {

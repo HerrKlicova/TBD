@@ -37,6 +37,17 @@ namespace TBD.Net
         public string Id = "betera", Nombre = "Base «Jaime I» de Bétera";
         public double Lat, Lon, MapX, MapY;
         public int MunicionMilliU = 50_000, CombustibleMilliU = 70_000;
+        /// <summary>
+        /// Víveres y gente de la base (Lucía, 8-nov: Bétera empieza con 20 u y los consume como las demás). Tasas de sim_economia.py de Hugo: 0,1 u por persona
+        /// y día; sin víveres, la gente baja un 5 % al día. 24 personas es SUPUESTO de Hugo (3 pelotones de 8). Lo llama la red al amanecer (ConsumirDia).
+        /// </summary>
+        public int ViveresMilliU = 20_000, Personas = 24;
+        public const int ViveresPorPersonaDiaMilliU = 100, HambrePm = 50;
+        public bool Hambre { get; private set; }
+        /// <summary>Algún NH90 rearmando: la zona muestra el camión Repostando y el remolque Descargando en P1 (AerodromoZona.Actualizar).</summary>
+        public bool AlgunoRearmando { get { foreach (var x in Aeronaves) if (x.Estado == AeronaveEstado.Rearmando) return true; return false; } }
+        /// <summary>Lucía, 8-nov: en el MVP Bétera NO gasta sus víveres (lista «no_consumen_en_mvp» de existencias_red.json). Con false, ConsumirDia no hace nada y nunca avisa de hambre.</summary>
+        public bool Consume = false;
         public readonly List<Aeronave> Aeronaves = new List<Aeronave>();
         public readonly List<string> Pelotones = new List<string>();        // de embarque (nombres); van con un NH90 o se quedan
         public readonly List<bool> PelotonEnBase = new List<bool>();
@@ -83,18 +94,36 @@ namespace TBD.Net
                 var d = o as Dictionary<string, object>; if (d == null || !(d.TryGetValue("id", out var id) && (string)id == Id)) continue;
                 var r = d["reserva"] as Dictionary<string, object>;
                 MunicionMilliU = (int)Math.Round(Num(r["municion_u"]) * 1000); CombustibleMilliU = (int)Math.Round(Num(r["combustible_u"]) * 1000);
+                if (r.TryGetValue("viveres_u", out var v)) ViveresMilliU = (int)Math.Round(Num(v) * 1000);
+                if (d.TryGetValue("personas", out var pe) && Num(pe) > 0) Personas = (int)Math.Round(Num(pe));
+                Consume = true;
+                if (root.TryGetValue("viveres", out var vo) && vo is Dictionary<string, object> vd && vd.TryGetValue("no_consumen_en_mvp", out var nc) && nc is List<object> ncl)
+                    foreach (var x in ncl) if (x as string == Id) Consume = false;
                 return true;
             }
             return false;
         }
 
+        /// <summary>
+        /// Un día, con la misma regla que NetWorld.ConsumeFood de Nacho (D-N176): come la gente (0,1 u por persona); si no llega, se come lo que haya y la gente
+        /// baja el 5 % por la fracción que falta (redondeo hacia abajo). Devuelve lo comido en milésimas.
+        /// </summary>
+        public int ConsumirDia()
+        {
+            if (!Consume || Personas <= 0) { Hambre = false; return 0; }
+            int pide = Personas * ViveresPorPersonaDiaMilliU, come = Math.Min(pide, Math.Max(0, ViveresMilliU));
+            ViveresMilliU -= come; Hambre = come < pide;
+            if (Hambre) Personas -= (int)((long)Personas * HambrePm * (pide - come) / (1000L * pide));
+            return come;
+        }
+
         static double Num(object o) { return o is double d ? d : o is long l ? l : o is int i ? i : Convert.ToDouble(o, System.Globalization.CultureInfo.InvariantCulture); }
 
-        /// <summary>Segundos reales de vuelo para esa distancia, con el reloj del juego (NetConst.GameMsPerTick a 30 Hz).</summary>
+        /// <summary>Segundos reales de vuelo para esa distancia, con el reloj del juego (NetConst.HourTicks a 30 Hz).</summary>
         public static float VueloS(double km)
         {
             double horasJuego = km / NH90Kmh;
-            double relojX = NetConst.GameMs(NetConst.TickRate) / 1000.0;    // segundos de juego por segundo real
+            double relojX = 3600.0 / NetConst.HourTicks * NetConst.TickRate;      // segundos de juego por segundo real (×103 con el reloj de Nacho)
             return (float)(horasJuego * 3600.0 / relojX);
         }
 
