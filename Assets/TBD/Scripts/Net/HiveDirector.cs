@@ -156,6 +156,13 @@ namespace TBD.Net
         public ulong Seed;                          // semilla de la partida (0 por defecto)
         /// <summary>D-N156 (Lucía): un nodo protegido de asedio hasta un tick (Nules, hasta pasada la 1.ª noche). −1 = ninguno. Lo pone NetScenario.Inicio; no se guarda.</summary>
         public int SinAsedioNodo = -1; public long SinAsedioHasta;
+        /// <summary>Lucía (8-nov 23:20): cada zona tiene su propia horda. Una horda de zona ataca su nodo cada noche desde el día FromDay (0 = 1.ª noche), de 22:00 a 06:00,
+        /// con aviso a las 19:00 (SiegeWarnH). Al acabar, si la zona no está en pantalla, la resuelve NetWorld.ResolveZoneSiege (regla abstracta). Lo pone el escenario; no se guarda.</summary>
+        public struct ZoneHorde { public int Node, FromDay, Zombies; }
+        public readonly List<ZoneHorde> ZoneHordes = new List<ZoneHorde>();
+        /// <summary>Marca de un plan de asedio que es horda de zona (en Plan.Edge, que en los asedios no se usa): Moved lleva la horda en ‰ de densidad y no recluta.</summary>
+        public const int ZoneSiegeEdge = -2;
+        public static bool IsZoneSiege(in Plan p) { return p.Kind == PlanKind.Asedio && p.Edge == ZoneSiegeEdge; }
         public long SiegeWeight(NetWorld w, int n)
         {
             var nd = w.Graph.Nodes[n];
@@ -422,8 +429,10 @@ namespace TBD.Net
                 pl.Cell = c;
                 Active[i] = pl;
             }
+            foreach (var pl in Active)                                      // horda de zona: al amanecer se resuelve (fuera de pantalla)
+                if (IsZoneSiege(pl) && pl.Started && w.Tick >= pl.UntilTick) w.ResolveZoneSiege(pl.Node, (long)pl.Moved * NetWorld.ZombiesPerPermil);
             foreach (var pl in Active)                                      // D-N34: un asedio que termina deja respiro de 6-12 h
-                if (pl.Kind == PlanKind.Asedio && pl.Started && w.Tick >= pl.UntilTick)
+                if (pl.Kind == PlanKind.Asedio && !IsZoneSiege(pl) && pl.Started && w.Tick >= pl.UntilTick)
                 {
                     int span = Math.Max(0, P.RespiteMaxH - P.RespiteMinH);
                     long extra = span == 0 ? 0 : (long)(NetWorld.Mix(0x8E5917UL ^ (ulong)pl.UntilTick ^ ((ulong)(uint)pl.Node << 40)) % (ulong)(span + 1));
@@ -435,6 +444,7 @@ namespace TBD.Net
                 var pl = Active[i];
                 if (pl.Kind != PlanKind.Asedio || pl.Started || w.Tick < pl.StartTick) continue;
                 pl.Started = true;
+                if (IsZoneSiege(pl)) { Active[i] = pl; var zn = w.Graph.Nodes[pl.Node]; w.Intel.Add(new IntelEntry { Tick = w.Tick, Id = "ES-2", Vars = new[] { "nodo", zn.Name, "n", ((long)pl.Moved * NetWorld.ZombiesPerPermil).ToString() } }); continue; }
                 pl.Moved = 0;                                             // D-N33 (Mak, escala de Hugo): no hay reclutamiento inicial; el asedio recluta dentro de la curva, hora a hora
                 pl.UntilTick = w.Tick + (long)P.SiegeDays * NetConst.DayTicks;
                 Active[i] = pl;
@@ -452,13 +462,13 @@ namespace TBD.Net
             long siegeFlow = big ? siegeShare * P.BigMultMil / 1000 : siegeShare;
             long ambushShare = rest * P.AmbushShareMil / 1000, drift = rest - ambushShare;
             int started = 0;
-            foreach (var pl in Active) if (pl.Kind == PlanKind.Asedio && pl.Started) started++;
+            foreach (var pl in Active) if (pl.Kind == PlanKind.Asedio && !IsZoneSiege(pl) && pl.Started) started++;
             if (started > 0)
             {
                 for (int i = 0; i < Active.Count; i++)
                 {
                     var pl = Active[i];
-                    if (pl.Kind != PlanKind.Asedio || !pl.Started) continue;
+                    if (pl.Kind != PlanKind.Asedio || IsZoneSiege(pl) || !pl.Started) continue;
                     int m = Gather(w, pl.Cell, (int)(siegeFlow / started));
                     pl.Moved += m; BudgetUsedToday += m; SiegeMovedTotal += m; Active[i] = pl;
                 }
@@ -475,7 +485,16 @@ namespace TBD.Net
             long startTod = (w.Tick + NetConst.Hours(P.SiegeWarnH)) % NetConst.DayTicks;
             bool inFirstWindow = startTod >= NetConst.Hours(P.FirstSiegeFromH) && startTod <= NetConst.Hours(P.FirstSiegeToH);
             int sieges = 0;
-            foreach (var pl in Active) if (pl.Kind == PlanKind.Asedio) sieges++;
+            foreach (var pl in Active) if (pl.Kind == PlanKind.Asedio && !IsZoneSiege(pl)) sieges++;
+            foreach (var zh in ZoneHordes)                                  // hordas de zona: se anuncian a las 19:00 para las 22:00
+            {
+                if (zh.Node < 0 || zh.Node >= w.Graph.Nodes.Count || day < zh.FromDay || zh.Zombies <= 0 || w.NodeLost[zh.Node]) continue;
+                long zst = day * NetConst.DayTicks + NetConst.Hours(22);
+                if (w.Tick != zst - NetConst.Hours(P.SiegeWarnH)) continue;
+                if (Active.Exists(p => p.Kind == PlanKind.Asedio && p.Node == zh.Node)) continue;
+                var znd = w.Graph.Nodes[zh.Node];
+                Active.Add(new Plan { Kind = PlanKind.Asedio, Edge = ZoneSiegeEdge, Node = zh.Node, Cell = znd.YMeters * HordeField.W + znd.XMeters, StartTick = zst, UntilTick = zst + NetConst.Hours(8), Moved = (zh.Zombies + NetWorld.ZombiesPerPermil - 1) / NetWorld.ZombiesPerPermil });
+            }
             if (day >= P.FirstSiegeDay && (_anySiege || inFirstWindow) && sieges < P.MaxSiegesStage1 && w.Tick >= _respiteUntil)
             {
                 int n = DrawSiegeTarget(w);

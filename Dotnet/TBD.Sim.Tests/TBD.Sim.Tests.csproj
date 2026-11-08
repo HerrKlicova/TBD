@@ -41,6 +41,7 @@
     <Compile Include="SombraLosTests.cs" />
     <Compile Include="ViveresTests.cs" />
     <Compile Include="TrenPuertasTests.cs" />
+    <Compile Include="ZonaHordaTests.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Hive.cs" Link="Net\Hive.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\HiveDirector.cs" Link="Net\HiveDirector.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\NetGolden.cs" Link="Net\NetGolden.cs" />
