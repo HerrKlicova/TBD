@@ -97,7 +97,7 @@ namespace TBD.View
         void Start()
         {
             _mapT0 = Time.realtimeSinceStartup;
-            if (NightRun.Active && NightRun.Session == null) { EnterZone(ZonaArg()); return; }                            // «Jugar»: directo a la noche de Sagunto (D-N71); QA: -zona <nombre> entra en otra (D-N173, Sara)
+            if (NightRun.Active && NightRun.Session == null && !PruebaDeMapa) { EnterZone(ZonaArg()); return; }                            // «Jugar»: directo a la noche de Sagunto (D-N71); QA: -zona <nombre> entra en otra (D-N173, Sara)
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k-sagunto") >= 0) { EnterZone(0); return; }       // prueba de rendimiento en la zona de Sagunto (con la muestra del suelo)
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k") >= 0 && NetSession.DebugForceAmbush()) { NetSession.PendingAmbush = true; UnityEngine.SceneManagement.SceneManager.LoadScene("SampleScene"); return; }   // prueba de rendimiento (D-N61)
             Application.targetFrameRate = 60;
@@ -121,6 +121,9 @@ namespace TBD.View
                 NetSession.ReturnFromNode = -1;
             }
         }
+
+        /// <summary>QA: -trenpanel-auto y -refuerzos-auto se juegan en el mapa (TrenPanel solo vive en Union); con ellas no se entra directo en la noche.</summary>
+        static bool PruebaDeMapa { get { var a = System.Environment.GetCommandLineArgs(); return System.Array.IndexOf(a, "-trenpanel-auto") >= 0 || System.Array.IndexOf(a, "-refuerzos-auto") >= 0; } }
 
         /// <summary>QA (Sara, D-N173): -zona &lt;nombre&gt; (Nules, Castellón...) elige la zona de la noche; sin ella o si no existe, Sagunto (nodo 0).</summary>
         static int ZonaArg()
