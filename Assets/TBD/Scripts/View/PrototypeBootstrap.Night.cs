@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -751,3 +752,752 @@ namespace TBD.View
         }
     }
 }
+=======
+using System;
+using System.Collections.Generic;
+using System.Text;
+using Unity.Collections;
+using Unity.Entities;
+using Unity.Mathematics;
+using UnityEngine;
+using UnityEngine.Animations;
+using UnityEngine.InputSystem;
+using UnityEngine.Playables;
+using UnityEngine.Rendering.Universal;
+using UnityEngine.SceneManagement;
+using TBD.Sim;
+using TBD.Units;
+using TBD.Net;
+
+using TBD.Tutorial;
+namespace TBD.View
+{
+    /// <summary>Estado compartido entre el menú y la zona: «Jugar» activa la noche de Sagunto (D-N71).</summary>
+    public static class NightRun
+    {
+        public static bool Active;
+        public static bool LeftOnce;               // QA: -leaveat solo una vez
+        public sealed class VehInfo { public string Name; public string Tipo; public bool Vivo; public bool Embarcado; }
+        /// <summary>Registro estatico de los vehiculos de la noche (nombre, tipo, vivo), en orden de creacion: el id de vehiculo del embarque es el indice (Nacho). Lo lee el mapa siempre, tambien de dia.</summary>
+        public static readonly System.Collections.Generic.List<VehInfo> Vehs = new System.Collections.Generic.List<VehInfo>();
+        public static NightSession Session;       // la noche persistente: sobrevive a la escena de la zona (D-N91)
+        public static int Difficulty = 850;      // palanca única (D-N74): 725 fácil, 850 normal, 1000 difícil
+    }
+
+    /// <summary>
+    /// «La primera noche en Sagunto» (D-N71): pelotones (UnitsWorld) y oleadas (NightGame) de Nacho sobre la zona de Sagunto. La lógica de Nacho es C# puro; aquí solo se
+    /// conectan: aparición de zombis en los dos mundos, abatidos por impacto, vista de los soldados con los clips de Teo, selección y órdenes, HUD y pantalla final.
+    /// Todo es local (un jugador): los zombis se crean y se retiran igual en A y B, así que el hash de comprobación sigue coincidiendo.
+    /// </summary>
+    public partial class PrototypeBootstrap
+    {
+        // ---------------------------------------------------------------- estado
+        bool _nightOn, _nightInit; NightGame _ng; UnitsWorld _uw; readonly List<SpawnPoint> _spawns = new List<SpawnPoint>(); StepResult _res = new StepResult();
+        readonly List<Target> _tgt = new List<Target>(); readonly HashSet<uint> _killSet = new HashSet<uint>();
+        int _nightKills, _nightLost, _nightShotsSpent; int _lastWave = -1; float _bannerUntil; string _bannerText = "";
+        static uint SemillaQA { get { var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-semilla"); uint s = 0; return i >= 0 && i + 1 < a.Length && uint.TryParse(a[i + 1], out s) ? s * 7919u : 0u; } }   // QA (Hugo): semilla distinta por corrida
+        int _pilaMaxVista; NightBot _bot; NightTraceRecorder _rec; int _spawnedTotal; int _resupplies; float _fpsLogT; bool _debugHud; float _nightT0; int _shotsTaken; float _lastStep; string _endReason = "";
+        readonly List<int> _sel = new List<int>();
+        bool _selDrag; Vector2 _selStart; bool _rmbDown; Vector2 _rmbStart; bool _attackNext;
+        static readonly Vector2 StationC = new Vector2(113f, 64.5f), TrainC = new Vector2(143f, 64.5f);
+        int _nightWaveTotal;
+
+        // ---------------------------------------------------------------- inicio
+        void InitNight()
+        {
+            _nightInit = true; _nightOn = true; _debugHud = false; _nightT0 = Time.realtimeSinceStartup;
+            // oleadas, reloj, recursos y fuerza: noche_sagunto.json de Hugo (StreamingAssets/Noche), D-N74/D-N102. Sin el archivo, valores por defecto de Nacho.
+            BalanceSource.Reader = f => { var pth = System.IO.Path.Combine(Application.streamingAssetsPath, "Noche", f); return System.IO.File.Exists(pth) ? System.IO.File.ReadAllText(pth) : null; };
+            NightSim sim = null; int stock = 50 * WeaponCatalog.ShotsPerU;
+            try
+            {
+                string path = System.IO.Path.Combine(Application.streamingAssetsPath, "Noche", "noche_sagunto.json");
+                string key = NightRun.Difficulty < 800 ? "facil" : NightRun.Difficulty <= 950 ? "normal" : "dificil";
+                { var cd = System.Environment.GetCommandLineArgs(); for (int i = 0; i + 1 < cd.Length; i++) if (cd[i] == "-dificultad" && (cd[i + 1] == "facil" || cd[i + 1] == "normal" || cd[i + 1] == "dificil")) key = cd[i + 1]; }   // QA: -dificultad facil|normal|dificil
+                sim = NightSim.FromJson(System.IO.File.ReadAllText(path), key, 77u); _ng = sim.Night; stock = sim.Units.StockShots;
+            }
+            catch (System.Exception e) { Debug.LogWarning("[TBD] noche_sagunto.json no se pudo leer (" + e.Message + "): valores por defecto"); _ng = new NightGame(NightParams.Default(), 77u); var pd = _ng.P; pd.ScalePermil = NightRun.Difficulty; _ng.P = pd; }
+            { var p = _ng.P; var ca = System.Environment.GetCommandLineArgs(); for (int i = 0; i + 1 < ca.Length; i++) if (ca[i] == "-nightclock" && int.TryParse(ca[i + 1], out var ck) && ck > 0) p.ClockX = ck; _ng.P = p; }   // pruebas: reloj mas rapido
+            try
+            {
+                string dir = System.IO.Path.Combine(Application.streamingAssetsPath, "Noche");
+                var tu = new CsvTable(System.IO.File.ReadAllText(System.IO.Path.Combine(dir, "balance_unidades.csv"))); WeaponCatalog.Load(tu); PlatoonCatalog.Load(tu);
+                var tn = new CsvTable(System.IO.File.ReadAllText(System.IO.Path.Combine(dir, "balance_noche.csv")));
+                var jp = _ng.P; var np = NightParams.FromCsv(tn); np.Waves = jp.Waves; np.Entries = jp.Entries; np.ClockX = jp.ClockX; np.ScalePermil = jp.ScalePermil;
+                np.EndHour = (np.StartHour + 23) % 24;                                  // D-N164: sin victoria por tiempo; solo se gana acabando con la horda
+                _ng = new NightGame(np, 77u + SemillaQA);
+            }
+            catch (System.Exception e) { Debug.LogWarning("[TBD] balance_*.csv no se pudo leer (" + e.Message + "): valores por defecto de Nacho"); }
+            _uw = new UnitsWorld(1234u + SemillaQA) { StockShots = stock };
+            int west = 32768;                                                        // rumbo −X (hacia la puerta oeste)
+            _pname.Clear();
+            // D-N173 (Iker): cada estación saca su propio plantel (Plantel.Pelotones); Sagunto, los cinco de siempre en los mismos sitios
+            _estacionZona = NetSession.A != null && _zoneNode >= 0 && _zoneNode < NetSession.A.Graph.Nodes.Count ? NetSession.A.Graph.Nodes[_zoneNode].Name : "Sagunto";
+            foreach (var pp in TBD.Net.Plantel.Pelotones(_estacionZona, TutorialHud.Activo)) _pname[_uw.AddPlatoon(pp.Tipo, pp.X, pp.Y, pp.Rumbo, pp.Formacion).Id] = pp.Nombre;
+            Debug.Log($"[NOCHE] plantel de {_estacionZona}: {_pname.Count} pelotones");
+            if (_estacionZona == "Sagunto" && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinazotea") < 0)      // D-N174 (Lucia, Alvaro 10.15): 2 pelotones de tiradores libres en el ala oeste del edificio de viajeros, boca a 6,35 m
+                for (int az = 0; az < 2; az++) { var pa = _uw.AddPlatoon(PlatoonKind.Tiradores, 84500, 74300 + 4000 * az, west, Formation.Cuna); pa.EyeMm = 6350; _pname[pa.Id] = "Tiradores " + (az == 0 ? "azotea 1" : "azotea 2"); }
+            bool resume = NightRun.Session != null && NightRun.Session.Away && NightRun.Session.Ng != null;
+            if (resume)                                                              // la noche ya existia: se reanuda con su NightGame y su UnitsWorld
+            {
+                var S = NightRun.Session; _ng = S.Ng; _uw = S.Uw; _pname.Clear(); foreach (var kv in S.PName) _pname[kv.Key] = kv.Value;
+                _wallMax = S.WallMax; _wallHp = S.WallHp; _lastWave = S.LastWave; _nightWaveTotal = S.WaveTotal; _fullTrace.Clear(); if (S.FullTrace != null) _fullTrace.Append(S.FullTrace.ToString());
+            }
+            foreach (var wld in new[] { _worldA, _worldB })                          // sin los zombis iniciales de la zona: solo las oleadas
+            {
+                if (wld == null || !wld.IsCreated) continue;
+                using (var q = wld.EntityManager.CreateEntityQuery(typeof(Zombie))) wld.EntityManager.DestroyEntity(q);
+            }
+            _targetOrtho = 26f; _focus = new Vector3(96f, 0f, 64f);
+            { var cf = System.Environment.GetCommandLineArgs(); for (int fi = 0; fi + 1 < cf.Length; fi++) if (cf[fi] == "-focus") { var pr = cf[fi + 1].Split((char)44); if (pr.Length == 2 && float.TryParse(pr[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var fx0) && float.TryParse(pr[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var fz0)) _focus = new Vector3(fx0, 0f, fz0); else Debug.LogWarning("[NOCHE] -focus x,z"); } else if (cf[fi] == "-zoom0" && float.TryParse(cf[fi + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var zz0)) _targetOrtho = zz0; }   // QA: encuadre inicial
+            ApplyGrade(2);
+            _paletteMix = 0f;                                          // D-N129 (Lucia y Bruno): el mundo no pasa por el cuantizador; la paleta queda solo en los albedos y la interfaz
+            { var ca2 = System.Environment.GetCommandLineArgs(); for (int i2 = 0; i2 + 1 < ca2.Length; i2++) if (ca2[i2] == "-luz") NightLightPass(ca2[i2 + 1]); }
+            if (!resume) { _bannerText = "22:00. El tren se detiene en Sagunto.\nAguanta hasta el amanecer."; _bannerUntil = Time.unscaledTime + 5f; }
+            NearWall(Vector2.zero); Debug.Log($"[NOCHE] muros_obras={_wallSegs.Count}");
+            Debug.Log($"[NOCHE] reloj_x={_ng.P.ClockX} municion_u={_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.#} materiales_u=40 combustible_u=30 almacen_combustible_u=16");
+            if (_sel.Count == 0 && _uw.Platoons.Count > 0) _sel.Add(_uw.Platoons[0].Id);
+            InitVehicles(); Debug.Log($"[NOCHE] vehículos de {_estacionZona}: {_vehs.Count} ({string.Join(", ", _vehs.ConvertAll(v => v.Name))})");
+            _rec = resume && NightRun.Session.Rec != null ? NightRun.Session.Rec : new NightTraceRecorder("zona", 1285, 9000, 30);
+            if (resume && NightRun.Session.Bot != null) _bot = NightRun.Session.Bot;
+            LosInit();   // D-N174: linea de vision (sagunto_obstaculos_v1.csv de Alvaro); -sinlos la apaga
+            if (!resume && NightRun.Session == null) NightRun.Session = new NightSession { Ng = _ng, Uw = _uw };
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-nightbot") >= 0) { try { _bot = NightBot.FromParams(NightSimParams.FromJson(BalanceSource.Read("nightsim_params.json"))); Debug.Log("[NOCHE] prueba: -nightbot (NightBot de Nacho)"); } catch (System.Exception e) { Debug.LogWarning("[TBD] NightBot: " + e.Message); } }
+            if (_bot != null) foreach (var kvb in _pname) if (kvb.Value.StartsWith("Tiradores azotea")) _bot.Busy.Add(kvb.Key);      // el bot no mueve a los de la azotea (libres: solo el jugador)
+            if (resume) ResumeNightSession();
+        }
+
+        // ---- QA (Bruno): doble codificacion sRGB en partida. -colorcasos recorre 5 casos, uno cada 6 s reales, con una captura en cada uno (F6 pasa al siguiente a mano)
+        int _colorCase = -1; float _colorCaseT = -1f; bool _colorAuto = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-colorcasos") >= 0;
+        static readonly string[] ColorCaseNames = { "base", "a_fx_sin_post", "b_fx_y_present_sin_post", "c_sin_hdr", "d_sin_fxcam_en_pila" };
+        void ColorCases()
+        {
+            var kb = Keyboard.current; bool next = kb != null && kb.f6Key.wasPressedThisFrame;
+            if (_colorAuto && _colorCaseT < 0f) _colorCaseT = Time.unscaledTime + 8f;
+            if (_colorAuto && _colorCaseT > 0f && Time.unscaledTime >= _colorCaseT && _colorCase < ColorCaseNames.Length - 1) { next = true; }
+            if (!next) return;
+            if (_colorCase >= 0 && _colorCase < ColorCaseNames.Length) { }
+            _colorCase++; if (_colorCase >= ColorCaseNames.Length) _colorCase = 0; _colorCaseT = Time.unscaledTime + 6f;
+            var fxD = _fxCam.GetUniversalAdditionalCameraData(); var prD = _presentCam.GetUniversalAdditionalCameraData();
+            fxD.renderPostProcessing = true; prD.renderPostProcessing = true; _fxCam.allowHDR = true; _presentCam.allowHDR = true;
+            if (!prD.cameraStack.Contains(_fxCam)) prD.cameraStack.Add(_fxCam);
+            switch (_colorCase)
+            {
+                case 1: fxD.renderPostProcessing = false; break;
+                case 2: fxD.renderPostProcessing = false; prD.renderPostProcessing = false; break;
+                case 3: _fxCam.allowHDR = false; _presentCam.allowHDR = false; break;
+                case 4: prD.cameraStack.Remove(_fxCam); break;
+            }
+            string dir = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(dir);
+            Debug.Log("[NOCHE] caso de color " + ColorCaseNames[_colorCase]);
+            StartCoroutine(ColorCaseShot(System.IO.Path.Combine(dir, "color_" + _colorCase + "_" + ColorCaseNames[_colorCase] + ".png")));
+        }
+        System.Collections.IEnumerator ColorCaseShot(string path) { yield return new WaitForSeconds(2f); yield return CaptureRoutine(path); }
+
+        /// <summary>QA24 (Bruno): una sola luz sobre la imagen sin gradacion ni bloom. luna = sol blanco 1,0 con sombras; ambiente = luz ambiente blanca 0,1; focos = solo focos a 90.</summary>
+        void NightLightPass(string mode)
+        {
+            _nightGradeLock = true; _paletteMix = 0f;
+            _grade.colorFilter.Override(Color.white); _grade.saturation.Override(0f); _grade.postExposure.Override(0f); if (_bloom != null) _bloom.intensity.Override(0f);
+            if (mode == "luna") { SetLight(Color.white, 1.0f, Color.black, 50f); SetFloodlights(0f); }
+            else if (mode == "ambiente") { SetLight(Color.black, 0f, new Color(0.1f, 0.1f, 0.1f), 50f); SetFloodlights(0f); }
+            else if (mode == "focos") { SetLight(Color.black, 0f, Color.black, 50f); SetFloodlights(90f); }
+            else if (mode == "actual") { }
+            Debug.Log("[NOCHE] pasada de luz: " + mode);
+        }
+
+        // ---------------------------------------------------------------- un tick (30 Hz), antes de los sistemas de la zona
+        void NightTick()
+        {
+            if (!_nightOn || _ng == null) return;
+            bool playing = _ng.State == NightState.Jugando;
+            if (_ng.Tick - _gateTk >= 30)    // las puertas de SagunteStart nacen construidas con la noche inactiva: SyncWorks no les hace el muro. Aqui, una sola vez por pieza (idempotente), por la cola como el resto de ordenes (Nacho)
+            {
+                _gateTk = _ng.Tick;
+                var gp = NetSession.A != null && _zoneNode >= 0 ? NetSession.A.Works.At(_zoneNode) : null;
+                if (gp != null) for (int gi = 0; gi < gp.Count; gi++)
+                {
+                    var w = gp[gi]; if (!w.IsGate || !w.Built || _gateWalled.Contains(gi)) continue;
+                    _gateWalled.Add(gi);
+                    Push(CmdType.BuildWall, 2500, new Unity.Mathematics.float2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f), new Unity.Mathematics.float2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f));
+                    Debug.Log($"[NOCHE] puerta {w.Kind} cerrada con muro: ({WorkOrigin.x + w.X0 / 1000f:0.0};{WorkOrigin.y + w.Y0 / 1000f:0.0}) -> ({WorkOrigin.x + w.X1 / 1000f:0.0};{WorkOrigin.y + w.Y1 / 1000f:0.0})");
+                }
+            }
+            if (_ng.State == NightState.Derrota && !_endDismissed) return;            // derrota: el mundo se para
+            _spawns.Clear();
+            if (!TutorialHud.HordaEnEspera) { var st0 = _ng.State; _ng.Attack(_pileNearStation, _nearTrain); _ng.ZombiesAlive = _zomCounted ? _zomPos.Count : -1; _ng.Step(_spawns); if (st0 == NightState.Jugando && _ng.State != NightState.Jugando) NightEnded(); if (_ng.State == NightState.Derrota) return; }   // D-N136: NightGame gana al acabar con la horda (WinOnClear, misma regla que NightSim)
+            playing = _ng.State == NightState.Jugando;
+
+            // oleadas: líneas de registro y rótulo
+            int wv = CurrentWave();
+            if (playing && wv != _lastWave && wv >= 0)
+            {
+                _lastWave = wv; _nightWaveTotal = _ng.WaveTotal(wv); _waveBannerT0 = Time.unscaledTime;
+                string time = $"{_ng.P.StartHour + _ng.P.Waves[wv].StartMinute / 60:00}:{_ng.P.Waves[wv].StartMinute % 60:00}".Replace("24:", "00:");
+                _bannerText = $"{TimeStr()} · OLEADA {wv + 1}\nLa Colmena se acerca por el oeste"; _bannerUntil = Time.unscaledTime + 4f; Sfx.Play("sfx_alerta_oleada", 0.8f, 1f);
+                Debug.Log($"[NOCHE] oleada={wv + 1} hora={TimeStr()} total={_nightWaveTotal} ammo_u={_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.0} recargas={_resupplies} pila={_pileWall} muro_permil={_ng.WallPermil} bajas={_nightLost}");
+            }
+
+            // zombis nuevos (en los dos mundos, en el mismo punto)
+            if (_spawns.Count > 0) SpawnZombies(_spawns);
+
+            // soldados: objetivos = zombis a menos de 60 m de algún soldado
+            _tgt.Clear();
+            var emA = _worldA.EntityManager;
+            using (var q = emA.CreateEntityQuery(typeof(Zombie)))
+            {
+                var zs = q.ToComponentDataArray<Zombie>(Allocator.Temp);
+                int nearStation = 0, nearTrain = 0; _zomPos.Clear(); _zomId.Clear(); int wallPile = 0;
+                for (int i = 0; i < zs.Length; i++)
+                {
+                    var z = zs[i]; var pz = new Vector2(z.Pos.x, z.Pos.z); _zomPos.Add(pz); _zomId.Add(z.SimId); if (NearWall(pz)) wallPile++;
+                    if ((pz - StationC).sqrMagnitude < 64f) nearStation++;
+                    if ((pz - TrainC).sqrMagnitude < 49f) nearTrain++;
+                    bool near = false;
+                    for (int pi = 0; pi < _uw.Platoons.Count && !near; pi++)
+                    {
+                        var pl = _uw.Platoons[pi]; float dx = z.Pos.x * 1000f - pl.AX, dy = z.Pos.z * 1000f - pl.AY;
+                        if (dx * dx + dy * dy < 60000f * 60000f) near = true;
+                    }
+                    if (near) _tgt.Add(new Target { Id = (int)z.SimId, X = (int)(z.Pos.x * 1000f), Y = (int)(z.Pos.z * 1000f) });
+                }
+                zs.Dispose();
+                _zomCounted = true;
+                if ((_ng.Tick % NightSim.ClimberRetargetTicks) == 0) ClimberGoals();   // D-N148 (Nacho)   // D-N136 (Nacho): _zomPos ya es la cuenta de vivos de ECS; NightGame gana al llegar a 0 con toda la horda dentro
+                { for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; bool inside = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; uint zid = _zomId[ci]; if (inside) { if (_insideIds.Add(zid)) { _climbSec++; _entTot++; float dW = zp.x - Level.FortX0, dE = Level.FortX1 - zp.x, dS = zp.y - Level.FortY0, dN = Level.FortY1 - zp.y; float mn = Mathf.Min(Mathf.Min(dW, dE), Mathf.Min(dS, dN)); _entSide[mn == dW ? 0 : mn == dS ? 1 : mn == dE ? 2 : 3]++; } } else _insideIds.Remove(zid); }
+                  { var tr = _ng.P.TrainRect; float r = _ng.P.AttackReachMm / 1000f; float tx0 = tr.X0 / 1000f - r, tx1 = tr.X1 / 1000f + r, ty0 = tr.Y0 / 1000f - r, ty1 = tr.Y1 / 1000f + r; int tin = 0, tout = 0; for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; if (zp.x < tx0 || zp.x > tx1 || zp.y < ty0 || zp.y > ty1) continue; bool insideF = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; if (insideF) tin++; else tout++; } _trainIn = tin; _trainOut = tout; } }
+                _allT.Clear(); for (int i = 0; i < _zomPos.Count; i++) _allT.Add(new Target { Id = (int)_zomId[i], X = (int)(_zomPos[i].x * 1000f), Y = (int)(_zomPos[i].y * 1000f) });
+                _ng.CountAttackers(_allT, out _pileNearStation, out _nearTrain); if (_pileNearStation > _pilaMaxVista) _pilaMaxVista = _pileNearStation; TutorialHud.ComprobarC90(_uw, _allT, (cx, cy) => cx > (int)(Level.FortX0 * 1000f) + 1000 && cx < (int)(Level.FortX1 * 1000f) - 1000 && cy > (int)(Level.FortY0 * 1000f) + 1000 && cy < (int)(Level.FortY1 * 1000f) - 1000);
+                if ((_nearTrain > 0 || _pileNearStation > 0) && _diagN < 6 && Time.unscaledTime - _diagT > 2f)
+                {
+                    _diagN++; _diagT = Time.unscaledTime; var sbd = new System.Text.StringBuilder(); int k = 0;
+                    for (int i = 0; i < _zomPos.Count && k < 8; i++) { var zq = _zomPos[i]; if (zq.x > 66f && zq.x < 160f && zq.y > 60f && zq.y < 69f || (zq - StationC).sqrMagnitude < 144f) { sbd.Append($"({zq.x:0.0};{zq.y:0.0}) "); k++; } }
+                    Debug.Log($"[NOCHE-DIAG] tren={_nearTrain} estacion={_pileNearStation} hora={TimeStr()} muro_permil={_ng.WallPermil} zombis_cerca={sbd}");
+                    if (_diagN == 1) { var sw = new System.Text.StringBuilder(); foreach (var sg in _wallSegs) sw.Append($"[{sg.a.x:0.0};{sg.a.y:0.0}->{sg.b.x:0.0};{sg.b.y:0.0}] "); Debug.Log("[NOCHE-DIAG] muros_obras " + sw); }
+                }
+                TramosTick();
+                _pileWall = wallPile;
+                if (_wallMax <= 0f) _wallMax = _wallHp = Mathf.Max(1200000, NightSimParams.Default().WallHp);
+                _wallHp = Mathf.Max(0f, _wallHp - wallPile * (NightSimParams.Default().WallDmgPerZombieS / 30f)); _ng.WallPermil = Mathf.RoundToInt(1000f * _wallHp / _wallMax);
+            }
+            if (_bot != null) _bot.Step(_uw, _tgt, _ng.Tick);                          // -nightbot: el bot de Nacho decide como el jugador (ordenes, recarga al 30 %)
+            _res.Clear(); _uw.Step(_tgt, _res);
+            _nightShotsSpent += _res.AmmoSpent;
+            _contact.Clear(); _nightLost += _uw.ZombieContact(_tgt, 900, 2, _contact);
+            _spawnedTotal += _spawns.Count;
+            if (_rec != null && !_rec.Done)
+            {
+                long shotsLeft = _uw.StockShots; foreach (var plx in _uw.Platoons) if (plx.AliveCount() > 0) shotsLeft += plx.AmmoShots;
+                _rec.Sample(_ng.Tick, _spawnedTotal, _zomPos.Count, _pileWall, (long)_wallHp, (long)_wallMax, _nightKills, (int)shotsLeft, _pileNearStation, _nearTrain);
+                if (_rec.Done)
+                {
+                    try
+                    {
+                        string dir = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(dir);
+                        System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "traza-zona.csv"), _rec.Trace.ToCsv());
+                        Debug.Log("[NOCHE-TRAZA] " + NightTraceTools.CompareWithReference(_rec.Trace).Text);
+                    }
+                    catch (System.Exception e) { Debug.LogWarning("[TBD] traza: " + e.Message); }
+                }
+            }
+            if (_ng.Tick % 30 == 0 && _ng.State == NightState.Jugando)   // traza de la noche entera (Sara): una fila por segundo de juego con la vida del tren y de la estacion
+            {
+                if (_fullTrace.Length == 0) _fullTrace.Append("tick,hora,estacion_hp,tren_hp,muro_hp,zombis,pila,atacan_tren,atacan_estacion,abatidos,bajas,trepan,entran,entran_oeste,entran_sur,entran_este,entran_norte,tren_x,tren_x0,tren_x1,tren_y0,tren_y1,atacan_tren_dentro,atacan_tren_fuera" + (char)10);
+                _fullTrace.Append($"{_ng.Tick},{TimeStr()},{_ng.StationHp},{_ng.TrainHp},{(long)_wallHp},{_zomPos.Count},{_pileWall},{_nearTrain},{_pileNearStation},{_nightKills},{_nightLost},{_climbSec},{_entTot},{_entSide[0]},{_entSide[1]},{_entSide[2]},{_entSide[3]},{Mathf.RoundToInt(TrainXEcs())},{_ng.P.TrainRect.X0 / 1000},{_ng.P.TrainRect.X1 / 1000},{_ng.P.TrainRect.Y0 / 1000},{_ng.P.TrainRect.Y1 / 1000},{_trainIn},{_trainOut}" + (char)10); _climbSec = 0;
+            }
+            if (_uw.Tick % 15 == 0 && _uw.StockShots > 0)                                // reabastecimiento automatico: bajo el 30 % de su dotacion, del almacen (la T queda como recarga anticipada)
+                foreach (var plr in _uw.Platoons) if (plr.AliveCount() > 0 && plr.AmmoCap > 0 && plr.AmmoShots * 100 < plr.AmmoCap * 30 && _uw.Resupply(plr.Id) > 0) _resupplies++;
+            VehiclesTick(default(NativeSnapshot)); if (_vehHits.Count > 0) { KillZombies(_vehHits); _vehHits.Clear(); }
+            if (_res.Hits.Count > 0) KillZombies(_res.Hits);
+            for (int i = 0; i < _res.Shots.Count; i++) NightShotFx(_res.Shots[i]);
+            for (int i = 0; i < _res.Blasts.Count; i++) { var b = _res.Blasts[i]; VfxBlast(new Vector3(b.X / 1000f, 0f, b.Y / 1000f), b.RadiusMm / 1000f, b.Weapon); }
+        }
+        readonly List<(Vector2 a, Vector2 b)> _wallSegs = new List<(Vector2, Vector2)>(); float _wallSegsT = -10f; int _wallSegsTk = -1000, _gateTk = -1000;
+
+        /// <summary>¿El zombi esta a 1,5 m o menos de un muro construido de las obras? Los segmentos salen de Works (se refrescan cada 2 s).</summary>
+        bool NearWall(Vector2 p)
+        {
+            if (_ng.Tick - _wallSegsTk >= 60)
+            {
+                _wallSegsTk = _ng.Tick; _wallSegs.Clear();
+                var pieces = NetSession.A != null && _zoneNode >= 0 ? NetSession.A.Works.At(_zoneNode) : null;
+                if (pieces != null) foreach (var w in pieces) if ((w.IsWall || w.IsGate) && w.Built) _wallSegs.Add((new Vector2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f), new Vector2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f)));
+            }
+            for (int i = 0; i < _wallSegs.Count; i++)
+            {
+                var ab = _wallSegs[i].b - _wallSegs[i].a; float l2 = ab.sqrMagnitude; float t = l2 < 1e-6f ? 0f : Mathf.Clamp01(Vector2.Dot(p - _wallSegs[i].a, ab) / l2);
+                if ((_wallSegs[i].a + ab * t - p).sqrMagnitude < 2.25f) return true;
+            }
+            return false;
+        }
+        NightSim _aggroSh; readonly Dictionary<int, Vector2Int> _aggroGoal = new Dictionary<int, Vector2Int>();
+        bool _zomCounted;
+        readonly List<Target> _cgMen = new List<Target>(), _cgVeh = new List<Target>(), _cgWork = new List<Target>();
+        /// <summary>D-N148 (Nacho): a los zombis que han pasado el muro (dentro del recinto) les pone su objetivo con ClimberTargets.Pick, la misma regla que NightSim:
+        /// lo vivo más cercano a menos de 30 m (infantería, vehículos parados, obreros) y, si no hay nadie, el tren. En los dos mundos, con las mismas listas.
+        /// Los de fuera siguen el campo de flujo (HasGoal = 0).</summary>
+        void ClimberGoals()
+        {
+            _cgMen.Clear(); _cgVeh.Clear();
+            foreach (var p in _uw.Platoons) { if (p.Aboard != 0) continue; foreach (var m in p.Men) if (m.Alive) _cgMen.Add(new Target { Id = m.Id, X = m.X, Y = m.Y }); }
+            for (int i = 0; i < _vehs.Count; i++) { var v = _vehs[i]; if (v.Heli ? v.State != 0 : v.Speed > 0.1f) continue; _cgVeh.Add(new Target { Id = i, X = (int)(v.Pos.x * 1000f), Y = (int)(v.Pos.y * 1000f) }); }
+            var tr = _ng.P.TrainRect;
+            // D-N175 (Lucia, Nacho): un zombi de FUERA con tropa a 25 m o menos deja la puerta y va a por ella, con tope del 30 % de la horda; la pila y los del muro no cambian.
+            // Se decide una sola vez con el mundo A (sombra de NightSim) y se aplica igual a los dos mundos por SimId.
+            _aggroGoal.Clear();
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinaggro") < 0 && _worldA != null && _worldA.IsCreated)
+            {
+                try
+                {
+                    if (_aggroSh == null) { _aggroSh = NightSim.ShadowFor(_ng.P, NightSimParams.FromJson(BalanceSource.Read("nightsim_params.json")), new List<NightSim.WallSegment>(), 0); _aggroSh.OutsideAggroMm = 25000; _aggroSh.OutsideAggroCapPm = 300; }
+                    var outside = new List<Target>(); int aliveAll = 0;
+                    using (var qa = _worldA.EntityManager.CreateEntityQuery(typeof(Zombie)))
+                    {
+                        var za = qa.ToComponentDataArray<Zombie>(Allocator.Temp);
+                        for (int i = 0; i < za.Length; i++)
+                        {
+                            var z = za[i]; aliveAll++; float x = z.Pos.x, y = z.Pos.z;
+                            if (!(x > Level.FortX0 && x < Level.FortX1 && y > Level.FortY0 && y < Level.FortY1)) outside.Add(new Target { Id = (int)z.SimId, X = (int)(x * 1000f), Y = (int)(y * 1000f) });
+                        }
+                        za.Dispose();
+                    }
+                    var troops = new List<Target>(_cgMen); troops.AddRange(_cgVeh);
+                    foreach (var o in _aggroSh.TickOutsideAggro(outside, troops, aliveAll)) _aggroGoal[o.ZombieId] = new Vector2Int(o.TX, o.TY);
+                }
+                catch (System.Exception e) { Debug.LogWarning("[NOCHE] D-N175: " + e.Message); }
+            }
+            foreach (var wld in new[] { _worldA, _worldB })
+            {
+                if (wld == null || !wld.IsCreated) continue;
+                var em = wld.EntityManager;
+                using (var q = em.CreateEntityQuery(typeof(Zombie)))
+                {
+                    var zs = q.ToComponentDataArray<Zombie>(Allocator.Temp); bool dirty = false;
+                    for (int i = 0; i < zs.Length; i++)
+                    {
+                        var z = zs[i]; float x = z.Pos.x, y = z.Pos.z;
+                        bool inside = x > Level.FortX0 && x < Level.FortX1 && y > Level.FortY0 && y < Level.FortY1;
+                        if (!inside)
+                        {
+                            if (_aggroGoal.TryGetValue((int)z.SimId, out var ag)) { z.Goal = new float2(ag.x / 1000f, ag.y / 1000f); z.HasGoal = 1; zs[i] = z; dirty = true; }
+                            else if (z.HasGoal != 0) { z.HasGoal = 0; zs[i] = z; dirty = true; }
+                            continue;
+                        }
+                        int tx, ty; ClimberTargets.Pick((int)(x * 1000f), (int)(y * 1000f), _cgMen, _cgVeh, _cgWork, NightSim.ClimberSeekMm, tr, out tx, out ty);
+                        z.Goal = new float2(tx / 1000f, ty / 1000f); z.HasGoal = 1; zs[i] = z; dirty = true;
+                    }
+                    if (dirty) q.CopyFromComponentDataArray(zs);
+                    zs.Dispose();
+                }
+            }
+        }
+        int _entTot, _trainIn, _trainOut; readonly int[] _entSide = new int[4]; float TrainXEcs() { try { return _worldA != null && _worldA.IsCreated ? _worldA.EntityManager.GetComponentData<TrainState>(_rootA).X : -1f; } catch (System.Exception) { return -1f; } } int _climbSec; readonly HashSet<uint> _insideIds = new HashSet<uint>(); readonly System.Text.StringBuilder _fullTrace = new System.Text.StringBuilder(); float _gateT = -10f; readonly HashSet<int> _gateWalled = new HashSet<int>(); bool _capDirDone; readonly HashSet<float> _shotAtDone = new HashSet<float>(); int _diagN; float _diagT; float _endStationF = 1f, _endTrainF = 1f; int _pileNearStation, _nearTrain, _pileWall; float _wallHp, _wallMax; readonly List<Target> _allT = new List<Target>(); readonly ContactResult _contact = new ContactResult(); readonly float _contactR2 = 1200f * 1200f; readonly int _contactPpm = 1000000 * 14 / 1000 / 30;   // NightSimParams de Nacho: 1,2 m y 14 ‰ por zombi y segundo (por tick)
+
+        int CurrentWave()
+        {
+            int w = -1; for (int i = 0; i < _ng.P.Waves.Length; i++) if (_ng.Tick >= _ng.WaveStartTick(i)) w = i; return w;
+        }
+
+        string TimeStr() { return $"{_ng.Hour:00}:{_ng.Minute:00}"; }
+
+        void SpawnZombies(List<SpawnPoint> pts)
+        {
+            foreach (var wld in new[] { _worldA, _worldB })
+            {
+                if (wld == null || !wld.IsCreated) continue;
+                var em = wld.EntityManager; var root = wld == _worldA ? _rootA : _rootB;
+                var clock = em.GetComponentData<SimClock>(root);
+                var arch = em.CreateArchetype(typeof(Zombie));
+                var ents = em.CreateEntity(arch, pts.Count, Allocator.Temp);
+                for (int i = 0; i < pts.Count; i++)
+                    em.SetComponentData(ents[i], Zombie.Create(clock.NextSimId++, new float2(pts[i].X / 1000f, pts[i].Y / 1000f), 0f));
+                ents.Dispose(); em.SetComponentData(root, clock);
+            }
+        }
+
+        void KillZombies(List<TargetHit> hits)
+        {
+            // (los sonidos 2D de impacto/caida/muerte se quitan: Nuria, zombi_caida 3D en KillZombies)
+            _killSet.Clear(); for (int i = 0; i < hits.Count; i++) _killSet.Add((uint)hits[i].TargetId);
+            foreach (var wld in new[] { _worldA, _worldB })
+            {
+                if (wld == null || !wld.IsCreated) continue;
+                var em = wld.EntityManager;
+                using (var q = em.CreateEntityQuery(typeof(Zombie)))
+                {
+                    var zs = q.ToComponentDataArray<Zombie>(Allocator.Temp); var es = q.ToEntityArray(Allocator.Temp);
+                    for (int i = 0; i < zs.Length; i++)
+                        if (_killSet.Contains(zs[i].SimId)) { em.DestroyEntity(es[i]); if (wld == _worldA) { _nightKills++; BloodAt(zs[i].Pos); if (UnityEngine.Random.Range(0, 10) == 0) Sfx.PlayAt("zombi_caida", new Vector3(zs[i].Pos.x, 0.3f, zs[i].Pos.z), 0.3f, 0.25f); } }
+                    zs.Dispose(); es.Dispose();
+                }
+            }
+            for (int i = 0; i < hits.Count; i++) _uw.NoteKill(hits[i].Platoon);
+        }
+
+        void NightEnded()
+        {
+            if (_ng.State == NightState.Derrota) Sfx.Play("estacion_caida", Vector3.zero, 0.9f, 1f);
+            if (_ng.State == NightState.Derrota) ClearNightSession(); else if (NightRun.Session != null) NightRun.Session.Reported = true;   // D-N170: tras ganar la sesion SE QUEDA (el mundo sigue; salir y entrar no vuelve a sacar «Sagunto resiste» ni otra horda); solo la derrota la borra
+            try { string d0 = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(d0); System.IO.File.WriteAllText(System.IO.Path.Combine(d0, "traza-noche.csv"), _fullTrace.ToString()); if (_rec != null && !_rec.Done) System.IO.File.WriteAllText(System.IO.Path.Combine(d0, "traza-zona.csv"), _rec.Trace.ToCsv()); } catch (System.Exception e0) { Debug.LogWarning("[TBD] traza noche: " + e0.Message); }
+            bool win = _ng.State == NightState.Victoria; var a = _uw;
+            int alive = 0, total = 0; foreach (var pl in a.Platoons) { alive += pl.AliveCount(); total += pl.Men.Count; }
+            _nightLost = total - alive;
+            float left = a.StockShots / (float)WeaponCatalog.ShotsPerU;
+            _endStationF = _ng.StationHp / (float)Mathf.Max(1, _ng.StationHpMax); _endTrainF = _ng.TrainHp / (float)Mathf.Max(1, _ng.TrainHpMax);   // el parte congela estas cifras: despues del amanecer la horda sigue y no debe vaciar la barra (Sara)
+            Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 pila_max={_pilaMaxVista} recargas={_resupplies} desync={_desync} hora_fin={TimeStr()}");
+            _endReason = win ? (_ng.WonByClear ? $"{TimeStr()}. Sagunto resiste.\nLa horda ha caído." : "06:00. Sagunto resiste.\nAmanece.") : _ng.DefeatHeadline();   // D-N136/D-N146
+        }
+        bool _endDismissed, _reportClosed;
+
+        /// <summary>«Seguir» (D-N91): abre la noche siguiente con las mismas oleadas a +10 % y reinicia los contadores del parte; el mundo no se detuvo.</summary>
+        void NextNight()
+        {
+            _reportClosed = true; return;                                                // D-N136/137: al ganar se sigue en el mundo, sin reiniciar
+            var np = _ng.P; np.ScalePermil = np.ScalePermil * 11 / 10;
+            if (_ng.BeginNextNight(np)) { _reportClosed = false; _lastWave = -1; _nightKills = 0; _nightShotsSpent = 0; _nightLost = 0; _bannerText = $"{TimeStr()}. Noche {_ng.NightIndex + 1}.\nAguanta hasta el amanecer."; _bannerUntil = Time.unscaledTime + 4f; }
+            else _reportClosed = true;
+        }
+
+        // ---------------------------------------------------------------- sangre (decal efímero)
+        readonly Queue<(GameObject go, float t)> _blood = new Queue<(GameObject, float)>();
+        Material _bloodMat;
+        void BloodAt(float3 pos)
+        {
+            if (_blood.Count > 220) { var o = _blood.Dequeue(); if (o.go != null) Destroy(o.go); }
+            if (_bloodMat == null) { _bloodMat = new Material(Shader.Find("Universal Render Pipeline/Unlit")); _bloodMat.SetColor("_BaseColor", new Color32(0x4c, 0x10, 0x08, 255)); }
+            var g = GameObject.CreatePrimitive(PrimitiveType.Quad); Destroy(g.GetComponent<Collider>());
+            g.transform.position = new Vector3(pos.x, 0.13f, pos.z); g.transform.rotation = Quaternion.Euler(90f, UnityEngine.Random.value * 360f, 0f); g.transform.localScale = Vector3.one * (0.5f + UnityEngine.Random.value * 0.5f);
+            g.GetComponent<MeshRenderer>().sharedMaterial = _bloodMat; g.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _blood.Enqueue((g, Time.unscaledTime + 20f));
+        }
+
+        // ---------------------------------------------------------------- trazadoras
+        readonly List<(LineRenderer lr, float until)> _tracers = new List<(LineRenderer, float)>(); Material _trMat;
+        void NightShotFx(FireEvent s)
+        {
+            var pl = _uw.Find(s.Platoon); if (pl == null) return; Infantryman man = null; foreach (var m in pl.Men) if (m.Id == s.Man) { man = m; break; }
+            if (man == null) return;
+            if (_trMat == null) { _trMat = new Material(Shader.Find("Universal Render Pipeline/Unlit")); _trMat.SetColor("_BaseColor", new Color32(0xf0, 0xdc, 0x9c, 255)); }
+            if (s.Splash) { Sfx.PlayDistAt("granada_40", new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f), 1f, 0.25f); Sfx.PlayAt("explosion_granada", new Vector3(s.AimX / 1000f, 0.5f, s.AimY / 1000f), 0.7f, 0.3f); } else if (s.Kind == InfKind.Ametrallador) Sfx.PlayDistAt("ametralladora", new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f), 1f, 0.2f); else if (s.Kind == InfKind.Tirador) { Sfx.PlayDistAt("tirador", new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f), 1f, 0.2f); Sfx.PlayAt("cola_urbana", new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f), 0.3f, 0.4f); } else Sfx.PlayDistAt("fusil_rafaga", new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f), 1f, 0.12f);
+            var from = new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f); var to = new Vector3(s.AimX / 1000f, 0.8f, s.AimY / 1000f);
+            // trazadora que viaja (no un rayo): 1 de cada 3 balas en fusileros, 1 de cada 4 en ametralladoras, todas en tiradores y granadas (Lucia §4.1)
+            bool tracer = s.Splash || s.Kind == InfKind.Tirador || UnityEngine.Random.value < (s.Kind == InfKind.Ametrallador ? 0.25f : 0.34f);
+            if (tracer) SpawnTracer(from, to, s.Splash ? 60f : 200f, s.Splash ? 0.16f : 0.07f, s.Splash ? 3f : 5f);
+            SpawnFlash(from + (to - from).normalized * 0.6f, s.Kind == InfKind.Ametrallador ? 0.5f : 0.38f);
+        }
+
+        // ---------------------------------------------------------------- soldados (vista)
+        sealed class SoldierView
+        {
+            public GameObject Go; public PlayableGraph Graph; public AnimationMixerPlayable Mix; public AnimationClipPlayable[] Clips = new AnimationClipPlayable[4]; public float[] Len = new float[4];
+            public int State = 0; public float T; public float[] W = { 1, 0, 0, 0 }; public bool Dead; public float DeadT;
+        }
+        readonly Dictionary<int, SoldierView> _views = new Dictionary<int, SoldierView>();
+        Material _soldMat; Texture2D _soldPal; static readonly string[] ClipNames = { "reposo", "andar", "disparar", "morir" };
+
+        SoldierView MakeView(Infantryman m, bool leader)
+        {
+            int v; string weapon;
+            switch (m.Kind)                                                          // SoldadoArmado de Teo (7-nov): el arma va dentro de la malla, asi no queda tumbada: v0 G36E, v1 G36E+AG36, v2 G36E, v3 MG4E, v4 G28, v5 G36E
+            {
+                case InfKind.Ametrallador: v = 3; weapon = "MG4E"; break;
+                case InfKind.Zapador: v = 2; weapon = "G36E"; break;
+                case InfKind.Servidor: v = 2; weapon = "G36E"; break;
+                case InfKind.Granadero: v = 1; weapon = "G36E_AG36"; break;
+                case InfKind.Tirador: v = 4; weapon = "G28"; break;
+                default: v = (m.Id & 1) == 0 ? 0 : 2; weapon = "G36E"; break;
+            }
+            if (leader) { v = 5; weapon = "G36E"; }                                  // jefe de pelotón: v5 + G36E
+            var prefab = Resources.Load<GameObject>("Models/Infanteria/SM_SoldadoArmado_v" + v + "_" + weapon + "_LOD1"); bool armado = prefab != null; if (!armado) prefab = Resources.Load<GameObject>("Models/Infanteria/SM_Soldado_v" + v + "_LOD1"); if (prefab == null) return null;
+            if (_soldMat == null) { _soldPal = Resources.Load<Texture2D>("Models/Infanteria/T_Paleta32"); _soldMat = Mat("ffffff"); _soldMat.SetTexture("_BaseMap", _soldPal); _soldMat.enableInstancing = true; }
+            var go = Instantiate(prefab); go.name = "Soldado " + m.Id; go.transform.localScale = Vector3.one * RenderAssets.FigureScale;
+            foreach (var r in go.GetComponentsInChildren<Renderer>()) { r.sharedMaterial = _soldMat; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On; }
+            Transform brazos = FindBone(go.transform, "brazos"), pecho = FindBone(go.transform, "pecho");
+            var wp = Resources.Load<GameObject>("Models/Infanteria/SM_Arma_" + weapon + "_LOD1");
+            if (!armado && wp != null && brazos != null) { var w = Instantiate(wp, go.transform); w.transform.localPosition = Vector3.zero; w.transform.localRotation = Quaternion.identity; w.transform.SetParent(brazos, true); foreach (var r in w.GetComponentsInChildren<Renderer>()) r.sharedMaterial = _soldMat; }
+            if (!armado && m.Kind == InfKind.Fusilero && pecho != null) { var c = Resources.Load<GameObject>("Models/Infanteria/SM_Arma_C90_LOD1"); if (c != null) { var w = Instantiate(c, go.transform); w.transform.localPosition = Vector3.zero; w.transform.localRotation = Quaternion.identity; w.transform.SetParent(pecho, true); foreach (var r in w.GetComponentsInChildren<Renderer>()) r.sharedMaterial = _soldMat; } }
+            var sv = new SoldierView { Go = go };
+            var an = go.GetComponent<Animator>(); if (an == null) an = go.AddComponent<Animator>();
+            an.runtimeAnimatorController = null; an.applyRootMotion = false;
+            var clips = Resources.LoadAll<AnimationClip>(armado ? "Models/Infanteria/SM_SoldadoArmado_v" + v + "_" + weapon + "_LOD1" : "Models/Infanteria/SM_Soldado_v" + v + "_LOD1");
+            sv.Graph = PlayableGraph.Create("Soldado " + m.Id); sv.Graph.SetTimeUpdateMode(DirectorUpdateMode.Manual);
+            var output = AnimationPlayableOutput.Create(sv.Graph, "anim", an); sv.Mix = AnimationMixerPlayable.Create(sv.Graph, 4); output.SetSourcePlayable(sv.Mix);
+            for (int i = 0; i < 4; i++)
+            {
+                AnimationClip clip = null; foreach (var c in clips) if (c.name.EndsWith("|" + ClipNames[i])) clip = c;
+                if (clip == null) { sv.Len[i] = 1f; sv.Clips[i] = AnimationClipPlayable.Create(sv.Graph, new AnimationClip()); } else { sv.Len[i] = clip.length; sv.Clips[i] = AnimationClipPlayable.Create(sv.Graph, clip); }
+                sv.Clips[i].SetApplyFootIK(false); sv.Clips[i].SetSpeed(0); sv.Graph.Connect(sv.Clips[i], 0, sv.Mix, i); sv.Mix.SetInputWeight(i, i == 0 ? 1f : 0f);
+            }
+            sv.T = (m.Id * 0.137f) % 1f; sv.Graph.Play();
+            return sv;
+        }
+
+        static Transform FindBone(Transform t, string name)
+        {
+            foreach (var c in t.GetComponentsInChildren<Transform>(true)) if (c.name == name) return c; return null;
+        }
+
+        void UpdateNightSoldiers()
+        {
+            float dt = Time.unscaledDeltaTime; foreach (var pl in _uw.Platoons)
+                foreach (var m in pl.Men)
+                {
+                    if (!_views.TryGetValue(m.Id, out var sv)) { sv = MakeView(m, pl.Men.Count > 0 && pl.Men[0] == m); _views[m.Id] = sv; if (sv == null) continue; }
+                    if (sv == null) continue;
+                    var go = sv.Go; var tgt = new Vector3(m.X / 1000f, 0f, m.Y / 1000f);
+                    go.transform.position = Vector3.Lerp(go.transform.position, tgt, 1f - Mathf.Exp(-14f * dt));
+                    float yaw = 90f - m.Heading * 360f / 65536f; go.transform.rotation = Quaternion.Slerp(go.transform.rotation, Quaternion.Euler(0f, yaw, 0f), 1f - Mathf.Exp(-12f * dt));
+                    int st = !m.Alive ? 3 : m.Firing ? 2 : m.Moving ? 1 : 0;
+                    if (st == 3 && !sv.Dead) { sv.Dead = true; sv.T = 0f; }
+                    sv.State = st;
+                    for (int i = 0; i < 4; i++) { float tw = i == st ? 1f : 0f; sv.W[i] = Mathf.MoveTowards(sv.W[i], tw, dt / 0.15f); sv.Mix.SetInputWeight(i, sv.W[i]); }
+                    sv.T += dt;
+                    for (int i = 0; i < 4; i++) { float tt = i == 3 ? Mathf.Min(sv.T, sv.Len[3] - 0.01f) : sv.T % sv.Len[i]; sv.Clips[i].SetTime(tt); }
+                    sv.Graph.Evaluate(0f);
+                }
+        }
+
+        // ---------------------------------------------------------------- entrada y órdenes
+        void NightUpdate()
+        {
+            AudioListener.pause = _paused && _nightOn;                                // al pausar se silencia todo (Eugenio)
+            ColorCases();
+            TramosUpdate();
+            OrdersUpdate();
+            UpdateFx();
+            UpdateVfxArmas();
+            GradeSweepCheck();
+            ListObjsCheck();
+            InputTestCheck();
+            if (!_capDirDone && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-capdirecta") >= 0 && Time.realtimeSinceStartup - _nightT0 >= 30f)   // QA (Bruno): MISMO fotograma, captura de siempre vs. captura directa a resolucion completa sin Blit
+            {
+                _capDirDone = true; string dd = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(dd);
+                StartCoroutine(CaptureRoutine(System.IO.Path.Combine(dd, "capdirecta_1_siempre.png")));
+            }
+            { var cl = System.Environment.GetCommandLineArgs(); for (int li = 0; li + 1 < cl.Length; li++) if (cl[li] == "-leaveat" && float.TryParse(cl[li + 1], out var lt) && Time.realtimeSinceStartup - _nightT0 >= lt && !_leaving && !NightRun.LeftOnce && _nightInit && _ng != null && _ng.State == NightState.Jugando) { NightRun.LeftOnce = true; Debug.Log("[NOCHE] prueba: -leaveat, salgo al mapa tick " + _ng.Tick); LeaveToMap(); } }   // QA: sale al mapa a los N s reales
+            if (!_nightOn) return;
+            var kb = Keyboard.current; var mouse = Mouse.current; if (kb == null || mouse == null) return;
+            if (kb.f12Key.wasPressedThisFrame) _debugHud = !_debugHud;   // F2 pasa a ser la formacion cuña (F1-F4)
+            NightDemoFlags();
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-nightshots") >= 0 && _ng.State != NightState.Jugando)       // captura de la pantalla final
+            { if (_endAt < 0f) _endAt = Time.realtimeSinceStartup; if (!_endShot && Time.realtimeSinceStartup - _endAt > 2f) { _endShot = true; SaveScreenshot(); } }
+            if (Time.realtimeSinceStartup - _fpsLogT > 20f) { _fpsLogT = Time.realtimeSinceStartup; Debug.Log($"[NOCHE-FPS] hora={TimeStr()} fps={_fps:0} zombis={_total} abatidos={_nightKills} bajas={_nightLost} pila={_pileWall} muro_permil={_ng.WallPermil} desync={_desync}"); }
+            { var cs = System.Environment.GetCommandLineArgs(); for (int ci = 0; ci + 1 < cs.Length; ci++) if (cs[ci] == "-shotsat") { float tt2 = Time.realtimeSinceStartup - _nightT0; foreach (var sp in cs[ci + 1].Split(',')) if (float.TryParse(sp, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var at2) && tt2 >= at2 && _shotAtDone.Add(at2)) SaveScreenshot(); } }   // QA: -shotsat 236,245,255 = capturas a esos segundos reales (Sara, la O2 del tren)
+            { var ca = System.Environment.GetCommandLineArgs(); if (System.Array.IndexOf(ca, "-nightshots") >= 0) { float tt = Time.realtimeSinceStartup - _nightT0; foreach (float at in new[] { 12f, 40f, 90f, 150f }) if (tt >= at && _shotsTaken < Array.IndexOf(new[] { 12f, 40f, 90f, 150f }, at) + 1) { _shotsTaken++; SaveScreenshot(); } } }
+            if (_ng.State == NightState.Derrota && !_endDismissed) { UpdateNightSoldiers(); return; }
+            Vector2 mp = mouse.position.ReadValue();
+            // selección: clic o arrastre de rectángulo (en pantalla) sobre los pelotones
+            if (mouse.leftButton.wasPressedThisFrame && !OverNightUi(mp)) { _selDrag = true; _selStart = mp; }
+            if (mouse.leftButton.wasReleasedThisFrame && _selDrag)
+            {
+                _selDrag = false;
+                if (_c90Aim)                                                          // C90: clic en el punto de impacto (D-N137); se pierde si el punto esta fuera de alcance (10-120 m) o no quedan tiros
+                {
+                    _c90Aim = false;
+                    if (TryGround(mp, out var gc)) { int okc = 0; foreach (var id in _sel) if (_uw.OrderC90(id, (int)(gc.x * 1000f), (int)(gc.z * 1000f))) okc++; Debug.Log($"[NOCHE] C90 sobre ({gc.x:0};{gc.z:0}): {okc} pelotones lo disparan"); _c90Msg = okc > 0 ? "C90 disparado" : "C90 fuera de alcance o sin tiros"; _c90MsgUntil = Time.unscaledTime + 2f; }
+                }
+                else
+                if (_attackNext) { IssueAttackMove(mp); _attackNext = false; }
+                else
+                {
+                    var vh = VehAt(mp); if (vh != null && (mp - _selStart).magnitude < 6f) { _selVeh = vh; _sel.Clear(); goto selDone; }
+                    var r = Rect.MinMaxRect(Mathf.Min(_selStart.x, mp.x), Mathf.Min(_selStart.y, mp.y), Mathf.Max(_selStart.x, mp.x), Mathf.Max(_selStart.y, mp.y));
+                    bool box = r.width > 6f && r.height > 6f; var found = new List<int>();
+                    foreach (var pl in _uw.Platoons)                          // OJO: _worldCam pinta en una RT mas pequena, asi que se proyecta por viewport (WorldToScreenPoint devolvia pixeles de la RT y la seleccion fallaba, Eugenio)
+                    {
+                        if (pl.AliveCount() == 0) continue; bool hit = false;
+                        foreach (var m in pl.Men)
+                        {
+                            if (!m.Alive) continue; var sp = ScreenOf(new Vector3(m.X / 1000f, 1f, m.Y / 1000f)); if (sp.z < 0f) continue; var q = new Vector2(sp.x, sp.y);
+                            if (box ? r.Contains(q) : (q - mp).magnitude < Screen.height * 0.035f) { hit = true; break; }
+                        }
+                        if (hit) found.Add(pl.Id);
+                    }
+                    if (found.Count > 0) TutorialHud.Senal(TutorialGuion.Senales.PelotonSeleccionado);
+                    if (found.Count > 0 || box) { _selVeh = null; if (!(kb.leftShiftKey.isPressed)) _sel.Clear(); foreach (var id in found) if (!_sel.Contains(id)) _sel.Add(id); }
+                    selDone:;
+                }
+            }
+            // clic derecho sin arrastre = mover (con arrastre, gira la cámara como siempre)
+            if (mouse.rightButton.wasPressedThisFrame) { _rmbDown = true; _rmbStart = mp; _rmbDragging = false; _rmbW0Ok = TryGround(mp, out _rmbW0); }
+            if (_rmbDown && mouse.rightButton.isPressed && _rmbW0Ok && _selVeh == null && _sel.Count > 0 && (mp - _rmbStart).magnitude >= 8f && TryGround(mp, out var gcur)) { _rmbDragging = true; _rmbW1 = gcur; }   // clic derecho y arrastrar = dibujar el frente
+            if (mouse.rightButton.wasReleasedThisFrame && _rmbDown)
+            {
+                _rmbDown = false; bool dragged = _rmbDragging; _rmbDragging = false;
+                if (dragged && _rmbW0Ok && TryGround(mp, out var g1)) IssueFormationOrder(_rmbW0, g1, _attackNext);
+                else if ((mp - _rmbStart).magnitude < 6f && !OverNightUi(mp)) { if (_selVeh != null) { if (TryGround(mp, out var gv)) VehicleOrder(_selVeh, gv); } else IssueMove(mp, false); Sfx.Play("ui_orden", Vector3.zero, 0.6f, 0.05f); }
+            }
+            // teclas de la noche (D-N137..144; WASD mueve la camara): 1-5 pelotones, 6-8 vehiculos (doble pulsacion = centrar), G alterna el fuego de los vehiculos, T recarga, Esc pausa
+            NightSelectKeys(kb);
+            if (kb.cKey.wasPressedThisFrame && _sel.Count > 0 && _selVeh == null) { _c90Aim = true; _c90Msg = "C90: elige el punto en el suelo (clic); Esc cancela"; _c90MsgUntil = Time.unscaledTime + 4f; }
+            if (_c90Aim && kb.escapeKey.wasPressedThisFrame) { _c90Aim = false; _c90MsgUntil = 0f; }
+            if (kb.gKey.wasPressedThisFrame) { _vehFire = !_vehFire; foreach (var vv in _vehs) vv.Fire = _vehFire; Debug.Log("[NOCHE] fuego de los vehiculos: " + (_vehFire ? "libre" : "alto el fuego")); }
+            if (kb.tKey.wasPressedThisFrame) { if (_selVeh != null) StartVehicleResupply(_selVeh); else foreach (var id in _sel) _uw.Resupply(id); }
+            if (kb.rKey.wasPressedThisFrame && kb.leftShiftKey.isPressed) foreach (var id in _sel) _uw.Resupply(id);
+            if (kb.escapeKey.wasPressedThisFrame && _ng != null && _ng.State == NightState.Jugando) _paused = !_paused;      // pausa (D-N137)
+            { float zf = Mathf.Clamp01(_total / 3000f); }
+            NightAudio();
+            UpdateNightSoldiers(); UpdateVehicleViews();
+            while (_blood.Count > 0 && Time.unscaledTime > _blood.Peek().t) { var o = _blood.Dequeue(); if (o.go != null) Destroy(o.go); }
+            // la luz sigue a la hora: de noche hasta las 05:30, luego el alba
+            int minutes = _ng.GameSeconds / 60; int want = minutes < 7 * 60 + 30 ? 2 : (minutes < 8 * 60 ? 1 : 0);
+            if (want != _gradeIndex && !_nightGradeLock) ApplyGrade(want);
+        }
+        bool _nightGradeLock;
+        float _endAt = -1f; bool _endShot; int _demoStep, _botStep;
+        /// <summary>Banderas de prueba para QA (Sara): -nightlose tumba la estacion a los 15 s; -vehdemo manda un VAMTAC contra el muro oeste y despega el NH90; -nightshots saca capturas.</summary>
+        void NightDemoFlags()
+        {
+            var ca = System.Environment.GetCommandLineArgs(); float tt = Time.realtimeSinceStartup - _nightT0;
+            if (false && System.Array.IndexOf(ca, "-nightbot") >= 0 && tt > 3f && _botStep == 0)
+            {
+                _botStep = 1; int[] ys = { 56000, 64000, 60000, 68000, 72000 }; int i = 0; int x = (int)(Level.FortX0 * 1000f) + 7000;
+                foreach (var pl in _uw.Platoons) { _uw.AttackMove(pl.Id, x, ys[i++ % ys.Length]); }
+                Debug.Log("[NOCHE] prueba: -nightbot, los pelotones avanzan al muro oeste (ataque-movimiento) y recargan al 30 %");
+            }
+            if (false && System.Array.IndexOf(ca, "-nightbot") >= 0 && tt > 12f && _botStep == 1)
+            {
+                _botStep = 2; foreach (var pl in _uw.Platoons) if (_pname.TryGetValue(pl.Id, out var nm) && nm.StartsWith("Ametra")) _uw.DeployAt(pl.Id, 32768);
+            }
+            if (System.Array.IndexOf(ca, "-nightwin") >= 0 && _ng.State == NightState.Jugando) { _ng.StationHp = _ng.StationHpMax; _ng.TrainHp = _ng.TrainHpMax; }   // prueba: estacion y tren inmortales, para ver el parte de victoria y «Seguir»
+            if (System.Array.IndexOf(ca, "-nightdense") >= 0 && tt > 20f && _demoStep == 0)
+            {
+                _demoStep = 1; var pts = new List<SpawnPoint>(); var rr = new System.Random(5);
+                for (int i = 0; i < 10000; i++) pts.Add(new SpawnPoint { Wave = 0, Entry = 0, X = 2000 + rr.Next(0, 8000), Y = 56000 + rr.Next(0, 17000) });
+                SpawnZombies(pts); Debug.Log("[NOCHE] prueba: -nightdense, 10.000 zombis por O1");
+            }
+            if (System.Array.IndexOf(ca, "-nightlose") >= 0 && tt > 15f && _demoStep == 0 && _ng.State == NightState.Jugando) { _demoStep = 1; _ng.StationHp = 0; Debug.Log("[NOCHE] prueba: -nightlose, la estacion cae"); }
+            if (System.Array.IndexOf(ca, "-vehdemo") >= 0)
+            {
+                if (tt > 8f && _demoStep == 0) { _demoStep = 1; foreach (var v in _vehs) { if (v.Name == "VAMTAC 1") VehicleOrder(v, new Vector3(55f, 0f, 53f)); if (v.Name == "NH90") VehicleOrder(v, new Vector3(120f, 0f, 44f)); } Debug.Log("[NOCHE] prueba: VAMTAC 1 hacia el muro oeste, NH90 despega"); }
+                if (Time.frameCount % 60 == 0) foreach (var v in _vehs) if (v.Name == "VAMTAC 1" || v.Name == "NH90") Debug.Log($"[NOCHE] veh {v.Name} pos=({v.Pos.x:0.0};{v.Pos.y:0.0}) alt={v.Alt:0.0} vel={v.Speed:0.0}");
+                foreach (var t in new[] { 12f, 20f, 30f }) if (tt > t && _shotsDemo < (t == 12f ? 1 : t == 20f ? 2 : 3)) { _shotsDemo++; SaveScreenshot(); }
+            }
+        }
+        int _shotsDemo;
+
+        /// <summary>Posicion en pantalla (pixeles reales) de un punto del mundo: por viewport, porque la camara del mundo renderiza a una RT de menor resolucion.</summary>
+        Vector3 ScreenOf(Vector3 w) { var v = _worldCam.WorldToViewportPoint(w); return new Vector3(v.x * Screen.width, v.y * Screen.height, v.z); }
+
+        bool TryGround(Vector2 mp, out Vector3 p)
+        {
+            var ray = _worldCam.ViewportPointToRay(new Vector3(mp.x / Screen.width, mp.y / Screen.height, 0f)); p = Vector3.zero;
+            if (!new Plane(Vector3.up, Vector3.zero).Raycast(ray, out float t)) return false; p = ray.GetPoint(t); return true;
+        }
+
+        void IssueMove(Vector2 mp, bool attack)
+        {
+            if (!TryGround(mp, out var g)) return; int i = 0;
+            foreach (var id in _sel) { int ox = (i % 3 - 1) * 2500, oy = (i / 3) * 2500; if (attack) _uw.AttackMove(id, (int)(g.x * 1000f) + ox, (int)(g.z * 1000f) + oy); else _uw.Move(id, (int)(g.x * 1000f) + ox, (int)(g.z * 1000f) + oy); i++; }
+            _moveMark = g; _moveMarkUntil = Time.unscaledTime + 1.2f; TutorialHud.Senal(TutorialGuion.Senales.OrdenMover);
+        }
+        void IssueAttackMove(Vector2 mp) { IssueMove(mp, true); }
+        Vector3 _moveMark; float _moveMarkUntil;
+
+        bool OverNightUi(Vector2 mp) { float y = Screen.height - mp.y; return y < Screen.height * 0.075f || y > Screen.height * 0.80f; }
+
+        // ---------------------------------------------------------------- interfaz
+        GUIStyle _nStyle, _nBig; Texture2D _nPx;
+        void NightGUI()
+        {
+            if (_ng == null) return;
+            NightOverlay();
+            if (_paused && _ng != null && _ng.State == NightState.Jugando) { PauseMenuGUI(); }
+            if (NightKitGUI()) return;
+            float W = Screen.width, H = Screen.height, k = H / 1080f;
+            if (_nPx == null) { _nPx = new Texture2D(1, 1); _nPx.SetPixel(0, 0, Color.white); _nPx.Apply(); }
+            if (_nStyle == null) { var f = Font.CreateDynamicFontFromOSFont(new[] { "Consolas", "Lucida Console", "Courier New" }, 20); _nStyle = new GUIStyle(GUI.skin.label) { font = f, richText = true }; _nBig = new GUIStyle(_nStyle) { alignment = TextAnchor.MiddleCenter }; }
+            _nStyle.fontSize = Mathf.RoundToInt(26 * k); _nBig.fontSize = Mathf.RoundToInt(40 * k);
+            void Box(Rect r, Color c) { var o = GUI.color; GUI.color = c; GUI.DrawTexture(r, _nPx); GUI.color = o; }
+            var bone = new Color32(0xd4, 0xd0, 0xcc, 255); var dark = new Color(0.07f, 0.08f, 0.04f, 0.88f);
+            // barra superior: reloj al centro, recursos a la izquierda, ola a la derecha
+            Box(new Rect(0, 0, W, 64 * k), dark);
+            _nStyle.normal.textColor = bone;
+            GUI.Label(new Rect(W * 0.5f - 90 * k, 10 * k, 200 * k, 44 * k), $"<b>{TimeStr()}</b>", _nBig);
+            float u = _uw.StockShots / (float)WeaponCatalog.ShotsPerU;
+            float inPl = 0f; bool empty = false; foreach (var pl0 in _uw.Platoons) { inPl += pl0.AmmoShots / (float)WeaponCatalog.ShotsPerU; if (pl0.AliveCount() > 0 && pl0.AmmoShots <= 0 && _uw.StockShots <= 0) empty = true; }
+            GUI.Label(new Rect(20 * k, 16 * k, 900 * k, 40 * k), $"munición {u + inPl:0.0} u (almacén {u:0.0})   ·   abatidos {_nightKills}   ·   pila {_pileNearStation}", _nStyle);
+            if (empty) { var cs0 = _nStyle.normal.textColor; _nStyle.normal.textColor = new Color32(0xe0, 0x8c, 0x30, 255); GUI.Label(new Rect(20 * k, 70 * k, 900 * k, 40 * k), "SIN MUNICIÓN: el almacén está vacío", _nStyle); _nStyle.normal.textColor = cs0; }
+            int wv = Mathf.Max(0, CurrentWave());
+            GUI.Label(new Rect(W - 820 * k, 16 * k, 800 * k, 40 * k), $"oleada {wv + 1}/{_ng.P.Waves.Length}   ·   estación {Mathf.CeilToInt(100f * _ng.StationHp / Mathf.Max(1, _ng.StationHpMax))} %   tren {Mathf.CeilToInt(100f * _ng.TrainHp / Mathf.Max(1, _ng.TrainHpMax))} %", _nStyle);
+            // rótulo de oleada
+            if (Time.unscaledTime < _bannerUntil)
+            {
+                var r = new Rect(W * 0.5f - 300 * k, 252 * k, 600 * k, 116 * k); Box(r, dark);
+                _nStyle.alignment = TextAnchor.MiddleCenter; GUI.Label(r, _bannerText, _nStyle); _nStyle.alignment = TextAnchor.UpperLeft;
+            }
+            // panel de pelotones (abajo)
+            float cw = 250 * k, ch = 150 * k, x0 = 20 * k, y0 = H - ch - 20 * k; int idx = 0;
+            foreach (var pl in _uw.Platoons)
+            {
+                var r = new Rect(x0 + idx * (cw + 10 * k), y0, cw, ch); bool sel = _sel.Contains(pl.Id);
+                Box(r, sel ? new Color(0.3f, 0.34f, 0.16f, 0.95f) : dark);
+                string nm = PlatoonName(pl);
+                if (GUI.Button(r, GUIContent.none, GUIStyle.none)) { _selVeh = null; if (!Event.current.shift) _sel.Clear(); if (!_sel.Contains(pl.Id)) _sel.Add(pl.Id); }
+                GUI.Label(new Rect(r.x + 10 * k, r.y + 6 * k, cw, 36 * k), $"<b>{nm}</b>", _nStyle);
+                float alive = pl.AliveCount() / (float)Mathf.Max(1, pl.Men.Count);
+                Box(new Rect(r.x + 10 * k, r.y + 54 * k, cw - 20 * k, 16 * k), new Color(0.2f, 0.2f, 0.15f, 1f)); Box(new Rect(r.x + 10 * k, r.y + 54 * k, (cw - 20 * k) * alive, 16 * k), new Color32(0x70, 0x78, 0x4c, 255));
+                float am = pl.AmmoCap > 0 ? pl.AmmoShots / (float)pl.AmmoCap : 0f;
+                Box(new Rect(r.x + 10 * k, r.y + 78 * k, cw - 20 * k, 12 * k), new Color(0.2f, 0.2f, 0.15f, 1f)); Box(new Rect(r.x + 10 * k, r.y + 78 * k, (cw - 20 * k) * am, 12 * k), new Color32(0xe0, 0x8c, 0x30, 255));
+                GUI.Label(new Rect(r.x + 10 * k, r.y + 96 * k, cw, 36 * k), $"{pl.AliveCount()}/{pl.Men.Count}  ·  {(pl.Moving ? "en marcha" : pl.Deploy ? "emplazado" : "alto")}", _nStyle);
+                idx++;
+            }
+            // vehículos: tarjetas a la derecha de los pelotones (clic = elegir)
+            { float vx = x0 + idx * (cw + 10 * k); int vi = 0; var cs = _nStyle.fontSize; _nStyle.fontSize = Mathf.RoundToInt(20 * k);
+              foreach (var v in _vehs)
+              {
+                  if (v.Go == null) continue; var rv = new Rect(vx + (vi % 2) * 190 * k, y0 + (vi / 2) * 50 * k, 180 * k, 44 * k); vi++;
+                  Box(rv, _selVeh == v ? new Color(0.3f, 0.34f, 0.16f, 0.95f) : dark);
+                  string st = v.Heli ? (v.State == 0 ? "en tierra" : v.State == 1 ? "despegando" : v.State == 2 ? $"vuelo {v.Alt:0} m" : "aterrizando") : (v.HasTarget ? $"{Mathf.Abs(v.Speed) * 3.6f:0} km/h" : "parado");
+                  GUI.Label(new Rect(rv.x + 6 * k, rv.y + 2 * k, rv.width, rv.height), $"<b>{v.Name}</b> {st}", _nStyle);
+                  if (GUI.Button(rv, GUIContent.none, GUIStyle.none)) { _selVeh = v; _sel.Clear(); }
+              }
+              _nStyle.fontSize = cs; }
+            _nStyle.fontSize = Mathf.RoundToInt(19 * k); _nStyle.wordWrap = true;
+            GUI.Label(new Rect(W - 620 * k, 72 * k, 600 * k, 150 * k), "clic: elegir (arrastra: varios) · clic dcho.: mover\nA + clic: atacar moviéndose · S: mantener · D: emplazar (hacia el cursor)\nG: alto el fuego · T: reabastecer · cámara: flechas / bordes / Z X zoom / botón dcho. girar · F2: depuración · F5: guardar", _nStyle);
+            if (_selDrag && Mouse.current != null)
+            {
+                var mp = Mouse.current.position.ReadValue(); var r = Rect.MinMaxRect(Mathf.Min(_selStart.x, mp.x), H - Mathf.Max(_selStart.y, mp.y), Mathf.Max(_selStart.x, mp.x), H - Mathf.Min(_selStart.y, mp.y));
+                if (r.width > 6f) { Box(new Rect(r.x, r.y, r.width, 2), bone); Box(new Rect(r.x, r.yMax, r.width, 2), bone); Box(new Rect(r.x, r.y, 2, r.height), bone); Box(new Rect(r.xMax, r.y, 2, r.height), bone); }
+            }
+            bool lost = _ng.State == NightState.Derrota, won = _ng.State == NightState.Victoria && !_reportClosed;
+            if ((lost && !_endDismissed) || won)
+            {
+                if (lost) Box(new Rect(0, 0, W, H), new Color(0f, 0f, 0f, 0.55f));
+                var r = new Rect(W * 0.5f - 420 * k, 252 * k, 840 * k, lost ? 560 * k : 648 * k); Box(r, dark);
+                _nStyle.fontSize = Mathf.RoundToInt(34 * k); _nStyle.alignment = TextAnchor.UpperCenter;
+                GUI.Label(new Rect(r.x, r.y + 20 * k, r.width, 140 * k), $"<b>{_endReason}</b>", _nStyle);
+                _nStyle.fontSize = Mathf.RoundToInt(28 * k); _nStyle.alignment = TextAnchor.UpperLeft;
+                int alive = 0, total = 0; foreach (var pl in _uw.Platoons) { alive += pl.AliveCount(); total += pl.Men.Count; }
+                var rp = _ng.Report; int integ = won ? rp.IntegrityPermil / 10 : Mathf.CeilToInt(100f * Mathf.Min(_ng.StationHp / (float)Mathf.Max(1, _ng.StationHpMax), _ng.TrainHp / (float)Mathf.Max(1, _ng.TrainHpMax)));
+                var sbb = new StringBuilder();
+                sbb.AppendLine($"zombis abatidos        {_nightKills}");
+                sbb.AppendLine($"bajas                  {total - alive}");
+                sbb.AppendLine($"munición gastada       {_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} u");
+                sbb.AppendLine($"munición restante      {_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.0} u");
+                sbb.AppendLine($"integridad             {integ} %");
+                if (won) sbb.AppendLine($"muro                   {rp.WallPermil / 10} %");
+                sbb.AppendLine($"hora                   {TimeStr()}");
+                GUI.Label(new Rect(r.x + 60 * k, r.y + 170 * k, r.width - 120 * k, 380 * k), sbb.ToString(), _nStyle);
+                if (won)
+                {
+                    if (GUI.Button(new Rect(r.center.x - 160 * k, r.yMax - 100 * k, 320 * k, 64 * k), "Seguir")) NextNight();
+                }
+                else
+                {
+                    if (GUI.Button(new Rect(r.x + 60 * k, r.yMax - 100 * k, 320 * k, 64 * k), "Volver a empezar")) { NetSession.Reset(); NightRun.Active = true; SceneManager.LoadScene("Union"); }
+                    if (GUI.Button(new Rect(r.xMax - 380 * k, r.yMax - 100 * k, 320 * k, 64 * k), "Menú principal")) { NetSession.Reset(); NightRun.Active = false; SceneManager.LoadScene("Menu"); }
+                }
+            }
+        }
+
+        readonly Dictionary<int, string> _pname = new Dictionary<int, string>();
+        string PlatoonName(Platoon p) { return _pname.TryGetValue(p.Id, out var n) ? n : "Pelotón"; }
+        static string PlatoonNameOld(Platoon p)
+        {
+            int amet = 0, gran = 0, tir = 0; foreach (var m in p.Men) { if (m.Kind == InfKind.Ametrallador) amet++; else if (m.Kind == InfKind.Granadero) gran++; else if (m.Kind == InfKind.Tirador) tir++; }
+            return amet > 0 ? "Ametralladores" : gran > 0 ? "Granaderos" : tir > 0 ? "Tiradores" : "Fusileros";
+        }
+    }
+}
+>>>>>>> origin/marcos/noche-prototipo
