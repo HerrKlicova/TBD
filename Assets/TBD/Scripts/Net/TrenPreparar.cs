@@ -107,6 +107,9 @@ namespace TBD.Net
             return 0;
         }
 
+        /// <summary>Semilla de la salida de un tren (variantes de sonido de SalidaTren): según el tren, la parada y el día.</summary>
+        public static uint SemillaSalida(int trainId, int node, long day) { unchecked { return (uint)(trainId * 73856093 ^ node * 19349663 ^ (int)day * 83492791) | 1u; } }
+
         /// <summary>«0:35»: horas y minutos de juego.</summary>
         public static string HhMm(long ticks)
         {

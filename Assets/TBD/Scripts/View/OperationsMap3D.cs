@@ -67,6 +67,11 @@ namespace TBD.View
 
         // cámara libre
         Vector3 _focus;
+        // D-N170 (Iker): la cámara la mueven también los gestos del mapa (doble clic en una localización o en un tren, TrenPanel). Solo estas cuatro piezas.
+        public Vector3 Foco { get { return _focus; } set { _focus = new Vector3(value.x, 0, value.z); } }
+        public float DistanciaObjetivo { get { return _targetDist; } set { _targetDist = value; } }
+        public int TrenesVistos { get { return _trains.Count; } }
+        public Vector3 TrenPos(int i) { return _trains[i].position; }
         float _dist = 230f, _targetDist = 230f, _yaw = 0f, _pitch = 50f;
 
         // ---------------------------------------------------------------- conversión mapa ↔ mundo

@@ -20,12 +20,13 @@ namespace TBD.Tutorial
         public string[] Senales = new string[0];   // con Cierre.Senal: basta una de ellas, recibida DESPUÉS de que salga la tarjeta
         public bool Todas;                 // con Cierre.Senal: hacen falta todas (en cualquier orden), no una (1.1: cámara movida y rueda)
         public float Segundos;             // con Cierre.Segundos; con Cierre.Senal, si > 0, tope para cerrarse sola (red de seguridad)
-        public string Espera;              // si no es null, la tarjeta no sale hasta que haya llegado esta señal (en cualquier momento del capítulo)
+        public string Espera;              // si no es null, la tarjeta no sale hasta que haya llegado esta señal en el capítulo, o hasta que se cumpla como estado
         public string ExtraSi, Extra;      // si ha llegado la señal ExtraSi en el capítulo, se añade Extra al texto (1.3: vehículos fuera)
         public bool Pausa;                 // con la tarjeta fuera, el juego se pausa (solo la del capítulo 0)
         public bool Linea;                 // una sola línea, sin cabecera (1.9, mientras dura el ataque)
         public bool SueltaHorda;           // desde este paso la horda ya no espera (1.8, «Ahí vienen»): HordaEnEspera vale solo hasta aquí (Nacho)
         public string[] Botones = new string[0];   // botones de la tarjeta; cada uno manda la señal «boton:<texto>»
+        public string AltSi; public Paso Alt;      // si al salir la tarjeta se cumple AltSi (señal del capítulo o estado), sale Alt en su lugar (3.12b: Sagunto sitiada)
     }
 
     public sealed class Capitulo
@@ -59,6 +60,7 @@ namespace TBD.Tutorial
     public sealed class TutorialMotor
     {
         public const string ClaveVisto = "tutorial.visto";
+        public const string ClaveSaltado = ".saltado";     // se añade a la clave al saltarlo: el capítulo 4 no sale si se saltó el principal (Lucía)
         public const string BotonSaltar = "Saltar tutorial";
         public const float RepetirCada = 25f;      // sin avanzar en una tarjeta de señal, se repite su texto (desvío sin castigo)
         public const int DificilDesde = 951;       // palanca de dificultad (D-N74): 725 fácil, 850 normal, 1000 difícil; la difícil no tiene tutorial
@@ -68,6 +70,7 @@ namespace TBD.Tutorial
         readonly IMemoria _mem;
         readonly HashSet<string> _hechos = new HashSet<string>();     // señales recibidas en el capítulo actual
         readonly HashSet<string> _enPaso = new HashSet<string>();     // señales recibidas con la tarjeta actual fuera
+        bool _alt, _altDecidido;                                       // la tarjeta actual es su alternativa (se decide una vez, al salir)
         public EstadoTutorial Estado { get; private set; }
         public int CapIndex { get; private set; } = -1;
         public int PasoIndex { get; private set; } = -1;
@@ -78,14 +81,19 @@ namespace TBD.Tutorial
         float _enSuelta;
         public readonly List<string> Registro = new List<string>();   // para los registros de las corridas automáticas (Sara)
 
-        public TutorialMotor(Capitulo[] caps, Suelta[] sueltas, IMemoria mem) { _caps = caps; _sueltas = sueltas ?? new Suelta[0]; _mem = mem; }
+        public TutorialMotor(Capitulo[] caps, Suelta[] sueltas, IMemoria mem, string clave = ClaveVisto) { _caps = caps; _sueltas = sueltas ?? new Suelta[0]; _mem = mem; _clave = clave; }
+        readonly string _clave;      // lo que se recuerda al acabar o saltar: el principal usa ClaveVisto; el capítulo 4, el suyo
 
         public static bool HayTutorial(int dificultadPermil) { return dificultadPermil < DificilDesde; }
 
         public Capitulo Cap { get { return CapIndex >= 0 && CapIndex < _caps.Length ? _caps[CapIndex] : null; } }
-        public Paso Actual { get { var c = Cap; return Estado == EstadoTutorial.Activo && c != null && PasoIndex >= 0 && PasoIndex < c.Pasos.Length ? c.Pasos[PasoIndex] : null; } }
+        Paso Base { get { var c = Cap; return Estado == EstadoTutorial.Activo && c != null && PasoIndex >= 0 && PasoIndex < c.Pasos.Length ? c.Pasos[PasoIndex] : null; } }
+        public Paso Actual { get { var p = Base; return p != null && _alt && p.Alt != null ? p.Alt : p; } }
+
+        /// <summary>Rellena los huecos del texto («{eta}»: lo que falta para que llegue el tren). Lo pone la vista; null = sin cambios.</summary>
+        public Func<string, string> Relleno;
         /// <summary>La tarjeta se ve: hay paso actual y no está esperando su señal previa.</summary>
-        public bool Visible { get { var p = Actual; return p != null && (p.Espera == null || _hechos.Contains(p.Espera)); } }
+        public bool Visible { get { var p = Actual; return p != null && (p.Espera == null || _hechos.Contains(p.Espera) || (EstadoActual != null && EstadoActual(p.Espera))); } }
         public bool PideHordaEnEspera
         {
             get
@@ -109,16 +117,19 @@ namespace TBD.Tutorial
             get
             {
                 var p = Actual; if (!Visible) return null;
-                return p.ExtraSi != null && _hechos.Contains(p.ExtraSi) ? p.Texto + " " + p.Extra : p.Texto;
+                string t = TextoSinRelleno;
+                return Relleno != null ? Relleno(t) : t;
             }
         }
+        /// <summary>El texto sin rellenar los huecos: no cambia mientras corre el ETA (la máquina de escribir no vuelve a empezar).</summary>
+        public string TextoSinRelleno { get { var p = Actual; if (!Visible) return null; return p.ExtraSi != null && _hechos.Contains(p.ExtraSi) ? p.Texto + " " + p.Extra : p.Texto; } }
         public string[] Resalta { get { return Visible ? Actual.Resalta : new string[0]; } }
         public bool Hecho(string senal) { return _hechos.Contains(senal); }
 
         /// <summary>Arranca el tutorial desde el capítulo 0. Devuelve false (y no hace nada) en difícil o si ya se vio o se saltó antes.</summary>
         public bool Arrancar(int dificultadPermil, bool forzar = false)
         {
-            if (!forzar && (!HayTutorial(dificultadPermil) || _mem.Leer(ClaveVisto))) { Log("no arranca: " + (!HayTutorial(dificultadPermil) ? "difícil" : "ya visto")); return false; }
+            if (!forzar && (!HayTutorial(dificultadPermil) || _mem.Leer(_clave))) { Log("no arranca: " + (!HayTutorial(dificultadPermil) ? "difícil" : "ya visto")); return false; }
             Estado = EstadoTutorial.Activo; EntrarCapitulo(0); return true;
         }
 
@@ -127,7 +138,7 @@ namespace TBD.Tutorial
         {
             if (Estado != EstadoTutorial.Activo) return;
             Log($"saltado en {Actual?.Id ?? "?"}");
-            Estado = EstadoTutorial.Saltado; SueltaActual = null; _mem.Escribir(ClaveVisto);
+            Estado = EstadoTutorial.Saltado; SueltaActual = null; _mem.Escribir(_clave); _mem.Escribir(_clave + ClaveSaltado);
         }
 
         public void Senal(string s)
@@ -145,6 +156,7 @@ namespace TBD.Tutorial
             if (s == "desvio") { Repetir(); return; }
             bool eraVisible = Visible;
             _hechos.Add(s);
+            DecidirAlt();
             var p = Actual;
             if (p == null) return;
             if (!eraVisible && Visible) { EnPaso = 0; _sinAvance = 0; _enPaso.Clear(); Log($"sale {p.Id} (esperaba {p.Espera})"); return; }   // la señal que esperaba no cierra la misma tarjeta
@@ -154,12 +166,22 @@ namespace TBD.Tutorial
             Log($"{p.Id} cerrado por {s}"); Siguiente();
         }
 
+        void DecidirAlt()
+        {
+            if (_altDecidido) return;
+            var p = Base; if (p == null || (p.Espera != null && !_hechos.Contains(p.Espera) && !(EstadoActual != null && EstadoActual(p.Espera)))) return;
+            _altDecidido = true;
+            _alt = p.Alt != null && p.AltSi != null && (_hechos.Contains(p.AltSi) || (EstadoActual != null && EstadoActual(p.AltSi)));
+            if (_alt) Log($"{p.Id}: sale {p.Alt.Id} (se cumple {p.AltSi})");
+        }
+
         public void Repetir() { if (Visible) { Repeticiones++; _sinAvance = 0; Log($"{Actual.Id} se repite ({Repeticiones})"); } }
 
         /// <summary>Avanza los relojes (segundos reales). Llamar una vez por fotograma.</summary>
         public void Avanzar(float dt)
         {
             if (SueltaActual != null) { _enSuelta += dt; if (_enSuelta >= SueltaActual.Segundos) SueltaActual = null; }
+            DecidirAlt();
             if (!Visible) return;
             var p = Actual;
             EnPaso += dt; _sinAvance += dt;
@@ -176,15 +198,15 @@ namespace TBD.Tutorial
 
         void Siguiente()
         {
-            var c = Cap; Repeticiones = 0; EnPaso = 0; _sinAvance = 0; _enPaso.Clear();
+            var c = Cap; Repeticiones = 0; EnPaso = 0; _sinAvance = 0; _enPaso.Clear(); _alt = false; _altDecidido = false;
             if (PasoIndex + 1 < c.Pasos.Length) { PasoIndex++; Log($"paso {Actual.Id}"); return; }
             if (CapIndex + 1 < _caps.Length) { EntrarCapitulo(CapIndex + 1); return; }
-            Estado = EstadoTutorial.Terminado; _mem.Escribir(ClaveVisto); Log("terminado");
+            Estado = EstadoTutorial.Terminado; _mem.Escribir(_clave); Log("terminado");
         }
 
         void EntrarCapitulo(int i)
         {
-            CapIndex = i; PasoIndex = 0; _hechos.Clear(); _enPaso.Clear(); EnPaso = 0; _sinAvance = 0; Repeticiones = 0;
+            CapIndex = i; PasoIndex = 0; _hechos.Clear(); _enPaso.Clear(); _alt = false; _altDecidido = false; EnPaso = 0; _sinAvance = 0; Repeticiones = 0;
             Log($"capítulo {Cap.Numero}: {Cap.Titulo}; paso {Actual.Id}");
         }
 

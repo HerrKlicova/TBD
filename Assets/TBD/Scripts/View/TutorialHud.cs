@@ -57,9 +57,73 @@ namespace TBD.View
         static bool Arg(string a) { return Array.IndexOf(Environment.GetCommandLineArgs(), a) >= 0; }
 
         /// <summary>Lo llama «Nueva partida» (a través de IntroVista.Antes): el tutorial arranca al cargar la zona de Sagunto.</summary>
-        public static void NuevaPartida() { Ensure(); _pendiente = true; if (_i._m != null && _i._m.Estado == EstadoTutorial.Activo) _i._m.Saltar(); _i._m = null; }
+        public static void NuevaPartida() { Ensure(); _pendiente = true; _pila150 = false; _contactoT = -1f; AerodromoVista.Reiniciar(); if (_i._m != null && _i._m.Estado == EstadoTutorial.Activo) _i._m.Saltar(); _i._m = null; }
 
-        public static void Senal(string s) { if (_i != null && _i._m != null) _i._m.Senal(s); }
+        /// <summary>D-N172: ¿hay destacamento en Nules? Solo con el tutorial en marcha (fácil y normal, la primera vez). La zona lo mira al crear sus unidades.</summary>
+        public static bool DestacamentoNules { get { return Activo; } }
+
+        /// <summary>
+        /// D-N172: la zona (Marcos) ha creado el pelotón de fusileros del destacamento de Nules (sin Lince desde la revisión: vehIndex = −1). Aquí se aparta
+        /// de Sagunto (Aboard = EnEstacion(Nules)) y se apunta en la red, en los dos mundos.
+        /// </summary>
+        public static void RegistrarDestacamento(UnitsWorld uw, int platoonId, int vehIndex = -1)
+        {
+            var w = NetSession.A; if (w == null) return;
+            int nul = TrenPreparar.Nodo(w, Destacamento.Estacion);
+            var p = uw != null ? uw.Platoons.Find(q => q.Id == platoonId) : null; if (p != null) p.Aboard = TrenPreparar.EnEstacion(nul);
+            if (vehIndex >= 0 && vehIndex < NightRun.Vehs.Count && NightRun.Vehs[vehIndex] != null) NightRun.Vehs[vehIndex].Embarcado = true;
+            Destacamento.Registrar(w, platoonId, vehIndex); if (NetSession.B != null) Destacamento.Registrar(NetSession.B, platoonId, vehIndex);
+            Debug.Log($"[TUTORIAL] destacamento de Nules: pelotón {platoonId}, vehículo {vehIndex}");
+        }
+
+        // objetivo de después de la primera noche (D-N172 ajustada): «Viaje de carga a Nules», sin tarjetas de tutorial. Lo avanza TrenPanel.
+        public static readonly ObjetivoViaje Viaje = new ObjetivoViaje();
+        static float _viajeCumplidoHasta = -1f;
+        static void VigilarViaje()
+        {
+            var w = NetSession.A;
+            // objetivo de campaña: al amanecer después de la primera noche, también si se saltó el tutorial; en difícil, no (Lucía)
+            if (Viaje.Paso == PasoViaje.Inactivo && NightRun.Active && ObjetivoViaje.HayObjetivo(NightRun.Difficulty) && w != null && w.Tick >= NetConst.DayTicks + NetConst.Hours(7))
+            { Viaje.Empezar(); Debug.Log("[TUTORIAL] objetivo: " + ObjetivoViaje.Titulo); }
+            if (Viaje.Paso == PasoViaje.Cumplido && _viajeCumplidoHasta < 0) { _viajeCumplidoHasta = Time.unscaledTime + 6f; Debug.Log("[TUTORIAL] objetivo cumplido: " + ObjetivoViaje.Titulo); }
+        }
+        static bool ObjetivoVisible { get { return Viaje.Paso != PasoViaje.Inactivo && (Viaje.Paso != PasoViaje.Cumplido || Time.unscaledTime < _viajeCumplidoHasta); } }
+        TutorialMotor _principal;                 // el tutorial de la primera partida (capítulos 0 a 3)
+        bool _cap4Pendiente;
+
+        /// <summary>
+        /// El jugador abre el aeródromo (AerodromoVista). La primera vez salta el capítulo 4 (D-N173), en fácil y normal. Si el tutorial principal está en
+        /// marcha, espera a que acabe.
+        /// </summary>
+        public static void AbrirAerodromo()
+        {
+            Ensure(); Senal(TutorialGuion.Senales.AerodromoAbierto);
+            var prefs = new Prefs();
+            if (_i._cap4Pendiente || !TutorialMotor.HayTutorial(NightRun.Difficulty) || prefs.Leer(TutorialGuion.ClaveCap4) || Arg("-sintutorial")) return;
+            if (prefs.Leer(TutorialMotor.ClaveVisto + TutorialMotor.ClaveSaltado) && !Arg("-tutorial")) return;     // tutorial saltado: tampoco sale el capítulo 4 (Lucía)
+            if (_i._m != null && _i._m.Estado == EstadoTutorial.Activo && _i._m == _i._principal) { _i._cap4Pendiente = true; return; }
+            _i.ArrancarCap4();
+        }
+        void ArrancarCap4()
+        {
+            var m4 = TutorialGuion.NuevoCap4(new Prefs()); m4.EstadoActual = EstadoJuego; m4.Relleno = t => t.Replace("{eta}", AerodromoVista.EtaTexto());
+            if (!m4.Arrancar(NightRun.Difficulty, forzar: Arg("-tutorial"))) return;
+            _cap4Pendiente = false; _m = m4; _logVisto = 0; _pasoVisto = null;
+            Debug.Log("[TUTORIAL] capítulo 4 (aeródromo): arranca");
+        }
+
+
+
+        public static void Senal(string s)
+        {
+            if (s == TutorialGuion.Senales.Pila150) _pila150 = true;
+            if (s == TutorialGuion.Senales.ContactoMuro && _contactoT < 0) _contactoT = Time.unscaledTime;
+            if (_i != null && _i._m != null) _i._m.Senal(s);
+        }
+        static float _contactoT = -1f;
+        public const float Cap3TrasContacto = 60f;      // Lucía: 60 s reales después del primer contacto con el muro
+        static bool PorTiempo { get { return _contactoT >= 0 && Time.unscaledTime - _contactoT >= Cap3TrasContacto; } }
+        static bool _pila150;      // la pila ya pasó de 150 alguna vez en esta partida (abre el capítulo 3 aunque pasara antes de acabar el 2)
         public static void Saltar() { if (_i != null && _i._m != null) _i._m.Saltar(); }
         public static void Objetivo(string clave, Rect pantalla) { if (_i != null) _i._obj[clave] = (pantalla, Time.frameCount); }
 
@@ -101,10 +165,15 @@ namespace TBD.View
                 if (_pendiente && NightRun.Active && !Arg("-sintutorial"))
                 {
                     _pendiente = false;
-                    _m = TutorialGuion.Nuevo(new Prefs()); _logVisto = 0; _m.EstadoActual = EstadoJuego;
+                    _m = TutorialGuion.Nuevo(new Prefs()); _logVisto = 0; _m.EstadoActual = EstadoJuego; _m.Relleno = t => t.Replace("{eta}", TrenPanel.EtaTexto()); _principal = _m;
                     bool ok = _m.Arrancar(NightRun.Difficulty, forzar: Arg("-tutorial") || Arg("-tutorial-auto"));
                     Debug.Log(ok ? $"[TUTORIAL] arranca (dificultad {NightRun.Difficulty})" : $"[TUTORIAL] no arranca (dificultad {NightRun.Difficulty})");
                     if (!ok) _m = null;
+                    else if (NetSession.A != null)
+                    {   // D-N172: con el tutorial, Nules tiene su tren en el andén (el destacamento lo registra la zona con RegistrarDestacamento)
+                        int a = Destacamento.SembrarTren(NetSession.A); if (NetSession.B != null) Destacamento.SembrarTren(NetSession.B);
+                        Debug.Log($"[TUTORIAL] tren de Nules en el andén (servicio {a})");
+                    }
                 }
                 else if (Activo && _m.Hecho(TutorialGuion.Senales.MapaAbierto)) Senal(TutorialGuion.Senales.VueltaZona);
             }
@@ -116,11 +185,15 @@ namespace TBD.View
         static bool EstadoJuego(string s)
         {
             if (s == TutorialGuion.Senales.MapaAbierto) return SceneManager.GetActiveScene().name == "Union";
+            if (s == TutorialGuion.Senales.Pila150) return _pila150;
+            if (s == TutorialGuion.Senales.Cap3Dispara) return _pila150 || PorTiempo;
+            if (s == TutorialGuion.Senales.Cap3PorTiempo) return !_pila150 && PorTiempo;
             return EstadoExtra != null && EstadoExtra(s);
         }
 
         void Update()
         {
+            if (_cap4Pendiente && (_m == null || _m.Estado != EstadoTutorial.Activo)) ArrancarCap4();
             if (_m == null || IntroVista.Mostrando) return;     // mientras sale la intro, el tutorial espera
             _m.Avanzar(Time.unscaledDeltaTime);
             // tren en Nules: lo mira en la red (servicio parado en Nules) una vez enviado
@@ -139,9 +212,9 @@ namespace TBD.View
             var p = _m.Actual;
             if (p != null && _m.Visible)
             {
-                if (_pasoVisto != p.Id) { _pasoVisto = p.Id; _repVistas = _m.Repeticiones; _flash = 0.6f; _maq = new Maquina(_m.Texto, (uint)p.Id.GetHashCode()); }
-                if (_m.Repeticiones != _repVistas) { _repVistas = _m.Repeticiones; _flash = 1.2f; _maq = new Maquina(_m.Texto, (uint)(p.Id.GetHashCode() + _repVistas)); }   // al repetirse se vuelve a escribir
-                if (_maq != null && _maq.Texto != _m.Texto) _maq = new Maquina(_m.Texto, 7);                     // el texto cambió (la línea extra del 1.3)
+                if (_pasoVisto != p.Id) { _pasoVisto = p.Id; _repVistas = _m.Repeticiones; _flash = 0.6f; _maq = new Maquina(_m.TextoSinRelleno, (uint)p.Id.GetHashCode()); }
+                if (_m.Repeticiones != _repVistas) { _repVistas = _m.Repeticiones; _flash = 1.2f; _maq = new Maquina(_m.TextoSinRelleno, (uint)(p.Id.GetHashCode() + _repVistas)); }   // al repetirse se vuelve a escribir
+                if (_maq != null && _maq.Texto != _m.TextoSinRelleno) _maq = new Maquina(_m.TextoSinRelleno, 7);   // el texto cambió (la línea extra del 1.3); el ETA no cuenta
                 _maq?.Avanzar(Time.unscaledDeltaTime, _snd);
                 if (Auto && _m.EnPaso >= 2.5f && p.Cierre == Cierre.Senal)
                 {
@@ -238,15 +311,38 @@ namespace TBD.View
         /// <summary>Lo escrito hasta ahora y el resto transparente: el bloque ocupa ya su sitio final y las líneas no saltan al escribirse.</summary>
         static string Escrito(Maquina mq, string entero)
         {
-            if (mq == null || mq.Texto != entero) return entero;
-            return mq.Parcial + "<color=#00000000>" + entero.Substring(mq.Visibles) + "</color>";
+            if (mq == null || mq.Completa || entero == null) return entero;
+            int v = Math.Min(mq.Visibles, entero.Length);                // el hueco del ETA ya va relleno: se cuentan letras sobre el texto final
+            return entero.Substring(0, v) + "<color=#00000000>" + entero.Substring(v) + "</color>";
+        }
+
+        float _radarHasta = -1f;
+        void Avisos()
+        {
+            // aviso de radar que abre el capítulo 3 (D-N172): 12 s arriba en el centro, en hueso (nada de rojo)
+            float u = _txt.fontSize;     // (el aviso de radar del capítulo 3 salió con la D-N172 revisada: ahora lo abre la pila)
+            if (Time.unscaledTime < _radarHasta)
+            {
+                var r = new Rect(Screen.width * 0.5f - u * 15, u * 4.2f, u * 30, u * 2.6f);
+                GUI.DrawTexture(r, _panel); Frame(r, 0.8f); Objetivo(TutorialGuion.Resaltes.AvisoRadar, r);
+                GUI.Label(new Rect(r.x + u * 0.8f, r.y + u * 0.45f, r.width - u * 1.6f, r.height), "RADAR · Horda grande hacia Sagunto. Llegará esta noche.", _line);
+            }
+            VigilarViaje();
+            if (ObjetivoVisible)
+            {
+                var wn = NetSession.A; int nul = wn != null ? TrenPreparar.Nodo(wn, "Nules") : -1;
+                string txt = "Objetivo · " + ObjetivoViaje.Titulo + ": " + Viaje.Texto(wn != null && nul >= 0 && wn.Besieged(nul)).Replace("{eta}", TrenPanel.EtaTexto());
+                var r = new Rect(8, Ancla(), Mathf.Min(640f, Screen.width * 0.42f), u * 2.4f);
+                GUI.DrawTexture(r, _panel); Frame(r, 0.5f);
+                GUI.Label(new Rect(r.x + u * 0.7f, r.y + u * 0.4f, r.width, r.height), txt, _line);
+            }
         }
 
         void OnGUI()
         {
             if (_m == null || IntroVista.Mostrando) return;
             GUI.depth = -100;                 // por encima del resto de la interfaz
-            Styles(); MapTargets();
+            Styles(); MapTargets(); Avisos();
             float t = Time.unscaledTime;
             if (_m.Visible)
             {

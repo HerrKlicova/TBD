@@ -48,11 +48,20 @@
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Taller.cs" Link="Net\Taller.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Guardado.cs" Link="Net\Guardado.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\TrenPreparar.cs" Link="Net\TrenPreparar.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Net\Destacamento.cs" Link="Net\Destacamento.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Net\Aerodromo.cs" Link="Net\Aerodromo.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Net\MapaGestos.cs" Link="Net\MapaGestos.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Net\SalidaTren.cs" Link="Net\SalidaTren.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Net\AlmacenZona.cs" Link="Net\AlmacenZona.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Net\AerodromoNivel.cs" Link="Net\AerodromoNivel.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Net\SonidoNH90.cs" Link="Net\SonidoNH90.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Net\RecintoPlan.cs" Link="Net\RecintoPlan.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Tutorial\TutorialMotor.cs" Link="Tutorial\TutorialMotor.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Tutorial\TutorialGuion.cs" Link="Tutorial\TutorialGuion.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Tutorial\IntroSecuencia.cs" Link="Tutorial\IntroSecuencia.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Tutorial\C90Aviso.cs" Link="Tutorial\C90Aviso.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Tutorial\Maquina.cs" Link="Tutorial\Maquina.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Tutorial\ObjetivoViaje.cs" Link="Tutorial\ObjetivoViaje.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Units\IMath.cs" Link="Units\IMath.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Units\Armas.cs" Link="Units\Armas.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Units\Noche.cs" Link="Units\Noche.cs" />

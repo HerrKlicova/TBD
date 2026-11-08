@@ -11,7 +11,7 @@ namespace TBD.Net
     // Lógica pura, sin Unity: coordenadas locales de la zona (256 × 128 m, vía a lo largo de X), en metros, tal como vienen en el JSON.
     // Solo describe el aspecto y los sitios: no entra en la simulación ni en el hash.
 
-    public enum EstacionTamano : byte { Pequena = 0, Estacion = 1, Principal = 2 }
+    public enum EstacionTamano : byte { Pequena = 0, Estacion = 1, Principal = 2, Aerodromo = 3 }   // Aerodromo: D-N173 (Bétera, tipo «aerodromo» en el JSON)
     public enum EstacionInicio : byte { Propia = 0, Abandonada = 1, Infestada = 2 }
 
     public struct EstacionPieza { public string Pieza; public float X, Y, Z, Yaw; public int Variante; public float Fondo; }   // Variante −1 = por hash; Fondo 0 = el del módulo
@@ -46,7 +46,7 @@ namespace TBD.Net
                 Id = Req<string>(root, "id"),
                 Nombre = Opt<string>(root, "nombre") ?? Req<string>(root, "id"),
                 Funcion = Opt<string>(root, "funcion"),
-                Tamano = ParseTamano(Opt<string>(root, "tamano")),
+                Tamano = Opt<string>(root, "tipo") == "aerodromo" ? EstacionTamano.Aerodromo : ParseTamano(Opt<string>(root, "tamano")),
                 EstadoInicial = ParseInicio(Opt<string>(root, "estado_inicial")),
             };
             foreach (var v in List(root, "vias")) d.Vias.Add(Points(v, "vias"));
