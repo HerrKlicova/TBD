@@ -24,6 +24,8 @@ Piezas:
     baldosas), Vigas, Despejado (casi limpio, con marcas), Tejas.
   5 Armario de Adif (paso a nivel, §10.8): Completo (armario, cruz con STOP y baliza), Pintado (con pintadas),
     Abierto (puerta abierta y cables), CruzDoblada, Volcado.
+Retoques de Lucía (19:01): el solar en tierra b4a080/605c48 con restos de solería (una losa gris se leía como un
+claro del NH90) y los bidones solo en gris 94948c/6c7874 (el verde es el código de la munición).
 Colores: óxido 7c3c18, bidón 605c48, verde 70784c, llama f0dc9c, ceniza 48403c (solo en el suelo), metal 94948c,
 madera a86c50, tierra 845c28 (solo arriba), planta 70784c/50541c, seco 847c34, caña b4a080, ropa d4d0cc/b8b8b8/
 847c34/6c7874, palo 6c7874, pared d4d0cc, escombro 94948c, teja 7c3c18, armario b8b8b8, borde 605c48.
@@ -41,12 +43,13 @@ NOMBRES_V = [["Solo", "Parrilla", "Corro", "Apagado", "Doble"],
              ["Escombro", "Medianera", "Vigas", "Despejado", "Tejas"],
              ["Completo", "Pintado", "Abierto", "CruzDoblada", "Volcado"]]
 PIEZAS = ["oxido", "bidon", "verde", "llama", "ceniza", "metal", "madera", "tierra", "planta", "planta2", "seco",
-          "cana", "ropa1", "ropa2", "ropa3", "ropa4", "palo", "pared", "escombro", "teja", "armario", "borde", "lona"]
+          "cana", "ropa1", "ropa2", "ropa3", "ropa4", "palo", "pared", "escombro", "teja", "armario", "borde", "lona", "solar", "gris2"]
 COLORES = {"oxido": "7c3c18", "bidon": "605c48", "verde": "70784c", "llama": "f0dc9c", "ceniza": "48403c",
            "metal": "94948c", "madera": "a86c50", "tierra": "845c28", "planta": "70784c", "planta2": "50541c",
            "seco": "847c34", "cana": "b4a080", "ropa1": "d4d0cc", "ropa2": "b8b8b8", "ropa3": "847c34",
            "ropa4": "6c7874", "palo": "6c7874", "pared": "d4d0cc", "escombro": "94948c", "teja": "7c3c18",
-           "armario": "b8b8b8", "borde": "605c48", "lona": "50541c"}
+           "armario": "b8b8b8", "borde": "605c48", "lona": "50541c",
+           "solar": "b4a080", "gris2": "6c7874"}
 FACCION = "neutro"
 NORMALES_ARRIBA = True
 NORMALES_INCLINACION = 1.0
@@ -199,15 +202,15 @@ def construir(nombre="SM_SaguntoVivo", lod=0):
             pale(0, 0)
             for i in range(4):
                 bidon(-0.3 + (i % 2) * 0.6, -0.2 + (i // 2) * 0.4 if fino else -0.2 + (i // 2) * 0.45,
-                      "verde" if i != 2 else "metal", z0=0.14)
+                      "gris2" if i != 2 else "metal", z0=0.14)
         elif v == 1:
             for i in range(6):
-                bidon(-1.6 + i * 0.64, (_h(i) - 0.5) * 0.1, "verde" if i % 3 else "metal")
+                bidon(-1.6 + i * 0.64, (_h(i) - 0.5) * 0.1, "gris2" if i % 3 else "metal")
         elif v == 2:                                  # pirámide de tumbados con calzos
             for i in range(3):
-                bidon(0, -0.62 + i * 0.62, "verde")
+                bidon(0, -0.62 + i * 0.62, "gris2")
             for i in range(2):
-                bidon(0, -0.31 + i * 0.62, "verde", tumbado=True, z0=0.5)
+                bidon(0, -0.31 + i * 0.62, "gris2", tumbado=True, z0=0.5)
             for sy in (-0.95, 0.95):
                 t.caja((0, sy, 0.1), (1.0, g(0.1), 0.2), "madera")
         elif v == 3:                                  # tapados con lona
@@ -219,12 +222,18 @@ def construir(nombre="SM_SaguntoVivo", lod=0):
                 t.caja((x, -0.55, 0.15), (0.3, 0.3, 0.3), "escombro")             # piedras que sujetan
         else:                                         # volcados con mancha
             t.cilindro((0.6, -0.4, 0.015), 1.1, 0.03, "Z", lados, "ceniza")
-            bidon(-0.6, 0.3, "verde")
-            bidon(0.2, -0.2, "verde", tumbado=True)
+            bidon(-0.6, 0.3, "gris2")
+            bidon(0.2, -0.2, "gris2", tumbado=True)
             bidon(1.1, 0.4, "metal", tumbado=True)
 
     elif p == 4:                                      # SOLAR DE CASA DEMOLIDA (6 × 10)
-        t.caja((0, 0, 0.03), (6.0, 10.0, 0.06), "escombro")                       # solera rota
+        t.caja((0, 0, 0.03), (6.0, 10.0, 0.06), "solar")                          # tierra del solar (Lucía 19:01)
+        for i in range(9 if fino else 5):                                         # manchas de tierra oscura
+            t.caja((-2.2 + _h(i, 9) * 4.4, -4.2 + _h(i, 10) * 8.4, 0.065), (0.8 + _h(i, 11), 0.6 + _h(i, 12), 0.01),
+                   "borde", rot_z=_h(i, 13) * 3)
+        for i in range(6 if fino else 3):                                         # restos de solería
+            t.caja((-1.8 + _h(i, 14) * 3.6, -3.5 + _h(i, 15) * 7.0, 0.075), (0.9, 0.9, 0.03), "ropa2",
+                   rot_z=_h(i, 16) * 0.4)
         def monton(x, y, r, alto, k):
             t.cilindro((x, y, alto / 2), r, alto, "Z", 7 if fino else 5, "escombro", r2=r * 0.35)
             n = 7 if fino else 3
