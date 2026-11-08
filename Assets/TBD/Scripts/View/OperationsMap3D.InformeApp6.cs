@@ -77,15 +77,21 @@ namespace TBD.View
                 if (l.Count == 0) continue;
                 int st = IconPx(32);
                 float x = sp.x + st * 0.5f + 4, y = Screen.height - sp.y - st * 1.1f - h * 0.25f;
-                foreach (var s in l)
+                for (int i = 0; i < l.Count; i++)
                 {
-                    var t = App6Tex(s + "_24");
+                    var t = App6Tex(l[i] + "_24");
                     if (t == null) continue;
                     float w = t.width * esc;                                  // anchos distintos: rectángulo 37, rombo 23, cúpula 29
                     GUI.DrawTexture(new Rect(x, y, w, t.height * esc), t, ScaleMode.StretchToFill, true);
                     x += w + 2 * esc;
+                    if (i == 0 && etiqueta != null)                           // los zombis estimados, pegados al rombo de la horda
+                    {
+                        var gc = new GUIContent("<color=#D4D0CC>" + etiqueta + "</color>");
+                        float lw = _small.CalcSize(gc).x;
+                        GUI.Label(new Rect(x, y + h * 0.25f, lw + 4, _small.fontSize * 2f), gc, _small);
+                        x += lw + 6 * esc;
+                    }
                 }
-                if (etiqueta != null) GUI.Label(new Rect(x + 2, y + h * 0.25f, 120, _small.fontSize * 2f), "<color=#D4D0CC>" + etiqueta + "</color>", _small);
             }
         }
 
