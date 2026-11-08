@@ -1202,11 +1202,30 @@ namespace TBD.View
             if (_recIndex >= 450) ToggleRecording();      // tope de 30 s a 15 fps
         }
 
+        /// <summary>
+        /// Captura sin ventana (norma de Eugenio: nunca ventanas en su PC). Pinta en una RenderTexture las cámaras que van a pantalla (sin targetTexture), por orden de
+        /// profundidad: la de presentación (el mundo ya pixelado) y la de VFX_HD encima. Hace falta -batchmode SIN -nographics (con -nographics no hay GPU y sale negro).
+        /// La interfaz de OnGUI no sale.
+        /// </summary>
+        static Texture2D CapturaLotes(int w, int h)
+        {
+            var rt = RenderTexture.GetTemporary(w, h, 24, RenderTextureFormat.ARGB32);
+            var cams = new System.Collections.Generic.List<Camera>();
+            foreach (var c in Camera.allCameras) if (c.targetTexture == null && c.enabled && c.GetUniversalAdditionalCameraData().renderType != CameraRenderType.Overlay) cams.Add(c);   // las superpuestas (VFX_HD) van en la pila de su base
+            cams.Sort((a, b) => a.depth.CompareTo(b.depth));
+            foreach (var c in cams) { c.targetTexture = rt; c.Render(); c.targetTexture = null; }
+            var prev = RenderTexture.active; RenderTexture.active = rt;
+            var tex = new Texture2D(w, h, TextureFormat.RGB24, false); tex.ReadPixels(new Rect(0, 0, w, h), 0, 0); tex.Apply();
+            RenderTexture.active = prev; RenderTexture.ReleaseTemporary(rt);
+            Debug.Log($"[CAPTURA] en batch: {cams.Count} cámaras en una RenderTexture de {w}×{h}");
+            return tex;
+        }
+
         IEnumerator CaptureRoutine(string path)
         {
             _capturing = true;
             yield return new WaitForEndOfFrame();
-            var full = ScreenCapture.CaptureScreenshotAsTexture();
+            var full = Application.isBatchMode ? CapturaLotes(1920, 1080) : ScreenCapture.CaptureScreenshotAsTexture();   // en batch no hay pantalla: se pintan las cámaras en una RenderTexture (Iker)
             { var pxs = full.GetPixels32(); long sm = 0; int nn = 0; for (int q = 0; q < pxs.Length; q += 11) { sm += pxs[q].r + pxs[q].g + pxs[q].b; nn++; }
               Debug.Log($"[CAPTURA] frame={Time.frameCount} t={Time.realtimeSinceStartup:0.000} dt={Time.unscaledDeltaTime * 1000f:0.0} ms media={(nn > 0 ? sm / (3f * nn) : 0f):0.0} {System.IO.Path.GetFileName(path)}"); }   // QA (Bruno): capturas negras al aparecer los 10.000 zombis
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-capdirecta") >= 0) File.WriteAllBytes(path.Replace(".png", "_full.png"), full.EncodeToPNG());   // QA (Bruno): el mismo fotograma sin Blit
