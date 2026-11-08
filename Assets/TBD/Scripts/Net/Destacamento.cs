@@ -31,8 +31,9 @@ namespace TBD.Net
     /// </summary>
     /// <summary>
     /// Castellón subterránea (§7): el tren para a la cota de vía (−8 m) junto al andén; la tropa baja al andén y sube por la escalera del vestíbulo, que la deja
-    /// en la calle en el vestíbulo (130; 81); los vehículos no bajan en el andén sino en el cargadero de superficie (Z 34–37; la X del cargadero la fija Álvaro).
-    /// El tiempo de la escalera (unos 12 m de desnivel) lo pone Nacho.
+    /// en la calle en el vestíbulo (130; 81); los vehículos no bajan en el andén sino en superficie, en la cabeza oeste del cargadero (v0.2 de Álvaro: el tren
+    /// para en la vía 44 con la plataforma en X 140–148 y bajan en (144; 38); de ahí van por tierra al camino interior, Z 29). El tiempo de la escalera
+    /// (7,1 m de desnivel, SIN VERIFICAR) lo pone Nacho.
     /// </summary>
     public static class BajadaSubterranea
     {
@@ -43,6 +44,16 @@ namespace TBD.Net
             x = z = cota = 0f; if (d == null || d.Sub == null) return false;
             x = d.Sub.VestX; z = d.Sub.VestZ; cota = d.Sub.CotaVia; return true;
         }
+
+        /// <summary>Dónde bajan los vehículos (en superficie, cota 0) y en qué vía para el tren. false si la estación no lo trae.</summary>
+        public static bool Vehiculos(EstacionDato d, out float x, out float z, out float viaZ)
+        {
+            x = z = viaZ = 0f; if (d == null || d.Sub == null || !d.Sub.Bajada) return false;
+            x = d.Sub.BajadaX; z = d.Sub.BajadaZ; viaZ = d.Sub.ViaVehZ; return true;
+        }
+
+        /// <summary>Desnivel de la escalera del vestíbulo en metros (para el tiempo de subida de Nacho); 0 si no lo trae.</summary>
+        public static float Escalera(EstacionDato d) { return d?.Sub?.Desnivel ?? 0f; }
     }
 
     public static class Destacamento

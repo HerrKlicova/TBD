@@ -490,6 +490,9 @@ namespace TBD.Sim.Tests
                 check(nv.Piezas.FindAll(c => c.Malla == "SM_TanqueCombustible").TrueForAll(c => c.Yaw == 0f), "los tanques llevan yaw 0 (Álvaro)");
                 var ae = AerodromoEstado.FromJson(BalanceSource.Read("estacion_betera.json")); ae.MunicionMilliU = 1; ae.CombustibleMilliU = 1;
                 check(ae.AplicarExistencias(BalanceSource.Read("existencias_red.json")) && ae.MunicionMilliU == 50_000 && ae.CombustibleMilliU == 70_000, "existencias de Bétera desde el bloque «aerodromos» de Hugo: 50 u y 70 u");
+                check(ae.ViveresMilliU == 20_000 && ae.Personas == 24, "Bétera empieza con 20 u de víveres (Lucía, 8-nov) y 24 personas (SUPUESTO de Hugo)");
+                int dias = 0; while (!ae.Hambre && dias < 20) { ae.ConsumirDia(); dias++; }
+                check(dias == 9 && ae.ViveresMilliU == 0 && ae.Personas == 23, $"come 2,4 u al día: aguanta 8 días y al 9.º pasa hambre y pierde gente ({dias} días, {ae.Personas} personas)");
                 var p46 = Array.Find(TutorialGuion.Cap4().Pasos, p => p.Id == "4.6");
                 check(Array.IndexOf(p46.Resalta, TutorialGuion.Resaltes.ClaroS1) >= 0 && TutorialGuion.ClaroS1X == 180f && TutorialGuion.ClaroS1Z == 44f, "capítulo 4: el NH90 aterriza en S1 (180; 44), resaltado");
             }
@@ -500,6 +503,9 @@ namespace TBD.Sim.Tests
                 check(cd.Sub != null && cd.Sub.CotaVia == -8f && cd.Sub.Losa[0] == 70 && cd.Sub.Losa[2] == 190 && cd.Sub.Trincheras.Count == 2, "Castellón bajo losa: vías a −8 m, losa en X 70–190 y dos trincheras abiertas");
                 check(BajadaSubterranea.Tropa(cd, out float vx, out float vz, out float cota) && vx == 130 && vz == 81 && cota == -8f, "la tropa sube por la escalera del vestíbulo, en (130; 81)");
                 check(cd.Sub.VestAncho == 24 && cd.Sub.VestFondo == 14 && BajadaSubterranea.CargaderoZ0 == 34 && BajadaSubterranea.CargaderoZ1 == 37, "vestíbulo de 24 × 14 m; los vehículos bajan en el cargadero de superficie (Z 34–37)");
+                check(BajadaSubterranea.Vehiculos(cd, out float bx, out float bz, out float bv) && bx == 144f && bz == 38f && bv == 44f && cd.Sub.PlataformaX0 == 140 && cd.Sub.PlataformaX1 == 148, "v0.2: los vehículos bajan en superficie en (144; 38), con el tren en la vía 44 y la plataforma en X 140–148");
+                check(Math.Abs(BajadaSubterranea.Escalera(cd) - 7.1f) < 0.01f, "la escalera del vestíbulo sube 7,1 m");
+                check(!cd.Piezas.Exists(x => x.Pieza == "kit_cuerpo" || x.Pieza == "kit_remate" || x.Pieza.Contains("marquesina")) && cd.Piezas.FindAll(x => x.Pieza == "kit/anden_10m" && x.Y == -8f).Count == 24 && cd.Piezas.Exists(x => x.Pieza == "kit_paso" && x.Y == -8f) && cd.Piezas.Exists(x => x.Pieza == "castellon/vestibulo"), "v0.2: sin edificio de superficie ni marquesinas; 24 andenes y el paso a −8; vestíbulo como pieza");
                 var nd = EstacionDato.FromJson(BalanceSource.Read("estacion_nules.json")); check(nd.Sub == null && !BajadaSubterranea.Tropa(nd, out _, out _, out _), "Nules es de superficie");
             }
 

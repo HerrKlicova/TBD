@@ -38,7 +38,7 @@ namespace TBD.Net
         /// cara de arriba es la calle, cota 0), las trincheras abiertas y el vestíbulo de calle con la escalera al andén. null si la estación es de superficie.
         /// </summary>
         public Subterranea Sub;
-        public sealed class Subterranea { public float CotaVia, Intrados; public float[] Losa; public readonly List<float[]> Trincheras = new List<float[]>(); public float VestX, VestZ, VestYaw, VestAncho, VestFondo; }
+        public sealed class Subterranea { public float CotaVia, Intrados; public float[] Losa; public readonly List<float[]> Trincheras = new List<float[]>(); public float VestX, VestZ, VestYaw, VestAncho, VestFondo, Desnivel; public bool Bajada; public float BajadaX, BajadaZ, ViaVehZ, PlataformaX0, PlataformaX1; }
         public string InteligenciaTipo; public float InteligenciaX = float.NaN, InteligenciaZ = float.NaN, InteligenciaYaw;
         public readonly List<EstacionParada> ParadasAsalto = new List<EstacionParada>();
         public readonly List<string> OrdenLiberacion = new List<string>();
@@ -65,6 +65,14 @@ namespace TBD.Net
                     var vp = Floats(vd["pos"], "vestibulo"); sub.VestX = vp[0]; sub.VestZ = vp.Length > 2 ? vp[2] : vp[1];
                     sub.VestYaw = vd.ContainsKey("yaw") ? Num(vd["yaw"]) : 0f;
                     if (vd.TryGetValue("huella", out var hu)) { var h = Floats(hu, "huella"); sub.VestAncho = h[0]; sub.VestFondo = h[1]; }
+                    if (vd.TryGetValue("desnivel_escalera_m", out var dn)) sub.Desnivel = Num(dn);
+                }
+                if (sd.TryGetValue("bajada_vehiculos", out var bo) && bo is Dictionary<string, object> bd)
+                {
+                    // v0.2: los vehículos bajan en superficie, en la cabeza oeste del cargadero (el punto viene en mm)
+                    var pb = Floats(bd["punto_bajada_mm"], "bajada_vehiculos"); sub.Bajada = true; sub.BajadaX = pb[0] / 1000f; sub.BajadaZ = pb[1] / 1000f;
+                    if (bd.ContainsKey("via_z")) sub.ViaVehZ = Num(bd["via_z"]);
+                    if (bd.ContainsKey("vagon_plataforma_x")) { var px = Floats(bd["vagon_plataforma_x"], "vagon_plataforma_x"); sub.PlataformaX0 = px[0]; sub.PlataformaX1 = px[1]; }
                 }
                 d.Sub = sub;
             }

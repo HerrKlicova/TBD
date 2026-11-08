@@ -71,9 +71,9 @@ namespace TBD.View
                 for (int i = 0; i < pieces.childCount; i++)
                 {
                     var c = pieces.GetChild(i); var q = c.localPosition;
-                    if (q.z > dato.Sub.Losa[1] + 0.5f && q.z < dato.Sub.Losa[3] - 0.5f) c.localPosition = new Vector3(q.x, q.y + dato.Sub.CotaVia, q.z);
+                    if (q.y == 0f && q.z > dato.Sub.Losa[1] + 0.5f && q.z < dato.Sub.Losa[3] - 0.5f) c.localPosition = new Vector3(q.x, q.y + dato.Sub.CotaVia, q.z);
                 }
-                Subterranea(root, dato.Sub, res);
+                Subterranea(root, dato.Sub, res, !dato.Piezas.Exists(x => x.Pieza == "castellon/vestibulo"));
             }
 
             if (dato.Recinto != null) Enclosure(root, dato);
@@ -269,7 +269,7 @@ namespace TBD.View
         /// funde con la cámara cuando hay unidades debajo), trincheras abiertas con muros de contención de la altura de la cota y el vestíbulo de calle con la boca
         /// de escalera. Primitivas hasta que lleguen los módulos de Teo (el vestíbulo, si falta, sale como caja gris con su nombre).
         /// </summary>
-        static void Subterranea(Transform root, EstacionDato.Subterranea sub, Result res)
+        static void Subterranea(Transform root, EstacionDato.Subterranea sub, Result res, bool vestibulo = true)
         {
             var t = new GameObject("Estación subterránea").transform; t.SetParent(root, false);
             float h = -sub.CotaVia, l = sub.Losa[2] - sub.Losa[0], d = sub.Losa[3] - sub.Losa[1], cx = (sub.Losa[0] + sub.Losa[2]) * 0.5f, cz = (sub.Losa[1] + sub.Losa[3]) * 0.5f;
@@ -286,6 +286,7 @@ namespace TBD.View
             }
             Bar(t, "Muro de fondo", new Vector3(cx, sub.CotaVia * 0.5f, sub.Losa[3]), 90f, new Vector3(0.6f, h, l), concreto);
             Bar(t, "Muro del haz", new Vector3(cx, sub.CotaVia * 0.5f, sub.Losa[1]), 90f, new Vector3(0.6f, h, l), concreto);
+            if (!vestibulo) return;          // v0.2: el vestíbulo es pieza del JSON (castellon/vestibulo) y lo coloca PlacePiece
             var vest = Model("Castellon", "SM_Vestibulo_v0_LOD1", t) ?? Placeholder(t, "vestibulo");
             if (vest.name.StartsWith("FALTA")) { vest.transform.localScale = new Vector3(Mathf.Max(4f, sub.VestAncho), 5f, Mathf.Max(4f, sub.VestFondo)); res.Missing.Add("vestibulo (" + sub.VestX + ", " + sub.VestZ + ")"); }
             vest.name = "Vestíbulo"; vest.transform.localPosition = new Vector3(sub.VestX, vest.name.StartsWith("FALTA") ? 2.5f : 0f, sub.VestZ); vest.transform.localRotation = Quaternion.Euler(0f, sub.VestYaw, 0f);

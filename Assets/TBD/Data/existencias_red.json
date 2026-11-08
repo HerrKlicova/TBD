@@ -7,9 +7,9 @@
         "municion_u": 50,
         "combustible_u": 70,
         "materiales_u": 0,
-        "viveres_u": 0
+        "viveres_u": 20
       },
-      "personas": 0,
+      "personas": 24,
       "tope_zona": {
         "municion_u": 47,
         "combustible_u": 30,
