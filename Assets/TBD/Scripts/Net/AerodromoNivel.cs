@@ -10,7 +10,11 @@ namespace TBD.Net
     /// la monte y las pruebas lo comprueben sin Unity. Encuadre de reserva de 256 × 128 m («zona»); lo que cae fuera va de faldón. Sin asedios en el MVP.
     /// Coordenadas en metros de la zona: X al este, Z al norte. Las piezas de Teo tienen el frente en +Z con yaw 0 y el origen en el suelo.
     /// </summary>
-    public struct Colocacion { public string Pieza, Carpeta, Malla; public int Variante; public float X, Z, Yaw; public bool Faldon; }
+    public struct Colocacion
+    {
+        public string Pieza, Carpeta, Malla; public int Variante; public float X, Z, Yaw; public bool Faldon;
+        public string Ruta, Archivo; public float EscalaX;      // con las instancias de Álvaro: carpeta de Resources/Models y fichero sin «_LOD1» (si no, Betera/Carpeta + Malla_vN)
+    }
 
     public sealed class AerodromoNivel
     {
@@ -34,6 +38,44 @@ namespace TBD.Net
         }
 
         public bool DentroZona(float x, float z) { return x >= ZonaX0 && x <= ZonaX1 && z >= ZonaZ0 && z <= ZonaZ1; }
+
+        static readonly string[] PuertaVar = { "TuboChapa", "ChapaOndulada", "Tablones", "MallaEspino", "Blindada" };
+
+        /// <summary>
+        /// Carpeta y fichero de cada prefab del CSV de instancias de Álvaro (betera_instancias_v1.csv): las piezas de Bétera de Teo (Betera/&lt;carpeta&gt;), el
+        /// reducto con el kit de defensas (Defensas/hesco, con estado por vida) y los tramos y puertas de muro-estados (Defensas/muro). Variante −1 → hash.
+        /// </summary>
+        public static void Resolver(string prefab, int variante, float x, float z, int estado, out string ruta, out string archivo)
+        {
+            int k = variante >= 0 ? variante : EstacionDato.VariantOf(x, z, 5);
+            if (prefab == "helipuerto") { ruta = "Betera/helipuerto"; archivo = "SM_Helipuerto_v" + (variante >= 0 ? variante : 4); return; }
+            if (prefab == "rearme_set") { ruta = "Betera/rearme_set"; archivo = "SM_RearmeSet_v" + k; return; }
+            if (prefab == "SM_MuroHesco") { ruta = "Defensas/muro"; archivo = RecintoPlan.Nombre("MuroHesco", MaterialMuro.Hesco, k, estado); return; }
+            if (prefab == "SM_MuroSacos") { ruta = "Defensas/muro"; archivo = RecintoPlan.Nombre("MuroSacos", MaterialMuro.Sacos, k, estado); return; }
+            if (prefab == "SM_PuertaVehiculos") { ruta = "Defensas/muro"; archivo = "SM_PuertaVehiculos_v" + k + "_" + PuertaVar[k % 5] + "_e" + estado + "_" + new[] { "Sano", "Danado", "MuyDanado", "Brecha" }[Math.Max(0, Math.Min(3, estado))]; return; }
+            if (prefab.StartsWith("SM_Hesco")) { ruta = "Defensas/hesco"; archivo = RecintoPlan.Nombre(prefab.Substring(3), MaterialMuro.Hesco, k, estado); return; }
+            if (prefab.StartsWith("SM_Sacos")) { ruta = "Defensas/sacos"; archivo = RecintoPlan.Nombre(prefab.Substring(3), MaterialMuro.Sacos, k, estado); return; }
+            // piezas de Bétera de Teo: SM_TorreControl → Betera/torre_control
+            string nombre = prefab.StartsWith("SM_") ? prefab.Substring(3) : prefab, carpeta = "";
+            for (int i = 0; i < nombre.Length; i++) { char c = nombre[i]; if (char.IsUpper(c) && i > 0) carpeta += "_"; carpeta += char.ToLowerInvariant(c); }
+            ruta = "Betera/" + carpeta; archivo = prefab + "_v" + k;
+        }
+
+        /// <summary>Sustituye las piezas por las instancias del CSV de Álvaro (grupo;prefab;variante;x_m;y_m;z_m;yaw_grados;escala_x;en_zona_mvp;nota).</summary>
+        public void UsarInstancias(string csv, int estado = 0)
+        {
+            Piezas.Clear();
+            var lineas = csv.Replace("\r", "").Split('\n');
+            for (int i = 1; i < lineas.Length; i++)
+            {
+                var l = lineas[i].Trim(); if (l.Length == 0) continue;
+                var c = l.Split(';'); if (c.Length < 9) continue;
+                string prefab = c[1]; int v = int.Parse(c[2], CultureInfo.InvariantCulture);
+                float x = float.Parse(c[3], CultureInfo.InvariantCulture), z = float.Parse(c[5], CultureInfo.InvariantCulture), yaw = float.Parse(c[6], CultureInfo.InvariantCulture), ex = float.Parse(c[7], CultureInfo.InvariantCulture);
+                Resolver(prefab, v, x, z, estado, out var ruta, out var archivo);
+                Piezas.Add(new Colocacion { Pieza = c[0] + "/" + prefab, Carpeta = ruta, Malla = prefab, Variante = v, X = x, Z = z, Yaw = yaw, EscalaX = ex, Faldon = c[8].Trim() != "si", Ruta = ruta, Archivo = archivo });
+            }
+        }
 
         public static AerodromoNivel FromJson(string json, bool soloMvp = true)
         {

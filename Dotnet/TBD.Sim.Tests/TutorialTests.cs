@@ -479,6 +479,21 @@ namespace TBD.Sim.Tests
                 check(TrenPreparar.NodoPorId(w, "betera") == -1 && TrenPreparar.IdDe("Puçol") == "pucol", "betera no está en RailNet (es el aeródromo, vive en AerodromoEstado); Puçol → pucol");
             }
 
+            // --- Bétera v1: instancias de Álvaro (CSV), existencias del bloque «aerodromos» de Hugo y el claro S1 del capítulo 4
+            {
+                var nv = AerodromoNivel.FromJson(BalanceSource.Read("estacion_betera.json"));
+                nv.UsarInstancias(BalanceSource.Read("betera_instancias.csv"));
+                check(nv.Piezas.Count == 219, $"Bétera v1: 219 instancias ({nv.Piezas.Count})");
+                check(nv.Piezas.FindAll(c => c.Malla == "SM_HescoRemateEspejo").TrueForAll(c => c.Ruta == "Defensas/hesco" && c.Archivo.StartsWith("SM_HescoRemateEspejo_v") && c.Archivo.EndsWith("_e0_Sano")) && nv.Piezas.Exists(c => c.Malla == "SM_HescoRemateEspejo"), "los remates de la derecha usan SM_HescoRemateEspejo (sin escala −1)");
+                var t = nv.Piezas.Find(c => c.Malla == "SM_TorreControl"); check(t.Ruta == "Betera/torre_control" && t.Archivo.StartsWith("SM_TorreControl_v"), "SM_TorreControl → Betera/torre_control");
+                check(nv.Piezas.Find(c => c.Malla == "SM_MuroHesco").Ruta == "Defensas/muro" && nv.Piezas.Find(c => c.Malla == "SM_PuertaVehiculos").Archivo.Contains("_e0_Sano"), "tramos y puertas del reducto con el kit de defensas (estado sano)");
+                check(nv.Piezas.FindAll(c => c.Malla == "SM_TanqueCombustible").TrueForAll(c => c.Yaw == 0f), "los tanques llevan yaw 0 (Álvaro)");
+                var ae = AerodromoEstado.FromJson(BalanceSource.Read("estacion_betera.json")); ae.MunicionMilliU = 1; ae.CombustibleMilliU = 1;
+                check(ae.AplicarExistencias(BalanceSource.Read("existencias_red.json")) && ae.MunicionMilliU == 50_000 && ae.CombustibleMilliU == 70_000, "existencias de Bétera desde el bloque «aerodromos» de Hugo: 50 u y 70 u");
+                var p46 = Array.Find(TutorialGuion.Cap4().Pasos, p => p.Id == "4.6");
+                check(Array.IndexOf(p46.Resalta, TutorialGuion.Resaltes.ClaroS1) >= 0 && TutorialGuion.ClaroS1X == 180f && TutorialGuion.ClaroS1Z == 44f, "capítulo 4: el NH90 aterriza en S1 (180; 44), resaltado");
+            }
+
             // --- intro C
             var it = new IntroSecuencia();
             check(it.Tarjetas.Length == 5 && it.TextoEntero == "Día 41 desde el brote.", "intro C: 5 tarjetas y empieza por «Día 41 desde el brote.»");

@@ -22,6 +22,8 @@ namespace TBD.EditorTools
             string data = Path.Combine(Application.dataPath, "TBD", "Data");
             BalanceSource.Reader = f => { var p = Path.Combine(data, f); return File.Exists(p) ? File.ReadAllText(p) : null; };
             var nivel = AerodromoNivel.FromJson(BalanceSource.Read("estacion_betera.json"));
+            var csv = BalanceSource.Read("betera_instancias.csv");          // Bétera v1 de Álvaro (219 instancias); sin él, las piezas del JSON
+            if (csv != null) nivel.UsarInstancias(csv);
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var sun = new GameObject("Sol").AddComponent<Light>(); sun.type = LightType.Directional; sun.intensity = 1.2f; sun.shadows = LightShadows.Soft; sun.transform.rotation = Quaternion.Euler(48f, -35f, 0f);
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat; RenderSettings.ambientLight = new Color(0.55f, 0.55f, 0.58f);
