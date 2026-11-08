@@ -6,7 +6,7 @@ Tipos genéricos de plaza valenciana, sin foto (medidas SIN VERIFICAR, típicas)
 - Farola de plaza: fernandina de fundición de 4 m con farol, o de brazo de 8 m.
 - Banco de plaza de 1,8 m.
 Colores: tronco de palmera b4a080 con la base 845c28, hojas por valor partido 88885c/70784c/50541c, hojas secas
-847c34; farola 6c7874 con el farol 94948c y el cristal f0dc9c (apagado, no ámbar); banco de listones 845c28 con patas
+847c34; farola 6c7874 con el farol 94948c y el cristal 6c7874 (apagado: el f0dc9c se leía como luz encendida, Lucía 8-nov 13:45); banco de listones 845c28 con patas
 6c7874, de hormigón 94948c. Nada rojo ni en la banda de la horda. En el LOD1 nada baja de 0,34 m.
 Origen en el suelo, en el pie (palmera y farola) o en el centro (banco, de cara a −Y).
 TBD_VARIANTE = 5 · tipo + variante (0..14). Tipos: 0 Palmera, 1 Farola, 2 Banco.
@@ -24,7 +24,7 @@ TIPO, V = VAR // 5, VAR % 5
 NOMBRES_T = ["Palmera", "Farola", "Banco"]
 PIEZAS = ["tronco", "base", "hoja", "seca", "metal", "farol", "cristal", "madera", "hormigon"]
 COLORES = {"tronco": "b4a080", "base": "845c28", "hoja": "70784c", "seca": "847c34", "metal": "6c7874",
-           "farol": "94948c", "cristal": "f0dc9c", "madera": "845c28", "hormigon": "94948c"}
+           "farol": "94948c", "cristal": "6c7874", "madera": "845c28", "hormigon": "94948c"}
 VALOR_PIEZAS = {"hoja": ("88885c", "70784c", "50541c")}
 FACCION = "neutro"
 PRESUPUESTO = {0: (12, 900), 1: (8, 450)}
