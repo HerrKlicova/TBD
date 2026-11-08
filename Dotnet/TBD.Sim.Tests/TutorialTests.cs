@@ -566,6 +566,21 @@ namespace TBD.Sim.Tests
                 check(Plantel.Pelotones("Valencia").Count == 0 && Plantel.Pelotones("Teruel").Count == 0, "Valencia y Teruel (caídas): sin unidades");
             }
 
+            // --- D-N152: el tren espera a las puertas de una estación sitiada o sin plaza
+            {
+                var w = NetScenario.Inicio(); int sg = TrenPreparar.Nodo(w, "Sagunto"), nu = TrenPreparar.Nodo(w, "Nules");
+                check(Puertas.Plazas(w, sg) == 2 && Puertas.Plazas(w, nu) == 1, "plazas: 2 en Sagunto (principal) y 1 en Nules (pequeña)");
+                check(Puertas.Parados(w, sg).Count == 2 && !Puertas.EnPuertas(w, 0, sg) && !Puertas.EnPuertas(w, 1, sg), "los dos trenes de partida caben en Sagunto: ninguno a las puertas");
+                w.Graph.Nodes[sg].State = NodeState.Asediada;
+                check(Puertas.EnPuertas(w, 0, sg) && Puertas.EnPuertas(w, 1, sg) && Puertas.Motivo(w, 0, sg).StartsWith("Estación sitiada"), "con Sagunto sitiada, los dos esperan a las puertas (solo baja la tropa)");
+                w.Graph.Nodes[sg].State = NodeState.Segura;
+                check(!Puertas.EnPuertas(w, 0, sg) && Puertas.Motivo(w, 0, sg) == null, "acabado el asedio, el tren entra");
+                Puertas.Ampliacion = 0;
+                foreach (var sv in w.Services) { sv.Stops.Clear(); sv.Stops.Add(new ScheduleStop { Node = nu, DepartAt = 0, Transfer = new int[NetConst.ResCount] }); sv.StopIndex = 0; sv.AtStop = true; }
+                check(!Puertas.EnPuertas(w, 0, nu) && Puertas.EnPuertas(w, 1, nu) && Puertas.Motivo(w, 1, nu).StartsWith("Sin plaza"), "dos trenes en Nules (1 plaza): el segundo espera a las puertas");
+                Puertas.Ampliacion = 1; check(!Puertas.EnPuertas(w, 1, nu), "ampliando la estación (D-N153) entra el segundo"); Puertas.Ampliacion = 0;
+            }
+
             // --- intro C
             var it = new IntroSecuencia();
             check(it.Tarjetas.Length == 5 && it.TextoEntero == "Día 41 desde el brote.", "intro C: 5 tarjetas y empieza por «Día 41 desde el brote.»");

@@ -201,7 +201,7 @@ namespace TBD.View
                 NetSession.PushPayload(NetCmdType.SetSchedule, Viaje, TrenPreparar.Aparcar(W, Viaje)); _aparcadoT = Time.unscaledTime;
                 string nombre = W.Graph.Nodes[meta].Name;
                 if (_descargando) { Debug.Log("[TREN] vuelve a " + nombre + " y se aparca"); Viaje = -1; _descargando = false; return; }
-                _llegado = true; _aviso = meta == Casa && W.Besieged(meta) ? "Tren a las puertas de " + nombre : "Tren en " + nombre; _avisoHasta = Time.unscaledTime + 5f;
+                _llegado = true; _aviso = Puertas.EnPuertas(W, Viaje, meta) ? "Tren a las puertas de " + nombre : "Tren en " + nombre;     // D-N152: sitiada o sin plaza _avisoHasta = Time.unscaledTime + 5f;
                 Debug.Log($"[TREN] llega a {nombre} y se aparca (carga {sv.CargoTotal()} u, {W.Embarque.CountAboard(Viaje, PasajeroTipo.Peloton)} pelotón, {W.Embarque.CountAboard(Viaje, PasajeroTipo.Vehiculo)} vehículo)");
                 if (meta == Casa) TutorialHud.Senal(TutorialGuion.Senales.TrenEnSagunto);
                 if (meta == Nodo("Nules")) TutorialHud.Senal(TutorialGuion.Senales.TrenEnNules);
@@ -291,7 +291,7 @@ namespace TBD.View
         {
             if (Viaje < 0) return;
             var sv = W.Services[Viaje]; var delta = new int[NetConst.ResCount]; bool hay = false;
-            if (!W.Besieged(Destino)) for (int r = 0; r < NetConst.ResCount; r++) { delta[r] = -sv.Cargo[r]; hay |= sv.Cargo[r] > 0; }
+            if (!Puertas.EnPuertas(W, Viaje, Destino)) for (int r = 0; r < NetConst.ResCount; r++) { delta[r] = -sv.Cargo[r]; hay |= sv.Cargo[r] > 0; }
             if (hay) { var c = NetWorld.CmdCargo(W.Tick, Viaje, Destino, delta); NetSession.A.Push(c); if (NetSession.B != null) NetSession.B.Push(c); }
             Embarque.BajarTodo(Viaje, Destino); _descargadoAqui = true; _vista = Vista.Nada;
             Debug.Log("[TREN] descarga en " + W.Graph.Nodes[Destino].Name + " (el tren se queda)");
