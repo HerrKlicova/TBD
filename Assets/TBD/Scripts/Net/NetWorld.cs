@@ -22,6 +22,7 @@ namespace TBD.Net
         public const int FieldEvery = 15;                                   // la mancha avanza cada 15 ticks (medio segundo real a x1)
         public const long TrainMmPerTick = 57_143;                          // 60 km/h con 24/7 s por tick (57.142,9 mm)
         public const int TrainCapacity = 400;                               // toneladas (PROTOTIPO)
+        public const int TrainHpMax = 120_000;                  // D-N105: vida del tren (100 zombis en contacto lo tiran)
 
         public static long Hours(double h) { return (long)Math.Round(h * HourTicks); }
         public static string Clock(long tick)
@@ -70,6 +71,9 @@ namespace TBD.Net
         public readonly List<long> DepartedDay = new List<long>();   // por parada: día de la última salida (no sale dos veces el mismo día)
         public int GateNode = -1;          // D-N152: nodo a cuyas puertas espera (sitiado, o sin andén libre en su parada); -1 = ninguno
         public long GateSinceTick = -1;    // D-N152: tick en que llegó a las puertas (entran por orden de llegada)
+        public int GateHorde;              // D-N177: zombis del asedio cuando llegó a las puertas (para el combate fuera de pantalla)
+        public int Hp = NetConst.TrainHpMax; // D-N177 (Hugo): vida del tren, 120.000 (D-N105)
+        public bool Destroyed;             // D-N177: cayó a las puertas; se pierde con la carga y la tropa a bordo (todo o nada)
 
         public void SaveState(SaveWriter w)
         {
@@ -79,7 +83,7 @@ namespace TBD.Net
             w.Ints(Cargo);
             w.Int(StopIndex); w.Bool(AtStop); w.Bool(Held); w.Bool(ScheduleEdited); w.Bool(WorksTrain); w.Int(HaltAt); w.Bool(Ambushed); w.Long(LastAmbushDay); w.Long(LastDepartDay);
             w.Int(DepartedDay.Count); foreach (var d in DepartedDay) w.Long(d);
-            w.Int(GateNode); w.Long(GateSinceTick);
+            w.Int(GateNode); w.Long(GateSinceTick); w.Int(GateHorde); w.Int(Hp); w.Bool(Destroyed);
         }
 
         public static TrainService LoadState(SaveReader r)
@@ -95,7 +99,7 @@ namespace TBD.Net
             n = r.Int();
             if (n < 0 || n > r.Remaining) throw new SaveException(SaveError.Corrupt, "días de salida no válidos");
             for (int i = 0; i < n; i++) s.DepartedDay.Add(r.Long());
-            s.GateNode = r.Int(); s.GateSinceTick = r.Long();
+            s.GateNode = r.Int(); s.GateSinceTick = r.Long(); s.GateHorde = r.Int(); s.Hp = r.Int(); s.Destroyed = r.Bool();
             return s;
         }
 
@@ -423,6 +427,7 @@ namespace TBD.Net
             Production.SaveState(w);                    // NetVersion 2
             Embarque.SaveState(w);                      // NetVersion 3 (D-N166)
             w.Ints(FoodRemMil); w.Ints(StarveRemMil); w.Long(StarvedTotal);   // NetVersion 4 (D-N176)
+            var gf = LastGateFight; w.Int(GateFights); w.Ints(new[] { gf.Service, gf.Node, gf.Horde, gf.Attackers, gf.Soldiers, gf.Killed, gf.Contact, gf.HpLost, gf.EscortLostMil, gf.AmmoU, gf.Destroyed ? 1 : 0 }); w.Long(gf.Tick);   // D-N177
         }
 
         public void LoadState(SaveReader r)
@@ -463,6 +468,8 @@ namespace TBD.Net
             Production.LoadState(r);
             Embarque.LoadState(r);
             ReadInto(r.Ints(), FoodRemMil, "víveres"); ReadInto(r.Ints(), StarveRemMil, "hambre"); StarvedTotal = r.Long();
+            GateFights = r.Int(); var gv = r.Ints(); if (gv == null || gv.Length != 11) throw new SaveException(SaveError.Corrupt, "combate a las puertas no válido");
+            LastGateFight = new GateFight { Service = gv[0], Node = gv[1], Horde = gv[2], Attackers = gv[3], Soldiers = gv[4], Killed = gv[5], Contact = gv[6], HpLost = gv[7], EscortLostMil = gv[8], AmmoU = gv[9], Destroyed = gv[10] != 0, Tick = r.Long() };
             Injections.Clear(); Retirements.Clear(); LostThisTick = 0; RetiredThisTick = 0;      // datos de QA del tick: empiezan limpios
         }
 
@@ -1161,6 +1168,7 @@ namespace TBD.Net
         void StepService(TrainService s)
         {
             var t = s.Train;
+            if (s.Destroyed) return;
             if (s.GateNode >= 0 && !TryEnterGate(s)) return;          // D-N152: espera a las puertas (ni sale ni sigue)
             if (s.AtStop)
             {
@@ -1201,7 +1209,7 @@ namespace TBD.Net
             }
             else if (GatesEnabled && t.Leg != legBefore && t.State == RailTrainState.EnMarcha && t.Leg < t.Route.Count && Besieged(t.Route[t.Leg]))
             {
-                t.OffsetMm = 0; t.Stop(); s.GateNode = t.Route[t.Leg]; s.GateSinceTick = Tick;          // D-N152: estación de paso sitiada: se queda a sus puertas hasta que acabe el asedio
+                t.OffsetMm = 0; t.Stop(); s.GateNode = t.Route[t.Leg]; s.GateSinceTick = Tick; s.GateHorde = SiegeZombies(s.GateNode);          // D-N152: estación de paso sitiada: se queda a sus puertas hasta que acabe el asedio
             }
             if (t.State == RailTrainState.Llegado)
             {
@@ -1209,7 +1217,7 @@ namespace TBD.Net
                 if (s.HaltAt >= 0 && node == s.HaltAt) s.HaltAt = -1;     // llegó a su parada: ya está en el nodo
                 MakeNoise(node);
                 s.AtStop = true;
-                if (GatesEnabled && (Besieged(node) || FreeSlots(node, s) <= 0)) { s.GateNode = node; s.GateSinceTick = Tick; }   // D-N152: sitiada o sin andén libre: a las puertas
+                if (GatesEnabled && (Besieged(node) || FreeSlots(node, s) <= 0)) { s.GateNode = node; s.GateSinceTick = Tick; s.GateHorde = Besieged(node) ? SiegeZombies(node) : 0; }   // D-N152: sitiada o sin andén libre: a las puertas
             }
         }
 
@@ -1220,25 +1228,110 @@ namespace TBD.Net
         /// false lo apaga del todo (como antes de la D-N152).</summary>
         public bool GatesEnabled = true;
 
-        static readonly string[] MainStations = { "Sagunto", "Valencia", "Castellón", "Teruel", "Zaragoza" };
+        /// <summary>Plazas de tren (andenes) del MVP (Lucía, 8-nov): Sagunto 2 y Nules 1. Bétera no es nodo de la red. Las demás estaciones no tienen zona en el MVP
+        /// y no limitan (0 = sin límite): un tren a Castellón o a Valencia entra siempre que no estén sitiadas.</summary>
+        public static readonly string[] SlotNames = { "Sagunto", "Nules" };
+        public static readonly int[] SlotCounts = { 2, 1 };
 
-        /// <summary>Plazas de tren (andenes) de la estación: 2 en las principales y 1 en las demás. Sale de la topología, no del estado.</summary>
+        /// <summary>Plazas de tren de la estación (0 = sin límite). Sale de la topología, no del estado.</summary>
         public int TrainSlots(int node)
         {
             if (node < 0 || node >= Graph.Nodes.Count) return 0;
-            return Array.IndexOf(MainStations, Graph.Nodes[node].Name) >= 0 ? 2 : 1;
+            int i = Array.IndexOf(SlotNames, Graph.Nodes[node].Name);
+            return i >= 0 ? SlotCounts[i] : 0;
         }
 
         /// <summary>Andenes libres en el nodo sin contar al tren «self»: plazas menos los trenes que están dentro (parados en el nodo y no a las puertas).</summary>
         public int FreeSlots(int node, TrainService self = null)
         {
             int inside = 0;
-            foreach (var sv in Services) if (sv != self && sv.GateNode != node && TrainAtNode(sv, node)) inside++;
-            return TrainSlots(node) - inside;
+            int slots = TrainSlots(node);
+            if (slots <= 0) return int.MaxValue;                          // sin límite
+            foreach (var sv in Services) if (sv != self && !sv.Destroyed && sv.GateNode != node && TrainAtNode(sv, node)) inside++;
+            return slots - inside;
         }
 
         /// <summary>¿Espera a las puertas de ese nodo? (Para el panel y la zona: la tropa de un tren a las puertas baja fuera del muro, D-N166.)</summary>
         public bool AtGate(TrainService sv, int node) { return sv != null && sv.GateNode >= 0 && sv.GateNode == node; }
+
+        // ---------------------------------------------------------------- D-N177 (provisional): el tren a las puertas, fuera de pantalla
+        /// <summary>D-N177 (Lucía, 8-nov; cifras de Hugo): al acabar el asedio con el tren a las puertas, y si la zona de ese nodo NO está en pantalla (ahí manda NightSim),
+        /// se resuelve una vez: el GateAttackPermil (100 ‰, la única cifra inventada) de la horda va a por el tren; la escolta abate GateKillsPerSoldier (54) por soldado
+        /// (un vehículo en plataforma cuenta como GateVehicleSoldiers, 8); cada zombi en contacto quita GateHpPerZombie (1.200) de vida al tren. Si cae, se pierde todo:
+        /// la carga y lo que va a bordo. La escolta pierde 14 milésimas de persona por zombi en contacto (con remanente) y gasta 1 u por cada 400 abatidos: eso lo aplica
+        /// quien lleve los pelotones (LastGateFight lo deja apuntado).</summary>
+        public int GateAttackPermil = 100, GateKillsPerSoldier = 54, GateVehicleSoldiers = 8, GateHpPerZombie = 1_200, GateEscortLossMil = 14, GateKillsPerAmmoU = 400, GateSoldiersPerPlatoon = 8, TrainRepairHpPerU = 5_000;
+
+        public struct GateFight { public int Service, Node, Horde, Attackers, Soldiers, Killed, Contact, HpLost, EscortLostMil, AmmoU; public bool Destroyed; public long Tick; }
+        public GateFight LastGateFight;
+        public int GateFights;                                            // cuántos combates a las puertas se han resuelto (informativo)
+
+        /// <summary>Zombis del asedio en el nodo (para el combate a las puertas): la masa que el director ha llevado hasta allí, menos la que ha perdido, en zombis.</summary>
+        public int SiegeZombies(int node)
+        {
+            long m = 0;
+            foreach (var pl in Director.Active) if (pl.Kind == HiveDirector.PlanKind.Asedio && pl.Node == node) m += Math.Max(0, pl.Moved - pl.Lost);
+            if (m == 0) m = Graph.Nodes[node].HordeDensity;              // sin plan (densidad de asedio): lo que haya encima
+            return (int)Math.Min(int.MaxValue, m * ZombiesPerPermil);
+        }
+
+        /// <summary>Soldados de escolta a bordo: GateSoldiersPerPlatoon por pelotón y GateVehicleSoldiers por vehículo.</summary>
+        public int EscortSoldiers(int service)
+        {
+            int n = 0;
+            foreach (var p in Embarque.Lista) if (p.Service == service && p.Estado == PasajeroEstado.ABordo) n += p.Tipo == PasajeroTipo.Peloton ? GateSoldiersPerPlatoon : GateVehicleSoldiers;
+            return n;
+        }
+
+        /// <summary>El cálculo, sin tocar nada (para el panel y las pruebas).</summary>
+        public GateFight GateFightFor(int horde, int soldiers, int hp)
+        {
+            var f = new GateFight { Horde = horde, Soldiers = soldiers };
+            f.Attackers = (int)((long)horde * GateAttackPermil / 1000);
+            f.Killed = (int)Math.Min(f.Attackers, (long)soldiers * GateKillsPerSoldier);
+            f.Contact = f.Attackers - f.Killed;
+            f.HpLost = (int)Math.Min(hp, (long)f.Contact * GateHpPerZombie);
+            f.Destroyed = (long)f.Contact * GateHpPerZombie >= hp;
+            f.EscortLostMil = f.Contact * GateEscortLossMil;
+            f.AmmoU = f.Killed / GateKillsPerAmmoU;
+            return f;
+        }
+
+        void ResolveGateFight(TrainService s, int node)
+        {
+            int horde = s.GateHorde; s.GateHorde = 0;
+            if (node == ActiveZoneNode) return;                          // en pantalla manda NightSim (D-N177)
+            int idx = Services.IndexOf(s);
+            var f = GateFightFor(horde, EscortSoldiers(idx), s.Hp);
+            f.Service = idx; f.Node = node; f.Tick = Tick;
+            s.Hp -= f.HpLost;
+            if (f.Destroyed)
+            {
+                s.Destroyed = true; s.Hp = 0; s.Held = true; s.GateNode = -1; s.GateSinceTick = -1;
+                Array.Clear(s.Cargo, 0, s.Cargo.Length); s.Train.CargoTonnes = 0;
+                for (int i = Embarque.Lista.Count - 1; i >= 0; i--) if (Embarque.Lista[i].Service == idx && Embarque.Lista[i].Estado == PasajeroEstado.ABordo) Embarque.Lista.RemoveAt(i);   // todo o nada
+            }
+            LastGateFight = f; GateFights++;
+        }
+
+        /// <summary>Unidades de materiales para dejar el tren a tope (1 u por 5.000 de vida, Hugo).</summary>
+        public int TrainRepairU(int service) { if (service < 0 || service >= Services.Count) return 0; int d = NetConst.TrainHpMax - Services[service].Hp; return d <= 0 ? 0 : (d + TrainRepairHpPerU - 1) / TrainRepairHpPerU; }
+
+        /// <summary>D-N177: aviso ámbar «Sin escolta: &lt;estación&gt; está sitiada» (al dar la salida y en el icono del tren): sin tropa ni vehículos a bordo y con una estación sitiada
+        /// en su camino hasta la próxima parada (incluida). null si no hay aviso.</summary>
+        public string EscortWarning(int service)
+        {
+            if (service < 0 || service >= Services.Count) return null;
+            var s = Services[service]; if (s.Destroyed || s.Stops.Count < 2 || EscortSoldiers(service) > 0) return null;
+            List<int> route;
+            if (s.AtStop) { int next = (s.StopIndex + 1) % s.Stops.Count; route = Graph.ShortestPath(s.Stops[s.StopIndex].Node, s.Stops[next].Node); }
+            else route = s.Train.Route;
+            if (route == null) return null;
+            int from = s.AtStop ? 1 : Math.Max(1, s.Train.Leg);
+            for (int i = from; i < route.Count; i++) if (Besieged(route[i])) return "Sin escolta: " + Graph.Nodes[route[i]].Name + " está sitiada";
+            if (s.GateNode >= 0 && Besieged(s.GateNode)) return "Sin escolta: " + Graph.Nodes[s.GateNode].Name + " está sitiada";
+            return null;
+        }
 
         /// <summary>Trenes que esperan a las puertas del nodo, por orden de llegada (para la zona: el tren queda fuera del muro y se le puede atacar, D-N148).</summary>
         public List<int> TrainsAtGate(int node)
@@ -1263,6 +1356,7 @@ namespace TBD.Net
             int n = s.GateNode;
             if (!GatesEnabled) { s.GateNode = -1; s.GateSinceTick = -1; if (!s.AtStop && s.Train.State == RailTrainState.Detenido) s.Train.Go(); return true; }
             if (Besieged(n)) return false;
+            if (s.GateHorde > 0) { ResolveGateFight(s, n); if (s.Destroyed) return false; }
             if (s.AtStop)
             {
                 if (FreeSlots(n, s) <= 0) return false;
@@ -1301,7 +1395,7 @@ namespace TBD.Net
         public int MoveCargo(int service, int node, int[] delta)
         {
             if (service < 0 || service >= Services.Count || node < 0 || node >= Graph.Nodes.Count || delta == null || delta.Length != NetConst.ResCount) return -1;
-            var s = Services[service]; if (s.Ambushed || !TrainAtNode(s, node) || s.GateNode == node) return -1;   // a las puertas no hay andén (D-N152)
+            var s = Services[service]; if (s.Ambushed || s.Destroyed || !TrainAtNode(s, node) || s.GateNode == node) return -1;   // a las puertas no hay andén (D-N152)
             int moved = 0;
             for (int r = 0; r < NetConst.ResCount; r++)
             {
@@ -1421,6 +1515,7 @@ namespace TBD.Net
                     }
             foreach (var sv in Services) if (sv.WorksTrain) h += Mix(0x70B5UL ^ ((ulong)(uint)sv.Train.Id << 32));
             foreach (var sv in Services) if (sv.HaltAt >= 0) h += Mix(0x4A17UL ^ ((ulong)(uint)sv.Train.Id << 32) ^ (ulong)(uint)(sv.HaltAt + 1));
+            foreach (var sv in Services) if (sv.Hp != NetConst.TrainHpMax || sv.Destroyed || sv.GateHorde != 0) h += Mix(0xD177UL ^ ((ulong)(uint)sv.Train.Id << 40) ^ ((ulong)(uint)sv.Hp << 2) ^ (sv.Destroyed ? 1UL : 0UL)) + Mix(0xD177AUL ^ ((ulong)(uint)sv.Train.Id << 40) ^ (ulong)(uint)sv.GateHorde);
             foreach (var sv in Services) if (sv.GateNode >= 0) h += Mix(0xD152UL ^ ((ulong)(uint)sv.Train.Id << 32) ^ (ulong)(uint)(sv.GateNode + 1)) + Mix(0xD152AUL ^ ((ulong)(uint)sv.Train.Id << 40) ^ (ulong)sv.GateSinceTick);   // D-N152: 0 si nadie espera
             if (!GatesEnabled) h += Mix(0xD152F0UL);
             h += Embarque.Hash();                                                 // D-N166: 0 sin pasajeros (no mueve los goldens)

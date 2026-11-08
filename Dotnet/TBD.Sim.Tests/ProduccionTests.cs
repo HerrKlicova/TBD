@@ -103,7 +103,7 @@ namespace TBD.Sim.Tests
             check(wl.Hash() == w1.Hash() && wl.Production.Rem[k] == 23_520 && wl.Production.WastedU[k] == 59, "guardar y cargar conserva el remanente y las pérdidas (mismo hash)");
             var fresh = NetScenario.Mvp(false);
             var sw = new SaveWriter(); fresh.SaveState(sw); var v4 = sw.ToArray();
-            var fw = new SaveWriter(); fw.Ints(new int[fresh.Graph.Nodes.Count]); fw.Ints(new int[fresh.Graph.Nodes.Count]); fw.Long(0); var v3 = new byte[v4.Length - fw.ToArray().Length]; Array.Copy(v4, v3, v3.Length);     // D-N176: los víveres van al final, NetVersion 4
+            var fw = new SaveWriter(); fw.Ints(new int[fresh.Graph.Nodes.Count]); fw.Ints(new int[fresh.Graph.Nodes.Count]); fw.Long(0); fw.Int(0); fw.Ints(new int[11]); fw.Long(0); var v3 = new byte[v4.Length - fw.ToArray().Length]; Array.Copy(v4, v3, v3.Length);     // D-N176: los víveres van al final, NetVersion 4
             var ew = new SaveWriter(); EmbarqueState.WriteEmpty(ew); int etail = ew.ToArray().Length;      // D-N166: los pasajeros (vacío) van al final, NetVersion 3
             var v2 = new byte[v3.Length - etail]; Array.Copy(v3, v2, v2.Length);
             int tail = ProductionTailLength(fresh.Graph.Nodes.Count);

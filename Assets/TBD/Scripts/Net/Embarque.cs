@@ -83,6 +83,7 @@ namespace TBD.Net
             if (node < 0 || node >= Graph.Nodes.Count) return "No hay estación";
             var sv = Services[service];
             if (sv.Ambushed) return "El tren está emboscado";
+            if (sv.Destroyed) return "El tren se ha perdido";
             if (!TrainAtNode(sv, node)) return "El tren no está en la estación";
             if (sv.GateNode == node && t == PasajeroTipo.Vehiculo) return "El tren espera a las puertas: los vehículos suben en el andén";   // D-N152
             int i = Embarque.Find(t, id);
