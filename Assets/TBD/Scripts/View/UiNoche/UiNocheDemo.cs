@@ -73,14 +73,9 @@ namespace TBD.View.UiNoche
 
         public static void Hud(IUiNocheDatos d, float t)
         {
-            // reloj (D-N65) y barra de la noche (D-N106)
+            // reloj (D-N65); la barra de la noche (D-N106) se quita del todo: D-N157, no hay oleadas (D-N136)
             UiNocheKit.Slice("ui_panel", new Rect(288, 4, 64, 22));
             UiNocheKit.Texto(320, 8, d.Reloj, UiNocheKit.Hueso, 11, TextAnchor.UpperCenter);
-            UiNocheKit.Pieza("ui_barra_noche_fondo", 288, 28);
-            UiNocheKit.Recorte("ui_barra_noche_relleno", 288, 28, d.ProgresoNoche);
-            UiNocheKit.Pieza("ui_barra_noche_marca", 288 + Mathf.Round(d.ProgresoNoche * 63) - 1, 26);   // centrada en progreso × 63 (ui_barra_noche.json)
-            UiNocheKit.Pieza("ui_barra_noche_luna_7", 279, 27);
-            UiNocheKit.Pieza("ui_barra_noche_sol_7", 354, 27);
             // recursos
             Recurso(0, "ui_recurso_municion_16", d.Municion);
             Recurso(1, "ui_recurso_materiales_16", d.Materiales);

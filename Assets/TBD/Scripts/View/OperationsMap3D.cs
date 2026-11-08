@@ -695,6 +695,8 @@ namespace TBD.View
                 string tn = _a.Encounter.Active && _a.Encounter.Service == i ? "bajo_ataque" : sv.Ambushed ? "bajo_ataque" : sv.Train.State == RailTrainState.EnMarcha ? "en_marcha" : sv.Train.State == RailTrainState.Detenido ? "detenido" : "detenido";
                 DrawIcon(new Rect(sp.x - tp * 0.5f, Screen.height - sp.y - tp * 1.6f, tp, tp), "trenes/vm_tren_" + tn + "_32");
                 GUI.Label(new Rect(sp.x - 30, Screen.height - sp.y - 26 - _small.fontSize * 0.8f, 160, _small.fontSize * 2.2f), "<b><color=#FFF0A0>" + _a.Services[i].Train.Name + "</color></b>", _small);
+                string se = tn == "bajo_ataque" ? null : Puertas.SinEscolta(_a, i);       // D-N177: ámbar en el icono; el rojo es solo el de bajo ataque
+                if (se != null) GUI.Label(new Rect(sp.x - 30, Screen.height - sp.y - 26 + _small.fontSize * 1.2f, 260, _small.fontSize * 2.2f), "<color=#E08C30>" + se + "</color>", _small);
             }
 
             float pw = Mathf.Min(460, Screen.width * 0.38f);

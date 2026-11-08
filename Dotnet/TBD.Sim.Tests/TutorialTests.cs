@@ -566,19 +566,15 @@ namespace TBD.Sim.Tests
                 check(Plantel.Pelotones("Valencia").Count == 0 && Plantel.Pelotones("Teruel").Count == 0, "Valencia y Teruel (caídas): sin unidades");
             }
 
-            // --- D-N152: el tren espera a las puertas de una estación sitiada o sin plaza
+            // --- D-N152 (regla de Nacho en la red) y D-N177 (aviso en ámbar): Puertas solo la lee
             {
                 var w = NetScenario.Inicio(); int sg = TrenPreparar.Nodo(w, "Sagunto"), nu = TrenPreparar.Nodo(w, "Nules");
-                check(Puertas.Plazas(w, sg) == 2 && Puertas.Plazas(w, nu) == 1, "plazas: 2 en Sagunto (principal) y 1 en Nules (pequeña)");
-                check(Puertas.Parados(w, sg).Count == 2 && !Puertas.EnPuertas(w, 0, sg) && !Puertas.EnPuertas(w, 1, sg), "los dos trenes de partida caben en Sagunto: ninguno a las puertas");
-                w.Graph.Nodes[sg].State = NodeState.Asediada;
-                check(Puertas.EnPuertas(w, 0, sg) && Puertas.EnPuertas(w, 1, sg) && Puertas.Motivo(w, 0, sg).StartsWith("Estación sitiada"), "con Sagunto sitiada, los dos esperan a las puertas (solo baja la tropa)");
-                w.Graph.Nodes[sg].State = NodeState.Segura;
-                check(!Puertas.EnPuertas(w, 0, sg) && Puertas.Motivo(w, 0, sg) == null, "acabado el asedio, el tren entra");
-                Puertas.Ampliacion = 0;
-                foreach (var sv in w.Services) { sv.Stops.Clear(); sv.Stops.Add(new ScheduleStop { Node = nu, DepartAt = 0, Transfer = new int[NetConst.ResCount] }); sv.StopIndex = 0; sv.AtStop = true; }
-                check(!Puertas.EnPuertas(w, 0, nu) && Puertas.EnPuertas(w, 1, nu) && Puertas.Motivo(w, 1, nu).StartsWith("Sin plaza"), "dos trenes en Nules (1 plaza): el segundo espera a las puertas");
-                Puertas.Ampliacion = 1; check(!Puertas.EnPuertas(w, 1, nu), "ampliando la estación (D-N153) entra el segundo"); Puertas.Ampliacion = 0;
+                check(Puertas.Plazas(w, sg) == w.TrainSlots(sg) && Puertas.Plazas(w, nu) == w.TrainSlots(nu), "las plazas son las de la red (NetWorld.TrainSlots)");
+                check(!Puertas.EnPuertas(w, 0, sg) && Puertas.Motivo(w, 0) == null && Puertas.SinEscolta(w, 0) == null, "al empezar, ningún tren a las puertas ni aviso");
+                w.Services[1].GateNode = nu; w.Graph.Nodes[nu].State = NodeState.Asediada;
+                check(Puertas.EnPuertas(w, 1, nu) && Puertas.Motivo(w, 1) == w.GateReason(1) && Puertas.Motivo(w, 1).Contains("sitiada"), "a las puertas según GateNode de la red, con su motivo");
+                check(Puertas.SinEscolta(w, 1) == "Sin escolta: Nules está sitiada", "D-N177: «Sin escolta: Nules está sitiada» en ámbar");
+                w.Graph.Nodes[nu].State = NodeState.Segura; check(Puertas.SinEscolta(w, 1) == null, "sin asedio, sin aviso");
             }
 
             // --- D-N156: Nules sin asedio la 1.ª noche

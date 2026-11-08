@@ -166,7 +166,7 @@ namespace TBD.View
 
         // ---------------------------------------------------------------- viaje en curso (sobrevive al cambio de escena: el tren sigue en la red)
         public static int Viaje = -1, Origen = -1, Destino = -1; static bool _descargando, _llegado; static int _munEnvio;
-        static float _avisoHasta, _aparcadoT = -10f; static string _aviso;
+        static float _avisoHasta, _aparcadoT = -10f; static string _aviso; static bool _avisoAmbar;     // D-N177: el de «Sin escolta» va en ámbar
         static NetWorld W { get { return NetSession.A; } }
         static int Nodo(string n) { return W == null ? -1 : TrenPreparar.Nodo(W, n); }
         static int Casa { get { return W == null ? -1 : W.Embarque.HomeNode; } }
@@ -201,7 +201,7 @@ namespace TBD.View
                 NetSession.PushPayload(NetCmdType.SetSchedule, Viaje, TrenPreparar.Aparcar(W, Viaje)); _aparcadoT = Time.unscaledTime;
                 string nombre = W.Graph.Nodes[meta].Name;
                 if (_descargando) { Debug.Log("[TREN] vuelve a " + nombre + " y se aparca"); Viaje = -1; _descargando = false; return; }
-                _llegado = true; _aviso = Puertas.EnPuertas(W, Viaje, meta) ? "Tren a las puertas de " + nombre : "Tren en " + nombre;     // D-N152: sitiada o sin plaza _avisoHasta = Time.unscaledTime + 5f;
+                _llegado = true; _avisoAmbar = false; _aviso = Puertas.EnPuertas(W, Viaje, meta) ? "Tren a las puertas de " + nombre : "Tren en " + nombre; _avisoHasta = Time.unscaledTime + 5f;     // D-N152: sitiada o sin andén (regla de Nacho)
                 Debug.Log($"[TREN] llega a {nombre} y se aparca (carga {sv.CargoTotal()} u, {W.Embarque.CountAboard(Viaje, PasajeroTipo.Peloton)} pelotón, {W.Embarque.CountAboard(Viaje, PasajeroTipo.Vehiculo)} vehículo)");
                 if (meta == Casa) TutorialHud.Senal(TutorialGuion.Senales.TrenEnSagunto);
                 if (meta == Nodo("Nules")) TutorialHud.Senal(TutorialGuion.Senales.TrenEnNules);
@@ -277,6 +277,7 @@ namespace TBD.View
             var p = TrenPreparar.Envio(W, sv, _destinoP, _carga); if (p == null) return;
             NetSession.PushPayload(NetCmdType.SetSchedule, sv, p);
             Empezar(sv, _origenP, _destinoP, _carga[(int)Res.Municion]);
+            if (W.Besieged(_destinoP)) { _aviso = Puertas.AvisoSitiada(W, _destinoP); _avisoHasta = Time.unscaledTime + 5f; _avisoAmbar = true; Debug.Log("[TREN] " + _aviso); }   // D-N177: en ámbar
             _vista = Vista.Nada;
             Debug.Log($"[TREN] enviado {W.Services[sv].Train.Name} de {W.Graph.Nodes[_origenP].Name} a {W.Graph.Nodes[_destinoP].Name}: carga {string.Join("/", _carga)}, ETA {TrenPreparar.HhMm(TrenPreparar.EtaDesdeParada(W, sv, _destinoP))}");
             TutorialHud.Senal(TutorialGuion.Senales.TrenEnviado);
@@ -389,7 +390,7 @@ namespace TBD.View
             if (Time.unscaledTime < _avisoHasta && _aviso != null)
             {
                 var r = new Rect(Screen.width * 0.5f - u * 8, u * 8.2f, u * 16, u * 2.2f);
-                GUI.DrawTexture(r, _panel); GUI.Label(new Rect(r.x + u, r.y + u * 0.4f, r.width, r.height), "<b>" + _aviso + "</b>", _s);
+                GUI.DrawTexture(r, _panel); GUI.Label(new Rect(r.x + u, r.y + u * 0.4f, r.width, r.height), (_avisoAmbar ? "<b><color=#E08C30>" + _aviso + "</color></b>" : "<b>" + _aviso + "</b>"), _s);
             }
             if (_vista == Vista.Menu) Menu(_nodoMenu, u);
             else if (_vista == Vista.Preparar) PanelPreparar(u);

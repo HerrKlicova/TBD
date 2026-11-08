@@ -635,8 +635,7 @@ namespace TBD.View
             float inPl = 0f; bool empty = false; foreach (var pl0 in _uw.Platoons) { inPl += pl0.AmmoShots / (float)WeaponCatalog.ShotsPerU; if (pl0.AliveCount() > 0 && pl0.AmmoShots <= 0 && _uw.StockShots <= 0) empty = true; }
             GUI.Label(new Rect(20 * k, 16 * k, 900 * k, 40 * k), $"munición {u + inPl:0.0} u (almacén {u:0.0})   ·   abatidos {_nightKills}   ·   pila {_pileNearStation}", _nStyle);
             if (empty) { var cs0 = _nStyle.normal.textColor; _nStyle.normal.textColor = new Color32(0xe0, 0x8c, 0x30, 255); GUI.Label(new Rect(20 * k, 70 * k, 900 * k, 40 * k), "SIN MUNICIÓN: el almacén está vacío", _nStyle); _nStyle.normal.textColor = cs0; }
-            int wv = Mathf.Max(0, CurrentWave());
-            GUI.Label(new Rect(W - 820 * k, 16 * k, 800 * k, 40 * k), $"oleada {wv + 1}/{_ng.P.Waves.Length}   ·   estación {Mathf.CeilToInt(100f * _ng.StationHp / Mathf.Max(1, _ng.StationHpMax))} %   tren {Mathf.CeilToInt(100f * _ng.TrainHp / Mathf.Max(1, _ng.TrainHpMax))} %", _nStyle);
+            GUI.Label(new Rect(W - 820 * k, 16 * k, 800 * k, 40 * k), $"estación {Mathf.CeilToInt(100f * _ng.StationHp / Mathf.Max(1, _ng.StationHpMax))} %   tren {Mathf.CeilToInt(100f * _ng.TrainHp / Mathf.Max(1, _ng.TrainHpMax))} %", _nStyle);
             // rótulo de oleada
             if (Time.unscaledTime < _bannerUntil)
             {
