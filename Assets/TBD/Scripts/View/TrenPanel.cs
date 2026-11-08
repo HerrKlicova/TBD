@@ -263,11 +263,12 @@ namespace TBD.View
             int hueco = TrenPreparar.Hueco(W, sv) - total;
             _carga[r] = Mathf.Clamp(_carga[r] + Mathf.Min(d, hueco), 0, Mathf.Min(NetWorld.MaxScheduleTransfer, W.Stock[_origenP, r]));
             if (_carga[r] > 0) { _sinCarga = false; TutorialHud.Senal(TutorialGuion.Senales.CargaPuesta); if (r == (int)Res.Materiales) TutorialHud.Senal(TutorialGuion.Senales.MaterialesPuestos); }
+            if (r == (int)Res.Municion && _carga[r] > 0 && _origenP == Casa) TutorialHud.Viaje.MunicionPuesta();
         }
         void PonerDestino(int node)
         {
             _destinoP = node;
-            if (node == Nodo("Nules")) TutorialHud.Senal(TutorialGuion.Senales.DestinoNules);
+            if (node == Nodo("Nules")) { TutorialHud.Senal(TutorialGuion.Senales.DestinoNules); if (_origenP == Casa) TutorialHud.Viaje.DestinoNules(); }
             if (node == Casa) TutorialHud.Senal(TutorialGuion.Senales.DestinoSagunto);
         }
         void Enviar()
@@ -279,8 +280,7 @@ namespace TBD.View
             _vista = Vista.Nada;
             Debug.Log($"[TREN] enviado {W.Services[sv].Train.Name} de {W.Graph.Nodes[_origenP].Name} a {W.Graph.Nodes[_destinoP].Name}: carga {string.Join("/", _carga)}, ETA {TrenPreparar.HhMm(TrenPreparar.EtaDesdeParada(W, sv, _destinoP))}");
             TutorialHud.Senal(TutorialGuion.Senales.TrenEnviado);
-            int carga = 0; foreach (var c in _carga) carga += c;
-            TutorialHud.Viaje.Enviado(sv, W.Graph.Nodes[_origenP].Name, W.Graph.Nodes[_destinoP].Name, carga);
+            TutorialHud.Viaje.Enviado(sv, W.Graph.Nodes[_origenP].Name, W.Graph.Nodes[_destinoP].Name, _carga[(int)Res.Municion]);
         }
         /// <summary>Descargar fuera de casa (el flujo Sagunto → otra estación): la carga y la tropa se quedan allí y el tren vuelve a su origen.</summary>
         /// <summary>
@@ -296,7 +296,7 @@ namespace TBD.View
             Embarque.BajarTodo(Viaje, Destino); _descargadoAqui = true; _vista = Vista.Nada;
             Debug.Log("[TREN] descarga en " + W.Graph.Nodes[Destino].Name + " (el tren se queda)");
             TutorialHud.Senal(TutorialGuion.Senales.Descargado);
-            TutorialHud.Viaje.Descargado(Viaje, W.Graph.Nodes[Destino].Name);
+            if (hay) TutorialHud.Viaje.Descargado(Viaje, W.Graph.Nodes[Destino].Name);      // con asedio la carga no baja (D-N166): el objetivo espera
         }
 
         static Texture2D Tex(Color c) { var t = new Texture2D(1, 1); t.SetPixel(0, 0, c); t.Apply(); return t; }
@@ -463,7 +463,7 @@ namespace TBD.View
                 bool abordo = aBordoP.Contains(id), subiendo = Embarque.EnCola(PasajeroTipo.Peloton, id); bool puede = Embarque.PorQueNo(sv, PasajeroTipo.Peloton, id, org) == null;
                 var br = new Rect(x0 + (i % 2) * (ww * 0.5f + 2), yy + (i / 2) * lh, ww * 0.5f - 2, lh * 0.9f);
                 if (Boton(br, (abordo ? "✓ " : subiendo ? "… " : "") + NombrePeloton(id), abordo || subiendo || puede))
-                { if (!abordo && !subiendo) { Embarque.Subir(sv, PasajeroTipo.Peloton, id, org); TutorialHud.Senal(TutorialGuion.Senales.PelotonABordo); } }
+                { if (!abordo && !subiendo) { Embarque.Subir(sv, PasajeroTipo.Peloton, id, org); TutorialHud.Senal(TutorialGuion.Senales.PelotonABordo); TutorialHud.Viaje.EscoltaPuesta(); } }
             }
             yy += lh * filasP + lh * 0.2f;
             // apoyo terrestre
@@ -479,7 +479,7 @@ namespace TBD.View
                 {
                     if (!abordo && !cargando)
                     {
-                        Embarque.Subir(sv, PasajeroTipo.Vehiculo, vi, org); _sinApoyo = false; TutorialHud.Senal(TutorialGuion.Senales.VehiculoABordo);
+                        Embarque.Subir(sv, PasajeroTipo.Vehiculo, vi, org); _sinApoyo = false; TutorialHud.Senal(TutorialGuion.Senales.VehiculoABordo); TutorialHud.Viaje.EscoltaPuesta();
                         if (NombreVeh(vi).StartsWith("Lince")) TutorialHud.Senal(TutorialGuion.Senales.LinceABordo);
                     }
                 }

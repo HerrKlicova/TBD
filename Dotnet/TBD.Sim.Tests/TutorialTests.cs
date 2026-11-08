@@ -328,18 +328,22 @@ namespace TBD.Sim.Tests
                 a1.Avanzar(12f, l1); a2.Avanzar(12f, l2); check(string.Join(",", l1) == string.Join(",", l2) && l1.Exists(x => x.StartsWith("sfx_tren_arranque_diesel333_")), "misma semilla, mismos clips; el diésel usa sfx_tren_arranque_diesel333");
             }
 
-            // --- objetivo «Viaje de carga a Nules» (D-N172 ajustada): cargar, llegar, descargar con CmdCargo y volver
+            // --- objetivo de campaña «Lleva munición a Nules» (textos de Lucía): munición, escolta opcional, destino, viaje, descarga (5b si sitiada) y vuelta
             {
                 var ov = new ObjetivoViaje();
-                check(ov.Paso == PasoViaje.Inactivo && ov.Texto == null, "antes del amanecer no hay objetivo");
-                ov.Empezar(); check(ov.Paso == PasoViaje.Cargar && ov.Texto.StartsWith("Carga el tren en Sagunto"), "al amanecer: «Carga el tren en Sagunto y mándalo a Nules.»");
-                ov.Enviado(1, "Sagunto", "Nules", 0); check(ov.Paso == PasoViaje.Cargar, "sin carga no cuenta");
-                ov.Enviado(1, "Sagunto", "Castellón", 50); check(ov.Paso == PasoViaje.Cargar, "a otro sitio no cuenta");
-                ov.Enviado(1, "Sagunto", "Nules", 50); check(ov.Paso == PasoViaje.EnCamino && ov.Texto.Contains("{eta}"), "con carga hacia Nules: en camino (con el ETA)");
-                ov.Llegado(2, "Nules"); check(ov.Paso == PasoViaje.EnCamino, "otro tren no cuenta");
-                ov.Llegado(1, "Nules"); check(ov.Paso == PasoViaje.Descargar, "llega a Nules: «Descarga la carga.»");
-                ov.Descargado(1, "Nules"); check(ov.Paso == PasoViaje.Volver, "descargado: «Devuelve el tren a Sagunto.»");
-                ov.Llegado(1, "Sagunto"); check(ov.Paso == PasoViaje.Cumplido && ov.Texto.StartsWith("Cumplido"), "de vuelta en Sagunto: cumplido");
+                check(ov.Paso == PasoViaje.Inactivo && ov.Texto() == null && ObjetivoViaje.Titulo == "Lleva munición a Nules", "antes del amanecer no hay objetivo");
+                check(ObjetivoViaje.HayObjetivo(725) && ObjetivoViaje.HayObjetivo(850) && !ObjetivoViaje.HayObjetivo(1000), "sale en fácil y normal (aunque se saltara el tutorial) y en difícil no");
+                ov.Empezar(); check(ov.Paso == PasoViaje.Cargar && ov.Texto() == "Carga munición en el tren de Sagunto: abre Preparar tren.", "paso 1: cargar munición");
+                ov.Enviado(1, "Sagunto", "Nules", 0); check(ov.Paso == PasoViaje.Cargar, "un tren a Nules sin munición no cuenta");
+                ov.MunicionPuesta(); check(ov.Paso == PasoViaje.Escolta && ov.Texto().StartsWith("Sube tropa o un vehículo"), "con munición puesta: paso 2, escolta (opcional)");
+                ov.DestinoNules(); check(ov.Paso == PasoViaje.Destino && ov.Texto() == "Destino: Nules. Mira el ETA y envíalo.", "poner destino sin escolta se salta el paso 2");
+                var ov2 = new ObjetivoViaje(); ov2.Empezar(); ov2.MunicionPuesta(); ov2.EscoltaPuesta(); check(ov2.Paso == PasoViaje.Destino, "con escolta también pasa al destino");
+                var ov3 = new ObjetivoViaje(); ov3.Empezar(); ov3.MunicionPuesta(); ov3.Enviado(4, "Sagunto", "Nules", 30); check(ov3.Paso == PasoViaje.EnCamino, "si sale sin escolta y sin pasar por el destino, el paso 2 se salta solo");
+                ov.Enviado(1, "Sagunto", "Nules", 30); check(ov.Paso == PasoViaje.EnCamino && ov.Texto().Contains("{eta}"), "en camino, con el ETA");
+                ov.Llegado(1, "Nules");
+                check(ov.Paso == PasoViaje.Descargar && ov.Texto(false) == "Tren en Nules. Descarga la munición." && ov.Texto(true) == "Nules está sitiada: la carga se queda a bordo hasta que se despeje.", "llegada: descargar, o el 5b si Nules está sitiada");
+                ov.Descargado(1, "Nules"); check(ov.Paso == PasoViaje.Volver && ov.Texto() == "Devuelve el tren a Sagunto.", "descargado: volver");
+                ov.Llegado(1, "Sagunto"); check(ov.Paso == PasoViaje.Cumplido && ov.Texto() == "Cumplido. Nules tiene munición para aguantar.", "cumplido");
                 // y en la red: CmdCargo baja la carga en Nules con el tren parado, que luego vuelve
                 var w = NetScenario.Mvp(); w.DirectorEnabled = false;
                 int sag = TrenPreparar.Nodo(w, "Sagunto"), nul = TrenPreparar.Nodo(w, "Nules");
@@ -354,6 +358,17 @@ namespace TBD.Sim.Tests
                 for (int i = 0; i < 3; i++) w.Step();
                 check(s.CargoTotal() == 0 && w.Stock[nul, (int)Res.Municion] == nulMun0 + 30 && s.AtStop && s.Stops[s.StopIndex].Node == nul, "CmdCargo descarga en Nules y el tren se queda parado allí");
                 check(w.SetSchedule(sv, TrenPreparar.Envio(w, sv, sag, null)) == ScheduleResult.Ok, "y desde Nules se le puede mandar de vuelta a Sagunto");
+            }
+
+            // --- Nules v0.1 (Álvaro): el tren para en el apartado del muelle y los puntos de bajada
+            {
+                string nj = BalanceSource.Read("estacion_nules.json");
+                check(nj != null, "existe Data/estacion_nules.json (Nules v0.1)");
+                var ed = EstacionDato.FromJson(nj); check(ed.Id == "nules" && ed.Tamano == EstacionTamano.Pequena && ed.Vias.Count == 3, "EstacionDato lee Nules: pequeña, con 3 vías (las dos generales y el apartado)");
+                var ap = AndenPuntos.FromJson(nj);
+                check(ap != null && ap.Via == "apartado" && ap.MorroX == 182000 && ap.MorroZ == 49000, "el tren para con el morro en (182000; 49000) mm, en el apartado");
+                check(ap.TropaX == 130000 && ap.TropaZ == 44500 && ap.VehiculoX == 184000 && ap.VehiculoZ == 44400 && ap.SitiadaX == 50000 && ap.SitiadaZ == 44500, "bajadas: tropa y carga (130; 44,5), vehículo (184; 44,4), sitiada fuera (50; 44,5)");
+                check(AndenPuntos.FromJson(BalanceSource.Read("estacion_betera.json")) == null, "Bétera no tiene tren: sin puntos de andén");
             }
 
             // --- intro C

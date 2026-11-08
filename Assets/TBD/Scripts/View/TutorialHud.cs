@@ -82,8 +82,9 @@ namespace TBD.View
         static void VigilarViaje()
         {
             var w = NetSession.A;
-            if (Viaje.Paso == PasoViaje.Inactivo && _i != null && _i._principal != null && _i._principal.Estado == EstadoTutorial.Terminado && w != null && w.Tick >= NetConst.DayTicks + NetConst.Hours(7))
-            { Viaje.Empezar(); Debug.Log("[TUTORIAL] objetivo: " + ObjetivoViaje.Titulo); }     // al amanecer, después de la primera noche
+            // objetivo de campaña: al amanecer después de la primera noche, también si se saltó el tutorial; en difícil, no (Lucía)
+            if (Viaje.Paso == PasoViaje.Inactivo && NightRun.Active && ObjetivoViaje.HayObjetivo(NightRun.Difficulty) && w != null && w.Tick >= NetConst.DayTicks + NetConst.Hours(7))
+            { Viaje.Empezar(); Debug.Log("[TUTORIAL] objetivo: " + ObjetivoViaje.Titulo); }
             if (Viaje.Paso == PasoViaje.Cumplido && _viajeCumplidoHasta < 0) { _viajeCumplidoHasta = Time.unscaledTime + 6f; Debug.Log("[TUTORIAL] objetivo cumplido: " + ObjetivoViaje.Titulo); }
         }
         static bool ObjetivoVisible { get { return Viaje.Paso != PasoViaje.Inactivo && (Viaje.Paso != PasoViaje.Cumplido || Time.unscaledTime < _viajeCumplidoHasta); } }
@@ -329,7 +330,8 @@ namespace TBD.View
             VigilarViaje();
             if (ObjetivoVisible)
             {
-                string txt = "Objetivo · " + ObjetivoViaje.Titulo + ": " + Viaje.Texto.Replace("{eta}", TrenPanel.EtaTexto());
+                var wn = NetSession.A; int nul = wn != null ? TrenPreparar.Nodo(wn, "Nules") : -1;
+                string txt = "Objetivo · " + ObjetivoViaje.Titulo + ": " + Viaje.Texto(wn != null && nul >= 0 && wn.Besieged(nul)).Replace("{eta}", TrenPanel.EtaTexto());
                 var r = new Rect(8, Ancla(), Mathf.Min(640f, Screen.width * 0.42f), u * 2.4f);
                 GUI.DrawTexture(r, _panel); Frame(r, 0.5f);
                 GUI.Label(new Rect(r.x + u * 0.7f, r.y + u * 0.4f, r.width, r.height), txt, _line);

@@ -1,0 +1,315 @@
+{
+ "id": "nules",
+ "nombre": "Nules-La Vilavella",
+ "tamano": "pequena",
+ "funcion": "viveres",
+ "estado_inicial": "propia",
+ "nota": "Álvaro (3), 8-nov (nules-nivel.md v0.1). Coordenadas locales de la zona de 256 × 128 m: X a lo largo de la vía hacia Castellón, Z hacia el pueblo. Andenes, vías y edificio de viajeros según OSM y PNOA (planta de Paula); el apartado, el muelle y el recinto son ficción nuestra. Sin girar (la vía real va a ~35°).",
+ "vias": [
+  [
+   [
+    0,
+    66.4
+   ],
+   [
+    256,
+    66.4
+   ]
+  ],
+  [
+   [
+    0,
+    62.6
+   ],
+   [
+    256,
+    62.6
+   ]
+  ],
+  [
+   [
+    -100,
+    49
+   ],
+   [
+    184,
+    49
+   ]
+  ]
+ ],
+ "vias_nota": [
+  "general 1, ancho ibérico (andén del edificio)",
+  "general 2, tercer carril",
+  "apartado nuevo del muelle; la aguja queda en el faldón oeste (X ≈ −100); topera en X 184"
+ ],
+ "andenes": [
+  [
+   26,
+   68.2,
+   231,
+   79.2
+  ],
+  [
+   26,
+   53.8,
+   231,
+   60.8
+  ]
+ ],
+ "muelle": {
+  "rect": [
+   90,
+   41.5,
+   170,
+   47.3
+  ],
+  "altura_m": 1.2,
+  "rampa": [
+   170,
+   41.5,
+   182,
+   47.3
+  ],
+  "nota": "ficción (idea de Paula): muelle de carga junto al apartado, del lado del polígono"
+ },
+ "recinto": [
+  [
+   85,
+   40
+  ],
+  [
+   188,
+   40
+  ],
+  [
+   188,
+   96
+  ],
+  [
+   125.5,
+   96
+  ],
+  [
+   125.5,
+   113
+  ],
+  [
+   104.5,
+   113
+  ],
+  [
+   104.5,
+   96
+  ],
+  [
+   85,
+   96
+  ]
+ ],
+ "recinto_nota": "El edificio de viajeros (X 104,5–125,5) hace de tramo del muro norte. 318 m de perímetro: 269,2 m de HESCO, 21 m de edificio y 27,8 m de puertas. SIN COSTEAR (Hugo).",
+ "puertas": [
+  {
+   "tipo": "via_doble",
+   "pos": [
+    85,
+    64.5
+   ],
+   "hueco_z": [
+    60.8,
+    68.2
+   ]
+  },
+  {
+   "tipo": "via_doble",
+   "pos": [
+    188,
+    64.5
+   ],
+   "hueco_z": [
+    60.8,
+    68.2
+   ]
+  },
+  {
+   "tipo": "via",
+   "pos": [
+    85,
+    49
+   ],
+   "hueco_z": [
+    46.5,
+    51.5
+   ]
+  },
+  {
+   "tipo": "vehiculos",
+   "pos": [
+    182,
+    40
+   ],
+   "hueco_x": [
+    178,
+    186
+   ]
+  }
+ ],
+ "tren_capitulo3": {
+  "via": "apartado",
+  "morro_mm": [
+   182000,
+   49000
+  ],
+  "cola_mm_si_64m": [
+   118000,
+   49000
+  ],
+  "punto_bajada_tropa_mm": [
+   130000,
+   44500
+  ],
+  "punto_bajada_vehiculo_mm": [
+   184000,
+   44400
+  ],
+  "punto_bajada_sitiada_mm": [
+   50000,
+   44500
+  ],
+  "espera_sitiada": "en el apartado, fuera de la puerta oeste, X 20–84"
+ },
+ "piezas": [
+  {
+   "pieza": "nules/edificio_viajeros",
+   "pos": [
+    115,
+    0,
+    104.5
+   ],
+   "yaw": 180,
+   "variante": -1,
+   "nota": "17 × 21 m, 2 plantas; fachada a la vía (−Z)"
+  },
+  {
+   "pieza": "poligono/almacen_citricola",
+   "pos": [
+    119,
+    0,
+    15.5
+   ],
+   "yaw": 0,
+   "variante": 4,
+   "nota": "cooperativa del kit, 90 × 28 m"
+  },
+  {
+   "pieza": "poligono/nave",
+   "pos": [
+    34,
+    0,
+    15.5
+   ],
+   "yaw": 0,
+   "variante": -1,
+   "nota": "60 × 28 m"
+  },
+  {
+   "pieza": "poligono/nave",
+   "pos": [
+    221,
+    0,
+    15.5
+   ],
+   "yaw": 0,
+   "variante": -1,
+   "nota": "58 × 28 m"
+  },
+  {
+   "pieza": "via/topera",
+   "pos": [
+    185,
+    0,
+    49
+   ],
+   "yaw": 90,
+   "variante": -1
+  }
+ ],
+ "carreteras": [
+  {
+   "id": "calle_estacion",
+   "nombre": "Calle de la Estación (pueblo)",
+   "tramo": [
+    [
+     0,
+     86
+    ],
+    [
+     256,
+     86
+    ]
+   ],
+   "habilitada": true
+  },
+  {
+   "id": "calle_poligono",
+   "nombre": "Calle del polígono (al paso inferior, ≈330 m al NE, faldón)",
+   "tramo": [
+    [
+     0,
+     35
+    ],
+    [
+     256,
+     35
+    ]
+   ],
+   "habilitada": true
+  },
+  {
+   "id": "acceso_muelle",
+   "nombre": "Rampa del muelle a la puerta de vehículos",
+   "tramo": [
+    [
+     176,
+     44.4
+    ],
+    [
+     182,
+     44.4
+    ],
+    [
+     182,
+     35
+    ]
+   ],
+   "habilitada": true
+  }
+ ],
+ "sitios": {
+  "N1_estacion": [
+   115,
+   104.5
+  ],
+  "N2_muelle": [
+   130,
+   44.5
+  ],
+  "N3_poligono": [
+   215,
+   35
+  ]
+ },
+ "entradas_horda": {
+  "Na": "oeste, por la vía (Almenara)",
+  "Nb": "este, por la vía (Castellón, infestada)",
+  "Nc": "norte, desde el pueblo",
+  "Nd": "este, por la calle del polígono (del paso inferior)"
+ },
+ "claros": {
+  "N_C1": [
+   178,
+   15.75
+  ]
+ },
+ "claros_lado_m": 25,
+ "claros_nota": "Patio de carga del polígono entre el almacén citrícola y la nave este (X 165,5–190,5, Z 3,25–28,25), junto a la puerta de vehículos"
+}
