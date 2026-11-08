@@ -386,7 +386,7 @@ namespace TBD.Sim.Tests
                 check(Sum(Id("Valencia")) == 0 && Sum(Id("Teruel")) == 0, "Valencia (caída) y Teruel (bloqueada) sin existencias");
                 int sag = Id("Sagunto"), nul = Id("Nules");
                 check(w.Stock[sag, 0] == 150 && w.Stock[sag, 1] == 140 && w.Stock[sag, 2] == 100 && w.Stock[sag, 3] == 80, "reserva de red de Sagunto en u: 150 / 140 / 100 / 80 personas (Hugo)");
-                check(w.Stock[nul, 0] == 0 && w.Stations.Founded[nul] && Array.IndexOf(w.Stations.P.Sites, "Nules") < 0, "Nules propia desde el principio, con 0 u de munición (Lucía), y ya no se funda");
+                check(Sum(nul) == 0 && w.Stations.Founded[nul] && Array.IndexOf(w.Stations.P.Sites, "Nules") < 0, "Nules propia desde el principio, con todo a 0 (Lucía y Hugo), y ya no se funda");
                 check(w.Services.Count == 2 && w.Services.TrueForAll(x => x.AtStop && x.Stops.Count == 1 && x.Stops[0].Node == sag), "los dos trenes esperan en Sagunto sin horario");
                 for (long i = 0; i < 2L * NetConst.DayTicks; i++) w.Step();
                 check(w.Services.TrueForAll(x => x.AtStop && x.Stops[x.StopIndex].Node == sag), "en dos días ningún tren sale solo (nada llega a Castellón infestada)");
@@ -469,6 +469,13 @@ namespace TBD.Sim.Tests
                 check(RecintoPlan.Nules(BalanceSource.Read("estacion_nules.json"), 0.5f).TrueForAll(p => p.Malla.Contains("_e1_Danado")), "con la vida al 50 % todas las piezas salen dañadas");
                 check(RecintoPlan.VallaBetera(5000, false) == "SM_VallaBetera_Malla_e0_Sana" && RecintoPlan.VallaBetera(4000, true) == "SM_VallaBetera_MuroBajo_e1_SanaGolpeada" && RecintoPlan.VallaBetera(2000, false) == "SM_VallaBetera_Malla_e2_Danada" && RecintoPlan.VallaBetera(1000, false) == "SM_VallaBetera_Malla_e3_MuyDanada" && RecintoPlan.VallaBetera(0, false) == "SM_VallaBetera_Malla_e4_Brecha",
                     "valla de Bétera por vida: ≥ 4.250 sana, 3.500–4.250 golpeada, 1.500–3.500 dañada, 1–1.500 muy dañada y 0 brecha");
+            }
+
+            // --- ids de datos de las estaciones (existencias_red.json de Hugo) contra RailNet
+            {
+                var w = NetScenario.Mvp();
+                check(TrenPreparar.NodoPorId(w, "sagunto") == TrenPreparar.Nodo(w, "Sagunto") && TrenPreparar.NodoPorId(w, "nules") == TrenPreparar.Nodo(w, "Nules") && TrenPreparar.NodoPorId(w, "castellon") == TrenPreparar.Nodo(w, "Castellón"), "los id sagunto, nules y castellon de los JSON encuentran su nodo en RailNet (sin tildes)");
+                check(TrenPreparar.NodoPorId(w, "betera") == -1 && TrenPreparar.IdDe("Puçol") == "pucol", "betera no está en RailNet (es el aeródromo, vive en AerodromoEstado); Puçol → pucol");
             }
 
             // --- intro C
