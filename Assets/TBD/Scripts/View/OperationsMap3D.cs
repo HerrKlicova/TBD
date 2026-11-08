@@ -13,7 +13,7 @@ namespace TBD.View
     /// a unos cientos de metros). Va a resolución completa, sin pixelar (GDD §7). Escena: Assets/Scenes/Union.unity.
     /// Unidades de Unity del mapa: 1 = 1 km. Relieve con exageración vertical.
     /// </summary>
-    public sealed class OperationsMap3D : MonoBehaviour
+    public sealed partial class OperationsMap3D : MonoBehaviour
     {
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
@@ -607,6 +607,7 @@ namespace TBD.View
             var kb = Keyboard.current;
             var mouse = Mouse.current;
             if (kb == null) return;
+            HandleInputApp6(kb);                                     // D-N160: capa APP-6 del informe (tecla I)
             if (kb.spaceKey.wasPressedThisFrame) Push(_a.Paused ? NetCmdType.Resume : NetCmdType.Pause, 0, 0);
             if (kb.digit1Key.wasPressedThisFrame) Push(NetCmdType.SetSpeed, 1, 0);
             if (kb.digit2Key.wasPressedThisFrame) Push(NetCmdType.SetSpeed, 2, 0);
@@ -702,6 +703,7 @@ namespace TBD.View
                 DrawIcon(new Rect(sp.x - px * 0.5f, Screen.height - sp.y - px * 1.1f, px, px), "estaciones/vm_estacion_" + StateName(n.State) + "_32");
                 GUI.Label(new Rect(sp.x + px * 0.5f + 4, Screen.height - sp.y - 10, 220, _small.fontSize * 2.2f), n.Name, _small);
             }
+            DrawApp6();                                              // D-N160: símbolos APP-6 de cada estación (OperationsMap3D.InformeApp6.cs)
             for (int i = 0; i < _trains.Count; i++)
             {
                 var sp = _cam.WorldToScreenPoint(_trains[i].position + Vector3.up * 0.8f * Mathf.Clamp(_dist / 230f, 0.0015f, 2f));
@@ -747,7 +749,7 @@ namespace TBD.View
             DrawCargo(pw);
             DrawIntel();
             GUI.Label(new Rect(16, Screen.height - _small.fontSize * 2.4f, Screen.width, 30),
-                "WASD mover · Q E girar · R F inclinar · rueda zoom (a menos de 2 km de una estación se entra en la zona) · J ir a la alerta · Espacio pausa · 1/2/3 velocidad · F8 emboscada de prueba · Intro entrar en la emboscada · F9 captura", _small);
+                "WASD mover · Q E girar · R F inclinar · rueda zoom (a menos de 2 km de una estación se entra en la zona) · J ir a la alerta · I símbolos APP-6 · Espacio pausa · 1/2/3 velocidad · F8 emboscada de prueba · Intro entrar en la emboscada · F9 captura", _small);
             NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart);
         }
 
@@ -804,7 +806,7 @@ namespace TBD.View
             }
             int n = Mathf.Min(4, _a.Intel.Count);
             float w = Mathf.Min(560, Screen.width * 0.45f);
-            float h = _small.fontSize * (2.2f + n * 1.6f);
+            float h = _small.fontSize * (2.2f + n * 1.6f + (_app6On ? 1.6f : 0f));
             float x = Screen.width - w - 8, y = 8;
             GUI.Box(new Rect(x, y, w, h), GUIContent.none, _panel);
             GUI.Label(new Rect(x + 10, y + 4, w, 30), "<b>INFORME DE INTELIGENCIA</b>" + (n == 0 ? "  <color=#808080>sin novedades</color>" : ""), _small);
@@ -816,6 +818,7 @@ namespace TBD.View
                 GUI.Label(new Rect(x + 12, y, w - 20, 40), $"<color=#C8B890>{NetConst.Clock(e.Tick)} · {src}</color> · {text}", _small);
                 y += _small.fontSize * 1.6f;
             }
+            DrawApp6Leyenda(x + 12, y, w - 20);
         }
 
         void Capture()
