@@ -554,6 +554,18 @@ namespace TBD.Sim.Tests
                 var nd = EstacionDato.FromJson(BalanceSource.Read("estacion_nules.json")); check(nd.Sub == null && !BajadaSubterranea.Tropa(nd, out _, out _, out _), "Nules es de superficie");
             }
 
+            // --- D-N173: plantel propio por estación (el fallo de Eugenio: en todas salían las mismas unidades, helicóptero incluido)
+            {
+                var ps = Plantel.Pelotones("Sagunto"); var vs = Plantel.Vehiculos("Sagunto");
+                check(ps.Count == 5 && ps[0].Tipo == PlatoonKind.Fusileros && ps[0].X == 88000 && ps[0].Y == 54000 && ps[4].Tipo == PlatoonKind.Zapadores && ps[4].Nombre == "Zapadores", "Sagunto: los cinco pelotones de siempre, en sus sitios");
+                check(vs.Count == 3 && vs[0].Nombre == "Dragón" && vs[0].X == 99f && vs[1].Nombre == "VAMTAC 1" && vs[2].Nombre == "VAMTAC 2" && vs[2].X == 80f && !vs.Exists(v => v.Tipo == "nh90"), "Sagunto: Dragón y dos VAMTAC, sin NH90 (el aire sale de Bétera)");
+                check(Plantel.Pelotones("Nules").Count == 0 && Plantel.Vehiculos("Nules").Count == 0, "Nules fuera del tutorial: sin plantel propio (la guarnición es de la red)");
+                var pn = Plantel.Pelotones("Nules", tutorial: true); check(pn.Count == 1 && pn[0].Tipo == PlatoonKind.Fusileros && Plantel.Vehiculos("Nules", true).Count == 0, "Nules en el tutorial: el pelotón de fusileros del capítulo 3, sin vehículos");
+                check(Plantel.Pelotones("Castellón").Count == 0 && Plantel.Vehiculos("Castellón").Count == 0, "Castellón (infestada): sin unidades propias");
+                var pb = Plantel.Pelotones("Bétera"); check(pb.Count == 3 && pb[0].Nombre == "Fusileros 1" && pb[2].Nombre == "Fusileros 3" && Plantel.De("Bétera").NH90 == 2 && Plantel.Vehiculos("Bétera").Count == 0, "Bétera: tres pelotones de fusileros (numerados) y los dos NH90, sin vehículos de tierra");
+                check(Plantel.Pelotones("Valencia").Count == 0 && Plantel.Pelotones("Teruel").Count == 0, "Valencia y Teruel (caídas): sin unidades");
+            }
+
             // --- intro C
             var it = new IntroSecuencia();
             check(it.Tarjetas.Length == 5 && it.TextoEntero == "Día 41 desde el brote.", "intro C: 5 tarjetas y empieza por «Día 41 desde el brote.»");

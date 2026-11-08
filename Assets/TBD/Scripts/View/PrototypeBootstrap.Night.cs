@@ -75,11 +75,10 @@ namespace TBD.View
             _uw = new UnitsWorld(1234u) { StockShots = stock };
             int west = 32768;                                                        // rumbo −X (hacia la puerta oeste)
             _pname.Clear();
-            _pname[_uw.AddPlatoon(PlatoonKind.Fusileros, 88000, 54000, west, Formation.Linea).Id] = "Fusileros";
-            _pname[_uw.AddPlatoon(PlatoonKind.Ametralladores, 94000, 64000, west, Formation.Linea).Id] = "Ametralladores";
-            _pname[_uw.AddPlatoon(PlatoonKind.Granaderos, 98000, 57000, west, Formation.Cuna).Id] = "Granaderos";
-            _pname[_uw.AddPlatoon(PlatoonKind.Tiradores, 98000, 72000, west, Formation.Cuna).Id] = "Tiradores";
-            _pname[_uw.AddPlatoon(PlatoonKind.Zapadores, 88000, 76000, west, Formation.Cuna).Id] = "Zapadores";
+            // D-N173 (Iker): cada estación saca su propio plantel (Plantel.Pelotones); Sagunto, los cinco de siempre en los mismos sitios
+            _estacionZona = NetSession.A != null && _zoneNode >= 0 && _zoneNode < NetSession.A.Graph.Nodes.Count ? NetSession.A.Graph.Nodes[_zoneNode].Name : "Sagunto";
+            foreach (var pp in TBD.Net.Plantel.Pelotones(_estacionZona, TutorialHud.Activo)) _pname[_uw.AddPlatoon(pp.Tipo, pp.X, pp.Y, pp.Rumbo, pp.Formacion).Id] = pp.Nombre;
+            Debug.Log($"[NOCHE] plantel de {_estacionZona}: {_pname.Count} pelotones");
             bool resume = NightRun.Session != null && NightRun.Session.Away && NightRun.Session.Ng != null;
             if (resume)                                                              // la noche ya existia: se reanuda con su NightGame y su UnitsWorld
             {
@@ -99,7 +98,7 @@ namespace TBD.View
             if (!resume) { _bannerText = "22:00. El tren se detiene en Sagunto.\nAguanta hasta el amanecer."; _bannerUntil = Time.unscaledTime + 5f; }
             NearWall(Vector2.zero); Debug.Log($"[NOCHE] muros_obras={_wallSegs.Count}");
             Debug.Log($"[NOCHE] reloj_x={_ng.P.ClockX} municion_u={_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.#} materiales_u=40 combustible_u=30 almacen_combustible_u=16");
-            if (_sel.Count == 0) _sel.Add(_uw.Platoons[0].Id);
+            if (_sel.Count == 0 && _uw.Platoons.Count > 0) _sel.Add(_uw.Platoons[0].Id);
             InitVehicles();
             _rec = resume && NightRun.Session.Rec != null ? NightRun.Session.Rec : new NightTraceRecorder("zona", 1285, 9000, 30);
             if (resume && NightRun.Session.Bot != null) _bot = NightRun.Session.Bot;

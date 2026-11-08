@@ -54,10 +54,13 @@ namespace TBD.View
         void InitVehicles()
         {
             string[] w8 = { "Rueda_1L", "Rueda_1R", "Rueda_2L", "Rueda_2R", "Rueda_3L", "Rueda_3R", "Rueda_4L", "Rueda_4R" };
-            MakeVeh("Dragón", "dragon", "SM_VCR_Dragon_Animable_LOD1", new Vector2(99f, 53f), 180f, false, w8, new[] { "Rueda_1L", "Rueda_1R", "Rueda_2L", "Rueda_2R" }, "Torre", "Canon");
             string[] w4 = { "Rueda_1L", "Rueda_1R", "Rueda_2L", "Rueda_2R" };
-            MakeVeh("VAMTAC 1", "vamtac", "SM_Vamtac_Animable_LOD1", new Vector2(88f, 53f), 180f, false, w4, new[] { "Rueda_1L", "Rueda_1R" }, "Aro", "Ametralladora");
-            MakeVeh("VAMTAC 2", "vamtac", "SM_Vamtac_Animable_LOD1", new Vector2(80f, 53f), 180f, false, w4, new[] { "Rueda_1L", "Rueda_1R" }, "Aro", "Ametralladora");
+            // D-N173 (Iker): los vehículos del plantel de la estación (Sagunto: Dragón y dos VAMTAC, en los sitios de siempre; Nules y Castellón, ninguno)
+            foreach (var c in TBD.Net.Plantel.Vehiculos(_estacionZona ?? "Sagunto", TutorialHud.Activo))
+            {
+                if (c.Tipo == "dragon") MakeVeh(c.Nombre, "dragon", "SM_VCR_Dragon_Animable_LOD1", new Vector2(c.X, c.Z), c.Yaw, false, w8, new[] { "Rueda_1L", "Rueda_1R", "Rueda_2L", "Rueda_2R" }, "Torre", "Canon");
+                else MakeVeh(c.Nombre, "vamtac", "SM_Vamtac_Animable_LOD1", new Vector2(c.X, c.Z), c.Yaw, false, w4, new[] { "Rueda_1L", "Rueda_1R" }, "Aro", "Ametralladora");
+            }
             // D-N173: Sagunto ya no tiene helipuerto ni NH90 de salida; el aire sale del aerodromo de Betera (AerodromoZona)
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-nh90sagunto") >= 0) MakeVeh("NH90", "nh90", "SM_NH90_LOD1", new Vector2(180f, 44f), 270f, true, new string[0], new string[0], null, null);
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-vehfuego") >= 0) foreach (var vf in _vehs) vf.Fire = true;   // prueba de techo (Sara): fuego libre desde el principio
