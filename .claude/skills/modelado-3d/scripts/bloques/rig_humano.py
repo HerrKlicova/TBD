@@ -21,9 +21,44 @@ HUESOS = {   # nombre: (cabeza, cola, padre)
 }
 R = math.radians
 # pose «apuntando» (grados XYZ en el espacio de cada hueso, como las demás claves)
-POSE_APUNTAR = {"brazos": (24, 0, 0), "pecho": (-6, 0, 0), "cabeza": (8, 0, 0), "muslo_L": (-12, 0, 0),
+POSE_APUNTAR = {"pecho": (-6, 0, 0), "cabeza": (8, 0, 0), "muslo_L": (-12, 0, 0),
                 "muslo_R": (8, 0, 0), "pierna_R": (10, 0, 0)}
-POSE_APUNTAR_LOC = (0, -0.12, 0.0)   # el hueso mira a -Y: Y local negativa = hacia atrás, culata al hombro
+# Arma encarada (Lucía, 8-nov 24:50: en Apuntando el fusil mira AL FRENTE, si no el fogonazo y la trazadora salen
+# torcidos). El hueso «brazos» no se gira a ojo: se calcula para que la línea de las manos (la del cañón) quede
+# horizontal y a −Y (delante), sin alabeo, girando sobre el centro de los hombros (la cabeza del hueso, que solo se
+# sube ENCARAR_SUBIR: si se sube más, los hombros se salen del cuerpo porque los brazos son rígidos). Vale igual
+# para «apuntar» y para «disparar» (que encara y retrocede ENCARAR_RETROCESO grados).
+MANOS_REPOSO = [(0.07, -0.28, 1.12), (-0.07, -0.47, 1.06)]   # = soldado.MANOS (derecha, izquierda)
+CENTRO_HOMBROS = (0.0, 0.0, 1.40)                             # = cabeza del hueso «brazos»
+ENCARAR_SUBIR = (0.0, 0.0, 0.03)
+ENCARAR_RETROCESO = 5
+
+
+def _encarar(arm, pecho_rot, cabeceo=0.0):
+    """(rot XYZ en grados, loc) del hueso «brazos» para el arma encarada, con el pecho en pecho_rot. cabeceo: grados
+    de cañón arriba (retroceso), girando sobre la empuñadura."""
+    from mathutils import Matrix, Vector, Euler
+    b = Vector(arm.get("tbd_base", (0.0, 0.0, 0.0)))
+    (xr, yr, zr), (xl, yl, zl) = MANOS_REPOSO
+    f = Vector((xl - xr, yl - yr, zl - zr)).normalized()
+    s = f.cross(Vector((0, 0, 1))).normalized()
+    F = Matrix((f, s, s.cross(f))).transposed()           # columnas: delante, lado, arriba del arma en reposo
+    f2 = Vector((0, -1, 0))
+    s2 = f2.cross(Vector((0, 0, 1))).normalized()
+    G = Matrix((f2, s2, s2.cross(f2))).transposed()
+    h = Vector(CENTRO_HOMBROS) - b
+    giro = Matrix.Rotation(math.radians(cabeceo), 3, s2)
+    Rw = giro @ G @ F.transposed()
+    hr = Vector((xr, yr, zr)) - b                          # el retroceso gira sobre la empuñadura
+    t = h + Vector(ENCARAR_SUBIR) - (G @ F.transposed()) @ h
+    t = t + (G @ F.transposed()) @ hr - Rw @ hr
+    W = Matrix.Translation(t) @ Rw.to_4x4()                # mundo: malla en reposo -> malla encarada
+    bb, bp = arm.data.bones["brazos"], arm.data.bones["pecho"]
+    Pp = bp.matrix_local @ Euler([math.radians(a) for a in pecho_rot], "XYZ").to_matrix().to_4x4()
+    base = Pp @ bp.matrix_local.inverted() @ bb.matrix_local      # «brazos» con el pecho girado y sin pose propia
+    B = base.inverted() @ W @ bb.matrix_local
+    e = B.to_euler("XYZ")
+    return tuple(math.degrees(a) for a in e), tuple(B.to_translation())
 
 
 def _clave(arm, f, hueso, rot=None, loc=None):
@@ -79,20 +114,21 @@ def animaciones(arm, tipo=0):
         19: {"muslo_L": ((0, 0, 0), None), "muslo_R": ((0, 0, 0), None), "pierna_L": ((45, 0, 0), None),
              "pierna_R": ((5, 0, 0), None), "cadera": ((0, 0, 0), (0, 0, 0.03)), "pecho": ((0, 0, 0), None)},
     }, 25)
-    a = 22 if tipo != 3 else 14   # encarar: el arma pasa de alerta baja a la horizontal
+    enc = _encarar(arm, (0, 0, 0))
+    ret = _encarar(arm, (-4, 0, 0), ENCARAR_RETROCESO)
     _accion(arm, "disparar", {
-        1: {"brazos": ((a, 0, 0), None), "pecho": ((0, 0, 0), None), "muslo_L": ((-12, 0, 0), None),
+        1: {"brazos": enc, "pecho": ((0, 0, 0), None), "muslo_L": ((-12, 0, 0), None),
             "muslo_R": ((8, 0, 0), None), "pierna_R": ((10, 0, 0), None)},
-        4: {"brazos": ((a + 5, 0, 0), None), "pecho": ((-4, 0, 0), None)},
-        7: {"brazos": ((a, 0, 0), None), "pecho": ((0, 0, 0), None)},
-        10: {"brazos": ((a + 5, 0, 0), None), "pecho": ((-4, 0, 0), None)},
+        4: {"brazos": ret, "pecho": ((-4, 0, 0), None)},
+        7: {"brazos": enc, "pecho": ((0, 0, 0), None)},
+        10: {"brazos": ret, "pecho": ((-4, 0, 0), None)},
     }, 13)
     # apuntando (Lucía, encargo de control de disparos §4.3, 7-nov): arma al hombro y a la horizontal, orientada al
     # frente; pose fija (bucle de 12 f sin movimiento). El paso de reposo a apuntando (0,25 s) y el retroceso (2 px,
     # 1 fotograma) los hace Marcos por código. Misma pose que el primer fotograma de «disparar», más el pecho
     # adelantado y la cabeza agachada sobre el arma.
     _accion(arm, "apuntar", {
-        1: {"brazos": (POSE_APUNTAR["brazos"], POSE_APUNTAR_LOC), "pecho": (POSE_APUNTAR["pecho"], None),
+        1: {"brazos": _encarar(arm, POSE_APUNTAR["pecho"]), "pecho": (POSE_APUNTAR["pecho"], None),
             "cabeza": (POSE_APUNTAR["cabeza"], None), "muslo_L": (POSE_APUNTAR["muslo_L"], None),
             "muslo_R": (POSE_APUNTAR["muslo_R"], None), "pierna_R": (POSE_APUNTAR["pierna_R"], None)},
     }, 12)
@@ -122,9 +158,15 @@ def rig(o, nombres_huesos, tipo=0):
         x.select_set(False)
     arm.select_set(True)
     bpy.ops.object.mode_set(mode="EDIT")
+    # los huesos van con la malla: entregar.py lleva el origen de la malla al centro de su base (tbd_base) DESPUÉS de
+    # construirla, así que hay que restarlo también a los huesos (sin esto, todo giraba sobre un punto 26 cm por
+    # delante del cuerpo en el soldado armado: el fusil cruzado ensanchaba la caja)
+    b = o.get("tbd_base", (0.0, 0.0, 0.0))
+    arm["tbd_base"] = [float(x) for x in b]
     for n, (h, t, pad) in HUESOS.items():
         eb = ad.edit_bones.new(n)
-        eb.head, eb.tail = h, t
+        eb.head = tuple(h[i] - b[i] for i in range(3))
+        eb.tail = tuple(t[i] - b[i] for i in range(3))
         eb.roll = 0.0
         if pad:
             eb.parent = ad.edit_bones[pad]

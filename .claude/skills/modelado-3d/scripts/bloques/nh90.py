@@ -7,7 +7,9 @@ tirador de puerta), patines laterales (sponsons) con el tren principal, rueda de
 estrecha y sube, deriva inclinada con el rotor de cola de 4 palas a la IZQUIERDA y el estabilizador a la derecha.
 Medidas (Paula: Wikipedia en inglés): fuselaje de 16,13 m y rotor de 16,3 m de diámetro. Lo demás, estimado sobre las
 fotos y SIN VERIFICAR: cabina de 3,0 m de ancho y 2,4 de alto, rotor de cola de 3,2 m, altura total de 5,2 m.
-Armas de puerta: dos FN MAG 58 (7,62), una en cada puerta, en afuste de pivote (montaje SIN VERIFICAR).
+Armas de puerta (Lucía, 8-nov 24:50, como en la ficha del ET): en la puerta derecha una FN M3M (12,7; cajón y cañón más
+gruesos y caja de munición al costado) y en la izquierda una FN MAG 58 (7,62), en afuste de pivote (montaje SIN
+VERIFICAR). La boca de las dos está donde estaba con las dos MAG.
 Colores (Lucía): 50541c con los techos en b4a080 (valor partido del casco) y manchas 845c28 del camuflaje en los
 costados (el pardo de la foto); cristales 60546c y ruedas 48403c (D-N80 de Bruno: ningún albedo propio bajo
 L* 28, así que nada de 181c30 ni 303424); palas 94948c (las puntas rojas de la foto no: nada de rojos); interior de la
@@ -19,7 +21,7 @@ PIEZAS ANIMABLES (FBX con jerarquía, mira a +Z en Unity):
   ├─ RotorCola       cubo y 4 palas; origen en el cubo; gira sobre su X local (el eje lateral).
   └─ DiscoRotor      disco de una cara (16 lados, 94948c) para el rotor en marcha: se enciende por encima de cierta
                      velocidad y entonces se ocultan las palas (Lucía, 23:29). Mira hacia arriba: una sola cara.
-Las MAG van fijas en el fuselaje (a 12–24 px no se ve si apuntan).
+Las armas de puerta van fijas en el fuselaje (a 12–24 px no se ve si apuntan).
 """
 import math, os
 from montaje import Montaje, separar as _separar
@@ -70,9 +72,15 @@ def construir(nombre="SM_NH90", lod=0):
     for s in (-1, 1):
         m.caja((s * 1.505, -3.2, 1.75), (0.04, 1.9, 1.65), "interior")
         m.caja((s * 1.56, -1.15, 1.8), (0.08, 1.9, 1.6), "casco")                   # hoja corrida hacia atrás
-        m.barra((s * 1.35, -3.0, 1.85), (s * 2.35, -3.75, 1.75), 0.09 if fino else 0.14, 0.09 if fino else 0.14,
-                "arma")
-        m.caja((s * 1.55, -3.15, 1.85), (0.22, 0.35, 0.2), "arma")                  # cajón de la MAG
+        if s == -1:   # M3M (derecha): misma boca, cañón y cajón más gruesos, caja de munición al costado
+            m.barra((s * 1.70, -3.26, 1.82), (s * 2.35, -3.75, 1.75), 0.12 if fino else 0.17,
+                    0.12 if fino else 0.17, "arma")
+            m.caja((s * 1.52, -3.13, 1.84), (0.40, 0.42, 0.28), "arma")                # cajón de la M3M
+            m.caja((s * 1.50, -3.42, 1.70), (0.26, 0.20, 0.24), "metal")               # caja de munición
+        else:         # MAG 58 (izquierda)
+            m.barra((s * 1.35, -3.0, 1.85), (s * 2.35, -3.75, 1.75), 0.09 if fino else 0.14,
+                    0.09 if fino else 0.14, "arma")
+            m.caja((s * 1.55, -3.15, 1.85), (0.22, 0.35, 0.2), "arma")              # cajón de la MAG
         if fino:
             m.barra((s * 1.45, -3.0, 0.95), (s * 1.6, -3.1, 1.75), 0.06, 0.06, "metal")   # afuste
     # ---- manchas del camuflaje en los costados (pardo de la foto)
@@ -133,9 +141,9 @@ def separar(o, lod):
 
 
 def BOCAS(lod, raiz, objs):
-    """Bocas de las dos MAG 58 de puerta (Lucía, 8-nov 24:34): el extremo exterior del cañón (la barra de construir),
-    disparando hacia fuera y algo hacia delante, como está modelada. Muzzle_0 a la derecha (−X: el NH90 mira a −Y) y
-    Muzzle_1 a la izquierda (+X). Son hijas de la raíz porque las MAG van fijas en el fuselaje."""
+    """Bocas de las armas de puerta (Lucía, 8-nov 24:34): el extremo exterior del cañón (la barra de construir),
+    disparando hacia fuera y algo hacia delante, como está modelada. Muzzle_0 a la derecha (−X: el NH90 mira a −Y),
+    la M3M, y Muzzle_1 a la izquierda (+X), la MAG 58. Son hijas de la raíz porque las MAG van fijas en el fuselaje."""
     from mathutils import Vector
     base = Vector(raiz.get("tbd_base", (0.0, 0.0, 0.0)))
     out = []

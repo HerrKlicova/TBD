@@ -115,7 +115,13 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
     o = db.construir(nombre, lod=lod)
     out = os.path.join(salida, "lod%d" % lod)
     os.makedirs(out, exist_ok=True)
-    inf = {"limpiar": ns["limpiar"](o)}
+    fija = o.get("tbd_base_fija")   # pivote impuesto por el bloque (mallas fijas en pose: el mismo que en reposo)
+    inf = {"limpiar": ns["limpiar"](o, origen_base=fija is None)}
+    if fija is not None:
+        from mathutils import Matrix, Vector
+        o.data.transform(Matrix.Translation(-Vector(fija)))
+        o.data.update()
+        o["tbd_base"] = [float(x) for x in fija]
     colores = {**db.COLORES, **(getattr(db, "COLORES_LOD1", {}) if lod else {})}
     permitir = tuple(permitir) + tuple(getattr(db, "PERMITIR", ()))   # excepciones de color del bloque (p. ej. 642030)
     r = ns["paleta_por_piezas"](o, colores, ruta_textura=os.path.join(out, "T_Paleta32.png"), permitir=permitir)
