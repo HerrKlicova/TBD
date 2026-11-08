@@ -4,7 +4,7 @@ Teo, 8-nov.
 Hueco de 5 m (Z 62–67 del nivel) por donde entra solo la vía 1, en el muro de HESCO (2,1 m, D-N59; la altura del sólido
 está SIN VERIFICAR, Álvaro: que la confirme Marcos). Dos hojas batientes de 2,5 m que abren HACIA DENTRO (+Y de
 Blender; el tren no las pisa). Jambas de HESCO de 0,9 m por fuera de los 5 m (en la v4, pilares de hormigón con dintel a
-3 m). Las hojas, los estados y la paleta son los de la puerta de vehículos de la D-N163 (puerta_estados.py): chapa
+6 m: abajo a 6,0 m, por encima del tren y de la catenaria de ~5,3 m; Lucía, 8-nov 10:22; SIN VERIFICAR hasta la foto de Paula). Las hojas, los estados y la paleta son los de la puerta de vehículos de la D-N163 (puerta_estados.py): chapa
 94948c, malla b8b8b8, tablones a86c50, boquete y escombro 48403c; nada rojo ni ámbar.
 Disposición: origen en el suelo, en el centro del hueco (sobre el eje de la vía 1); el muro va a lo largo de X; −Y de
 Blender es FUERA (= +Z de Unity con yaw 0). Jerarquía: SM_…_LODn (jambas y dintel) con Hoja_O (bisagra en x = −2,49) y
@@ -42,11 +42,11 @@ def construir(nombre="SM_PuertaVia", lod=0):
     a = VARIANTE
     for s in (-1, 1):
         if a == 4:
-            m.caja((s * JAMBA, 0, 1.5), (0.9, 1.2, 3.0), "hormigon")
+            m.caja((s * JAMBA, 0, 3.25), (0.9, 1.2, 6.5), "hormigon")
         else:
             PV._jamba_hesco(m, s * JAMBA, fino)
-    if a == 4:                              # dintel a 3 m (la silueta de la v4 de la muestra)
-        m.caja((0, 0, 3.25), (2 * JAMBA + 0.9, 0.6, 0.5), "hormigon")
+    if a == 4:                              # dintel con la cara de abajo a 6,0 m: deja pasar el tren y la catenaria
+        m.caja((0, 0, 6.25), (2 * JAMBA + 0.9, 0.6, 0.5), "hormigon")    # (Lucía, 8-nov 10:22; gálibo SIN VERIFICAR)
     if a == 3 and fino:
         for s in (-1, 1):
             m.cilindro((s * JAMBA, 0, 2.3), 0.25, 0.9, "X", 8, "alambre")
