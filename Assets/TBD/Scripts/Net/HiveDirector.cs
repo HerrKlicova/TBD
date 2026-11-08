@@ -154,9 +154,12 @@ namespace TBD.Net
         public long SiegeMovedTotal, DriftMovedTotal, AmbushMovedTotal, BudgetTotal;   // estadísticas para medir (no entran en el hash ni cambian la partida)
         public bool IgnoreAttention;                // solo pruebas: sin el peso de atención
         public ulong Seed;                          // semilla de la partida (0 por defecto)
+        /// <summary>D-N156 (Lucía): un nodo protegido de asedio hasta un tick (Nules, hasta pasada la 1.ª noche). −1 = ninguno. Lo pone NetScenario.Inicio; no se guarda.</summary>
+        public int SinAsedioNodo = -1; public long SinAsedioHasta;
         public long SiegeWeight(NetWorld w, int n)
         {
             var nd = w.Graph.Nodes[n];
+            if (n == SinAsedioNodo && w.Tick + NetConst.Hours(P.SiegeWarnH) < SinAsedioHasta) return 0;   // el asedio empezaría (tras el aviso) antes de acabar la protección
             if (w.Stations.IsSite(n) && !w.Stations.Founded[n]) return 0;      // hito 5 (Mak, 6-nov): un emplazamiento sin fundar no cuenta (ni objetivo ni deriva)
             long wt = P.WeightBase + Math.Max(0, w.Stock[n, (int)Res.Personas]) / PersonsPerHugoUnit;   // el modelo de Hugo cuenta la población en unidades de 10 personas (Valencia 30 = 300)
             if (Array.IndexOf(InteriorNodes, nd.Name) >= 0) wt = wt * P.WeightInteriorMil / 1000;

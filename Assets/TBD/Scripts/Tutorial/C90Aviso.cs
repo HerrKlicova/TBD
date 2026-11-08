@@ -35,4 +35,36 @@ namespace TBD.Tutorial
             return -1;
         }
     }
+
+    /// <summary>
+    /// Las 4 señales de la zona para los capítulos 1 y 2 (riesgo del tablón; las pone Iker con el visto bueno de Lucía). Solo lee lo que la zona le pasa una vez por
+    /// segundo y devuelve las señales que se cumplen ahora:
+    /// - horda_avanza: la horda ya no está en espera y hay zombis vivos en la zona;
+    /// - ataque_rechazado: después de eso, no queda ninguno (el ataque de día acabado);
+    /// - vehiculos_fuera: hay algún vehículo en la zona, vivo y fuera del tren;
+    /// - tramo_sobre_70: un tramo del muro que estaba por debajo del 70 % (el oeste al 45 % del día 1) vuelve a pasar del 70 %.
+    /// </summary>
+    public sealed class SenalesZona
+    {
+        public const int TramoPm = 700;
+        bool _hordaVista;
+        readonly HashSet<int> _bajos = new HashSet<int>();
+
+        public List<string> Mirar(bool hordaEnEspera, int zombisVivos, int vehiculosFuera, IList<int> tramosPm)
+        {
+            var r = new List<string>();
+            if (!hordaEnEspera && zombisVivos > 0) { _hordaVista = true; r.Add(TutorialGuion.Senales.HordaAvanza); }
+            if (_hordaVista && zombisVivos == 0) r.Add(TutorialGuion.Senales.AtaqueRechazado);
+            if (vehiculosFuera > 0) r.Add(TutorialGuion.Senales.VehiculosFuera);
+            if (tramosPm != null)
+                for (int i = 0; i < tramosPm.Count; i++)
+                {
+                    if (tramosPm[i] < TramoPm) _bajos.Add(i);
+                    else if (_bajos.Contains(i)) { r.Add(TutorialGuion.Senales.TramoSobre70); break; }
+                }
+            return r;
+        }
+
+        public void Reiniciar() { _hordaVista = false; _bajos.Clear(); }
+    }
 }

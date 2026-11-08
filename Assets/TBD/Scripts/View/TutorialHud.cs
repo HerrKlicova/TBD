@@ -57,7 +57,7 @@ namespace TBD.View
         static bool Arg(string a) { return Array.IndexOf(Environment.GetCommandLineArgs(), a) >= 0; }
 
         /// <summary>Lo llama «Nueva partida» (a través de IntroVista.Antes): el tutorial arranca al cargar la zona de Sagunto.</summary>
-        public static void NuevaPartida() { Ensure(); _pendiente = true; _pila150 = false; _contactoT = -1f; AerodromoVista.Reiniciar(); if (_i._m != null && _i._m.Estado == EstadoTutorial.Activo) _i._m.Saltar(); _i._m = null; }
+        public static void NuevaPartida() { Ensure(); _pendiente = true; _pila150 = false; _contactoT = -1f; _zona.Reiniciar(); _zonaEstado.Clear(); AerodromoVista.Reiniciar(); if (_i._m != null && _i._m.Estado == EstadoTutorial.Activo) _i._m.Saltar(); _i._m = null; }
 
         /// <summary>D-N172: ¿hay destacamento en Nules? Solo con el tutorial en marcha (fácil y normal, la primera vez). La zona lo mira al crear sus unidades.</summary>
         public static bool DestacamentoNules { get { return Activo; } }
@@ -138,6 +138,21 @@ namespace TBD.View
             if (C90Aviso.Buscar(uw, zombis, dentroRecinto) >= 0) Senal(TutorialGuion.Senales.C90ATiro);
         }
 
+        /// <summary>
+        /// La zona lo llama cada segundo de noche (PrototypeBootstrap.NightTick): zombis vivos, vehículos fuera del tren y la vida por mil de cada tramo del muro.
+        /// Envía horda_avanza, ataque_rechazado, vehiculos_fuera y tramo_sobre_70 (SenalesZona) y los guarda como estado para las tarjetas que ya estén fuera.
+        /// </summary>
+        public static void Zona(int zombisVivos, int vehiculosFuera, IList<int> tramosPm)
+        {
+            if (!Activo || Time.unscaledTime - _zonaT < 1f) return;
+            _zonaT = Time.unscaledTime;
+            _zonaEstado.Clear();
+            foreach (var s in _zona.Mirar(HordaEnEspera, zombisVivos, vehiculosFuera, tramosPm)) { _zonaEstado.Add(s); Senal(s); }
+        }
+        static float _zonaT = -1f;
+        static readonly SenalesZona _zona = new SenalesZona();
+        static readonly HashSet<string> _zonaEstado = new HashSet<string>();
+
         static void Ensure()
         {
             if (_i != null) return;
@@ -188,6 +203,7 @@ namespace TBD.View
             if (s == TutorialGuion.Senales.Pila150) return _pila150;
             if (s == TutorialGuion.Senales.Cap3Dispara) return _pila150 || PorTiempo;
             if (s == TutorialGuion.Senales.Cap3PorTiempo) return !_pila150 && PorTiempo;
+            if (_zonaEstado.Contains(s)) return true;
             return EstadoExtra != null && EstadoExtra(s);
         }
 

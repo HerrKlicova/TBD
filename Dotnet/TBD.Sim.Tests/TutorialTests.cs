@@ -581,6 +581,25 @@ namespace TBD.Sim.Tests
                 Puertas.Ampliacion = 1; check(!Puertas.EnPuertas(w, 1, nu), "ampliando la estación (D-N153) entra el segundo"); Puertas.Ampliacion = 0;
             }
 
+            // --- D-N156: Nules sin asedio la 1.ª noche
+            {
+                var wi = NetScenario.Inicio(); int nu = TrenPreparar.Nodo(wi, "Nules");
+                check(wi.Director.SinAsedioNodo == nu && wi.Director.SiegeWeight(wi, nu) == 0, "Inicio: Nules protegida de asedio al empezar");
+                wi.Tick = wi.Director.SinAsedioHasta; check(wi.Director.SiegeWeight(wi, nu) > 0, "pasada la 1.ª noche, Nules ya puede ser objetivo");
+                var wm = NetScenario.Mvp(); check(wm.Director.SinAsedioNodo == -1, "Mvp() sin protección (pruebas y goldens intactos)");
+            }
+
+            // --- las 4 señales de la zona (capítulos 1 y 2)
+            {
+                var sz = new SenalesZona(); var tr = new List<int> { 1000, 450, 1000 };
+                var sq0 = sz.Mirar(true, 300, 0, tr); check(sq0.Count == 0, "con la horda en espera y sin vehículos, ninguna señal (el tramo al 45 % solo queda apuntado)");
+                var sq1 = sz.Mirar(false, 300, 3, tr); check(sq1.Contains(TutorialGuion.Senales.HordaAvanza) && sq1.Contains(TutorialGuion.Senales.VehiculosFuera) && !sq1.Contains(TutorialGuion.Senales.AtaqueRechazado), "suelta la horda: horda_avanza; con vehículos fuera del tren: vehiculos_fuera");
+                tr[1] = 690; check(!sz.Mirar(false, 120, 0, tr).Contains(TutorialGuion.Senales.TramoSobre70), "el tramo al 69 % aún no cuenta");
+                tr[1] = 700; check(sz.Mirar(false, 40, 0, tr).Contains(TutorialGuion.Senales.TramoSobre70), "reparado al 70 %: tramo_sobre_70 (los tramos que siempre estuvieron sanos no cuentan)");
+                var sq4 = sz.Mirar(false, 0, 0, tr); check(sq4.Contains(TutorialGuion.Senales.AtaqueRechazado) && !sq4.Contains(TutorialGuion.Senales.HordaAvanza), "sin zombis vivos tras la horda: ataque_rechazado");
+                var sz2 = new SenalesZona(); check(!sz2.Mirar(false, 0, 0, new List<int> { 1000, 1000 }).Contains(TutorialGuion.Senales.AtaqueRechazado) && !sz2.Mirar(false, 0, 0, new List<int> { 1000 }).Contains(TutorialGuion.Senales.TramoSobre70), "sin horda vista no hay «rechazado», y un muro sano no da tramo_sobre_70");
+            }
+
             // --- intro C
             var it = new IntroSecuencia();
             check(it.Tarjetas.Length == 5 && it.TextoEntero == "Día 41 desde el brote.", "intro C: 5 tarjetas y empieza por «Día 41 desde el brote.»");

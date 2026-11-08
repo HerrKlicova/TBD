@@ -147,6 +147,7 @@ namespace TBD.View
         }
 
         // ---------------------------------------------------------------- un tick (30 Hz), antes de los sistemas de la zona
+        readonly List<int> _tramosPm = new List<int>();
         void NightTick()
         {
             if (!_nightOn || _ng == null) return;
@@ -208,6 +209,12 @@ namespace TBD.View
                   { var tr = _ng.P.TrainRect; float r = _ng.P.AttackReachMm / 1000f; float tx0 = tr.X0 / 1000f - r, tx1 = tr.X1 / 1000f + r, ty0 = tr.Y0 / 1000f - r, ty1 = tr.Y1 / 1000f + r; int tin = 0, tout = 0; for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; if (zp.x < tx0 || zp.x > tx1 || zp.y < ty0 || zp.y > ty1) continue; bool insideF = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; if (insideF) tin++; else tout++; } _trainIn = tin; _trainOut = tout; } }
                 _allT.Clear(); for (int i = 0; i < _zomPos.Count; i++) _allT.Add(new Target { Id = (int)_zomId[i], X = (int)(_zomPos[i].x * 1000f), Y = (int)(_zomPos[i].y * 1000f) });
                 _ng.CountAttackers(_allT, out _pileNearStation, out _nearTrain); TutorialHud.ComprobarC90(_uw, _allT, (cx, cy) => cx > (int)(Level.FortX0 * 1000f) + 1000 && cx < (int)(Level.FortX1 * 1000f) - 1000 && cy > (int)(Level.FortY0 * 1000f) + 1000 && cy < (int)(Level.FortY1 * 1000f) - 1000);
+                if (TutorialHud.Activo)
+                {   // las 4 señales de la zona para los capítulos 1 y 2 (Iker): zombis vivos, vehículos fuera del tren y la vida de cada tramo del muro
+                    int vf = 0; foreach (var v in _vehs) if (v.Go != null && v.Go.activeSelf) vf++;
+                    _tramosPm.Clear(); foreach (var sg in _segs) if (!sg.IsGate && sg.Max > 0f) _tramosPm.Add(sg.Open ? 0 : (int)(sg.Hp * 1000f / sg.Max));
+                    TutorialHud.Zona(_zomPos.Count, vf, _tramosPm);
+                }
                 if ((_nearTrain > 0 || _pileNearStation > 0) && _diagN < 6 && Time.unscaledTime - _diagT > 2f)
                 {
                     _diagN++; _diagT = Time.unscaledTime; var sbd = new System.Text.StringBuilder(); int k = 0;

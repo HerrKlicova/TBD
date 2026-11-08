@@ -1515,6 +1515,7 @@ namespace TBD.Net
             Stock("Nules", 0, 0, 0, 0, 0);       // Hugo (existencias_red.json): 0 en todo; la guarnición lleva su dotación
             w.Stations.P.Sites = new[] { "Castellón" };
             w.Stations.Founded[Id("Nules")] = true;
+            w.Director.SinAsedioNodo = Id("Nules"); w.Director.SinAsedioHasta = NetConst.DayTicks + NetConst.Hours(8);     // D-N156: Nules sin asedio la 1.ª noche (hasta las 08:00 del día siguiente)
             w.Services.Clear();
             var cero = new int[NetConst.ResCount];
             Add(w, 1, "1 Costa", new ScheduleStop { Node = Id("Sagunto"), DepartAt = NetConst.Hours(9), Transfer = (int[])cero.Clone() });
