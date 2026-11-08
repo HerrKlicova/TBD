@@ -162,7 +162,8 @@ namespace TBD.View
             var n = W.Graph.Nodes[id]; var sp = cam.WorldToScreenPoint(op.MapToWorld(n.XMeters, n.YMeters, 0f));
             if (sp.z <= 0) return Rect.zero;
             int px = 32 * Mathf.Max(1, Mathf.RoundToInt(Screen.height / 540f));
-            return new Rect(sp.x - px * 0.6f, Screen.height - sp.y - px * 1.2f, px * 1.2f, px * 1.3f);
+            var r = new Rect(sp.x - px * 0.6f, Screen.height - sp.y - px * 1.2f, px * 1.2f, px * 1.3f);
+            return r.xMax < 0 || r.yMax < 0 || r.x > Screen.width || r.y > Screen.height ? Rect.zero : r;     // fuera de pantalla: como si no estuviera
         }
 
         bool Boton(Rect r, string txt, bool on = true, string resalte = null)
