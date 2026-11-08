@@ -15,7 +15,7 @@ namespace TBD.View
     /// Una línea que se queda vacía no se muestra (regla de Lucía). Lo que la red todavía no da se deja fuera (no se inventa):
     ///   - memoria de tráfico y de atención (sección 3): falta que la red las exponga; ver Pendiente en InformeTextos.
     ///   - tipo de vehículo (Dragón, VAMTAC): Pasajero solo dice Vehiculo; sale «n vehículos».
-    ///   - pelotones en casa: la guarnición de Sagunto no está en Embarque.Lista; sale «guarnición».
+    ///   - pelotones en casa: la guarnición de Sagunto no está en Embarque.Lista; sale «guarnición» (Lucía, añadidos 08-11).
     /// </summary>
     public sealed partial class OperationsMap3D
     {
@@ -382,7 +382,7 @@ namespace TBD.View
 
     /// <summary>
     /// TODOS los textos de la pantalla del informe (Lucía, docs/informe-textos.md, 08-11). Para cambiarlos, solo aquí.
-    /// Los marcados «Bruno, pendiente de Lucía» no estaban en su documento y hacían falta para un caso que el juego sí tiene.
+    /// Los marcados «Lucía, añadidos 08-11» son los casos que añadió después (asedio y ataque en curso, guarnición de casa).
     /// Pendiente: memoria de tráfico («{tramo}: el tren {n} pasa a la misma hora {k} días seguidos. Lo ha aprendido.») y de atención
     /// («{zona}: la Colmena se aparta de donde miramos y crece donde no.»): la red todavía no las expone a la vista (Nacho).
     /// </summary>
@@ -407,7 +407,7 @@ namespace TBD.View
 
         // 1. cabecera
         public string Titulo = "INFORME DE INTELIGENCIA";
-        public string Num(int dia) { return "INTSUM " + dia.ToString("00"); }        // un INTSUM por día (Bruno, pendiente de Lucía)
+        public string Num(int dia) { return "INTSUM " + dia.ToString("00"); }        // un INTSUM por día
         public string DePeriodo(string mando, string ini, string fin) { return "De: Sección de Inteligencia · " + mando + "   ·   Periodo: " + ini + " – " + fin; }
         public string Clasificacion = "USO INTERNO";
 
@@ -418,16 +418,16 @@ namespace TBD.View
         public string ResumenEnjambre(string est, string cifra) { return "ENJAMBRE. La Colmena marcha sobre " + est + (cifra != null ? " (" + cifra + ")" : "") + ". Ataque esta noche."; }
         public string ResumenAsedio(string est, string hora, string cifra)
         {
-            // con el asedio ya empezado no hay hora: «Asedio sobre {estación}, en curso.» (Bruno, pendiente de Lucía)
-            return "Asedio sobre " + est + (hora != null ? " a las " + hora : ", en curso") + "." + (cifra != null ? " " + cifra + "." : "");
+            // con el asedio ya empezado no hay hora: «Asedio sobre {estación} en curso. {cifra}.» (Lucía, añadidos 08-11)
+            return "Asedio sobre " + est + (hora != null ? " a las " + hora : " en curso") + "." + (cifra != null ? " " + cifra + "." : "");
         }
 
         // 3. situación de la amenaza
         public string SecAmenaza = "Situación de la amenaza";
         public string AmenazaMasa(string est, string dir, string cifra, string rumbo, string dtg)
         { return est + ": masa" + (dir != null ? " " + dir : "") + (cifra != null ? ", " + cifra : "") + (rumbo != null ? ", rumbo " + rumbo : "") + ". Llegaría hacia " + dtg + "."; }
-        public string AmenazaAtaca(string est, string dir, string cifra)                 // Bruno, pendiente de Lucía
-        { return est + ": la Colmena ataca" + (dir != null ? " por el " + SinAl(dir) : "") + (cifra != null ? ", " + cifra : "") + "."; }
+        public string AmenazaAtaca(string est, string dir, string cifra)                 // Lucía, añadidos 08-11
+        { return est + ": la Colmena ataca" + (dir != null ? " por el " + SinAl(dir) : "") + "." + (cifra != null ? " " + cifra + "." : ""); }
         public string AmenazaTrebol(string est, string dir) { return est + ": movimiento sin identificar" + (dir != null ? " " + dir + " de la estación" : " cerca de la estación") + "."; }
 
         // 4. fuerzas propias
@@ -436,7 +436,7 @@ namespace TBD.View
         {
             var sb = new System.Text.StringBuilder(est).Append(": ");
             if (pel > 0) sb.Append(pel).Append(pel == 1 ? " pelotón" : " pelotones");
-            else if (casa) sb.Append("guarnición");                                       // Bruno, pendiente de Lucía: la de casa no se cuenta en pelotones
+            else if (casa) sb.Append("guarnición");                                       // Lucía, añadidos 08-11: hasta que la red exponga los pelotones de casa
             if (veh > 0) sb.Append(pel > 0 || casa ? ", " : "").Append(veh).Append(veh == 1 ? " vehículo" : " vehículos");
             sb.Append(". Munición ").Append(mun).Append(" u");
             if (viv > 0) sb.Append(". Víveres ").Append(viv).Append(" u");
@@ -453,7 +453,7 @@ namespace TBD.View
         // 6. valoración
         public string SecValoracion = "Valoración";
         public string ValSinDefensa(string est, string dtg, bool ataca)
-        { return ataca ? est + " no tiene tropa y la Colmena ya ataca. Caerá si no llega ayuda." /* Bruno, pendiente de Lucía */ : "Si " + est + " no recibe tropa y munición antes de " + dtg + ", cae esa noche."; }
+        { return ataca ? est + ", sin tropa, está bajo ataque. Cae esta noche si no llega ayuda." /* Lucía, añadidos 08-11 */ : "Si " + est + " no recibe tropa y munición antes de " + dtg + ", cae esa noche."; }
         public string ValTrenSinEscolta(string tren, string est) { return "El tren " + tren + " llegará a " + est + " sitiada sin escolta. Se perderá con su carga."; }
         public string ValSeAgita = "La Colmena se agita. Si abrimos más nodos esta semana, pasará a enjambre.";
         public string ValNada = "Sin cambios previstos en las próximas 24 horas.";
