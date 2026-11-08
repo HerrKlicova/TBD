@@ -137,6 +137,7 @@ namespace TBD.Sim.Tests
             if (Environment.GetEnvironmentVariable("TBD_WAVE_REPORT") == "1") { UnidadesTests.WaveReport(); return 0; }
             if (Environment.GetEnvironmentVariable("TBD_KILL_TIMELINE") == "1") { UnidadesTests.KillTimeline(); return 0; }
             if (Environment.GetEnvironmentVariable("TBD_NIGHT_REPORT") == "1") { UnidadesTests.NightReport(); return 0; }
+            if (Environment.GetEnvironmentVariable("TBD_ONLY_EMB") == "1") { EmbarqueTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }      // solo [31]
             if (Environment.GetEnvironmentVariable("TBD_ONLY_UNITS") == "1")      // solo la sección [29] (unidades), para iterar rápido
             {
                 UnidadesTests.Run(Check);
@@ -177,6 +178,7 @@ namespace TBD.Sim.Tests
             SaguntoInicioTests.Run(Check);
             GuardadoTests.Run(Check);
             UnidadesTests.Run(Check);
+            EmbarqueTests.Run(Check);
             GoldenTests.Run(Check);
             Console.WriteLine($"\nResumen: {_pass} correctas, {_fail} fallos");
             return _fail == 0 ? 0 : 1;

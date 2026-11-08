@@ -101,11 +101,14 @@ namespace TBD.Sim.Tests
             var wl = NetScenario.Mvp(); wl.Services.Clear(); NetSave.Load(bytes, wl);
             check(wl.Hash() == w1.Hash() && wl.Production.Rem[k] == 23_520 && wl.Production.WastedU[k] == 59, "guardar y cargar conserva el remanente y las pérdidas (mismo hash)");
             var fresh = NetScenario.Mvp(false);
-            var sw = new SaveWriter(); fresh.SaveState(sw); var v2 = sw.ToArray();
+            var sw = new SaveWriter(); fresh.SaveState(sw); var v3 = sw.ToArray();
+            var ew = new SaveWriter(); EmbarqueState.WriteEmpty(ew); int etail = ew.ToArray().Length;      // D-N166: los pasajeros (vacío) van al final, NetVersion 3
+            var v2 = new byte[v3.Length - etail]; Array.Copy(v3, v2, v2.Length);
             int tail = ProductionTailLength(fresh.Graph.Nodes.Count);
             var v1 = new byte[v2.Length - tail]; Array.Copy(v2, v1, v1.Length);
             var mig = NetSave.NetMigrations[1](v1);
-            check(NetSave.NetVersion == 2 && BytesEqual(mig, v2), "la migración 1 → 2 añade la producción a 0 y deja la sección igual que una partida nueva");
+            check(BytesEqual(mig, v2), "la migración 1 → 2 añade la producción a 0 y deja la sección igual que una partida v2 nueva");
+            check(NetSave.NetVersion == 3 && BytesEqual(NetSave.NetMigrations[2](v2), v3), "D-N166: la migración 2 → 3 añade los pasajeros (ninguno) y deja la sección igual que una partida nueva");
             check(fresh.Production.Hash() == 0, "sin producir nada el hash de la producción es 0");
         }
 
