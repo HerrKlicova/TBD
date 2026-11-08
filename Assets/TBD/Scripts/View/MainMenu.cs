@@ -58,7 +58,7 @@ namespace TBD.View
             return nv;
         }
 
-        void StartGame() { Sfx.Play("sfx_ui_clic"); Sfx.StopLoop("mus_menu"); NetSession.Reset(); NightRun.Active = true; SceneManager.LoadScene("Union"); }
+        void StartGame() { Sfx.Play("sfx_ui_clic"); Sfx.StopLoop("mus_menu"); NetSession.Reset(); NightRun.Active = true; if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-menu-auto") >= 0) SceneManager.LoadScene("Union"); else IntroVista.Antes(() => SceneManager.LoadScene("Union")); }
         void ContinueGame()
         {
             try { NetSession.LoadGame(); NightRun.Active = false; SceneManager.LoadScene("Union"); }

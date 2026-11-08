@@ -11,6 +11,7 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 
+using TBD.Tutorial;
 namespace TBD.View
 {
     /// <summary>
@@ -403,7 +404,7 @@ namespace TBD.View
             if (NightRun.Active && !_nightInit && _zoneNode >= 0 && _worldA != null && _worldA.IsCreated && !_cutting) InitNight();
             if (_nightOn) NightUpdate();
 
-            if (!_paused)
+            if (!_paused && !TutorialHud.PidePausa)
             {
                 _acc += Time.unscaledDeltaTime;
                 int steps = 0;
@@ -562,6 +563,7 @@ namespace TBD.View
                 var mpe = Mouse.current.position.ReadValue(); float edge = 6f;
                 if (mpe.y >= Screen.height - edge) pan += fwd; if (mpe.y <= edge) pan -= fwd; if (mpe.x <= edge) pan -= right; if (mpe.x >= Screen.width - edge) pan += right;
             }
+            if (pan.sqrMagnitude > 0.01f) TutorialHud.Senal(TutorialGuion.Senales.CamaraMovida);
             _focus += pan.normalized * (_orthoSize * 1.2f * dt);
 
             var mouse = Mouse.current;
@@ -580,7 +582,7 @@ namespace TBD.View
                         else { _outNotchAt = Time.unscaledTime; _outHintUntil = Time.unscaledTime + 1.4f; _outHintPos = mouse.position.ReadValue(); }
                     }
                     _targetOrtho = Mathf.Clamp(_targetOrtho * Mathf.Pow(0.85f, notches), 6f, 70f);
-                    _zoomAtCursor = true;
+                    _zoomAtCursor = true; TutorialHud.Senal(TutorialGuion.Senales.RuedaUsada);
                 }
                 if (((mouse.rightButton.isPressed && !(NightRun.Active && (_sel.Count > 0 || _selVeh != null))) || (NightRun.Active && mouse.middleButton.isPressed)) && !_buildMode)   // de noche con unidades elegidas, el boton derecho dibuja el frente y la camara gira con el central
                 {

@@ -3,6 +3,7 @@ using UnityEngine;
 using TBD.Sim;
 using TBD.Units;
 
+using TBD.Tutorial;
 namespace TBD.View
 {
     /// <summary>
@@ -68,8 +69,9 @@ namespace TBD.View
             GUI.Label(new Rect(0, H * 0.28f, W, 70 * k), "Pausa", st);
             var bs = new GUIStyle(GUI.skin.button) { fontSize = Mathf.RoundToInt(26 * k) };
             float bw = 360 * k, bh = 58 * k, x = (W - bw) * 0.5f, y = H * 0.40f;
-            if (GUI.Button(new Rect(x, y, bw, bh), "Continuar", bs)) _paused = false;
+            if (GUI.Button(new Rect(x, y, bw, bh), "Continuar", bs)) { _paused = false; TutorialHud.Senal(TutorialGuion.Senales.PausaCerrada); }
             if (GUI.Button(new Rect(x, y + bh + 14 * k, bw, bh), "Salir al mapa", bs)) { _paused = false; LeaveToMap(); }
+            if (TutorialHud.Activo && GUI.Button(new Rect(x, y + 3 * (bh + 14 * k), bw, bh), "Saltar tutorial", bs)) { TutorialHud.Saltar(); _paused = false; }
             if (GUI.Button(new Rect(x, y + 2 * (bh + 14 * k), bw, bh), "Menú principal", bs)) { _paused = false; NetSession.Reset(); NightRun.Active = false; UnityEngine.SceneManagement.SceneManager.LoadScene("Menu"); }
         }
 
@@ -78,7 +80,7 @@ namespace TBD.View
         {
             var kb = UnityEngine.InputSystem.Keyboard.current; if (kb == null) return;
             Formation? nf = null; if (kb.f1Key.wasPressedThisFrame) nf = Formation.Linea; if (kb.f2Key.wasPressedThisFrame) nf = Formation.Cuna; if (kb.f3Key.wasPressedThisFrame) nf = Formation.Columna; if (kb.f4Key.wasPressedThisFrame) nf = Formation.Bloque;   // Lucía (7-nov): el bloque sustituye al círculo
-            if (nf.HasValue) { _curForm = nf.Value; foreach (var id in _sel) _uw.SetFormation(id, _curForm); Debug.Log("[NOCHE] formacion " + _curForm); }
+            if (nf.HasValue) { TutorialHud.Senal(TutorialGuion.Senales.FormacionDada); _curForm = nf.Value; foreach (var id in _sel) _uw.SetFormation(id, _curForm); Debug.Log("[NOCHE] formacion " + _curForm); }
         }
 
         /// <summary>Orden de frente: de g0 a g1 (suelo, metros). El pelotón mira a la izquierda del arrastre.</summary>
@@ -95,7 +97,7 @@ namespace TBD.View
                 p.SpacingMm = Mathf.Clamp((int)(L / n * 1000f / men), 1200, 4000); _uw.SetFormation(ids[i], _curForm);
                 if (attack) _uw.AttackMove(ids[i], (int)(c.x * 1000f), (int)(c.z * 1000f), heading); else _uw.Move(ids[i], (int)(c.x * 1000f), (int)(c.z * 1000f), heading);
             }
-            _moveMark = (g0 + g1) * 0.5f; _moveMarkUntil = Time.unscaledTime + 1.2f;
+            _moveMark = (g0 + g1) * 0.5f; _moveMarkUntil = Time.unscaledTime + 1.2f; TutorialHud.Senal(TutorialGuion.Senales.FormacionDada);
             Sfx.Play("ui_orden", Vector3.zero, 0.7f, 0.05f);
         }
 
@@ -165,6 +167,12 @@ namespace TBD.View
             }
             if (Time.unscaledTime < _c90MsgUntil) { var cst = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(14, Screen.height / 45), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter }; cst.normal.textColor = OvHueso; GUI.Label(new Rect(0, Screen.height * 0.12f, Screen.width, 40f), _c90Msg, cst); }
             if (Time.unscaledTime < _hintUntil) { var hs = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(13, Screen.height / 50), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft }; hs.normal.textColor = _hintAmber ? SgAmbar : OvHueso; var hr = new Rect(16f, 120f * Screen.height / 1080f, 420f * Screen.height / 1080f, 34f); OvEnsure(); var oc = GUI.color; GUI.color = new Color(0.094f, 0.11f, 0.188f, 0.85f); GUI.DrawTexture(hr, _ovTex); GUI.color = oc; GUI.Label(new Rect(hr.x + 10f, hr.y, hr.width, hr.height), _hintMsg, hs); }
+            { float kk = Screen.height / 1080f, oxx = (Screen.width - 1920f * kk) * 0.5f;
+              TutorialHud.AnclaY = 180f * kk;
+              TutorialHud.Objetivo(TutorialGuion.Resaltes.BarraAtajos, new Rect(oxx + 316f * kk, 924f * kk, 1274f * kk, 16f * kk));
+              TutorialHud.Objetivo(TutorialGuion.Resaltes.TarjetasPeloton, new Rect(oxx + 316f * kk, 946f * kk, 5 * 160f * kk, 128f * kk));
+              TutorialHud.Objetivo(TutorialGuion.Resaltes.TeclasFormacion, new Rect(oxx + 1604f * kk, 870f * kk, 300f * kk, 64f * kk)); }
+
             TramosGUI();
             // formacion activa
             { var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(11, Screen.height / 70), wordWrap = false, clipping = TextClipping.Overflow }; st.normal.textColor = OvHueso; if (_sel.Count > 0 && _selVeh == null) GUI.Label(new Rect(12f, Screen.height * 0.80f - st.fontSize * 1.6f, Screen.width * 0.6f, st.fontSize * 1.6f), "Formación " + _curForm + "  (F1 línea · F2 cuña · F3 columna · F4 bloque) · clic derecho y arrastrar = frente", st); }

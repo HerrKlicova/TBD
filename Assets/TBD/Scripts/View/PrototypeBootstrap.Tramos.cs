@@ -4,6 +4,7 @@ using TBD.Sim;
 using TBD.Units;
 using TBD.Net;
 
+using TBD.Tutorial;
 namespace TBD.View
 {
     /// <summary>
@@ -86,12 +87,12 @@ namespace TBD.View
         void TramosUpdate()
         {
             if (!_tramos) return; var kb = UnityEngine.InputSystem.Keyboard.current; var ms = UnityEngine.InputSystem.Mouse.current; if (kb == null || ms == null) return;
-            if (kb.bKey.wasPressedThisFrame) { _obras = !_obras; _segSel = null; }
+            if (kb.bKey.wasPressedThisFrame) { _obras = !_obras; _segSel = null; TutorialHud.Senal(_obras ? TutorialGuion.Senales.ObrasAbierto : TutorialGuion.Senales.ObrasCerrado); }
             if (!_obras) return;
             if (ms.leftButton.wasPressedThisFrame && TryGround(ms.position.ReadValue(), out var g) && !OverNightUi(ms.position.ReadValue()))
             {
                 Seg best = null; float bd = 4f; foreach (var s in _segs) { float d = DistSeg(new Vector2(g.x, g.z), s.A, s.B); if (d < bd) { bd = d; best = s; } }
-                _segSel = best;
+                _segSel = best; if (best != null) TutorialHud.Senal(TutorialGuion.Senales.TramoSeleccionado);
             }
         }
 
@@ -133,7 +134,7 @@ namespace TBD.View
                 var bs = new GUIStyle(GUI.skin.button) { fontSize = Mathf.Max(11, Mathf.RoundToInt(14 * k)) }; GUI.enabled = why == null || (why != null && false);
                 if (GUI.Button(new Rect(x, y, 150f * k, 30f * k), rebuild ? "Reconstruir" : "Reparar", bs) && why == null)
                 {
-                    if (rebuild) { _mats -= s.Max / 11924f; s.RebuildTick = _ng.Tick + RebuildTicksFor(s); } else s.Queued = true;
+                    TutorialHud.Senal(TutorialGuion.Senales.ReparacionConfirmada); if (rebuild) { _mats -= s.Max / 11924f; s.RebuildTick = _ng.Tick + RebuildTicksFor(s); } else s.Queued = true;
                 }
                 GUI.enabled = true; y += 34f * k;
                 if (why != null) GUI.Label(new Rect(x, y, r.width - 16f * k, lh * 2f), why, st);

@@ -14,6 +14,7 @@ using TBD.Sim;
 using TBD.Units;
 using TBD.Net;
 
+using TBD.Tutorial;
 namespace TBD.View
 {
     /// <summary>Estado compartido entre el menú y la zona: «Jugar» activa la noche de Sagunto (D-N71).</summary>
@@ -162,7 +163,7 @@ namespace TBD.View
             }
             if (_ng.State == NightState.Derrota && !_endDismissed) return;            // derrota: el mundo se para
             _spawns.Clear();
-            { var st0 = _ng.State; _ng.Attack(_pileNearStation, _nearTrain); _ng.ZombiesAlive = _zomCounted ? _zomPos.Count : -1; _ng.Step(_spawns); if (st0 == NightState.Jugando && _ng.State != NightState.Jugando) NightEnded(); if (_ng.State == NightState.Derrota) return; }   // D-N136: NightGame gana al acabar con la horda (WinOnClear, misma regla que NightSim)
+            if (!TutorialHud.HordaEnEspera) { var st0 = _ng.State; _ng.Attack(_pileNearStation, _nearTrain); _ng.ZombiesAlive = _zomCounted ? _zomPos.Count : -1; _ng.Step(_spawns); if (st0 == NightState.Jugando && _ng.State != NightState.Jugando) NightEnded(); if (_ng.State == NightState.Derrota) return; }   // D-N136: NightGame gana al acabar con la horda (WinOnClear, misma regla que NightSim)
             playing = _ng.State == NightState.Jugando;
 
             // oleadas: líneas de registro y rótulo
@@ -204,7 +205,7 @@ namespace TBD.View
                 { for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; bool inside = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; uint zid = _zomId[ci]; if (inside) { if (_insideIds.Add(zid)) { _climbSec++; _entTot++; float dW = zp.x - Level.FortX0, dE = Level.FortX1 - zp.x, dS = zp.y - Level.FortY0, dN = Level.FortY1 - zp.y; float mn = Mathf.Min(Mathf.Min(dW, dE), Mathf.Min(dS, dN)); _entSide[mn == dW ? 0 : mn == dS ? 1 : mn == dE ? 2 : 3]++; } } else _insideIds.Remove(zid); }
                   { var tr = _ng.P.TrainRect; float r = _ng.P.AttackReachMm / 1000f; float tx0 = tr.X0 / 1000f - r, tx1 = tr.X1 / 1000f + r, ty0 = tr.Y0 / 1000f - r, ty1 = tr.Y1 / 1000f + r; int tin = 0, tout = 0; for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; if (zp.x < tx0 || zp.x > tx1 || zp.y < ty0 || zp.y > ty1) continue; bool insideF = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; if (insideF) tin++; else tout++; } _trainIn = tin; _trainOut = tout; } }
                 _allT.Clear(); for (int i = 0; i < _zomPos.Count; i++) _allT.Add(new Target { Id = (int)_zomId[i], X = (int)(_zomPos[i].x * 1000f), Y = (int)(_zomPos[i].y * 1000f) });
-                _ng.CountAttackers(_allT, out _pileNearStation, out _nearTrain);
+                _ng.CountAttackers(_allT, out _pileNearStation, out _nearTrain); TutorialHud.ComprobarC90(_uw, _allT);
                 if ((_nearTrain > 0 || _pileNearStation > 0) && _diagN < 6 && Time.unscaledTime - _diagT > 2f)
                 {
                     _diagN++; _diagT = Time.unscaledTime; var sbd = new System.Text.StringBuilder(); int k = 0;
@@ -520,6 +521,7 @@ namespace TBD.View
                         }
                         if (hit) found.Add(pl.Id);
                     }
+                    if (found.Count > 0) TutorialHud.Senal(TutorialGuion.Senales.PelotonSeleccionado);
                     if (found.Count > 0 || box) { _selVeh = null; if (!(kb.leftShiftKey.isPressed)) _sel.Clear(); foreach (var id in found) if (!_sel.Contains(id)) _sel.Add(id); }
                     selDone:;
                 }
@@ -595,7 +597,7 @@ namespace TBD.View
         {
             if (!TryGround(mp, out var g)) return; int i = 0;
             foreach (var id in _sel) { int ox = (i % 3 - 1) * 2500, oy = (i / 3) * 2500; if (attack) _uw.AttackMove(id, (int)(g.x * 1000f) + ox, (int)(g.z * 1000f) + oy); else _uw.Move(id, (int)(g.x * 1000f) + ox, (int)(g.z * 1000f) + oy); i++; }
-            _moveMark = g; _moveMarkUntil = Time.unscaledTime + 1.2f;
+            _moveMark = g; _moveMarkUntil = Time.unscaledTime + 1.2f; TutorialHud.Senal(TutorialGuion.Senales.OrdenMover);
         }
         void IssueAttackMove(Vector2 mp) { IssueMove(mp, true); }
         Vector3 _moveMark; float _moveMarkUntil;
