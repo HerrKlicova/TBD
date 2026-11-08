@@ -132,6 +132,10 @@ namespace TBD.View
             return worst != null && Prio[worst.Group] >= Prio[group] ? worst : null;   // sin huecos: se roba la menos importante
         }
 
+        /// <summary>Alcance en metros de algunos eventos que se oyen más lejos que el resto (MaxDist): el golpe del tren caído a las puertas, 300 m (Nuria, D-N177).</summary>
+        public static readonly System.Collections.Generic.Dictionary<string, float> Alcance = new System.Collections.Generic.Dictionary<string, float> { { "sfx_tren_caido_puertas", 300f } };
+        static string Base(string clip) { int i = clip.LastIndexOf('_'); return i > 0 && int.TryParse(clip.Substring(i + 1), out _) ? clip.Substring(0, i) : clip; }
+
         void Fire(AudioClip c, string group, Vector3? pos, float vol, float pitch)
         {
             if (c == null) return; var v = Grab(group); if (v == null) return;
@@ -139,6 +143,7 @@ namespace TBD.View
             float duck = group != "alerta" && group != "ui" && Time.unscaledTime < _duckUntil ? 0.55f : 1f;
             v.A.Stop(); v.A.clip = c; v.A.pitch = pitch; v.A.volume = Mathf.Clamp01(vol * duck * MainMenu.SfxVolume * GlobalGain * (pos.HasValue ? CloseGain() : 1f));
             v.A.spatialBlend = pos.HasValue ? 1f : 0f; if (pos.HasValue) v.A.transform.position = pos.Value;
+            v.A.maxDistance = c != null && Alcance.TryGetValue(Base(c.name), out var md) ? md : MaxDist;      // alcance propio por evento (Nuria; Iker)
             v.Group = group; v.Started = Time.unscaledTime; v.A.Play();
         }
 

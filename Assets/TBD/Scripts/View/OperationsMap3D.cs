@@ -232,6 +232,22 @@ namespace TBD.View
         }
 
         /// <summary>Trenes emboscados o en encuentro, en unidades de mapa (para el rojo de la mancha solo donde ataca; Bruno, D-N113).</summary>
+        // sfx_ui_aviso_ambar (Nuria): en 2D a 0,6, al aparecer el aviso de una estación, y como mucho una vez cada 10 s por estación
+        readonly Dictionary<int, float> _avisoSonado = new Dictionary<int, float>(); readonly HashSet<int> _avisoVisto = new HashSet<int>();
+        void SonarAvisos(List<NetWorld.ZoneWarning> l)
+        {
+            if (Event.current == null || Event.current.type != EventType.Repaint) return;
+            var ahora = new HashSet<int>();
+            foreach (var zw in l)
+            {
+                ahora.Add(zw.Node);
+                if (_avisoVisto.Contains(zw.Node)) continue;
+                if (_avisoSonado.TryGetValue(zw.Node, out var t0) && Time.unscaledTime - t0 < 10f) continue;
+                _avisoSonado[zw.Node] = Time.unscaledTime; Sfx.Play("ui_aviso_ambar", Vector3.zero, 0.6f, 0.05f);
+            }
+            _avisoVisto.Clear(); foreach (var n in ahora) _avisoVisto.Add(n);
+        }
+
         List<Vector2> TrenesAtacados()
         {
             var l = new List<Vector2>(); var g = _a.Graph;
@@ -710,7 +726,9 @@ namespace TBD.View
             string scaleTxt = _dist >= 10 ? $"{_dist:0} km" : $"{_dist * 1000:0} m";
             GUI.Label(new Rect(16, y, pw, 30), $"Distancia de cámara: {scaleTxt}", _small); y += _small.fontSize * 1.7f;
             int shown = 0;
-            foreach (var zw in _a.UndefendedWarnings())       // aviso ámbar: la horda va a una zona sin tropa (Lucía, 8-nov; regla de Nacho)
+            var zws = _a.UndefendedWarnings();
+            SonarAvisos(zws);
+            foreach (var zw in zws)       // aviso ámbar: la horda va a una zona sin tropa (Lucía, 8-nov; regla de Nacho)
             {
                 if (shown++ >= 4) break;
                 int zp = IconPx(16);

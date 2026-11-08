@@ -589,9 +589,18 @@ namespace TBD.View
         static readonly Color Bone = new Color32(0xd4, 0xd0, 0xcc, 255), Ink = new Color32(0x1c, 0x20, 0x0c, 255);
         static NetWorld W { get { return NetSession.A; } }
 
+        readonly HashSet<int> _caidos = new HashSet<int>();
         void Update()
         {
             TrenPanel.Vigilar();
+            if (W != null)       // D-N177: el tren cae a las puertas de casa → sfx_tren_caido_puertas en la puerta (Nuria), una vez por tren
+                for (int i = 0; i < W.Services.Count; i++)
+                {
+                    var s = W.Services[i]; if (!s.Destroyed) { _caidos.Remove(i); continue; }
+                    if (!_caidos.Add(i) || s.GateNode != W.Embarque.HomeNode) continue;
+                    var pt = PuntoBajada ?? Defecto(); Sfx.PlayAt("tren_caido_puertas", new Vector3(pt.x / 1000f, 0f, pt.y / 1000f), 1f);
+                    Debug.Log("[TREN] " + s.Train.Name + " cae a las puertas de " + W.Graph.Nodes[W.Embarque.HomeNode].Name);
+                }
             if (System.Array.IndexOf(Environment.GetCommandLineArgs(), "-refuerzos-auto") >= 0 && !_bajando && Hay(out var sv, out _)) { _autoT += Time.unscaledDeltaTime; if (_autoT > 3f) { TrenPanel.Cap("r5_anden_sagunto"); Descargar(sv); } }
         }
         float _autoT;
