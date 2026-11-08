@@ -192,6 +192,7 @@ namespace TBD.View
             using (var q = emA.CreateEntityQuery(typeof(Zombie)))
             {
                 var zs = q.ToComponentDataArray<Zombie>(Allocator.Temp);
+                zs.Sort(new ZombieSimIdOrder());      // el orden de los chunks cambia con los cambios estructurales por fotograma: la noche siempre ve a los zombis por SimId (turbo determinista)
                 int nearStation = 0, nearTrain = 0; _zomPos.Clear(); _zomId.Clear(); int wallPile = 0;
                 for (int i = 0; i < zs.Length; i++)
                 {
@@ -275,6 +276,7 @@ namespace TBD.View
             }
             return false;
         }
+        struct ZombieSimIdOrder : IComparer<Zombie> { public int Compare(Zombie a, Zombie b) { return a.SimId.CompareTo(b.SimId); } }
         NightSim _aggroSh; readonly Dictionary<int, Vector2Int> _aggroGoal = new Dictionary<int, Vector2Int>();
         bool _zomCounted;
         readonly List<Target> _cgMen = new List<Target>(), _cgVeh = new List<Target>(), _cgWork = new List<Target>();
