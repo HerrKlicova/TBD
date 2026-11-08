@@ -103,6 +103,45 @@ namespace TBD.Units
         /// <summary>D-N139 (colisiones): obstáculos en mm (edificios, muros, el tren parado y los vehículos) que la infantería no atraviesa: los rodea deslizando por su borde.
         /// Vacía = como antes (sin cambio de hash). Los pone quien simula (la zona o NightSim) y se pueden cambiar cada tick (vehículos que se mueven).</summary>
         public readonly List<RectMm> Obstacles = new List<RectMm>();
+        /// <summary>D-N174 (Lucía, 8-nov, a petición de Eugenio): sólidos que tapan el fuego directo (edificios, vagones y tren, muros, puertas, relieve), en 2,5D: cada uno con su altura.
+        /// Un tirador con los ojos a «eyeMm» dispara por encima de lo que sea más bajo. El muro propio (OwnWall) no tapa a quien está a OwnWallReachMm (2 m) o menos de él.
+        /// Los zombis y la pila no tapan. Vacía = sin regla, como siempre (no mueve los goldens). Off = tramo caído (brecha): ya no tapa.</summary>
+        public struct LosBlocker { public RectMm R; public int HeightMm; public bool OwnWall, Off; }
+        public readonly List<LosBlocker> LosBlockers = new List<LosBlocker>();
+        public const int EyeInfantryMm = 1600, OwnWallReachMm = 2000;
+        public long LosChecks;      // contador para medir el coste (no entra en el hash)
+
+        /// <summary>¿Ve (sx, sy), con los ojos a eyeMm, a (tx, ty)? Liang–Barsky en enteros (fracciones con long): sin coma flotante, determinista.</summary>
+        public bool LineOfSight(int sx, int sy, int tx, int ty, int eyeMm = EyeInfantryMm)
+        {
+            int bx0 = Math.Min(sx, tx), bx1 = Math.Max(sx, tx), by0 = Math.Min(sy, ty), by1 = Math.Max(sy, ty);
+            for (int i = 0; i < LosBlockers.Count; i++)
+            {
+                var b = LosBlockers[i]; var r = b.R;
+                if (b.Off || b.HeightMm < eyeMm || r.X0 > bx1 || r.X1 < bx0 || r.Y0 > by1 || r.Y1 < by0) continue;     // más bajo que los ojos, o lejos del rayo
+                if (b.OwnWall) { long ddx = sx < r.X0 ? r.X0 - sx : sx > r.X1 ? sx - r.X1 : 0, ddy = sy < r.Y0 ? r.Y0 - sy : sy > r.Y1 ? sy - r.Y1 : 0; if (ddx * ddx + ddy * ddy <= (long)OwnWallReachMm * OwnWallReachMm) continue; }
+                LosChecks++; if (SegHitsRect(sx, sy, tx, ty, r)) return false;
+            }
+            return true;
+        }
+
+        public static bool SegHitsRect(int x0, int y0, int x1, int y1, RectMm r)
+        {
+            if (In(x0, y0, r) || In(x1, y1, r)) return false;
+            long dx = (long)x1 - x0, dy = (long)y1 - y0, ln = 0, ld = 1, hn = 1, hd = 1;
+            return Clip(-dx, (long)x0 - r.X0, ref ln, ref ld, ref hn, ref hd) && Clip(dx, (long)r.X1 - x0, ref ln, ref ld, ref hn, ref hd)
+                && Clip(-dy, (long)y0 - r.Y0, ref ln, ref ld, ref hn, ref hd) && Clip(dy, (long)r.Y1 - y0, ref ln, ref ld, ref hn, ref hd);
+        }
+        static bool In(int x, int y, RectMm r) { return x > r.X0 && x < r.X1 && y > r.Y0 && y < r.Y1; }
+        // p·t ≤ q: si p &lt; 0, t ≥ q/p (entrada); si p &gt; 0, t ≤ q/p (salida). [ln/ld, hn/hd] es el tramo de t que queda; denominadores &gt; 0.
+        static bool Clip(long p, long q, ref long ln, ref long ld, ref long hn, ref long hd)
+        {
+            if (p == 0) return q >= 0;
+            long n = q, d = p; if (d < 0) { n = -n; d = -d; }
+            if (p < 0) { if (n * ld > ln * d) { ln = n; ld = d; } }
+            else { if (n * hd < hn * d) { hn = n; hd = d; } }
+            return ln * hd <= hn * ld;
+        }
         public const int ManRadiusMm = 300;
         bool Blocked(int x, int y)
         {
@@ -222,6 +261,7 @@ namespace TBD.Units
                 var m = p.Men[i]; if (!m.Alive || m.Kind == InfKind.Servidor) continue;
                 long ex = x - m.X, ey = y - m.Y, d2 = ex * ex + ey * ey;
                 if (d2 > r2 || d2 < min2) continue;
+                if (LosBlockers.Count > 0 && !LineOfSight(m.X, m.Y, x, y)) continue;
                 if (d2 < best) { best = d2; bi = i; }
             }
             return bi;
@@ -473,7 +513,7 @@ namespace TBD.Units
 
         /// <summary>Blanco de un arma desde (sx, sy): el más cercano dentro del alcance y del arco (halfCone 0 = 360°; empate: id menor). «extraZ» (mm de altura del tirador)
         /// se suma en vertical al alcance (helicóptero). Si el arma prefiere especiales (Weapon.PrefersSpecials), un especial a tiro gana a cualquier normal.</summary>
-        public int PickAt(Weapon w, int sx, int sy, int center, int halfCone, IList<Target> targets, int extraZ)
+        public int PickAt(Weapon w, int sx, int sy, int center, int halfCone, IList<Target> targets, int extraZ, int eyeMm = EyeInfantryMm)
         {
             long best = long.MaxValue; int bi = -1; bool bestSpecial = false;
             long r2 = (long)w.RangeMm * w.RangeMm - (long)extraZ * extraZ, min2 = (long)w.MinRangeMm * w.MinRangeMm;
@@ -487,6 +527,7 @@ namespace TBD.Units
                 bool better = bi < 0 || (sp && !bestSpecial) || d2 < best || (d2 == best && targets[t].Id < targets[bi].Id);
                 if (!better) continue;
                 if (halfCone > 0 && Math.Abs(IMath.Diff(IMath.Atan2((int)ey, (int)ex), center)) > halfCone) continue;
+                if (extraZ == 0 && LosBlockers.Count > 0 && !LineOfSight(sx, sy, targets[t].X, targets[t].Y, eyeMm)) continue;
                 best = d2; bi = t; bestSpecial = sp;
             }
             return bi;

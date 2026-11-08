@@ -34,6 +34,7 @@
     <Compile Include="SaguntoInicioTests.cs" />
     <Compile Include="GuardadoTests.cs" />
     <Compile Include="UnidadesTests.cs" />
+    <Compile Include="LosTests.cs" />
     <Compile Include="TutorialTests.cs" />
     <Compile Include="EmbarqueTests.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Hive.cs" Link="Net\Hive.cs" />
