@@ -5,7 +5,7 @@ MÓDULO DE 10 m (x −5..5) y 2,1 m de alto (D-N59), con 9 celdas de 1,11 m y 1,
 centro del módulo, el muro a lo largo de X y FUERA = −Y (lo que cae, cae hacia allí). Medidas de un gavión de defensa de
 memoria (SIN VERIFICAR).
 Colores (Álvaro, 8-nov): HESCO 70784c (geotextil oscuro 50541c), malla b8b8b8, relleno b4a080, sacos del remate
-605c48, red 303424 con tiras 50541c, escombro 48403c.
+605c48, red 50541c con tiras 605c48 (Lucía 10:10), escombro 48403c.
 Variantes: v0 malla limpia; v1 geotextil a la vista (celdas en 50541c con la malla más tupida); v2 doble escalonado
 (celdas de 2,1 y 1,4 m alternas); v3 remate de sacos (celdas de 1,8 m con una hilada de sacos encima); v4 red de
 camuflaje colgada por la cara de fuera.
@@ -23,7 +23,7 @@ NOMBRES_V = ["MallaLimpia", "Geotextil", "Escalonado", "RemateSacos", "Red"]
 NOMBRES_E = ["Sano", "Danado", "MuyDanado", "Brecha"]
 PIEZAS = ["hesco", "geo", "malla", "relleno", "sacos", "red", "tira", "roto"]
 COLORES = {"hesco": "70784c", "geo": "50541c", "malla": "b8b8b8", "relleno": "b4a080", "sacos": "605c48",
-           "red": "303424", "tira": "50541c", "roto": "48403c"}
+           "red": "50541c", "tira": "605c48", "roto": "48403c"}
 FACCION = "propio"
 PRESUPUESTO = {0: (20, 6000), 1: (10, 2000)}
 UMBRAL_CONTORNO = {0: 9.0, 1: 9.0}
@@ -115,7 +115,8 @@ def construir(nombre="SM_MuroHesco", lod=0):
                 3: [(-2.2, -0.5, 1.8, 0.8, 0.18), (1.9, -0.3, 1.5, 0.7, 0.16), (0.2, 0.7, 1.2, 0.5, 0.12)]}
     for x, y, sx, sy, sz in montones.get(ESTADO, []):
         m.caja((x, y, sz / 2), (sx, sy, sz), "relleno", rot_z=0.12)
-        m.caja((x + 0.1, y, sz + 0.06), (sx * 0.6, sy * 0.55, 0.12), "relleno", rot_z=0.3)
+        mn = 0.0 if fino else 0.36                                  # LOD1: ≥ 2 px (Lucía 10:10)
+        m.caja((x + 0.1, y, sz + 0.06), (max(sx * 0.6, mn), max(sy * 0.55, mn), 0.12), "relleno", rot_z=0.3)
     if ESTADO == 3:
         w = 0.05 if fino else 0.1
         for j in range(10 if fino else 5):               # malla aplastada: varillas y paneles caídos

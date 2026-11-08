@@ -6,7 +6,7 @@ el suelo en el centro del tramo, el muro a lo largo de X y FUERA = −Y (el sur,
 hacia allí). Sacos de 0,85 × 0,48 × 0,3 m, dos a lo ancho, en hiladas trabadas. Forma de los sacos: K3_control_1 de
 Paula; el resto DE MEMORIA (SIN VERIFICAR).
 Colores (Álvaro, 8-nov): sacos 605c48 (no 88885c, que es la hierba), sacos reventados, sombra y escombro 48403c, arena
-derramada b4a080, sacos claros de la v2 847c34, tablón de la v3 a86c50 y red de la v4 303424.
+derramada b4a080, sacos claros de la v2 847c34, tablón de la v3 a86c50 y red de la v4 50541c (Lucía 10:10: 303424 bajaba de 48403c).
 Siluetas (Lucía: v0–v2 se distinguen por la silueta):
   v0 recto, 4 hiladas (1,2 m);  v1 en talud, 5 hiladas, cada una 0,5 m más corta por cada punta;  v2 irregular de 0,9 a
   1,8 m, con sacos claros sueltos y dos aspilleras en la cuarta hilada (la parte por encima de 1,2 m es solo silueta: en
@@ -25,7 +25,7 @@ NOMBRES_V = ["Recto", "Talud", "Irregular", "Tablon", "Red"]
 NOMBRES_E = ["Sano", "Danado", "MuyDanado", "Brecha"]
 PIEZAS = ["sacos", "claro", "roto", "arena", "tablon", "red"]
 COLORES = {"sacos": "605c48", "claro": "847c34", "roto": "48403c", "arena": "b4a080", "tablon": "a86c50",
-           "red": "303424"}
+           "red": "50541c"}
 FACCION = "propio"
 PRESUPUESTO = {0: (20, 6000), 1: (10, 2000)}
 UMBRAL_CONTORNO = {0: 9.0, 1: 9.0}
@@ -178,7 +178,8 @@ def construir(nombre="SM_MuroSacos", lod=0):
                 3: [(-2.0, -0.8, 1.3, 0.55, 0.14), (1.3, -0.6, 1.1, 0.5, 0.16), (0.1, 0.75, 0.8, 0.4, 0.1)]}
     for x, y, sx, sy, sz in montones.get(ESTADO, []):
         m.caja((x, y, sz / 2), (sx, sy, sz), "arena", rot_z=0.15)
-        m.caja((x + 0.1, y, sz + 0.05), (sx * 0.6, sy * 0.55, 0.1), "arena", rot_z=0.3)
+        mn = 0.0 if fino else 0.36                                  # LOD1: ≥ 2 px (Lucía 10:10)
+        m.caja((x + 0.1, y, sz + 0.05), (max(sx * 0.6, mn), max(sy * 0.55, mn), 0.1), "arena", rot_z=0.3)
     # tablón de la v3 (a86c50, 0,25 × 0,06 m, de punta a punta y algo volado hacia fuera)
     if VARIANTE == 3:
         zt = 4 * H + 0.03
