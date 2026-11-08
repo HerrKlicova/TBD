@@ -49,15 +49,18 @@ namespace TBD.Sim.Tests
             foreach (var dif in difs == "todas" ? new[] { "facil", "normal", "dificil" } : new[] { difs })
                 foreach (bool veh in vehs == "si" ? new[] { true } : vehs == "no" ? new[] { false } : new[] { false, true })
                 {
+                    bool c90 = Environment.GetEnvironmentVariable("TBD_C90") == "1"; var c90Max = new List<int>(); var c90Hits = new long[C90Umbrales.Length]; var c90Buf = new List<Target>();   // Hugo (8-nov): grupo máximo a tiro de C90, cada segundo
                     int wins = 0; var ammos = new List<int>(); long wall = 0, pile = 0, vk = 0, vr = 0, ammo = 0, deaths = 0, trainF = 0, stF = 0, climbed = 0; int lostT = 0, lostS = 0; var walls = new List<int>(); int unfinished = 0; var brkTicks = new List<int>(); var brkSegs = new Dictionary<string, int>(); long repN = 0, rebN = 0, repHp = 0, nhRet = 0; var trainFall = new List<int>(); var piles = new List<int>(); var touched = new List<int>(); long tPeak = 0;
                     for (int i = 0; i < n; i++)
                     {
                         var sim = NightSim.FromJson(json, dif, (uint)(i + 1 + seed0)); _clk = sim.Night.P.ClockX; if (climb >= 0) sim.SP.ClimbPileZ = climb; if (climbR >= 0) sim.SP.ClimbPermilS = climbR; if (climbMax >= 0) sim.ClimbMaxPerS = climbMax; if (trainX0 > 0) { var tp = sim.Night.P; tp.TrainRect = new RectMm(trainX0, tp.TrainRect.Y0, trainX0 + 64000, tp.TrainRect.Y1); sim.Night.P = tp; }
                         sim.TargetRadiusMm = tgtM * 1000; if (zoneForce) sim.AddZoneForce(); else sim.AddDefaultForce(); if (veh) sim.AddDefaultVehicles(true); if (noBot) sim.AutoPlatoonResupply = true; else sim.Bot = NightBot.FromParams(sim.SP); if (guard > 0 && sim.Bot != null) GuardTrain(sim, guard); if (tramos) { if (sagPieces != null) sim.EnableSegments(sagPieces); else sim.EnableSegments(); sim.AutoRepair = repairOn; sim.PileSpreadPermil = spread; }
                         int brk = -1, brkSeg = -1;
+                        int c90Last = -100000; int[] c90Last4 = { -100000, -100000, -100000, -100000 }; int c90Sec = 0;
                         while (sim.Night.State == NightState.Jugando && sim.Night.Tick < sim.TickCap)
                         {
-                            sim.Run(tramos && brk < 0 ? 30 : 300);
+                            sim.Run(c90 || (tramos && brk < 0) ? 30 : 300);
+                            if (c90) { int m = C90Cluster(sim, c90Buf); if (m >= 0) { c90Max.Add(m); for (int q = 0; q < C90Umbrales.Length; q++) if (m >= C90Umbrales[q] && c90Sec - c90Last4[q] >= 10) { c90Last4[q] = c90Sec; c90Hits[q]++; } } c90Sec++; }
                             if (tramos && brk < 0) for (int k = 0; k < sim.Segments.Count; k++) if (sim.Segments[k].Hp == 0) { brk = sim.Night.Tick; brkSeg = k; break; }
                         }
                         if (sim.Unfinished) unfinished++; repN += sim.Repaired; rebN += sim.Rebuilt; repHp += sim.RepairHp;
@@ -69,6 +72,7 @@ namespace TBD.Sim.Tests
                         trainF += (long)sim.Night.TrainHp * 100 / Math.Max(1, sim.Night.P.TrainHp); stF += (long)sim.Night.StationHp * 100 / Math.Max(1, sim.Night.P.StationHp); climbed += sim.Climbed; walls.Add((int)((long)sim.WallHp * 100 / Math.Max(1, sim.SP.WallHp)));
                         wall += (long)sim.WallHp * 100 / Math.Max(1, sim.SP.WallHp); pile += sim.PeakPile; vk += sim.VehicleKills; vr += sim.VehicleResupplies; ammo += sim.AmmoMilliU(); deaths += sim.SoldierDeaths;
                     }
+                    if (c90 && c90Max.Count > 0) { var cs = new List<int>(c90Max); cs.Sort(); Console.WriteLine($"# C90 {dif}: {cs.Count} segundos con pelotón de C90; zombis en 5 m (centro a ≤30 m del pelotón) p50 {cs[cs.Count / 2]} p90 {cs[cs.Count * 9 / 10]} p99 {cs[cs.Count * 99 / 100]} máx {cs[cs.Count - 1]}"); for (int q = 0; q < C90Umbrales.Length; q++) Console.WriteLine($"# C90 umbral {C90Umbrales[q]}: {c90Hits[q] / (double)n:0.00} avisos por noche (10 s entre avisos)"); }
                     Console.WriteLine($"{dif};{(veh ? "si" : "no")};{n};{wins};{P10(ammos) / 1000.0:0.0};{wall / n};{pile / n};{vk / n};{(vr * 10 / n) / 10.0:0.0};{(ammo / n) / 1000.0:0.0};{(deaths * 10 / n) / 10.0:0.0};{lostT};{lostS};{trainF / n};{stF / n};{climbed / n};{Median(walls)};{unfinished};{brkTicks.Count};{BreachMin(brkTicks)};{BreachHour(brkTicks)};{Mode(brkSegs)};{(repN * 10 / n) / 10.0:0.0};{(rebN * 10 / n) / 10.0:0.0};{repHp / n};{BreachMin(trainFall)};{Median(piles)};{P90(piles)};{tPeak / n};{Median(touched)};{(nhRet * 10 / n) / 10.0:0.0}");
                 }
         }
@@ -81,6 +85,32 @@ namespace TBD.Sim.Tests
 
         /// <summary>D-N165: los tramos reales de Sagunto (NetWorld.Mvp(), D-N63) en mm de NightSim (mundo = local + (113.000; 64.500)). Vida = precio × vidaPorU.
         /// Lado 0 oeste, 1 este, 2 sur, 3 norte; ordenados por lado y por A0, sin huecos. Las esquinas son de los lados oeste y este (como SegmentAt).</summary>
+        public static readonly int[] C90Umbrales = { 12, 20, 25, 30 };
+        /// <summary>El grupo más grande que cabe en un círculo de 5 m (el radio del C90) con centro en un zombi a 30 m o menos de un pelotón con C90 (C90Left &gt; 0). −1 si no hay pelotón con C90.
+        /// Centro en un zombi: aproximación por abajo del máximo continuo.</summary>
+        static int C90Cluster(NightSim sim, List<Target> buf)
+        {
+            const long R = 5000, A = 30000; bool any = false; int best = 0;
+            buf.Clear(); sim.ExportZombies(buf);
+            foreach (var p in sim.Units.Platoons)
+            {
+                if (p.C90Left <= 0 || p.Aboard != 0 || p.AliveCount() == 0) continue; any = true;
+                var near = new List<Target>();
+                foreach (var z in buf) { long dx = z.X - p.AX, dy = z.Y - p.AY; if (dx * dx + dy * dy <= (A + R) * (A + R)) near.Add(z); }
+                var grid = new Dictionary<long, List<Target>>();
+                foreach (var z in near) { long key = ((long)Math.Floor(z.X / (double)R) << 32) ^ (uint)(int)Math.Floor(z.Y / (double)R); List<Target> l; if (!grid.TryGetValue(key, out l)) grid[key] = l = new List<Target>(); l.Add(z); }
+                foreach (var c in near)
+                {
+                    long dx = c.X - p.AX, dy = c.Y - p.AY; if (dx * dx + dy * dy > A * A) continue;
+                    int gx = (int)Math.Floor(c.X / (double)R), gy = (int)Math.Floor(c.Y / (double)R), cnt = 0;
+                    for (int ix = gx - 1; ix <= gx + 1; ix++) for (int iy = gy - 1; iy <= gy + 1; iy++)
+                    { List<Target> l; if (!grid.TryGetValue(((long)ix << 32) ^ (uint)iy, out l)) continue; foreach (var z in l) { long ex = z.X - c.X, ey = z.Y - c.Y; if (ex * ex + ey * ey <= R * R) cnt++; } }
+                    if (cnt > best) best = cnt;
+                }
+            }
+            return any ? best : -1;
+        }
+
         public static List<NightSim.WallSegment> SaguntoPieces(int vidaPorU, System.Text.StringBuilder dump = null)
         {
             var w = NetScenario.Mvp(); int sag = -1; foreach (var nd in w.Graph.Nodes) if (nd.Name == "Sagunto") sag = nd.Id;
