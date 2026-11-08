@@ -18,6 +18,8 @@ namespace TBD.Units
         public int ThreatBandMm = 40_000;              // los zombis fuera del muro a menos de esto cuentan como amenaza de ese lado
         public bool DeployMachineGuns = true;          // las ametralladoras se emplazan mirando al muro al llegar
         public bool Enabled = true;
+        /// <summary>Pelotones ocupados en una obra (D-N163: los zapadores que reparan): el bot no les da órdenes.</summary>
+        public readonly HashSet<int> Busy = new HashSet<int>();
 
         // ---- contadores (para el informe de Sara)
         public int Orders, Resupplies, Decisions, Reassignments;
@@ -73,7 +75,7 @@ namespace TBD.Units
             // 3) los pelotones de línea (todos menos zapadores) reparten el muro en proporción a la amenaza; sin amenaza se quedan donde están
             var line = new List<Platoon>(); Platoon reserve = null; var reserveList = new List<Platoon>();
             foreach (var p in w.Platoons) { if (p.AliveCount() == 0 || p.Aboard != 0) continue; if (p.Kind == PlatoonKind.Zapadores) reserveList.Add(p); else line.Add(p); Slot(p.Id); }
-            foreach (var z in reserveList) { reserve = z; MoveIfNeeded(w, z, StationX, StationY + 6000 * (reserveList.IndexOf(z) + 1), 0, -1, false); }
+            foreach (var z in reserveList) { reserve = z; if (Busy.Contains(z.Id)) continue; MoveIfNeeded(w, z, StationX, StationY + 6000 * (reserveList.IndexOf(z) + 1), 0, -1, false); }
             if (line.Count == 0) return;
             if (total >= 8)
             {

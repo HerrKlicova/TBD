@@ -97,7 +97,7 @@ namespace TBD.View
                 if (_pendiente && NightRun.Active && !Arg("-sintutorial"))
                 {
                     _pendiente = false;
-                    _m = TutorialGuion.Nuevo(new Prefs()); _logVisto = 0;
+                    _m = TutorialGuion.Nuevo(new Prefs()); _logVisto = 0; _m.EstadoActual = EstadoJuego;
                     bool ok = _m.Arrancar(NightRun.Difficulty, forzar: Arg("-tutorial") || Arg("-tutorial-auto"));
                     Debug.Log(ok ? $"[TUTORIAL] arranca (dificultad {NightRun.Difficulty})" : $"[TUTORIAL] no arranca (dificultad {NightRun.Difficulty})");
                     if (!ok) _m = null;
@@ -105,6 +105,14 @@ namespace TBD.View
                 else if (Activo && _m.Hecho(TutorialGuion.Senales.MapaAbierto)) Senal(TutorialGuion.Senales.VueltaZona);
             }
             else if (s.name == "Union") Senal(TutorialGuion.Senales.MapaAbierto);
+        }
+
+        /// <summary>Señales que son estados y se pueden mirar en cualquier momento (revisión de Nacho): si ya se cumplen al salir la tarjeta, cuenta.</summary>
+        public static Func<string, bool> EstadoExtra;      // lo amplía el panel del tren (TrenPanel)
+        static bool EstadoJuego(string s)
+        {
+            if (s == TutorialGuion.Senales.MapaAbierto) return SceneManager.GetActiveScene().name == "Union";
+            return EstadoExtra != null && EstadoExtra(s);
         }
 
         void Update()

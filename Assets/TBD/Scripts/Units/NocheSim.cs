@@ -169,7 +169,7 @@ namespace TBD.Units
         readonly List<SpawnPoint> _spawns = new List<SpawnPoint>();
         readonly StepResult _res = new StepResult();
         readonly ContactResult _contact = new ContactResult();
-        int _wallRem;
+        int _wallRem; int[] _segPile;
         IRng _rng;
 
         public NightSim(NightParams np, NightSimParams sp, int ammoU, int materialsU, int fuelU, uint seed)
@@ -287,6 +287,10 @@ namespace TBD.Units
         bool InFort(int x, int y) { return x > SP.FortX0 && x < SP.FortX1 && y > SP.FortY0 && y < SP.FortY1; }
 
         public void Run(int ticks) { for (int i = 0; i < ticks && Night.State == NightState.Jugando; i++) Step(); }
+        /// <summary>D-N164: ya no se gana a las 06:00, así que una horda que no cae podría no acabar nunca. Las corridas en lote paran aquí
+        /// (dos noches de reloj: a ×28 son unos 34 min reales) y cuentan la partida como «sin acabar», que NO es victoria.</summary>
+        public int TickCap { get { return Night.TotalTicks * 2; } }
+        public bool Unfinished { get { return Night.State == NightState.Jugando; } }
 
         public void Step()
         {
@@ -299,6 +303,7 @@ namespace TBD.Units
             foreach (var s in _spawns) { _z.Add(new Zomb { X = s.X, Y = s.Y }); Spawned++; if (cur != null) cur.Spawned++; }
             // 2) los zombis: caminan hacia el edificio; el muro los detiene; se cuenta la pila
             int pile = 0, speed = SP.ZombieSpeedMmS / IMath.TickRate;
+            if (Segments != null) { if (_segPile == null || _segPile.Length != Segments.Count) _segPile = new int[Segments.Count]; Array.Clear(_segPile, 0, _segPile.Length); }
             for (int i = 0; i < _z.Count; i++)
             {
                 var z = _z[i]; if (!z.Alive) continue;
@@ -317,7 +322,7 @@ namespace TBD.Units
                 if (inside ? (z.Goal != 4 && d < 500) : (d < 3500 && !toGate)) continue;
                 if (d < 1) continue;
                 int nx = z.X + IMath.DivR((long)dx * speed, d), ny = z.Y + IMath.DivR((long)dy * speed, d);
-                if (WallHp > 0 && !InFort(z.X, z.Y) && InFort(nx, ny) && !(gap && z.X <= SP.FortX0 && Math.Abs(ny - SP.StationY) < SP.GateGapMm / 2))
+                if (!InFort(z.X, z.Y) && InFort(nx, ny) && SegIntact(z.X, z.Y) && !(gap && z.X <= SP.FortX0 && Math.Abs(ny - SP.StationY) < SP.GateGapMm / 2))
                 {
                     // choca con el muro: se queda pegado (si entra por X se corrige X; por Y, Y)
                     if (!InFort(nx, z.Y)) ny = z.Y; else if (!InFort(z.X, ny)) nx = z.X; else { nx = z.X; ny = z.Y; }
@@ -329,14 +334,29 @@ namespace TBD.Units
                     if (!InRect(z.X, ny, Night.P.TrainRect)) nx = z.X; else if (!InRect(nx, z.Y, Night.P.TrainRect)) ny = z.Y; else { nx = z.X; ny = z.Y; }
                 }
                 z.X = nx; z.Y = ny;
-                if (WallHp > 0 && !InFort(z.X, z.Y) && NearWall(z.X, z.Y) && !(gap && Math.Abs(z.Y - SP.StationY) < SP.GateGapMm / 2 + 500)) pile++;      // los que cruzan el hueco no son pila
+                if (WallHp > 0 && !InFort(z.X, z.Y) && NearWall(z.X, z.Y) && !(gap && Math.Abs(z.Y - SP.StationY) < SP.GateGapMm / 2 + 500))
+                {
+                    if (Segments == null) pile++;
+                    else { int sg = SegmentAt(z.X, z.Y); if (sg >= 0 && Segments[sg].Hp > 0) { pile++; _segPile[sg]++; } }
+                }      // los que cruzan el hueco no son pila
             }
             if (SP.ClimbPermilS > 0 && WallHp > 0 && pile > SP.ClimbPileZ) pile -= ClimbStep(pile - SP.ClimbPileZ);
             if (pile > PeakPile) PeakPile = pile;
             if (cur != null && pile > cur.PeakPile) cur.PeakPile = pile;
             LastPile = pile;
             // 3) desgaste del muro por la pila y del edificio por los que llegan a él
-            if (WallHp > 0 && pile > 0) { _wallRem += pile * SP.WallDmgPerZombieS; int dmg = _wallRem / IMath.TickRate; _wallRem %= IMath.TickRate; WallHp = Math.Max(0, WallHp - dmg); }
+            if (Segments == null) { if (WallHp > 0 && pile > 0) { _wallRem += pile * SP.WallDmgPerZombieS; int dmg = _wallRem / IMath.TickRate; _wallRem %= IMath.TickRate; WallHp = Math.Max(0, WallHp - dmg); } }
+            else
+            {
+                // D-N163: el daño de la pila va al tramo que toca cada zombi (los que trepan ya no cuentan)
+                for (int i = 0; i < Segments.Count; i++)
+                {
+                    var g = Segments[i]; if (g.Hp <= 0 || _segPile[i] == 0) continue;
+                    g.Rem += _segPile[i] * SP.WallDmgPerZombieS; int dmg = g.Rem / IMath.TickRate; g.Rem %= IMath.TickRate; g.Hp = Math.Max(0, g.Hp - dmg); if (g.Hp == 0) g.Rem = 0;
+                }
+                SumSegments();
+            }
+            WallJobsStep();
             { _targets.Clear(); for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); int aS, aT; Night.CountAttackers(_targets, out aS, out aT); Night.Attack(aS, aT); }
             // 4) los pelotones disparan; los impactos abaten
             _targets.Clear(); _ids.Clear();
@@ -458,7 +478,8 @@ namespace TBD.Units
             int moved = 0;
             for (int i = _z.Count - 1; i >= 0 && moved < n; i--)
             {
-                var z = _z[i]; if (!z.Alive || InFort(z.X, z.Y) || !NearWall(z.X, z.Y)) continue;
+                var z = _z[i]; if (!z.Alive || InFort(z.X, z.Y) || !NearWall(z.X, z.Y) || !SegIntact(z.X, z.Y)) continue;
+                if (_segPile != null) { int sg = SegmentAt(z.X, z.Y); if (sg >= 0 && _segPile[sg] > 0) _segPile[sg]--; }
                 if (z.X <= SP.FortX0) z.X = SP.FortX0 + 1500; else if (z.X >= SP.FortX1) z.X = SP.FortX1 - 1500;
                 else if (z.Y <= SP.FortY0) z.Y = SP.FortY0 + 1500; else z.Y = SP.FortY1 - 1500;
                 z.X = Math.Max(SP.FortX0 + 1500, Math.Min(SP.FortX1 - 1500, z.X)); z.Y = Math.Max(SP.FortY0 + 1500, Math.Min(SP.FortY1 - 1500, z.Y));
@@ -490,12 +511,174 @@ namespace TBD.Units
         public int AmmoMilliU() { long shots = Units.StockShots; foreach (var p in Units.Platoons) if (p.AliveCount() > 0) shots += p.AmmoShots; return (int)(shots * 1000 / WeaponCatalog.ShotsPerU); }
         public int VehiclesLost;
 
+        // ================================================================ D-N163 (Lucía, construccion-reparar.md §8): el muro por tramos, Repair y Rebuild
+        /// <summary>Un tramo del muro: un trozo de un lado del recinto (Side 0 oeste, 1 este, 2 sur, 3 norte; A0-A1 a lo largo, en mm). Hp 0 = brecha: ya no detiene.</summary>
+        public sealed class WallSegment { public int Side, A0, A1, Hp, HpMax, Rem, PriceU, ObraMh; public int LenMm { get { return A1 - A0; } } }
+        public enum WallJobKind : byte { Reparar = 0, Reconstruir = 1 }
+        public sealed class WallJob { public WallJobKind Kind; public int Seg, Platoon, WorkTicks; public bool Ordered, Working, PrevHoldFire; }
+        /// <summary>Tramos (null = el muro de un solo bloque de siempre, sin cambio de hash). Se activa con EnableSegments.</summary>
+        public List<WallSegment> Segments;
+        public readonly List<WallJob> WallJobs = new List<WallJob>();
+        public int Repaired, Rebuilt, RepairHp, RepairMaterialsU;   // contadores para las medidas de Sara
+        /// <summary>NightBot repara (AutoRepair): el tramo más bajo por debajo de este ‰ y reconstruye las brechas sin zombis cerca. Solo con Bot.</summary>
+        public bool AutoRepair; public int AutoRepairBelowPm = 900;
+        // cifras de Hugo (§13, sin medir): 1 u = 5.000 de vida, 1 u por zapador cada 20 s; sacos a 2 u cada 10 m; la brecha vuelve al 30 %
+        public int RepairHpPerU = 5000, RepairSecPerU = 20, RebuildUPer10m = 2, RebuildPermil = 300, RebuildTicks = 0;
+        public int RepairClearMm = 3000, RebuildClearMm = 15000, WorkReachMm = 10000;
+        long _matAcc, _hpAcc;
+
+        /// <summary>Parte el muro en tramos de «segLenMm» por lado (la vida total SP.WallHp se reparte en proporción a la longitud; el resto, a los primeros).</summary>
+        public void EnableSegments(int segLenMm = 10000)
+        {
+            Segments = new List<WallSegment>();
+            int[] len = { SP.FortY1 - SP.FortY0, SP.FortY1 - SP.FortY0, SP.FortX1 - SP.FortX0, SP.FortX1 - SP.FortX0 };
+            int[] a0 = { SP.FortY0, SP.FortY0, SP.FortX0, SP.FortX0 };
+            long per = 2L * (len[0] + len[2]);
+            for (int s = 0; s < 4; s++)
+            {
+                int n = Math.Max(1, (len[s] + segLenMm - 1) / segLenMm);
+                for (int k = 0; k < n; k++) Segments.Add(new WallSegment { Side = s, A0 = a0[s] + (int)((long)len[s] * k / n), A1 = a0[s] + (int)((long)len[s] * (k + 1) / n) });
+            }
+            long given = 0;
+            foreach (var g in Segments) { g.HpMax = (int)((long)SP.WallHp * g.LenMm / per); given += g.HpMax; }
+            for (int i = 0; given < SP.WallHp; i = (i + 1) % Segments.Count) { Segments[i].HpMax++; given++; }
+            long cur = WallHp; foreach (var g in Segments) { g.Hp = (int)((long)g.HpMax * cur / Math.Max(1, SP.WallHp)); }
+            SumSegments();
+        }
+
+        /// <summary>Tramos dados por la zona, una por pieza de Obras (Hugo, reparar-costes.md §1: vida_max = precio × TramoVidaPorU). Deben cubrir cada lado sin huecos,
+        /// ordenados por lado y por A0. La vida que traen (Hp) se respeta; si Hp &lt; 0, empiezan al máximo.</summary>
+        public void EnableSegments(IList<WallSegment> pieces)
+        {
+            Segments = new List<WallSegment>();
+            foreach (var q in pieces) { var g = new WallSegment { Side = q.Side, A0 = q.A0, A1 = q.A1, PriceU = q.PriceU, ObraMh = q.ObraMh, HpMax = q.HpMax > 0 ? q.HpMax : q.PriceU * TramoVidaPorU }; g.Hp = q.Hp < 0 ? g.HpMax : Math.Min(q.Hp, g.HpMax); Segments.Add(g); }
+            long mx = 0; foreach (var g in Segments) mx += g.HpMax; SP.WallHp = (int)mx;      // D-N165: el máximo del muro es la suma de sus piezas (el % del muro y el parte se miden contra esto)
+            SumSegments();
+        }
+        public int TramoVidaPorU = 10000;
+        void SumSegments() { long t = 0; foreach (var g in Segments) t += g.Hp; WallHp = (int)t; }
+        /// <summary>Recalcula WallHp tras tocar a mano la vida de un tramo (pruebas y la zona al sincronizar).</summary>
+        public void SumForTests() { if (Segments != null) SumSegments(); }
+
+        /// <summary>El tramo que toca el punto (x, y) de fuera: el lado del que más se ha salido y la coordenada a lo largo. −1 si está dentro.</summary>
+        public int SegmentAt(int x, int y)
+        {
+            if (Segments == null) return -1;
+            int ex0 = SP.FortX0 - x, ex1 = x - SP.FortX1, ey0 = SP.FortY0 - y, ey1 = y - SP.FortY1;
+            int best = Math.Max(Math.Max(ex0, ex1), Math.Max(ey0, ey1));
+            int side = best == ex0 ? 0 : best == ex1 ? 1 : best == ey0 ? 2 : 3, along = side <= 1 ? y : x, last = -1;
+            for (int i = 0; i < Segments.Count; i++) { var g = Segments[i]; if (g.Side != side) continue; last = i; if (along < g.A1) return i; }
+            return last;
+        }
+        bool SegIntact(int x, int y) { if (Segments == null) return WallHp > 0; int s = SegmentAt(x, y); return s < 0 || Segments[s].Hp > 0; }
+
+        void SegLine(WallSegment g, out int x0, out int y0, out int x1, out int y1)
+        {
+            if (g.Side <= 1) { x0 = x1 = g.Side == 0 ? SP.FortX0 : SP.FortX1; y0 = g.A0; y1 = g.A1; } else { y0 = y1 = g.Side == 2 ? SP.FortY0 : SP.FortY1; x0 = g.A0; x1 = g.A1; }
+        }
+        /// <summary>¿Hay algún zombi vivo a «r» mm o menos del tramo (de su línea)?</summary>
+        public bool ZombiesNear(int seg, int r)
+        {
+            int x0, y0, x1, y1; SegLine(Segments[seg], out x0, out y0, out x1, out y1);
+            for (int i = 0; i < _z.Count; i++)
+            {
+                if (!_z[i].Alive) continue;
+                int dx = _z[i].X < x0 ? x0 - _z[i].X : _z[i].X > x1 ? _z[i].X - x1 : 0, dy = _z[i].Y < y0 ? y0 - _z[i].Y : _z[i].Y > y1 ? _z[i].Y - y1 : 0;
+                if (dx <= r && dy <= r && (long)dx * dx + (long)dy * dy <= (long)r * r) return true;
+            }
+            return false;
+        }
+        Platoon Sappers() { foreach (var p in Units.Platoons) if (p.Kind == PlatoonKind.Zapadores && p.Aboard == 0 && p.AliveCount() > 0) return p; return null; }
+        /// <summary>Tiempo de reconstruir (Hugo, reparar-costes.md §2): obra_h × 3600 / reloj_x / (2 × zapadores vivos) segundos reales. Sin dato de obra, sacos: 2 obrero·h cada 10 m.
+        /// Con RebuildTicks &gt; 0 se usa ese tiempo fijo.</summary>
+        int RebuildTicksFor(int seg, int sappers)
+        {
+            if (RebuildTicks > 0) return RebuildTicks;
+            var g = Segments[seg]; long mh = g.ObraMh > 0 ? g.ObraMh : 2000L * g.LenMm / 10000;
+            long t = mh * 3600L * IMath.TickRate / 1000 / Math.Max(1, Night.P.ClockX) / (2L * Math.Max(1, sappers));
+            return (int)Math.Max(1, t);
+        }
+        /// <summary>Reconstruir cuesta el precio de la pieza (Hugo, §1); sin precio, sacos a 2 u cada 10 m.</summary>
+        int RebuildCostU(int seg) { var g = Segments[seg]; return g.PriceU > 0 ? g.PriceU : (int)(((long)RebuildUPer10m * g.LenMm + 9999) / 10000); }
+
+        /// <summary>Por qué no se puede reparar el tramo (los textos del §4), o null si se puede.</summary>
+        public string RepairBlockReason(int seg)
+        {
+            if (Segments == null || seg < 0 || seg >= Segments.Count) return "Sin tramo";
+            if (Segments[seg].Hp <= 0) return "Tramo caído: hay que reconstruirlo";
+            if (ZombiesNear(seg, RepairClearMm)) return "Hay zombis pegados al tramo";
+            if (MaterialsU <= 0) return "Sin materiales";
+            if (Sappers() == null) return "Sin zapadores";
+            return null;
+        }
+        /// <summary>Por qué no se puede reconstruir (§5), o null si se puede.</summary>
+        public string RebuildBlockReason(int seg)
+        {
+            if (Segments == null || seg < 0 || seg >= Segments.Count) return "Sin tramo";
+            if (Segments[seg].Hp > 0) return "El tramo no está caído";
+            if (ZombiesNear(seg, RebuildClearMm)) return "Hay zombis a menos de 15 m";
+            if (MaterialsU < RebuildCostU(seg)) return "Sin materiales";
+            if (Sappers() == null) return "Sin zapadores";
+            return null;
+        }
+        /// <summary>Orden del jugador: reparar el tramo (a la cola). false si no se puede (motivo en RepairBlockReason) o ya está en la cola.</summary>
+        public bool Repair(int seg) { if (RepairBlockReason(seg) != null || Queued(seg)) return false; WallJobs.Add(new WallJob { Kind = WallJobKind.Reparar, Seg = seg }); return true; }
+        /// <summary>Orden del jugador: reconstruir la brecha (a la cola). false si no se puede.</summary>
+        public bool Rebuild(int seg) { if (RebuildBlockReason(seg) != null || Queued(seg)) return false; WallJobs.Add(new WallJob { Kind = WallJobKind.Reconstruir, Seg = seg }); return true; }
+        bool Queued(int seg) { foreach (var j in WallJobs) if (j.Seg == seg) return true; return false; }
+
+        void EndJob(WallJob j, Platoon p) { if (p != null && j.Working) p.HoldFire = j.PrevHoldFire; if (Bot != null) Bot.Busy.Remove(j.Platoon); WallJobs.RemoveAt(0); }
+
+        /// <summary>Una vez por tick: la obra de cabeza de la cola. Los zapadores van al tramo (por dentro, a 3 m del muro), y al estar a menos de 10 m paran de disparar y trabajan.
+        /// Si deja de cumplirse la condición (zombis encima, sin materiales, sin zapadores), la obra se cancela.</summary>
+        void WallJobsStep()
+        {
+            if (Segments == null) return;
+            if (AutoRepair && Bot != null && WallJobs.Count == 0 && Night.Tick % 60 == 0)
+            {
+                int best = -1; long bp = long.MaxValue;
+                for (int i = 0; i < Segments.Count; i++) if (Segments[i].Hp == 0 && RebuildBlockReason(i) == null) { best = i; bp = -1; break; }
+                if (best >= 0) Rebuild(best);
+                else
+                {
+                    for (int i = 0; i < Segments.Count; i++) { var g = Segments[i]; long pm = (long)g.Hp * 1000 / Math.Max(1, g.HpMax); if (g.Hp > 0 && pm < AutoRepairBelowPm && pm < bp && RepairBlockReason(i) == null) { bp = pm; best = i; } }
+                    if (best >= 0) Repair(best);
+                }
+            }
+            if (WallJobs.Count == 0) return;
+            var j = WallJobs[0]; var p = Sappers(); var seg = Segments[j.Seg];
+            string why = j.Kind == WallJobKind.Reparar ? (seg.Hp <= 0 ? "caído" : ZombiesNear(j.Seg, RepairClearMm) ? "zombis" : (MaterialsU <= 0 ? "materiales" : null))
+                                                    : (seg.Hp > 0 && !j.Working ? "no caído" : ZombiesNear(j.Seg, RebuildClearMm) ? "zombis" : null);
+            if (p == null || why != null) { EndJob(j, p); return; }
+            j.Platoon = p.Id; if (Bot != null) Bot.Busy.Add(p.Id);
+            int x0, y0, x1, y1; SegLine(seg, out x0, out y0, out x1, out y1);
+            int sx = (x0 + x1) / 2 + (seg.Side == 0 ? 3000 : seg.Side == 1 ? -3000 : 0), sy = (y0 + y1) / 2 + (seg.Side == 2 ? 3000 : seg.Side == 3 ? -3000 : 0);
+            if (IMath.Dist(p.AX - sx, p.AY - sy) > WorkReachMm) { if (!j.Ordered || !p.Moving) { Units.Move(p.Id, sx, sy); j.Ordered = true; } return; }
+            if (!j.Working) { j.Working = true; j.PrevHoldFire = p.HoldFire; p.HoldFire = true; if (j.Kind == WallJobKind.Reconstruir) MaterialsU -= RebuildCostU(j.Seg); }
+            int n = p.AliveCount();
+            if (j.Kind == WallJobKind.Reparar)
+            {
+                long tps = (long)RepairSecPerU * IMath.TickRate;                     // ticks por u y zapador
+                _matAcc += n; while (_matAcc >= tps && MaterialsU > 0) { _matAcc -= tps; MaterialsU--; RepairMaterialsU++; }
+                _hpAcc += (long)n * RepairHpPerU; int hp = (int)(_hpAcc / tps); _hpAcc %= tps;
+                int add = Math.Min(hp, seg.HpMax - seg.Hp); seg.Hp += add; RepairHp += add; SumSegments();
+                if (seg.Hp >= seg.HpMax) { Repaired++; EndJob(j, p); }
+            }
+            else if (++j.WorkTicks >= RebuildTicksFor(j.Seg, n)) { seg.Hp = (int)((long)seg.HpMax * RebuildPermil / 1000); seg.Rem = 0; SumSegments(); Rebuilt++; EndJob(j, p); }
+        }
+
         public ulong Hash()
         {
             ulong h = Units.Hash() ^ Night.Hash();
             h += IMath.Mix((ulong)(uint)WallHp + ((ulong)(uint)Night.StationHp << 32) + 3) + IMath.Mix((ulong)(uint)Kills + ((ulong)(uint)SoldierDeaths << 32) + 5) + IMath.Mix(_rng.S ^ 0x77);
             for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) h += IMath.Mix((ulong)(uint)_z[i].X + ((ulong)(uint)_z[i].Y << 32) + (ulong)i);
             for (int i = 0; i < Vehicles.Count; i++) h += Vehicles[i].Hash() * (ulong)(2 * i + 3);     // sin vehículos, el hash es el de siempre
+            if (Segments != null)                                                                       // sin tramos, el hash es el de siempre
+            {
+                for (int i = 0; i < Segments.Count; i++) h += IMath.Mix((ulong)(uint)Segments[i].Hp + ((ulong)(uint)Segments[i].Rem << 32) + (ulong)(i + 0xD163));
+                for (int i = 0; i < WallJobs.Count; i++) h += IMath.Mix((ulong)WallJobs[i].Kind + ((ulong)(uint)WallJobs[i].Seg << 8) + ((ulong)(uint)WallJobs[i].WorkTicks << 24) + (WallJobs[i].Working ? 1UL << 60 : 0) + (ulong)(i + 0x30B));
+                h += IMath.Mix((ulong)_matAcc + ((ulong)_hpAcc << 32) + ((ulong)(uint)MaterialsU << 20) + 0x2E9);
+            }
             return h;
         }
     }

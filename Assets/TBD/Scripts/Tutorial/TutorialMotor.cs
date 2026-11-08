@@ -19,11 +19,12 @@ namespace TBD.Tutorial
         public Cierre Cierre;
         public string[] Senales = new string[0];   // con Cierre.Senal: basta una de ellas, recibida DESPUÉS de que salga la tarjeta
         public bool Todas;                 // con Cierre.Senal: hacen falta todas (en cualquier orden), no una (1.1: cámara movida y rueda)
-        public float Segundos;             // con Cierre.Segundos; con Cierre.Senal, si > 0, tope para cerrarse sola
+        public float Segundos;             // con Cierre.Segundos; con Cierre.Senal, si > 0, tope para cerrarse sola (red de seguridad)
         public string Espera;              // si no es null, la tarjeta no sale hasta que haya llegado esta señal (en cualquier momento del capítulo)
         public string ExtraSi, Extra;      // si ha llegado la señal ExtraSi en el capítulo, se añade Extra al texto (1.3: vehículos fuera)
         public bool Pausa;                 // con la tarjeta fuera, el juego se pausa (solo la del capítulo 0)
         public bool Linea;                 // una sola línea, sin cabecera (1.9, mientras dura el ataque)
+        public bool SueltaHorda;           // desde este paso la horda ya no espera (1.8, «Ahí vienen»): HordaEnEspera vale solo hasta aquí (Nacho)
         public string[] Botones = new string[0];   // botones de la tarjeta; cada uno manda la señal «boton:<texto>»
     }
 
@@ -85,7 +86,22 @@ namespace TBD.Tutorial
         public Paso Actual { get { var c = Cap; return Estado == EstadoTutorial.Activo && c != null && PasoIndex >= 0 && PasoIndex < c.Pasos.Length ? c.Pasos[PasoIndex] : null; } }
         /// <summary>La tarjeta se ve: hay paso actual y no está esperando su señal previa.</summary>
         public bool Visible { get { var p = Actual; return p != null && (p.Espera == null || _hechos.Contains(p.Espera)); } }
-        public bool PideHordaEnEspera { get { var c = Cap; return Estado == EstadoTutorial.Activo && c != null && c.Combate; } }
+        public bool PideHordaEnEspera
+        {
+            get
+            {
+                var c = Cap; if (Estado != EstadoTutorial.Activo || c == null || !c.Combate) return false;
+                for (int i = 0; i <= PasoIndex && i < c.Pasos.Length; i++) if (c.Pasos[i].SueltaHorda) return false;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Estado del juego que se puede preguntar en cualquier momento (no solo cuando pasa): «mapa_abierto» con el mapa ya abierto, etc. (Nacho, revisión).
+        /// Si una tarjeta de señal está fuera y alguna de sus señales es un estado que ya se cumple, se cierra sin esperar a que vuelva a pasar.
+        /// Lo pone la vista; devuelve false para lo que no es un estado. null: solo cuentan las señales.
+        /// </summary>
+        public Func<string, bool> EstadoActual;
         public bool PidePausa { get { var p = Actual; return Visible && p.Pausa; } }
         public string Cabecera { get { var c = Cap; return Visible ? $"Capítulo {c.Numero} · Paso {PasoIndex + 1} de {c.Pasos.Length}" : null; } }
         public string Texto
@@ -148,6 +164,12 @@ namespace TBD.Tutorial
             var p = Actual;
             EnPaso += dt; _sinAvance += dt;
             if (p.Cierre == Cierre.Segundos) { if (EnPaso >= p.Segundos) { Log($"{p.Id} cerrado a los {p.Segundos:0} s"); Siguiente(); } return; }
+            if (EstadoActual != null)
+            {
+                bool todas = true, alguna = false; string cual = null;
+                foreach (var x in p.Senales) { bool ya = _enPaso.Contains(x) || EstadoActual(x); todas &= ya; if (ya && !alguna) { alguna = true; cual = x; } }
+                if (p.Todas ? todas : alguna) { Log($"{p.Id} cerrado: ya se cumple {cual}"); Siguiente(); return; }
+            }
             if (p.Segundos > 0 && EnPaso >= p.Segundos) { Log($"{p.Id} cerrado por tiempo"); Siguiente(); return; }
             if (_sinAvance >= RepetirCada && !p.Pausa && !p.Linea) Repetir();
         }

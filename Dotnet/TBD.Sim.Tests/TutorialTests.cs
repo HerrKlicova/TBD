@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using TBD.Net;
 using TBD.Tutorial;
 using TBD.Units;
 
@@ -81,6 +82,31 @@ namespace TBD.Sim.Tests
             check(m3.Estado == EstadoTutorial.Terminado && n == 31 && vistos[30] == "3.13", $"el recorrido completo pasa por los 31 pasos y acaba en 3.13 ({n})");
             check(mem3.Leer(TutorialMotor.ClaveVisto), "al acabar queda como visto");
 
+            // --- capítulo 1 entero (revisión de Nacho): la horda espera hasta el 1.8 y luego se suelta; el 1.9 tiene red de seguridad de 90 s
+            {
+                var mh = TutorialGuion.Nuevo(new MemoriaEnRam()); mh.Arrancar(850); mh.Senal(TutorialGuion.Senales.Empezar);
+                bool esperaAntes = true;
+                while (mh.Actual.Id != "1.8") { esperaAntes &= mh.PideHordaEnEspera; var p = mh.Actual; if (p.Cierre == Cierre.Segundos) Run1(mh, p.Segundos); else foreach (var s in p.Senales) mh.Senal(s); }
+                check(esperaAntes && !mh.PideHordaEnEspera, "la horda espera del 1.1 al 1.7 y se suelta en el 1.8");
+                mh.Senal(TutorialGuion.Senales.HordaAvanza);
+                check(mh.Actual.Id == "1.9" && !mh.PideHordaEnEspera, "1.8 se cierra cuando la horda avanza; en el 1.9 la horda ya no espera");
+                Run1(mh, 89f); check(mh.Actual.Id == "1.9", "el 1.9 sigue mientras dura el ataque");
+                Run1(mh, 1.5f); check(mh.Actual.Id == "1.10", "si nunca llega «ataque rechazado», el 1.9 se cierra a los 90 s");
+                Run1(mh, 4.2f); check(mh.Cap.Numero == 2, "y el capítulo 1 acaba y pasa al 2");
+                var m18 = TutorialGuion.Nuevo(new MemoriaEnRam()); m18.Arrancar(850); m18.Senal(TutorialGuion.Senales.Empezar);
+                while (m18.Actual.Id != "1.8") { var p = m18.Actual; if (p.Cierre == Cierre.Segundos) Run1(m18, p.Segundos); else foreach (var s in p.Senales) m18.Senal(s); }
+                Run1(m18, 3.2f); check(m18.Actual.Id == "1.9", "sin señal, el 1.8 se cierra a los 3 s");
+            }
+
+            // --- estado que ya se cumple (revisión de Nacho): mapa ya abierto al salir la 3.2
+            {
+                var ms = TutorialGuion.Nuevo(new MemoriaEnRam()); ms.Arrancar(850); bool mapa = false;
+                ms.EstadoActual = x => x == TutorialGuion.Senales.MapaAbierto && mapa;
+                while (ms.Actual.Id != "3.2") { var p = ms.Actual; if (p.Cierre == Cierre.Segundos) Run1(ms, p.Segundos); else foreach (var s in p.Senales) ms.Senal(s); }
+                ms.Avanzar(0.1f); check(ms.Actual.Id == "3.2", "3.2 espera mientras el mapa no está abierto");
+                mapa = true; ms.Avanzar(0.1f); check(ms.Actual.Id == "3.3", "con el mapa ya abierto, la 3.2 se cierra sola aunque la señal llegara antes");
+            }
+
             // --- capítulo 3: el 3.11 espera a que el tren llegue a Nules
             var m4 = TutorialGuion.Nuevo(new MemoriaEnRam()); m4.Arrancar(850);
             while (m4.Actual != null && m4.Actual.Id != "3.10") { var p = m4.Actual; if (p.Cierre == Cierre.Segundos) Run1(m4, p.Segundos); else foreach (var s in p.Senales) m4.Senal(s); }
@@ -120,6 +146,35 @@ namespace TBD.Sim.Tests
             f.C90Left = 0; check(C90Aviso.Buscar(uw, zs) == -1, "sin C90 que lanzar, no avisa");
             var ua = new UnitsWorld(5); ua.AddPlatoon(PlatoonKind.Ametralladores, 0, 0, 0);
             check(C90Aviso.Buscar(ua, zs) == -1, "un pelotón sin C90 (ametralladores) no avisa");
+
+            // --- «Preparar tren»: Sagunto → Nules con carga, espera en Nules, descarga y vuelta (solo SetSchedule)
+            {
+                var w = NetScenario.Mvp(); w.DirectorEnabled = false;
+                int sag = TrenPreparar.Nodo(w, "Sagunto"), nul = TrenPreparar.Nodo(w, "Nules");
+                int sv = -1; for (int g = 0; g < 2 * NetConst.DayTicks && sv < 0; g++) { sv = TrenPreparar.TrenEn(w, sag); if (sv < 0) w.Step(); }
+                check(sv >= 0, "hay un tren parado en Sagunto para preparar");
+                long eta = TrenPreparar.EtaDesdeParada(w, sv, nul);
+                check(eta > 0 && TrenPreparar.HhMm(eta).Contains(":"), $"ETA Sagunto–Nules: {TrenPreparar.HhMm(eta)}");
+                var carga = new int[NetConst.ResCount]; carga[(int)Res.Municion] = 40; carga[(int)Res.Materiales] = 60;
+                int mun0 = w.Stock[sag, (int)Res.Municion], nulMat0 = w.Stock[nul, (int)Res.Materiales];
+                check(TrenPreparar.Envio(w, sv, sag, carga) == null, "no se puede enviar a la estación donde ya está");
+                var r = w.SetSchedule(sv, TrenPreparar.Envio(w, sv, nul, carga));
+                check(r == ScheduleResult.Ok, $"el envío es un horario válido ({r})");
+                long t0 = w.Tick; bool salio = false;
+                while (w.Tick - t0 < NetConst.DayTicks / 2) { w.Step(); if (!w.Services[sv].AtStop) salio = true; if (salio && w.Services[sv].AtStop) break; }
+                var s = w.Services[sv];
+                check(salio && s.AtStop && s.Stops[s.StopIndex].Node == nul, "sale enseguida y llega a Nules");
+                check(s.Cargo[(int)Res.Municion] >= 40 && s.Cargo[(int)Res.Materiales] >= 60 && w.Stock[sag, (int)Res.Municion] <= mun0 - 40, "lleva la carga, que ha salido del almacén de Sagunto");
+                long llegada = w.Tick - t0;
+                check(Math.Abs(llegada - eta) <= eta / 10 + 30, $"la ETA cuadra con el viaje real ({TrenPreparar.HhMm(llegada)} frente a {TrenPreparar.HhMm(eta)})");
+                for (int i = 0; i < 600; i++) w.Step();
+                check(s.AtStop && s.Stops[s.StopIndex].Node == nul, "en Nules espera a que lo descarguen");
+                check(TrenPreparar.TrenEn(w, nul) == sv, "TrenEn lo encuentra en Nules");
+                r = w.SetSchedule(sv, TrenPreparar.Descarga(w, sv, sag));
+                for (int i = 0; i < 5; i++) w.Step();
+                check(r == ScheduleResult.Ok && s.CargoTotal() == 0 && w.Stock[nul, (int)Res.Materiales] >= nulMat0 + 60, "Descargar deja la carga en Nules");
+                check(!s.AtStop && s.Stops[s.StopIndex].Node == sag, "y el tren vuelve a Sagunto");
+            }
 
             // --- intro C
             var it = new IntroSecuencia();
