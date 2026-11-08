@@ -90,7 +90,7 @@ namespace TBD.Units
         public int HomeX, HomeY;            // NH90: su plataforma, para volver al acabar
         public bool Parked;                 // D-N167: volvió solo por munición, rearmó y se queda posado hasta una orden del jugador (TakeOffOrder)
         public int AutoReturns;             // D-N167: veces que ha vuelto solo a rearmar
-        public bool AtAirfield; public int AwayUntil = -1;   // D-N173: en el aeródromo (fuera de la zona) y tick en que llega a la zona tras el viaje (−1 = no viene)
+        public bool AtAirfield, CarriesPlatoon; public int AwayUntil = -1;   // D-N173: en el aeródromo (fuera de la zona) y tick en que llega a la zona tras el viaje (−1 = no viene)
         public int Kills, ShotsFired, Resupplies, ResupplyShotsSpent;
 
         public static NightVehicle Make(string name, NightVehKind k, int x, int y)
@@ -153,7 +153,7 @@ namespace TBD.Units
 
     public sealed class NightSim
     {
-        sealed class Zomb { public int X, Y; public bool Alive = true; public int TX, TY; public byte Goal; public bool HitTrain; }   // Goal (D-N148): 0 sin decidir, 1 infantería, 2 vehículo, 3 obrero, 4 tren
+        sealed class Zomb { public int X, Y; public bool Alive = true; public int TX, TY; public byte Goal; public bool HitTrain, Aggro; }   // Goal (D-N148): 0 sin decidir, 1 infantería, 2 vehículo, 3 obrero, 4 tren
 
         public NightSimParams SP;
         public readonly UnitsWorld Units;
@@ -246,11 +246,15 @@ namespace TBD.Units
         public int TargetRadiusMm;
         /// <summary>D-N174: el edificio de viajeros (8 m, SUPUESTO), el tren parado (4,2 m) y, con tramos, cada tramo del muro con su altura (HeightMm; 0 = 2,1 m) como muro propio
         /// (rect de 1 m de grueso sobre la línea del muro). false = sin regla. Las alturas de los tirones: infantería 1,6 m; VAMTAC 2,3 m; Dragón 2,7 m (SUPUESTOS); el NH90 en vuelo, por encima de todo.</summary>
-        public void EnableLineOfSight(bool on = true)
+        public void EnableLineOfSight(bool on = true, IList<UnitsWorld.LosBlocker> scene = null)
         {
             Units.LosBlockers.Clear(); _losSeg0 = -1; if (!on) return;
-            Units.LosBlockers.Add(new UnitsWorld.LosBlocker { R = Night.P.StationRect, HeightMm = LosStationMm });
-            Units.LosBlockers.Add(new UnitsWorld.LosBlocker { R = Night.P.TrainRect, HeightMm = LosTrainMm });
+            if (scene != null) Units.LosBlockers.AddRange(scene);       // D-N174: el inventario de la zona (Álvaro, sagunto_obstaculos_v1.csv), sin los muros, que van por tramos
+            else
+            {
+                Units.LosBlockers.Add(new UnitsWorld.LosBlocker { R = Night.P.StationRect, HeightMm = LosStationMm });
+                Units.LosBlockers.Add(new UnitsWorld.LosBlocker { R = Night.P.TrainRect, HeightMm = LosTrainMm });
+            }
             if (Segments == null || !LosWalls) return;
             _losSeg0 = Units.LosBlockers.Count;
             foreach (var g in Segments)
@@ -262,7 +266,7 @@ namespace TBD.Units
         }
         public int LosStationMm = 8000, LosTrainMm = 4200; public bool LosWalls = true; int _losSeg0 = -1;
         void LosSyncWalls() { if (_losSeg0 < 0) return; for (int i = 0; i < Segments.Count; i++) { var b = Units.LosBlockers[_losSeg0 + i]; bool off = Segments[i].Hp <= 0; if (b.Off != off) { b.Off = off; Units.LosBlockers[_losSeg0 + i] = b; } } }
-        static int EyeMm(NightVehKind k) { return k == NightVehKind.Dragon ? 2700 : k == NightVehKind.Vamtac ? 2300 : 1600; }
+        static int EyeMm(NightVehKind k) { return k == NightVehKind.Dragon ? 2900 : k == NightVehKind.Vamtac ? 2400 : 1600; }   // Álvaro (8-nov): Dragón ≈ 2,9 m (SIN VERIFICAR), VAMTAC ≈ 2,4 m
         bool NearPlatoon(int x, int y)
         {
             if (TargetRadiusMm <= 0) return true;
@@ -340,11 +344,13 @@ namespace TBD.Units
                     if (z.Goal == 0 || ((Night.Tick + i) % ClimberRetargetTicks) == 0) RetargetClimber(z);
                     tx = z.TX; ty = z.TY;
                 }
-                bool gap = SP.GateGapMm > 0 && WallHp > 0;
+                else if (OutsideAggroMm > 0 && (z.Aggro || ((Night.Tick + i) % ClimberRetargetTicks) == 0) && (z.Aggro || !NearWall(z.X, z.Y))) AggroOutside(z);     // D-N175: la pila y los que ya están en el muro no cambian
+                if (!inside && z.Aggro) tx = z.TX; ty = !inside && z.Aggro ? z.TY : ty;
+                bool gap = SP.GateGapMm > 0 && WallHp > 0 && !(!inside && z.Aggro);
                 bool toGate = false;
                 if (gap && z.X < SP.FortX0 - 500 && !InFort(z.X, z.Y)) { tx = SP.FortX0 - 1000; toGate = true; }      // con hueco en la vía, la horda rodea el muro hasta la puerta (como el flujo de la zona)
                 int dx = tx - z.X, dy = ty - z.Y, d = IMath.Dist(dx, dy);
-                if (inside ? (z.Goal != 4 && d < 500) : (d < 3500 && !toGate)) continue;
+                if (inside || z.Aggro ? (z.Goal != 4 && d < 500) : (d < 3500 && !toGate)) continue;
                 if (d < 1) continue;
                 int nx = z.X + IMath.DivR((long)dx * speed, d), ny = z.Y + IMath.DivR((long)dy * speed, d);
                 if (!InFort(z.X, z.Y) && InFort(nx, ny) && SegIntact(z.X, z.Y) && !(gap && z.X <= SP.FortX0 && Math.Abs(ny - SP.StationY) < SP.GateGapMm / 2))
@@ -476,13 +482,15 @@ namespace TBD.Units
         public bool TakeOffOrder(int index)
         {
             if (index < 0 || index >= Vehicles.Count || Vehicles[index].Kind != NightVehKind.Nh90) return false; var v = Vehicles[index]; v.Parked = false;
-            if (Nh90FromAirfield && v.AtAirfield && v.AwayUntil < 0) v.AwayUntil = Night.Tick + AirfieldTripTicks();      // D-N173: sale del aeródromo y tarda el viaje
+            if (Nh90FromAirfield && v.AtAirfield && v.AwayUntil < 0) v.AwayUntil = Night.Tick + Nh90PrepS * IMath.TickRate + AirfieldTripTicks();      // D-N173: sale del aeródromo y tarda el viaje
             return true;
         }
         /// <summary>D-N173 (Lucía, 8-nov): no hay helipuerto en Sagunto. El NH90 vive en el aeródromo (un nodo del mapa): llega a la zona tras el viaje y, para rearmar, vuelve allí
         /// (ida y vuelta). Distancia SUPUESTA de 40 km hasta que Paula dé el sitio; crucero del NH90 260 km/h. El viaje va en tiempo de mapa: ticks reales = s de juego × 30 / reloj_x.</summary>
-        public bool Nh90FromAirfield; public int AirfieldKm = 40, Nh90CruiseKmh = 260;
-        public int AirfieldTripTicks() { long gameS = (long)AirfieldKm * 3600 / Math.Max(1, Nh90CruiseKmh); return (int)Math.Max(1, gameS * IMath.TickRate / Math.Max(1, Night.P.ClockX)); }
+        public bool Nh90FromAirfield; public int AirfieldM = 40000, Nh90CruiseKmh = 260, Nh90PrepS = 20, Nh90LandS = 20, Nh90RearmS = 30;   // Lucía (8-nov): 20 s de preparar y despegar, 20 s de tomar tierra, 30 s de rearme
+        /// <summary>D-N173: claro de 20 × 20 m donde se posa para desembarcar (SUPUESTO: dentro del recinto, al este del edificio) y tiempo de bajar (D-N166).</summary>
+        public int LandingX = 140000, LandingY = 76000, EmbarqueDropS = 10;
+        public int AirfieldTripTicks() { long gameS = (long)AirfieldM * 3600 / 1000 / Math.Max(1, Nh90CruiseKmh); return (int)Math.Max(1, gameS * IMath.TickRate / Math.Max(1, Night.P.ClockX)); }
         /// <summary>D-N173: el NH90 empieza en el aeródromo. «etaTick» ≥ 0: llega a la zona en ese tick (la ETA del mapa); −1: despega solo cuando hay horda y tarda el viaje.</summary>
         public void Nh90StartAtAirfield(int etaTick = -1) { Nh90FromAirfield = true; foreach (var v in Vehicles) if (v.Kind == NightVehKind.Nh90) { v.AtAirfield = true; v.Airborne = false; v.AwayUntil = etaTick; } }
 
@@ -501,14 +509,19 @@ namespace TBD.Units
                     {
                         if (v.AtAirfield)
                         {
-                            if (v.AwayUntil < 0 && !v.Parked && v.Fire && _aliveForHeli > 30 && v.Shots * 20 > v.MaxShots && v.ResupplyUntil < 0) v.AwayUntil = tick + AirfieldTripTicks();
-                            if (v.AwayUntil >= 0 && tick >= v.AwayUntil) { v.AtAirfield = false; v.AwayUntil = -1; v.X = 100000; v.Y = 64000; v.Airborne = true; }   // entra por el borde y va sobre el andén
+                            if (v.AwayUntil < 0 && !v.Parked && v.Fire && _aliveForHeli > 30 && v.Shots * 20 > v.MaxShots && v.ResupplyUntil < 0) v.AwayUntil = tick + Nh90PrepS * IMath.TickRate + AirfieldTripTicks();
+                            if (v.AwayUntil >= 0 && tick >= v.AwayUntil)
+                            {
+                                v.AtAirfield = false; v.AwayUntil = -1; v.X = 100000; v.Y = 64000; v.Airborne = true;     // entra por el borde y va sobre el andén
+                                if (v.CarriesPlatoon)        // se posa en el claro y desembarca (10 s sin disparar, D-N166); luego vuelve a volar
+                                { v.CarriesPlatoon = false; v.NextFireTick = tick + EmbarqueDropS * IMath.TickRate; Units.AddPlatoon(PlatoonKind.Fusileros, LandingX, LandingY, 0); if (Bot != null) { } }
+                            }
                             if (v.AtAirfield) continue;
                         }
                         else if (v.Airborne && (_aliveForHeli == 0 || v.Shots * 100 < v.MaxShots * Nh90ReturnBelowPct))
                         {
                             bool rearm = _aliveForHeli > 0; v.Airborne = false; v.AtAirfield = true;      // vuelve al aeródromo; rearma al llegar (ida + rearme)
-                            if (rearm) { v.Parked = true; v.AutoReturns++; ResupplyVehicle(vi); if (v.ResupplyUntil >= 0) v.ResupplyUntil += AirfieldTripTicks(); }
+                            if (rearm) { v.Parked = true; v.AutoReturns++; v.ResupplyUntil = tick + AirfieldTripTicks() + (Nh90LandS + Nh90RearmS) * IMath.TickRate; v.Resupplies++; VehicleResupplies++; }   // Lucía: viaje + 20 s de tomar tierra + 30 s de rearme (el aeródromo pone la munición)
                             continue;
                         }
                         if (!v.Airborne) continue;
@@ -558,6 +571,26 @@ namespace TBD.Units
                 for (int v = 0; v < Vehicles.Count; v++) if (!Vehicles[v].Airborne) _vehT.Add(new Target { Id = v, X = Vehicles[v].X, Y = Vehicles[v].Y });
             }
             int tx, ty; z.Goal = ClimberTargets.Pick(z.X, z.Y, _men, _vehT, _workers, ClimberSeekMm, Night.P.TrainRect, out tx, out ty); z.TX = tx; z.TY = ty;
+        }
+
+        /// <summary>D-N175 (Lucía, 8-nov, para medir; rescate de Nules D-N172): un zombi de FUERA con infantería de fuera a OutsideAggroMm o menos deja la puerta y va a por ella.
+        /// Como mucho OutsideAggroCapPm ‰ de los vivos a la vez (el muro sigue siendo el frente). 0 = apagado (como siempre).</summary>
+        public int OutsideAggroMm, OutsideAggroCapPm = 300; int _aggroN, _aggroTick = -1;
+        void AggroOutside(Zomb z)
+        {
+            if (_aggroTick != Night.Tick) { _aggroTick = Night.Tick; _aggroN = 0; foreach (var q in _z) if (q.Alive && q.Aggro) _aggroN++; RetargetMenCache(); }
+            long best = (long)OutsideAggroMm * OutsideAggroMm; int bx = 0, by = 0; bool found = false;
+            foreach (var m in _men) { if (InFort(m.X, m.Y)) continue; long dx = m.X - z.X, dy = m.Y - z.Y, d2 = dx * dx + dy * dy; if (d2 <= best) { best = d2; bx = m.X; by = m.Y; found = true; } }
+            foreach (var m in _vehT) { if (InFort(m.X, m.Y)) continue; long dx = m.X - z.X, dy = m.Y - z.Y, d2 = dx * dx + dy * dy; if (d2 <= best) { best = d2; bx = m.X; by = m.Y; found = true; } }     // D-N175: los vehículos cuentan como tropa
+            if (!found) { if (z.Aggro) { z.Aggro = false; _aggroN--; } return; }
+            if (!z.Aggro) { if ((long)_aggroN * 1000 >= (long)AliveZombies() * OutsideAggroCapPm) return; z.Aggro = true; _aggroN++; }
+            z.Goal = 1; z.TX = bx; z.TY = by;
+        }
+        void RetargetMenCache()
+        {
+            if (_menTick == Night.Tick) return; _menTick = Night.Tick; _men.Clear(); _vehT.Clear();
+            foreach (var p in Units.Platoons) { if (p.Aboard != 0) continue; foreach (var m in p.Men) if (m.Alive) _men.Add(new Target { Id = m.Id, X = m.X, Y = m.Y }); }
+            for (int v = 0; v < Vehicles.Count; v++) if (!Vehicles[v].Airborne) _vehT.Add(new Target { Id = v, X = Vehicles[v].X, Y = Vehicles[v].Y });
         }
 
         /// <summary>Tope de trepadores por segundo (0 = sin tope). Va fuera del hash si es 0.</summary>

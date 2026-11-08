@@ -78,6 +78,7 @@ namespace TBD.Units
         public int AmmoShots, AmmoCap;       // munición propia en disparos equivalentes
         public int AmmoSpent, Kills, Losses;      // Losses: soldados caídos del pelotón (por contacto de zombis)
         public int LastFireTick = -1000;
+        public int EyeMm = UnitsWorld.EyeInfantryMm;   // D-N174: altura de la boca (atalaya 5,6 m; azotea 12,6 m)
         public int C90Left, C90Cap;           // D-N137: tiros de C90 que quedan y dotación (se reponen del almacén en Resupply, a arma_c90_coste_disparos cada uno)
         public bool C90Order; public int C90X, C90Y;   // orden de disparar el C90 a ese punto: se cumple en el siguiente Step
         public int Aboard;                   // 0 = a pie; si no, id del transporte (vehículo = su Id, helicóptero = 1000 + su Id): ni se mueve, ni dispara, ni lo tocan los zombis
@@ -111,24 +112,34 @@ namespace TBD.Units
         public const int EyeInfantryMm = 1600, OwnWallReachMm = 2000;
         public long LosChecks;      // contador para medir el coste (no entra en el hash)
 
-        /// <summary>¿Ve (sx, sy), con los ojos a eyeMm, a (tx, ty)? Liang–Barsky en enteros (fracciones con long): sin coma flotante, determinista.</summary>
+        public const int TargetHeightMm = 1000;   // Álvaro (8-nov): el blanco, a 1,0 m (zombi de pie, a la altura del pecho)
+        /// <summary>¿Ve (sx, sy), con la boca del arma a eyeMm, a (tx, ty), con el blanco a TargetHeightMm? 2,5D: el rayo baja (o sube) en línea recta y un sólido tapa si
+        /// el rayo pasa por debajo de su altura en algún punto de su huella. Liang–Barsky en enteros (fracciones con long): sin coma flotante, determinista.</summary>
         public bool LineOfSight(int sx, int sy, int tx, int ty, int eyeMm = EyeInfantryMm)
         {
             int bx0 = Math.Min(sx, tx), bx1 = Math.Max(sx, tx), by0 = Math.Min(sy, ty), by1 = Math.Max(sy, ty);
             for (int i = 0; i < LosBlockers.Count; i++)
             {
                 var b = LosBlockers[i]; var r = b.R;
-                if (b.Off || b.HeightMm < eyeMm || r.X0 > bx1 || r.X1 < bx0 || r.Y0 > by1 || r.Y1 < by0) continue;     // más bajo que los ojos, o lejos del rayo
+                if (b.Off || r.X0 > bx1 || r.X1 < bx0 || r.Y0 > by1 || r.Y1 < by0) continue;
+                if (b.HeightMm <= Math.Min(eyeMm, TargetHeightMm)) continue;                       // más bajo que los dos extremos del rayo: no tapa nunca
                 if (b.OwnWall) { long ddx = sx < r.X0 ? r.X0 - sx : sx > r.X1 ? sx - r.X1 : 0, ddy = sy < r.Y0 ? r.Y0 - sy : sy > r.Y1 ? sy - r.Y1 : 0; if (ddx * ddx + ddy * ddy <= (long)OwnWallReachMm * OwnWallReachMm) continue; }
-                LosChecks++; if (SegHitsRect(sx, sy, tx, ty, r)) return false;
+                LosChecks++;
+                long ln, ld, hn, hd; if (!SegSpan(sx, sy, tx, ty, r, out ln, out ld, out hn, out hd)) continue;
+                // altura del rayo en t: eye + (tgt − eye)·t. Es lineal: el mínimo dentro de [tin, tout] está en un extremo
+                long dh = TargetHeightMm - eyeMm, n = dh < 0 ? hn : ln, d = dh < 0 ? hd : ld;
+                if ((long)eyeMm * d + dh * n < (long)b.HeightMm * d) return false;
             }
             return true;
         }
 
-        public static bool SegHitsRect(int x0, int y0, int x1, int y1, RectMm r)
+        public static bool SegHitsRect(int x0, int y0, int x1, int y1, RectMm r) { long a, b, c, d; return SegSpan(x0, y0, x1, y1, r, out a, out b, out c, out d); }
+        /// <summary>Tramo [ln/ld, hn/hd] de t ∈ [0, 1] en que el segmento está dentro del rect. false si no lo toca o si un extremo está dentro (el tirador en el tejado no se tapa).</summary>
+        public static bool SegSpan(int x0, int y0, int x1, int y1, RectMm r, out long ln, out long ld, out long hn, out long hd)
         {
+            ln = 0; ld = 1; hn = 1; hd = 1;
             if (In(x0, y0, r) || In(x1, y1, r)) return false;
-            long dx = (long)x1 - x0, dy = (long)y1 - y0, ln = 0, ld = 1, hn = 1, hd = 1;
+            long dx = (long)x1 - x0, dy = (long)y1 - y0;
             return Clip(-dx, (long)x0 - r.X0, ref ln, ref ld, ref hn, ref hd) && Clip(dx, (long)r.X1 - x0, ref ln, ref ld, ref hn, ref hd)
                 && Clip(-dy, (long)y0 - r.Y0, ref ln, ref ld, ref hn, ref hd) && Clip(dy, (long)r.Y1 - y0, ref ln, ref ld, ref hn, ref hd);
         }
@@ -261,7 +272,7 @@ namespace TBD.Units
                 var m = p.Men[i]; if (!m.Alive || m.Kind == InfKind.Servidor) continue;
                 long ex = x - m.X, ey = y - m.Y, d2 = ex * ex + ey * ey;
                 if (d2 > r2 || d2 < min2) continue;
-                if (LosBlockers.Count > 0 && !LineOfSight(m.X, m.Y, x, y)) continue;
+                if (LosBlockers.Count > 0 && !LineOfSight(m.X, m.Y, x, y, p.EyeMm)) continue;      // D-N174: el C90 es fuego directo
                 if (d2 < best) { best = d2; bi = i; }
             }
             return bi;
@@ -509,7 +520,7 @@ namespace TBD.Units
         }
 
         // ------------------------------------------------------------ disparo
-        int Pick(Weapon w, Infantryman m, Platoon p, IList<Target> targets) { return PickAt(w, m.X, m.Y, p.Heading, w.HalfConeBam, targets, 0); }
+        int Pick(Weapon w, Infantryman m, Platoon p, IList<Target> targets) { return PickAt(w, m.X, m.Y, p.Heading, w.HalfConeBam, targets, 0, p.EyeMm); }
 
         /// <summary>Blanco de un arma desde (sx, sy): el más cercano dentro del alcance y del arco (halfCone 0 = 360°; empate: id menor). «extraZ» (mm de altura del tirador)
         /// se suma en vertical al alcance (helicóptero). Si el arma prefiere especiales (Weapon.PrefersSpecials), un especial a tiro gana a cualquier normal.</summary>
@@ -518,6 +529,7 @@ namespace TBD.Units
             long best = long.MaxValue; int bi = -1; bool bestSpecial = false;
             long r2 = (long)w.RangeMm * w.RangeMm - (long)extraZ * extraZ, min2 = (long)w.MinRangeMm * w.MinRangeMm;
             if (r2 <= 0) return -1;
+            bool indirect = LosBlockers.Count > 0 && w.Key == "lanzagranadas";      // D-N174 (Lucía): el AG36 de 40 mm es tiro curvo, sin línea de visión
             for (int t = 0; t < targets.Count; t++)
             {
                 long ex = targets[t].X - sx, ey = targets[t].Y - sy, d2 = ex * ex + ey * ey;
@@ -527,7 +539,7 @@ namespace TBD.Units
                 bool better = bi < 0 || (sp && !bestSpecial) || d2 < best || (d2 == best && targets[t].Id < targets[bi].Id);
                 if (!better) continue;
                 if (halfCone > 0 && Math.Abs(IMath.Diff(IMath.Atan2((int)ey, (int)ex), center)) > halfCone) continue;
-                if (extraZ == 0 && LosBlockers.Count > 0 && !LineOfSight(sx, sy, targets[t].X, targets[t].Y, eyeMm)) continue;
+                if (extraZ == 0 && !indirect && LosBlockers.Count > 0 && !LineOfSight(sx, sy, targets[t].X, targets[t].Y, eyeMm)) continue;
                 best = d2; bi = t; bestSpecial = sp;
             }
             return bi;

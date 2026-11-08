@@ -42,8 +42,14 @@ namespace TBD.Sim.Tests
             // D-N165 (8-nov): TBD_PIEZAS=sagunto carga los tramos con las piezas reales de Works.Snapshot(Sagunto) de NetWorld.Mvp(); TBD_VIDA_U = vida por u (A 10000, B 13010)
             bool piezas = Environment.GetEnvironmentVariable("TBD_PIEZAS") == "sagunto"; int vidaU = 10000; int.TryParse(Environment.GetEnvironmentVariable("TBD_VIDA_U") ?? "10000", out vidaU);
             var sagPieces = piezas ? SaguntoPieces(vidaU) : null;
-            string extra = Environment.GetEnvironmentVariable("TBD_EXTRA") ?? "";   // D-N171 (Lucía): refuerzo de Nules en el tutorial: «fus» = un pelotón de fusileros más; «fus+lince» = y un Lince (modelado como VAMTAC, supuesto de Hugo)
+            string extra = Environment.GetEnvironmentVariable("TBD_EXTRA") ?? "";
+            int atkX = 100000, atkY = 34000; { var a = Environment.GetEnvironmentVariable("TBD_ATAQUE"); if (a != null) { var pp = a.Split(','); atkX = int.Parse(pp[0]) * 1000; atkY = int.Parse(pp[1]) * 1000; } }   // D-N172: punto de ataque del rescate (m)
+            int aggro = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_DESVIO_M") ?? "0", out aggro);   // propuesta: la horda de fuera se desvía hacia la tropa a ≤ N m
+            bool atalayas = Environment.GetEnvironmentVariable("TBD_ATALAYAS") == "1";
+            bool dual = Environment.GetEnvironmentVariable("TBD_DISPARO") == "doble";
+            string nh90 = Environment.GetEnvironmentVariable("TBD_NH90") ?? "";   // D-N173 (Hugo): 0 | 1 | 1p | 2p — NH90 desde Bétera, despegan con la pila > 150; «p» = llevan pelotón   // D-N171 (Lucía): refuerzo de Nules en el tutorial: «fus» = un pelotón de fusileros más; «fus+lince» = y un Lince (modelado como VAMTAC, supuesto de Hugo)
             bool los = Environment.GetEnvironmentVariable("TBD_LOS") == "1";   // línea de visión: el edificio y el tren tapan (propuesta, 8-nov)
+            var losScene = los ? LosScene(Environment.GetEnvironmentVariable("TBD_LOS_CSV")) : null;
             int guard = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_GUARDIA") ?? "0", out guard);   // D-N168: pelotones de combate que se quedan dentro, junto al tren (el NightBot no los mueve)
             int spread = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_EMPUJE") ?? "0", out spread);   // D-N165 (b): PileSpreadPermil
             if (piezas) { long tot = 0; foreach (var q in sagPieces) tot += q.HpMax; Console.WriteLine($"# tramos de Works.Snapshot(Sagunto): {sagPieces.Count}, vida total {tot} a {vidaU} por u"); tramos = true; }
@@ -52,25 +58,33 @@ namespace TBD.Sim.Tests
                 foreach (bool veh in vehs == "si" ? new[] { true } : vehs == "no" ? new[] { false } : new[] { false, true })
                 {
                     bool c90 = Environment.GetEnvironmentVariable("TBD_C90") == "1"; var c90Max = new List<int>(); var c90Hits = new long[C90Umbrales.Length]; var c90Buf = new List<Target>();   // Hugo (8-nov): grupo máximo a tiro de C90, cada segundo
-                    long losChecks = 0, losTicks = 0; long reinfN = 0, reinfDead = 0, reinfMen = 0, reinfNever = 0;
+                    long losChecks = 0, losTicks = 0; long reinfN = 0, reinfDead = 0, reinfMen = 0, reinfNever = 0, byPile = 0, byTime = 0, reinfWiped = 0; var nearPeaks = new List<int>();
                     int wins = 0; var ammos = new List<int>(); long wall = 0, pile = 0, vk = 0, vr = 0, ammo = 0, deaths = 0, trainF = 0, stF = 0, climbed = 0; int lostT = 0, lostS = 0; var walls = new List<int>(); int unfinished = 0; var brkTicks = new List<int>(); var brkSegs = new Dictionary<string, int>(); long repN = 0, rebN = 0, repHp = 0, nhRet = 0; var trainFall = new List<int>(); var piles = new List<int>(); var touched = new List<int>(); long tPeak = 0;
                     for (int i = 0; i < n; i++)
                     {
                         var sim = NightSim.FromJson(json, dif, (uint)(i + 1 + seed0)); _clk = sim.Night.P.ClockX; if (climb >= 0) sim.SP.ClimbPileZ = climb; if (climbR >= 0) sim.SP.ClimbPermilS = climbR; if (climbMax >= 0) sim.ClimbMaxPerS = climbMax; if (trainX0 > 0) { var tp = sim.Night.P; tp.TrainRect = new RectMm(trainX0, tp.TrainRect.Y0, trainX0 + 64000, tp.TrainRect.Y1); sim.Night.P = tp; }
-                        sim.TargetRadiusMm = tgtM * 1000; if (zoneForce) sim.AddZoneForce(); else sim.AddDefaultForce(); if (veh) sim.AddDefaultVehicles(true); if (noBot) sim.AutoPlatoonResupply = true; else sim.Bot = NightBot.FromParams(sim.SP); if (guard > 0 && sim.Bot != null) GuardTrain(sim, guard); if (extra == "fus" || extra == "fus+lince") sim.Units.AddPlatoon(PlatoonKind.Fusileros, 86000, 73000, 0); if (extra.Contains("lince") && veh) { var lv = NightVehicle.Make("Lince", NightVehKind.Vamtac, 74000, 64500); lv.Fire = true; sim.Vehicles.Add(lv); NightVehicle.ApplyParams(lv, sim.VehicleParamsJson); } if (tramos) { if (sagPieces != null) sim.EnableSegments(sagPieces); else sim.EnableSegments(); sim.AutoRepair = repairOn; sim.PileSpreadPermil = spread; } if (los) { sim.LosWalls = Environment.GetEnvironmentVariable("TBD_LOS_MURO") != "no"; sim.EnableLineOfSight(); }
+                        sim.TargetRadiusMm = tgtM * 1000; if (zoneForce) sim.AddZoneForce(); else sim.AddDefaultForce(); if (veh) sim.AddDefaultVehicles(true); if (noBot) sim.AutoPlatoonResupply = true; else sim.Bot = NightBot.FromParams(sim.SP); if (guard > 0 && sim.Bot != null) GuardTrain(sim, guard); if (extra == "fus" || extra == "fus+lince") sim.Units.AddPlatoon(PlatoonKind.Fusileros, 86000, 73000, 0); if (extra.Contains("lince") && veh) { var lv = NightVehicle.Make("Lince", NightVehKind.Vamtac, 74000, 64500); lv.Fire = true; sim.Vehicles.Add(lv); NightVehicle.ApplyParams(lv, sim.VehicleParamsJson); } if (tramos) { if (sagPieces != null) sim.EnableSegments(sagPieces); else sim.EnableSegments(); sim.AutoRepair = repairOn; sim.PileSpreadPermil = spread; } if (nh90 != "") { sim.Vehicles.RemoveAll(q => q.Kind == NightVehKind.Nh90); int nN = nh90 == "0" ? 0 : nh90.StartsWith("2") ? 2 : 1;
+                            for (int h = 0; h < nN; h++) { var hv = NightVehicle.Make("NH90 " + (h + 1), NightVehKind.Nh90, 180000, 44000); hv.Fire = true; NightVehicle.ApplyParams(hv, sim.VehicleParamsJson); hv.CarriesPlatoon = nh90.EndsWith("p"); sim.Vehicles.Add(hv); }
+                            sim.AirfieldM = 18100; sim.Nh90StartAtAirfield(); foreach (var hv in sim.Vehicles) if (hv.Kind == NightVehKind.Nh90) hv.Parked = true; }      /* D-N173: Bétera a 18,1 km; esperan a la orden (pila > 150) */ sim.OutsideAggroMm = aggro * 1000; if (los) { sim.LosWalls = Environment.GetEnvironmentVariable("TBD_LOS_MURO") != "no"; sim.EnableLineOfSight(true, losScene); if (sim.Bot != null) sim.Bot.BanquetaMm = 1500;
+                            if (atalayas) foreach (var at in new[] { (73500, 47500), (73500, 81500) }) { var tp = sim.Units.AddPlatoon(PlatoonKind.Tiradores, at.Item1, at.Item2, 0); tp.EyeMm = 5600; if (sim.Bot != null) sim.Bot.Busy.Add(tp.Id); } }   // Álvaro: atalayas de 4 m (boca a 5,6 m), 2 tiradores cada una
                         int brk = -1, brkSeg = -1;
-                        int reinfAt = extra.StartsWith("nules+") ? -1 : -2, reinfDelayS = extra.StartsWith("nules+") ? int.Parse(extra.Substring(6)) : 0, reinfId = -1;   // TBD_EXTRA=nules+<s>: retardo en s reales desde pila > 150
+                        bool heliGo = false; int firstContact = -1;
+                        bool rescate = extra.StartsWith("rescate+"); int reinfAt = extra.StartsWith("nules+") || rescate ? -1 : -2, reinfDelayS = extra.StartsWith("nules+") ? int.Parse(extra.Substring(6)) : rescate ? int.Parse(extra.Substring(8)) : 0, reinfId = -1, nearPeak = 0;   // TBD_EXTRA=nules+<s>: retardo en s reales desde pila > 150
                         int c90Last = -100000; int[] c90Last4 = { -100000, -100000, -100000, -100000 }; int c90Sec = 0;
                         while (sim.Night.State == NightState.Jugando && sim.Night.Tick < sim.TickCap)
                         {
-                            sim.Run(c90 || reinfAt == -1 || (tramos && brk < 0) ? 30 : 300);
-                            if (reinfAt == -1 && sim.LastPile > 150) reinfAt = sim.Night.Tick + reinfDelayS * IMath.TickRate;      // D-N172 (Hugo, capítulo 3): el tren de Nules llega en la primera tromba
-                            if (reinfAt >= 0 && sim.Night.Tick >= reinfAt) { var tr = sim.Night.P.TrainRect; reinfId = sim.Units.AddPlatoon(PlatoonKind.Fusileros, sim.SP.FortX0 - 6000, tr.Y1 + 3000, 0).Id; reinfAt = -2; }   // baja fuera, a la espalda de la horda, junto a la vía oeste
+                            sim.Run(c90 || reinfAt != -2 || reinfId >= 0 || (nh90 != "" && !heliGo) || (tramos && brk < 0) ? 30 : 300);
+                            if (nh90 != "" && !heliGo && sim.LastPile > 150) { heliGo = true; for (int h = 0; h < sim.Vehicles.Count; h++) if (sim.Vehicles[h].Kind == NightVehKind.Nh90) sim.TakeOffOrder(h); }
+                            if (firstContact < 0 && sim.LastPile > 0) firstContact = sim.Night.Tick;
+                            if (reinfAt == -1 && (sim.LastPile > 150 || (dual && firstContact >= 0 && sim.Night.Tick >= firstContact + 60 * IMath.TickRate))) { if (sim.LastPile > 150) byPile++; else byTime++; reinfAt = sim.Night.Tick + reinfDelayS * IMath.TickRate; }   // Lucía: pila > 150 o 60 s tras el primer contacto      // D-N172 (Hugo, capítulo 3): el tren de Nules llega en la primera tromba
+                            if (reinfAt >= 0 && sim.Night.Tick >= reinfAt) { var tr = sim.Night.P.TrainRect; if (rescate) { var rp0 = sim.Units.AddPlatoon(PlatoonKind.Fusileros, 192000, 60000, 0); reinfId = rp0.Id; sim.Units.Move(rp0.Id, atkX, atkY); if (sim.Bot != null) sim.Bot.Busy.Add(rp0.Id); }   // D-N172: baja en la puerta este (192; 60) y ataca por el flanco sur desde (100; 34)
+                                else reinfId = sim.Units.AddPlatoon(PlatoonKind.Fusileros, sim.SP.FortX0 - 6000, tr.Y1 + 3000, 0).Id; reinfAt = -2; }
+                            if (reinfId >= 0) { var rq = sim.Units.Platoons.Find(q => q.Id == reinfId); if (rq.AliveCount() > 0) { sim.ExportZombies(c90Buf); int nz = 0; foreach (var z in c90Buf) { long ddx = z.X - rq.AX, ddy = z.Y - rq.AY; if (ddx * ddx + ddy * ddy <= 15000L * 15000L) nz++; } if (nz > nearPeak) nearPeak = nz; } }   // baja fuera, a la espalda de la horda, junto a la vía oeste
                             if (c90) { int m = C90Cluster(sim, c90Buf); if (m >= 0) { c90Max.Add(m); for (int q = 0; q < C90Umbrales.Length; q++) if (m >= C90Umbrales[q] && c90Sec - c90Last4[q] >= 10) { c90Last4[q] = c90Sec; c90Hits[q]++; } } c90Sec++; }
                             if (tramos && brk < 0) for (int k = 0; k < sim.Segments.Count; k++) if (sim.Segments[k].Hp == 0) { brk = sim.Night.Tick; brkSeg = k; break; }
                         }
                         losChecks += sim.Units.LosChecks; losTicks += sim.Night.Tick;
-                        if (reinfId >= 0) { var rp = sim.Units.Platoons.Find(q => q.Id == reinfId); reinfN++; reinfDead += rp.Men.Count - rp.AliveCount(); reinfMen += rp.Men.Count; } else if (extra.StartsWith("nules+")) reinfNever++;
+                        if (reinfId >= 0) { var rp = sim.Units.Platoons.Find(q => q.Id == reinfId); reinfN++; reinfDead += rp.Men.Count - rp.AliveCount(); reinfMen += rp.Men.Count; nearPeaks.Add(nearPeak); if (rp.AliveCount() == 0) reinfWiped++; } else if (extra.StartsWith("nules+") || extra.StartsWith("rescate+")) reinfNever++;
                         if (sim.Unfinished) unfinished++; repN += sim.Repaired; rebN += sim.Rebuilt; repHp += sim.RepairHp;
                         if (sim.Night.State == NightState.Derrota && sim.Night.EndedByTrain) trainFall.Add(sim.Night.DefeatTick); piles.Add(sim.PeakPile); touched.Add(sim.TrainTouched); tPeak += sim.TrainPeakAttackers; foreach (var vv in sim.Vehicles) nhRet += vv.AutoReturns;
                         if (brk >= 0) { brkTicks.Add(brk); string key = SegLabel(sim.Segments[brkSeg], brkSeg); int c; brkSegs.TryGetValue(key, out c); brkSegs[key] = c + 1; }
@@ -81,7 +95,7 @@ namespace TBD.Sim.Tests
                         wall += (long)sim.WallHp * 100 / Math.Max(1, sim.SP.WallHp); pile += sim.PeakPile; vk += sim.VehicleKills; vr += sim.VehicleResupplies; ammo += sim.AmmoMilliU(); deaths += sim.SoldierDeaths;
                     }
                     if (c90 && c90Max.Count > 0) { var cs = new List<int>(c90Max); cs.Sort(); Console.WriteLine($"# C90 {dif}: {cs.Count} segundos con pelotón de C90; zombis en 5 m (centro a ≤30 m del pelotón) p50 {cs[cs.Count / 2]} p90 {cs[cs.Count * 9 / 10]} p99 {cs[cs.Count * 99 / 100]} máx {cs[cs.Count - 1]}"); for (int q = 0; q < C90Umbrales.Length; q++) Console.WriteLine($"# C90 umbral {C90Umbrales[q]}: {c90Hits[q] / (double)n:0.00} avisos por noche (10 s entre avisos)"); }
-                    if (extra.StartsWith("nules+")) Console.WriteLine($"# Nules {extra}: llega en {reinfN} partidas (nunca en {reinfNever}); bajas del pelotón de Nules {(reinfN > 0 ? reinfDead * 10 / reinfN / 10.0 : 0):0.0} de {(reinfN > 0 ? reinfMen / reinfN : 0)} de media");
+                    if (extra.StartsWith("nules+") || extra.StartsWith("rescate+")) Console.WriteLine($"# Nules {extra}: zombis a 15 m del pelotón (pico por partida) p50 {(nearPeaks.Count > 0 ? Median(nearPeaks) : 0)} p90 {(nearPeaks.Count > 0 ? P90(nearPeaks) : 0)}; pelotón aniquilado en {reinfWiped}; llega en {reinfN} partidas (nunca en {reinfNever}; salta por pila {byPile}, por tiempo {byTime}); bajas del pelotón de Nules {(reinfN > 0 ? reinfDead * 10 / reinfN / 10.0 : 0):0.0} de {(reinfN > 0 ? reinfMen / reinfN : 0)} de media");
                     if (los) Console.WriteLine($"# LOS {dif}: {losChecks / Math.Max(1, losTicks)} comprobaciones de sólido por tick de media");
                     Console.WriteLine($"{dif};{(veh ? "si" : "no")};{n};{wins};{P10(ammos) / 1000.0:0.0};{wall / n};{pile / n};{vk / n};{(vr * 10 / n) / 10.0:0.0};{(ammo / n) / 1000.0:0.0};{(deaths * 10 / n) / 10.0:0.0};{lostT};{lostS};{trainF / n};{stF / n};{climbed / n};{Median(walls)};{unfinished};{brkTicks.Count};{BreachMin(brkTicks)};{BreachHour(brkTicks)};{Mode(brkSegs)};{(repN * 10 / n) / 10.0:0.0};{(rebN * 10 / n) / 10.0:0.0};{repHp / n};{BreachMin(trainFall)};{Median(piles)};{P90(piles)};{tPeak / n};{Median(touched)};{(nhRet * 10 / n) / 10.0:0.0}");
                 }
@@ -95,6 +109,25 @@ namespace TBD.Sim.Tests
 
         /// <summary>D-N165: los tramos reales de Sagunto (NetWorld.Mvp(), D-N63) en mm de NightSim (mundo = local + (113.000; 64.500)). Vida = precio × vidaPorU.
         /// Lado 0 oeste, 1 este, 2 sur, 3 norte; ordenados por lado y por A0, sin huecos. Las esquinas son de los lados oeste y este (como SegmentAt).</summary>
+        /// <summary>D-N174: sólidos que tapan la vista, del inventario de Álvaro (docs/niveles/sagunto_obstaculos_v1.csv), menos los muros y las puertas (van por tramos, con su brecha).
+        /// Los nidos, a 1,5 m del muro (Lucía) y como muro propio. null si no hay archivo (entonces, el edificio y el tren de NightParams).</summary>
+        static List<UnitsWorld.LosBlocker> LosScene(string path)
+        {
+            if (path == null || !System.IO.File.Exists(path)) return null;
+            var l = new List<UnitsWorld.LosBlocker>(); bool head = true;
+            foreach (var line in System.IO.File.ReadAllLines(path))
+            {
+                if (head) { head = false; continue; }
+                var c = line.Split(';'); if (c.Length < 10) continue;
+                string tipo = c[1]; if (tipo.StartsWith("muro") || tipo == "puerta" || c[9] != "si") continue;
+                int x0 = int.Parse(c[3]), y0 = int.Parse(c[4]), x1 = int.Parse(c[5]), y1 = int.Parse(c[6]), hg = int.Parse(c[7]), h = int.Parse(c[8]); if (h <= 0) continue;
+                if (tipo == "nido") { x0 -= 1500; x1 -= 1500; }
+                var r = c[2] == "seg" ? new RectMm(Math.Min(x0, x1) - hg, Math.Min(y0, y1) - hg, Math.Max(x0, x1) + hg, Math.Max(y0, y1) + hg) : new RectMm(Math.Min(x0, x1), Math.Min(y0, y1), Math.Max(x0, x1), Math.Max(y0, y1));
+                l.Add(new UnitsWorld.LosBlocker { R = r, HeightMm = h, OwnWall = tipo == "nido" });
+            }
+            return l;
+        }
+
         public static readonly int[] C90Umbrales = { 12, 20, 25, 30 };
         /// <summary>El grupo más grande que cabe en un círculo de 5 m (el radio del C90) con centro en un zombi a 30 m o menos de un pelotón con C90 (C90Left &gt; 0). −1 si no hay pelotón con C90.
         /// Centro en un zombi: aproximación por abajo del máximo continuo.</summary>
