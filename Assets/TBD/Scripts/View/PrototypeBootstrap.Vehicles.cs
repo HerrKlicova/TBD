@@ -67,7 +67,7 @@ namespace TBD.View
         void RegisterVehs()
         {
             var L = NightRun.Vehs; while (L.Count < _vehs.Count) L.Add(new NightRun.VehInfo());
-            for (int i = 0; i < _vehs.Count; i++) { var v = _vehs[i]; var r = L[i]; r.Name = v.Name; r.Tipo = v.Heli ? "helicoptero" : v.Name.StartsWith("Drag") ? "dragon" : "vamtac"; r.Vivo = v.Go != null; }
+            for (int i = 0; i < _vehs.Count; i++) { var v = _vehs[i]; var r = L[i]; r.Name = v.Name; r.Tipo = v.Heli ? "helicoptero" : v.Name.StartsWith("Drag") ? "dragon" : "vamtac"; r.Vivo = v.Go != null; if (v.Go != null && v.Go.activeSelf == r.Embarcado) v.Go.SetActive(!r.Embarcado); }   // embarcado en el tren: oculto en la zona sin quitarlo de la lista (Iker)
         }
         void VehiclesTick(NativeSnapshot z)
         {
