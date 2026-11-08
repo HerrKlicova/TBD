@@ -222,6 +222,32 @@ namespace TBD.Sim.Tests
                 check(s.AtStop && s.Stops[s.StopIndex].Node == sag && s.CargoTotal() == 0 && w.Stock[sag, (int)Res.Municion] >= sagMun2, "aparcado en Sagunto no repite nada en dos días");
             }
 
+            // --- red de estaciones: casos límite de TrenPreparar (envío, ETA en marcha, aparcar y descargar)
+            {
+                var w = NetScenario.Mvp(); w.DirectorEnabled = false;
+                int sag = TrenPreparar.Nodo(w, "Sagunto"), nul = TrenPreparar.Nodo(w, "Nules"), cas = TrenPreparar.Nodo(w, "Castellón");
+                int sv = -1; for (int g = 0; g < 2 * NetConst.DayTicks && sv < 0; g++) { sv = TrenPreparar.TrenEn(w, sag); if (sv < 0) w.Step(); }
+                var raro = new int[NetConst.ResCount]; raro[0] = -50; raro[1] = 5000;
+                var pe = TrenPreparar.Envio(w, sv, nul, raro);
+                check(pe != null && pe[2] == 0 && pe[3] == NetWorld.MaxScheduleTransfer, "Envio recorta la carga: nada negativo y como mucho el tope de SetSchedule");
+                check(TrenPreparar.Envio(w, sv, -1, null) == null && TrenPreparar.Envio(w, sv, w.Graph.Nodes.Count, null) == null && TrenPreparar.Envio(w, -1, nul, null) == null, "Envio rechaza destinos y trenes que no existen");
+                check(TrenPreparar.Nodo(w, "Atlantis") == -1, "Nodo de un nombre que no existe: −1");
+                check(TrenPreparar.HhMm(-1) == "—" && TrenPreparar.HhMm(0) == "0:00", "HhMm: «—» sin ETA y «0:00» al llegar");
+                check(w.SetSchedule(sv, TrenPreparar.Envio(w, sv, cas, null)) == ScheduleResult.Ok, "a Castellón también hay horario (el panel lo bloquea mientras está infestada)");
+                long eta0 = TrenPreparar.EtaDesdeParada(w, sv, cas), etaPrev = long.MaxValue; bool baja = true, enMarcha = false;
+                for (int i = 0; i < 4000 && !(enMarcha && w.Services[sv].AtStop); i++)
+                {
+                    w.Step(); var s = w.Services[sv]; if (s.AtStop) continue; enMarcha = true;
+                    long e = TrenPreparar.EtaEnMarcha(w, sv); if (e > etaPrev) baja = false; etaPrev = e;
+                }
+                check(enMarcha && baja && etaPrev <= eta0, "en marcha, el ETA solo baja y empieza por debajo del de la parada");
+                check(TrenPreparar.EtaEnMarcha(w, sv) == -1, "parado: EtaEnMarcha da −1");
+                var s2 = w.Services[sv];
+                if (!s2.AtStop) { for (int i = 0; i < 2000 && !s2.AtStop; i++) w.Step(); }
+                check(TrenPreparar.Aparcar(w, sv) != null && TrenPreparar.Descarga(w, sv, s2.Stops[s2.StopIndex].Node) == null, "Descarga hacia la misma estación donde está: no vale");
+                check(TrenPreparar.Aparcar(w, -1) == null && TrenPreparar.Descarga(w, 99, sag) == null, "Aparcar y Descarga con trenes que no existen: null");
+            }
+
             // --- aeródromo de Bétera (D-N173): datos de Álvaro, ETA real, salida, vuelta sola a rearmar, existencias propias; plantel por estación
             {
                 string bj = BalanceSource.Read("estacion_betera.json");
