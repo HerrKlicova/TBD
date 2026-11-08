@@ -5,7 +5,7 @@ vuelo de tejado ni huecos, para que dos casas puestas a 6 m de distancia formen 
 MEDIDAS SIN VERIFICAR (típicas de casa de pueblo valenciana de dos plantas; no hay foto de Paula de esta tipología,
 solo las alquerías E4): 6 x 10 m, plantas de 3,2 m, tejado de teja a dos aguas con la cumbrera paralela a la calle y
 0,4 m de vuelo solo a la calle y al patio. Fachada a la calle (-Y): puerta y ventana con reja abajo, balcón arriba.
-Colores: cal d4d0cc (o los de cada variante), zócalo 605c48, carpintería 543820, teja a86c50, reja y baranda 1c200c.
+Colores: cal d4d0cc (o los de cada variante), zócalo 605c48/6c7874, carpintería 605c48 (8-nov: el 543820 en sombra caía al 9 % en la banda de la horda; Lucía), teja a86c50, reja 6c7874.
 """
 import os
 from taller import Taller
@@ -14,10 +14,10 @@ from taller import Taller
 # (baja); 3 cochera y cal amarilla; 4 tapiada (tablas); 5 balcón corrido y cal gastada.
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 _CAL = ("d4d0cc", "b4a080", "d4d0cc", "f0dc9c", "d4d0cc", "d4d0cc")
-_ZOC = ("605c48", "605c48", "283440", "6c7874", "605c48", "283440")
+_ZOC = ("605c48", "605c48", "6c7874", "6c7874", "605c48", "6c7874")   # 283440 es de la horda (8-nov)
 PIEZAS = ["cal", "zocalo", "carpinteria", "tejado", "reja", "balcon", "tablas", "alero"]
-COLORES = {"cal": _CAL[VAR % 6], "zocalo": _ZOC[VAR % 6], "carpinteria": "543820", "tejado": "a86c50",
-           "reja": "48403c", "balcon": "94948c", "tablas": "845c28", "alero": "94948c"}
+COLORES = {"cal": _CAL[VAR % 6], "zocalo": _ZOC[VAR % 6], "carpinteria": "605c48", "tejado": "a86c50",
+           "reja": "6c7874", "balcon": "94948c", "tablas": "845c28", "alero": "94948c"}
 FACCION = "neutro"
 PRESUPUESTO = {0: (60, 1200), 1: (40, 600)}
 FRENTE, FONDO, PLANTA = 6.0, 10.0, 3.2
