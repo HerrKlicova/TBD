@@ -187,23 +187,16 @@ namespace TBD.View
             _mesh.RecalculateNormals();
             _mesh.RecalculateBounds();
 
-            _tex = new Texture2D(TexW, TexH, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, anisoLevel = 4 };
-            _baseColors = new Color32[TexW * TexH];
+            // plano táctico oscuro de Bruno (D-N113): paleta de 32, sombreado cocido, en Point y sin mipmaps
+            _tex = new Texture2D(TexW, TexH, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Point };
             _px = new Color32[TexW * TexH];
-            for (int y = 0; y < TexH; y++)
-                for (int x = 0; x < TexW; x++)
-                {
-                    double mx = MinX + (MaxX - MinX) * x / (TexW - 1.0);
-                    double my = MaxY - (MaxY - MinY) * y / (TexH - 1.0);
-                    _baseColors[y * TexW + x] = Hypso(_relief.HeightM(mx, my));
-                }
+            _baseColors = MapaTactico.Pintar(_relief, _a.Graph, MinX, (MaxX - MinX) / (TexW - 1.0), MaxY, -(MaxY - MinY) / (TexH - 1.0), TexW, TexH, false);
 
             var go = new GameObject("Terreno (relieve de sustitución)");
             go.AddComponent<MeshFilter>().sharedMesh = _mesh;
             var mr = go.AddComponent<MeshRenderer>();
-            _terrainMat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            _terrainMat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));     // el sombreado va cocido en la textura (Bruno)
             _terrainMat.SetTexture("_BaseMap", _tex);
-            _terrainMat.SetFloat("_Smoothness", 0.05f);
             mr.sharedMaterial = _terrainMat;
             UpdateTexture();
         }
@@ -211,6 +204,7 @@ namespace TBD.View
         void UpdateTexture()
         {
             var f = _a.Field;
+            var atac = TrenesAtacados();
             for (int y = 0; y < TexH; y++)
                 for (int x = 0; x < TexW; x++)
                 {
@@ -222,11 +216,24 @@ namespace TBD.View
                     float fx = u - x0, fy = v - y0;
                     float d = Mathf.Lerp(Mathf.Lerp(f.At(x0, y0), f.At(x0 + 1, y0), fx), Mathf.Lerp(f.At(x0, y0 + 1), f.At(x0 + 1, y0 + 1), fx), fy) / 1000f;
                     var c = _baseColors[y * TexW + x];
-                    float a = Mathf.Clamp01((d - 0.08f) * 1.6f) * 0.85f;
-                    _px[y * TexW + x] = a > 0 ? Color32.Lerp(c, new Color32(150, 22, 26, 255), a) : c;
+                    _px[y * TexW + x] = MapaTactico.Mancha(c, d, x, y, false, d > 0.08f && MapaTactico.EnAtaque(_a.Graph, mx, my, atac));
                 }
             _tex.SetPixels32(_px);
-            _tex.Apply(true);
+            _tex.Apply(false);
+        }
+
+        /// <summary>Trenes emboscados o en encuentro, en unidades de mapa (para el rojo de la mancha solo donde ataca; Bruno, D-N113).</summary>
+        List<Vector2> TrenesAtacados()
+        {
+            var l = new List<Vector2>(); var g = _a.Graph;
+            for (int i = 0; i < _a.Services.Count; i++)
+            {
+                var s = _a.Services[i]; if (!(s.Ambushed || (_a.Encounter.Active && _a.Encounter.Service == i))) continue;
+                var t = s.Train; var e = s.AtStop ? null : t.CurrentEdge(g);
+                if (e == null) { var n = g.Nodes[s.AtStop || t.Route.Count == 0 ? s.Stops[s.StopIndex].Node : t.Route[t.Route.Count - 1]]; l.Add(new Vector2((float)n.XMeters, (float)n.YMeters)); }
+                else { var fr = g.Nodes[t.Route[t.Leg]]; var to = g.Nodes[t.Route[t.Leg + 1]]; float kt = e.LengthMm > 0 ? (float)t.OffsetMm / e.LengthMm : 0f; l.Add(Vector2.Lerp(new Vector2((float)fr.XMeters, (float)fr.YMeters), new Vector2((float)to.XMeters, (float)to.YMeters), kt)); }
+            }
+            return l;
         }
 
         // ---------------------------------------------------------------- red, nodos y trenes
@@ -429,7 +436,8 @@ namespace TBD.View
         void UpdateDetailTexture()
         {
             if (_detail == null || !_detail.activeSelf || _detailBase == null) return;
-            const int TW = 256;
+            const int TW = DetailTW;
+            var atac = TrenesAtacados();
             float half = DetailSizeKm * 0.5f;
             var f = _a.Field;
             for (int y = 0; y < TW; y++)
@@ -443,14 +451,13 @@ namespace TBD.View
                     float fx = u - x0, fy = v - y0;
                     float d = Mathf.Lerp(Mathf.Lerp(f.At(x0, y0), f.At(x0 + 1, y0), fx), Mathf.Lerp(f.At(x0, y0 + 1), f.At(x0 + 1, y0 + 1), fx), fy) / 1000f;
                     var c = _detailBase[y * TW + x];
-                    float a = Mathf.Clamp01((d - 0.08f) * 1.6f) * 0.85f;
                     // de cerca, la mancha se ve como un moteado (puntos de horda), no como una tinta lisa
                     uint hsh = (uint)(x * 73856093) ^ (uint)(y * 19349663);
                     bool dot = (hsh % 1000) < d * 1000f;
-                    _detailPx[y * TW + x] = a > 0 ? Color32.Lerp(c, dot ? new Color32(70, 10, 14, 255) : new Color32(150, 22, 26, 255), dot ? Mathf.Min(1f, a + 0.3f) : a) : c;
+                    _detailPx[y * TW + x] = MapaTactico.Mancha(c, d, x, y, dot && d > 0.08f, d > 0.08f && MapaTactico.EnAtaque(_a.Graph, mx, my, atac));
                 }
             _detailTex.SetPixels32(_detailPx);
-            _detailTex.Apply(true);
+            _detailTex.Apply(false);
         }
 
         /// <summary>Altura que tiene el terreno grueso (interpolado en su triángulo) en un punto del mundo.</summary>
@@ -473,14 +480,18 @@ namespace TBD.View
             _detailCenter = new Vector3(-9999, 0, -9999);
         }
 
+        /// <summary>Téxeles del parche de detalle (Bruno: 512 = 23 m por téxel; si se nota el tirón al rehacerlo, 384). UltimoParcheMs mide lo que tarda.</summary>
+        const int DetailTW = 384;
+        public static double UltimoParcheMs;
+
         void BuildDetail(Vector3 center)
         {
             _detailCenter = center;
             float half = DetailSizeKm * 0.5f;
             var verts = new Vector3[DetailN * DetailN];
             var uvs = new Vector2[DetailN * DetailN];
-            const int TW = 256;
-            var cols = new Color32[TW * TW];
+            const int TW = DetailTW;
+            Color32[] cols;
             for (int j = 0; j < DetailN; j++)
                 for (int i = 0; i < DetailN; i++)
                 {
@@ -495,13 +506,10 @@ namespace TBD.View
                     verts[j * DetailN + i] = new Vector3(wx, Mathf.Lerp(CoarseHeightAt(wx, wz), fine, w) + 0.004f, wz);
                     uvs[j * DetailN + i] = new Vector2(i / (DetailN - 1f), j / (DetailN - 1f));
                 }
-            for (int y = 0; y < TW; y++)
-                for (int x = 0; x < TW; x++)
-                {
-                    float wx = center.x - half + DetailSizeKm * x / (TW - 1f);
-                    float wz = center.z - half + DetailSizeKm * y / (TW - 1f);
-                    cols[y * TW + x] = Hypso(_relief.HeightM(MinX + wx / MapGeo.KmPerUnit, MaxY - wz / MapGeo.KmPerUnit));
-                }
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            double dmx = DetailSizeKm / MapGeo.KmPerUnit / (TW - 1);
+            cols = MapaTactico.Pintar(_relief, _a.Graph, MinX + (center.x - half) / MapGeo.KmPerUnit, dmx, MaxY - (center.z - half) / MapGeo.KmPerUnit, -dmx, TW, TW, true);
+            UltimoParcheMs = sw.Elapsed.TotalMilliseconds;
             if (_detail == null)
             {
                 var tris = new int[(DetailN - 1) * (DetailN - 1) * 6];
@@ -517,7 +525,7 @@ namespace TBD.View
                 _detailMesh.vertices = verts; _detailMesh.uv = uvs; _detailMesh.triangles = tris;
                 _detail = new GameObject("Terreno de detalle");
                 _detail.AddComponent<MeshFilter>().sharedMesh = _detailMesh;
-                _detailTex = new Texture2D(TW, TW, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Clamp, anisoLevel = 4 };
+                _detailTex = new Texture2D(TW, TW, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Point };
                 var m = new Material(_terrainMat);
                 m.SetTexture("_BaseMap", _detailTex);
                 _detail.AddComponent<MeshRenderer>().sharedMaterial = m;
