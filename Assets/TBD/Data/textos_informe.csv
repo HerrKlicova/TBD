@@ -25,3 +25,5 @@ OC-4;Llorens;Obra parada en {nodo}. Hay que despejar la zona para seguir.;Work s
 TL-1;Chispas;El {tren} está listo. Cuando quiera, comandante.;The {train} is ready. Whenever you are, Commander.
 TL-2;Chispas;El {tren} está listo, pero me faltan {n} para la dotación.;The {train} is ready, but I'm {n} short for a crew.
 TL-3;Chispas;Paramos el {tren}. Recuperamos {u} u de materiales.;Work on the {train} stopped. We salvaged {u} u of materials.
+ZS-1;Ibarra;{nodo} aguanta la noche: {abatidos} de {n} abatidos, {u} u de munición, {bajas} bajas.;{node} holds the night: {abatidos} of {n} down, {u} u of ammunition, {bajas} casualties.
+ZS-2;Ibarra;Hemos perdido {nodo}. Eran {n} y solo cayeron {abatidos}.;We have lost {node}. They were {n} and only {abatidos} went down.

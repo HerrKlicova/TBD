@@ -145,6 +145,7 @@ namespace TBD.Sim.Tests
                 return _fail == 0 ? 0 : 1;
             }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_LOS") == "1") { LosTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
+            if (Environment.GetEnvironmentVariable("TBD_ONLY_ZONA") == "1") { ZonaHordaTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_PUERTAS") == "1") { TrenPuertasTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_VIV") == "1") { ViveresTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_SOMBRA") == "1") { TramosZonaTests.Run(Check); SombraLosTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
@@ -196,6 +197,7 @@ namespace TBD.Sim.Tests
             SombraLosTests.Run(Check);
             ViveresTests.Run(Check);
             TrenPuertasTests.Run(Check);
+            ZonaHordaTests.Run(Check);
             GoldenTests.Run(Check);
             Console.WriteLine($"\nResumen: {_pass} correctas, {_fail} fallos");
             return _fail == 0 ? 0 : 1;
