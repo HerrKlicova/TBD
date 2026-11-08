@@ -109,9 +109,12 @@ namespace TBD.Units
         }
 
         /// <summary>Punto de espera de un pelotón a lo largo de un lado: centrado en la horda, repartidos cada 10 m, a la distancia del muro que su arma necesita.</summary>
+        /// <summary>D-N174: si &gt; 0, distancia al muro del fuego directo (banqueta). 0 = como siempre.</summary>
+        public int BanquetaMm;
         void Target(int side, int along, int k, int n, out int tx, out int ty, PlatoonKind kind)
         {
             int inset = kind == PlatoonKind.Granaderos ? 18_000 : kind == PlatoonKind.Tiradores ? 12_000 : kind == PlatoonKind.Ametralladores ? 4_000 : 3_000;   // lanzagranadas: mínimo de 15 m
+            if (BanquetaMm > 0 && kind != PlatoonKind.Granaderos) inset = BanquetaMm;      // D-N174: el fuego directo se pone en la banqueta (a ≤ 2 m del muro) para tirar por encima
             int off = (k * 2 - (n - 1)) * 5_000;                                      // −… 0 … + en pasos de 10 m
             if (side <= 1)
             {

@@ -1,5 +1,5 @@
 clave;valor;escala;nota
-H0_zombis_dia;1550;1;presupuesto diario del director el día 0
+H0_zombis_dia;1500;1;presupuesto diario del director el día 0
 tau_dias;20;1;curva H = H0·(1+d/τ)^α·raiz(1+k·huella)
 alfa;1550;1000;usar la tabla colmena_curva.csv
 k_huella;240;1000;raíz con isqrt sobre milésimas

@@ -34,9 +34,12 @@
     <Compile Include="SaguntoInicioTests.cs" />
     <Compile Include="GuardadoTests.cs" />
     <Compile Include="UnidadesTests.cs" />
+    <Compile Include="LosTests.cs" />
     <Compile Include="TutorialTests.cs" />
     <Compile Include="EmbarqueTests.cs" />
     <Compile Include="TramosZonaTests.cs" />
+    <Compile Include="SombraLosTests.cs" />
+    <Compile Include="ViveresTests.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Hive.cs" Link="Net\Hive.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\HiveDirector.cs" Link="Net\HiveDirector.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\NetGolden.cs" Link="Net\NetGolden.cs" />

@@ -90,6 +90,7 @@ namespace TBD.Units
         public int HomeX, HomeY;            // NH90: su plataforma, para volver al acabar
         public bool Parked;                 // D-N167: volvió solo por munición, rearmó y se queda posado hasta una orden del jugador (TakeOffOrder)
         public int AutoReturns;             // D-N167: veces que ha vuelto solo a rearmar
+        public bool AtAirfield, CarriesPlatoon; public int AwayUntil = -1;   // D-N173: en el aeródromo (fuera de la zona) y tick en que llega a la zona tras el viaje (−1 = no viene)
         public int Kills, ShotsFired, Resupplies, ResupplyShotsSpent;
 
         public static NightVehicle Make(string name, NightVehKind k, int x, int y)
@@ -120,7 +121,7 @@ namespace TBD.Units
         }
         /// <summary>Coste de llenar la reserva, en disparos del almacén (1 u = WeaponCatalog.ShotsPerU): ResupplyMilliU × lo que falta / MaxShots.</summary>
         public int RefillCostShots() { return MaxShots <= 0 ? 0 : (int)((long)ResupplyMilliU * WeaponCatalog.ShotsPerU / 1000 * (MaxShots - Shots) / MaxShots); }
-        public ulong Hash() { return IMath.Mix((ulong)(uint)Shots + ((ulong)(uint)NextFireTick << 32) + (ulong)Kind) + IMath.Mix((ulong)(uint)ResupplyUntil + ((ulong)(uint)Kills << 32) + (Fire ? 7UL : 11UL) + (Airborne ? 13UL : 0UL) + (Parked ? 0x167UL << 40 : 0UL)); }
+        public ulong Hash() { return IMath.Mix((ulong)(uint)Shots + ((ulong)(uint)NextFireTick << 32) + (ulong)Kind) + IMath.Mix((ulong)(uint)ResupplyUntil + ((ulong)(uint)Kills << 32) + (Fire ? 7UL : 11UL) + (Airborne ? 13UL : 0UL) + (Parked ? 0x167UL << 40 : 0UL)) + (AtAirfield || AwayUntil >= 0 ? IMath.Mix(0x173UL ^ ((ulong)(uint)(AwayUntil + 1) << 8) ^ (AtAirfield ? 1UL : 0UL)) : 0UL); }
     }
 
     /// <summary>D-N148 (Lucía, 7-nov): a qué va un zombi que ha pasado el muro (trepando la pila o por una brecha). Lo vivo más cercano a menos de «seekMm», por este
@@ -152,7 +153,7 @@ namespace TBD.Units
 
     public sealed class NightSim
     {
-        sealed class Zomb { public int X, Y; public bool Alive = true; public int TX, TY; public byte Goal; public bool HitTrain; }   // Goal (D-N148): 0 sin decidir, 1 infantería, 2 vehículo, 3 obrero, 4 tren
+        sealed class Zomb { public int X, Y; public bool Alive = true; public int TX, TY; public byte Goal; public bool HitTrain, Aggro; }   // Goal (D-N148): 0 sin decidir, 1 infantería, 2 vehículo, 3 obrero, 4 tren
 
         public NightSimParams SP;
         public readonly UnitsWorld Units;
@@ -243,6 +244,29 @@ namespace TBD.Units
         /// <summary>Comparación con la zona (8-nov): la zona solo da a los pelotones los zombis a menos de 60 m del ancla de algún pelotón (PrototypeBootstrap.Night.cs, «_tgt»).
         /// 0 (por defecto) = todos, como hasta ahora. No entra en el hash.</summary>
         public int TargetRadiusMm;
+        /// <summary>D-N174: el edificio de viajeros (8 m, SUPUESTO), el tren parado (4,2 m) y, con tramos, cada tramo del muro con su altura (HeightMm; 0 = 2,1 m) como muro propio
+        /// (rect de 1 m de grueso sobre la línea del muro). false = sin regla. Las alturas de los tirones: infantería 1,6 m; VAMTAC 2,3 m; Dragón 2,7 m (SUPUESTOS); el NH90 en vuelo, por encima de todo.</summary>
+        public void EnableLineOfSight(bool on = true, IList<UnitsWorld.LosBlocker> scene = null)
+        {
+            Units.LosBlockers.Clear(); _losSeg0 = -1; if (!on) return;
+            if (scene != null) Units.LosBlockers.AddRange(scene);       // D-N174: el inventario de la zona (Álvaro, sagunto_obstaculos_v1.csv), sin los muros, que van por tramos
+            else
+            {
+                Units.LosBlockers.Add(new UnitsWorld.LosBlocker { R = Night.P.StationRect, HeightMm = LosStationMm });
+                Units.LosBlockers.Add(new UnitsWorld.LosBlocker { R = Night.P.TrainRect, HeightMm = LosTrainMm });
+            }
+            if (Segments == null || !LosWalls) return;
+            _losSeg0 = Units.LosBlockers.Count;
+            foreach (var g in Segments)
+            {
+                int x0, y0, x1, y1; SegLine(g, out x0, out y0, out x1, out y1);
+                var r = g.Side <= 1 ? new RectMm(x0 - 500, y0, x0 + 500, y1) : new RectMm(x0, y0 - 500, x1, y0 + 500);
+                Units.LosBlockers.Add(new UnitsWorld.LosBlocker { R = r, HeightMm = g.HeightMm > 0 ? g.HeightMm : 2100, OwnWall = true, Off = g.Hp <= 0 });
+            }
+        }
+        public int LosStationMm = 8000, LosTrainMm = 4200; public bool LosWalls = true; int _losSeg0 = -1;
+        void LosSyncWalls() { if (_losSeg0 < 0) return; for (int i = 0; i < Segments.Count; i++) { var b = Units.LosBlockers[_losSeg0 + i]; bool off = Segments[i].Hp <= 0; if (b.Off != off) { b.Off = off; Units.LosBlockers[_losSeg0 + i] = b; } } }
+        static int EyeMm(NightVehKind k) { return k == NightVehKind.Dragon ? 2900 : k == NightVehKind.Vamtac ? 2400 : 1600; }   // Álvaro (8-nov): Dragón ≈ 2,9 m (SIN VERIFICAR), VAMTAC ≈ 2,4 m
         bool NearPlatoon(int x, int y)
         {
             if (TargetRadiusMm <= 0) return true;
@@ -309,6 +333,7 @@ namespace TBD.Units
             int pile = 0, speed = SP.ZombieSpeedMmS / IMath.TickRate;
             WallEvents.Clear();
             if (Segments != null) { if (_segPile == null || _segPile.Length != Segments.Count) _segPile = new int[Segments.Count]; Array.Clear(_segPile, 0, _segPile.Length); }
+            LosSyncWalls();
             for (int i = 0; i < _z.Count; i++)
             {
                 var z = _z[i]; if (!z.Alive) continue;
@@ -320,11 +345,13 @@ namespace TBD.Units
                     if (z.Goal == 0 || ((Night.Tick + i) % ClimberRetargetTicks) == 0) RetargetClimber(z);
                     tx = z.TX; ty = z.TY;
                 }
-                bool gap = SP.GateGapMm > 0 && WallHp > 0;
+                else if (OutsideAggroMm > 0 && (z.Aggro || ((Night.Tick + i) % ClimberRetargetTicks) == 0) && (z.Aggro || !NearWall(z.X, z.Y))) AggroOutside(z);     // D-N175: la pila y los que ya están en el muro no cambian
+                if (!inside && z.Aggro) tx = z.TX; ty = !inside && z.Aggro ? z.TY : ty;
+                bool gap = SP.GateGapMm > 0 && WallHp > 0 && !(!inside && z.Aggro);
                 bool toGate = false;
                 if (gap && z.X < SP.FortX0 - 500 && !InFort(z.X, z.Y)) { tx = SP.FortX0 - 1000; toGate = true; }      // con hueco en la vía, la horda rodea el muro hasta la puerta (como el flujo de la zona)
                 int dx = tx - z.X, dy = ty - z.Y, d = IMath.Dist(dx, dy);
-                if (inside ? (z.Goal != 4 && d < 500) : (d < 3500 && !toGate)) continue;
+                if (inside || z.Aggro ? (z.Goal != 4 && d < 500) : (d < 3500 && !toGate)) continue;
                 if (d < 1) continue;
                 int nx = z.X + IMath.DivR((long)dx * speed, d), ny = z.Y + IMath.DivR((long)dy * speed, d);
                 if (!InFort(z.X, z.Y) && InFort(nx, ny) && SegIntact(z.X, z.Y) && !(gap && z.X <= SP.FortX0 && Math.Abs(ny - SP.StationY) < SP.GateGapMm / 2))
@@ -426,7 +453,20 @@ namespace TBD.Units
         /// <summary>D-N167: umbral de vuelta sola del NH90 (% de su reserva).</summary>
         public int Nh90ReturnBelowPct = 30;
         /// <summary>Orden del jugador al NH90 (despegar o cualquier otra): anula el «posado» de la D-N167 y vuelve a despegar solo con horda. false si no es un NH90.</summary>
-        public bool TakeOffOrder(int index) { if (index < 0 || index >= Vehicles.Count || Vehicles[index].Kind != NightVehKind.Nh90) return false; Vehicles[index].Parked = false; return true; }
+        public bool TakeOffOrder(int index)
+        {
+            if (index < 0 || index >= Vehicles.Count || Vehicles[index].Kind != NightVehKind.Nh90) return false; var v = Vehicles[index]; v.Parked = false;
+            if (Nh90FromAirfield && v.AtAirfield && v.AwayUntil < 0) v.AwayUntil = Night.Tick + Nh90PrepS * IMath.TickRate + AirfieldTripTicks();      // D-N173: sale del aeródromo y tarda el viaje
+            return true;
+        }
+        /// <summary>D-N173 (Lucía, 8-nov): no hay helipuerto en Sagunto. El NH90 vive en el aeródromo (un nodo del mapa): llega a la zona tras el viaje y, para rearmar, vuelve allí
+        /// (ida y vuelta). Distancia SUPUESTA de 40 km hasta que Paula dé el sitio; crucero del NH90 260 km/h. El viaje va en tiempo de mapa: ticks reales = s de juego × 30 / reloj_x.</summary>
+        public bool Nh90FromAirfield; public int AirfieldM = 40000, Nh90CruiseKmh = 260, Nh90PrepS = 20, Nh90LandS = 20, Nh90RearmS = 30;   // Lucía (8-nov): 20 s de preparar y despegar, 20 s de tomar tierra, 30 s de rearme
+        /// <summary>D-N173: claro de 25 × 25 m (Lucía) donde se posa para desembarcar; centro SUPUESTO dentro del recinto, al este del edificio; crucero 260 km/h verificado por Paula y tiempo de bajar (D-N166).</summary>
+        public int LandingX = 140000, LandingY = 76000, EmbarqueDropS = 10;
+        public int AirfieldTripTicks() { long gameS = (long)AirfieldM * 3600 / 1000 / Math.Max(1, Nh90CruiseKmh); return (int)Math.Max(1, gameS * IMath.TickRate / Math.Max(1, Night.P.ClockX)); }
+        /// <summary>D-N173: el NH90 empieza en el aeródromo. «etaTick» ≥ 0: llega a la zona en ese tick (la ETA del mapa); −1: despega solo cuando hay horda y tarda el viaje.</summary>
+        public void Nh90StartAtAirfield(int etaTick = -1) { Nh90FromAirfield = true; foreach (var v in Vehicles) if (v.Kind == NightVehKind.Nh90) { v.AtAirfield = true; v.Airborne = false; v.AwayUntil = etaTick; } }
 
         void VehiclesStep(WaveStats cur)
         {
@@ -439,7 +479,28 @@ namespace TBD.Units
                 if (!v.Fire || v.Shots <= 0 || tick < v.NextFireTick) continue;
                 if (v.Kind == NightVehKind.Nh90)            // como la zona (Noche50, Marcos): el NH90 despega solo con más de 30 zombis y va sobre el andén (100;64); sin zombis vuelve a su plataforma
                 {
-                    if (!v.Airborne && !v.Parked && v.Fire && _aliveForHeli > 30 && v.Shots * 20 > v.MaxShots) { v.HomeX = v.X; v.HomeY = v.Y; v.X = 100000; v.Y = 64000; v.Airborne = true; }
+                    if (Nh90FromAirfield)
+                    {
+                        if (v.AtAirfield)
+                        {
+                            if (v.AwayUntil < 0 && !v.Parked && v.Fire && _aliveForHeli > 30 && v.Shots * 20 > v.MaxShots && v.ResupplyUntil < 0) v.AwayUntil = tick + Nh90PrepS * IMath.TickRate + AirfieldTripTicks();
+                            if (v.AwayUntil >= 0 && tick >= v.AwayUntil)
+                            {
+                                v.AtAirfield = false; v.AwayUntil = -1; v.X = 100000; v.Y = 64000; v.Airborne = true;     // entra por el borde y va sobre el andén
+                                if (v.CarriesPlatoon)        // se posa en el claro y desembarca (10 s sin disparar, D-N166); luego vuelve a volar
+                                { v.CarriesPlatoon = false; v.NextFireTick = tick + EmbarqueDropS * IMath.TickRate; Units.AddPlatoon(PlatoonKind.Fusileros, LandingX, LandingY, 0); if (Bot != null) { } }
+                            }
+                            if (v.AtAirfield) continue;
+                        }
+                        else if (v.Airborne && (_aliveForHeli == 0 || v.Shots * 100 < v.MaxShots * Nh90ReturnBelowPct))
+                        {
+                            bool rearm = _aliveForHeli > 0; v.Airborne = false; v.AtAirfield = true;      // vuelve al aeródromo; rearma al llegar (ida + rearme)
+                            if (rearm) { v.Parked = true; v.AutoReturns++; v.ResupplyUntil = tick + AirfieldTripTicks() + (Nh90LandS + Nh90RearmS) * IMath.TickRate; v.Resupplies++; VehicleResupplies++; }   // Lucía: viaje + 20 s de tomar tierra + 30 s de rearme (el aeródromo pone la munición)
+                            continue;
+                        }
+                        if (!v.Airborne) continue;
+                    }
+                    else if (!v.Airborne && !v.Parked && v.Fire && _aliveForHeli > 30 && v.Shots * 20 > v.MaxShots) { v.HomeX = v.X; v.HomeY = v.Y; v.X = 100000; v.Y = 64000; v.Airborne = true; }
                     else if (v.Airborne && _aliveForHeli == 0 && v.HomeX != 0) { v.X = v.HomeX; v.Y = v.HomeY; v.Airborne = false; }
                     else if (v.Airborne && v.HomeX != 0 && v.Shots * 100 < v.MaxShots * Nh90ReturnBelowPct)
                     {
@@ -449,7 +510,8 @@ namespace TBD.Units
                     if (!v.Airborne) continue;
                 }
                 long best = (long)v.RangeMm * v.RangeMm; int bi = -1;
-                for (int i = 0; i < _z.Count; i++) { var z = _z[i]; if (!z.Alive) continue; long dx = z.X - v.X, dy = z.Y - v.Y, d2 = dx * dx + dy * dy; if (d2 < best) { best = d2; bi = i; } }
+                bool los = !v.Airborne && Units.LosBlockers.Count > 0;
+                for (int i = 0; i < _z.Count; i++) { var z = _z[i]; if (!z.Alive) continue; long dx = z.X - v.X, dy = z.Y - v.Y, d2 = dx * dx + dy * dy; if (d2 < best && (!los || Units.LineOfSight(v.X, v.Y, z.X, z.Y, EyeMm(v.Kind)))) { best = d2; bi = i; } }
                 if (bi < 0) continue;
                 v.NextFireTick = tick + v.PeriodTicks; v.Shots--; v.ShotsFired++;
                 int tx = _z[bi].X, ty = _z[bi].Y, left = v.KillsPerShot; long r2 = (long)v.SplashMm * v.SplashMm;
@@ -483,6 +545,26 @@ namespace TBD.Units
                 for (int v = 0; v < Vehicles.Count; v++) if (!Vehicles[v].Airborne) _vehT.Add(new Target { Id = v, X = Vehicles[v].X, Y = Vehicles[v].Y });
             }
             int tx, ty; z.Goal = ClimberTargets.Pick(z.X, z.Y, _men, _vehT, _workers, ClimberSeekMm, Night.P.TrainRect, out tx, out ty); z.TX = tx; z.TY = ty;
+        }
+
+        /// <summary>D-N175 (Lucía, 8-nov, para medir; rescate de Nules D-N172): un zombi de FUERA con infantería de fuera a OutsideAggroMm o menos deja la puerta y va a por ella.
+        /// Como mucho OutsideAggroCapPm ‰ de los vivos a la vez (el muro sigue siendo el frente). 0 = apagado (como siempre).</summary>
+        public int OutsideAggroMm, OutsideAggroCapPm = 300; int _aggroN, _aggroTick = -1;
+        void AggroOutside(Zomb z)
+        {
+            if (_aggroTick != Night.Tick) { _aggroTick = Night.Tick; _aggroN = 0; foreach (var q in _z) if (q.Alive && q.Aggro) _aggroN++; RetargetMenCache(); }
+            long best = (long)OutsideAggroMm * OutsideAggroMm; int bx = 0, by = 0; bool found = false;
+            foreach (var m in _men) { if (InFort(m.X, m.Y)) continue; long dx = m.X - z.X, dy = m.Y - z.Y, d2 = dx * dx + dy * dy; if (d2 <= best) { best = d2; bx = m.X; by = m.Y; found = true; } }
+            foreach (var m in _vehT) { if (InFort(m.X, m.Y)) continue; long dx = m.X - z.X, dy = m.Y - z.Y, d2 = dx * dx + dy * dy; if (d2 <= best) { best = d2; bx = m.X; by = m.Y; found = true; } }     // D-N175: los vehículos cuentan como tropa
+            if (!found) { if (z.Aggro) { z.Aggro = false; _aggroN--; } return; }
+            if (!z.Aggro) { if ((long)_aggroN * 1000 >= (long)AliveZombies() * OutsideAggroCapPm) return; z.Aggro = true; _aggroN++; }
+            z.Goal = 1; z.TX = bx; z.TY = by;
+        }
+        void RetargetMenCache()
+        {
+            if (_menTick == Night.Tick) return; _menTick = Night.Tick; _men.Clear(); _vehT.Clear();
+            foreach (var p in Units.Platoons) { if (p.Aboard != 0) continue; foreach (var m in p.Men) if (m.Alive) _men.Add(new Target { Id = m.Id, X = m.X, Y = m.Y }); }
+            for (int v = 0; v < Vehicles.Count; v++) if (!Vehicles[v].Airborne) _vehT.Add(new Target { Id = v, X = Vehicles[v].X, Y = Vehicles[v].Y });
         }
 
         /// <summary>Tope de trepadores por segundo (0 = sin tope). Va fuera del hash si es 0.</summary>
@@ -533,7 +615,7 @@ namespace TBD.Units
 
         // ================================================================ D-N163 (Lucía, construccion-reparar.md §8): el muro por tramos, Repair y Rebuild
         /// <summary>Un tramo del muro: un trozo de un lado del recinto (Side 0 oeste, 1 este, 2 sur, 3 norte; A0-A1 a lo largo, en mm). Hp 0 = brecha: ya no detiene.</summary>
-        public sealed class WallSegment { public int Side, A0, A1, Hp, HpMax, Rem, PriceU, ObraMh; public int LenMm { get { return A1 - A0; } } }
+        public sealed class WallSegment { public int Side, A0, A1, Hp, HpMax, Rem, PriceU, ObraMh, HeightMm; public int LenMm { get { return A1 - A0; } } }
         public enum WallJobKind : byte { Reparar = 0, Reconstruir = 1 }
         public sealed class WallJob { public WallJobKind Kind; public int Seg, Platoon, WorkTicks; public bool Ordered, Working, PrevHoldFire; }
         /// <summary>Tramos (null = el muro de un solo bloque de siempre, sin cambio de hash). Se activa con EnableSegments.</summary>
@@ -571,7 +653,7 @@ namespace TBD.Units
         public void EnableSegments(IList<WallSegment> pieces)
         {
             Segments = new List<WallSegment>();
-            foreach (var q in pieces) { var g = new WallSegment { Side = q.Side, A0 = q.A0, A1 = q.A1, PriceU = q.PriceU, ObraMh = q.ObraMh, HpMax = q.HpMax > 0 ? q.HpMax : q.PriceU * TramoVidaPorU }; g.Hp = q.Hp < 0 ? g.HpMax : Math.Min(q.Hp, g.HpMax); Segments.Add(g); }
+            foreach (var q in pieces) { var g = new WallSegment { Side = q.Side, A0 = q.A0, A1 = q.A1, PriceU = q.PriceU, ObraMh = q.ObraMh, HeightMm = q.HeightMm, HpMax = q.HpMax > 0 ? q.HpMax : q.PriceU * TramoVidaPorU }; g.Hp = q.Hp < 0 ? g.HpMax : Math.Min(q.Hp, g.HpMax); Segments.Add(g); }
             long mx = 0; foreach (var g in Segments) mx += g.HpMax; SP.WallHp = (int)mx;      // D-N165: el máximo del muro es la suma de sus piezas (el % del muro y el parte se miden contra esto)
             SumSegments();
         }
@@ -777,23 +859,96 @@ namespace TBD.Units
         {
             WallEvents.Clear();
             if (Segments == null || pilePerSegment == null || pilePerSegment.Length != Segments.Count) return WallEvents;
-            DamageSegments(pilePerSegment); SumSegments(); return WallEvents;
+            DamageSegments(pilePerSegment); SumSegments(); LosSyncWalls(); return WallEvents;
         }
 
         /// <summary>Un tick de zona de la obra de cabeza. «sappers» = zapadores vivos; «atWork» = ya están a WorkReachMm o menos de WorkSpot (los mueve la zona);
         /// «zombies» = los de la zona (reglas de 3 m y 15 m). Devuelve ObraEmpieza (dejan de disparar), Reparado, Reconstruido u ObraCancelada (vuelven a disparar).</summary>
         public List<WallEvent> TickWallJobs(int sappers, bool atWork, IList<Target> zombies)
         {
-            WallEvents.Clear(); _zoneZ = zombies;
+            WallEvents.Clear(); _zoneZ = zombies; LosSyncWalls();       // D-N174: un tramo que la zona ha tocado deja de tapar (o vuelve a tapar)
             if (Segments == null || WallJobs.Count == 0) return WallEvents;
             var j = WallJobs[0];
             if (sappers <= 0 || JobBlocked(j) != null) { Ev(WallEventKind.ObraCancelada, j.Seg); EndJob(j, null); return WallEvents; }
             if (atWork) WorkJob(j, sappers, null);
-            return WallEvents;
+            LosSyncWalls(); return WallEvents;
         }
 
         /// <summary>Tramo de la obra de cabeza (para que la zona mueva a los zapadores a WorkSpot), o −1.</summary>
         public int CurrentJobSeg { get { return WallJobs.Count > 0 ? WallJobs[0].Seg : -1; } }
+
+        // ================================================================ D-N174 / D-N175 en la sombra de la zona (Lucía, 8-nov): mismas reglas que NightSim, con las listas de la zona
+        /// <summary>D-N174: altura de la boca del arma por tipo (Álvaro, 8-nov). Infantería 1,6 m; VAMTAC 2,4 m; Dragón 2,9 m; azotea del edificio de viajeros 12,6 m (11 m + 1,6 m).</summary>
+        public const int EyeVamtacMm = 2400, EyeDragonMm = 2900, EyeAzoteaMm = 12600;
+        /// <summary>D-N174 (Lucía): el AG36 (lanzagranadas de 40 mm) es tiro curvo y no necesita línea de visión; el resto (C90 incluido) es fuego directo.</summary>
+        public static bool IsIndirectFire(string weaponKey) { return weaponKey == "lanzagranadas"; }
+        /// <summary>D-N174: azotea del edificio de viajeros (Álvaro, sagunto-nivel.md §10.15): dos pelotones de tiradores al empezar la noche, libres (D-N168).</summary>
+        public static readonly int[] AzoteaSpotsMm = { 97500, 76500, 97500, 82300 };
+
+        /// <summary>D-N174: los sólidos de la zona a partir del inventario de Álvaro (docs/niveles/sagunto_obstaculos_v1.csv, «;», mm en coordenadas de la zona).
+        /// Solo las filas con tapa_vision = si y altura &gt; 0, sin muros ni puertas (esos van por tramos, con sus brechas). Los nidos se corren «nestShiftMm» (−1,5 m: a X 72,0)
+        /// y cuentan como muro propio (no tapan a quien está a 2 m). «seg» = segmento con medio grosor; «caja» = rectángulo.</summary>
+        public static List<UnitsWorld.LosBlocker> LosSceneFromCsv(string csv, int nestShiftMm = -1500)
+        {
+            var l = new List<UnitsWorld.LosBlocker>(); if (csv == null) return l; bool head = true;
+            foreach (var raw in csv.Split('\n'))
+            {
+                var line = raw.TrimEnd('\r'); if (line.Length == 0) continue;
+                if (head) { head = false; continue; }
+                var c = line.Split(';'); if (c.Length < 10) continue;
+                string tipo = c[1]; if (tipo.StartsWith("muro") || tipo == "puerta" || c[9] != "si") continue;
+                int x0, y0, x1, y1, hg, h;
+                if (!int.TryParse(c[3], out x0) || !int.TryParse(c[4], out y0) || !int.TryParse(c[5], out x1) || !int.TryParse(c[6], out y1) || !int.TryParse(c[7], out hg) || !int.TryParse(c[8], out h) || h <= 0) continue;
+                if (tipo == "nido") { x0 += nestShiftMm; x1 += nestShiftMm; }
+                var r = c[2] == "seg" ? new RectMm(Math.Min(x0, x1) - hg, Math.Min(y0, y1) - hg, Math.Max(x0, x1) + hg, Math.Max(y0, y1) + hg) : new RectMm(Math.Min(x0, x1), Math.Min(y0, y1), Math.Max(x0, x1), Math.Max(y0, y1));
+                l.Add(new UnitsWorld.LosBlocker { R = r, HeightMm = h, OwnWall = tipo == "nido" });
+            }
+            return l;
+        }
+
+        /// <summary>D-N174 para la zona: ¿ve el tirador en (sx, sy), con la boca a eyeMm, al zombi en (tx, ty)? Mismas cuentas que NightSim (2,5D, blanco a 1,0 m).
+        /// Antes, en la sombra: EnableLineOfSight(true, LosSceneFromCsv(...)) con los tramos ya puestos; las brechas dejan de tapar solas (ApplySegmentPile y TickWallJobs).</summary>
+        public bool LineOfSight(int sx, int sy, int tx, int ty, int eyeMm = UnitsWorld.EyeInfantryMm)
+        {
+            if (Units.LosBlockers.Count == 0) return true;
+            return Units.LineOfSight(sx, sy, tx, ty, eyeMm);
+        }
+
+        /// <summary>D-N175 para la zona: el zombi de fuera «ZombieId» deja el campo de flujo a la puerta y va a (TX, TY).</summary>
+        public struct AggroOrder { public int ZombieId, TX, TY; }
+        readonly SortedSet<int> _zoneAggro = new SortedSet<int>(); readonly List<AggroOrder> _aggroOut = new List<AggroOrder>();
+        /// <summary>Zombis de la zona que persiguen a la tropa ahora mismo (D-N175). Va en el hash de la sombra.</summary>
+        public int ZoneAggroCount { get { return _zoneAggro.Count; } }
+
+        /// <summary>D-N175 (Lucía, 8-nov; 25 m y 30 %): un tick de decisión de la zona (recomendado: cada ClimberRetargetTicks). «outside» = los zombis VIVOS de fuera del recinto
+        /// (los de la pila también: aquí se apartan los que están a PileRadiusMm del muro y no persiguen ya); «troops» = soldados y vehículos (no en vuelo) de la zona, se quitan los de
+        /// dentro del recinto; «aliveTotal» = zombis vivos en toda la zona (para el tope). Devuelve TODOS los que persiguen tras este tick con su punto; los demás van a la puerta.
+        /// Determinista: se recorren por Id; con el tope lleno, solo siguen los que ya perseguían y entran los de Id más bajo.</summary>
+        public List<AggroOrder> TickOutsideAggro(IList<Target> outside, IList<Target> troops, int aliveTotal)
+        {
+            _aggroOut.Clear();
+            if (OutsideAggroMm <= 0 || outside == null) { _zoneAggro.Clear(); return _aggroOut; }
+            var tr = new List<Target>(); if (troops != null) foreach (var t in troops) if (!InFort(t.X, t.Y)) tr.Add(t);
+            var zs = new List<Target>(outside); zs.Sort((a, b) => a.Id.CompareTo(b.Id));
+            var alive = new HashSet<int>(); foreach (var z in zs) alive.Add(z.Id);
+            _zoneAggro.RemoveWhere(id => !alive.Contains(id));                                   // los muertos o los que han entrado dejan de contar
+            long r2 = (long)OutsideAggroMm * OutsideAggroMm; long cap = (long)Math.Max(0, aliveTotal) * OutsideAggroCapPm;
+            // 1) los que ya perseguían: siguen si aún tienen tropa a 25 m; si no, vuelven a la puerta
+            // 2) los nuevos (no pegados al muro), por Id, mientras quepan en el tope
+            for (int pass = 0; pass < 2; pass++)
+                foreach (var z in zs)
+                {
+                    bool was = _zoneAggro.Contains(z.Id); if ((pass == 0) != was) continue;
+                    if (!was && NearWall(z.X, z.Y)) continue;                                          // la pila y los que ya están en el muro no cambian
+                    long best = r2; int bx = 0, by = 0; bool found = false;
+                    foreach (var m in tr) { long dx = m.X - z.X, dy = m.Y - z.Y, d2 = dx * dx + dy * dy; if (d2 <= best) { best = d2; bx = m.X; by = m.Y; found = true; } }
+                    if (!found) { if (was) _zoneAggro.Remove(z.Id); continue; }
+                    if (!was) { if ((long)_zoneAggro.Count * 1000 >= cap) continue; _zoneAggro.Add(z.Id); }
+                    _aggroOut.Add(new AggroOrder { ZombieId = z.Id, TX = bx, TY = by });
+                }
+            _aggroOut.Sort((a, b) => a.ZombieId.CompareTo(b.ZombieId));
+            return _aggroOut;
+        }
 
         /// <summary>Tramos a partir de las piezas de Obras de una estación (Works.Snapshot): muros y puertas, en coordenadas de la zona (origin = centro del recinto).
         /// vida_max = CostE4 × vidaPorU / 10.000 (Hugo: 11.924 por u). Ordenados por lado (0 O, 1 E, 2 S, 3 N) y por A0, como pide EnableSegments.</summary>
@@ -805,7 +960,7 @@ namespace TBD.Units
                 if (!(p.IsWall || p.IsGate)) continue;
                 int x0 = p.X0 + originX, x1 = p.X1 + originX, y0 = p.Y0 + originY, y1 = p.Y1 + originY; int side, a0, a1;
                 if (x0 == x1) { side = x0 < originX ? 0 : 1; a0 = Math.Min(y0, y1); a1 = Math.Max(y0, y1); } else { side = y0 < originY ? 2 : 3; a0 = Math.Min(x0, x1); a1 = Math.Max(x0, x1); }
-                list.Add(new WallSegment { Side = side, A0 = a0, A1 = a1, HpMax = (int)((long)p.CostE4 * vidaPorU / 10000), Hp = -1, PriceU = (p.CostE4 + 9999) / 10000 });
+                list.Add(new WallSegment { Side = side, A0 = a0, A1 = a1, HpMax = (int)((long)p.CostE4 * vidaPorU / 10000), Hp = -1, PriceU = (p.CostE4 + 9999) / 10000, HeightMm = TBD.Net.Obras.HeightMm(p.Kind) });   // D-N174: altura de la pieza para la línea de visión
             }
             list.Sort((a, b) => a.Side != b.Side ? a.Side.CompareTo(b.Side) : a.A0.CompareTo(b.A0));
             return list;
@@ -816,7 +971,8 @@ namespace TBD.Units
             ulong h = Units.Hash() ^ Night.Hash();
             h += IMath.Mix((ulong)(uint)WallHp + ((ulong)(uint)Night.StationHp << 32) + 3) + IMath.Mix((ulong)(uint)Kills + ((ulong)(uint)SoldierDeaths << 32) + 5) + IMath.Mix(_rng.S ^ 0x77);
             for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) h += IMath.Mix((ulong)(uint)_z[i].X + ((ulong)(uint)_z[i].Y << 32) + (ulong)i);
-            for (int i = 0; i < Vehicles.Count; i++) h += Vehicles[i].Hash() * (ulong)(2 * i + 3);     // sin vehículos, el hash es el de siempre
+            for (int i = 0; i < Vehicles.Count; i++) h += Vehicles[i].Hash() * (ulong)(2 * i + 3);
+            foreach (var id in _zoneAggro) h += IMath.Mix((ulong)(uint)id + 0x175UL);                    // D-N175 en la sombra (vacío fuera de ella)     // sin vehículos, el hash es el de siempre
             if (Segments != null)                                                                       // sin tramos, el hash es el de siempre
             {
                 for (int i = 0; i < Segments.Count; i++) h += IMath.Mix((ulong)(uint)Segments[i].Hp + ((ulong)(uint)Segments[i].Rem << 32) + (ulong)(i + 0xD163));
