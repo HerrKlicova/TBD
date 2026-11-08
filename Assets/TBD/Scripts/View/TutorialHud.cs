@@ -43,6 +43,7 @@ namespace TBD.View
         readonly Dictionary<string, (Rect r, int frame)> _obj = new Dictionary<string, (Rect, int)>();
         GUIStyle _head, _txt, _btn, _line; Texture2D _panel, _white, _btnTex, _btnHot;
         float _flash; int _repVistas; string _pasoVisto; bool _pausaMapa; float _c90T;
+        Maquina _maq, _maqS; Suelta _sueltaVista; readonly List<string> _snd = new List<string>();   // texto letra a letra con tecleo (Eugenio, 8-nov)
 
         static readonly Color Bone = new Color32(0xd4, 0xd0, 0xcc, 255), Ink = new Color32(0x1c, 0x20, 0x0c, 255);
 
@@ -135,8 +136,10 @@ namespace TBD.View
             var p = _m.Actual;
             if (p != null && _m.Visible)
             {
-                if (_pasoVisto != p.Id) { _pasoVisto = p.Id; _repVistas = _m.Repeticiones; _flash = 0.6f; }
-                if (_m.Repeticiones != _repVistas) { _repVistas = _m.Repeticiones; _flash = 1.2f; }
+                if (_pasoVisto != p.Id) { _pasoVisto = p.Id; _repVistas = _m.Repeticiones; _flash = 0.6f; _maq = new Maquina(_m.Texto, (uint)p.Id.GetHashCode()); }
+                if (_m.Repeticiones != _repVistas) { _repVistas = _m.Repeticiones; _flash = 1.2f; _maq = new Maquina(_m.Texto, (uint)(p.Id.GetHashCode() + _repVistas)); }   // al repetirse se vuelve a escribir
+                if (_maq != null && _maq.Texto != _m.Texto) _maq = new Maquina(_m.Texto, 7);                     // el texto cambió (la línea extra del 1.3)
+                _maq?.Avanzar(Time.unscaledDeltaTime, _snd);
                 if (Auto && _m.EnPaso >= 2.5f && p.Cierre == Cierre.Senal)
                 {
                     CapturaAuto("paso_" + p.Id.Replace('.', '_'));
@@ -145,6 +148,9 @@ namespace TBD.View
                 else if (Auto && p.Cierre == Cierre.Segundos && _m.EnPaso >= Mathf.Min(2.5f, p.Segundos - 0.3f)) CapturaAuto("paso_" + p.Id.Replace('.', '_'));
             }
             else if (Auto && p != null && !_m.Visible && _m.EnPaso == 0 && p.Espera != null) { _esperaT += Time.unscaledDeltaTime; if (_esperaT > 2f) { _esperaT = 0; Debug.Log($"[TUTORIAL] auto: {p.Id} espera {p.Espera}"); _m.Senal(p.Espera); } }
+            if (_m.SueltaActual != _sueltaVista) { _sueltaVista = _m.SueltaActual; _maqS = _sueltaVista != null ? new Maquina(_sueltaVista.Texto, 90) : null; }
+            _maqS?.Avanzar(Time.unscaledDeltaTime, _snd);
+            IntroVista.Sonar(_snd);
             if (_m.SueltaActual != null && Auto) CapturaAuto("suelta_" + _m.SueltaActual.Id);
             _flash = Mathf.Max(0, _flash - Time.unscaledDeltaTime);
             while (_logVisto < _m.Registro.Count) Debug.Log("[TUTORIAL] " + _m.Registro[_logVisto++]);
@@ -171,8 +177,8 @@ namespace TBD.View
             _panel = Tex(new Color(0.07f, 0.08f, 0.05f, 0.92f)); _white = Tex(Color.white);
             _btnTex = Tex(new Color(0.16f, 0.18f, 0.10f, 1f)); _btnHot = Tex(Bone);
             int u = Mathf.Max(10, Screen.height / 60);
-            _head = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(u * 1.0f), fontStyle = FontStyle.Bold }; _head.normal.textColor = new Color(Bone.r, Bone.g, Bone.b, 0.7f);
-            _txt = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(u * 1.35f), wordWrap = true, richText = false }; _txt.normal.textColor = Bone;
+            _head = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(u * 1.2f), fontStyle = FontStyle.Bold }; _head.normal.textColor = new Color(Bone.r, Bone.g, Bone.b, 0.7f);
+            _txt = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(u * 1.7f), fontStyle = FontStyle.Bold, wordWrap = true, richText = true }; _txt.normal.textColor = Bone;   // letra gruesa (Eugenio)
             _line = new GUIStyle(_txt) { wordWrap = false };
             _btn = new GUIStyle(GUI.skin.button) { fontSize = Mathf.RoundToInt(u * 1.2f), fontStyle = FontStyle.Bold };
             _btn.normal.background = _btnTex; _btn.hover.background = _btnHot; _btn.active.background = _btnHot; _btn.focused.background = _btnTex;
@@ -226,6 +232,13 @@ namespace TBD.View
             GUI.color = prev;
         }
 
+        /// <summary>Lo escrito hasta ahora y el resto transparente: el bloque ocupa ya su sitio final y las líneas no saltan al escribirse.</summary>
+        static string Escrito(Maquina mq, string entero)
+        {
+            if (mq == null || mq.Texto != entero) return entero;
+            return mq.Parcial + "<color=#00000000>" + entero.Substring(mq.Visibles) + "</color>";
+        }
+
         void OnGUI()
         {
             if (_m == null || IntroVista.Mostrando) return;
@@ -236,11 +249,11 @@ namespace TBD.View
             {
                 foreach (var k in _m.Resalta) if (_obj.TryGetValue(k, out var o) && Time.frameCount - o.frame <= 2) Ring(o.r, t);
                 var p = _m.Actual;
-                float w = Mathf.Min(560f, Screen.width * 0.4f), pad = _txt.fontSize * 0.8f, x = 8f, y = Ancla();
+                float w = Mathf.Min(640f, Screen.width * 0.42f), pad = _txt.fontSize * 0.8f, x = 8f, y = Ancla();
                 if (p.Linea)
                 {
                     float lh = _line.fontSize * 2f;
-                    GUI.DrawTexture(new Rect(x, y, w, lh), _panel); GUI.Label(new Rect(x + pad, y + lh * 0.18f, w - 2 * pad, lh), _m.Texto, _line);
+                    GUI.DrawTexture(new Rect(x, y, w, lh), _panel); GUI.Label(new Rect(x + pad, y + lh * 0.18f, w - 2 * pad, lh), Escrito(_maq, _m.Texto), _line);
                     y += lh + 6;
                 }
                 else
@@ -252,7 +265,9 @@ namespace TBD.View
                     GUI.DrawTexture(card, _panel);
                     Frame(card, 0.35f + Mathf.Clamp01(_flash) * 0.65f);       // al salir o al repetirse, el borde se enciende un momento
                     GUI.Label(new Rect(x + pad, y + pad * 0.6f, w - 2 * pad, _head.fontSize * 1.8f), _m.Cabecera, _head);
-                    GUI.Label(new Rect(x + pad, y + pad * 0.6f + _head.fontSize * 1.6f, w - 2 * pad, th + 4), _m.Texto, _txt);
+                    GUI.Label(new Rect(x + pad, y + pad * 0.6f + _head.fontSize * 1.6f, w - 2 * pad, th + 4), Escrito(_maq, _m.Texto), _txt);
+                    var ev = Event.current;                                                                     // clic en la tarjeta con el texto a medias: se completa
+                    if (ev.type == EventType.MouseDown && ev.button == 0 && card.Contains(ev.mousePosition) && _maq != null && !_maq.Completa) { _maq.Completar(_snd); ev.Use(); }
                     float bx = x + pad;
                     foreach (var b in p.Botones)
                     {
@@ -272,7 +287,7 @@ namespace TBD.View
             float pad = _txt.fontSize * 0.8f, th = _txt.CalcHeight(new GUIContent(_m.SueltaActual.Texto), w - 2 * pad);
             var r = new Rect(x, y, w, th + 2 * pad);
             GUI.DrawTexture(r, _panel); Frame(r, 0.6f);
-            GUI.Label(new Rect(x + pad, y + pad, w - 2 * pad, th + 4), _m.SueltaActual.Texto, _txt);
+            GUI.Label(new Rect(x + pad, y + pad, w - 2 * pad, th + 4), Escrito(_maqS, _m.SueltaActual.Texto), _txt);
         }
     }
 }

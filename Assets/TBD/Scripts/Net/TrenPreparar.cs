@@ -9,7 +9,8 @@ namespace TBD.Net
     /// así que no cambia el hash ni el G3.
     ///   Enviar:    [origen, ahora + 1 tick, +carga]  →  [destino, 23:59, 0]. Sale enseguida y en el destino espera (no se mueve hasta las 23:59).
     ///   Descargar: [destino, ahora + 1 tick, −todo lo que lleva]  →  [origen, 23:59, 0]. Descarga en el andén al salir y vuelve.
-    /// Si nadie descarga, a las 23:59 vuelve con la carga (no se pierde nada).
+    ///   Aparcar:   [aquí] (una sola parada). La vista lo manda al llegar al destino y al volver: SetSchedule es cíclico y, si no, el tren
+    ///              repetiría el viaje (y la carga) cada día.
     /// Tropa y vehículos a bordo: PROTOTIPO a la espera de Nacho. Un pelotón a bordo usa el campo que ya existe, Platoon.Aboard (no se mueve, no
     /// dispara, no lo tocan), con el id ATren(tren); al bajarlo en una estación que no es Sagunto pasa a EnEstacion(nodo). Los vehículos solo van
     /// en el manifiesto de la vista (NightVehicle no tiene «a bordo»).
@@ -64,6 +65,19 @@ namespace TBD.Net
             p[0] = aqui; p[1] = Ahora(w);
             for (int r = 0; r < NetConst.ResCount; r++) p[2 + r] = -Math.Min(NetWorld.MaxScheduleTransfer, s.Cargo[r]);
             p[k] = vuelta; p[k + 1] = Espera;
+            return p;
+        }
+
+        /// <summary>
+        /// Horario de UNA parada en el nodo donde está: el tren se queda ahí y no se mueve (StepService no sale con menos de 2 paradas). Hace falta porque
+        /// SetSchedule es cíclico: sin esto, un tren enviado volvería a las 23:59 y al día siguiente cargaría otra vez lo mismo (Nacho, revisión).
+        /// La vista lo manda en cuanto el tren llega a su destino o vuelve. null si no está parado.
+        /// </summary>
+        public static int[] Aparcar(NetWorld w, int service)
+        {
+            if (service < 0 || service >= w.Services.Count) return null;
+            var s = w.Services[service]; if (!s.AtStop || s.Ambushed) return null;
+            var p = new int[2 + NetConst.ResCount]; p[0] = s.Stops[s.StopIndex].Node; p[1] = Espera;
             return p;
         }
 

@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 
 namespace TBD.Tutorial
 {
     /// <summary>
-    /// Intro con el lore (D-N158), variante C «Sin fecha» elegida por Mak el 8-nov (docs/intro-variantes.md). C# puro: solo tiempos y textos.
-    /// 5 tarjetas de unos 6 s, con fundido de entrada y de salida; se salta con un clic o con la barra espaciadora (Saltar). En total, 30 s.
+    /// Intro con el lore (D-N158), variante C «Sin fecha» elegida por Mak el 8-nov (docs/intro-variantes.md). C# puro: textos, tiempos y sonidos.
+    /// Cada tarjeta se escribe letra a letra (Maquina, petición de Eugenio), se queda Pausa segundos entera y se funde. Clic o Espacio: si la tarjeta
+    /// está a medias, se completa; si ya está entera, pasa a la siguiente (Siguiente). Esc salta la intro entera (Saltar). En total, menos de 40 s.
     /// </summary>
     public sealed class IntroSecuencia
     {
@@ -19,31 +21,46 @@ namespace TBD.Tutorial
         public const string ClaveVista = "intro.vista";
 
         public readonly string[] Tarjetas;
-        public readonly float PorTarjeta, Fundido;
-        public float T { get; private set; }
+        public readonly float Pausa, Fundido;
+        public int Indice { get; private set; }
+        public Maquina Maquina { get; private set; }
+        public float T { get; private set; }          // segundos desde el principio
+        float _entera;                                  // segundos que lleva la tarjeta entera
         public bool Saltada { get; private set; }
 
-        public IntroSecuencia(string[] tarjetas = null, float porTarjeta = 6f, float fundido = 0.8f)
+        public IntroSecuencia(string[] tarjetas = null, float pausa = 2.6f, float fundido = 0.5f)
         {
-            Tarjetas = tarjetas ?? VarianteC; PorTarjeta = porTarjeta; Fundido = Math.Min(fundido, porTarjeta * 0.5f);
+            Tarjetas = tarjetas ?? VarianteC; Pausa = pausa; Fundido = fundido;
+            Maquina = new Maquina(Tarjetas[0], 41);
         }
 
-        public float Duracion { get { return Tarjetas.Length * PorTarjeta; } }
-        public bool Acabada { get { return Saltada || T >= Duracion; } }
-        public int Indice { get { return Acabada ? -1 : Math.Min(Tarjetas.Length - 1, (int)(T / PorTarjeta)); } }
-        public string Texto { get { int i = Indice; return i < 0 ? null : Tarjetas[i]; } }
-        /// <summary>Opacidad del texto (0..1): sube y baja en cada tarjeta.</summary>
-        public float Alfa
+        public bool Acabada { get { return Saltada || Indice >= Tarjetas.Length; } }
+        public string Texto { get { return Acabada ? null : Maquina.Parcial; } }
+        public string TextoEntero { get { return Acabada ? null : Tarjetas[Indice]; } }
+        /// <summary>Opacidad: entera mientras se escribe y se lee; se funde al final de cada tarjeta.</summary>
+        public float Alfa { get { if (Acabada) return 0f; float f = _entera - Pausa; return f <= 0 ? 1f : Math.Max(0f, 1f - f / Fundido); } }
+
+        public void Avanzar(float dt, List<string> sonidos = null)
         {
-            get
-            {
-                if (Acabada) return 0f;
-                float t = T - Indice * PorTarjeta;
-                return Math.Max(0f, Math.Min(1f, Math.Min(t / Fundido, (PorTarjeta - t) / Fundido)));
-            }
+            if (Acabada) return;
+            dt = Math.Max(0f, dt); T += dt;
+            Maquina.Avanzar(dt, sonidos);
+            if (Maquina.Completa) { _entera += dt; if (_entera >= Pausa + Fundido) Pasar(); }
         }
 
-        public void Avanzar(float dt) { if (!Acabada) T += Math.Max(0f, dt); }
+        /// <summary>Clic o Espacio.</summary>
+        public void Siguiente(List<string> sonidos = null)
+        {
+            if (Acabada) return;
+            if (!Maquina.Completa) Maquina.Completar(sonidos); else Pasar();
+        }
+
+        void Pasar()
+        {
+            Indice++; _entera = 0f;
+            if (!Acabada) Maquina = new Maquina(Tarjetas[Indice], (uint)(41 + Indice));
+        }
+
         public void Saltar() { Saltada = true; }
     }
 }

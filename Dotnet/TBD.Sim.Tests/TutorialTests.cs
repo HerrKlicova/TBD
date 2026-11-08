@@ -167,25 +167,43 @@ namespace TBD.Sim.Tests
                 check(s.Cargo[(int)Res.Municion] >= 40 && s.Cargo[(int)Res.Materiales] >= 60 && w.Stock[sag, (int)Res.Municion] <= mun0 - 40, "lleva la carga, que ha salido del almacén de Sagunto");
                 long llegada = w.Tick - t0;
                 check(Math.Abs(llegada - eta) <= eta / 10 + 30, $"la ETA cuadra con el viaje real ({TrenPreparar.HhMm(llegada)} frente a {TrenPreparar.HhMm(eta)})");
-                for (int i = 0; i < 600; i++) w.Step();
-                check(s.AtStop && s.Stops[s.StopIndex].Node == nul, "en Nules espera a que lo descarguen");
+                check(w.SetSchedule(sv, TrenPreparar.Aparcar(w, sv)) == ScheduleResult.Ok, "al llegar se aparca en Nules (horario de una parada)");
+                int sagMun1 = w.Stock[sag, (int)Res.Municion];
+                for (long i = 0; i < 2L * NetConst.DayTicks; i++) w.Step();     // dos días: no se repite el viaje ni la carga (Nacho)
+                check(s.AtStop && s.Stops[s.StopIndex].Node == nul, "dos días después sigue en Nules esperando a que lo descarguen");
+                check(w.Stock[sag, (int)Res.Municion] >= sagMun1 && s.Cargo[(int)Res.Municion] >= 40 && s.Cargo[(int)Res.Municion] <= 40 + 0, "y no ha vuelto a cargar munición de Sagunto");
                 check(TrenPreparar.TrenEn(w, nul) == sv, "TrenEn lo encuentra en Nules");
                 r = w.SetSchedule(sv, TrenPreparar.Descarga(w, sv, sag));
                 for (int i = 0; i < 5; i++) w.Step();
                 check(r == ScheduleResult.Ok && s.CargoTotal() == 0 && w.Stock[nul, (int)Res.Materiales] >= nulMat0 + 60, "Descargar deja la carga en Nules");
                 check(!s.AtStop && s.Stops[s.StopIndex].Node == sag, "y el tren vuelve a Sagunto");
+                long t1 = w.Tick; while (!s.AtStop && w.Tick - t1 < NetConst.DayTicks) w.Step();
+                check(s.AtStop && w.SetSchedule(sv, TrenPreparar.Aparcar(w, sv)) == ScheduleResult.Ok, "vuelve a Sagunto y se aparca");
+                int sagMun2 = w.Stock[sag, (int)Res.Municion];
+                for (long i = 0; i < 2L * NetConst.DayTicks; i++) w.Step();
+                check(s.AtStop && s.Stops[s.StopIndex].Node == sag && s.CargoTotal() == 0 && w.Stock[sag, (int)Res.Municion] >= sagMun2, "aparcado en Sagunto no repite nada en dos días");
             }
 
             // --- intro C
             var it = new IntroSecuencia();
-            check(it.Tarjetas.Length == 5 && it.Texto == "Día 41 desde el brote." && it.Duracion <= 40f, "intro C: 5 tarjetas, empieza por «Día 41 desde el brote.» y dura menos de 40 s");
+            check(it.Tarjetas.Length == 5 && it.TextoEntero == "Día 41 desde el brote.", "intro C: 5 tarjetas y empieza por «Día 41 desde el brote.»");
             bool sinAnio = true; foreach (var t in it.Tarjetas) for (int y = 1990; y <= 2040; y++) if (t.Contains(y.ToString())) sinAnio = false;
             check(sinAnio, "la variante C no dice el año");
-            it.Avanzar(0.1f); float a0 = it.Alfa; it.Avanzar(2.9f); float a1 = it.Alfa;
-            check(a0 < 0.3f && a1 > 0.99f, "cada tarjeta entra con fundido");
-            it.Avanzar(3.2f); check(it.Indice == 1, "a los 6 s pasa a la segunda");
-            it.Avanzar(100f); check(it.Acabada && it.Texto == null, "al acabar no queda texto");
-            var it2 = new IntroSecuencia(); it2.Avanzar(1f); it2.Saltar(); check(it2.Acabada && it2.Alfa == 0f, "se salta en cualquier momento");
+            var snd = new List<string>();
+            it.Avanzar(0.1f, snd);
+            check(it.Texto.Length > 0 && it.Texto.Length < it.TextoEntero.Length && snd.Exists(x => x.StartsWith("sfx_ui_tecla_")), "la tarjeta se escribe letra a letra, con tecla");
+            snd.Clear(); for (int i = 0; i < 40; i++) it.Avanzar(0.02f, snd);
+            check(it.Texto == "Día 41 desde el brote." && snd.Contains(Maquina.Campanilla) && snd.Contains(Maquina.Retorno), "al acabar la línea: retorno y campanilla");
+            bool repite = false, hueco = true; string prev = null; var m0 = new Maquina(IntroSecuencia.VarianteC[3], 7); var lista = new List<string>(); float tt = 0, ult = -1;
+            for (int i = 0; i < 400; i++) { lista.Clear(); m0.Avanzar(0.01f, lista); tt += 0.01f; foreach (var x in lista) if (x.StartsWith("sfx_ui_tecla_") && x != Maquina.Retorno && x != Maquina.Campanilla) { if (x == prev) repite = true; if (ult >= 0 && tt - ult < Maquina.MinEntreTeclas - 1e-4f) hueco = false; prev = x; ult = tt; } }
+            check(!repite && hueco, "las teclas no repiten la anterior y van separadas al menos 25 ms");
+            check(it.Alfa == 1f, "entera, se queda a la vista");
+            it.Siguiente(); check(it.Indice == 1 && it.Texto.Length == 0, "clic con la tarjeta entera: pasa a la siguiente");
+            it.Avanzar(0.1f); it.Siguiente(); check(it.Indice == 1 && it.Texto == it.TextoEntero, "clic a medias: completa el texto, no pasa");
+            it.Avanzar(10f); check(it.Indice == 2, "sola, pasa a la siguiente tras leerla");
+            var it3 = new IntroSecuencia(); float dur = 0; while (!it3.Acabada && dur < 100) { it3.Avanzar(0.05f); dur += 0.05f; }
+            check(it3.Acabada && dur < 40f, $"sin tocar nada, la intro entera dura menos de 40 s ({dur:0} s)");
+            var it2 = new IntroSecuencia(); it2.Avanzar(1f); it2.Saltar(); check(it2.Acabada && it2.Alfa == 0f && it2.Texto == null, "Esc la salta entera en cualquier momento");
         }
     }
 }
