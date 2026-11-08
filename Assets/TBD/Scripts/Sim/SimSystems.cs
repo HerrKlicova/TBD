@@ -151,8 +151,9 @@ namespace TBD.Sim
                 {
                     // D-N163: tramo de muro con Id propio (16..255) para poder abrirlo (brecha) y cerrarlo (reconstruir) por la cola unica
                     int segId = cmd.Arg / 10000, segH = cmd.Arg % 10000;
+                    if (segId < 16 || segId > 255) break;                              // ids de tramo: 16..255 (el 1 es la puerta, el 2 el tren); fuera de rango no hace nada (Nacho)
                     var solids = em.GetBuffer<Solid>(root);
-                    var s = new Solid { A = cmd.P0, B = cmd.P1, HalfThick = Level.WallHalf * 0.5f, Height = segH > 0 ? Det.Mm(segH) : Level.WallH, Kind = 0, Open = 0, Id = (byte)math.clamp(segId, 0, 255) };
+                    var s = new Solid { A = cmd.P0, B = cmd.P1, HalfThick = Level.WallHalf, Height = segH > 0 ? Det.Mm(segH) : Level.WallH, Kind = 0, Open = 0, Id = (byte)math.clamp(segId, 0, 255) };
                     solids.Add(s);
                     var ground = em.GetBuffer<CellGround>(root);
                     Level.RasterSolid(solids, ground, s);
@@ -166,6 +167,7 @@ namespace TBD.Sim
                 {
                     // D-N163: abre (brecha) o cierra (reconstruido) el tramo con ese Id; solo se recalcula la region afectada
                     int segId = cmd.Arg / 10, open = cmd.Arg % 10;
+                    if (segId < 16 || segId > 255) break;
                     var solids = em.GetBuffer<Solid>(root);
                     for (int i = 0; i < solids.Length; i++)
                     {
@@ -173,6 +175,23 @@ namespace TBD.Sim
                         var s = solids[i];
                         s.Open = (byte)(open != 0 ? 1 : 0);
                         solids[i] = s;
+                        var ground = em.GetBuffer<CellGround>(root);
+                        Level.RasterSolid(solids, ground, s);
+                    }
+                    var info = em.GetComponentData<ZoneInfo>(root);
+                    info.ForceFlow = true;
+                    em.SetComponentData(root, info);
+                    break;
+                }
+                case CmdType.ClearWest:
+                {
+                    var solids = em.GetBuffer<Solid>(root);
+                    float wx = Level.FortX0 + Level.WallHalf;
+                    for (int i = 0; i < solids.Length; i++)
+                    {
+                        var s = solids[i];
+                        if (s.Kind != 0 || s.Id != 0 || math.abs(s.A.x - wx) > 0.01f || math.abs(s.B.x - wx) > 0.01f) continue;
+                        s.Open = 1; solids[i] = s;
                         var ground = em.GetBuffer<CellGround>(root);
                         Level.RasterSolid(solids, ground, s);
                     }

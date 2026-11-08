@@ -212,6 +212,7 @@ namespace TBD.View
                     Debug.Log($"[NOCHE-DIAG] tren={_nearTrain} estacion={_pileNearStation} hora={TimeStr()} muro_permil={_ng.WallPermil} zombis_cerca={sbd}");
                     if (_diagN == 1) { var sw = new System.Text.StringBuilder(); foreach (var sg in _wallSegs) sw.Append($"[{sg.a.x:0.0};{sg.a.y:0.0}->{sg.b.x:0.0};{sg.b.y:0.0}] "); Debug.Log("[NOCHE-DIAG] muros_obras " + sw); }
                 }
+                TramosTick();
                 _pileWall = wallPile;
                 if (_wallMax <= 0f) _wallMax = _wallHp = Mathf.Max(1200000, NightSimParams.Default().WallHp);
                 _wallHp = Mathf.Max(0f, _wallHp - wallPile * (NightSimParams.Default().WallDmgPerZombieS / 30f)); _ng.WallPermil = Mathf.RoundToInt(1000f * _wallHp / _wallMax);
@@ -468,6 +469,7 @@ namespace TBD.View
         {
             AudioListener.pause = _paused && _nightOn;                                // al pausar se silencia todo (Eugenio)
             ColorCases();
+            TramosUpdate();
             OrdersUpdate();
             UpdateFx();
             UpdateVfxArmas();

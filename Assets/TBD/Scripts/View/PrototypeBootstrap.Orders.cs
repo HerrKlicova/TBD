@@ -162,6 +162,7 @@ namespace TBD.View
                 }
             }
             if (Time.unscaledTime < _c90MsgUntil) { var cst = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(14, Screen.height / 45), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter }; cst.normal.textColor = OvHueso; GUI.Label(new Rect(0, Screen.height * 0.12f, Screen.width, 40f), _c90Msg, cst); }
+            TramosGUI();
             // formacion activa
             { var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(11, Screen.height / 70), wordWrap = false, clipping = TextClipping.Overflow }; st.normal.textColor = OvHueso; if (_sel.Count > 0 && _selVeh == null) GUI.Label(new Rect(12f, Screen.height * 0.80f - st.fontSize * 1.6f, Screen.width * 0.6f, st.fontSize * 1.6f), "Formación " + _curForm + "  (F1 línea · F2 cuña · F3 columna · F4 bloque) · clic derecho y arrastrar = frente", st); }
         }
