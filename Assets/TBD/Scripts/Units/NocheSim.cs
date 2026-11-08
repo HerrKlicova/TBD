@@ -449,6 +449,7 @@ namespace TBD.Units
             int before = TotalAmmo();
             Units.Step(_targets, _res);
             if (Dx != null) foreach (var ev in _res.Shots) { var dp = Units.Find(ev.Platoon); var a = DxRow((dp != null ? dp.Kind.ToString() : "?") + "/" + ev.Weapon); a[0] += WeaponCatalog.Table[(int)ev.Weapon].CostShots * 1000L; a[4]++; }
+            if (Dx != null) foreach (var b in _res.Blasts) { var dp = Units.Find(b.Platoon); var r = DxRow("BL " + (dp != null ? dp.Kind.ToString() : "?") + "/" + b.Weapon); r[0]++; r[1] += b.Hits; r[2] += b.InRadius; r[3] += b.InRadius >= 6 ? 1 : 0; }
             foreach (var h in _res.Hits)
                 if (h.TargetId >= 0 && h.TargetId < _z.Count && _z[h.TargetId].Alive) { if (Dx != null) { var dp = Units.Find(h.Platoon); DxRow((dp != null ? dp.Kind.ToString() : "?") + "/" + h.Weapon)[1 + DxCat(_z[h.TargetId])]++; } _z[h.TargetId].Alive = false; Kills++; Units.NoteKill(h.Platoon); if (cur != null) cur.Kills++; }
             if (cur != null) cur.AmmoSpentShots += _res.AmmoSpent;

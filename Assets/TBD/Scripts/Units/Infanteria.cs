@@ -26,7 +26,7 @@ namespace TBD.Units
     public struct TargetHit { public int TargetId; public int Damage; public int Platoon; public WeaponId Weapon; }
 
     /// <summary>Explosión que cae este tick (para el efecto visual en el punto de impacto).</summary>
-    public struct Blast { public int X, Y, RadiusMm; public WeaponId Weapon; }
+    public struct Blast { public int X, Y, RadiusMm; public WeaponId Weapon; public int Platoon, InRadius, Hits; }   // Platoon, InRadius y Hits: solo para medir (fuera del hash)
 
     public struct Casualty { public int Platoon, Man, X, Y; }
     /// <summary>Contacto de la horda con un pelotón en un tick: zombis pegados a sus soldados (suma de contactos) y vida quitada.</summary>
@@ -646,7 +646,7 @@ namespace TBD.Units
 
         void Explode(int x, int y, Weapon w, WeaponId wid, int platoon, int exclude, IList<Target> targets, StepResult res)
         {
-            res.Blasts.Add(new Blast { X = x, Y = y, RadiusMm = w.RadiusMm, Weapon = wid });
+            int bi0 = res.Blasts.Count; res.Blasts.Add(new Blast { X = x, Y = y, RadiusMm = w.RadiusMm, Weapon = wid, Platoon = platoon });
             long r2 = (long)w.RadiusMm * w.RadiusMm;
             _scratch.Clear();
             for (int t = 0; t < targets.Count; t++)
@@ -664,6 +664,7 @@ namespace TBD.Units
             int kills = exclude >= 0 ? 1 : 0;
             for (int k = 0; k < _scratch.Count && kills < w.CapKills; k++)
                 if (Rng.Below(1000) < w.LethalityPm) { res.Hits.Add(new TargetHit { TargetId = targets[_scratch[k]].Id, Damage = KillDamage, Platoon = platoon, Weapon = wid }); kills++; }
+            { var bb = res.Blasts[bi0]; bb.InRadius = _scratch.Count + (exclude >= 0 ? 1 : 0); bb.Hits = kills; res.Blasts[bi0] = bb; }
         }
 
         void ResolvePending(IList<Target> targets, StepResult res)
