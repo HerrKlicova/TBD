@@ -38,7 +38,7 @@ namespace TBD.Net
         /// cara de arriba es la calle, cota 0), las trincheras abiertas y el vestíbulo de calle con la escalera al andén. null si la estación es de superficie.
         /// </summary>
         public Subterranea Sub;
-        public sealed class Subterranea { public float CotaVia, Intrados; public float[] Losa; public readonly List<float[]> Trincheras = new List<float[]>(); public float VestX, VestZ, VestYaw, VestAncho, VestFondo, Desnivel; public bool Bajada; public float BajadaX, BajadaZ, ViaVehZ, PlataformaX0, PlataformaX1; }
+        public sealed class Subterranea { public float CotaVia, Intrados; public float[] Losa; public readonly List<float[]> Trincheras = new List<float[]>(); public float VestX, VestZ, VestYaw, VestAncho, VestFondo, Desnivel, SubidaS; public bool Bajada; public float BajadaX, BajadaZ, ViaVehZ, PlataformaX0, PlataformaX1; }
         public string InteligenciaTipo; public float InteligenciaX = float.NaN, InteligenciaZ = float.NaN, InteligenciaYaw;
         public readonly List<EstacionParada> ParadasAsalto = new List<EstacionParada>();
         public readonly List<string> OrdenLiberacion = new List<string>();
@@ -66,6 +66,7 @@ namespace TBD.Net
                     sub.VestYaw = vd.ContainsKey("yaw") ? Num(vd["yaw"]) : 0f;
                     if (vd.TryGetValue("huella", out var hu)) { var h = Floats(hu, "huella"); sub.VestAncho = h[0]; sub.VestFondo = h[1]; }
                     if (vd.TryGetValue("desnivel_escalera_m", out var dn)) sub.Desnivel = Num(dn);
+                    if (vd.TryGetValue("tiempo_subida_s", out var ts)) sub.SubidaS = Num(ts);
                 }
                 if (sd.TryGetValue("bajada_vehiculos", out var bo) && bo is Dictionary<string, object> bd)
                 {
@@ -181,27 +182,40 @@ namespace TBD.Net
         public static readonly string[] BarricadaEstado = { "Sano", "Danado", "MuyDanado", "Brecha" };
         public static readonly string[] Vagon = { "Saqueado", "Volcado", "Cerrado", "Descarrilado", "Quemado" };
 
+        public static readonly Dictionary<string, string[]> Urbano = new Dictionary<string, string[]>
+        {
+            { "SM_Contenedor", new[] { "Verde", "Abierto", "Reciclaje", "Volcado", "Fila" } },
+            { "SM_ParadaBus", new[] { "Entera", "SinCristales", "Anuncio", "Refugio", "Caida" } },
+            { "SM_Quiosco", new[] { "Cerrado", "Abierto", "Loteria", "Saqueado", "Quemado" } },
+            { "SM_Senal", new[] { "Direccion", "Redonda", "Triangular", "Doble", "Doblada" } },
+            { "SM_Semaforo", new[] { "Simple", "Brazo", "Peatonal", "Doblado", "Caido" } },
+        };
+
         static int V(EstacionPieza p, int n) { return p.Variante >= 0 ? Math.Min(p.Variante, n - 1) : EstacionDato.VariantOf(p.X, p.Z, n); }
 
-        /// <summary>Carpeta y archivo (sin _LOD1) de una pieza «castellon/…» del kit; false si no es del kit.</summary>
+        /// <summary>Carpeta bajo Resources/Models y archivo (sin _LOD1) de una pieza «castellon/…» o «urbano/…»; false si no es del kit.</summary>
         public static bool Archivo(EstacionPieza p, out string carpeta, out string archivo)
         {
             carpeta = archivo = null;
+            if (p.Pieza != null && p.Pieza.StartsWith("urbano/SM_") && Urbano.TryGetValue(p.Pieza.Substring(7), out var un))
+            {
+                int k = V(p, 5); carpeta = "Urbano"; archivo = p.Pieza.Substring(7) + "_v" + k + "_" + un[k]; return true;     // mobiliario urbano de Teo (urbano-extra)
+            }
             switch (p.Pieza)
             {
-                case "castellon/anden_losa": { int k = V(p, 5); carpeta = "anden_losa"; archivo = "SM_AndenLosa_" + (p.Tipo == "Lateral" ? "Lateral" : "Central") + "_v" + k + "_" + Anden[k]; return true; }
-                case "castellon/catenaria_losa": { int k = V(p, 5); carpeta = "catenaria_losa"; archivo = "SM_CatenariaLosa_v" + k + "_" + Catenaria[k]; return true; }
-                case "castellon/muro_trinchera": { int k = V(p, 5); carpeta = "muro_trinchera"; archivo = "SM_MuroTrinchera_" + (p.Tipo == "Boca" ? "Boca" : "Muro") + "_v" + k + "_" + Muro[k]; return true; }
-                case "castellon/vestibulo": { int k = V(p, 5); carpeta = "vestibulo"; archivo = "SM_VestibuloCastellon_v" + k + "_" + Vestibulo[k]; return true; }
+                case "castellon/anden_losa": { int k = V(p, 5); carpeta = "Castellon/anden_losa"; archivo = "SM_AndenLosa_" + (p.Tipo == "Lateral" ? "Lateral" : "Central") + "_v" + k + "_" + Anden[k]; return true; }
+                case "castellon/catenaria_losa": { int k = V(p, 5); carpeta = "Castellon/catenaria_losa"; archivo = "SM_CatenariaLosa_v" + k + "_" + Catenaria[k]; return true; }
+                case "castellon/muro_trinchera": { int k = V(p, 5); carpeta = "Castellon/muro_trinchera"; archivo = "SM_MuroTrinchera_" + (p.Tipo == "Boca" ? "Boca" : "Muro") + "_v" + k + "_" + Muro[k]; return true; }
+                case "castellon/vestibulo": { int k = V(p, 5); carpeta = "Castellon/vestibulo"; archivo = "SM_VestibuloCastellon_v" + k + "_" + Vestibulo[k]; return true; }
                 case "castellon/barricada_civil":
                 {
                     int a = V(p, 5), e = 2 + EstacionDato.VariantOf(p.X + 0.5f, p.Z, 2);
-                    carpeta = "barricada_civil"; archivo = "SM_BarricadaCivil_v" + a + "_" + Barricada[a] + "_e" + e + "_" + BarricadaEstado[e]; return true;
+                    carpeta = "Castellon/barricada_civil"; archivo = "SM_BarricadaCivil_v" + a + "_" + Barricada[a] + "_e" + e + "_" + BarricadaEstado[e]; return true;
                 }
                 case "castellon/vagon_abandonado":
                 {
                     int k = p.Tipo == "cerrado" ? 2 : p.Tipo == "cisterna" ? 3 : p.Tipo == "plataforma" ? 4 : p.Tipo == "coche" ? EstacionDato.VariantOf(p.X, p.Z, 2) : V(p, 5);
-                    carpeta = "vagon_abandonado"; archivo = "SM_VagonAbandonado_v" + k + "_" + Vagon[k]; return true;
+                    carpeta = "Castellon/vagon_abandonado"; archivo = "SM_VagonAbandonado_v" + k + "_" + Vagon[k]; return true;
                 }
             }
             return false;

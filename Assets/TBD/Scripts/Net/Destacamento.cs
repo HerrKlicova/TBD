@@ -54,6 +54,9 @@ namespace TBD.Net
 
         /// <summary>Desnivel de la escalera del vestíbulo en metros (para el tiempo de subida de Nacho); 0 si no lo trae.</summary>
         public static float Escalera(EstacionDato d) { return d?.Sub?.Desnivel ?? 0f; }
+
+        /// <summary>Segundos que tarda un pelotón en subir del andén a la calle (Nacho, SUPUESTO: 30 s); mientras sube no dispara. 0 si no lo trae.</summary>
+        public static float SubidaS(EstacionDato d) { return d?.Sub?.SubidaS ?? 0f; }
     }
 
     public static class Destacamento

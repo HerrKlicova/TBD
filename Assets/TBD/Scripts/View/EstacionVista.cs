@@ -136,7 +136,7 @@ namespace TBD.View
                 int k = EstacionDato.VariantOf(p.X, p.Z, 6);
                 go = SaguntoPiece(piece, k, parent);
             }
-            else if (CastellonKit.Archivo(p, out var kc, out var ka)) go = Model("Castellon/" + kc, ka + "_LOD1", parent);   // kit subterráneo de Teo (v0.4)
+            else if (CastellonKit.Archivo(p, out var kc, out var ka)) go = Model(kc, ka + "_LOD1", parent);   // kit subterráneo de Teo (v0.4)
             else if (name == "kit/anden_10m") go = Model("KitEstaciones", "SM_KitAnden_v" + PlatformVariant(p) + "_LOD1", parent);
             else if (name == "kit_paso") go = Model("KitEstaciones", "SM_KitPaso_v" + Mathf.Max(0, p.Variante) + "_LOD1", parent);   // paso inferior: el de Castellón por defecto (LEEME de Teo)
             else if (name == "kit_cuerpo" || name == "kit_remate")

@@ -1509,10 +1509,10 @@ namespace TBD.Net
         {
             var w = Mvp(saguntoWalls);
             int Id(string name) { foreach (var n in w.Graph.Nodes) if (n.Name == name) return n.Id; throw new ArgumentException(name); }
-            void Stock(string n, int mun, int comb, int mat, int per) { int i = Id(n); w.Stock[i, 0] = mun; w.Stock[i, 1] = comb; w.Stock[i, 2] = mat; w.Stock[i, 3] = per; }
-            Stock("Valencia", 0, 0, 0, 0); Stock("Teruel", 0, 0, 0, 0);
-            Stock("Sagunto", 150, 140, 100, 80);
-            Stock("Nules", 0, 0, 0, 0);       // Hugo (existencias_red.json): 0 en todo; la guarnición lleva su dotación
+            void Stock(string n, int mun, int comb, int mat, int per, int viv) { int i = Id(n); w.Stock[i, 0] = mun; w.Stock[i, 1] = comb; w.Stock[i, 2] = mat; w.Stock[i, 3] = per; w.Stock[i, (int)Res.Viveres] = viv; }
+            Stock("Valencia", 0, 0, 0, 0, 0); Stock("Teruel", 0, 0, 0, 0, 0);
+            Stock("Sagunto", 150, 140, 100, 80, 80);     // víveres: bloque «viveres_u» de existencias_red.json (Hugo, D-N176)
+            Stock("Nules", 0, 0, 0, 0, 0);       // Hugo (existencias_red.json): 0 en todo; la guarnición lleva su dotación
             w.Stations.P.Sites = new[] { "Castellón" };
             w.Stations.Founded[Id("Nules")] = true;
             w.Services.Clear();

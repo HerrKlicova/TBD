@@ -1718,6 +1718,127 @@
       "variante": 0,
       "largo_m": 14.5,
       "nota": "SM_VagonAbandonado_v<n>, en el haz; deja libre la vía 44 (bajada de vehículos y cisternas) y las del cajón (parada del tren)"
+    },
+    {
+      "pieza": "urbano/SM_ParadaBus",
+      "pos": [
+        80,
+        0,
+        92.8
+      ],
+      "yaw": 0,
+      "variante": 1,
+      "nota": "avenida de la Estación, acera sur, mira a la avenida"
+    },
+    {
+      "pieza": "urbano/SM_ParadaBus",
+      "pos": [
+        180,
+        0,
+        92.8
+      ],
+      "yaw": 0,
+      "variante": 3,
+      "nota": "avenida, refugio con mantas"
+    },
+    {
+      "pieza": "urbano/SM_Quiosco",
+      "pos": [
+        104,
+        0,
+        84
+      ],
+      "yaw": 0,
+      "variante": 1,
+      "nota": "plaza oeste del vestíbulo, dentro del recinto"
+    },
+    {
+      "pieza": "urbano/SM_Quiosco",
+      "pos": [
+        156,
+        0,
+        84
+      ],
+      "yaw": 0,
+      "variante": 4,
+      "nota": "plaza este del vestíbulo, quemado"
+    },
+    {
+      "pieza": "urbano/SM_Contenedor",
+      "pos": [
+        60,
+        0,
+        92.8
+      ],
+      "yaw": 0,
+      "variante": 2,
+      "nota": "acera sur"
+    },
+    {
+      "pieza": "urbano/SM_Contenedor",
+      "pos": [
+        92,
+        0,
+        92.8
+      ],
+      "yaw": 0,
+      "variante": 4,
+      "nota": "acera sur"
+    },
+    {
+      "pieza": "urbano/SM_Contenedor",
+      "pos": [
+        166,
+        0,
+        92.8
+      ],
+      "yaw": 0,
+      "variante": 3,
+      "nota": "acera sur, volcado"
+    },
+    {
+      "pieza": "urbano/SM_Senal",
+      "pos": [
+        48,
+        0,
+        92.8
+      ],
+      "yaw": 0,
+      "variante": 0,
+      "nota": "dirección, junto a la ronda"
+    },
+    {
+      "pieza": "urbano/SM_Senal",
+      "pos": [
+        200,
+        0,
+        92.8
+      ],
+      "yaw": 0,
+      "variante": 4,
+      "nota": "doblada"
+    },
+    {
+      "pieza": "urbano/SM_Semaforo",
+      "pos": [
+        44,
+        0,
+        92.8
+      ],
+      "yaw": 90,
+      "variante": 1,
+      "nota": "cruce ronda-avenida; brazo sobre la avenida (−X local = +Z con yaw 90)"
+    },
+    {
+      "pieza": "urbano/SM_Semaforo",
+      "pos": [
+        44,
+        0,
+        103.5
+      ],
+      "yaw": 180,
+      "variante": 3,
+      "nota": "cruce ronda-avenida, acera norte, doblado"
     }
   ],
   "carreteras": [
@@ -1871,9 +1992,11 @@
       ],
       "escalera": "al sur, al andén lateral",
       "desnivel_escalera_m": 7.1,
-      "nota_desnivel": "del andén (cota −7,1: vía −8 + andén 0,9) a la calle (0); SIN VERIFICAR con la cota real"
+      "nota_desnivel": "del andén (cota −7,1: vía −8 + andén 0,9) a la calle (0); SIN VERIFICAR con la cota real",
+      "tiempo_subida_s": 30,
+      "nota_tiempo": "Nacho, 18:31: SUPUESTO (0,3 m/s en vertical y fila de a uno); el pelotón no dispara mientras sube"
     },
-    "nota": "v0.4 (castellon-nivel.md §7): estación bajo losa como la real; cota SIN VERIFICAR. Quitados el edificio de viajeros de superficie (kit_cuerpo/kit_remate) y las 5 marquesinas; andenes y paso a −8; vestíbulo añadido; nombres de Teo (18:12); trinchera, bocas, barricadas y vagones colocados con las medidas de Teo (18:13)",
+    "nota": "v0.4 (castellon-nivel.md §7): estación bajo losa como la real; cota SIN VERIFICAR. Quitados el edificio de viajeros de superficie (kit_cuerpo/kit_remate) y las 5 marquesinas; andenes y paso a −8; vestíbulo añadido; nombres de Teo (18:12); trinchera, bocas, barricadas y vagones colocados con las medidas de Teo (18:13); mobiliario urbano de Teo (18:55)",
     "bajada_vehiculos": {
       "via_z": 44,
       "vagon_plataforma_x": [
