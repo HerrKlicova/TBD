@@ -1466,7 +1466,7 @@ namespace TBD.Net
         /// - Los dos trenes, sin los horarios viejos (Castellón infestada recibía uno): esperan en Sagunto con una sola parada hasta que el jugador los envíe.
         /// - Una sola unidad (escala-existencias.md de Hugo): la reserva de red de Sagunto es 150 u de munición, 140 de combustible, 100 de materiales y 80
         ///   personas. Los 80 u de víveres de Hugo NO caben: la red tiene 4 recursos (Res) y no hay víveres (pendiente de Nacho y Hugo).
-        /// - Nules, propia desde el principio (ya no se funda), con 0 u de munición (Lucía: la guarnición lleva encima su dotación). PROTOTIPO: 12 personas.
+        /// - Nules, propia desde el principio (ya no se funda), con todo a 0 (Lucía y Hugo, existencias_red.json: la guarnición lleva encima su dotación).
         /// Pendiente (no está aquí): Nules sin asedio la primera noche (director, Nacho), su recinto de 130 u (Obras), Bétera fuera de RailNet (vive en
         /// AerodromoEstado) y cargar el almacén de la zona (Hugo y Marcos).
         /// </summary>
@@ -1477,7 +1477,7 @@ namespace TBD.Net
             void Stock(string n, int mun, int comb, int mat, int per) { int i = Id(n); w.Stock[i, 0] = mun; w.Stock[i, 1] = comb; w.Stock[i, 2] = mat; w.Stock[i, 3] = per; }
             Stock("Valencia", 0, 0, 0, 0); Stock("Teruel", 0, 0, 0, 0);
             Stock("Sagunto", 150, 140, 100, 80);
-            Stock("Nules", 0, 0, 0, 12);
+            Stock("Nules", 0, 0, 0, 0);       // Hugo (existencias_red.json): 0 en todo; la guarnición lleva su dotación
             w.Stations.P.Sites = new[] { "Castellón" };
             w.Stations.Founded[Id("Nules")] = true;
             w.Services.Clear();

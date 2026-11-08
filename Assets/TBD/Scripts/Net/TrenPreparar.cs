@@ -23,6 +23,15 @@ namespace TBD.Net
 
         public static int Nodo(NetWorld w, string nombre) { return w.Graph.Nodes.FindIndex(n => n.Name == nombre); }
 
+        /// <summary>Id de datos de una estación («castellon», «nules»…: minúsculas y sin tildes, como en los JSON de Hugo y Álvaro) → nodo de RailNet. −1 si no está (Bétera vive fuera de RailNet).</summary>
+        public static int NodoPorId(NetWorld w, string id) { return w.Graph.Nodes.FindIndex(n => IdDe(n.Name) == id); }
+        public static string IdDe(string nombre)
+        {
+            var d = nombre.ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD); var sb = new System.Text.StringBuilder();
+            foreach (var c in d) if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark) sb.Append(c == ' ' ? '_' : c);
+            return sb.ToString();
+        }
+
         /// <summary>Servicio parado en ese nodo y libre (no emboscado). −1 si no hay ninguno.</summary>
         public static int TrenEn(NetWorld w, int node)
         {

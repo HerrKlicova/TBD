@@ -288,15 +288,57 @@ namespace TBD.View
             }
         }
 
+        // ---- Anillo que late, estilo D (Lucía, 8-nov): esquinas fijas en hueso y un eco de esquinas que sale y se apaga.
+        // Sustituye a Ring(Rect r, float t) en TutorialHud.cs (línea ~291). Usa Bone y _white, que ya existen.
+        // Unidad u = alto/360 (3 px a 1080p), redondeada para que salga nítido. Ciclo de 1,2 s.
+        // Esquinas en vez de marco entero: un marco hueso entero es como se ve una tarjeta SELECCIONADA (D-N147);
+        // así «toca aquí» no se confunde con «ya está seleccionado».
         void Ring(Rect r, float t)
         {
-            float pulse = 0.5f + 0.5f * Mathf.Sin(t * 5f);
-            float g = 4f + 6f * pulse, th = Mathf.Max(2f, Screen.height / 360f);
-            var rr = new Rect(r.x - g, r.y - g, r.width + 2 * g, r.height + 2 * g);
-            var prev = GUI.color; GUI.color = new Color(Bone.r, Bone.g, Bone.b, 0.55f + 0.45f * pulse);
-            GUI.DrawTexture(new Rect(rr.x, rr.y, rr.width, th), _white); GUI.DrawTexture(new Rect(rr.x, rr.yMax - th, rr.width, th), _white);
-            GUI.DrawTexture(new Rect(rr.x, rr.y, th, rr.height), _white); GUI.DrawTexture(new Rect(rr.xMax - th, rr.y, th, rr.height), _white);
+            float u = Mathf.Max(2f, Mathf.Round(Screen.height / 360f));
+            float fase = Mathf.Repeat(t, 1.2f) / 1.2f;
+            var prev = GUI.color;
+            GUI.color = Bone;
+            Esquinas(r, 3f * u, u, 4f * u);                                       // fijas: 3u por fuera, trazo de 1u, brazos de 4u
+            float a = 1f - fase;
+            if (a > 0.15f)                                                         // eco: sale de 4u a 11u en saltos de 1u y se apaga
+            {
+                GUI.color = new Color(Bone.r, Bone.g, Bone.b, 0.8f * a);
+                Esquinas(r, (4f + Mathf.Floor(fase * 8f)) * u, u, 3f * u);
+            }
             GUI.color = prev;
+        }
+
+        void Esquinas(Rect r, float g, float th, float largo)
+        {
+            float x0 = Mathf.Round(r.x - g), y0 = Mathf.Round(r.y - g), x1 = Mathf.Round(r.xMax + g), y1 = Mathf.Round(r.yMax + g);
+            Barra(x0, y0, largo, th); Barra(x0, y0, th, largo);                                  // arriba a la izquierda
+            Barra(x1 - largo, y0, largo, th); Barra(x1 - th, y0, th, largo);                     // arriba a la derecha
+            Barra(x0, y1 - th, largo, th); Barra(x0, y1 - largo, th, largo);                     // abajo a la izquierda
+            Barra(x1 - largo, y1 - th, largo, th); Barra(x1 - th, y1 - largo, th, largo);        // abajo a la derecha
+        }
+
+        void Barra(float x, float y, float w, float h) { GUI.DrawTexture(new Rect(x, y, w, h), _white); }
+
+        // Opcional (capítulo 4, tutorial-refuerzos.md): flecha de borde cuando el objetivo queda fuera de la pantalla.
+        // Cuña de 14x16 a 1080p (escala con u/3), en hueso, pegada al borde y apuntando hacia fuera; avanza 1u con el mismo ciclo.
+        void FlechaBorde(Vector2 pantallaObjetivo, float t, string rotulo = null)
+        {
+            float u = Mathf.Max(2f, Mathf.Round(Screen.height / 360f)), k = u / 3f, m = 8f * u;
+            var c = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f); var d = pantallaObjetivo - c; if (d.sqrMagnitude < 1f) return;
+            float s = Mathf.Min((c.x - m) / Mathf.Max(1e-3f, Mathf.Abs(d.x)), (c.y - m) / Mathf.Max(1e-3f, Mathf.Abs(d.y)));
+            var p = c + d * s;
+            float paso = Mathf.Repeat(t, 1.2f) < 0.6f ? 0f : u, dir = Mathf.Sign(Mathf.Abs(d.x) > Mathf.Abs(d.y) ? d.x : d.y);
+            var prev = GUI.color; GUI.color = Bone;
+            bool horiz = Mathf.Abs(d.x) * (c.y - m) >= Mathf.Abs(d.y) * (c.x - m);
+            for (int i = 0; i < 8; i++)                                            // 8 columnas de 2 px: 16 de alto a 2 de alto
+            {
+                float hh = (16 - 2 * i) * k, off = (i * 2f * k + paso) * dir;
+                if (horiz) Barra(Mathf.Round(p.x + off), Mathf.Round(p.y - hh * 0.5f), Mathf.Round(2f * k), Mathf.Round(hh));
+                else Barra(Mathf.Round(p.x - hh * 0.5f), Mathf.Round(p.y + off), Mathf.Round(hh), Mathf.Round(2f * k));
+            }
+            GUI.color = prev;
+            if (rotulo != null) GUI.Label(new Rect(p.x + (horiz ? -dir * 150f * k - (dir < 0 ? -20f * k : 0f) : -70f * k), p.y + (horiz ? -8f * k : -dir * 30f * k), 140f * k, 20f * k), rotulo);
         }
 
         void Frame(Rect r, float a)
