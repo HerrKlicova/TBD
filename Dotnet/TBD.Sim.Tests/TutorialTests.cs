@@ -323,6 +323,7 @@ namespace TBD.Sim.Tests
                 bool desf = true; for (int i = 0; i < 6; i++) if (sp.Desfase(i) < 0 || sp.Desfase(i) > 0.3f) desf = false;
                 check(cierres.Count == 6 && cierres.TrueForAll(x => x.Puerta >= 0) && desf, "un cierre por puerta, con un desfase de 0 a 0,3 s");
                 check(!ls.Exists(x => x.Clip.StartsWith("sfx_tren_silbato")) && ls.Exists(x => x.Cabeza && x.Clip.StartsWith("sfx_tren_arranque_electrico_")) && ls.Exists(x => x.Puerta == -1 && x.Clip.StartsWith("sfx_tren_aviso")), "silbato opcional; el arranque suena en la cabeza y el aviso en el andén");
+                check(ls.Exists(x => x.Cabeza && x.Clip.StartsWith("sfx_tren_pitido_electrico_")) && sp.PitidoAntesS >= 0.5f && sp.PitidoAntesS <= 1f && sp.PitidoAntesS < sp.ComprobacionS, "pitido de salida en la cabeza, de 0,5 a 1 s antes del arranque y después del cierre (Nuria)");
                 bool v = true; foreach (var x in son) { int k = x[x.Length - 1] - '0'; if (k < 1 || k > 5 || x[x.Length - 2] != '_') v = false; }
                 check(v, "todas las variantes son _1 a _5");
                 float t30 = SalidaTren.TiempoHasta(TipoTren.Electrico, 30), t60 = SalidaTren.TiempoHasta(TipoTren.Electrico, 60), t100 = SalidaTren.TiempoHasta(TipoTren.Electrico, 100);
