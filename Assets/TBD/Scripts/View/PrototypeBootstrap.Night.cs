@@ -276,6 +276,7 @@ namespace TBD.View
             }
             return false;
         }
+        NightSim _aggroSh; readonly Dictionary<int, Vector2Int> _aggroGoal = new Dictionary<int, Vector2Int>();
         bool _zomCounted;
         readonly List<Target> _cgMen = new List<Target>(), _cgVeh = new List<Target>(), _cgWork = new List<Target>();
         /// <summary>D-N148 (Nacho): a los zombis que han pasado el muro (dentro del recinto) les pone su objetivo con ClimberTargets.Pick, la misma regla que NightSim:
@@ -287,6 +288,30 @@ namespace TBD.View
             foreach (var p in _uw.Platoons) { if (p.Aboard != 0) continue; foreach (var m in p.Men) if (m.Alive) _cgMen.Add(new Target { Id = m.Id, X = m.X, Y = m.Y }); }
             for (int i = 0; i < _vehs.Count; i++) { var v = _vehs[i]; if (v.Heli ? v.State != 0 : v.Speed > 0.1f) continue; _cgVeh.Add(new Target { Id = i, X = (int)(v.Pos.x * 1000f), Y = (int)(v.Pos.y * 1000f) }); }
             var tr = _ng.P.TrainRect;
+            // D-N175 (Lucia, Nacho): un zombi de FUERA con tropa a 25 m o menos deja la puerta y va a por ella, con tope del 30 % de la horda; la pila y los del muro no cambian.
+            // Se decide una sola vez con el mundo A (sombra de NightSim) y se aplica igual a los dos mundos por SimId.
+            _aggroGoal.Clear();
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinaggro") < 0 && _worldA != null && _worldA.IsCreated)
+            {
+                try
+                {
+                    if (_aggroSh == null) { _aggroSh = NightSim.ShadowFor(_ng.P, NightSimParams.FromJson(BalanceSource.Read("nightsim_params.json")), new List<NightSim.WallSegment>(), 0); _aggroSh.OutsideAggroMm = 25000; _aggroSh.OutsideAggroCapPm = 300; }
+                    var outside = new List<Target>(); int aliveAll = 0;
+                    using (var qa = _worldA.EntityManager.CreateEntityQuery(typeof(Zombie)))
+                    {
+                        var za = qa.ToComponentDataArray<Zombie>(Allocator.Temp);
+                        for (int i = 0; i < za.Length; i++)
+                        {
+                            var z = za[i]; aliveAll++; float x = z.Pos.x, y = z.Pos.z;
+                            if (!(x > Level.FortX0 && x < Level.FortX1 && y > Level.FortY0 && y < Level.FortY1)) outside.Add(new Target { Id = (int)z.SimId, X = (int)(x * 1000f), Y = (int)(y * 1000f) });
+                        }
+                        za.Dispose();
+                    }
+                    var troops = new List<Target>(_cgMen); troops.AddRange(_cgVeh);
+                    foreach (var o in _aggroSh.TickOutsideAggro(outside, troops, aliveAll)) _aggroGoal[o.ZombieId] = new Vector2Int(o.TX, o.TY);
+                }
+                catch (System.Exception e) { Debug.LogWarning("[NOCHE] D-N175: " + e.Message); }
+            }
             foreach (var wld in new[] { _worldA, _worldB })
             {
                 if (wld == null || !wld.IsCreated) continue;
@@ -298,7 +323,12 @@ namespace TBD.View
                     {
                         var z = zs[i]; float x = z.Pos.x, y = z.Pos.z;
                         bool inside = x > Level.FortX0 && x < Level.FortX1 && y > Level.FortY0 && y < Level.FortY1;
-                        if (!inside) { if (z.HasGoal != 0) { z.HasGoal = 0; zs[i] = z; dirty = true; } continue; }
+                        if (!inside)
+                        {
+                            if (_aggroGoal.TryGetValue((int)z.SimId, out var ag)) { z.Goal = new float2(ag.x / 1000f, ag.y / 1000f); z.HasGoal = 1; zs[i] = z; dirty = true; }
+                            else if (z.HasGoal != 0) { z.HasGoal = 0; zs[i] = z; dirty = true; }
+                            continue;
+                        }
                         int tx, ty; ClimberTargets.Pick((int)(x * 1000f), (int)(y * 1000f), _cgMen, _cgVeh, _cgWork, NightSim.ClimberSeekMm, tr, out tx, out ty);
                         z.Goal = new float2(tx / 1000f, ty / 1000f); z.HasGoal = 1; zs[i] = z; dirty = true;
                     }
