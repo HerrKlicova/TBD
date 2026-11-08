@@ -130,3 +130,16 @@ def construir(nombre="SM_NH90", lod=0):
 
 def separar(o, lod):
     return _separar(o, PARTES, PIV)
+
+
+def BOCAS(lod, raiz, objs):
+    """Bocas de las dos MAG 58 de puerta (Lucía, 8-nov 24:34): el extremo exterior del cañón (la barra de construir),
+    disparando hacia fuera y algo hacia delante, como está modelada. Muzzle_0 a la derecha (−X: el NH90 mira a −Y) y
+    Muzzle_1 a la izquierda (+X). Son hijas de la raíz porque las MAG van fijas en el fuselaje."""
+    from mathutils import Vector
+    base = Vector(raiz.get("tbd_base", (0.0, 0.0, 0.0)))
+    out = []
+    for i, s in enumerate((-1, 1)):
+        a, b = Vector((s * 1.35, -3.0, 1.85)), Vector((s * 2.35, -3.75, 1.75))
+        out.append(("Muzzle_%d" % i, b - base, b - a, None))
+    return out

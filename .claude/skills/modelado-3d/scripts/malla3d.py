@@ -752,7 +752,7 @@ def _parche_fbx_nietos():
         par = self.parent
         if (not global_space and par is not None and self._tag == "OB" and par._tag == "OB"
                 and not self.parented_to_armature and self.use_bake_space_transform(scene_data)
-                and par.use_bake_space_transform(scene_data) and self.bdata.type == "MESH"):
+                and par.use_bake_space_transform(scene_data) and self.bdata.type in ("MESH", "EMPTY")):
             G = scene_data.settings.global_matrix
             L = self.matrix_rest_local if rest else self.matrix_local
             return G @ L @ scene_data.settings.global_matrix_inv
@@ -1307,7 +1307,8 @@ def _material_paleta(obj, ruta):
 
 # ---------------------------------------------------------------- exportar
 
-def exportar_unity(obj, ruta, formato="FBX", armature=None, extra=()):
+def exportar_unity(obj, ruta, formato="FBX", armature=None, extra=(), hornear=True):
+    # extra puede llevar vacíos (Muzzle_n, puntos de boca de arma): se exportan como nodos vacíos con su jerarquía
     """FBX para Unity: escala 1 = 1 m, Y arriba, transformaciones horneadas, sombreado plano. Convención de ejes
     MEDIDA por Marcos en Unity (6-nov): un modelo que en Blender mira a -Y sale en Unity mirando a +Z, es decir, a
     transform.forward, que es lo que espera Unity. axis_forward="-Z" es el parámetro del exportador, no hacia dónde
@@ -1319,7 +1320,9 @@ def exportar_unity(obj, ruta, formato="FBX", armature=None, extra=()):
     os.makedirs(os.path.dirname(os.path.abspath(ruta)), exist_ok=True)
     if armature is not None and formato.upper() == "FBX":   # personaje: malla + esqueleto + una toma por acción
         armature.select_set(True)
-        bpy.ops.export_scene.fbx(filepath=ruta, use_selection=True, object_types={"MESH", "ARMATURE"},
+        for x in extra:
+            x.select_set(True)
+        bpy.ops.export_scene.fbx(filepath=ruta, use_selection=True, object_types={"MESH", "ARMATURE", "EMPTY"},
                                  apply_scale_options="FBX_SCALE_ALL", axis_forward="-Z", axis_up="Y",
                                  bake_space_transform=False, use_mesh_modifiers=False, mesh_smooth_type="FACE",
                                  add_leaf_bones=False, primary_bone_axis="Y", secondary_bone_axis="X",
@@ -1329,9 +1332,14 @@ def exportar_unity(obj, ruta, formato="FBX", armature=None, extra=()):
         return {"ruta": ruta, "bytes": os.path.getsize(ruta)}
     for x in extra:   # hijos animables (ruedas, torre, rotores): van en el mismo FBX con su jerarquía
         x.select_set(True)
-    if formato.upper() == "FBX":
+    if formato.upper() == "FBX" and not hornear:   # mallas fijas del soldado: misma convención que con esqueleto (nodo −90)
+        bpy.ops.export_scene.fbx(filepath=ruta, use_selection=True, object_types={"MESH", "EMPTY"},
+                                 apply_scale_options="FBX_SCALE_ALL", axis_forward="-Z", axis_up="Y",
+                                 bake_space_transform=False, use_mesh_modifiers=False, mesh_smooth_type="FACE",
+                                 add_leaf_bones=False, path_mode="COPY", embed_textures=False, use_custom_props=True)
+    elif formato.upper() == "FBX":
         _parche_fbx_nietos()
-        bpy.ops.export_scene.fbx(filepath=ruta, use_selection=True, object_types={"MESH"},
+        bpy.ops.export_scene.fbx(filepath=ruta, use_selection=True, object_types={"MESH", "EMPTY"},
                                  apply_scale_options="FBX_SCALE_ALL", axis_forward="-Z", axis_up="Y",
                                  bake_space_transform=True, use_mesh_modifiers=True, mesh_smooth_type="FACE",
                                  add_leaf_bones=False, path_mode="COPY", embed_textures=False, use_custom_props=True)

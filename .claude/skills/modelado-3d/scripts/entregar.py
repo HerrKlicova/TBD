@@ -46,6 +46,61 @@ def mascara_color(o, mascaras, mapa):
     o.data.color_attributes.render_color_index = 0
     return {"atributo": "Col", "caras_por_pieza": cuenta}
 
+def crear_bocas(db, lod, raiz, objs=(), arm=None, sin_hornear=False):
+    """Puntos vacíos de boca de arma (Lucía, 8-nov 24:34; mecánica de Marcos «el disparo sale de la boca del arma»).
+    db.BOCAS(lod, raiz, objs) devuelve [(nombre, pos, dir, padre)] en coordenadas de mundo de Blender. padre: None (la
+    raíz), el nombre de un hijo (Canon, Ametralladora) o "hueso:<nombre>". El disparo sale por el +Z LOCAL del vacío en
+    Unity: con bake_space_transform (vehículos y mallas fijas) eso es su −Y local de Blender; sin hornear (soldado con
+    esqueleto), su +Z local de Blender. No toca mallas ni pivotes."""
+    import bpy
+    from mathutils import Matrix, Vector
+    fn = getattr(db, "BOCAS", None)
+    if fn is None:
+        return []
+    horneado = arm is None and not sin_hornear
+    hijos = {x.name.split(".")[0]: x for x in objs}
+    out = []
+    for nombre, pos, dirc, padre in fn(lod, raiz, objs):
+        d = Vector(dirc).normalized()
+        arriba = Vector((0, 0, 1)) if abs(d.z) < 0.95 else Vector((0, 1, 0))
+        x = arriba.cross(d).normalized() if not horneado else (-d).cross(arriba).normalized()
+        if horneado:          # −Y local = disparo, +Z local ≈ arriba
+            y = -d
+            z = x.cross(y).normalized()
+        else:                 # +Z local = disparo, +Y local ≈ arriba
+            z = d
+            y = z.cross(x).normalized()
+        M = Matrix((x, y, z)).transposed().to_4x4()
+        M.translation = Vector(pos)
+        e = bpy.data.objects.new(nombre, None)
+        e.empty_display_type = "SINGLE_ARROW"
+        e.empty_display_size = 0.3
+        bpy.context.scene.collection.objects.link(e)
+        if padre and padre.startswith("hueso:"):
+            # un vacío emparentado a un hueso sale mal en el FBX (comprobado: 1,9 m desplazado); va como HUESO hoja sin
+            # pesos, hijo del hueso del arma. En Unity es un Transform «Muzzle_n» bajo ese hueso, y sigue los clips.
+            bpy.data.objects.remove(e, do_unlink=True)
+            bpy.context.view_layer.objects.active = arm
+            bpy.ops.object.mode_set(mode="EDIT")
+            eb = arm.data.edit_bones.new(nombre)
+            Mi = arm.matrix_world.inverted()
+            h = Mi @ Vector(pos)
+            eb.head = h
+            eb.tail = h + (Mi.to_3x3() @ y).normalized() * 0.08      # el hueso apunta hacia arriba (su Y)
+            eb.align_roll(Mi.to_3x3() @ d)                           # y su Z local, hacia donde sale el disparo
+            eb.parent = arm.data.edit_bones[padre.split(":", 1)[1]]
+            eb.use_deform = False
+            bpy.ops.object.mode_set(mode="OBJECT")
+            continue
+        else:
+            e.parent = hijos.get(padre, raiz) if padre else raiz
+        bpy.context.view_layer.update()
+        e.matrix_world = M
+        bpy.context.view_layer.update()
+        out.append(e)
+    return out
+
+
 def generar(modulo, salida, lod, claro, costado, permitir, px):
     import bpy
     import numpy as np
@@ -154,7 +209,9 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
         arm = db.rig(o, lod)
         inf["rig"] = {"huesos": [b.name for b in arm.data.bones],
                       "clips": [a.name for a in bpy.data.actions]}
-        ns["exportar_unity"](o, os.path.join(out, nombre + ".fbx"), armature=arm)
+        bocas = crear_bocas(db, lod, o, arm=arm)
+        inf["bocas"] = {e.name: [round(c, 3) for c in e.matrix_world.translation] for e in bocas}
+        ns["exportar_unity"](o, os.path.join(out, nombre + ".fbx"), armature=arm, extra=bocas)
         if lod == 1:   # fotogramas de cada clip a tamaño de juego, para la hoja de animaciones
             for act in bpy.data.actions:
                 arm.animation_data.action = act
@@ -171,7 +228,9 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
         bpy.context.view_layer.update()
         inf["piezas_animables"] = {x.name: [round(c, 3) for c in x.matrix_world.translation] for x in objs[1:]}
         inf["triangulos_por_objeto"] = {x.name: sum(len(p.vertices) - 2 for p in x.data.polygons) for x in objs}
-        ns["exportar_unity"](o, os.path.join(out, nombre + ".fbx"), extra=objs[1:])
+        bocas = crear_bocas(db, lod, o, objs=objs[1:])
+        inf["bocas"] = {e.name: [round(c, 3) for c in e.matrix_world.translation] for e in bocas}
+        ns["exportar_unity"](o, os.path.join(out, nombre + ".fbx"), extra=list(objs[1:]) + bocas)
         # comprobación: la torre (o el rotor) girada 50° sobre la vertical y el cañón elevado 20°, con las mismas
         # transformaciones locales que usará Unity; luego se hornea en una sola malla para el render
         import math
@@ -211,7 +270,11 @@ def generar(modulo, salida, lod, claro, costado, permitir, px):
         ns["vista_pixelada"](copias[0], os.path.join(out, "animable_giro.png"), vista="rts", fondo=SUELOS[0][1],
                              umbral_contorno=u)
     else:
-        ns["exportar_unity"](o, os.path.join(out, nombre + ".fbx"))
+        sin_hornear = bool(getattr(db, "SIN_HORNEAR", False))
+        bocas = crear_bocas(db, lod, o, sin_hornear=sin_hornear)
+        if bocas:
+            inf["bocas"] = {e.name: [round(c, 3) for c in e.matrix_world.translation] for e in bocas}
+        ns["exportar_unity"](o, os.path.join(out, nombre + ".fbx"), extra=bocas, hornear=not sin_hornear)
     with open(os.path.join(out, "informe.json"), "w", encoding="utf-8") as f:
         json.dump(inf, f, ensure_ascii=False, indent=1, default=str)
     return inf

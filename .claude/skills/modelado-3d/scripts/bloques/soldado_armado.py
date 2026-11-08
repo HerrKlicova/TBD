@@ -18,6 +18,27 @@ from soldado import (PIEZAS, COLORES, VALOR_PIEZAS, FACCION, NORMALES_ARRIBA, NO
 ARMA_DE = {0: 0, 1: 1, 2: 0, 3: 2, 4: 3, 5: 0}
 NOMBRES = ("G36E", "G36E_AG36", "MG4E", "G28", "C90")
 POSE = os.environ.get("TBD_POSE", "")
+_POSE_M = None
+SIN_HORNEAR = POSE in ("reposo", "apuntando")   # las mallas fijas se exportan como el soldado con esqueleto (nodo −90 en X)
+# Boca del arma (Lucía, 8-nov 24:34): punto en el extremo del cañón, en la pose de reposo, hijo del hueso «brazos»;
+# en las mallas fijas, ya llevado a su pose. t = distancia desde la empuñadura a lo largo de la línea de las manos y dz,
+# los mismos de arma_infanteria.piezas_arma. El AG36 lleva una segunda boca (Muzzle_1). El C90 no está en estas seis.
+_BOCA = {0: [(0.60, 0.02)], 1: [(0.60, 0.02), (0.56, -0.07)], 2: [(0.74, 0.02)], 3: [(0.80, 0.02)]}
+
+
+def BOCAS(lod, raiz, objs):
+    from mathutils import Vector, Matrix
+    a = int(os.environ.get("TBD_ARMA_FORZADA", ARMA_DE[soldado.ASPECTO]))
+    (xr, yr, zr), (xl, yl, zl) = soldado.MANOS
+    d = Vector((xl - xr, yl - yr, zl - zr)).normalized()
+    M = _POSE_M if (POSE in CLIP and _POSE_M is not None) else Matrix.Identity(4)
+    base = Vector(raiz.get("tbd_base", (0.0, 0.0, 0.0)))
+    padre = None if POSE in CLIP else "hueso:brazos"
+    out = []
+    for i, (t, dz) in enumerate(_BOCA.get(a, [])):
+        p = Vector((xr + d.x * t, yr + d.y * t, zr + d.z * t + dz))
+        out.append(("Muzzle_%d" % i, M @ p - base, M.to_3x3() @ d, padre))
+    return out
 CLIP = {"reposo": "reposo", "apuntando": "apuntar"}   # mallas fijas para cambiar de malla en DOTS
 
 
@@ -45,6 +66,9 @@ def construir(nombre="SM_SoldadoArmado", lod=0):
     bpy.data.meshes.remove(viejo)
     for act in list(bpy.data.actions):
         bpy.data.actions.remove(act)
+    global _POSE_M   # para llevar la boca del arma de la pose de reposo a la pose fija
+    pb = arm.pose.bones["brazos"]
+    _POSE_M = arm.matrix_world @ pb.matrix @ arm.data.bones["brazos"].matrix_local.inverted()
     d = arm.data
     bpy.data.objects.remove(arm, do_unlink=True)
     bpy.data.armatures.remove(d)

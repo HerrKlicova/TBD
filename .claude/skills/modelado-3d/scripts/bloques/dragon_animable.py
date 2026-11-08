@@ -135,3 +135,17 @@ def separar(o, lod):
     if "tbd_base" in o:
         del o["tbd_base"]
     return [o] + list(hijos.values())
+
+
+def BOCAS(lod, raiz, objs):
+    """Boca del arma (Lucía, 8-nov 24:34): centro de la cara más adelantada (−Y) del hijo «Canon», disparo hacia −Y
+    (delante, +Z en Unity), hijo de esa pieza para que siga a la torre y a la elevación. Cañón de 30 mm."""
+    from mathutils import Vector
+    h = next((x for x in objs if x.name.split(".")[0] == "Canon"), None)
+    if h is None:
+        return []
+    vs = [h.matrix_world @ v.co for v in h.data.vertices]
+    ymin = min(v.y for v in vs)
+    cara = [v for v in vs if v.y < ymin + 0.02]
+    c = sum(cara, Vector()) / len(cara)
+    return [("Muzzle_0", c, (0.0, -1.0, 0.0), "Canon")]
