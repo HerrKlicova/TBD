@@ -50,7 +50,7 @@ namespace TBD.View
         // ---------------------------------------------------------------- inicio
         void InitNight()
         {
-            _nightInit = true; _nightOn = true; _acc = 0f; _debugHud = false; _nightT0 = Time.realtimeSinceStartup;
+            _nightInit = true; _nightOn = true; _acc = 0f; { long tkI = _worldA.EntityManager.GetComponentData<SimClock>(_rootA).Tick; HashLogCmd("InitNight;tick_ecs;" + tkI); Debug.Log("[NOCHE] InitNight en el tick ECS " + tkI + " (frame " + Time.frameCount + ", Active=" + NightRun.Active + ")"); } _debugHud = false; _nightT0 = Time.realtimeSinceStartup;
             // oleadas, reloj, recursos y fuerza: noche_sagunto.json de Hugo (StreamingAssets/Noche), D-N74/D-N102. Sin el archivo, valores por defecto de Nacho.
             BalanceSource.Reader = f => { var pth = System.IO.Path.Combine(Application.streamingAssetsPath, "Noche", f); return System.IO.File.Exists(pth) ? System.IO.File.ReadAllText(pth) : null; };
             NightSim sim = null; int stock = 50 * WeaponCatalog.ShotsPerU;
