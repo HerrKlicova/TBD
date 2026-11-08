@@ -33,6 +33,12 @@ namespace TBD.Net
         public readonly List<EstacionCarretera> Carreteras = new List<EstacionCarretera>();
         public readonly List<EstacionSitio> Sitios = new List<EstacionSitio>();
         public float CuartelX = float.NaN, CuartelZ = float.NaN;
+        /// <summary>
+        /// Estación subterránea (Castellón v0.1, castellon-nivel.md §7; aprobada por Lucía el 8-nov): cota de las vías bajo losa y en trinchera, la losa (su
+        /// cara de arriba es la calle, cota 0), las trincheras abiertas y el vestíbulo de calle con la escalera al andén. null si la estación es de superficie.
+        /// </summary>
+        public Subterranea Sub;
+        public sealed class Subterranea { public float CotaVia, Intrados; public float[] Losa; public readonly List<float[]> Trincheras = new List<float[]>(); public float VestX, VestZ, VestYaw, VestAncho, VestFondo; }
         public string InteligenciaTipo; public float InteligenciaX = float.NaN, InteligenciaZ = float.NaN, InteligenciaYaw;
         public readonly List<EstacionParada> ParadasAsalto = new List<EstacionParada>();
         public readonly List<string> OrdenLiberacion = new List<string>();
@@ -50,6 +56,18 @@ namespace TBD.Net
                 EstadoInicial = ParseInicio(Opt<string>(root, "estado_inicial")),
             };
             foreach (var v in List(root, "vias")) d.Vias.Add(Points(v, "vias"));
+            if (root.TryGetValue("subterranea", out var subO) && subO is Dictionary<string, object> sd)
+            {
+                var sub = new Subterranea { CotaVia = Num(sd["cota_via_m"]), Intrados = sd.ContainsKey("intrados_m") ? Num(sd["intrados_m"]) : 6.5f, Losa = Floats(sd["losa"], "losa") };
+                foreach (var t in List(sd, "trinchera")) sub.Trincheras.Add(Floats(t, "trinchera"));
+                if (sd.TryGetValue("vestibulo", out var vo) && vo is Dictionary<string, object> vd)
+                {
+                    var vp = Floats(vd["pos"], "vestibulo"); sub.VestX = vp[0]; sub.VestZ = vp.Length > 2 ? vp[2] : vp[1];
+                    sub.VestYaw = vd.ContainsKey("yaw") ? Num(vd["yaw"]) : 0f;
+                    if (vd.TryGetValue("huella", out var hu)) { var h = Floats(hu, "huella"); sub.VestAncho = h[0]; sub.VestFondo = h[1]; }
+                }
+                d.Sub = sub;
+            }
             foreach (var a in List(root, "andenes")) { var r = Floats(a, "andenes"); if (r.Length != 4) throw new FormatException("andén: hacen falta 4 números"); d.Andenes.Add(r); }
             if (root.ContainsKey("recinto")) d.Recinto = Points(root["recinto"], "recinto");
             foreach (var o in List(root, "puertas")) { var p = Obj(o, "puertas"); var xz = XZ(p["pos"], "puertas"); d.Puertas.Add(new EstacionPuerta { Tipo = Req<string>(p, "tipo"), X = xz[0], Z = xz[1] }); }

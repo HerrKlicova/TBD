@@ -169,26 +169,6 @@
  ],
  "piezas": [
   {
-   "pieza": "sagunto/edificio_viajeros",
-   "pos": [
-    105,
-    0,
-    79.5
-   ],
-   "yaw": 0,
-   "variante": 4
-  },
-  {
-   "pieza": "sagunto/edificio_viajeros",
-   "pos": [
-    155,
-    0,
-    79.5
-   ],
-   "yaw": 180,
-   "variante": 4
-  },
-  {
    "pieza": "sagunto/marquesina",
    "pos": [
     82,
@@ -1132,7 +1112,7 @@
  "sitios": {
   "C1_estacion": [
    130,
-   79
+   81
   ],
   "C2_deposito": [
    178,
@@ -1195,5 +1175,44 @@
   "C4_ramal",
   "C2_deposito",
   "C1_estacion"
- ]
+ ],
+ "subterranea": {
+  "cota_via_m": -8,
+  "losa": [
+   70,
+   55,
+   190,
+   74
+  ],
+  "intrados_m": 6.5,
+  "trinchera": [
+   [
+    0,
+    55,
+    70,
+    74
+   ],
+   [
+    190,
+    55,
+    256,
+    74
+   ]
+  ],
+  "puertas_via_cota_m": -8,
+  "vestibulo": {
+   "pos": [
+    130,
+    0,
+    81
+   ],
+   "yaw": 0,
+   "huella": [
+    24,
+    14
+   ],
+   "escalera": "al sur, al andén lateral"
+  },
+  "nota": "v0.1 (castellon-nivel.md §7): estación bajo losa como la real; cota SIN VERIFICAR"
+ }
 }

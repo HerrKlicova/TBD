@@ -494,6 +494,15 @@ namespace TBD.Sim.Tests
                 check(Array.IndexOf(p46.Resalta, TutorialGuion.Resaltes.ClaroS1) >= 0 && TutorialGuion.ClaroS1X == 180f && TutorialGuion.ClaroS1Z == 44f, "capítulo 4: el NH90 aterriza en S1 (180; 44), resaltado");
             }
 
+            // --- Castellón subterránea (§7 de Álvaro, aprobada por Lucía): cota −8, losa, trincheras y vestíbulo
+            {
+                var cd = EstacionDato.FromJson(BalanceSource.Read("estacion_castellon.json"));
+                check(cd.Sub != null && cd.Sub.CotaVia == -8f && cd.Sub.Losa[0] == 70 && cd.Sub.Losa[2] == 190 && cd.Sub.Trincheras.Count == 2, "Castellón bajo losa: vías a −8 m, losa en X 70–190 y dos trincheras abiertas");
+                check(BajadaSubterranea.Tropa(cd, out float vx, out float vz, out float cota) && vx == 130 && vz == 81 && cota == -8f, "la tropa sube por la escalera del vestíbulo, en (130; 81)");
+                check(cd.Sub.VestAncho == 24 && cd.Sub.VestFondo == 14 && BajadaSubterranea.CargaderoZ0 == 34 && BajadaSubterranea.CargaderoZ1 == 37, "vestíbulo de 24 × 14 m; los vehículos bajan en el cargadero de superficie (Z 34–37)");
+                var nd = EstacionDato.FromJson(BalanceSource.Read("estacion_nules.json")); check(nd.Sub == null && !BajadaSubterranea.Tropa(nd, out _, out _, out _), "Nules es de superficie");
+            }
+
             // --- intro C
             var it = new IntroSecuencia();
             check(it.Tarjetas.Length == 5 && it.TextoEntero == "Día 41 desde el brote.", "intro C: 5 tarjetas y empieza por «Día 41 desde el brote.»");

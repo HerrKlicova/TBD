@@ -29,6 +29,22 @@ namespace TBD.Net
     /// pasajeros EnEstacion(Nules) del embarque de Nacho (D-N166); sus ids son los de la zona: Platoon.Id en UnitsWorld y el índice en NightRun.Vehs,
     /// que crea la zona (Marcos) y registra con Registrar. Se aplica igual a los dos mundos (A y B) en el mismo tick: no rompe la comprobación.
     /// </summary>
+    /// <summary>
+    /// Castellón subterránea (§7): el tren para a la cota de vía (−8 m) junto al andén; la tropa baja al andén y sube por la escalera del vestíbulo, que la deja
+    /// en la calle en el vestíbulo (130; 81); los vehículos no bajan en el andén sino en el cargadero de superficie (Z 34–37; la X del cargadero la fija Álvaro).
+    /// El tiempo de la escalera (unos 12 m de desnivel) lo pone Nacho.
+    /// </summary>
+    public static class BajadaSubterranea
+    {
+        public const float CargaderoZ0 = 34f, CargaderoZ1 = 37f;
+        /// <summary>Dónde sale la tropa a la calle: el vestíbulo. false si la estación no es subterránea.</summary>
+        public static bool Tropa(EstacionDato d, out float x, out float z, out float cota)
+        {
+            x = z = cota = 0f; if (d == null || d.Sub == null) return false;
+            x = d.Sub.VestX; z = d.Sub.VestZ; cota = d.Sub.CotaVia; return true;
+        }
+    }
+
     public static class Destacamento
     {
         public const string Estacion = "Nules";
