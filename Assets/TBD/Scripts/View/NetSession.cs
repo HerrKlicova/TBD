@@ -43,16 +43,16 @@ namespace TBD.View
         public static void LoadGame()
         {
             var data = System.IO.File.ReadAllBytes(SavePath);
-            var a = NetScenario.Mvp(false); NetSave.Load(data, a);
-            var b = NetScenario.Mvp(false); NetSave.Load(data, b);
+            var a = NetScenario.Inicio(false); NetSave.Load(data, a);
+            var b = NetScenario.Inicio(false); NetSave.Load(data, b);
             Ensure(); A = a; B = b;
         }
 
         public static void Ensure()
         {
             if (_instance != null) return;
-            A = NetScenario.Mvp();
-            B = NetScenario.Mvp();
+            A = NetScenario.Inicio();
+            B = NetScenario.Inicio();
             var go = new GameObject("TBD_NetSession");
             DontDestroyOnLoad(go);
             _instance = go.AddComponent<NetSession>();
