@@ -1228,7 +1228,52 @@ namespace TBD.View
         }
 
         // ================================================================ decorado con primitivas
-        Material _mGround, _mWall, _mRoof, _mRail, _mSleeper, _mTrain, _mWagon, _mGate;
+        Material _mGround, _mWall, _mRoof, _mRail, _mSleeper, _mTrain, _mWagon, _mGate, _mTraviesa, _mVia, _mFantasmaOk, _mFantasmaMal;
+
+        /// <summary>Fantasma de obra (Lucía, 8-nov): válido en hueso d4d0cc y no válido en ámbar e08c30, los dos tramados en pantalla
+        /// (shader TBD/Fantasma). Nunca rojo ni 442c0c. Si el 50 % se confunde con la selección: -fantasma25 abre el tramado al 25 %.
+        /// Sin el shader, cae a un Lit plano del mismo color.</summary>
+        Material Fantasma(bool valido)
+        {
+            var cache = valido ? _mFantasmaOk : _mFantasmaMal;
+            if (cache != null) return cache;
+            var sh = Shader.Find("TBD/Fantasma");
+            string hex = valido ? "d4d0cc" : "e08c30";
+            Material m;
+            if (sh == null) m = Mat(hex);
+            else
+            {
+                m = new Material(sh) { name = valido ? "Fantasma válido" : "Fantasma no válido" };
+                m.SetColor("_BaseColor", HexColor(hex));
+                m.SetFloat("_Paso", System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-fantasma25") >= 0 ? 1f : 0f);
+            }
+            if (valido) _mFantasmaOk = m; else _mFantasmaMal = m;
+            return m;
+        }
+
+        /// <summary>Vía en una sola textura que se repite (Resources/Vias/T_via_D, Bruno 8-nov, elegida por Lucía): 24 px = 3,6 m de ancho,
+        /// 8 px = 1,2 m por repetición, a lo largo de X. Devuelve null si no está la textura (y entonces se dibujan las cajas de antes).</summary>
+        GameObject ViaTexturada(string name, Vector3 center, float len, Transform parent)
+        {
+            if (_mVia == null)
+            {
+                var t = Resources.Load<Texture2D>("Vias/T_via_D");
+                if (t == null) return null;
+                t.wrapMode = TextureWrapMode.Repeat; t.filterMode = FilterMode.Point;
+                _mVia = Mat("ffffff"); _mVia.SetTexture("_BaseMap", t);
+            }
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            go.name = name; Destroy(go.GetComponent<Collider>());
+            if (parent != null) go.transform.SetParent(parent, false);
+            go.transform.position = center;
+            go.transform.rotation = Quaternion.Euler(90f, 90f, 0f);          // u del quad → −Z (ancho), v → +X (a lo largo de la vía); cara hacia arriba
+            go.transform.localScale = new Vector3(3.6f, len, 1f);
+            var r = go.GetComponent<MeshRenderer>();
+            r.sharedMaterial = _mVia;
+            var mpb = new MaterialPropertyBlock(); mpb.SetVector("_BaseMap_ST", new Vector4(1f, len / 1.2f, 0f, 0f)); r.SetPropertyBlock(mpb);
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            return go;
+        }
 
         static Color HexColor(string hex)
         {
@@ -1483,14 +1528,15 @@ namespace TBD.View
                 AddCar(root, new Vector3(ax, 0f, lane), yaw, col, amb, (hh & 1u) == 0);
             }
             // C1: vía 2 de X −250 a 50 y desvío en diagonal entre X 50 y 64, antes de la puerta, para unirse a la vía 1
+            bool via2Tex = ViaTexturada("Vía 2", new Vector3(-100f, 0.06f, ty - 5f), 300f, root) != null;   // Lucía 8-nov: vía D, carriles y traviesas en la textura
             foreach (float dz in new[] { -0.7f, 0.7f })
             {
-                Box("Vía 2 raíl", new Vector3(-100f, 0.12f, ty - 5f + dz), new Vector3(300f, 0.1f, 0.12f), _mRail, root);
+                if (!via2Tex) Box("Vía 2 raíl", new Vector3(-100f, 0.12f, ty - 5f + dz), new Vector3(300f, 0.1f, 0.12f), _mRail, root);
                 var diag = Box("Vía 2 desvío raíl", new Vector3(57f, 0.12f, ty - 2.5f + dz * 0.9f), new Vector3(14.9f, 0.1f, 0.12f), _mRail, root);
                 diag.transform.rotation = Quaternion.Euler(0f, -19.65f, 0f);
             }
             Box("Vía 2 balasto", new Vector3(-100f, 0.03f, ty - 5f), new Vector3(300f, 0.04f, 3.4f), crack, root);
-            for (int x = -250; x < 50; x += 2) Box("Vía 2 traviesa", new Vector3(x, 0.05f, ty - 5f), new Vector3(0.4f, 0.08f, 2f), _mSleeper, root);
+            if (!via2Tex) for (int x = -250; x < 50; x += 2) Box("Vía 2 traviesa", new Vector3(x, 0.05f, ty - 5f), new Vector3(0.4f, 0.08f, 2f), _mTraviesa, root);
             // C2 (v1.4): tolvas volcadas de Teo (el vuelco y el origen en el suelo vienen en la malla: solo X y yaw) sobre la vía 2, Z 59,5, de 14 m cada una:
             // v0 de pie y descarrilada en X 35 (yaw 0), v2 recostada en X 20 (yaw +8°) y v3 sobre el costado, con grava, en X 5 (yaw −12°); cajas giradas si faltan los modelos
             var hops = new[] { (35f, 0f, 0), (20f, 8f, 2), (5f, -12f, 3) };
@@ -2118,7 +2164,8 @@ namespace TBD.View
         {
             // Revisión de arte de Lucía (5-nov): suelo claro y cálido, tejado de terracota (antes era del color del suelo)
             _mGround = Mat("b0a060"); _mWall = Mat("88885c"); _mRoof = Mat("a86c50"); _mRail = Mat("94948c");
-            _mSleeper = Mat("442c0c"); _mTrain = Mat("303424"); _mWagon = Mat("605c48"); _mGate = Mat("7c3c18");
+            _mSleeper = Mat("442c0c"); _mTraviesa = Mat("6c7874");   // _mSleeper ya no se usa (442c0c es de la horda): traviesas en hormigón y fantasma de obra en TBD/Fantasma
+            _mTrain = Mat("303424"); _mWagon = Mat("605c48"); _mGate = Mat("7c3c18");
 
             // Zombi: cápsula de Unity (escalada a 0,5 x 1,8 m en RenderAttachSystem)
             // Zombi: cuadrado de 1 m (primitiva Quad) con el atlas de andar de Bruno (6 variantes de ropa x 4 fotogramas); el recorte va por instancia
@@ -2491,11 +2538,16 @@ namespace TBD.View
             // Vía: dos raíles y traviesas, de oeste a este por el centro del fuerte
             float ty = Level.TrackY;
             float railX = _cutting ? SimConst.WorldW * 0.5f : 128f, railLen = _cutting ? SimConst.WorldW : 756f;     // Sagunto: la vía sobre todo el faldón (X −250..506), Álvaro P1/P3
-            if (!_cutting) Box("Balasto de la zona", new Vector3(128f, 0.03f, ty), new Vector3(756f, 0.04f, 4f), Mat("48403c"));
-            Box("Raíl A", new Vector3(railX, 0.12f, ty - 0.7f), new Vector3(railLen, 0.1f, 0.12f), _mRail);
-            Box("Raíl B", new Vector3(railX, 0.12f, ty + 0.7f), new Vector3(railLen, 0.1f, 0.12f), _mRail);
-            for (int x = _cutting ? 2 : -250; x < (_cutting ? (int)SimConst.WorldW : 506); x += 2)
-                Box("Traviesa", new Vector3(x, 0.05f, ty), new Vector3(0.4f, 0.08f, 2f), _mSleeper);
+            // Lucía 8-nov (vía D): balasto claro olive_grey #605c48 y una sola textura con carriles y traviesas de hormigón cada 0,6 m.
+            // Antes: cajas de traviesa en #442c0c (color de la horda: de noche se leían como zombis tumbados) y balasto #48403c (ΔL* 6,9 con el tren).
+            if (!_cutting) Box("Balasto de la zona", new Vector3(128f, 0.03f, ty), new Vector3(756f, 0.04f, 4f), Mat("605c48"));
+            if (ViaTexturada("Vía", new Vector3(railX, 0.06f, ty), railLen, null) == null)
+            {
+                Box("Raíl A", new Vector3(railX, 0.12f, ty - 0.7f), new Vector3(railLen, 0.1f, 0.12f), _mRail);
+                Box("Raíl B", new Vector3(railX, 0.12f, ty + 0.7f), new Vector3(railLen, 0.1f, 0.12f), _mRail);
+                for (int x = _cutting ? 2 : -250; x < (_cutting ? (int)SimConst.WorldW : 506); x += 2)
+                    Box("Traviesa", new Vector3(x, 0.05f, ty), new Vector3(0.4f, 0.08f, 2f), _mTraviesa);
+            }
 
             // Tren: locomotora y tres vagones. Deuda de arte (Lucía): techos claros (#b8b8b8) sobre laterales verde oliva (#50541c) y contorno
             // oscuro de 1 px; la locomotora lleva una franja ámbar (#e08c30) en el frontal. El techo claro se lee sobre el fondo oscuro.
@@ -2670,7 +2722,8 @@ namespace TBD.View
                 {
                     var a = new Vector3(WorkOrigin.x + w.X0 / 1000f, 0.15f, WorkOrigin.y + w.Y0 / 1000f);
                     var b = new Vector3(WorkOrigin.x + w.X1 / 1000f, 0.15f, WorkOrigin.y + w.Y1 / 1000f);
-                    var g = WallVisual(a, b, Level.WallHalf * 0.5f, 0.3f, _mSleeper);   // fantasma: obra en marcha
+                    var g = WallVisual(a, b, Level.WallHalf * 0.5f, 0.3f, Fantasma(true));   // fantasma: obra en marcha (Lucía 8-nov: hueso tramado al 50 %)
+                    g.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                     _workVisuals[i] = g;
                 }
             }
