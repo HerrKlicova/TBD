@@ -31,7 +31,8 @@ from PIL import Image, ImageDraw, ImageFont
 
 OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "out_dia_horda")
 OBJ = Path("/mnt/project-files/entregas/teo-horda-obj")
-MURO_CARA = __import__("os").environ.get("TBD_MURO", "#6c7874")    # TBD_MURO=#94948c prueba el muro claro (propuesta para vía↔muro)
+MURO_CARA = __import__("os").environ.get("TBD_MURO", "#6c7874")
+TREN_LADO = __import__("os").environ.get("TBD_TREN", "#70784c")    # Teo, D-N157 (mr-mak d54dd0f): de #50541c a #70784c; TBD_TREN=#50541c da el de antes    # TBD_MURO=#94948c prueba el muro claro (propuesta para vía↔muro)
 PX = 0.144                       # m por píxel (ortho 26 a 1080p, mundo a 1/3)
 W, H = 400, 240                  # 57,6 m × 34,6 m de pantalla
 PITCH = math.radians(55)
@@ -145,7 +146,7 @@ def escena(seed=157):
         m.caja(-40, 0.26, zc + dz - 0.04, 40, 0.42, zc + dz + 0.04, L("#b8b8b8"), "carril")
     # tren: locomotora + 2 vagones, 2,9 m de ancho, 3,6 m de alto
     for x0, x1, loco in ((-26, -9, True), (-8.4, 8.6, False), (9.2, 26.2, False)):
-        m.caja(x0, 0.6, zc - 1.45, x1, 3.6, zc + 1.45, L("#50541c"), "tren")                 # laterales
+        m.caja(x0, 0.6, zc - 1.45, x1, 3.6, zc + 1.45, L(TREN_LADO), "tren")                 # laterales
         m.caja(x0, 3.6, zc - 1.45, x1, 3.62, zc + 1.45, L("#b8b8b8"), "techo")               # techo claro
         if loco:
             m.caja(x0 - 0.02, 1.6, zc - 1.45, x0, 2.0, zc + 1.45, L("#e08c30"), "tren_franja")
@@ -221,6 +222,8 @@ VARIANTES = {
               sol=dirsol(18, 265), sol_col=hexrgb("#ffd8a0"), sol_i=2.3, cielo=hexrgb("#a4acc0"), suelo=hexrgb("#a88c68"), amb_i=1.0, bruma=0.0, bruma_col=hexrgb("#c8c4b8")),
     "E": dict(nombre="Calima sin niebla", desc="sol 45° velado, cielo beige; el polvo va en la luz, no en niebla",
               sol=dirsol(45, 180), sol_col=hexrgb("#fff0d8"), sol_i=1.3, cielo=hexrgb("#c8bca4"), suelo=hexrgb("#a89878"), amb_i=1.0, bruma=0.0, bruma_col=hexrgb("#c4b89c")),
+    "N": dict(nombre="Noche (referencia)", desc="luna 0,45 (D-N69), suelo al sol de luna en L* 25",
+              sol=dirsol(40, 220), sol_col=hexrgb("#b8c4e0"), sol_i=1.0, cielo=hexrgb("#283440"), suelo=hexrgb("#303424"), amb_i=0.35, bruma=0.0, bruma_col=hexrgb("#c8c4b8"), suelo_L=25),
 }
 EXPO_Y = ((64 + 16) / 116) ** 3    # Y lineal del suelo apisonado al sol tras la exposición (L* 64; su albedo #b4a080 es L* 66)
 
@@ -282,7 +285,8 @@ def render(T, ALB, CLS, var, cam_buf):
     sol_suelo = suelo & lit & (ndl > 0.05)
     ref = c[sol_suelo] if sol_suelo.any() else c[suelo]
     yref = np.median(ref @ np.array([0.2126, 0.7152, 0.0722]))
-    c = c * (EXPO_Y / max(yref, 1e-6))
+    ly = var.get("suelo_L", 64)
+    c = c * ((((ly + 16) / 116) ** 3) / max(yref, 1e-6))
     if var["bruma"] > 0: c = c * (1 - var["bruma"]) + s2l(var["bruma_col"]) * var["bruma"] * 0.95
     img[ok] = c
     return img, tid, cls, ok
@@ -329,7 +333,7 @@ def hoja(imgs, medidas):
     fb = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 15)
     cw, chh = W * K, H * K
     tw = 360
-    out = Image.new("RGB", (cw + tw + 30, 40 + 5 * (chh + 20)), (0x18, 0x1c, 0x30))
+    out = Image.new("RGB", (cw + tw + 30, 40 + len(imgs) * (chh + 20)), (0x18, 0x1c, 0x30))
     d = ImageDraw.Draw(out)
     d.text((10, 10), "D-N157 · Sagunto de día con la horda en el muro (render por código, cámara del juego, 1 px = 0,144 m; x2)", fill=(0xd4, 0xd0, 0xcc), font=fb)
     y = 40
