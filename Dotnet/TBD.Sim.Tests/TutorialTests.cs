@@ -248,6 +248,22 @@ namespace TBD.Sim.Tests
                 var ed = EstacionDato.FromJson(bj); check(ed.Tamano == EstacionTamano.Aerodromo, "EstacionDato lee Bétera como aeródromo");
             }
 
+            // --- capítulo 4 (Bétera, textos aprobados por Lucía): su propia clave; saltar el principal deja marca
+            {
+                var mem4 = new MemoriaEnRam();
+                var c4 = TutorialGuion.NuevoCap4(mem4);
+                check(c4.Arrancar(850) && c4.Cabecera == "Capítulo 4 · Paso 1 de 8" && c4.Texto.StartsWith("Base aérea de Bétera") && !c4.PideHordaEnEspera, "capítulo 4: 8 pasos, empieza en «Base aérea de Bétera» y la horda no espera");
+                bool malas = false; foreach (var p in TutorialGuion.Cap4().Pasos) if (p.Texto.Contains("helipuerto") || p.Texto.Contains("Segorbe") || p.Texto.Contains("*") || p.Texto.Contains("20 ×")) malas = true;
+                check(!malas, "sin «helipuerto», «Segorbe», asteriscos ni la medida de 20 × 20 en los textos");
+                int n4 = Recorrer(c4); check(c4.Estado == EstadoTutorial.Terminado && n4 == 8 && mem4.Leer(TutorialGuion.ClaveCap4) && !mem4.Leer(TutorialMotor.ClaveVisto), "se recorre entero y solo marca su clave (tutorial4.visto)");
+                check(!TutorialGuion.NuevoCap4(mem4).Arrancar(850), "una sola vez");
+                check(!TutorialGuion.NuevoCap4(new MemoriaEnRam()).Arrancar(1000), "en difícil nunca");
+                var memS = new MemoriaEnRam(); var mp = TutorialGuion.Nuevo(memS); mp.Arrancar(850); mp.Saltar();
+                check(memS.Leer(TutorialMotor.ClaveVisto + TutorialMotor.ClaveSaltado), "saltar el tutorial principal deja la marca «saltado» (la vista no saca el capítulo 4)");
+                var memT = new MemoriaEnRam(); var mt2 = TutorialGuion.Nuevo(memT); mt2.Arrancar(850); Recorrer(mt2);
+                check(!memT.Leer(TutorialMotor.ClaveVisto + TutorialMotor.ClaveSaltado), "acabarlo no deja la marca «saltado»");
+            }
+
             // --- intro C
             var it = new IntroSecuencia();
             check(it.Tarjetas.Length == 5 && it.TextoEntero == "Día 41 desde el brote.", "intro C: 5 tarjetas y empieza por «Día 41 desde el brote.»");

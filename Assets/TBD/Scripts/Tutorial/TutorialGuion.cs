@@ -140,25 +140,25 @@ namespace TBD.Tutorial
 
         /// <summary>
         /// Capítulo 4, apoyo aéreo desde Bétera (D-N173; adapta tutorial-refuerzos.md con el aeródromo como origen). Salta la primera vez que el jugador abre el
-        /// aeródromo, con las reglas de siempre (fácil y normal, una vez). Textos de Iker sobre los de Lucía: PENDIENTES DE SU REVISIÓN.
+        /// aeródromo, con las reglas de siempre (fácil y normal, una vez). Textos aprobados por Lucía (8-nov 15:10, tutorial-cap4-iker.md). L y U son teclas propuestas: si cambian, se cambia el texto.
         /// </summary>
         public static Capitulo Cap4()
         {
-            var p45 = T("4.5", "Ya viene. Mira el borde de la pantalla.", 5, Resaltes.FlechaBorde);
+            var p45 = T("4.5", "El NH90 entra por el borde. Sigue la flecha.", 5, Resaltes.FlechaBorde);
             p45.Espera = Senales.NH90Llega;
             return new Capitulo
             {
                 Numero = 4, Titulo = "Apoyo aéreo desde Bétera",
                 Pasos = new[]
                 {
-                    T("4.1", "Esto es la base de Bétera. Aquí viven los helicópteros: dos NH90, y pelotones de fusileros para embarcar.", 5, Resaltes.TarjetasNH90),
+                    T("4.1", "Base aérea de Bétera. Desde aquí operan los helicópteros: dos NH90 y pelotones de fusileros para embarcar.", 5, Resaltes.TarjetasNH90),
                     S("4.2", "Elige un NH90 y sube un pelotón.", R(Resaltes.TarjetasNH90, Resaltes.ConPeloton), Senales.NH90ConPeloton),
-                    S("4.3", "Mándalo a Sagunto. Fíjate en el ETA: es lo que tarda en llegar.", R(Resaltes.NodoSagunto, Resaltes.Eta, Resaltes.BotonEnviar), Senales.NH90Enviado),
+                    S("4.3", "Destino: Sagunto. Mira el ETA y envíalo.", R(Resaltes.NodoSagunto, Resaltes.Eta, Resaltes.BotonEnviar), Senales.NH90Enviado),
                     S("4.4", "Vuelve a Sagunto: doble clic en Sagunto o acerca la cámara.", R(Resaltes.NodoSagunto), Senales.VueltaZona),
                     p45,
-                    S("4.6", "Pósalo en un claro de 20 × 20 m: tecla L.", R(Resaltes.TarjetasNH90), Senales.NH90Posado),
+                    S("4.6", "Pósalo en un claro: tecla L. El cursor marca dónde cabe.", R(Resaltes.TarjetasNH90), Senales.NH90Posado),
                     S("4.7", "Baja la tropa: tecla U.", R(Resaltes.TarjetasNH90), Senales.NH90Descargado),
-                    T("4.8", "Cuando le quede poca munición, volverá solo a Bétera a rearmar. Tarda: tenlo en cuenta.", 6),
+                    T("4.8", "Cada salida gasta combustible de Bétera. Con poca munición vuelve solo a rearmar, y mientras tanto no lo tienes.", 6),
                 }
             };
         }

@@ -60,6 +60,7 @@ namespace TBD.Tutorial
     public sealed class TutorialMotor
     {
         public const string ClaveVisto = "tutorial.visto";
+        public const string ClaveSaltado = ".saltado";     // se añade a la clave al saltarlo: el capítulo 4 no sale si se saltó el principal (Lucía)
         public const string BotonSaltar = "Saltar tutorial";
         public const float RepetirCada = 25f;      // sin avanzar en una tarjeta de señal, se repite su texto (desvío sin castigo)
         public const int DificilDesde = 951;       // palanca de dificultad (D-N74): 725 fácil, 850 normal, 1000 difícil; la difícil no tiene tutorial
@@ -137,7 +138,7 @@ namespace TBD.Tutorial
         {
             if (Estado != EstadoTutorial.Activo) return;
             Log($"saltado en {Actual?.Id ?? "?"}");
-            Estado = EstadoTutorial.Saltado; SueltaActual = null; _mem.Escribir(_clave);
+            Estado = EstadoTutorial.Saltado; SueltaActual = null; _mem.Escribir(_clave); _mem.Escribir(_clave + ClaveSaltado);
         }
 
         public void Senal(string s)

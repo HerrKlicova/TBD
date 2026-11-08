@@ -98,6 +98,7 @@ namespace TBD.View
             Ensure(); Senal(TutorialGuion.Senales.AerodromoAbierto);
             var prefs = new Prefs();
             if (_i._cap4Pendiente || !TutorialMotor.HayTutorial(NightRun.Difficulty) || prefs.Leer(TutorialGuion.ClaveCap4) || Arg("-sintutorial")) return;
+            if (prefs.Leer(TutorialMotor.ClaveVisto + TutorialMotor.ClaveSaltado) && !Arg("-tutorial")) return;     // tutorial saltado: tampoco sale el capítulo 4 (Lucía)
             if (_i._m != null && _i._m.Estado == EstadoTutorial.Activo && _i._m == _i._principal) { _i._cap4Pendiente = true; return; }
             _i.ArrancarCap4();
         }
