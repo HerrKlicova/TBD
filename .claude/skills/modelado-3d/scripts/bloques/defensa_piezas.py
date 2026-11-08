@@ -8,7 +8,7 @@ Se construyen tramos cortos del módulo del muro y se juntan en L:
   dentro), que cierra el extremo del muro como en las defensas de campaña.
 Los restos del daño que caerían lejos de un tramo corto se quitan (islas a más de 1,2 m del brazo).
 """
-import math
+import math, os
 import bpy, bmesh
 from mathutils import Matrix, Vector
 
@@ -129,4 +129,14 @@ def separar(o, lod):
     o.data.transform(Matrix.Translation(base))
     if "tbd_base" in o:
         del o["tbd_base"]
+    if os.environ.get("TBD_ESPEJO") == "1":
+        # versión espejo (Álvaro, 8-nov 17:55: el remate de la derecha de cada hueco). Se espeja en X y se dan la vuelta
+        # las caras, para no depender de la escala −1 en Unity (Entities Graphics y el cálculo de la sombra).
+        o.data.transform(Matrix.Scale(-1.0, 4, (1.0, 0.0, 0.0)))
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        bmesh.ops.reverse_faces(bm, faces=bm.faces[:])
+        bm.to_mesh(o.data)
+        bm.free()
+        o.data.update()
     return [o]
