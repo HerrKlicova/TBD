@@ -199,7 +199,15 @@ namespace TBD.View
             {
                 string nm = g.Nodes[zw.Node].Name;
                 if (d.Valoracion.Count < 2) d.Valoracion.Add(T.ValSinDefensa(nm, zw.Started ? null : Dtg(now + zw.EtaTicks), zw.Started));
-                d.Necesidades.Add(T.NecTropa(InformeTextos.MunicionMinima, nm));
+            }
+            foreach (var p in ased)                                                      // munición mínima ante el asedio (regla de Hugo, 08-11)
+            {
+                int min = InformeTextos.MunicionMinima(_a.SiegeZombies(p.Node));
+                long mun = _a.Stock[p.Node, (int)Res.Municion];
+                bool tropa = _a.ZoneDefended(p.Node);
+                if (tropa && mun >= min) continue;
+                string l = tropa ? T.NecMunicion(min, g.Nodes[p.Node].Name) : T.NecTropa(min, g.Nodes[p.Node].Name);
+                d.Necesidades.Add(mun < min ? "<color=#" + InformeTextos.ColorFalta + ">" + l + "</color>" : l);
             }
             for (int i = 0; i < _a.Services.Count; i++)
             {
@@ -393,8 +401,13 @@ namespace TBD.View
         public static readonly string[] Rumbos = { "al este", "al noreste", "al norte", "al noroeste", "al oeste", "al suroeste", "al sur", "al sureste" };
         public static string SinAl(string r) { return r != null && r.StartsWith("al ") ? r.Substring(3) : r; }
 
-        /// <summary>Munición mínima que pide la línea de necesidades. SIN VERIFICAR: 20 u es la del objetivo del día 2 de Nules (D-N179); falta que Hugo dé la regla general.</summary>
-        public const int MunicionMinima = 20;
+        /// <summary>Munición mínima de una estación ante un asedio (regla de Hugo, 08-11): redondear hacia arriba (horda ÷ 400) + 2 u, con la horda del asedio
+        /// anunciado (SiegeZombies ya lleva la dificultad de la partida). Nules 2.400: 8 u; Sagunto normal 5.250: 16 u; difícil 5.700: 17 u.
+        /// Los 20 u de Nules de la D-N179 son el objetivo de diseño del día 2, no esta regla.</summary>
+        public static int MunicionMinima(int horda) { return horda <= 0 ? 2 : (horda + 399) / 400 + 2; }
+        /// <summary>Color de la necesidad cuando la estación tiene menos munición que el mínimo (Hugo: «en rojo»). Es el rojo de ataque 982420;
+        /// Lucía decide si se queda (el rojo era solo para ataques).</summary>
+        public const string ColorFalta = "982420";
 
         /// <summary>Saca la estación de «Sin escolta: {estación} está sitiada» (Puertas.SinEscolta).</summary>
         public static string SitiadaDe(string aviso)
@@ -461,6 +474,7 @@ namespace TBD.View
         // 7. necesidades
         public string SecNecesidades = "Necesidades";
         public string NecTropa(int u, string est) { return "≥ " + u + " u y un pelotón en " + est + "."; }
+        public string NecMunicion(int u, string est) { return "≥ " + u + " u en " + est + "."; }
         public string NecNh90(string est) { return "Un NH90 sobre " + est + " para identificar el movimiento."; }
         public string NecEscolta(string tren) { return "Escolta para el tren " + tren + "."; }
 
