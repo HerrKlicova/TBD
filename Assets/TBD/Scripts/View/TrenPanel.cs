@@ -28,7 +28,7 @@ namespace TBD.View
     /// <summary>
     /// Embarque desde el mapa, con la noche en segundo plano (NightRun.Session): la cuenta de 10 s / 20 s corre aquí a la cadencia de la zona y, al acabar,
     /// manda la orden de red a los dos mundos (A y B), igual que el resto de órdenes. Regla de noche: en el mapa los pelotones están dentro de Sagunto,
-    /// así que dentroRecinto = true y no se miran zombis a 3 m (fuera de la zona no hay posiciones de zombis): PROTOTIPO, para revisar con Nacho.
+    /// con noche fuera de pantalla se miran los zombis a 3 m con NightSim.ExportZombies (Nacho). Ids de vehículo: PROTOTIPO, el índice solo vale de noche y con todos vivos; Marcos expondrá su lista _vehs.
     /// </summary>
     public sealed class EmbarqueRed : IEmbarque
     {
@@ -48,8 +48,16 @@ namespace TBD.View
             int cap = t == PasajeroTipo.Peloton ? EmbarqueState.PelotonesPorTren : EmbarqueState.VehiculosPorTren, enCola = 0;      // cupo contando lo que ya está subiendo
             foreach (var kv in _dest) if (kv.Key.Vehiculo == (t == PasajeroTipo.Vehiculo) && !kv.Key.Bajar && kv.Value.service == service) enCola++;
             if (W.Embarque.CountAboard(service, t) + enCola >= cap) return t == PasajeroTipo.Peloton ? "No queda vagón de tropa libre" : "No queda plataforma libre";
-            long tod = W.Tick % NetConst.DayTicks; bool noche = tod < NetConst.Hours(7) || tod >= NetConst.Hours(21);   // PROTOTIPO: noche de 21:00 a 7:00
-            r = EmbarqueZona.NocheBlockReason(noche, true, false, false); if (r != null) return r;
+            // regla de noche (Nacho): con noche fuera de pantalla se miran los zombis a 3 m del pelotón; sin sesión de noche (de día), no hay zombis que mirar.
+            // En casa el andén queda dentro del muro; fuera de casa, dentro del recinto solo si la estación no está sitiada.
+            var ses = NightRun.Session; bool noche = ses != null && ses.Sim != null;
+            bool dentro = node == W.Embarque.HomeNode || !W.Besieged(node), cerca = false;
+            if (noche && t == PasajeroTipo.Peloton)
+            {
+                var pl = ses.Sim.Units.Platoons.Find(q => q.Id == id);
+                if (pl != null) { var zs = new List<Target>(); ses.Sim.ExportZombies(zs); cerca = EmbarqueZona.ZombisCerca(zs, pl.AX, pl.AY); }
+            }
+            r = EmbarqueZona.NocheBlockReason(noche, dentro, cerca, false); if (r != null) return r;
             if (t == PasajeroTipo.Peloton && Uw == null) return "Sin pelotones";
             return null;
         }
