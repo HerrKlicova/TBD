@@ -730,6 +730,7 @@ namespace TBD.View
             int shown = 0;
             var zws = _a.UndefendedWarnings();
             SonarAvisos(zws);
+            y = DrawColmenaAviso(pw, y, ref shown);                  // D-N160: «La Colmena se agita» (ámbar), antes del Enjambre
             foreach (var zw in zws)       // aviso ámbar: la horda va a una zona sin tropa (Lucía, 8-nov; regla de Nacho)
             {
                 if (shown++ >= 4) break;

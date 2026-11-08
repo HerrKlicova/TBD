@@ -21,11 +21,40 @@ namespace TBD.View
     ///   - Desconocido (trébol neutro, trazo continuo): densidad entre ThreatAt y SiegeAt en una estación sin tropa, sin tren y sin asedio
     ///     anunciado. Aprobado por Lucía (9-nov): es el «algo se mueve» que prepara la Colmena. Se puede apagar con _app6Desconocido.
     ///   - Aire: cúpula del NH90 en Bétera mientras está en tierra, sobre el mapa mientras vuela y encima del nodo en zona (Lucía, 9-nov).
+    ///   - Estados de la Colmena (Lucía 25:15; Hugo, colmena-estados.md §4 y §6): la cifra es la mejor de dos reglas, ojos o estado.
+    ///     Dispersa y sin ojos: trébol desconocido con «~2.000?». Al acecho: «~2.000». Enjambre: «2.400» y galones de columna de migración detrás de la flecha.
+    ///     Aviso ámbar «La Colmena se agita…» con la señal en col_aviso (6) antes del Enjambre (7). Necesita que la red rellene ColmenaEstadoFuente y
+    ///     ColmenaSenalFuente; sin eso, la capa se comporta como antes. Textos CO-0 a CO-4 en textos_informe.csv (la red los mete en el informe).
     /// Las emboscadas preparadas (PendingAmbushes) no se dibujan: el jugador no las conoce hasta que el tren cae en ellas (TR-3).
     /// </summary>
     public sealed partial class OperationsMap3D
     {
         bool _app6On = true;
+
+        // ---- Estados de la Colmena (D-N160, aprobado por Lucía el 9-nov 25:15; Hugo, docs/economia/colmena-estados.md §4 y §6)
+        /// <summary>Estado de la Colmena entera: 0 Dispersa, 1 Al acecho, 2 Enjambre; −1 si la red todavía no lo calcula.
+        /// Lo conecta la red cuando exista (Nacho, colmena-estados.md §5): <c>OperationsMap3D.ColmenaEstadoFuente = () => (int)w.Colmena.Estado;</c>.
+        /// Mientras sea null, la vista solo aplica la regla de los ojos y no sale el aviso.</summary>
+        public static System.Func<int> ColmenaEstadoFuente;
+        /// <summary>Señal diaria de la Colmena (abiertos_7d + 0,5 × (huella − 8)), en las mismas unidades que los umbrales; null si no existe.</summary>
+        public static System.Func<int> ColmenaSenalFuente;
+        /// <summary>Umbrales (balance_colmena: col_aviso y el del Enjambre). Si la red los lee del CSV, que los copie aquí.</summary>
+        public static int ColAviso = 6, ColEnjambre = 7;
+        static int ColEstado() { try { return ColmenaEstadoFuente != null ? ColmenaEstadoFuente() : -1; } catch { return -1; } }
+        static int ColSenal() { try { return ColmenaSenalFuente != null ? ColmenaSenalFuente() : -1; } catch { return -1; } }
+
+        /// <summary>Aviso ámbar antes del Enjambre (Lucía 25:15): con la señal en col_aviso, un punto antes del Enjambre. Ámbar, no rojo: el rojo es de ataques.
+        /// Va en el panel de avisos del mapa, debajo de los de «zona sin tropa». Devuelve la nueva y.</summary>
+        float DrawColmenaAviso(float pw, float y, ref int shown)
+        {
+            int sen = ColSenal(), est = ColEstado();
+            if (sen < ColAviso || est == 2 || shown >= 4) return y;
+            shown++;
+            int zp = IconPx(16);
+            DrawIcon(new Rect(20, y - 2, zp, zp), "alertas/vm_alertas_asedio_16");
+            GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>La Colmena se agita: si abres más nodos, irá a por ti</color>", _small);
+            return y + Mathf.Max(_small.fontSize * 1.5f, zp + 4);
+        }
         bool _app6Desconocido = true;
         readonly List<string> _app6Tmp = new List<string>();
         int _app6Eje;                          // App6Nodo: 0 sin flecha, 1 la horda avanza (hueso), 2 ataca (rojo)
@@ -59,8 +88,11 @@ namespace TBD.View
             if (presente || asedio)
             {
                 // Paula 9-nov: asedio anunciado = rombo discontinuo («previsto», SIN VERIFICAR en la norma); continuo cuando la horda llega.
-                _app6Tmp.Add(ataca ? "app6/app6_horda_vacio_ataque" : presente ? "app6/app6_horda_vacio" : "app6/app6_horda_tramado");
-                etiqueta = Estimacion(_a.SiegeZombies(node), ojos);
+                int est = ColEstado();
+                // Dispersa y sin ojos: no se sabe qué es (trébol desconocido, Hugo §4); si ataca, ya está identificada.
+                bool trebol = est == 0 && !ojos && !ataca;
+                _app6Tmp.Add(trebol ? "app6/app6_desconocido_vacio" : ataca ? "app6/app6_horda_vacio_ataque" : presente ? "app6/app6_horda_vacio" : "app6/app6_horda_tramado");
+                etiqueta = Estimacion(_a.SiegeZombies(node), ojos, est);
                 if (asedio) _app6Eje = ataca ? 2 : 1;
             }
             else if (_app6Desconocido && n.HordeDensity >= NetWorld.ThreatAt && pel == 0 && veh == 0 && !tren)
@@ -73,12 +105,20 @@ namespace TBD.View
 
         static readonly System.Globalization.CultureInfo _es = System.Globalization.CultureInfo.GetCultureInfo("es-ES");
 
-        /// <summary>Zombis estimados (Lucía, 9-nov): con ojos, a la centena («~2.400»); sin ojos, al millar y con interrogación («~2.000?», «<1.000?»).</summary>
-        static string Estimacion(int z, bool ojos)
+        /// <summary>
+        /// Zombis estimados: la MEJOR de dos reglas (Lucía, 9-nov 25:15). Ojos (tropa propia o NH90 en zona): a la centena, «~2.400».
+        /// Estado de la Colmena (Hugo §4): Enjambre se ve de lejos, «2.400» (centena, sin «~»); Al acecho, «~2.000» (millar);
+        /// Dispersa, o estado desconocido, «~2.000?» (millar con interrogación; «<1.000?» por debajo de 500).
+        /// </summary>
+        static string Estimacion(int z, bool ojos, int estado = -1)
         {
             if (z <= 0) return null;
-            if (ojos) return "~" + System.Math.Max(100, (z + 50) / 100 * 100).ToString("#,0", _es);
-            return z < 500 ? "<1.000?" : "~" + ((z + 500) / 1000 * 1000).ToString("#,0", _es) + "?";
+            string cen = System.Math.Max(100, (z + 50) / 100 * 100).ToString("#,0", _es);
+            string mil = ((z + 500) / 1000 * 1000).ToString("#,0", _es);
+            if (estado == 2) return cen;
+            if (ojos) return "~" + cen;
+            if (estado == 1) return z < 500 ? "<1.000" : "~" + mil;
+            return z < 500 ? "<1.000?" : "~" + mil + "?";
         }
 
         /// <summary>¿Hay un NH90 de Bétera sobre ese nodo (en zona)? Cuenta como ojos para la estimación.</summary>
@@ -202,6 +242,13 @@ namespace TBD.View
             Vector2 nrm = new Vector2(-dir.y, dir.x);
             Linea(b, b - dir * punta + nrm * punta * 0.7f, g, col);
             Linea(b, b - dir * punta - nrm * punta * 0.7f, g, col);
+            if (ColEstado() == 2)                                             // Enjambre: columna de migración, galones detrás de la flecha (Hugo §4)
+                for (int k = 1; k <= 3; k++)
+                {
+                    var c0 = a - dir * (k * 12f * esc);
+                    Linea(c0, c0 - dir * punta * 0.8f + nrm * punta * 0.6f, g, col);
+                    Linea(c0, c0 - dir * punta * 0.8f - nrm * punta * 0.6f, g, col);
+                }
         }
 
         static void Linea(Vector2 a, Vector2 b, float grosor, Color col)
@@ -220,7 +267,7 @@ namespace TBD.View
         {
             if (!_app6On) return;
             GUI.Label(new Rect(x, y, w, _small.fontSize * 2f),
-                "<color=#808080>Mapa (I): rectángulo propio · cúpula NH90 · rombo horda (discontinuo: anunciada; rojo: ataca; flecha: por dónde llega) · trébol sin identificar · «?» sin ojos allí</color>", _small);
+                "<color=#808080>Mapa (I): rectángulo propio · cúpula NH90 · rombo horda (discontinuo: anunciada; rojo: ataca; flecha: por dónde llega; galones: Enjambre) · trébol sin identificar · «?» sin ojos allí</color>", _small);
         }
 
         static Texture2D App6Tex(string path)
