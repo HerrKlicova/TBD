@@ -28,7 +28,7 @@ namespace TBD.View
     /// <summary>
     /// Embarque desde el mapa, con la noche en segundo plano (NightRun.Session): la cuenta de 10 s / 20 s corre aquí a la cadencia de la zona y, al acabar,
     /// manda la orden de red a los dos mundos (A y B), igual que el resto de órdenes. Regla de noche: en el mapa los pelotones están dentro de Sagunto,
-    /// con noche fuera de pantalla se miran los zombis a 3 m con NightSim.ExportZombies (Nacho). Ids de vehículo: PROTOTIPO, el índice solo vale de noche y con todos vivos; Marcos expondrá su lista _vehs.
+    /// con noche fuera de pantalla se miran los zombis a 3 m con NightSim.ExportZombies (Nacho). Ids de vehículo: índice en NightRun.Vehs (Marcos); al subir, Vehs[i].Embarcado = true y Marcos oculta el vehículo en la zona.
     /// </summary>
     public sealed class EmbarqueRed : IEmbarque
     {
@@ -74,8 +74,10 @@ namespace TBD.View
         public void BajarTodo(int service, int node)
         {
             if (W == null) return;
-            var tropa = W.Embarque.Aboard(service, PasajeroTipo.Peloton);
+            var tropa = W.Embarque.Aboard(service, PasajeroTipo.Peloton); var vehs = W.Embarque.Aboard(service, PasajeroTipo.Vehiculo);
             PushBoth(NetWorld.CmdUnload(W.Tick, service, node));
+            if (node == W.Embarque.HomeNode && !W.Besieged(node))       // de vuelta en casa el vehículo reaparece; en otra estación sigue fuera de Sagunto (Embarcado)
+                foreach (var v in vehs) if (v >= 0 && v < NightRun.Vehs.Count && NightRun.Vehs[v] != null) NightRun.Vehs[v].Embarcado = false;
             if (Uw != null && node != W.Embarque.HomeNode)
                 foreach (var id in tropa) { var p = Uw.Platoons.Find(q => q.Id == id); if (p != null) p.Aboard = TrenPreparar.EnEstacion(node); }
         }
@@ -97,6 +99,7 @@ namespace TBD.View
                 {
                     if (!_dest.TryGetValue(t, out var d)) continue; _dest.Remove(t);
                     if (!t.Bajar) PushBoth(NetWorld.CmdLoad(W.Tick, d.service, t.Vehiculo ? PasajeroTipo.Vehiculo : PasajeroTipo.Peloton, t.Id, d.node));
+                    if (t.Vehiculo && t.Id >= 0 && t.Id < NightRun.Vehs.Count && NightRun.Vehs[t.Id] != null) NightRun.Vehs[t.Id].Embarcado = !t.Bajar;   // Marcos oculta el vehículo en la zona
                     Debug.Log($"[TREN] {(t.Vehiculo ? "vehículo" : "pelotón")} {t.Id} a bordo del tren {d.service}");
                 }
                 var vivos = new HashSet<EmbarqueZona.Trabajo>(_z.Cola); var fuera = new List<EmbarqueZona.Trabajo>();      // los que cayeron mientras subían
@@ -289,8 +292,8 @@ namespace TBD.View
             if (sv < 0) { _vista = Vista.Nada; return; }
             float u = _s.fontSize, w = Mathf.Min(u * 36, Screen.width * 0.44f), x = Screen.width - w - 12, y = Screen.height * 0.08f, lh = u * 1.95f;
             var ses = NightRun.Session; var uw = ses != null ? ses.Uw : null;
-            var vehs = new List<NightVehicle>(); var vehIdx = new List<int>();   // id de vehículo = índice en la lista de la noche (Nacho)
-            if (ses != null && ses.Sim != null) for (int k = 0; k < ses.Sim.Vehicles.Count; k++) if (ses.Sim.Vehicles[k].Kind != NightVehKind.Nh90) { vehs.Add(ses.Sim.Vehicles[k]); vehIdx.Add(k); }   // los aéreos no suben (Nacho)
+            var vehs = new List<NightRun.VehInfo>(); var vehIdx = new List<int>();   // id de vehículo = índice en NightRun.Vehs (Marcos: orden de creación, con hueco de los destruidos)
+            for (int k = 0; k < NightRun.Vehs.Count; k++) { var vi0 = NightRun.Vehs[k]; if (vi0 != null && vi0.Vivo && vi0.Tipo != "helicoptero" && (!vi0.Embarcado || Embarque.ABordo(sv, PasajeroTipo.Vehiculo).Contains(k))) { vehs.Add(vi0); vehIdx.Add(k); } }   // los aéreos no suben   // los aéreos no suben (Nacho)
             int nP = uw != null ? Mathf.Min(5, uw.Platoons.Count) : 0;
             int filasP = Mathf.Max(1, (nP + 1) / 2), filasV = (vehs.Count + 2) / 2;
             float h = u * 3.4f + lh * (NetConst.ResCount + 1.4f) + lh * (filasP + 1.2f) + lh * (filasV + 1.2f) + lh * 2.1f + lh * 1.5f;
@@ -364,12 +367,14 @@ namespace TBD.View
             {
                 case 0: if (t > 4f && TrenPreparar.TrenEn(W, sag) >= 0) { _vista = Vista.MenuSagunto; _autoPaso++; } else if (t > 4f && W.Speed != 4) NetSession.Push(NetCmdType.SetSpeed, 4, 0); break;
                 case 1: if (t > 6f) { Cap("1_menu_sagunto"); _autoPaso++; } break;
-                case 2: if (t > 7f) { AbrirPreparar(); Cargar(0, 40); Cargar(2, 60); var ses = NightRun.Session; int sv = TrenPreparar.TrenEn(W, sag); if (ses != null && ses.Uw != null && ses.Uw.Platoons.Count > 0) Embarque.Subir(sv, PasajeroTipo.Peloton, ses.Uw.Platoons[0].Id, sag); _sinApoyo = true; Destino(nul); _autoPaso++; } break;
+                case 2: if (t > 7f) { AbrirPreparar(); Cargar(0, 40); Cargar(2, 60); var ses = NightRun.Session; int sv = TrenPreparar.TrenEn(W, sag); if (ses != null && ses.Uw != null && ses.Uw.Platoons.Count > 0) Embarque.Subir(sv, PasajeroTipo.Peloton, ses.Uw.Platoons[0].Id, sag);
+                        int vk = NightRun.Vehs.FindIndex(v => v != null && v.Vivo && v.Tipo == "vamtac"); if (vk >= 0) Embarque.Subir(sv, PasajeroTipo.Vehiculo, vk, sag); else _sinApoyo = true;
+                        Destino(nul); _autoPaso++; } break;
                 case 3: if (t > 9f) { Cap("2_preparar_tren"); _autoPaso++; } break;
                 case 4: if (t > 10f && !Embarque.Ocupado) { Cap("2b_a_bordo"); NetSession.Push(NetCmdType.SetSpeed, 4, 0); Enviar(); _autoPaso++; } break;
                 case 5: if (t > 13f) { Cap("3_en_camino"); _autoPaso++; } break;
                 case 6: if (_viaje >= 0 && TrenPreparar.TrenEn(W, nul) == _viaje && W.Services[_viaje].Stops.Count == 1) { _vista = Vista.MenuNules; _autoT0 = Time.unscaledTime - 100f; _autoPaso++; } else if (t > 240f) { Debug.LogError("[TREN] auto: el tren no llegó a Nules"); Application.Quit(1); } break;
-                case 7: if (t > 102f) { Cap("4_nules_descargar"); _autoPaso++; } break;
+                case 7: if (t > 102f) { Cap("4_nules_descargar"); Debug.Log("[TREN] auto: vehículos embarcados: " + string.Join(", ", NightRun.Vehs.FindAll(v => v != null && v.Embarcado).ConvertAll(v => v.Name))); _autoPaso++; } break;
                 case 8: if (t > 103f) { Descargar(); _autoPaso++; } break;
                 case 9: if (_viaje < 0) { Debug.Log($"[TREN] auto: ciclo completo; Nules tiene {W.Stock[nul, 0]} de munición y {W.Stock[nul, 2]} de materiales"); Cap("5_de_vuelta"); _autoT0 = Time.unscaledTime - 200f; _autoPaso++; } else if (t > 340f) { Debug.LogError("[TREN] auto: el tren no volvió"); Application.Quit(1); } break;
                 case 10: if (t > 203f) { Debug.Log("[TREN] auto: fin"); Application.Quit(0); _autoPaso++; } break;
