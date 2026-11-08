@@ -81,6 +81,8 @@ namespace TBD.View
             _pname[_uw.AddPlatoon(PlatoonKind.Granaderos, 98000, 57000, west, Formation.Cuna).Id] = "Granaderos";
             _pname[_uw.AddPlatoon(PlatoonKind.Tiradores, 98000, 72000, west, Formation.Cuna).Id] = "Tiradores";
             _pname[_uw.AddPlatoon(PlatoonKind.Zapadores, 88000, 76000, west, Formation.Cuna).Id] = "Zapadores";
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinazotea") < 0)      // D-N174 (Lucia, Alvaro 10.15): 2 pelotones de tiradores libres en el ala oeste del edificio de viajeros, boca a 6,35 m
+                for (int az = 0; az < 2; az++) { var pa = _uw.AddPlatoon(PlatoonKind.Tiradores, 84500, 74300 + 4000 * az, west, Formation.Cuna); pa.EyeMm = 6350; _pname[pa.Id] = "Tiradores " + (az == 0 ? "azotea 1" : "azotea 2"); }
             bool resume = NightRun.Session != null && NightRun.Session.Away && NightRun.Session.Ng != null;
             if (resume)                                                              // la noche ya existia: se reanuda con su NightGame y su UnitsWorld
             {
@@ -107,6 +109,7 @@ namespace TBD.View
             LosInit();   // D-N174: linea de vision (sagunto_obstaculos_v1.csv de Alvaro); -sinlos la apaga
             if (!resume && NightRun.Session == null) NightRun.Session = new NightSession { Ng = _ng, Uw = _uw };
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-nightbot") >= 0) { try { _bot = NightBot.FromParams(NightSimParams.FromJson(BalanceSource.Read("nightsim_params.json"))); Debug.Log("[NOCHE] prueba: -nightbot (NightBot de Nacho)"); } catch (System.Exception e) { Debug.LogWarning("[TBD] NightBot: " + e.Message); } }
+            if (_bot != null) foreach (var kvb in _pname) if (kvb.Value.StartsWith("Tiradores azotea")) _bot.Busy.Add(kvb.Key);      // el bot no mueve a los de la azotea (libres: solo el jugador)
             if (resume) ResumeNightSession();
         }
 

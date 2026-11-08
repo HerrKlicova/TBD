@@ -1320,7 +1320,7 @@ namespace TBD.View
             var curb = M("94948c"); var slab = M("605c48"); var line = M("f0dc9c"); var tin = M("94948c"); var iron = M("283440");
             var wall = M("b4a080"); var plinth = M("605c48"); var tile = M("a86c50"); var wood = M("442c0c");
             // andén norte: x 78-138, z de ty+2,2 a ty+6,2, 0,9 m de altura; bordillo y línea de seguridad
-            float px0 = 78f, px1 = 138f, pz0 = ty + 2.2f, pz1 = ty + 6.2f;
+            float px0 = 78f, px1 = 138f, pz0 = ty + 2.2f, pz1 = ty + 7.3f;      // el anden llega hasta la fachada del edificio nuevo (Z 71,8; Alvaro 10.15)
             Box("Andén losa", new Vector3((px0 + px1) * 0.5f, 0.45f, (pz0 + pz1) * 0.5f), new Vector3(px1 - px0, 0.9f, pz1 - pz0), slab, root);
             Box("Andén bordillo", new Vector3((px0 + px1) * 0.5f, 0.92f, pz0 + 0.12f), new Vector3(px1 - px0, 0.08f, 0.3f), curb, root);
             DecalQuad("Icons/texturas/decal_linea_seguridad_64x2", new Vector3((px0 + px1) * 0.5f, 0.935f, pz0 + 0.5f), new Vector2(px1 - px0, 0.3f), new Vector3(90f, 0f, 0f), new Vector2((px1 - px0) / 9.6f, 1f), root);   // línea de seguridad de Bruno (#f0dc9c) a ~0,35 m del borde
@@ -1331,14 +1331,16 @@ namespace TBD.View
                 Box("Marquesina cubierta", new Vector3(108f, 4.1f, pz0 + 2.3f), new Vector3(30.6f, 0.2f, 5.2f), tin, root);
             }
             // edificio de viajeros: dos plantas, pegado al muro norte por dentro (x 98-114, z 75-83), zócalo y tejado a cuatro aguas (aprox. con dos losas)
-            Vector3 bc = new Vector3(106f, 0f, 79f);
-            DecalQuad("Icons/decals/placa_sagunto_x2", new Vector3(106f - 0.8f, 7.15f, 79f - 5.2f), new Vector2(3.6f, 1.1f), Vector3.zero, Vector2.one, root);
-            DecalQuad("Icons/decals/reloj_fachada_24", new Vector3(106f + 1.95f, 7.15f, 79f - 5.2f), new Vector2(1.1f, 1.1f), Vector3.zero, Vector2.one, root);
-            if (PlaceModel("edificio_viajeros", "SM_edificio_viajeros_LOD1", bc, 180f, root) == null)      // 20 x 9 m, andén en +Z del modelo: se gira para dar al andén (sur)
+            // edificio de viajeros nuevo (Teo, e7bc5d5; Alvaro 10.15): 32 x 9 m, centro (99; 0; 76,3), yaw 180 (fachada del anden al sur, Z 71,8); alas a 4,75 m (O: X 83-92, E: X 106-115), cuerpo central de 10 m
+            Vector3 bc = new Vector3(99f, 0f, 76.3f);
+            DecalQuad("Icons/decals/placa_sagunto_x2", new Vector3(99f - 0.8f, 7.15f, 71.75f), new Vector2(3.6f, 1.1f), Vector3.zero, Vector2.one, root);
+            DecalQuad("Icons/decals/reloj_fachada_24", new Vector3(99f + 1.95f, 7.15f, 71.75f), new Vector2(1.1f, 1.1f), Vector3.zero, Vector2.one, root);
+            if (PlaceModel("edificio_viajeros_sagunto", "SM_EdificioViajerosSagunto_v1_Segura_LOD1", bc, 180f, root) == null)
             {
-                Box("Edificio zócalo", bc + new Vector3(0f, 0.6f, 0f), new Vector3(16f, 1.2f, 8f), plinth, root);
-                Box("Edificio fachada", bc + new Vector3(0f, 4.2f, 0f), new Vector3(16f, 6f, 8f), wall, root);
-                Box("Edificio tejado", bc + new Vector3(0f, 7.5f, 0f), new Vector3(17f, 0.7f, 9f), tile, root);
+                Box("Edificio ala oeste", new Vector3(87.5f, 2.375f, 76.3f), new Vector3(9f, 4.75f, 9f), wall, root);
+                Box("Edificio cuerpo central", new Vector3(99f, 5f, 76.3f), new Vector3(14f, 10f, 9f), wall, root);
+                Box("Edificio tejado", new Vector3(99f, 10.3f, 76.3f), new Vector3(14.6f, 0.6f, 9.6f), tile, root);
+                Box("Edificio ala este", new Vector3(110.5f, 2.375f, 76.3f), new Vector3(9f, 4.75f, 9f), wall, root);
             }
             // almacén con muelle al otro lado de la vía, hacia el fondo del recinto (x 127-143, z 50-58)
             Vector3 wc = new Vector3(135f, 0f, 54f);
