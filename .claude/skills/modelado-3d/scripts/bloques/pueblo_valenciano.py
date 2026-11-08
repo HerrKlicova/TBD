@@ -20,6 +20,17 @@ Colores (nada en la banda de la horda, nada vertical en 48403c, nada rojo): cal 
 zócalo 605c48, carpintería 605c48 (el 543820 en sombra caía en la banda), teja a86c50, alero y balcón 94948c, reja 6c7874, persiana 94948c, rótulo b8b8b8,
 toldo 847c34, tablones a86c50, hueco 605c48, planta 70784c, ladrillo a86c50, piedra b8b8b8,
 andamio 6c7874.
+
+r2 (8-nov, 20:30, aprobada por Lucía 20:15) con las fotos de Paula (referencias-reales/sagunt_calles, solo como guía):
+  · zócalo de 1,2 m que cambia por casa: 605c48, gris 94948c o verde azulado 6c7874 (el único de la paleta de 32;
+    L* 49, lejos del d4d0cc de selección, L* 84). Cal también en b4a080 (crema ocre de las fotos).
+  · balcón volado de forja (pasamanos, zócalo de pletina y barrotes) en LOD0; en LOD1 sigue siendo la losa.
+  · persianas enrollables con su cajón en las ventanas de las plantas altas, cada una bajada a una altura.
+  · rejas de barrotes en las ventanas de la planta baja (LOD0).
+  · Campanario v1 «Silleria» (antes «Piedra»): torre de sillería maciza, un vano alto de medio punto por cara y
+    terraza plana con pretil, al estilo de El Salvador. Sin chapitel.
+  Balcones, rejas y persianas son FACHADA: no cambian la colisión (caja de 6 × 10) ni la línea de visión (D-N174).
+  Medidas y pivotes iguales que en r1.
 """
 import math, os
 from taller import Taller
@@ -31,16 +42,21 @@ NOMBRES_V = [["DosPlantas", "TresPlantas", "BajoChaflan", "CalAmarilla", "Tapiad
              ["Bar", "Ultramarinos", "Farmacia", "Saqueada", "Tapiada"],
              ["Cal", "Ocre", "Gris", "Ropa", "Ruina"],
              ["Porton", "Abierto", "Parra", "Naranjo", "Derruida"],
-             ["Ladrillo", "Piedra", "Reloj", "Danado", "Andamio"]]
-_CAL = {(0, 3): "f0dc9c", (2, 1): "f0dc9c", (2, 2): "b8b8b8", (1, 1): "f0dc9c", (3, 2): "f0dc9c"}
+             ["Ladrillo", "Silleria", "Reloj", "Danado", "Andamio"]]
+_CAL = {(0, 3): "f0dc9c", (2, 1): "f0dc9c", (2, 2): "b8b8b8", (1, 1): "f0dc9c", (3, 2): "f0dc9c",
+        (0, 1): "b4a080", (1, 2): "b4a080", (3, 0): "b4a080"}
+_ZOC = {0: "6c7874", 1: "94948c", 2: "605c48", 3: "6c7874", 4: "94948c"}     # zócalo por variante (verde azulado,
+_ZOC_P = {0: 0, 1: 1, 2: 2, 3: 3, 4: 0}                                       # gris o pardo), desplazado por pieza
 PIEZAS = ["cal", "zocalo", "carpinteria", "tejado", "alero", "balcon", "reja", "persiana", "rotulo", "toldo",
-          "tablas", "hueco", "planta", "ladrillo", "piedra", "andamio", "ropa", "ropa2", "tronco"]
-COLORES = {"cal": _CAL.get((PIEZA, V), "d4d0cc"), "zocalo": "605c48", "carpinteria": "605c48", "tejado": "a86c50",
+          "tablas", "hueco", "planta", "ladrillo", "piedra", "andamio", "ropa", "ropa2", "tronco", "silleria", "junta"]
+COLORES = {"cal": _CAL.get((PIEZA, V), "d4d0cc"), "zocalo": _ZOC[(V + _ZOC_P[PIEZA]) % 5], "carpinteria": "605c48", "tejado": "a86c50",
            "alero": "94948c", "balcon": "94948c", "reja": "6c7874", "persiana": "94948c", "rotulo": "b8b8b8",
            "toldo": "847c34", "tablas": "a86c50", "hueco": "605c48", "planta": "70784c", "ladrillo": "a86c50",
-           "piedra": "b8b8b8", "andamio": "6c7874", "ropa": "d4d0cc", "ropa2": "847c34", "tronco": "6c7874"}
+           "piedra": "b8b8b8", "andamio": "6c7874", "ropa": "d4d0cc", "ropa2": "847c34", "tronco": "6c7874",
+           "silleria": "b4a080", "junta": "94948c"}
 FACCION = "neutro"
-PRESUPUESTO = {0: (60, 2500), 1: (40, 1000)}
+PRESUPUESTO = {0: (60, 3500), 1: (40, 1000)}
+ZOC_H = 1.2
 FRENTE, FONDO, PLANTA = 6.0, 10.0, 3.2
 
 
@@ -67,17 +83,56 @@ def construir(nombre="SM_PuebloValenciano", lod=0):
     def balcon(x, z, w, y=-hy, eje="Y", corrido=False):
         if eje == "Y":
             t.caja((x, y - 0.3, z + 0.05), (w, 0.6, 0.12), "balcon")
-            if fino:
-                t.caja((x, y - 0.58, z + 0.55), (w, 0.04, 0.9), "reja")
         else:
             t.caja((y - 0.3, x, z + 0.05), (0.6, w, 0.12), "balcon")
-            if fino:
-                t.caja((y - 0.58, x, z + 0.55), (0.04, w, 0.9), "reja")
+        if fino:
+            forja(x, z, w, y, eje)
+
+    def forja(x, z, w, y, eje):
+        """Barandilla de forja: pasamanos, pletina baja, barrotes y laterales (solo LOD0, es fachada)."""
+        def c(px, py, pz, sx, sy, sz):                # px a lo largo de la fachada, py hacia fuera
+            if eje == "Y":
+                t.caja((x + px, y - py, pz), (sx, sy, sz), "reja")
+            else:
+                t.caja((y - py, x + px, pz), (sy, sx, sz), "reja")
+        c(0, 0.57, z + 1.06, w + 0.02, 0.06, 0.05)                    # pasamanos
+        c(0, 0.57, z + 0.2, w - 0.02, 0.05, 0.07)                     # pletina
+        n = max(3, int(w / 0.25))
+        for k in range(n):
+            c(-w / 2 + (k + 0.5) * w / n, 0.565, z + 0.63, 0.03, 0.03, 0.82)
+        for sx in (-1, 1):                                            # laterales
+            c(sx * (w / 2 - 0.02), 0.3, z + 1.06, 0.045, 0.52, 0.045)
+            c(sx * (w / 2 - 0.025), 0.3, z + 0.63, 0.03, 0.03, 0.82)
+
+    def persiana(x, z, w, h, k, y=yf, eje="Y"):
+        """Persiana enrollable bajada a una altura y su cajón encima del hueco (fachada, LOD0 y LOD1)."""
+        f = 0.25 + 0.55 * _h(x * 7 + z + k, 5)
+        hp = max(h * f, 0.36)
+        for (pz, sz, sy, pc) in ((z + h / 2 + 0.14, 0.26, 0.16, "persiana"), (z + h / 2 - hp / 2, hp, 0.03, "persiana")):
+            if eje == "Y":
+                t.caja((x, y - sy / 2 - 0.035, pz), (w + (0.12 if sz == 0.26 else -0.02), sy, sz), pc)
+            else:
+                t.caja((y - sy / 2 - 0.035, x, pz), (sy, w + (0.12 if sz == 0.26 else -0.02), sz), pc)
+
+    def reja_baja(x, z, w, h, y=yf, eje="Y"):
+        """Reja de barrotes de la planta baja, algo volada (solo LOD0)."""
+        if not fino:
+            return
+        def c(px, pz, sx, sy, sz):
+            if eje == "Y":
+                t.caja((x + px, y - 0.12, z + pz), (sx, sy, sz), "reja")
+            else:
+                t.caja((y - 0.12, x + px, z + pz), (sy, sx, sz), "reja")
+        for pz in (-h / 2 - 0.02, h / 2 + 0.02):
+            c(0, pz, w + 0.14, 0.05, 0.05)
+        n = max(3, int(w / 0.16))
+        for k in range(n):
+            c(-w / 2 + (k + 0.5) * w / n, 0, 0.025, 0.025, h)
 
     def cuerpo(plantas, tejado=True):
         alto = plantas * PLANTA
         t.caja((0, 0, alto / 2), (FRENTE, FONDO, alto), "cal")
-        t.caja((0, -hy - 0.02, 0.45), (FRENTE - 0.02, 0.06, 0.9), "zocalo")
+        t.caja((0, -hy - 0.02, ZOC_H / 2), (FRENTE - 0.02, 0.06, ZOC_H), "zocalo")
         t.caja((0, -hy - 0.15, alto - 0.1), (FRENTE - 0.02, 0.3, 0.2), "alero")
         if tejado:
             t.tejado((0, 0, alto), FRENTE - 0.8, FONDO, 2.0, "tejado", vuelo=0.4, aguas=2)
@@ -90,6 +145,7 @@ def construir(nombre="SM_PuebloValenciano", lod=0):
             z = k * PLANTA
             for x in (-1.4, 1.4):
                 hueco(x, z + 1.2, 1.0, 2.2)
+                persiana(x, z + 1.2, 1.0, 2.2, k)
             if corrido:
                 balcon(0, z, FRENTE - 0.6)
             else:
@@ -106,9 +162,9 @@ def construir(nombre="SM_PuebloValenciano", lod=0):
         d = c * math.sqrt(2) - 0.03   # algo menor: sus vértices no deben caer sobre las aristas de las cajas
         t.caja((-hx + c, -hy + c, alto / 2), (d, d, alto), "cal", rot_z=math.pi / 4)
         t.tejado((0, 0, alto), FRENTE - 0.8, FONDO, 2.0, "tejado", vuelo=0.4, aguas=2)
-        t.caja((c / 2, -hy - 0.02, 0.45), (FRENTE - c, 0.06, 0.9), "zocalo")
-        t.caja((-hx - 0.02, c / 2, 0.45), (0.06, FONDO - c, 0.9), "zocalo")
-        t.caja((-hx + c / 2 - 0.02, -hy + c / 2 - 0.02, 0.45), (d, 0.06, 0.9), "zocalo", rot_z=-math.pi / 4)
+        t.caja((c / 2, -hy - 0.02, ZOC_H / 2), (FRENTE - c, 0.06, ZOC_H), "zocalo")
+        t.caja((-hx - 0.02, c / 2, ZOC_H / 2), (0.06, FONDO - c, ZOC_H), "zocalo")
+        t.caja((-hx + c / 2 - 0.02, -hy + c / 2 - 0.02, ZOC_H / 2), (d, 0.06, ZOC_H), "zocalo", rot_z=-math.pi / 4)
         ch = (-hx + c / 2 - 0.05, -hy + c / 2 - 0.05)  # centro de la cara del chaflán
         for k in range(plantas):
             z = k * PLANTA
@@ -120,6 +176,9 @@ def construir(nombre="SM_PuebloValenciano", lod=0):
                     t.caja((ch[0], ch[1], 1.2), (1.0, 0.08, 2.3), "carpinteria", rot_z=-math.pi / 4)
                 hueco(1.5, 1.6, 1.1, 1.4)
                 hueco(2.0, 1.6, 1.1, 1.4, y=-hx - 0.03, eje="X")
+                if v != 4:
+                    reja_baja(1.5, 1.6, 1.1, 1.4)
+                    reja_baja(2.0, 1.6, 1.1, 1.4, y=-hx - 0.03, eje="X")
                 if v == 4:
                     for (x, e) in ((1.5, "Y"), (2.0, "X")):
                         for zz in (1.3, 1.8):
@@ -131,6 +190,10 @@ def construir(nombre="SM_PuebloValenciano", lod=0):
                 hueco(1.5, z + 1.2, 1.0, 2.2)
                 hueco(-0.5, z + 1.2, 1.0, 2.2, y=-hx - 0.03, eje="X")
                 hueco(2.5, z + 1.2, 1.0, 2.2, y=-hx - 0.03, eje="X")
+                if v != 4:
+                    persiana(1.5, z + 1.2, 1.0, 2.2, k)
+                    persiana(-0.5, z + 1.2, 1.0, 2.2, k, y=-hx - 0.03, eje="X")
+                    persiana(2.5, z + 1.2, 1.0, 2.2, k + 1, y=-hx - 0.03, eje="X")
                 balcon(1.5, z, 1.5)
                 balcon(-0.5, z, 1.5, y=-hx, eje="X")
                 balcon(2.5, z, 1.5, y=-hx, eje="X")
@@ -177,8 +240,7 @@ def construir(nombre="SM_PuebloValenciano", lod=0):
         cuerpo(2 if ruina else 3, tejado=not ruina)
         hueco(-1.4, 1.2, 1.1, 2.4)
         hueco(1.3, 1.6, 1.1, 1.4)
-        if fino:
-            t.caja((1.3, yf - 0.06, 1.6), (1.2, 0.04, 1.5), "reja")
+        reja_baja(1.3, 1.6, 1.1, 1.4)
         plantas_altas(3 if not ruina else 2, corrido=True)
         if v == 3:                                    # ropa tendida en el balcón de la 2.ª
             for k in range(5):
@@ -197,9 +259,10 @@ def construir(nombre="SM_PuebloValenciano", lod=0):
     elif p == 3:                                      # CASA DE PATIO (una planta al fondo, tapia delante)
         t.caja((0, 2.25, 1.8), (FRENTE, 5.5, 3.6), "cal")
         t.tejado((0, 2.25, 3.6), FRENTE - 0.8, 5.5, 1.6, "tejado", vuelo=0.4, aguas=2)
-        t.caja((0, -0.53, 0.45), (FRENTE - 0.02, 0.06, 0.9), "zocalo")
+        t.caja((0, -0.53, ZOC_H / 2), (FRENTE - 0.02, 0.06, ZOC_H), "zocalo")
         hueco(-1.4, 1.2, 1.0, 2.3, y=-0.53)
         hueco(1.4, 1.6, 1.0, 1.3, y=-0.53)
+        reja_baja(1.4, 1.6, 1.0, 1.3, y=-0.53)
         tapia = v != 4
         for sx in (-1, 1):                            # tapias laterales del patio
             t.caja((sx * (hx - 0.15), -2.7, 1.1), (0.3, 4.4, 2.2), "cal")
@@ -227,6 +290,30 @@ def construir(nombre="SM_PuebloValenciano", lod=0):
             t.caja((1.2, -2.5, 0.6), (g(0.2), g(0.2), 1.2), "tronco")
             t.esfera((1.2, -2.5, 1.9), (1.3, 1.3, 1.0), "planta", sub=1 if not fino else 2)
 
+    elif v == 1:                                      # CAMPANARIO DE SILLERÍA (estilo El Salvador, decorado)
+        L, H = 5.0, 22.0
+        t.caja((0, 0, 0.5), (L + 0.4, L + 0.4, 1.0), "silleria")                         # zarpa
+        t.caja((0, 0, H / 2), (L, L, H), "silleria")                                     # caña maciza
+        if fino:                                                                         # hiladas marcadas
+            for z in (4.0, 8.0, 12.0, 16.0):
+                t.caja((0, 0, z), (L + 0.04, L + 0.04, 0.06), "junta")
+        t.caja((0, 0, 17.6), (L + 0.24, L + 0.24, 0.3), "junta")                         # imposta del cuerpo
+        for k in range(4):                                                               # un vano por cara
+            a = k * math.pi / 2
+            ux, uy = round(math.cos(a)), round(math.sin(a))
+            px, py = ux * (L / 2 + 0.02), uy * (L / 2 + 0.02)
+            sx, sy = (1.2, 0.06) if uy else (0.06, 1.2)
+            t.caja((px, py, 19.6), (sx, sy, 3.0), "hueco")                               # vano
+            t.cilindro((px, py, 21.05), 0.59, 0.07, "Y" if uy else "X", 10 if fino else 6, "hueco")   # medio punto
+            t.caja((ux * (L / 2 + 0.05), uy * (L / 2 + 0.05), 18.0), (1.5 if uy else 0.12, 0.12 if uy else 1.5, 0.15),
+                   "junta")                                                              # alféizar
+        if fino:
+            t.cilindro((0, 0, 20.2), 0.55, 1.0, "Z", 10, "alero", r2=0.3)                # campana
+        t.caja((0, 0, H + 0.12), (L + 0.3, L + 0.3, 0.24), "junta")                      # cornisa
+        for sx, sy, lx, ly in ((0, 1, L + 0.2, 0.36), (0, -1, L + 0.2, 0.36), (1, 0, 0.36, L - 0.53), (-1, 0, 0.36, L - 0.53)):
+            t.caja((sx * (L / 2 - 0.08), sy * (L / 2 - 0.08), H + 0.75), (lx, ly, 1.0), "silleria")   # pretil
+        t.caja((0, 0, H + 0.3), (L - 0.9, L - 0.9, 0.12), "tejado")                      # terraza
+        t.caja((L / 2 - 0.45, L / 2 - 0.45, H + 1.6), (g(0.1), g(0.1), 1.6), "reja")     # pararrayos
     else:                                             # CAMPANARIO (hito, decorado)
         mat = "piedra" if v == 1 else "ladrillo"
         L, H = 5.0, 18.0
