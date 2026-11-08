@@ -16,6 +16,8 @@ namespace TBD.View
     ///     «previsto» SIN VERIFICAR en la norma). Horda presente (densidad ≥ NetWorld.SiegeAt): continuo en hueso. Rojo, con contorno de 2 px,
     ///     solo mientras ataca (D-N160; Paula señala que en APP-6 el color es la afiliación, lo decide Lucía). Al lado, los zombis estimados:
     ///     con ojos allí (tropa propia o un NH90 en zona) a la centena, «~2.400»; sin ojos, al millar con interrogación, «~2.000?» (Lucía, 9-nov).
+    ///   - Flecha de eje de avance hacia la estación cuando hay asedio, desde el lado de la mancha: hueso mientras avanza, rojo mientras ataca.
+    ///     El color rojo solo en el ataque es LICENCIA del juego frente a APP-6 (Lucía, registro 24:50), igual que el rombo discontinuo.
     ///   - Desconocido (trébol neutro, trazo continuo): densidad entre ThreatAt y SiegeAt en una estación sin tropa, sin tren y sin asedio
     ///     anunciado. Aprobado por Lucía (9-nov): es el «algo se mueve» que prepara la Colmena. Se puede apagar con _app6Desconocido.
     ///   - Aire: cúpula del NH90 en Bétera mientras está en tierra, sobre el mapa mientras vuela y encima del nodo en zona (Lucía, 9-nov).
@@ -26,6 +28,8 @@ namespace TBD.View
         bool _app6On = true;
         bool _app6Desconocido = true;
         readonly List<string> _app6Tmp = new List<string>();
+        int _app6Eje;                          // App6Nodo: 0 sin flecha, 1 la horda avanza (hueso), 2 ataca (rojo)
+        static Texture2D _app6Px;
 
         void HandleInputApp6(Keyboard kb)
         {
@@ -35,7 +39,7 @@ namespace TBD.View
         /// <summary>Símbolos de un nodo, de izquierda a derecha: primero lo hostil o desconocido y luego lo amigo.</summary>
         List<string> App6Nodo(int node, out string etiqueta)
         {
-            _app6Tmp.Clear(); etiqueta = null;
+            _app6Tmp.Clear(); etiqueta = null; _app6Eje = 0;
             var n = _a.Graph.Nodes[node];
 
             bool asedio = false, ataca = false;
@@ -57,6 +61,7 @@ namespace TBD.View
                 // Paula 9-nov: asedio anunciado = rombo discontinuo («previsto», SIN VERIFICAR en la norma); continuo cuando la horda llega.
                 _app6Tmp.Add(ataca ? "app6/app6_horda_vacio_ataque" : presente ? "app6/app6_horda_vacio" : "app6/app6_horda_tramado");
                 etiqueta = Estimacion(_a.SiegeZombies(node), ojos);
+                if (asedio) _app6Eje = ataca ? 2 : 1;
             }
             else if (_app6Desconocido && n.HordeDensity >= NetWorld.ThreatAt && pel == 0 && veh == 0 && !tren)
                 _app6Tmp.Add("app6/app6_desconocido_vacio");
@@ -136,6 +141,7 @@ namespace TBD.View
                 if (sp.z <= 0) continue;
                 var l = App6Nodo(k, out var etiqueta);
                 if (l.Count == 0) continue;
+                if (_app6Eje > 0) DrawEje(nd, sp, _app6Eje == 2, esc);
                 int st = IconPx(32);
                 float x = sp.x + st * 0.5f + 4, y = Screen.height - sp.y - st * 1.1f - h * 0.25f;
                 for (int i = 0; i < l.Count; i++)
@@ -157,12 +163,64 @@ namespace TBD.View
             DrawApp6Aire(esc);
         }
 
+        /// <summary>
+        /// Flecha de eje de avance (Lucía, 9-nov, a propuesta de Paula): hacia la estación desde el lado por el que llega la horda; hueso mientras avanza,
+        /// rojo 982420 mientras ataca. El lado sale de la mancha (HordeField) alrededor del nodo: media de las direcciones pesada por la densidad,
+        /// en un anillo de 2 a 16 celdas. Si no hay masa cerca (asedio de zona abstracto, sin mancha), se usa la celda más cargada a menos de 32;
+        /// si tampoco hay, no se dibuja flecha. OJO: es el lado en el mapa, no la puerta concreta de la zona (la red no sabe por qué puerta entra).
+        /// </summary>
+        void DrawEje(RailNode nd, Vector3 sp, bool ataca, int esc)
+        {
+            var f = _a.Field;
+            int cx = nd.XMeters, cy = nd.YMeters;
+            double sx = 0, sy = 0, peso = 0; int best = 0, bx = 0, by = 0;
+            for (int dy = -32; dy <= 32; dy++)
+                for (int dx = -32; dx <= 32; dx++)
+                {
+                    int r2 = dx * dx + dy * dy; if (r2 < 4 || r2 > 32 * 32) continue;
+                    int d = f.At(cx + dx, cy + dy); if (d <= 0) continue;
+                    if (r2 <= 16 * 16) { double r = System.Math.Sqrt(r2); sx += d * dx / r; sy += d * dy / r; peso += d; }
+                    if (d > best) { best = d; bx = dx; by = dy; }
+                }
+            double ux, uy;
+            if (peso > 0 && sx * sx + sy * sy > 1e-6) { double m = System.Math.Sqrt(sx * sx + sy * sy); ux = sx / m; uy = sy / m; }
+            else if (best > 0) { double m = System.Math.Sqrt(bx * bx + by * by); ux = bx / m; uy = by / m; }
+            else return;
+
+            var lift = 0.8f * Mathf.Clamp(_dist / 230f, 0.0015f, 2f);
+            var lejos = _cam.WorldToScreenPoint(MapToWorld(cx + ux * 6, cy + uy * 6, lift));
+            if (lejos.z <= 0) return;
+            Vector2 a = new Vector2(lejos.x, Screen.height - lejos.y), b = new Vector2(sp.x, Screen.height - sp.y);
+            Vector2 v = b - a; float len = v.magnitude; if (len < 8f) return;
+            Vector2 dir = v / len;
+            float largo = Mathf.Clamp(len, 40f * esc, 90f * esc);              // longitud en pantalla acotada: que se lea a cualquier zoom
+            b -= dir * IconPx(32) * 0.7f;                                     // la punta se queda fuera del icono de la estación
+            a = b - dir * largo;
+            var col = ataca ? new Color32(0x98, 0x24, 0x20, 255) : new Color32(0xd4, 0xd0, 0xcc, 255);
+            float g = 2f * esc, punta = 7f * esc;
+            Linea(a, b, g, col);
+            Vector2 nrm = new Vector2(-dir.y, dir.x);
+            Linea(b, b - dir * punta + nrm * punta * 0.7f, g, col);
+            Linea(b, b - dir * punta - nrm * punta * 0.7f, g, col);
+        }
+
+        static void Linea(Vector2 a, Vector2 b, float grosor, Color col)
+        {
+            if (_app6Px == null) { _app6Px = new Texture2D(1, 1); _app6Px.SetPixel(0, 0, Color.white); _app6Px.Apply(); }
+            var m = GUI.matrix; var c = GUI.color;
+            Vector2 d = b - a; float ang = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
+            GUIUtility.RotateAroundPivot(ang, a);
+            GUI.color = col;
+            GUI.DrawTexture(new Rect(a.x, a.y - grosor * 0.5f, d.magnitude, grosor), _app6Px);
+            GUI.matrix = m; GUI.color = c;
+        }
+
         /// <summary>Leyenda de una línea bajo el informe de inteligencia (solo con la capa encendida).</summary>
         void DrawApp6Leyenda(float x, float y, float w)
         {
             if (!_app6On) return;
             GUI.Label(new Rect(x, y, w, _small.fontSize * 2f),
-                "<color=#808080>Mapa (I): rectángulo propio · cúpula NH90 · rombo horda (discontinuo: anunciada; rojo: ataca) · trébol sin identificar · «?» sin ojos allí</color>", _small);
+                "<color=#808080>Mapa (I): rectángulo propio · cúpula NH90 · rombo horda (discontinuo: anunciada; rojo: ataca; flecha: por dónde llega) · trébol sin identificar · «?» sin ojos allí</color>", _small);
         }
 
         static Texture2D App6Tex(string path)
