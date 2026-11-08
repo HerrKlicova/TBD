@@ -22,7 +22,7 @@ namespace TBD.View
     ///   TutorialHud.HordaEnEspera     la zona deja la horda agrupada mientras dura un capítulo con combate (D-N154).
     ///   TutorialHud.Activo/Saltar()   el menú de pausa enseña «Saltar tutorial» si Activo.
     ///   TutorialHud.AnclaY            la zona dice dónde acaban sus avisos (px); la tarjeta va debajo.
-    ///   TutorialHud.ComprobarC90(..)  la zona, una vez por segundo, con los pelotones y los zombis: tarjeta suelta del C90.
+    ///   TutorialHud.ComprobarC90(..)  la zona, una vez por segundo, con los pelotones, los zombis y «dentro del recinto»: tarjeta del C90.
     /// Lo que hace solo: «mapa_abierto» al cargar el mapa, «tren_en_nules» al llegar un tren a Nules, «vuelta_zona» al volver a la zona,
     /// y los anillos de los 3 nodos del mapa.
     /// Pruebas: -tutorial (sale aunque ya se haya visto), -sintutorial, -tutorial-auto (cada tarjeta se da por hecha a los 2,5 s y se captura en
@@ -63,12 +63,15 @@ namespace TBD.View
         public static void Saltar() { if (_i != null && _i._m != null) _i._m.Saltar(); }
         public static void Objetivo(string clave, Rect pantalla) { if (_i != null) _i._obj[clave] = (pantalla, Time.frameCount); }
 
-        /// <summary>La zona lo llama con sus pelotones y sus zombis (coordenadas en mm, como UnitsWorld). Cuenta como mucho una vez por segundo.</summary>
-        public static void ComprobarC90(UnitsWorld uw, IList<Target> zombis)
+        /// <summary>
+        /// La zona lo llama con sus pelotones, sus zombis (en mm, como UnitsWorld) y su prueba de «dentro del recinto». Cuenta como mucho una vez por segundo.
+        /// Regla de Lucía (8-nov): 40 zombis o más dentro del recinto a menos de 30 m de un pelotón de fusileros (C90Aviso).
+        /// </summary>
+        public static void ComprobarC90(UnitsWorld uw, IList<Target> zombis, Func<int, int, bool> dentroRecinto = null)   // null: sin la prueba de recinto (cuenta todos); Marcos la pasa
         {
             if (!Activo || Time.unscaledTime - _i._c90T < 1f) return;
             _i._c90T = Time.unscaledTime;
-            if (C90Aviso.Buscar(uw, zombis) >= 0) Senal(TutorialGuion.Senales.C90ATiro);
+            if (C90Aviso.Buscar(uw, zombis, dentroRecinto) >= 0) Senal(TutorialGuion.Senales.C90ATiro);
         }
 
         static void Ensure()

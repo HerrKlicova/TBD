@@ -135,17 +135,19 @@ namespace TBD.Sim.Tests
             var me = TutorialGuion.Nuevo(new MemoriaEnRam()); me.Arrancar(1000); me.Senal(TutorialGuion.Senales.C90ATiro);
             check(me.SueltaActual == null, "en difícil (sin tutorial) no sale");
 
-            // --- aviso del C90 (lectura de UnitsWorld)
+            // --- aviso del C90 (regla de Lucía, 8-nov): 40 o más zombis dentro del recinto a menos de 30 m de un pelotón de fusileros con C90
             var uw = new UnitsWorld(5); var f = uw.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0);
-            var zs = new List<Target>(); for (int i = 0; i < 20; i++) zs.Add(new Target { Id = i, X = 60_000 + (i % 5) * 600, Y = (i / 5) * 600 });
-            check(f.C90Left > 0 && C90Aviso.Buscar(uw, zs) == f.Id, "un grupo de 20 zombis a 60 m: los fusileros lo tienen a tiro");
-            var lejos = new List<Target>(); foreach (var z in zs) lejos.Add(new Target { Id = z.Id, X = z.X + 200_000, Y = z.Y });
-            check(C90Aviso.Buscar(uw, lejos) == -1, "a 260 m, fuera del alcance del C90, no avisa");
-            var sueltos = new List<Target>(); for (int i = 0; i < 20; i++) sueltos.Add(new Target { Id = i, X = 30_000 + i * 15_000, Y = 0 });
-            check(C90Aviso.Buscar(uw, sueltos) == -1, "zombis sueltos (cada 15 m) no son un grupo denso");
-            f.C90Left = 0; check(C90Aviso.Buscar(uw, zs) == -1, "sin C90 que lanzar, no avisa");
+            Func<int, int, bool> dentro = (x, y) => x < 25_000;                          // recinto de prueba: x < 25 m
+            var zs = new List<Target>(); for (int i = 0; i < 40; i++) zs.Add(new Target { Id = i, X = 10_000 + (i % 8) * 1000, Y = (i / 8) * 1000 });
+            check(f.C90Left > 0 && C90Aviso.Buscar(uw, zs, dentro) == f.Id, "40 zombis dentro del recinto a unos 15 m de los fusileros: avisa");
+            check(C90Aviso.Buscar(uw, zs.GetRange(0, 39), dentro) == -1, "con 39 no avisa (el umbral es 40, el tope de bajas del C90)");
+            var fuera = new List<Target>(); foreach (var z in zs) fuera.Add(new Target { Id = z.Id, X = z.X + 16_000, Y = z.Y });
+            check(C90Aviso.Buscar(uw, fuera, dentro) == -1, "los mismos 40 fuera del recinto no cuentan");
+            var lejos = new List<Target>(); foreach (var z in zs) lejos.Add(new Target { Id = z.Id, X = z.X - 60_000, Y = z.Y });
+            check(C90Aviso.Buscar(uw, lejos, null) == -1, "a más de 30 m del pelotón no cuentan");
+            f.C90Left = 0; check(C90Aviso.Buscar(uw, zs, dentro) == -1, "sin C90 que lanzar, no avisa");
             var ua = new UnitsWorld(5); ua.AddPlatoon(PlatoonKind.Ametralladores, 0, 0, 0);
-            check(C90Aviso.Buscar(ua, zs) == -1, "un pelotón sin C90 (ametralladores) no avisa");
+            check(C90Aviso.Buscar(ua, zs, dentro) == -1, "un pelotón que no es de fusileros no avisa");
 
             // --- «Preparar tren»: Sagunto → Nules con carga, espera en Nules, descarga y vuelta (solo SetSchedule)
             {
