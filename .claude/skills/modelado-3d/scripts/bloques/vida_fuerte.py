@@ -150,11 +150,14 @@ def construir(nombre="SM_VidaFuerte", lod=0):
                     for f in (-0.25, 0.25):
                         t.caja((-1.7 + k * 0.48, y + f, 0.24), (0.08, 0.08, 0.08), "planta")
             if v == 3:                                # cañas en A de las tomateras
-                for k in range(5):
-                    x = -1.6 + k * 0.8
-                    for s in (-1, 1):
-                        t.caja((x, y + s * 0.15, 0.9), (g * 0.5 if fino else 0.34, g * 0.5 if fino else 0.34, 1.4),
-                               "madera", rot_x=-s * 0.2)
+                if fino:
+                    for k in range(5):
+                        x = -1.6 + k * 0.8
+                        for s in (-1, 1):
+                            t.caja((x, y + s * 0.15, 0.9), (g * 0.5, g * 0.5, 1.4), "madera", rot_x=-s * 0.2)
+                else:                                 # LOD1: 3 postes sueltos de 2 px (los pares en A hacían bloques)
+                    for k in range(3):
+                        t.caja((-1.4 + k * 1.4, y, 0.85), (0.34, 0.34, 1.3), "madera")
             if v == 4 and fino:                       # matas secas
                 for k in range(3):
                     t.caja((-1.2 + k * 1.1, y, 0.25), (0.3, 0.3, 0.1), "brasa", rot_z=k)
