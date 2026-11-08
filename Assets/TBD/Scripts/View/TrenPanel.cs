@@ -204,11 +204,13 @@ namespace TBD.View
                 _llegado = true; _aviso = meta == Casa && W.Besieged(meta) ? "Tren a las puertas de " + nombre : "Tren en " + nombre; _avisoHasta = Time.unscaledTime + 5f;
                 Debug.Log($"[TREN] llega a {nombre} y se aparca (carga {sv.CargoTotal()} u, {W.Embarque.CountAboard(Viaje, PasajeroTipo.Peloton)} pelotón, {W.Embarque.CountAboard(Viaje, PasajeroTipo.Vehiculo)} vehículo)");
                 if (meta == Casa) TutorialHud.Senal(TutorialGuion.Senales.TrenEnSagunto);
-                if (meta == Nodo("Nules")) { TutorialHud.Senal(TutorialGuion.Senales.TrenEnNules); if (Origen == Casa && _munEnvio > 0) TutorialHud.CumplirObjetivo(); }
+                if (meta == Nodo("Nules")) TutorialHud.Senal(TutorialGuion.Senales.TrenEnNules);
+                TutorialHud.Viaje.Llegado(Viaje, nombre);
             }
         }
 
-        static void Empezar(int sv, int origen, int destino, int mun) { Viaje = sv; Origen = origen; Destino = destino; _descargando = false; _llegado = false; _munEnvio = mun; }
+        static void Empezar(int sv, int origen, int destino, int mun) { Viaje = sv; Origen = origen; Destino = destino; _descargando = false; _llegado = false; _munEnvio = mun; _descargadoAqui = false; }
+        static bool _descargadoAqui;     // la carga ya bajó en el destino (CmdCargo): el tren se queda y se puede preparar para volver
 
         // ---------------------------------------------------------------- vista del mapa
         enum Vista { Nada, Menu, Preparar }
@@ -277,15 +279,24 @@ namespace TBD.View
             _vista = Vista.Nada;
             Debug.Log($"[TREN] enviado {W.Services[sv].Train.Name} de {W.Graph.Nodes[_origenP].Name} a {W.Graph.Nodes[_destinoP].Name}: carga {string.Join("/", _carga)}, ETA {TrenPreparar.HhMm(TrenPreparar.EtaDesdeParada(W, sv, _destinoP))}");
             TutorialHud.Senal(TutorialGuion.Senales.TrenEnviado);
+            int carga = 0; foreach (var c in _carga) carga += c;
+            TutorialHud.Viaje.Enviado(sv, W.Graph.Nodes[_origenP].Name, W.Graph.Nodes[_destinoP].Name, carga);
         }
         /// <summary>Descargar fuera de casa (el flujo Sagunto → otra estación): la carga y la tropa se quedan allí y el tren vuelve a su origen.</summary>
+        /// <summary>
+        /// Descargar fuera de casa: la carga baja al andén con CmdCargo (orden de Nacho; con asedio, D-N166, la carga se queda a bordo) y la tropa se queda
+        /// en la estación. El tren se queda aparcado: para volver, «Preparar tren» desde esa estación.
+        /// </summary>
         void DescargarFuera()
         {
-            if (Viaje < 0) return; var p = TrenPreparar.Descarga(W, Viaje, Origen); if (p == null) return;
-            NetSession.PushPayload(NetCmdType.SetSchedule, Viaje, p);
-            Embarque.BajarTodo(Viaje, Destino); _descargando = true; _vista = Vista.Nada;
-            Debug.Log("[TREN] descarga en " + W.Graph.Nodes[Destino].Name + " y vuelve");
+            if (Viaje < 0) return;
+            var sv = W.Services[Viaje]; var delta = new int[NetConst.ResCount]; bool hay = false;
+            if (!W.Besieged(Destino)) for (int r = 0; r < NetConst.ResCount; r++) { delta[r] = -sv.Cargo[r]; hay |= sv.Cargo[r] > 0; }
+            if (hay) { var c = NetWorld.CmdCargo(W.Tick, Viaje, Destino, delta); NetSession.A.Push(c); if (NetSession.B != null) NetSession.B.Push(c); }
+            Embarque.BajarTodo(Viaje, Destino); _descargadoAqui = true; _vista = Vista.Nada;
+            Debug.Log("[TREN] descarga en " + W.Graph.Nodes[Destino].Name + " (el tren se queda)");
             TutorialHud.Senal(TutorialGuion.Senales.Descargado);
+            TutorialHud.Viaje.Descargado(Viaje, W.Graph.Nodes[Destino].Name);
         }
 
         static Texture2D Tex(Color c) { var t = new Texture2D(1, 1); t.SetPixel(0, 0, c); t.Apply(); return t; }
@@ -380,7 +391,7 @@ namespace TBD.View
             var rn = NodoRect(node); if (rn.width <= 0) rn = new Rect(Screen.width * 0.45f, Screen.height * 0.45f, 0, u * 2);   // nodo fuera de pantalla: en el centro
             var pel = W.Embarque.AtStation(node, PasajeroTipo.Peloton); var veh = W.Embarque.AtStation(node, PasajeroTipo.Vehiculo);
             int sv = TrenPreparar.TrenEn(W, node);
-            bool llegoDeFuera = Viaje >= 0 && _llegado && !_descargando && Destino == node && node != Casa && sv == Viaje && Origen == Casa;
+            bool llegoDeFuera = Viaje >= 0 && _llegado && !_descargando && !_descargadoAqui && Destino == node && node != Casa && sv == Viaje && Origen == Casa;
             float lh = u * 2.3f, w = u * 21, h = u * 2.6f + (pel.Count + veh.Count > 0 ? lh * (1 + (pel.Count + veh.Count + 1) / 2) : 0) + lh * 1.2f + (llegoDeFuera ? lh * 2.2f : 0);
             var r = new Rect(rn.xMax + 8, rn.y, w, h); if (r.xMax > Screen.width) r.x = rn.x - w - 8;
             GUI.DrawTexture(r, _panel);

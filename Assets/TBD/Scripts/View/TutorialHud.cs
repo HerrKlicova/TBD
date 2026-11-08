@@ -76,16 +76,17 @@ namespace TBD.View
             Debug.Log($"[TUTORIAL] destacamento de Nules: pelotón {platoonId}, vehículo {vehIndex}");
         }
 
-        // objetivo de después de la primera noche (D-N172), sin tarjetas de tutorial
-        static bool _objCumplido; static float _objCumplidoHasta;
-        static bool ObjetivoVisible
+        // objetivo de después de la primera noche (D-N172 ajustada): «Viaje de carga a Nules», sin tarjetas de tutorial. Lo avanza TrenPanel.
+        public static readonly ObjetivoViaje Viaje = new ObjetivoViaje();
+        static float _viajeCumplidoHasta = -1f;
+        static void VigilarViaje()
         {
-            get
-            {
-                var w = NetSession.A;
-                return _i != null && _i._principal != null && _i._principal.Estado == EstadoTutorial.Terminado && !_objCumplido && w != null && w.Tick >= NetConst.DayTicks + NetConst.Hours(7);
-            }
+            var w = NetSession.A;
+            if (Viaje.Paso == PasoViaje.Inactivo && _i != null && _i._principal != null && _i._principal.Estado == EstadoTutorial.Terminado && w != null && w.Tick >= NetConst.DayTicks + NetConst.Hours(7))
+            { Viaje.Empezar(); Debug.Log("[TUTORIAL] objetivo: " + ObjetivoViaje.Titulo); }     // al amanecer, después de la primera noche
+            if (Viaje.Paso == PasoViaje.Cumplido && _viajeCumplidoHasta < 0) { _viajeCumplidoHasta = Time.unscaledTime + 6f; Debug.Log("[TUTORIAL] objetivo cumplido: " + ObjetivoViaje.Titulo); }
         }
+        static bool ObjetivoVisible { get { return Viaje.Paso != PasoViaje.Inactivo && (Viaje.Paso != PasoViaje.Cumplido || Time.unscaledTime < _viajeCumplidoHasta); } }
         TutorialMotor _principal;                 // el tutorial de la primera partida (capítulos 0 a 3)
         bool _cap4Pendiente;
 
@@ -110,7 +111,7 @@ namespace TBD.View
             Debug.Log("[TUTORIAL] capítulo 4 (aeródromo): arranca");
         }
 
-        public static void CumplirObjetivo() { if (!ObjetivoVisible) return; _objCumplido = true; _objCumplidoHasta = Time.unscaledTime + 6f; Debug.Log("[TUTORIAL] objetivo cumplido: " + TutorialGuion.ObjetivoDevolverTren); }
+
 
         public static void Senal(string s)
         {
@@ -325,9 +326,10 @@ namespace TBD.View
                 GUI.DrawTexture(r, _panel); Frame(r, 0.8f); Objetivo(TutorialGuion.Resaltes.AvisoRadar, r);
                 GUI.Label(new Rect(r.x + u * 0.8f, r.y + u * 0.45f, r.width - u * 1.6f, r.height), "RADAR · Horda grande hacia Sagunto. Llegará esta noche.", _line);
             }
-            if (ObjetivoVisible || Time.unscaledTime < _objCumplidoHasta)
+            VigilarViaje();
+            if (ObjetivoVisible)
             {
-                string txt = _objCumplido ? "Objetivo cumplido: " + TutorialGuion.ObjetivoDevolverTren : "Objetivo: " + TutorialGuion.ObjetivoDevolverTren;
+                string txt = "Objetivo · " + ObjetivoViaje.Titulo + ": " + Viaje.Texto.Replace("{eta}", TrenPanel.EtaTexto());
                 var r = new Rect(8, Ancla(), Mathf.Min(640f, Screen.width * 0.42f), u * 2.4f);
                 GUI.DrawTexture(r, _panel); Frame(r, 0.5f);
                 GUI.Label(new Rect(r.x + u * 0.7f, r.y + u * 0.4f, r.width, r.height), txt, _line);

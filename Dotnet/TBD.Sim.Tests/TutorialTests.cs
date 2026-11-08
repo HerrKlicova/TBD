@@ -328,6 +328,34 @@ namespace TBD.Sim.Tests
                 a1.Avanzar(12f, l1); a2.Avanzar(12f, l2); check(string.Join(",", l1) == string.Join(",", l2) && l1.Exists(x => x.StartsWith("sfx_tren_arranque_diesel333_")), "misma semilla, mismos clips; el diésel usa sfx_tren_arranque_diesel333");
             }
 
+            // --- objetivo «Viaje de carga a Nules» (D-N172 ajustada): cargar, llegar, descargar con CmdCargo y volver
+            {
+                var ov = new ObjetivoViaje();
+                check(ov.Paso == PasoViaje.Inactivo && ov.Texto == null, "antes del amanecer no hay objetivo");
+                ov.Empezar(); check(ov.Paso == PasoViaje.Cargar && ov.Texto.StartsWith("Carga el tren en Sagunto"), "al amanecer: «Carga el tren en Sagunto y mándalo a Nules.»");
+                ov.Enviado(1, "Sagunto", "Nules", 0); check(ov.Paso == PasoViaje.Cargar, "sin carga no cuenta");
+                ov.Enviado(1, "Sagunto", "Castellón", 50); check(ov.Paso == PasoViaje.Cargar, "a otro sitio no cuenta");
+                ov.Enviado(1, "Sagunto", "Nules", 50); check(ov.Paso == PasoViaje.EnCamino && ov.Texto.Contains("{eta}"), "con carga hacia Nules: en camino (con el ETA)");
+                ov.Llegado(2, "Nules"); check(ov.Paso == PasoViaje.EnCamino, "otro tren no cuenta");
+                ov.Llegado(1, "Nules"); check(ov.Paso == PasoViaje.Descargar, "llega a Nules: «Descarga la carga.»");
+                ov.Descargado(1, "Nules"); check(ov.Paso == PasoViaje.Volver, "descargado: «Devuelve el tren a Sagunto.»");
+                ov.Llegado(1, "Sagunto"); check(ov.Paso == PasoViaje.Cumplido && ov.Texto.StartsWith("Cumplido"), "de vuelta en Sagunto: cumplido");
+                // y en la red: CmdCargo baja la carga en Nules con el tren parado, que luego vuelve
+                var w = NetScenario.Mvp(); w.DirectorEnabled = false;
+                int sag = TrenPreparar.Nodo(w, "Sagunto"), nul = TrenPreparar.Nodo(w, "Nules");
+                int sv = -1; for (int g = 0; g < 2 * NetConst.DayTicks && sv < 0; g++) { sv = TrenPreparar.TrenEn(w, sag); if (sv < 0) w.Step(); }
+                var carga = new int[NetConst.ResCount]; carga[(int)Res.Municion] = 30;
+                w.SetSchedule(sv, TrenPreparar.Envio(w, sv, nul, carga));
+                var s = w.Services[sv]; bool salio = false; long t0 = w.Tick;
+                while (w.Tick - t0 < NetConst.DayTicks / 2) { w.Step(); if (!s.AtStop) salio = true; if (salio && s.AtStop) break; }
+                w.SetSchedule(sv, TrenPreparar.Aparcar(w, sv)); w.Step();
+                int nulMun0 = w.Stock[nul, (int)Res.Municion];
+                w.Push(NetWorld.CmdCargo(w.Tick, sv, nul, new[] { -s.Cargo[0], -s.Cargo[1], -s.Cargo[2], -s.Cargo[3] }));
+                for (int i = 0; i < 3; i++) w.Step();
+                check(s.CargoTotal() == 0 && w.Stock[nul, (int)Res.Municion] == nulMun0 + 30 && s.AtStop && s.Stops[s.StopIndex].Node == nul, "CmdCargo descarga en Nules y el tren se queda parado allí");
+                check(w.SetSchedule(sv, TrenPreparar.Envio(w, sv, sag, null)) == ScheduleResult.Ok, "y desde Nules se le puede mandar de vuelta a Sagunto");
+            }
+
             // --- intro C
             var it = new IntroSecuencia();
             check(it.Tarjetas.Length == 5 && it.TextoEntero == "Día 41 desde el brote.", "intro C: 5 tarjetas y empieza por «Día 41 desde el brote.»");

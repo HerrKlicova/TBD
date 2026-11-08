@@ -135,8 +135,7 @@ namespace TBD.Tutorial
             };
         }
 
-        /// <summary>Después de la primera noche (D-N172): objetivo sin tarjetas de tutorial (el viaje con carga de la D-N154).</summary>
-        public const string ObjetivoDevolverTren = "Lleva el tren a Nules con munición";
+        // el objetivo de después de la primera noche está en ObjetivoViaje.cs («Viaje de carga a Nules»)
 
         /// <summary>
         /// Capítulo 4, apoyo aéreo desde Bétera (D-N173; adapta tutorial-refuerzos.md con el aeródromo como origen). Salta la primera vez que el jugador abre el
