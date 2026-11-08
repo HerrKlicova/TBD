@@ -84,6 +84,7 @@ namespace TBD.Net
             var sv = Services[service];
             if (sv.Ambushed) return "El tren está emboscado";
             if (!TrainAtNode(sv, node)) return "El tren no está en la estación";
+            if (sv.GateNode == node && t == PasajeroTipo.Vehiculo) return "El tren espera a las puertas: los vehículos suben en el andén";   // D-N152
             int i = Embarque.Find(t, id);
             if (i >= 0)
             {
@@ -116,7 +117,7 @@ namespace TBD.Net
             {
                 var p = Embarque.Lista[i];
                 if (p.Service != service || p.Estado != PasajeroEstado.ABordo) continue;
-                if (siege && p.Tipo == PasajeroTipo.Vehiculo) continue;
+                if ((siege || Services[service].GateNode == node) && p.Tipo == PasajeroTipo.Vehiculo) continue;   // a las puertas solo baja la tropa (D-N152, D-N166)
                 n++;
                 if (node == Embarque.HomeNode) { Embarque.Lista.RemoveAt(i); continue; }
                 p.Estado = PasajeroEstado.EnEstacion; p.Node = node; Embarque.Lista[i] = p;
