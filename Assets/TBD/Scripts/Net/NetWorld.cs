@@ -29,7 +29,7 @@ namespace TBD.Net
     }
 
     // ================================================================== órdenes
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, SpendMaterials = 22 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, SpendMaterials = 22, TrainCargo = 23 }
 
     public struct NetCommand
     {
@@ -517,6 +517,7 @@ namespace TBD.Net
                     case NetCmdType.AssignWorkers: AssignWorkers(c.Arg, c.Arg2); break;                    // Arg = nodo, Arg2 = obreros
                     case NetCmdType.HaltAtSite: HaltAtSite(c.Arg, c.Arg2); break;                           // Arg = emplazamiento (-1 cancela), Arg2 = servicio
                     case NetCmdType.SetSchedule: SetSchedule(c.Arg, c.Payload); break;
+                    case NetCmdType.TrainCargo: MoveCargo(c.Arg, c.Payload); break;      // Arg = tren, Payload = [nodo, 4 cantidades] (Iker: descargar sin salir)
                     case NetCmdType.TrainLoad: if (c.Payload != null && c.Payload.Length == 2) LoadPassenger(c.Arg, (PasajeroTipo)(c.Arg2 & 1), c.Payload[0], c.Payload[1]); break;   // D-N166: Arg = tren, Arg2 = tipo, Payload = [id, nodo]
                     case NetCmdType.TrainUnload: UnloadPassengers(c.Arg, c.Arg2); break;                    // D-N166: Arg = tren, Arg2 = nodo       // Arg = tren, Payload = [nodo, hora de salida (ticks), 4 cargas] por parada
                     case NetCmdType.OrderTrain: OrderTrain((TallerKind)c.Arg); break;
@@ -1178,6 +1179,30 @@ namespace TBD.Net
         }
 
         void MakeNoise(int node) { Attraction[node] += 70; }       // el tráfico atrae a la Colmena (semilla de la memoria, GDD §5.2)
+
+        /// <summary>Orden TrainCargo (Iker, 8-nov): carga o descarga con el tren PARADO en la estación, sin salir. delta[r] &gt; 0 sube de la estación al tren
+        /// (hasta la capacidad y lo que haya), &lt; 0 baja del tren a la estación (lo que lleve). Misma regla que Transfer al salir. Devuelve las u movidas, o −1 si el tren no está
+        /// parado en ese nodo o está emboscado.</summary>
+        public int MoveCargo(int service, int node, int[] delta)
+        {
+            if (service < 0 || service >= Services.Count || node < 0 || node >= Graph.Nodes.Count || delta == null || delta.Length != NetConst.ResCount) return -1;
+            var s = Services[service]; if (s.Ambushed || !TrainAtNode(s, node)) return -1;
+            int moved = 0;
+            for (int r = 0; r < NetConst.ResCount; r++)
+            {
+                int q = Math.Max(-MaxScheduleTransfer, Math.Min(MaxScheduleTransfer, delta[r]));
+                if (q > 0) { int m = Math.Min(q, Math.Min(NetConst.TrainCapacity - s.CargoTotal(), Stock[node, r])); if (m <= 0) continue; Stock[node, r] -= m; s.Cargo[r] += m; moved += m; }
+                else if (q < 0) { int m = Math.Min(-q, s.Cargo[r]); if (m <= 0) continue; s.Cargo[r] -= m; Stock[node, r] += m; moved += m; }
+            }
+            s.Train.CargoTonnes = s.CargoTotal();
+            return moved;
+        }
+        void MoveCargo(int service, int[] payload) { if (payload == null || payload.Length != 1 + NetConst.ResCount) return; var d = new int[NetConst.ResCount]; Array.Copy(payload, 1, d, 0, d.Length); MoveCargo(service, payload[0], d); }
+        public static NetCommand CmdCargo(long tick, int service, int node, int[] delta)
+        {
+            var pl = new int[1 + NetConst.ResCount]; pl[0] = node; if (delta != null) Array.Copy(delta, 0, pl, 1, Math.Min(delta.Length, NetConst.ResCount));
+            return new NetCommand { Tick = tick, Type = NetCmdType.TrainCargo, Arg = service, Payload = pl };
+        }
 
         void Transfer(TrainService s, ScheduleStop stop)
         {
