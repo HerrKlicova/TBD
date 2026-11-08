@@ -34,6 +34,8 @@ namespace TBD.Sim.Tests
             int trainX0 = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_TRAIN_X0") ?? "0", out trainX0);   // cola del tren en mm; el tren mide 64 m (74000 = como en la qa25)
             string vehs = Environment.GetEnvironmentVariable("TBD_VEH") ?? "ambos";
             // comparación con la zona (8-nov): TBD_TGT_M = radio de blancos alrededor de los pelotones (la zona usa 60), TBD_FUERZA=zona (posiciones de InitNight), TBD_BOT=no (sin órdenes, solo la recarga automática al 30 %)
+            int seed0 = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_SEED0") ?? "0", out seed0);   // Sara: desplaza las semillas para partir una corrida en varios procesos
+            bool tramos = Environment.GetEnvironmentVariable("TBD_TRAMOS") == "si" || Environment.GetEnvironmentVariable("TBD_TRAMOS") == "sinreparar", repairOn = Environment.GetEnvironmentVariable("TBD_TRAMOS") == "si";   // D-N163: muro por tramos con el NightBot reparando
             int tgtM = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_TGT_M") ?? "0", out tgtM);
             bool zoneForce = Environment.GetEnvironmentVariable("TBD_FUERZA") == "zona", noBot = Environment.GetEnvironmentVariable("TBD_BOT") == "no";
             Console.WriteLine("dificultad;vehiculos;partidas;victorias;municion_p10_u;muro_medio_pct;pila_max_media;abatidos_vehiculos_medio;recargas_vehiculos_medio;municion_final_media_u;bajas_medias;derrotas_tren;derrotas_estacion;tren_final_medio_pct;estacion_final_media_pct;trepan_medio;muro_p50_pct");
@@ -43,8 +45,8 @@ namespace TBD.Sim.Tests
                     int wins = 0; var ammos = new List<int>(); long wall = 0, pile = 0, vk = 0, vr = 0, ammo = 0, deaths = 0, trainF = 0, stF = 0, climbed = 0; int lostT = 0, lostS = 0; var walls = new List<int>();
                     for (int i = 0; i < n; i++)
                     {
-                        var sim = NightSim.FromJson(json, dif, (uint)(i + 1)); if (climb >= 0) sim.SP.ClimbPileZ = climb; if (climbR >= 0) sim.SP.ClimbPermilS = climbR; if (trainX0 > 0) { var tp = sim.Night.P; tp.TrainRect = new RectMm(trainX0, tp.TrainRect.Y0, trainX0 + 64000, tp.TrainRect.Y1); sim.Night.P = tp; }
-                        sim.TargetRadiusMm = tgtM * 1000; if (zoneForce) sim.AddZoneForce(); else sim.AddDefaultForce(); if (veh) sim.AddDefaultVehicles(true); if (noBot) sim.AutoPlatoonResupply = true; else sim.Bot = NightBot.FromParams(sim.SP);
+                        var sim = NightSim.FromJson(json, dif, (uint)(i + 1 + seed0)); if (climb >= 0) sim.SP.ClimbPileZ = climb; if (climbR >= 0) sim.SP.ClimbPermilS = climbR; if (trainX0 > 0) { var tp = sim.Night.P; tp.TrainRect = new RectMm(trainX0, tp.TrainRect.Y0, trainX0 + 64000, tp.TrainRect.Y1); sim.Night.P = tp; }
+                        sim.TargetRadiusMm = tgtM * 1000; if (zoneForce) sim.AddZoneForce(); else sim.AddDefaultForce(); if (veh) sim.AddDefaultVehicles(true); if (noBot) sim.AutoPlatoonResupply = true; else sim.Bot = NightBot.FromParams(sim.SP); if (tramos) { sim.EnableSegments(); sim.AutoRepair = repairOn; }
                         while (sim.Night.State == NightState.Jugando) sim.Run(300);
                         if (sim.Night.State == NightState.Victoria) wins++; ammos.Add(sim.AmmoMilliU());
                         if (sim.Night.State == NightState.Derrota) { if (sim.Night.EndedByTrain) lostT++; if (sim.Night.EndedByStation) lostS++; }
@@ -1014,6 +1016,42 @@ namespace TBD.Sim.Tests
                     check(n3.Replans >= 1 && r3.arrived && Math.Abs(r3.x - 200000) < 2000, $"caminos: atascado 2 s contra un vehículo aparcado, recalcula ({n3.Replans} veces) y llega ({r3.ticks} ticks)");
                     var big = new NavGrid(0, 0, 510000, 480000, 1000); var sw0 = Stopwatch.StartNew(); big.Build(obs, 1800); var pp = new List<PointMm>(); for (int i = 0; i < 20; i++) big.FindPath(5000 + i * 1000, 5000, 500000, 470000 - i * 1000, pp); sw0.Stop();
                     check(sw0.ElapsedMilliseconds < 4000, $"caminos: 20 búsquedas de punta a punta del mapa de 510 × 480 m en {sw0.ElapsedMilliseconds} ms");
+                }
+                // D-N163 (Lucía, construccion-reparar.md §8): el muro por tramos en NightSim, Repair y Rebuild con las condiciones de §4 y §5
+                {
+                    string jn = TBD.Net.BalanceSource.Read("noche_sagunto.json");
+                    var ts = NightSim.FromJson(jn, null, 3); ts.AddDefaultForce(); ts.EnableSegments();
+                    long sumMax = 0, sumHp = 0; foreach (var sgm in ts.Segments) { sumMax += sgm.HpMax; sumHp += sgm.Hp; }
+                    check(ts.Segments.Count == 28 && sumMax == ts.SP.WallHp && sumHp == ts.WallHp, $"D-N163: el muro se parte en {ts.Segments.Count} tramos de ~10 m y la vida suma la de siempre ({sumMax})");
+                    int east = -1, west = -1; for (int i = 0; i < ts.Segments.Count; i++) { var sgm = ts.Segments[i]; if (sgm.Side == 1 && east < 0 && sgm.A0 <= 64500 && sgm.A1 > 64500) east = i; if (sgm.Side == 0 && sgm.A0 <= 64500 && sgm.A1 > 64500) west = i; }
+                    var eg = ts.Segments[east]; eg.Hp = eg.HpMax / 2; ts.Segments[east] = eg;
+                    int mat0 = ts.MaterialsU; ts.MaterialsU = 0; string r0 = ts.RepairBlockReason(east); ts.MaterialsU = mat0;
+                    int zi = ts.ImportZombie(158000, 64500); string r1 = ts.RepairBlockReason(east);
+                    var tsx = NightSim.FromJson(jn, null, 3); tsx.EnableSegments(); var eg2 = tsx.Segments[east]; eg2.Hp = 1000; string r2 = tsx.RepairBlockReason(east);
+                    var eg3 = tsx.Segments[west]; eg3.Hp = 0; string r3 = tsx.RepairBlockReason(west);
+                    check(r0 == "Sin materiales" && r1 == "Hay zombis pegados al tramo" && r2 == "Sin zapadores" && r3 == "Tramo caído: hay que reconstruirlo" && !ts.Repair(east), $"D-N163 §4: sin materiales, con zombis a 3 m, sin zapadores o caído no se repara, con su motivo («{r0}», «{r1}», «{r2}», «{r3}»)");
+                    var ts2 = NightSim.FromJson(jn, null, 3); ts2.AddDefaultForce(); ts2.EnableSegments(); var e2 = ts2.Segments[east]; e2.Hp = e2.HpMax / 2; int half = e2.HpMax - e2.Hp; ts2.SumForTests();
+                    int m0 = ts2.MaterialsU; bool ok = ts2.Repair(east); int t2 = 0; bool heldFire = false;
+                    for (; t2 < 3000 && ts2.WallJobs.Count > 0; t2++) { ts2.Step(); foreach (var p in ts2.Units.Platoons) if (p.Kind == PlatoonKind.Zapadores && ts2.WallJobs.Count > 0 && ts2.WallJobs[0].Working && p.HoldFire) heldFire = true; }
+                    int spentU = m0 - ts2.MaterialsU;
+                    check(ok && e2.Hp == e2.HpMax && ts2.Repaired == 1 && heldFire && spentU >= half / 5000 && spentU <= half / 5000 + 1, $"D-N163 §3: los zapadores van, reparan sin disparar y dejan el tramo al máximo: {half} de vida, {spentU} u de materiales, {t2 / 30} s");
+                    bool over = false; foreach (var p in ts2.Units.Platoons) if (p.Kind == PlatoonKind.Zapadores && p.HoldFire) over = true;
+                    check(!over, "D-N163: al acabar la obra los zapadores vuelven a disparar");
+                    // brecha: por un tramo a 0 entran (sin trepar), por el muro entero no
+                    Func<bool, int> inside = breach => { var b = NightSim.FromJson(jn, null, 5); b.SP.ClimbPermilS = 0; b.AddDefaultForce(); b.EnableSegments(); if (breach) { var bg = b.Segments[west]; bg.Hp = 0; b.SumForTests(); } int max = 0;
+                        for (int t = 0; t < 3600; t++) { b.Step(); if (t % 300 == 0) { var lz = new List<Target>(); b.ExportZombies(lz); int n = 0; foreach (var q in lz) if (q.X > b.SP.FortX0 && q.X < b.SP.FortX1 && q.Y > b.SP.FortY0 && q.Y < b.SP.FortY1) n++; max = Math.Max(max, n); } } return max; };
+                    int inB = inside(true), inN = inside(false);
+                    check(inB > 20 && inN == 0, $"D-N163 §1: por una brecha entran ({inB} dentro a la vez) y con el muro entero y sin trepar, nadie ({inN})");
+                    // reconstruir: solo sin zombis a 15 m; vuelve al 30 % y cuesta 2 u cada 10 m
+                    var ts3 = NightSim.FromJson(jn, null, 3); ts3.AddDefaultForce(); ts3.EnableSegments(); var e3 = ts3.Segments[east]; e3.Hp = 0; ts3.SumForTests();
+                    int zq = ts3.ImportZombie(165000, 64500); string rb = ts3.RebuildBlockReason(east);
+                    var ts4 = NightSim.FromJson(jn, null, 3); ts4.AddDefaultForce(); ts4.EnableSegments(); var e4 = ts4.Segments[east]; e4.Hp = 0; ts4.SumForTests();
+                    int m4 = ts4.MaterialsU; bool rok = ts4.Rebuild(east) && !ts4.Repair(east); int t4 = 0; for (; t4 < 3000 && ts4.WallJobs.Count > 0; t4++) ts4.Step();
+                    check(rb == "Hay zombis a menos de 15 m" && rok && e4.Hp == e4.HpMax * 300 / 1000 && m4 - ts4.MaterialsU == 2 && ts4.Rebuilt == 1, $"D-N163 §5: con zombis a 15 m no se reconstruye («{rb}»); sin ellos vuelve al 30 % ({e4.Hp} de {e4.HpMax}) por {m4 - ts4.MaterialsU} u en {t4 / 30} s");
+                    // NightBot repara por debajo del 90 % y todo es determinista
+                    Func<(ulong h, int rep, int wall, NightState st)> botNight = () => { var b = NightSim.FromJson(jn, null, 11); b.AddDefaultForce(); b.AddDefaultVehicles(true); b.Bot = NightBot.FromParams(b.SP); b.EnableSegments(); b.AutoRepair = true; var dmg = b.Segments[east]; dmg.Hp = dmg.HpMax / 2; b.SumForTests(); while (b.Night.State == NightState.Jugando) b.Run(300); return (b.Hash(), b.Repaired + b.Rebuilt, (int)((long)b.WallHp * 100 / b.SP.WallHp), b.Night.State); };
+                    var n1 = botNight(); var n2 = botNight();
+                    check(n1.h == n2.h && n1.rep > 0, $"D-N163 §8: el NightBot repara solo un tramo del este al 50 % (obras {n1.rep}, muro {n1.wall} %, {n1.st}) y la noche con tramos es determinista");
                 }
                 // D-N133: causa y recuentos
                 check(g.Cause == DefeatCause.Tren && g.DefeatHeadline() == "El tren ha caído." && g.TrainsAlive == 0 && g.StationsAlive == 1, "D-N133: sin tren la causa es el tren y el titular «El tren ha caído.»");
