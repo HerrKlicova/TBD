@@ -19,6 +19,35 @@ namespace TBD.View
         readonly List<Seg> _segs = new List<Seg>(); readonly bool _tramos = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sintramos") < 0; bool _segsInit, _obras, _tt1, _tt2; float _mats = 40f; Seg _segSel; float _segMsgUntil; string _segMsg = ""; float _repairAcc;
         static readonly Color SgAmbar = new Color32(0xe0, 0x8c, 0x30, 255), SgRojo = new Color32(0x98, 0x24, 0x20, 255);
 
+        int _losSeg0 = -1;
+        /// <summary>D-N174 (Lucia, Nacho): el fuego directo de la infanteria necesita linea de vision. Los solidos de la zona (CSV de Alvaro) van a UnitsWorld.LosBlockers; cada tramo del muro
+        /// oeste se anade como muro propio (no tapa a quien esta a 2 m) y se apaga al caer. El AG36 (lanzagranadas) es tiro curvo y no la necesita (lo decide UnitsWorld).</summary>
+        void LosInit()
+        {
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinlos") >= 0 || _uw == null) return;
+            _uw.LosBlockers.Clear(); _losSeg0 = -1;
+            try { _uw.LosBlockers.AddRange(NightSim.LosSceneFromCsv(BalanceSource.Read("sagunto_obstaculos_v1.csv"))); }
+            catch (System.Exception e) { Debug.LogWarning("[NOCHE] linea de vision: no se pudo leer sagunto_obstaculos_v1.csv (" + e.Message + ")"); return; }
+            Debug.Log("[NOCHE] linea de vision: " + _uw.LosBlockers.Count + " solidos del inventario");
+        }
+
+        void LosSegmentos()
+        {
+            if (_uw == null || _uw.LosBlockers.Count == 0 || _losSeg0 >= 0 || _segs.Count == 0) return;
+            _losSeg0 = _uw.LosBlockers.Count;
+            foreach (var s in _segs)
+            {
+                int x0 = Mathf.RoundToInt(Mathf.Min(s.A.x, s.B.x) * 1000f) - 500, x1 = Mathf.RoundToInt(Mathf.Max(s.A.x, s.B.x) * 1000f) + 500, y0 = Mathf.RoundToInt(Mathf.Min(s.A.y, s.B.y) * 1000f), y1 = Mathf.RoundToInt(Mathf.Max(s.A.y, s.B.y) * 1000f);
+                _uw.LosBlockers.Add(new UnitsWorld.LosBlocker { R = new RectMm(x0, y0, x1, y1), HeightMm = s.IsGate ? 2500 : 2100, OwnWall = true, Off = s.Open });
+            }
+        }
+
+        void LosSync()
+        {
+            if (_losSeg0 < 0) return;
+            for (int i = 0; i < _segs.Count; i++) { var b = _uw.LosBlockers[_losSeg0 + i]; if (b.Off != _segs[i].Open) { b.Off = _segs[i].Open; _uw.LosBlockers[_losSeg0 + i] = b; } }
+        }
+
         void TramosInit()
         {
             if (!_tramos || _segsInit) return;
@@ -36,6 +65,7 @@ namespace TBD.View
             Push(CmdType.ClearWest);
             foreach (var s in _segs) Push(CmdType.BuildSeg, s.Id * 10000 + 2500, new Unity.Mathematics.float2(s.A.x, s.A.y), new Unity.Mathematics.float2(s.B.x, s.B.y));
             Debug.Log($"[NOCHE] tramos: {_segs.Count} tramos en el muro oeste (vida total {SegTotal(false):0})");
+            LosSegmentos();
         }
 
         float SegTotal(bool max) { float t = 0f; foreach (var s in _segs) t += max ? s.Max : s.Hp; return t; }
@@ -49,6 +79,7 @@ namespace TBD.View
                 if (_ng.Tick >= 1800 && !_tt1) { _tt1 = true; _segs[1].Open = true; Push(CmdType.SetSegment, _segs[1].Id * 10 + 1); Debug.Log("[TEST] tramos: abro " + _segs[1].Name + " en el tick 1800"); }
                 if (_ng.Tick >= 2400 && !_tt2) { _tt2 = true; _segs[1].Open = false; _segs[1].Hp = _segs[1].Max * 0.3f; Push(CmdType.SetSegment, _segs[1].Id * 10 + 0); Debug.Log("[TEST] tramos: cierro " + _segs[1].Name + " en el tick 2400"); }
             }
+            LosSync();
             foreach (var s in _segs) s.Pile = 0;
             for (int i = 0; i < _zomPos.Count; i++)
             {
