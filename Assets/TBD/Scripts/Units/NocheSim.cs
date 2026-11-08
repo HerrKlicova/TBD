@@ -236,6 +236,7 @@ namespace TBD.Units
                 if (geo.ContainsKey("recinto_mm")) { var a = arr(geo["recinto_mm"]); sp.FortX0 = a[0]; sp.FortY0 = a[1]; sp.FortX1 = a[2]; sp.FortY1 = a[3]; }
                 if (geo.ContainsKey("puerta_mm")) { var a = arr(geo["puerta_mm"]); sp.StationX = a[0]; sp.StationY = a[1]; }
                 if (geo.ContainsKey("muro_hp")) sp.WallHp = Convert.ToInt32(geo["muro_hp"]);
+                if (geo.ContainsKey("tren_no_es_derrota") && geo["tren_no_es_derrota"] is bool tb) np.TrainNotDefeat = tb;
                 if (geo.ContainsKey("estacion_mm")) { var a = arr(geo["estacion_mm"]); np.StationRect = new RectMm(a[0], a[1], a[2], a[3]); }
                 if (geo.ContainsKey("tren_mm")) { var a = arr(geo["tren_mm"]); np.TrainRect = new RectMm(a[0], a[1], a[2], a[3]); }
                 if (geo.ContainsKey("entradas_mm"))
@@ -447,8 +448,9 @@ namespace TBD.Units
             else if (AutoPlatoonResupply && Night.Tick % 15 == 0) ResupplyBot();   // fuera de pantalla: la misma recarga automática al 30 % que hace la zona cada 15 ticks
             int before = TotalAmmo();
             Units.Step(_targets, _res);
+            if (Dx != null) foreach (var ev in _res.Shots) { var dp = Units.Find(ev.Platoon); var a = DxRow((dp != null ? dp.Kind.ToString() : "?") + "/" + ev.Weapon); a[0] += WeaponCatalog.Table[(int)ev.Weapon].CostShots * 1000L; a[4]++; }
             foreach (var h in _res.Hits)
-                if (h.TargetId >= 0 && h.TargetId < _z.Count && _z[h.TargetId].Alive) { _z[h.TargetId].Alive = false; Kills++; Units.NoteKill(h.Platoon); if (cur != null) cur.Kills++; }
+                if (h.TargetId >= 0 && h.TargetId < _z.Count && _z[h.TargetId].Alive) { if (Dx != null) { var dp = Units.Find(h.Platoon); DxRow((dp != null ? dp.Kind.ToString() : "?") + "/" + h.Weapon)[1 + DxCat(_z[h.TargetId])]++; } _z[h.TargetId].Alive = false; Kills++; Units.NoteKill(h.Platoon); if (cur != null) cur.Kills++; }
             if (cur != null) cur.AmmoSpentShots += _res.AmmoSpent;
             // 4b) los vehículos (fuera de UnitsWorld; misma regla que la zona)
             if (Vehicles.Count > 0) VehiclesStep(cur);
@@ -566,12 +568,12 @@ namespace TBD.Units
                 bool los = !v.Airborne && Units.LosBlockers.Count > 0;
                 for (int i = 0; i < _z.Count; i++) { var z = _z[i]; if (!z.Alive) continue; long dx = z.X - v.X, dy = z.Y - v.Y, d2 = dx * dx + dy * dy; if (d2 < best && (!los || Units.LineOfSight(v.X, v.Y, z.X, z.Y, EyeMm(v.Kind)))) { best = d2; bi = i; } }
                 if (bi < 0) continue;
-                v.NextFireTick = tick + v.PeriodTicks; v.Shots--; v.ShotsFired++;
+                v.NextFireTick = tick + v.PeriodTicks; v.Shots--; v.ShotsFired++; long[] dxr = null; if (Dx != null) { dxr = DxRow("Vehiculo/" + v.Kind); dxr[4]++; dxr[0] += v.MaxShots > 0 ? (long)v.ResupplyMilliU * WeaponCatalog.ShotsPerU / v.MaxShots : 0; }
                 int tx = _z[bi].X, ty = _z[bi].Y, left = v.KillsPerShot; long r2 = (long)v.SplashMm * v.SplashMm;
                 for (int i = 0; i < _z.Count && left > 0; i++)
                 {
                     var z = _z[i]; if (!z.Alive) continue; long dx = z.X - tx, dy = z.Y - ty;
-                    if (dx * dx + dy * dy < r2) { z.Alive = false; left--; Kills++; VehicleKills++; v.Kills++; if (cur != null) { cur.Kills++; cur.VehicleKills++; } }
+                    if (dx * dx + dy * dy < r2) { if (dxr != null) dxr[1 + DxCat(z)]++; z.Alive = false; left--; Kills++; VehicleKills++; v.Kills++; if (cur != null) { cur.Kills++; cur.VehicleKills++; } }
                 }
             }
         }
@@ -649,6 +651,11 @@ namespace TBD.Units
             bool inX = x > SP.FortX0 - r && x < SP.FortX1 + r, inY = y > SP.FortY0 - r && y < SP.FortY1 + r;
             return inX && inY;     // fuera del recinto y a menos de r de él
         }
+
+        /// <summary>Medida (rama de medidas, fuera del hash y del guardado): por «pelotón/arma» → [coste en milésimas de disparo del almacén, abatidos en la pila, en la marcha, dentro del recinto, disparos].</summary>
+        public Dictionary<string, long[]> Dx;
+        long[] DxRow(string k) { long[] a; if (!Dx.TryGetValue(k, out a)) { a = new long[5]; Dx[k] = a; } return a; }
+        int DxCat(Zomb z) { return InFort(z.X, z.Y) ? 2 : NearWall(z.X, z.Y) ? 0 : 1; }
 
         public int AliveZombies() { int n = 0; for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) n++; return n; }
         int PlatoonAmmo() { int n = 0; foreach (var p in Units.Platoons) n += p.AmmoShots; return n; }

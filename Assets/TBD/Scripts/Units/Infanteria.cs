@@ -214,6 +214,7 @@ namespace TBD.Units
             }
         }
 
+        public long DxResupShots, DxResupN;      // medida: lo que sale del almacén en recargas de pelotón (fuera del hash)
         public Platoon Find(int id) { for (int i = 0; i < Platoons.Count; i++) if (Platoons[i].Id == id) return Platoons[i]; return null; }
 
         // ------------------------------------------------------------ órdenes (cada una es una orden de la simulación)
@@ -250,6 +251,7 @@ namespace TBD.Units
             StockShots -= n; p.AmmoShots += n;
             int c = WeaponCatalog.Table[(int)WeaponId.C90].CostShots;
             while (p.C90Left < p.C90Cap && StockShots >= c && c >= 0) { StockShots -= c; p.C90Left++; n += c; if (c == 0) { p.C90Left = p.C90Cap; break; } }
+            if (n > 0) { DxResupShots += n; DxResupN++; }
             return n;
         }
 

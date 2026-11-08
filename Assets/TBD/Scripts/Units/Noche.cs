@@ -48,6 +48,8 @@ namespace TBD.Units
         public RectMm StationRect, TrainRect;
         /// <summary>D-N136 (Lucía): la noche se gana al acabar con la horda, sin esperar al amanecer (además de la victoria de siempre a las 06:00).</summary>
         public bool WinOnClear;
+        /// <summary>Nules (Hugo, 8-nov): perder el tren no es derrota (se pierden el tren y su carga). false = como siempre.</summary>
+        public bool TrainNotDefeat;
 
         public static NightParams Default()
         {
@@ -230,7 +232,7 @@ namespace TBD.Units
                 if (due > 0) { Spawned[w] += due; _lastSpawnTick = Tick; }
             }
             // fin de partida: la derrota tiene prioridad sobre la victoria en el mismo tick
-            if (!stationAlive || !trainAlive) { State = NightState.Derrota; DefeatTick = Tick; EndedByStation = !stationAlive; EndedByTrain = !trainAlive; }
+            if (!stationAlive || (!trainAlive && !P.TrainNotDefeat)) { State = NightState.Derrota; DefeatTick = Tick; EndedByStation = !stationAlive; EndedByTrain = !trainAlive && !P.TrainNotDefeat; }
             else if (P.WinOnClear && ZombiesAlive == 0 && Tick > _lastSpawnTick && AllSpawned)      // D-N164 (Lucía, 8-nov): solo se gana acabando con la horda; a las 06:00 la que queda sigue atacando
             {
                 WonByClear = true; State = NightState.Victoria; NightsSurvived++;
