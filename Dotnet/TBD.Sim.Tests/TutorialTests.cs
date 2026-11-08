@@ -437,6 +437,18 @@ namespace TBD.Sim.Tests
                 VueloLocal.Toma(128, 104, 252, 40f, out xx, out zz, out yy); check(yy == VueloLocal.AlturaM && xx > 128, "antes de tomar viene en vuelo desde el lado del rumbo de llegada (252°: llega desde el este-noreste)");
             }
 
+            // --- sonidos del NH90 y de Bétera (plan de Nuria): qué clip en cada fase, variantes, fundido día/noche y M3M
+            {
+                string a0 = SonidoNH90.EnDespegue(-0.1f, 0.05f, 7), a1 = SonidoNH90.EnDespegue(11.9f, 12.1f, 7), a2 = SonidoNH90.EnDespegue(5f, 5.1f, 7);
+                check(a0 != null && a0.StartsWith("sfx_nh90_arranque_") && a1 != null && a1.StartsWith("sfx_nh90_despegue_") && a2 == null, "despegue: arranque al dar la orden y despegue al empezar a subir (a los 12 s)");
+                string t0 = SonidoNH90.EnToma(20.1f, 19.9f, 3); check(t0 != null && t0.StartsWith("sfx_nh90_toma_") && SonidoNH90.EnToma(10f, 9.9f, 3) == null, "toma: el clip empieza al empezar la bajada");
+                check(SonidoNH90.RalentiDespegue(3f) && !SonidoNH90.RalentiDespegue(15f), "ralentí en tierra mientras gira el rotor");
+                bool v = true; for (uint sd = 1; sd < 50; sd++) { var x = SonidoNH90.Variante(SonidoNH90.Paso, sd); int k = x[x.Length - 1] - '0'; if (k < 1 || k > 5) v = false; }
+                check(v, "variantes _1 a _5");
+                check(SonidoNH90.PesoNoche(12) == 0f && SonidoNH90.PesoNoche(23) == 1f && Math.Abs(SonidoNH90.PesoNoche(21.5) - 0.5f) < 0.01f && Math.Abs(SonidoNH90.PesoNoche(5.5) - 0.5f) < 0.01f, "ambiente: día y noche se funden a las 21 y a las 6 (una hora)");
+                check(!SonidoNH90.PuedeRafaga(1.1f, 1.0f) && SonidoNH90.PuedeRafaga(1.2f, 1.0f), "M3M: al menos 0,15 s entre ráfagas");
+            }
+
             // --- intro C
             var it = new IntroSecuencia();
             check(it.Tarjetas.Length == 5 && it.TextoEntero == "Día 41 desde el brote.", "intro C: 5 tarjetas y empieza por «Día 41 desde el brote.»");
