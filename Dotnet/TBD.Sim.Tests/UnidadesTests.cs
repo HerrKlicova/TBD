@@ -31,7 +31,7 @@ namespace TBD.Sim.Tests
             string difs = Environment.GetEnvironmentVariable("TBD_DIF") ?? "todas";
             int climb = -1; int.TryParse(Environment.GetEnvironmentVariable("TBD_CLIMB") ?? "-1", out climb);   // ClimbPileZ (−1 = el del código o el JSON)
             int climbR = -1; int.TryParse(Environment.GetEnvironmentVariable("TBD_CLIMB_R") ?? "-1", out climbR);   // ClimbPermilS
-            int climbMax = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_CLIMB_MAX") ?? "0", out climbMax);   // tope de trepadores por segundo (Noche58a: 55)
+            int climbMax = -1; int.TryParse(Environment.GetEnvironmentVariable("TBD_CLIMB_MAX") ?? "-1", out climbMax);   // tope de trepadores por segundo (Noche58a: 55)
             int trainX0 = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_TRAIN_X0") ?? "0", out trainX0);   // cola del tren en mm; el tren mide 64 m (74000 = como en la qa25)
             string vehs = Environment.GetEnvironmentVariable("TBD_VEH") ?? "ambos";
             // comparación con la zona (8-nov): TBD_TGT_M = radio de blancos alrededor de los pelotones (la zona usa 60), TBD_FUERZA=zona (posiciones de InitNight), TBD_BOT=no (sin órdenes, solo la recarga automática al 30 %)
@@ -51,7 +51,7 @@ namespace TBD.Sim.Tests
                     int wins = 0; var ammos = new List<int>(); long wall = 0, pile = 0, vk = 0, vr = 0, ammo = 0, deaths = 0, trainF = 0, stF = 0, climbed = 0; int lostT = 0, lostS = 0; var walls = new List<int>(); int unfinished = 0; var brkTicks = new List<int>(); var brkSegs = new Dictionary<string, int>(); long repN = 0, rebN = 0, repHp = 0, nhRet = 0; var trainFall = new List<int>(); var piles = new List<int>(); var touched = new List<int>(); long tPeak = 0;
                     for (int i = 0; i < n; i++)
                     {
-                        var sim = NightSim.FromJson(json, dif, (uint)(i + 1 + seed0)); _clk = sim.Night.P.ClockX; if (climb >= 0) sim.SP.ClimbPileZ = climb; if (climbR >= 0) sim.SP.ClimbPermilS = climbR; sim.ClimbMaxPerS = climbMax; if (trainX0 > 0) { var tp = sim.Night.P; tp.TrainRect = new RectMm(trainX0, tp.TrainRect.Y0, trainX0 + 64000, tp.TrainRect.Y1); sim.Night.P = tp; }
+                        var sim = NightSim.FromJson(json, dif, (uint)(i + 1 + seed0)); _clk = sim.Night.P.ClockX; if (climb >= 0) sim.SP.ClimbPileZ = climb; if (climbR >= 0) sim.SP.ClimbPermilS = climbR; if (climbMax >= 0) sim.ClimbMaxPerS = climbMax; if (trainX0 > 0) { var tp = sim.Night.P; tp.TrainRect = new RectMm(trainX0, tp.TrainRect.Y0, trainX0 + 64000, tp.TrainRect.Y1); sim.Night.P = tp; }
                         sim.TargetRadiusMm = tgtM * 1000; if (zoneForce) sim.AddZoneForce(); else sim.AddDefaultForce(); if (veh) sim.AddDefaultVehicles(true); if (noBot) sim.AutoPlatoonResupply = true; else sim.Bot = NightBot.FromParams(sim.SP); if (tramos) { if (sagPieces != null) sim.EnableSegments(sagPieces); else sim.EnableSegments(); sim.AutoRepair = repairOn; sim.PileSpreadPermil = spread; }
                         int brk = -1, brkSeg = -1;
                         while (sim.Night.State == NightState.Jugando && sim.Night.Tick < sim.TickCap)
@@ -809,9 +809,10 @@ namespace TBD.Sim.Tests
                     // una noche entera con el bot: gana y es determinista
                     Func<uint, ulong> botNight = seed => { var n = NightSim.FromJson(TBD.Net.BalanceSource.Read("noche_sagunto.json"), null, seed); n.AddDefaultForce(); n.Bot = NightBot.FromParams(n.SP); n.Run(9000); return n.Hash() ^ ((ulong)n.Bot.Orders << 40) ^ ((ulong)n.Bot.Resupplies << 52); };
                     check(botNight(5) == botNight(5) && botNight(5) != botNight(6), "el bot es determinista: misma semilla, mismo hash y mismas órdenes; otra semilla, otro");
-                    var full = NightSim.FromJson(TBD.Net.BalanceSource.Read("noche_sagunto.json"), null, 1); full.AddDefaultForce(); full.AddDefaultVehicles(true); full.Bot = NightBot.FromParams(full.SP); while (full.Night.State == NightState.Jugando && full.Night.Tick < full.TickCap) full.Run(150);
+                    var full = NightSim.FromJson(TBD.Net.BalanceSource.Read("noche_sagunto.json"), null, 1); full.SP.ClimbPermilS = 20; full.ClimbMaxPerS = 0; full.AddDefaultForce();     // D-N128 con la trepada antigua; con la calibrada (Noche58a) 7310 pierde, como la build
+ full.AddDefaultVehicles(true); full.Bot = NightBot.FromParams(full.SP); while (full.Night.State == NightState.Jugando && full.Night.Tick < full.TickCap) full.Run(150);
                     var fs = full.Snapshot();
-                    check(fs.State == NightState.Victoria && fs.WallHp * 100 / full.SP.WallHp > 60 && full.Bot.Resupplies > 3 && full.Resupplies == 0, $"la noche normal entera con el bot y los vehículos en fuego libre (D-N128; sin ayuda de recarga aparte): {fs.State}, muro {fs.WallHp * 100 / full.SP.WallHp} %, {full.Bot.Resupplies} reabastecimientos, {fs.SoldierDeaths} bajas");
+                    check(fs.State == NightState.Victoria && fs.WallHp * 100 / full.SP.WallHp > 60 && full.Bot.Resupplies > 3 && full.Resupplies == 0, $"la noche normal entera con el bot y los vehículos en fuego libre, trepada antigua (D-N128; sin ayuda de recarga aparte): {fs.State}, muro {fs.WallHp * 100 / full.SP.WallHp} %, {full.Bot.Resupplies} reabastecimientos, {fs.SoldierDeaths} bajas");
                     // hueco de la vía (la zona de Unity no pone sólido a la puerta de vía): la horda rodea el muro hasta el hueco, no se amontona y el muro no se desgasta
                     Func<int, NightSim> gapRun = gap => { var n = NightSim.FromJson(TBD.Net.BalanceSource.Read("noche_sagunto.json"), null, 1); n.SP.GateGapMm = gap; n.AddDefaultForce(); n.Run(4500); return n; };
                     var gClosed = gapRun(0); var gOpen = gapRun(3200);
@@ -992,7 +993,7 @@ namespace TBD.Sim.Tests
                     {
                         var ng = new NightGame(NightParams.Default(), 1); var uw = new UnitsWorld(1);
                         if (withMen) { var pl = uw.AddPlatoon(PlatoonKind.Fusileros, 76000, 60000, 0); pl.HoldFire = true; }
-                        var ns = new NightSim(ng, uw, NightSimParams.Default(), 1200000) { AutoPlatoonResupply = false };
+                        var ns = new NightSim(ng, uw, NightSimParams.Default(), 1200000) { AutoPlatoonResupply = false, ClimbMaxPerS = 0 }; ns.SP.ClimbPermilS = 20;     // la regla de D-N148 se mide con la trepada antigua (20 ‰/s, sin tope)
                         for (int i = 0; i < 400; i++) ns.ImportZombie(68800, 58000 + (i % 10) * 400);
                         for (int i = 0; i < 600; i++) ns.Step();
                         return ns;
