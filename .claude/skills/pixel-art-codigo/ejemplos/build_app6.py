@@ -48,6 +48,14 @@ AZULES = {
 RECOMENDADA = "D"
 
 
+# Trébol por filas (de, a): cuatro lóbulos redondos con una muesca de 2 px en cada diagonal, que es lo que lo separa del círculo.
+TREBOL = {
+    15: [(6, 8), (5, 9), (4, 10), (4, 10), (2, 12), (1, 13), (0, 14), (0, 14), (0, 14), (1, 13), (2, 12), (4, 10), (4, 10), (5, 9), (6, 8)],
+    23: [(9, 13), (7, 15), (6, 16), (6, 16), (6, 16), (6, 16), (2, 20), (1, 21), (1, 21), (0, 22), (0, 22), (0, 22), (0, 22), (0, 22),
+         (1, 21), (1, 21), (2, 20), (6, 16), (6, 16), (6, 16), (6, 16), (7, 15), (9, 13)],
+}
+
+
 def borde(mask):
     """Píxeles de la máscara con algún vecino (4) fuera: el contorno de 1 px."""
     w, h = mask.size
@@ -80,19 +88,15 @@ def marco(forma, H):
         cx, cy = W // 2, r
         d.polygon([(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)], fill=1)
         caja = (cx - r // 2, cy - r // 2, cx + r // 2, cy + r // 2)
-    else:                                                    # trébol: unión de cuatro círculos; las muescas en diagonal lo distinguen del círculo
+    else:                                                    # trébol dibujado a mano (Lucía: a 16 px el geométrico se leía como octógono)
         S = H if H % 2 else H - 1
-        c0 = (S - 1) / 2
-        rr = S * 0.2334
-        q = c0 - rr
         mp = m.load()
-        for y in range(S):
-            for x in range(S):
-                if any((x - (c0 + ox)) ** 2 + (y - (c0 + oy)) ** 2 <= rr * rr - 0.5 for ox, oy in ((0, -q), (q, 0), (0, q), (-q, 0))):
-                    mp[x, y] = 1
-        d.rectangle([int(c0) - 2, int(c0) - 2, int(c0) + 2, int(c0) + 2], fill=1)   # tapa el hueco del centro entre los lóbulos
-        k = int(q * 0.7)
-        caja = (int(c0) - k, int(c0) - k, int(c0) + k, int(c0) + k)
+        for y, (x0, x1) in enumerate(TREBOL[S]):
+            for x in range(x0, x1 + 1):
+                mp[x, y] = 1
+        c0 = S // 2
+        k = S // 5
+        caja = (c0 - k, c0 - k, c0 + k, c0 + k)
     return m, caja
 
 
@@ -125,7 +129,7 @@ def tamano(d, W, H, eche, col):
             d.rectangle([int(x), y, int(x) + 1, y + 1], fill=col)
 
 
-def simbolo(afil, ico, H, azul=RECOMENDADA, ataque=False, eche=""):
+def simbolo(afil, ico, H, azul=RECOMENDADA, ataque=False, eche="", tramado=False):
     forma = {"amigo": "amigo", "aire": "aire", "hostil": "hostil", "horda": "hostil", "desconocido": "desconocido"}[afil]
     m, caja = marco(forma, H)
     W = m.size[0]
@@ -142,6 +146,11 @@ def simbolo(afil, ico, H, azul=RECOMENDADA, ataque=False, eche=""):
     if rel is not None:
         im.paste(rel, (0, 0), m)
     b = borde(m)
+    if tramado:                                              # horda tramada (Lucía, por si se confunde con el hostil): contorno a píxeles alternos
+        bp = b.load()
+        for y in range(b.size[1]):
+            for x in range(b.size[0]):
+                if bp[x, y] and x % 2: bp[x, y] = 0
     im.paste(lin, (0, 0), b)
     if ataque:                                               # el rojo tiene poco valor sobre la banda alta: contorno de 2 px mientras ataca
         dentro = Image.new("1", m.size, 0)
@@ -167,6 +176,7 @@ def main():
             nombre = f"app6_{afil}_{ico or 'vacio'}{'_' + eche if eche else ''}_{H}.png".replace("_I_", "_compania_").replace("_1_", "_peloton_").replace("_3_", "_seccion_")
             simbolo(afil, ico, H, eche=eche).save(OUT / nombre)
         simbolo("horda", "", H, ataque=True).save(OUT / f"app6_horda_vacio_ataque_{H}.png")
+        simbolo("horda", "", H, tramado=True).save(OUT / f"app6_horda_tramado_{H}.png")
         simbolo("hostil", "infanteria", H, ataque=True).save(OUT / f"app6_hostil_infanteria_ataque_{H}.png")
 
     # Muestra: cada variante de azul con todo el catálogo, sobre las cuatro bandas del mapa (x4).
