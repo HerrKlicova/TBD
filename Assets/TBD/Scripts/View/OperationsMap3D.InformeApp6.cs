@@ -23,7 +23,7 @@ namespace TBD.View
     ///   - Aire: cúpula del NH90 en Bétera mientras está en tierra, sobre el mapa mientras vuela y encima del nodo en zona (Lucía, 9-nov).
     ///   - Estados de la Colmena (Lucía 25:15; Hugo, colmena-estados.md §4 y §6): la cifra es la mejor de dos reglas, ojos o estado.
     ///     Dispersa y sin ojos: trébol desconocido con «~2.000?». Al acecho: «~2.000». Enjambre: «2.400» y galones de columna de migración detrás de la flecha.
-    ///     Aviso ámbar «La Colmena se agita…» con la señal en col_aviso (6) antes del Enjambre (7). Necesita que la red rellene ColmenaEstadoFuente y
+    ///     Aviso ámbar «La Colmena se agita…» con la señal ≥ colmena_aviso_x1000 (6000 ‰) antes del Enjambre (7000 ‰). Necesita que la red rellene ColmenaEstadoFuente y
     ///     ColmenaSenalFuente; sin eso, la capa se comporta como antes. Textos CO-0 a CO-4 en textos_informe.csv (la red los mete en el informe).
     /// Las emboscadas preparadas (PendingAmbushes) no se dibujan: el jugador no las conoce hasta que el tren cae en ellas (TR-3).
     /// </summary>
@@ -36,10 +36,21 @@ namespace TBD.View
         /// Lo conecta la red cuando exista (Nacho, colmena-estados.md §5): <c>OperationsMap3D.ColmenaEstadoFuente = () => (int)w.Colmena.Estado;</c>.
         /// Mientras sea null, la vista solo aplica la regla de los ojos y no sale el aviso.</summary>
         public static System.Func<int> ColmenaEstadoFuente;
-        /// <summary>Señal diaria de la Colmena (abiertos_7d + 0,5 × (huella − 8)), en las mismas unidades que los umbrales; null si no existe.</summary>
+        /// <summary>Señal diaria de la Colmena (abiertos_7d + 0,5 × (huella − 8)) EN MILÉSIMAS, como el resto de la red (Hugo: aviso 6000 ‰,
+        /// Al acecho 4000, Enjambre 7000); null si no existe.</summary>
         public static System.Func<int> ColmenaSenalFuente;
-        /// <summary>Umbrales (balance_colmena: col_aviso y el del Enjambre). Si la red los lee del CSV, que los copie aquí.</summary>
-        public static int ColAviso = 6, ColEnjambre = 7;
+        /// <summary>Umbral del aviso en ‰: colmena_aviso_x1000 de balance_colmena.csv (un solo sitio; 6000 si falta el CSV o la clave).</summary>
+        static int _colAvisoMil = -1;
+        static int ColAvisoMil()
+        {
+            if (_colAvisoMil < 0)
+            {
+                _colAvisoMil = 6000;
+                try { var t = BalanceSource.Read("balance_colmena.csv"); if (t != null) _colAvisoMil = (int)new CsvTable(t).TryValue("colmena_aviso_x1000", 6000); }
+                catch { _colAvisoMil = 6000; }
+            }
+            return _colAvisoMil;
+        }
         static int ColEstado() { try { return ColmenaEstadoFuente != null ? ColmenaEstadoFuente() : -1; } catch { return -1; } }
         static int ColSenal() { try { return ColmenaSenalFuente != null ? ColmenaSenalFuente() : -1; } catch { return -1; } }
 
@@ -48,7 +59,7 @@ namespace TBD.View
         float DrawColmenaAviso(float pw, float y, ref int shown)
         {
             int sen = ColSenal(), est = ColEstado();
-            if (sen < ColAviso || est == 2 || shown >= 4) return y;
+            if (sen < 0 || sen < ColAvisoMil() || est == 2 || shown >= 4) return y;
             shown++;
             int zp = IconPx(16);
             DrawIcon(new Rect(20, y - 2, zp, zp), "alertas/vm_alertas_asedio_16");
