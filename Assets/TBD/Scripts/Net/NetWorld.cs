@@ -1289,11 +1289,21 @@ namespace TBD.Net
             return n;
         }
 
-        /// <summary>El cálculo, sin tocar nada (para el panel y las pruebas).</summary>
-        public GateFight GateFightFor(int horde, int soldiers, int hp)
+        /// <summary>
+        /// Fracción de la horda que va a por el tren a las puertas, por estación (Hugo, tren-a-las-puertas.md, 8-nov 23:50; Lucía 23:55): Sagunto espera en la puerta
+        /// este, a donde no llega nadie en el MVP (0 ‰); Nules espera fuera de la puerta oeste, que es su punto de espera de la D-N152 (100 ‰). El resto, GateAttackPermil.
+        /// </summary>
+        public int GateAttackPermilAt(int node)
+        {
+            if (node < 0 || node >= Graph.Nodes.Count) return GateAttackPermil;
+            switch (Graph.Nodes[node].Name) { case "Sagunto": return 0; case "Nules": return 100; default: return GateAttackPermil; }
+        }
+
+        /// <summary>El cálculo, sin tocar nada (para el panel y las pruebas). node = −1: la fracción por defecto (GateAttackPermil).</summary>
+        public GateFight GateFightFor(int horde, int soldiers, int hp, int node = -1)
         {
             var f = new GateFight { Horde = horde, Soldiers = soldiers };
-            f.Attackers = (int)((long)horde * GateAttackPermil / 1000);
+            f.Attackers = (int)((long)horde * (node >= 0 ? GateAttackPermilAt(node) : GateAttackPermil) / 1000);
             f.Killed = (int)Math.Min(f.Attackers, (long)soldiers * GateKillsPerSoldier);
             f.Contact = f.Attackers - f.Killed;
             f.HpLost = (int)Math.Min(hp, (long)f.Contact * GateHpPerZombie);
@@ -1308,7 +1318,7 @@ namespace TBD.Net
             int horde = s.GateHorde; s.GateHorde = 0;
             if (node == ActiveZoneNode) return;                          // en pantalla manda NightSim (D-N177)
             int idx = Services.IndexOf(s);
-            var f = GateFightFor(horde, EscortSoldiers(idx), s.Hp);
+            var f = GateFightFor(horde, EscortSoldiers(idx), s.Hp, node);
             f.Service = idx; f.Node = node; f.Tick = Tick;
             s.Hp -= f.HpLost;
             if (f.Destroyed)

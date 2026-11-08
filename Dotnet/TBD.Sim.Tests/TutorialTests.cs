@@ -125,7 +125,9 @@ namespace TBD.Sim.Tests
                 m4.Senal(TutorialGuion.Senales.TrenEnSagunto);
                 check(m4.Visible && m4.Texto == "Sagunto está sitiada: el tren espera en la puerta este. Baja la tropa.", "con el tren a las puertas sale el 3.7 (D-N175)");
                 m4.Senal(TutorialGuion.Senales.TropaEnTierra); check(m4.Actual.Id == "3.8", "tropa en tierra: 3.8");
-                m4.Senal(TutorialGuion.Senales.OrdenAtacar); check(m4.Estado == EstadoTutorial.Terminado, "3.8 acaba el tutorial con la orden de atacar (o de mover)");
+                m4.Senal(TutorialGuion.Senales.OrdenAtacar); check(m4.Actual.Id == "3.8" && m4.TextoSinRelleno == "Llévalos al flanco sur y limpia el muro desde ahí.", "3.8 nuevo (Lucía): la orden sola no lo cierra");
+                m4.Senal(TutorialGuion.Senales.HordaCercaPeloton); check(m4.Actual.Id == "3.8b" && Array.IndexOf(m4.Resalta, TutorialGuion.Resaltes.Retirada) >= 0 && m4.TextoSinRelleno.StartsWith("La horda va a por ellos"), "zombi a 25 m del pelotón: la tarjeta cambia a la 3.8b con la flecha de retirada");
+                m4.Senal(TutorialGuion.Senales.EnR2); check(m4.Estado == EstadoTutorial.Terminado, "al llegar a R2 acaba el tutorial");
                 // si salta por los 60 s (sin tromba), sale el 3.1b
                 var mt = TutorialGuion.Nuevo(new MemoriaEnRam()); mt.Arrancar(725); bool tiempo = false;
                 mt.EstadoActual = x => (x == TutorialGuion.Senales.Cap3Dispara || x == TutorialGuion.Senales.Cap3PorTiempo) && tiempo;
@@ -579,6 +581,14 @@ namespace TBD.Sim.Tests
                 { var rc = new RutaCap3(); int tx = 100_000, ty = 34_000; check(RutaCap3.Rodea(192_000, 60_000, tx, ty) && rc.Ajustar(7, 192_000, 60_000, ref tx, ref ty, -1, true) && tx == 160_000 && ty == 40_000, "capítulo 3: de la puerta este (192; 60) al flanco sur (100; 34) pasa antes por (160; 40)");
                   check(!rc.Seguir(7, 175_000, 50_000, out _, out _, out _, out _) && rc.Seguir(7, 161_000, 41_000, out var fx, out var fy, out _, out var fa) && fx == 100_000 && fy == 34_000 && fa && rc.Pendientes == 0, "al llegar al paso sigue sola al flanco sur, con la misma orden de atacar");
                   int ux = 120_000, uy = 60_000; check(!rc.Ajustar(8, 100_000, 60_000, ref ux, ref uy, -1, false) && ux == 120_000, "dentro del fuerte, sin rodeo"); }
+            }
+
+            // --- tren a las puertas fuera de pantalla: fracción por estación (Hugo; Lucía: Nules espera fuera de la puerta oeste)
+            {
+                var wg = NetScenario.Inicio(); int sg = TrenPreparar.Nodo(wg, "Sagunto"), nu = TrenPreparar.Nodo(wg, "Nules");
+                check(wg.GateAttackPermilAt(sg) == 0 && wg.GateAttackPermilAt(nu) == 100, "fracción que va a por el tren: Sagunto (puerta este) 0 %, Nules (fuera de la puerta oeste) 10 %");
+                var f1 = wg.GateFightFor(2400, 8, NetConst.TrainHpMax, nu); check(f1.Attackers == 240 && f1.Contact == 0 && !f1.Destroyed, "Nules, fuera de la puerta oeste con un pelotón (8): 240 van a por el tren y no llega ninguno (tabla de Hugo)");
+                var f2 = wg.GateFightFor(5250, 0, NetConst.TrainHpMax, sg); check(f2.Attackers == 0 && !f2.Destroyed, "Sagunto, puerta este sin escolta: intacto");
             }
 
             // --- D-N156: Nules sin asedio la 1.ª noche

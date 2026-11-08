@@ -12,6 +12,8 @@ namespace TBD.Tutorial
         public static class Senales
         {
             public const string Empezar = "boton:Empezar";
+            // capítulo 3, recorrido (Lucía, 8-nov, con la medida de Nacho): llegada al flanco sur, zombi a 25 m o menos del pelotón (3.8b) y llegada a R2
+            public const string EnFlancoSur = "en_flanco_sur", HordaCercaPeloton = "horda_cerca_peloton", EnR2 = "en_r2";
             // capítulo 1 (zona, Marcos)
             public const string CamaraMovida = "camara_movida", RuedaUsada = "rueda_usada", PelotonSeleccionado = "peloton_seleccionado", OrdenMover = "orden_mover",
                 FormacionDada = "formacion_dada", PausaCerrada = "pausa_cerrada", HordaAvanza = "horda_avanza", AtaqueRechazado = "ataque_rechazado", VehiculosFuera = "vehiculos_fuera";
@@ -49,6 +51,19 @@ namespace TBD.Tutorial
                   // D-N175: el punto del flanco sur (100; 34), TrenAnden.ObjetivoAtaque
                 ClaroS1 = "claro_s1",           // capítulo 4: el claro S1 de Sagunto, (180; 44) m, fuera del muro (mr-mak 9163dcc)
                 NodoBetera = "nodo_betera", TarjetasNH90 = "tarjetas_nh90", ConPeloton = "con_peloton", FlechaBorde = "flecha_borde";
+        }
+
+        /// <summary>
+        /// 3.8 (Lucía, 8-nov, tras la medida de Nacho): «Llévalos al flanco sur y limpia el muro desde ahí.» Se cierra al llegar (en_flanco_sur) o a los 90 s.
+        /// Si un zombi llega a 25 m o menos del pelotón mientras está fuera, la tarjeta cambia a la 3.8b con la flecha de retirada hasta R2; se cierra al llegar a R2
+        /// o a los 45 s.
+        /// </summary>
+        static Paso P38()
+        {
+            var p = S("3.8", "Llévalos al flanco sur y limpia el muro desde ahí.", R(Resaltes.FlancoSur), Senales.EnFlancoSur); p.Segundos = 90f;
+            var b = S("3.8b", "La horda va a por ellos: retrocede hacia el este disparando, corres más que ellos.", R(Resaltes.Retirada), Senales.EnR2); b.Segundos = 45f;
+            p.AltSi = Senales.HordaCercaPeloton; p.Alt = b; p.CambiaEnMarcha = true;
+            return p;
         }
 
         static Paso S(string id, string texto, string[] resalta, params string[] senales) { return new Paso { Id = id, Texto = texto, Resalta = resalta ?? new string[0], Cierre = Cierre.Senal, Senales = senales }; }
@@ -132,7 +147,7 @@ namespace TBD.Tutorial
                     S("3.5", "Destino: Sagunto. Mira el ETA y envíalo.", R(Resaltes.NodoSagunto, Resaltes.Eta, Resaltes.BotonEnviar), Senales.TrenEnviado),
                     S("3.6", "Vuelve a Sagunto y aguanta: doble clic en Sagunto o acerca la cámara. La ayuda llega en {eta}.", R(Resaltes.NodoSagunto), Senales.VueltaZona),
                     p37,
-                    S("3.8", "Llévalos al flanco sur y limpia el muro. Si la horda se gira hacia ti, retrocede hacia el este sin dejar de disparar: corres más que ellos.", R(Resaltes.FlancoSur, Resaltes.Retirada), Senales.OrdenMover, Senales.OrdenAtacar)   // D-N175,
+                    P38()
                 }
             };
         }

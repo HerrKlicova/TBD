@@ -222,6 +222,18 @@ namespace TBD.View
                     int vf = 0; foreach (var v in _vehs) if (v.Go != null && v.Go.activeSelf) vf++;
                     _tramosPm.Clear(); foreach (var sg in _segs) if (!sg.IsGate && sg.Max > 0f) _tramosPm.Add(sg.Open ? 0 : (int)(sg.Hp * 1000f / sg.Max));
                     TutorialHud.Zona(_zomPos.Count, vf, _tramosPm);
+                    // recorrido del capítulo 3: pelotones fuera del muro (zombi a ≤ 25 m), en el flanco sur (≤ 10 m) y en R2 (≤ 6 m)
+                    bool cerca = false, enFlanco = false, enR2 = false;
+                    foreach (var pl in _uw.Platoons)
+                    {
+                        if (pl.AliveCount() == 0) continue;
+                        float px = pl.AX / 1000f, py = pl.AY / 1000f;
+                        if (px > Level.FortX0 && px < Level.FortX1 && py > Level.FortY0 && py < Level.FortY1) continue;      // dentro del recinto no cuenta
+                        if ((new Vector2(px, py) - new Vector2(RutaCap3.FlancoSur[0] / 1000f, RutaCap3.FlancoSur[1] / 1000f)).sqrMagnitude < 100f) enFlanco = true;
+                        if ((new Vector2(px, py) - new Vector2(RutaCap3.R2[0] / 1000f, RutaCap3.R2[1] / 1000f)).sqrMagnitude < 36f) enR2 = true;
+                        if (!cerca) foreach (var zp in _zomPos) if ((zp - new Vector2(px, py)).sqrMagnitude <= 625f) { cerca = true; break; }
+                    }
+                    TutorialHud.Recorrido(cerca, enFlanco, enR2);
                 }
                 if ((_nearTrain > 0 || _pileNearStation > 0) && _diagN < 6 && Time.unscaledTime - _diagT > 2f)
                 {

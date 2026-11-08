@@ -176,6 +176,15 @@ namespace TBD.View
             foreach (var s in _zona.Mirar(HordaEnEspera, zombisVivos, vehiculosFuera, tramosPm)) { _zonaEstado.Add(s); Senal(s); }
         }
         static float _zonaT = -1f;
+
+        /// <summary>Recorrido del capítulo 3 (la zona lo llama cada segundo): pelotón fuera del muro con un zombi a 25 m o menos, en el flanco sur, en R2.</summary>
+        public static void Recorrido(bool hordaCerca, bool enFlanco, bool enR2)
+        {
+            if (!Activo) return;
+            if (hordaCerca) Senal(TutorialGuion.Senales.HordaCercaPeloton);
+            if (enFlanco) Senal(TutorialGuion.Senales.EnFlancoSur);
+            if (enR2) Senal(TutorialGuion.Senales.EnR2);
+        }
         static readonly SenalesZona _zona = new SenalesZona();
         static readonly HashSet<string> _zonaEstado = new HashSet<string>();
 
