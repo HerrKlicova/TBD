@@ -1,9 +1,11 @@
 """Polvorín: iglú semienterrado con puerta blindada (D-N173; Álvaro, betera-nivel.md §5.4: 2 iglús en (107; 73) y (107;
 88), yaw 90, con talud de tierra; frente B2). Teo (3), 8-nov.
 
-Sin foto de Bétera. Tipo genérico de iglú de munición: bóveda de hormigón cubierta de tierra (un túmulo con hierba), con
-el frente de hormigón a la vista, aletas inclinadas a los lados y una puerta blindada de dos hojas. Medidas SIN
-VERIFICAR: 8 m de ancho, 14 m de fondo, túmulo de 4,2 m; puerta de 3 × 3 m.
+Sin foto de Bétera. Referencia de Paula BT4_polvorin_1 (búnkeres de Visbeck cubiertos de tierra, con muros de
+contención y puertas metálicas): bóveda de hormigón cubierta de tierra (un túmulo con hierba), con el frente de
+hormigón a la vista, aletas a los lados y una puerta blindada de dos hojas. Medidas ESTIMADAS (Paula: 10-12 m de
+frente, 20-25 m de fondo, muro frontal de unos 4 m): 11 m de frente, 22 m de fondo, muro de 4 m, túmulo de 4,6 m;
+puerta de 3 × 3 m. Huella total de unos 14,4 × 25 m (talud incluido), para que los dos iglús a 15 m no se pisen.
 Colores: tierra 88885c (hierba) o b4a080 (tierra desnuda), frente y aletas 94948c, puerta 6c7874 con nervios 605c48,
 interior 48403c, cajas de munición 70784c, sacos 605c48, red 50541c, venteo 6c7874.
 Disposición: origen en el suelo, en el centro de la planta; el FRENTE con la puerta en −Y de Blender (= +Z de Unity
@@ -25,7 +27,7 @@ NORMALES_ARRIBA = True
 NORMALES_INCLINACION = 0.6
 PRESUPUESTO = {0: (60, 2500), 1: (30, 1200)}
 UMBRAL_CONTORNO = {0: 9.0, 1: 9.0}
-AN, FO, HT = 8.0, 14.0, 4.2
+AN, FO, HT = 11.0, 22.0, 4.6
 PARTES = ["iglu", "Puerta_O", "Puerta_E"]
 PIV = {"Puerta_O": (-1.5, -FO / 2 - 0.15, 0.0), "Puerta_E": (1.5, -FO / 2 - 0.15, 0.0)}
 GIRO_PRUEBA = {"Puerta_O": ("Z", -60), "Puerta_E": ("Z", 60)}
@@ -40,13 +42,13 @@ def construir(nombre="SM_Polvorin", lod=0):
     # túmulo: sección de bóveda ancha (con el talud) que se estrecha y baja hacia atrás
     perfil = [(-1.0, 0.0), (1.0, 0.0)] + [(math.cos(math.pi * k / n) * 0.92, math.sin(math.pi * k / n))
                                           for k in range(1, n)]
-    secs = [(-FO / 2 + 0.3, AN / 2 + 3.0, HT, 0.0), (FO / 2 - 2.0, AN / 2 + 3.0, HT, 0.0),
-            (FO / 2 + 2.5, AN / 2 + 0.5, 1.0, 0.0)]
+    secs = [(-FO / 2 + 0.3, AN / 2 + 1.6, HT, 0.0), (FO / 2 - 2.5, AN / 2 + 1.6, HT, 0.0),
+            (FO / 2 + 2.5, AN / 2 - 0.5, 1.0, 0.0)]
     m.loft(perfil, secs, "tierra")
     # frente de hormigón (sobresale del túmulo) y aletas inclinadas
-    m.caja((0, -FO / 2, 2.4), (AN, 0.6, 4.8), "frente")
-    for s in (-1, 1):
-        m.caja((s * (AN / 2 + 1.4), -FO / 2 + 0.1, 1.6), (3.0, 0.5, 3.2), "frente", cuña=None, rot_z=s * 0.5)
+    m.caja((0, -FO / 2, 2.0), (AN, 0.6, 4.0), "frente")
+    for s in (-1, 1):                                # muros de contención a los lados del frente
+        m.caja((s * (AN / 2 + 0.8), -FO / 2 + 0.2, 1.5), (2.0, 0.5, 3.0), "frente", cuña=None, rot_z=s * 0.6)
     m.caja((0, -FO / 2 - 0.3, 3.4), (3.6, 0.1, 0.4), "nervio")                 # dintel
     m.caja((0, -FO / 2 - 0.31, 1.5), (3.0, 0.04, 3.0), "interior")               # hueco
     if v == 3:                                       # cajas de munición en el umbral

@@ -2,28 +2,31 @@
 retrasa a la horda, pero no la para). Teo (3), 8-nov.
 
 Foto AE1_betera_torre_1 de Paula: postes de tubo con el remate acodado HACIA FUERA y tres hilos de espino, malla de
-simple torsión. Medidas SIN VERIFICAR: 2,5 m de malla, remate de 0,5 m a 45°, postes cada 2,5 m.
-Colores: postes 6c7874, malla 94948c (ni b8b8b8, que en una pieza larga se confunde con el contorno de selección), espino
+simple torsión. Fotos de Bétera de Paula (BT5_valla_betera_1 y _2, 2006): postes cada unos 3 m (aquí 3,33 m, para que
+el tramo de 10 m se repita sin poste doble) y, en un tramo, un muro bajo enfoscado de 1-1,5 m con la malla encima. El
+cartel rojo «Zona militar» está vetado (nada rojo). Medidas ESTIMADAS: 2,5 m de malla, remate de 0,5 m a 45°.
+Colores: postes 6c7874, muro 94948c con la albardilla b4a080, malla 94948c (ni b8b8b8, que en una pieza larga se confunde con el contorno de selección), espino
 y concertina 48403c, lona 50541c, hierba al pie no (la pone el suelo).
 Disposición: origen en el suelo, en el centro del tramo; la valla a lo largo de X (−5..5) y FUERA = −Y (hacia allí se
-acoda el remate). Se repite cada 10 m; los postes van en x = −3,75, −1,25, 1,25 y 3,75, así que dos tramos seguidos no
+acoda el remate). Se repite cada 10 m; los postes van en x = −3,33, 0 y 3,33, así que dos tramos seguidos no
 duplican poste. En el juego la malla es una lámina: a 0,17 m/px el rombo no se ve.
-Variantes (TBD_VARIANTE % 5): 0 sana; 1 combada hacia dentro (la empujó la horda); 2 rota, con un paño caído y un hueco;
+Variantes (TBD_VARIANTE % 5): 0 sana; 1 sobre muro bajo enfoscado de 1,2 m (la de BT5_valla_betera_2); 2 rota, con un paño caído y un hueco;
 3 con lona de ocultación; 4 con la concertina suelta en el suelo por fuera.
 """
 import math, os
 from taller import Taller
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0) % 5
-PIEZAS = ["poste", "malla", "espino", "lona"]
-COLORES = {"poste": "6c7874", "malla": "94948c", "espino": "48403c", "lona": "50541c"}
+PIEZAS = ["poste", "malla", "espino", "lona", "muro"]
+COLORES = {"poste": "6c7874", "malla": "94948c", "espino": "48403c", "lona": "50541c", "muro": "94948c"}
+VALOR_PIEZAS = {"muro": ("b4a080", "88885c")}
 FACCION = "neutro"
 NORMALES_ARRIBA = True
 NORMALES_INCLINACION = 0.7
 PRESUPUESTO = {0: (20, 900), 1: (10, 400)}
 UMBRAL_CONTORNO = {0: 9.0, 1: 9.0}
 L, H = 10.0, 2.5
-POSTES = (-3.75, -1.25, 1.25, 3.75)
+POSTES = (-10 / 3, 0.0, 10 / 3)
 
 
 def construir(nombre="SM_ValladeBase", lod=0):
@@ -31,11 +34,15 @@ def construir(nombre="SM_ValladeBase", lod=0):
     t = Taller(PIEZAS)
     fino = lod == 0
     gp = 0.08 if fino else 0.34
-    comba = lambda x: (0.5 * math.cos(math.pi * x / L)) if v == 1 else 0.0    # desplazamiento hacia dentro (+Y)
+    comba = lambda x: 0.0
+    zm = 1.2 if v == 1 else 0.0                      # muro bajo: la malla y los postes arrancan encima
+    if v == 1:
+        t.caja((0, 0, zm / 2), (L, 0.3, zm), "muro")
+        t.caja((0, 0, zm + 0.04), (L, 0.38, 0.08), "muro")                     # albardilla
     for k, x in enumerate(POSTES):
         dy = comba(x)
         inc = math.atan2(dy, H) if v == 1 else 0.0
-        t.caja((x, dy / 2, H / 2), (gp, gp, H), "poste", rot_x=-inc)
+        t.caja((x, dy / 2, zm + (H - zm) / 2), (gp, gp, H - zm + 0.1), "poste", rot_x=-inc)
         t.caja((x, dy - 0.18, H + 0.18), (gp, gp, 0.55), "poste", rot_x=math.radians(-45))   # remate hacia fuera
     # malla: paños entre postes (y medio paño hasta cada extremo)
     bordes = [-L / 2] + list(POSTES) + [L / 2]
@@ -47,8 +54,8 @@ def construir(nombre="SM_ValladeBase", lod=0):
             continue
         dy = comba(xc)
         inc = math.atan2(dy, H) if v == 1 else 0.0
-        hm = H - (0.6 if (v == 2 and i == 1) else 0.0)
-        t.caja((xc, dy / 2, hm / 2 + 0.03), (lx - 0.02, 0.03 if fino else 0.06, hm), "malla", rot_x=-inc)
+        hm = H - zm - (0.6 if (v == 2 and i == 1) else 0.0)
+        t.caja((xc, dy / 2, zm + hm / 2 + 0.03), (lx - 0.02, 0.03 if fino else 0.06, hm), "malla", rot_x=-inc)
         if v == 3:
             t.caja((xc, dy / 2 + 0.05, 1.0), (lx - 0.06, 0.03 if fino else 0.06, 1.8), "lona", rot_x=-inc)
     # hilos de espino sobre los remates (en el LOD1, uno grueso)
