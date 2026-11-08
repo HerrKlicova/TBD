@@ -21,7 +21,8 @@ CLAVE_SUELO = {"trinchera": "fondo_trinchera", "llano": "llano_ocre"}
 
 def mascara_color(o, mascaras, mapa):
     """Atributo de color «Col» por esquina (BYTE_COLOR; el FBX lo exporta y Unity lo lee como color de vértice): cada
-    cara toma el (r, g, b) de su pieza en `mapa`; las piezas que no están, negro. Alfa = 1."""
+    cara toma el (r, g, b) de su pieza en `mapa`; las piezas que no están, negro. Alfa = 1, salvo si la malla trae el
+    atributo de cara «cuerpo» (pila de zombis): entonces cada cuerpo lleva su semilla en el alfa."""
     import numpy as np
     n = len(o.data.polygons)
     col = np.zeros((n, 4), dtype=np.float32)
@@ -32,6 +33,12 @@ def mascara_color(o, mascaras, mapa):
         if m is not None and m.any():
             col[np.asarray(m, dtype=bool), :3] = rgb
             cuenta[pieza] = int(np.asarray(m).sum())
+    cu = o.data.attributes.get("cuerpo")          # semilla por cuerpo en el alfa (Bruno, TBD/Horda 47ac1ed): 255 = sin
+    if cu is not None and cu.domain == "FACE":     # cambio; 254, 253… desplazan el tono de ese cuerpo dentro de la LUT
+        ids = np.zeros(n, dtype=np.int32)
+        cu.data.foreach_get("value", ids)
+        sel = ids > 0
+        col[sel, 3] = (254 - (ids[sel] - 1) % 200) / 255.0
     at = o.data.color_attributes.new("Col", "BYTE_COLOR", "CORNER")
     tot = np.repeat(col, [p.loop_total for p in o.data.polygons], axis=0)
     at.data.foreach_set("color", tot.ravel())
