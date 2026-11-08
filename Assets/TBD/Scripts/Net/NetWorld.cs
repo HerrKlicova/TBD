@@ -29,7 +29,7 @@ namespace TBD.Net
     }
 
     // ================================================================== órdenes
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, SpendMaterials = 22 }
 
     public struct NetCommand
     {
@@ -511,6 +511,7 @@ namespace TBD.Net
                     case NetCmdType.ResolveAmbush: ResolveAmbush(c.Arg & 0xFF, c.Arg2, false, c.Arg >> 8); break;       // Arg = servicio | (munición gastada en u) << 8
                     case NetCmdType.Dematerialize: Dematerialize(c.Arg, c.Arg2); break;
                     case NetCmdType.ConsumeAmmo: ConsumeAmmo(c.Arg, c.Arg2); break;
+                    case NetCmdType.SpendMaterials: SpendMaterials(c.Arg, c.Arg2); break;      // Arg = nodo, Arg2 = u (D-N163: lo que gastan reparar y reconstruir en la zona)
                     case NetCmdType.AssignWorkers: AssignWorkers(c.Arg, c.Arg2); break;                    // Arg = nodo, Arg2 = obreros
                     case NetCmdType.HaltAtSite: HaltAtSite(c.Arg, c.Arg2); break;                           // Arg = emplazamiento (-1 cancela), Arg2 = servicio
                     case NetCmdType.SetSchedule: SetSchedule(c.Arg, c.Payload); break;       // Arg = tren, Payload = [nodo, hora de salida (ticks), 4 cargas] por parada
@@ -548,6 +549,15 @@ namespace TBD.Net
                 if (sv.AtStop && sv.Stops.Count > 0 && sv.Stops[sv.StopIndex].Node == node) u += sv.Cargo[(int)Res.Municion];
             return u;
         }
+
+        /// <summary>D-N163: la zona gasta materiales de la estación (reparar y reconstruir tramos del muro). Sin bajar de 0. Devuelve lo gastado.</summary>
+        public int SpendMaterials(int node, int units)
+        {
+            if (node < 0 || node >= Graph.Nodes.Count || units <= 0) return 0;
+            int take = Math.Min(units, Math.Max(0, Stock[node, (int)Res.Materiales]));
+            Stock[node, (int)Res.Materiales] -= take; return take;
+        }
+        public static NetCommand CmdSpendMaterials(long tick, int node, int units) { return new NetCommand { Tick = tick, Type = NetCmdType.SpendMaterials, Arg = node, Arg2 = units }; }
 
         /// <summary>Gasta munición en un nodo: primero la de los trenes del andén (en orden de id), luego la de la estación.</summary>
         void ConsumeAmmo(int node, int units)
