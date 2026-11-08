@@ -406,15 +406,15 @@ namespace TBD.View
 
             if (!_paused && !TutorialHud.PidePausa)
             {
-                _acc += Time.unscaledDeltaTime;
+                _acc += Time.unscaledDeltaTime * TurboN;
                 int steps = 0;
-                while (_acc >= SimConst.Dt && steps < 4)
+                while (_acc >= SimConst.Dt && steps < 4 * TurboN)
                 {
                     _acc -= SimConst.Dt;
                     StepSimulation();
                     steps++;
                 }
-                if (_acc > SimConst.Dt * 4f) _acc = 0f;
+                if (_acc > SimConst.Dt * 4f * TurboN) _acc = 0f;
             }
 
             // Interpolación entre ticks (solo presentación)
@@ -434,10 +434,23 @@ namespace TBD.View
             if (_fpsAcc >= 0.5f) { _fps = _fpsFrames / _fpsAcc; _fpsAcc = 0f; _fpsFrames = 0; }
         }
 
+        // QA (Sara): -turbo N multiplica el tiempo de la simulacion (solo para corridas por lotes); -hashlog <ruta> escribe una linea por tick: tick;SimHash;NightGame;UnitsWorld
+        static readonly int TurboN = TurboArg();
+        static int TurboArg() { var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-turbo"); int n; return i >= 0 && i + 1 < a.Length && int.TryParse(a[i + 1], out n) && n >= 1 && n <= 64 && System.Array.IndexOf(a, "-batchmode") >= 0 ? n : 1; }
+        System.IO.StreamWriter _hashLog; bool _hashLogInit;
+        void HashLogLine()
+        {
+            if (!_hashLogInit) { _hashLogInit = true; var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-hashlog"); if (i >= 0 && i + 1 < a.Length) { try { _hashLog = new System.IO.StreamWriter(a[i + 1], false); } catch (System.Exception e) { Debug.LogWarning("[TBD] -hashlog: " + e.Message); } } }
+            if (_hashLog == null) return;
+            var h = _worldA.EntityManager.GetComponentData<SimHash>(_rootA);
+            _hashLog.WriteLine(h.Tick + ";" + h.Value.ToString("X16") + ";" + (_ng != null ? _ng.Hash().ToString("X16") : "0") + ";" + (_uw != null ? _uw.Hash().ToString("X16") : "0")); if ((h.Tick & 255) == 0) _hashLog.Flush();
+        }
+
         void StepSimulation()
         {
             if (_nightOn) NightTick();
             _groupA.Update();
+            HashLogLine();
             if (_checkEnabled)
             {
                 _groupB.Update();
