@@ -418,7 +418,7 @@ namespace TBD.Net
             Director.SaveState(w);
             Production.SaveState(w);                    // NetVersion 2
             Embarque.SaveState(w);                      // NetVersion 3 (D-N166)
-            w.Ints(FoodRemMil); w.Long(StarvedTotal);   // NetVersion 4 (D-N176)
+            w.Ints(FoodRemMil); w.Ints(StarveRemMil); w.Long(StarvedTotal);   // NetVersion 4 (D-N176)
         }
 
         public void LoadState(SaveReader r)
@@ -458,7 +458,7 @@ namespace TBD.Net
             Director.LoadState(r);
             Production.LoadState(r);
             Embarque.LoadState(r);
-            ReadInto(r.Ints(), FoodRemMil, "víveres"); StarvedTotal = r.Long();
+            ReadInto(r.Ints(), FoodRemMil, "víveres"); ReadInto(r.Ints(), StarveRemMil, "hambre"); StarvedTotal = r.Long();
             Injections.Clear(); Retirements.Clear(); LostThisTick = 0; RetiredThisTick = 0;      // datos de QA del tick: empiezan limpios
         }
 
@@ -474,7 +474,7 @@ namespace TBD.Net
             Attraction = new int[g.Nodes.Count];
             BaseAttraction = new int[g.Nodes.Count];
             Stock = new int[g.Nodes.Count, NetConst.ResCount];
-            FoodRemMil = new int[g.Nodes.Count];
+            FoodRemMil = new int[g.Nodes.Count]; StarveRemMil = new int[g.Nodes.Count];
             Works = new ObrasState(g.Nodes.Count, BalanceSource.Obras());
             Stations = new StationState(g, BalanceSource.Stations());
             Taller = new TallerState(g, BalanceSource.Taller());
@@ -894,6 +894,8 @@ namespace TBD.Net
         /// <summary>Si falta, el nodo pierde FoodLossPermil ‰ de su gente por la fracción no cubierta (50 = el 5 % al día sin nada).</summary>
         public int FoodLossPermil = 50;
         public int[] FoodRemMil;
+        /// <summary>Hambre acumulada que aún no llega a una persona (milésimas, por nodo; Hugo): así un nodo pequeño con falta parcial también pierde gente, de media lo del modelo.</summary>
+        public int[] StarveRemMil;
         /// <summary>Personas perdidas por hambre (para QA y el informe). Va en el guardado, no en el hash (sale de las existencias).</summary>
         public long StarvedTotal;
 
@@ -910,7 +912,8 @@ namespace TBD.Net
                 int have = Math.Max(0, Stock[n, (int)Res.Viveres]);
                 if (have >= need) { Stock[n, (int)Res.Viveres] = have - need; continue; }
                 Stock[n, (int)Res.Viveres] = 0;
-                int lost = (int)((long)pob * FoodLossPermil * (need - have) / (1000L * need));     // falta = (need − have) / need
+                long hunger = StarveRemMil[n] + (long)pob * FoodLossPermil * (need - have) * 1000 / (1000L * need);     // falta = (need − have) / need; en milésimas de persona (Hugo)
+                int lost = (int)Math.Min(pob, hunger / 1000); StarveRemMil[n] = (int)(hunger % 1000);
                 if (lost > 0) { Stock[n, (int)Res.Personas] = pob - lost; StarvedTotal += lost; }
             }
         }
@@ -1348,6 +1351,7 @@ namespace TBD.Net
                 h += Mix(((ulong)(uint)n << 32) ^ (ulong)(uint)Attraction[n]);
                 for (int r2 = 0; r2 < NetConst.ResCount; r2++) h += Mix(((ulong)(uint)n << 40) ^ ((ulong)r2 << 32) ^ (ulong)(uint)Stock[n, r2]);
                 if (FoodRemMil[n] != 0) h += Mix(0xD176UL ^ ((ulong)(uint)n << 40) ^ (ulong)(uint)FoodRemMil[n]);
+                if (StarveRemMil[n] != 0) h += Mix(0x5D176UL ^ ((ulong)(uint)n << 40) ^ (ulong)(uint)StarveRemMil[n]);
             }
             h += Works.Hash();
             h += Stations.Hash();
