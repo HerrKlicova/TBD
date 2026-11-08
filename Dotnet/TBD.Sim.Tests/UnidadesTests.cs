@@ -63,6 +63,7 @@ namespace TBD.Sim.Tests
                         if (sim.Unfinished) unfinished++; repN += sim.Repaired; rebN += sim.Rebuilt; repHp += sim.RepairHp;
                         if (sim.Night.State == NightState.Derrota && sim.Night.EndedByTrain) trainFall.Add(sim.Night.DefeatTick); piles.Add(sim.PeakPile); touched.Add(sim.TrainTouched); tPeak += sim.TrainPeakAttackers; foreach (var vv in sim.Vehicles) nhRet += vv.AutoReturns;
                         if (brk >= 0) { brkTicks.Add(brk); string key = SegLabel(sim.Segments[brkSeg], brkSeg); int c; brkSegs.TryGetValue(key, out c); brkSegs[key] = c + 1; }
+                        if (Environment.GetEnvironmentVariable("TBD_POR_PARTIDA") == "1") Console.Error.WriteLine($"P;{i + 1 + seed0};{sim.Night.State};{sim.Climbed};{sim.AmmoMilliU()};{sim.Night.Tick};{sim.Night.Hour:00}:{sim.Night.Minute:00};{sim.PeakPile}");   // una línea por partida (Hugo: contraste con la build)
                         if (sim.Night.State == NightState.Victoria) wins++; ammos.Add(sim.AmmoMilliU());
                         if (sim.Night.State == NightState.Derrota) { if (sim.Night.EndedByTrain) lostT++; if (sim.Night.EndedByStation) lostS++; }
                         trainF += (long)sim.Night.TrainHp * 100 / Math.Max(1, sim.Night.P.TrainHp); stF += (long)sim.Night.StationHp * 100 / Math.Max(1, sim.Night.P.StationHp); climbed += sim.Climbed; walls.Add((int)((long)sim.WallHp * 100 / Math.Max(1, sim.SP.WallHp)));
