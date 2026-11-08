@@ -32,6 +32,7 @@ namespace TBD.View
             for (int i = 0; i <= N; i++) { float a = i * Mathf.PI * 2f / N; var q = ToGui(new Vector3(c.x + Mathf.Cos(a) * r, 0.06f, c.z + Mathf.Sin(a) * r)); if (i > 0) OvLine(prev, q, w, col, al); prev = q; }
         }
 
+        bool _c90Aim; string _c90Msg = ""; float _c90MsgUntil;
         bool _vehFire = true; float _lastDigitT = -1f; int _lastDigit = -1;
         /// <summary>1-5 elige el pelotón (Mayus suma), 6-8 los vehiculos; pulsar dos veces seguidas centra la camara en ellos (D-N139).</summary>
         void NightSelectKeys(UnityEngine.InputSystem.Keyboard kb)
@@ -160,6 +161,7 @@ namespace TBD.View
                     OvLine(new Vector2(x0, y0), new Vector2(x0, y1), 2f, OvHueso, 0.95f); OvLine(new Vector2(x1, y0), new Vector2(x1, y1), 2f, OvHueso, 0.95f);
                 }
             }
+            if (Time.unscaledTime < _c90MsgUntil) { var cst = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(14, Screen.height / 45), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter }; cst.normal.textColor = OvHueso; GUI.Label(new Rect(0, Screen.height * 0.12f, Screen.width, 40f), _c90Msg, cst); }
             // formacion activa
             { var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(11, Screen.height / 70), wordWrap = false, clipping = TextClipping.Overflow }; st.normal.textColor = OvHueso; if (_sel.Count > 0 && _selVeh == null) GUI.Label(new Rect(12f, Screen.height * 0.80f - st.fontSize * 1.6f, Screen.width * 0.6f, st.fontSize * 1.6f), "Formación " + _curForm + "  (F1 línea · F2 cuña · F3 columna · F4 bloque) · clic derecho y arrastrar = frente", st); }
         }

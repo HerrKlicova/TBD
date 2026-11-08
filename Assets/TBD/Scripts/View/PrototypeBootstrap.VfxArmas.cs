@@ -51,7 +51,7 @@ namespace TBD.View
             }
         }
 
-        ParticleSystem _vxGlow, _vxCone, _vxSmoke, _vxDust, _vxDebris, _vxShell, _vxRing, _vxBlood;
+        ParticleSystem _vxGlow, _vxCone, _vxSmoke, _vxDust, _vxDebris, _vxShell, _vxRing, _vxBlood, _vxMark;
         readonly List<Light> _vxLightLive = new List<Light>(); readonly List<float> _vxLightUntil = new List<float>(); readonly List<float> _vxLightI0 = new List<float>(); readonly Stack<Light> _vxLightFree = new Stack<Light>();
         struct VxPending { public float At; public Vector3 P; public WeaponId W; public bool Zombie; }
         readonly List<VxPending> _vxPending = new List<VxPending>();
@@ -106,6 +106,7 @@ namespace TBD.View
             _vxShell = VxSystem("casquillos", world, M(tDot), 600, 1.6f, ParticleSystemRenderMode.Billboard, null, 1f);
             _vxRing = VxSystem("anillo", world, M(tRing), 64, 0f, ParticleSystemRenderMode.HorizontalBillboard, AnimationCurve.EaseInOut(0f, 0.3f, 1f, 1f), 0f);
             _vxBlood = VxSystem("sangre", world, M(tDot), 600, 1.4f, ParticleSystemRenderMode.Billboard, null, 1f);
+            if (_vxDebugBoca) _vxMark = VxSystem("marca boca", world, M(tDot), 200, 0f, ParticleSystemRenderMode.Billboard, null, 1f);   // sin gravedad: la marca se queda quieta en la boca
         }
 
         /// <summary>La materia (polvo, humo, anillo) es sin luz: de noche va un paso más oscura para no brillar sobre el suelo (L* aprox. 26 en pantalla).</summary>
@@ -148,7 +149,7 @@ namespace TBD.View
                 var right = Vector3.Cross(Vector3.up, dir).normalized;
                 VxEmit(_vxShell, boca - dir * 0.7f, right * Random.Range(1.8f, 2.8f) + Vector3.up * Random.Range(1.5f, 2.5f), s.Shell, 0.7f, VxLaton);
             }
-            if (_vxDebugBoca) VxEmit(_vxDebris, boca, Vector3.zero, 0.25f, 2f, VxCrema);                            // -vfxboca: marca la boca 2 s para ajustar los desplazamientos
+            if (_vxDebugBoca) VxEmit(_vxMark, boca, Vector3.zero, 0.25f, 2f, VxCrema);                            // -vfxboca: marca la boca 2 s para ajustar los desplazamientos
             if (tracer)
             {
                 SpawnTracer(boca, blanco, s.TracerSpeed, s.TracerW, s.TracerTail);

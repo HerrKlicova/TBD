@@ -43,7 +43,7 @@ namespace TBD.View
                 t = new TracerFx { Lr = lr };
             }
             t.A = a; t.B = b; t.Dist = Mathf.Max(0.01f, (b - a).magnitude); t.Dir = (b - a) / t.Dist; t.T0 = Time.time; t.Speed = speed; t.Tail = tail;
-            t.Lr.startWidth = t.Lr.endWidth = width; t.Lr.enabled = true; _tracerLive.Add(t);
+            t.Lr.startWidth = t.Lr.endWidth = width; t.Lr.enabled = true; t.Lr.gameObject.layer = 0; _tracerLive.Add(t);
         }
 
         /// <summary>Fogonazo de 2 fotogramas (~0,05 s) en la boca del arma: una estrella pequena crema. size en metros.</summary>

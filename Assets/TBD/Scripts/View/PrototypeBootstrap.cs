@@ -573,7 +573,7 @@ namespace TBD.View
                     // D-N70: el delta de la rueda en el Input System son pixeles (+-120 por muesca en Windows, +-1 en el Editor y otros). Antes se dividia siempre entre 120:
                     // en el Editor cada muesca valia 0,1 % y «no funcionaba». Ahora se normaliza a muescas (>=10 -> /120) y cada una da un salto del 15 %, suavizado por el lerp (~0,15 s).
                     float notches = Mathf.Clamp(s / (Mathf.Abs(s) >= 10f ? 120f : 1f), -3f, 3f);
-                    if (notches < 0f && _targetOrtho >= 69.5f && _zoneNode >= 0 && !NightRun.Active)   // de noche no se sale al mapa con la rueda: reiniciaba la partida (Eugenio, 7-nov)
+                    if (notches < 0f && _targetOrtho >= 69.5f && _zoneNode >= 0)   // de noche no se sale al mapa con la rueda: reiniciaba la partida (Eugenio, 7-nov)
                     {
                         // en el tope de 70: la primera muesca de mas avisa junto al cursor; la segunda, en menos de 0,6 s, sale al mapa (con el fundido que ya hay)
                         if (Time.unscaledTime - _outNotchAt < 0.6f && _outNotchAt > 0f) { _outNotchAt = 0f; _outHintUntil = 0f; LeaveToMap(); }
