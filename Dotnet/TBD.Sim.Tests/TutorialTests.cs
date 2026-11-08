@@ -253,7 +253,7 @@ namespace TBD.Sim.Tests
                 string bj = BalanceSource.Read("estacion_betera.json");
                 check(bj != null, "existe Data/estacion_betera.json (Álvaro, v0)");
                 var ae = AerodromoEstado.FromJson(bj);
-                check(ae.Aeronaves.Count == 2 && ae.Pelotones.Count == 2 && Math.Abs(ae.MapX - 49) < 0.01 && Math.Abs(ae.MapY - 75) < 0.01, "Bétera: 2 NH90 y 2 pelotones de embarque, en (49; 75) del mapa");
+                check(ae.Aeronaves.Count == 2 && ae.Pelotones.Count == 2 && Math.Abs(ae.MapX - 48) < 0.01 && Math.Abs(ae.MapY - 75) < 0.01, "Bétera: 2 NH90 y 2 pelotones de embarque, en (48; 75) del mapa (red-inicio v1)");
                 check(Math.Abs(ae.Km("Sagunto") - 18.1) < 0.01 && Math.Abs(ae.Km("Nules") - 37.4) < 0.01 && ae.Destinos["Sagunto"].RumboLlegada == 252, "distancias reales: 18,1 km a Sagunto (llega con rumbo 252°) y 37,4 km a Nules");
                 float vS = AerodromoEstado.VueloS(18.1), vN = AerodromoEstado.VueloS(37.4);
                 check(vS > 0 && vN > vS * 2 - 0.01f && vN < vS * 2.2f, $"el vuelo sale de la distancia real ({vS:0.0} s a Sagunto, {vN:0.0} s a Nules)");

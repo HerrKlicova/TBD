@@ -10,7 +10,7 @@
   "lat": 39.6244,
   "lon": -0.4725,
   "mapa_xy": [
-   49,
+   48,
    75
   ],
   "fuente": "helis.com LEBT (ficha de Paula); mapa_xy ajustado por mínimos cuadrados con Sagunto, Nules, Valencia y Castellón (error ≤0,5)",
@@ -30,7 +30,8 @@
    "pelotones_embarque": 2,
    "peloton_guarnicion": 1
   },
-  "plantel_nota": "Lucía, 8-nov (D-N143: un pelotón por aparato y uno fijo); lo revisa Hugo"
+  "plantel_nota": "Lucía, 8-nov (D-N143: un pelotón por aparato y uno fijo); lo revisa Hugo",
+  "carretera_sagunto_km": 29.7
  },
  "vias": [],
  "andenes": [],
