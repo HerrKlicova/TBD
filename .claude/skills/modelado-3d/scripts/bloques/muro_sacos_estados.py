@@ -165,6 +165,7 @@ def construir(nombre="SM_MuroSacos", lod=0):
                    "roto", rot_z=(_h((x0, f, 0), 8) - 0.5) * 0.3)
     # sacos caídos: hacia fuera (−Y) casi todos; en la brecha, desparramados a los dos lados y bajos
     n_max = (22 if fino else 9) if ESTADO >= 2 else (10 if fino else 5)
+    n_max = max(2, round(n_max * min(1.0, LARGO / 8.0)))       # piezas cortas (esquina y remate): menos sacos caídos
     for i, (x, f) in enumerate(caidos[:n_max]):
         r = _h((x, f, i), 5)
         fuera = r < 0.75 or ESTADO == 3 and r < 0.5
@@ -183,16 +184,17 @@ def construir(nombre="SM_MuroSacos", lod=0):
     # tablón de la v3 (a86c50, 0,25 × 0,06 m, de punta a punta y algo volado hacia fuera)
     if VARIANTE == 3:
         zt = 4 * H + 0.03
+        k = LARGO / 8.0                                          # a escala en las piezas cortas (en el tramo, k = 1)
         if ESTADO == 0:
-            m.caja((0, -0.1, zt), (8.2, 0.3, 0.06), "tablon")
+            m.caja((0, -0.1, zt), (8.2 * k, 0.3, 0.06), "tablon")
         elif ESTADO == 1:    # se ha caído por un extremo en la muesca
-            m.caja((-2.0, -0.1, zt), (4.2, 0.3, 0.06), "tablon")
-            m.barra((0.2, -0.15, zt), (4.1, -0.2, 3 * H + 0.03), 0.3, 0.06, "tablon")
+            m.caja((-2.0 * k, -0.1, zt), (4.2 * k, 0.3, 0.06), "tablon")
+            m.barra((0.2 * k, -0.15, zt), (4.1 * k, -0.2, 3 * H + 0.03), 0.3, 0.06, "tablon")
         elif ESTADO == 2:    # sobre los escombros, cruzado
-            m.barra((-3.0, -1.4, 0.35), (2.0, -0.2, 0.65), 0.3, 0.06, "tablon")
+            m.barra((-3.0 * k, -1.4, 0.35), (2.0 * k, -0.2, 0.65), 0.3, 0.06, "tablon")
         else:                # partido en dos en el suelo
-            m.caja((-1.8, -1.3, 0.05), (3.4, 0.3, 0.06), "tablon", rot_z=0.25)
-            m.caja((2.2, -0.9, 0.05), (2.6, 0.3, 0.06), "tablon", rot_z=-0.4)
+            m.caja((-1.8 * k, -1.3, 0.05), (3.4 * k, 0.3, 0.06), "tablon", rot_z=0.25)
+            m.caja((2.2 * k, -0.9, 0.05), (2.6 * k, 0.3, 0.06), "tablon", rot_z=-0.4)
     # red de camuflaje de la v4 (303424): por encima y colgando por la cara de fuera, con el borde irregular
     if VARIANTE == 4:
         alto = {0: 4, 1: 4, 2: 2, 3: 0}[ESTADO] * H
