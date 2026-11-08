@@ -193,7 +193,7 @@ def estrellas(n):
 def exportar(out):
     out = Path(out)
     todo = {}
-    for n, fn in (("municion", a1.municion), ("materiales", a1.materiales), ("combustible", a1.combustible),
+    for n, fn in (("municion", a1.municion), ("materiales", a1.materiales), ("combustible", a1.combustible), ("viveres", a1.viveres),
                   ("pila", pila), ("bajas", bajas)):
         s32 = fn()
         s16 = reduce_16(s32)
