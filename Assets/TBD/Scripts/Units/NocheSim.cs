@@ -488,7 +488,7 @@ namespace TBD.Units
         /// <summary>D-N173 (Lucía, 8-nov): no hay helipuerto en Sagunto. El NH90 vive en el aeródromo (un nodo del mapa): llega a la zona tras el viaje y, para rearmar, vuelve allí
         /// (ida y vuelta). Distancia SUPUESTA de 40 km hasta que Paula dé el sitio; crucero del NH90 260 km/h. El viaje va en tiempo de mapa: ticks reales = s de juego × 30 / reloj_x.</summary>
         public bool Nh90FromAirfield; public int AirfieldM = 40000, Nh90CruiseKmh = 260, Nh90PrepS = 20, Nh90LandS = 20, Nh90RearmS = 30;   // Lucía (8-nov): 20 s de preparar y despegar, 20 s de tomar tierra, 30 s de rearme
-        /// <summary>D-N173: claro de 20 × 20 m donde se posa para desembarcar (SUPUESTO: dentro del recinto, al este del edificio) y tiempo de bajar (D-N166).</summary>
+        /// <summary>D-N173: claro de 25 × 25 m (Lucía) donde se posa para desembarcar; centro SUPUESTO dentro del recinto, al este del edificio; crucero 260 km/h verificado por Paula y tiempo de bajar (D-N166).</summary>
         public int LandingX = 140000, LandingY = 76000, EmbarqueDropS = 10;
         public int AirfieldTripTicks() { long gameS = (long)AirfieldM * 3600 / 1000 / Math.Max(1, Nh90CruiseKmh); return (int)Math.Max(1, gameS * IMath.TickRate / Math.Max(1, Night.P.ClockX)); }
         /// <summary>D-N173: el NH90 empieza en el aeródromo. «etaTick» ≥ 0: llega a la zona en ese tick (la ETA del mapa); −1: despega solo cuando hay horda y tarda el viaje.</summary>
