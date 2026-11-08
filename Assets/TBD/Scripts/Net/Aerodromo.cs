@@ -94,7 +94,7 @@ namespace TBD.Net
         public static float VueloS(double km)
         {
             double horasJuego = km / NH90Kmh;
-            double relojX = NetConst.GameMsPerTick * (double)NetConst.TickRate / 1000.0;    // segundos de juego por segundo real
+            double relojX = NetConst.GameMs(NetConst.TickRate) / 1000.0;    // segundos de juego por segundo real
             return (float)(horasJuego * 3600.0 / relojX);
         }
 

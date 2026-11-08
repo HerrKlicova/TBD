@@ -14,15 +14,15 @@
   },
   "dificultad_por_defecto": "normal",
   "escala_oleadas_permil": {
-    "facil": 725,
-    "normal": 850,
-    "dificil": 985
+    "facil": 853,
+    "normal": 1000,
+    "dificil": 1086
   },
   "recursos_iniciales": {
     "municion_u": 47,
     "materiales_u": 40,
     "combustible_u": 30,
-    "nota": "en el almacén de Sagunto; aparte, cada pelotón, el Dragón y el NH90 llevan su dotación (unas 10 u en total); el muro de partida (D-N63) ya está construido"
+    "nota": "TOPES del almacén de zona de Sagunto; se llenan con min(tope, reserva) al empezar la partida y cada ataque (ver existencias_red.json). Aparte, los pelotones y vehículos llevan su dotación (unas 10 u en total). El muro de partida (D-N63) y el pretil de la azotea ya están construidos"
   },
   "fuerza": {
     "pelotones": [
@@ -35,9 +35,8 @@
     "vehiculos": [
       "dragon"
     ],
-    "helicopteros": [
-      "nh90"
-    ]
+    "helicopteros": [],
+    "_nota": "plantel de partida: 5 pelotones, 1 Dragón y 2 VAMTAC (los VAMTAC los pone AddDefaultVehicles en (88;53) y (80;53); están en vehiculos_tierra.json)"
   },
   "oleadas": {
     "facil": [
@@ -46,11 +45,11 @@
         "hora": "22:00",
         "minuto_juego": 0,
         "llegada_s_reales": 180,
-        "total": 4710,
+        "total": 4480,
         "por_entrada": {
-          "O1": 2355,
-          "O2": 1413,
-          "O3": 942,
+          "O1": 2240,
+          "O2": 1344,
+          "O3": 896,
           "O4": 0
         }
       }
@@ -61,11 +60,11 @@
         "hora": "22:00",
         "minuto_juego": 0,
         "llegada_s_reales": 180,
-        "total": 5520,
+        "total": 5250,
         "por_entrada": {
-          "O1": 2760,
-          "O2": 1656,
-          "O3": 1104,
+          "O1": 2625,
+          "O2": 1575,
+          "O3": 1050,
           "O4": 0
         }
       }
@@ -76,11 +75,11 @@
         "hora": "22:00",
         "minuto_juego": 0,
         "llegada_s_reales": 180,
-        "total": 6400,
+        "total": 5700,
         "por_entrada": {
-          "O1": 3200,
-          "O2": 1920,
-          "O3": 1280,
+          "O1": 2850,
+          "O2": 1710,
+          "O3": 1140,
           "O4": 0
         }
       }
@@ -184,7 +183,7 @@
   "combustible": {
     "_nota": "D-N76 (Hugo). Consumo en E4 de u (1 u = 10.000) por segundo REAL; se cobra cada 30 ticks. Los 30 u de la noche incluyen los depósitos llenos.",
     "total_noche_u": 30,
-    "almacen_inicial_u": 16,
+    "almacen_inicial_u": 22,
     "dragon": {
       "deposito_u": 8,
       "marcha_e4_s": 200,
