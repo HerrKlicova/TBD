@@ -25,7 +25,7 @@ COLORES = {
     "chapa": "605c48",     # remiendos soldados sobre el parapeto
     "metal": "1c200c",     # teleros, topes y asideros
     "sacos": "847c34",
-    "carga": "88885c",     # cajas de munición
+    "carga": "847c34",     # cajas de munición (D-N157: en 88885c se juntaban con el lateral; Lucía 23:45)
 }
 L = 19.9
 Y0 = L / 2

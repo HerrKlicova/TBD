@@ -33,7 +33,7 @@ PIEZAS = ["casco", "bastidor", "rueda", "ventana", "puerta", "fuelle", "metal", 
           "contenedor", "contenedor2", "cisterna", "carga", "optica", "foco", "luz"]
 COLORES = {"casco": "88885c", "bastidor": "48403c", "rueda": "48403c", "ventana": "60546c", "puerta": "605c48",
            "fuelle": "48403c", "metal": "48403c", "sacos": "847c34", "chapa": "605c48", "tablero": "605c48",
-           "contenedor": "6c7874", "contenedor2": "847c34", "cisterna": "94948c", "carga": "88885c",
+           "contenedor": "6c7874", "contenedor2": "847c34", "cisterna": "94948c", "carga": "847c34",
            "optica": "60546c", "foco": "48403c", "luz": "f0dc9c"}
 if ASPECTO == 5:
     COLORES = dict(COLORES, contenedor="605c48")
