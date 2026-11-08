@@ -452,7 +452,7 @@ namespace TBD.View
 
         void StepSimulation()
         {
-            if (_nightOn) { NightTick(); if ((_ng.Tick & 15) == 0) SyncWorks(); }
+            if (_nightOn) { if ((_ng.Tick % 15) == 0) UpdateStats(true); NightTick(); if ((_ng.Tick & 15) == 0) SyncWorks(); }
             _groupA.Update();
             HashLogLine();
             if (_checkEnabled)
@@ -650,11 +650,10 @@ namespace TBD.View
         }
 
         // ================================================================ estadísticas para la pantalla
-        void UpdateStats()
+        void UpdateStats(bool porTick = false)
         {
-            _statsTimer -= Time.unscaledDeltaTime;
-            if (_statsTimer > 0f) return;
-            _statsTimer = 0.5f;
+            if (_nightOn && !porTick) return;      // de noche las listas de zombis (_zomPos, _allT) se refrescan cada 15 ticks DENTRO del tick: el tiempo real (y el turbo) no cambia lo que ve la noche
+            if (!porTick) { _statsTimer -= Time.unscaledDeltaTime; if (_statsTimer > 0f) return; _statsTimer = 0.5f; }
             if (!_nightOn) SyncWorks();      // de noche, SyncWorks va dentro del tick (los comandos de obra salen siempre en el mismo tick, con o sin turbo)
             var zs = _zombieQuery.ToComponentDataArray<Zombie>(Allocator.Temp);
             _total = zs.Length;
