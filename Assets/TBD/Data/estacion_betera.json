@@ -5,7 +5,7 @@
  "tamano": "estacion",
  "funcion": "aereo",
  "estado_inicial": "propia",
- "nota": "Álvaro (3), 8-nov, v0.2: ajustada a la planta real de Paula (OSM y PNOA), a escala 1:1. X al este, Z al norte. Zona propuesta de 324 × 224 m (campo «zona»); si tiene que ser de 256 × 128, el encuadre de reserva es «zona_reserva» y lo demás va como faldón. Piezas «aerodromo/*» nuevas (Teo). Sin asedios en el MVP (asedios_mvp: false).",
+ "nota": "Álvaro (3), 8-nov, v0.2: ajustada a la planta real de Paula (OSM y PNOA), a escala 1:1. X al este, Z al norte. Zona oficial del MVP: 256 × 128 (campo «zona», Iker 8-nov); lo demás va como faldón. La de 324 × 224 queda en «zona_postmvp». Piezas «aerodromo/*» nuevas (Teo). Sin asedios en el MVP (asedios_mvp: false).",
  "nodo": {
   "lat": 39.6244,
   "lon": -0.4725,
@@ -132,7 +132,12 @@
     40
    ],
    "yaw": 0,
-   "variante": -1
+   "variante": -1,
+   "huella_m": [
+    40,
+    25
+   ],
+   "nota": "40 × 25 m para 2 helicópteros con palas (estimación de Paula); SIN VERIFICAR"
   },
   {
    "pieza": "aerodromo/hangar",
@@ -142,7 +147,12 @@
     40
    ],
    "yaw": 0,
-   "variante": -1
+   "variante": -1,
+   "huella_m": [
+    40,
+    25
+   ],
+   "nota": "40 × 25 m para 2 helicópteros con palas (estimación de Paula); SIN VERIFICAR"
   },
   {
    "pieza": "aerodromo/torre_control",
@@ -192,7 +202,12 @@
     -26
    ],
    "yaw": 90,
-   "variante": -1
+   "variante": -1,
+   "huella_m": [
+    25,
+    14.4
+   ],
+   "nota": "bóveda 11 × 22 m + talud trasero hacia −X; faldón en el MVP"
   },
   {
    "pieza": "aerodromo/polvorin",
@@ -202,7 +217,56 @@
     -8
    ],
    "yaw": 90,
-   "variante": -1
+   "variante": -1,
+   "huella_m": [
+    25,
+    14.4
+   ],
+   "nota": "bóveda 11 × 22 m + talud trasero hacia −X; faldón en el MVP"
+  },
+  {
+   "pieza": "aerodromo/torreta_vigia",
+   "pos": [
+    4,
+    0,
+    121
+   ],
+   "yaw": 0,
+   "variante": -1,
+   "nota": "MVP"
+  },
+  {
+   "pieza": "aerodromo/torreta_vigia",
+   "pos": [
+    252,
+    0,
+    121
+   ],
+   "yaw": 0,
+   "variante": -1,
+   "nota": "MVP"
+  },
+  {
+   "pieza": "aerodromo/torreta_vigia",
+   "pos": [
+    -33,
+    0,
+    -33
+   ],
+   "yaw": 180,
+   "variante": -1,
+   "nota": "post-MVP, faldón"
+  },
+  {
+   "pieza": "aerodromo/torreta_vigia",
+   "pos": [
+    273,
+    0,
+    -33
+   ],
+   "yaw": 180,
+   "variante": -1,
+   "nota": "post-MVP, faldón"
   }
  ],
  "pista": {
@@ -237,7 +301,7 @@
   ],
   "C1": [
    100,
-   163
+   160
   ],
   "C2": [
    -20,
@@ -370,12 +434,6 @@
  },
  "asedios_mvp": false,
  "zona": [
-  -40,
-  -44,
-  284,
-  180
- ],
- "zona_reserva": [
   0,
   -4,
   256,
@@ -413,5 +471,13 @@
    ]
   ]
  ],
- "fuente_planta": "Paula, betera_planta.md: OSM (ODbL, vía 28352857) y PNOA del IGN (CC BY 4.0). Hangares SIN VERIFICAR."
+ "fuente_planta": "Paula, betera_planta.md: OSM (ODbL, vía 28352857) y PNOA del IGN (CC BY 4.0). Hangares SIN VERIFICAR.",
+ "zona_postmvp": [
+  -40,
+  -44,
+  284,
+  180
+ ],
+ "claros_lado_m": 25,
+ "claros_nota": "Lucía 8-nov: claro del NH90 de 25 × 25 m (P1 es la losa de 30 m)"
 }
