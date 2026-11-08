@@ -147,6 +147,40 @@ namespace TBD.Sim
                     em.SetComponentData(root, info);
                     break;
                 }
+                case CmdType.BuildSeg:
+                {
+                    // D-N163: tramo de muro con Id propio (16..255) para poder abrirlo (brecha) y cerrarlo (reconstruir) por la cola unica
+                    int segId = cmd.Arg / 10000, segH = cmd.Arg % 10000;
+                    var solids = em.GetBuffer<Solid>(root);
+                    var s = new Solid { A = cmd.P0, B = cmd.P1, HalfThick = Level.WallHalf * 0.5f, Height = segH > 0 ? Det.Mm(segH) : Level.WallH, Kind = 0, Open = 0, Id = (byte)math.clamp(segId, 0, 255) };
+                    solids.Add(s);
+                    var ground = em.GetBuffer<CellGround>(root);
+                    Level.RasterSolid(solids, ground, s);
+                    SolidIndex.Rebuild(solids, em.GetBuffer<SolidBucketStart>(root), em.GetBuffer<SolidBucketRef>(root));
+                    var info = em.GetComponentData<ZoneInfo>(root);
+                    info.ForceFlow = true;
+                    em.SetComponentData(root, info);
+                    break;
+                }
+                case CmdType.SetSegment:
+                {
+                    // D-N163: abre (brecha) o cierra (reconstruido) el tramo con ese Id; solo se recalcula la region afectada
+                    int segId = cmd.Arg / 10, open = cmd.Arg % 10;
+                    var solids = em.GetBuffer<Solid>(root);
+                    for (int i = 0; i < solids.Length; i++)
+                    {
+                        if (solids[i].Id != segId) continue;
+                        var s = solids[i];
+                        s.Open = (byte)(open != 0 ? 1 : 0);
+                        solids[i] = s;
+                        var ground = em.GetBuffer<CellGround>(root);
+                        Level.RasterSolid(solids, ground, s);
+                    }
+                    var info = em.GetComponentData<ZoneInfo>(root);
+                    info.ForceFlow = true;
+                    em.SetComponentData(root, info);
+                    break;
+                }
                 case CmdType.DeploySquad:
                 {
                     // 20 fusileros en tres filas tras el muro oeste y una ametralladora en la puerta (dentro del fuerte, junto al tren)

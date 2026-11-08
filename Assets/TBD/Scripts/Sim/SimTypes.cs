@@ -293,6 +293,8 @@ namespace TBD.Sim
         EmbarkSquad = 6,                                 // hito 3 (D-N27): pelotón a bordo; dispara desde los vagones con el tren parado
         Reembark = 7,                                    // hito 3: los soldados a pie a menos de 20 m del tren vuelven a bordo
         TrainDrive = 8,                                  // D-N38: Arg +1 adelante, -1 marcha atrás, 0 parar. Adelante lo frena el tapón de cuerpos
+        BuildSeg = 9,                                    // D-N163: muro por tramos. Arg = id * 10000 + altura en mm (id 16..255), P0/P1 = extremos. El tramo es un solido con Id propio
+        SetSegment = 10,                                 // D-N163: Arg = id * 10 + (1 = brecha abierta, 0 = cerrado). Pone Solid.Open del tramo y rehace la rejilla, como ToggleGate
     }
 
     /// <summary>Todo lo que hace el jugador es una orden con número de tick (regla 2 del GDD §17.3).</summary>

@@ -201,7 +201,8 @@ namespace TBD.View
                 zs.Dispose();
                 _zomCounted = true;
                 if ((_ng.Tick % NightSim.ClimberRetargetTicks) == 0) ClimberGoals();   // D-N148 (Nacho)   // D-N136 (Nacho): _zomPos ya es la cuenta de vivos de ECS; NightGame gana al llegar a 0 con toda la horda dentro
-                { for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; bool inside = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; uint zid = _zomId[ci]; if (inside) { if (_insideIds.Add(zid)) _climbSec++; } else _insideIds.Remove(zid); } }
+                { for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; bool inside = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; uint zid = _zomId[ci]; if (inside) { if (_insideIds.Add(zid)) { _climbSec++; _entTot++; float dW = zp.x - Level.FortX0, dE = Level.FortX1 - zp.x, dS = zp.y - Level.FortY0, dN = Level.FortY1 - zp.y; float mn = Mathf.Min(Mathf.Min(dW, dE), Mathf.Min(dS, dN)); _entSide[mn == dW ? 0 : mn == dS ? 1 : mn == dE ? 2 : 3]++; } } else _insideIds.Remove(zid); }
+                  { var tr = _ng.P.TrainRect; float r = _ng.P.AttackReachMm / 1000f; float tx0 = tr.X0 / 1000f - r, tx1 = tr.X1 / 1000f + r, ty0 = tr.Y0 / 1000f - r, ty1 = tr.Y1 / 1000f + r; int tin = 0, tout = 0; for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; if (zp.x < tx0 || zp.x > tx1 || zp.y < ty0 || zp.y > ty1) continue; bool insideF = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; if (insideF) tin++; else tout++; } _trainIn = tin; _trainOut = tout; } }
                 _allT.Clear(); for (int i = 0; i < _zomPos.Count; i++) _allT.Add(new Target { Id = (int)_zomId[i], X = (int)(_zomPos[i].x * 1000f), Y = (int)(_zomPos[i].y * 1000f) });
                 _ng.CountAttackers(_allT, out _pileNearStation, out _nearTrain);
                 if ((_nearTrain > 0 || _pileNearStation > 0) && _diagN < 6 && Time.unscaledTime - _diagT > 2f)
@@ -237,8 +238,8 @@ namespace TBD.View
             }
             if (_ng.Tick % 30 == 0 && _ng.State == NightState.Jugando)   // traza de la noche entera (Sara): una fila por segundo de juego con la vida del tren y de la estacion
             {
-                if (_fullTrace.Length == 0) _fullTrace.Append("tick,hora,estacion_hp,tren_hp,muro_hp,zombis,pila,atacan_tren,atacan_estacion,abatidos,bajas,trepan" + (char)10);
-                _fullTrace.Append($"{_ng.Tick},{TimeStr()},{_ng.StationHp},{_ng.TrainHp},{(long)_wallHp},{_zomPos.Count},{_pileWall},{_nearTrain},{_pileNearStation},{_nightKills},{_nightLost},{_climbSec}" + (char)10); _climbSec = 0;
+                if (_fullTrace.Length == 0) _fullTrace.Append("tick,hora,estacion_hp,tren_hp,muro_hp,zombis,pila,atacan_tren,atacan_estacion,abatidos,bajas,trepan,entran,entran_oeste,entran_sur,entran_este,entran_norte,tren_x,tren_x0,tren_x1,tren_y0,tren_y1,atacan_tren_dentro,atacan_tren_fuera" + (char)10);
+                _fullTrace.Append($"{_ng.Tick},{TimeStr()},{_ng.StationHp},{_ng.TrainHp},{(long)_wallHp},{_zomPos.Count},{_pileWall},{_nearTrain},{_pileNearStation},{_nightKills},{_nightLost},{_climbSec},{_entTot},{_entSide[0]},{_entSide[1]},{_entSide[2]},{_entSide[3]},{Mathf.RoundToInt(TrainXEcs())},{_ng.P.TrainRect.X0 / 1000},{_ng.P.TrainRect.X1 / 1000},{_ng.P.TrainRect.Y0 / 1000},{_ng.P.TrainRect.Y1 / 1000},{_trainIn},{_trainOut}" + (char)10); _climbSec = 0;
             }
             if (_uw.Tick % 15 == 0 && _uw.StockShots > 0)                                // reabastecimiento automatico: bajo el 30 % de su dotacion, del almacen (la T queda como recarga anticipada)
                 foreach (var plr in _uw.Platoons) if (plr.AliveCount() > 0 && plr.AmmoCap > 0 && plr.AmmoShots * 100 < plr.AmmoCap * 30 && _uw.Resupply(plr.Id) > 0) _resupplies++;
@@ -296,7 +297,7 @@ namespace TBD.View
                 }
             }
         }
-        int _climbSec; readonly HashSet<uint> _insideIds = new HashSet<uint>(); readonly System.Text.StringBuilder _fullTrace = new System.Text.StringBuilder(); float _gateT = -10f; readonly HashSet<int> _gateWalled = new HashSet<int>(); bool _capDirDone; readonly HashSet<float> _shotAtDone = new HashSet<float>(); int _diagN; float _diagT; float _endStationF = 1f, _endTrainF = 1f; int _pileNearStation, _nearTrain, _pileWall; float _wallHp, _wallMax; readonly List<Target> _allT = new List<Target>(); readonly ContactResult _contact = new ContactResult(); readonly float _contactR2 = 1200f * 1200f; readonly int _contactPpm = 1000000 * 14 / 1000 / 30;   // NightSimParams de Nacho: 1,2 m y 14 ‰ por zombi y segundo (por tick)
+        int _entTot, _trainIn, _trainOut; readonly int[] _entSide = new int[4]; float TrainXEcs() { try { return _worldA != null && _worldA.IsCreated ? _worldA.EntityManager.GetComponentData<TrainState>(_rootA).X : -1f; } catch (System.Exception) { return -1f; } } int _climbSec; readonly HashSet<uint> _insideIds = new HashSet<uint>(); readonly System.Text.StringBuilder _fullTrace = new System.Text.StringBuilder(); float _gateT = -10f; readonly HashSet<int> _gateWalled = new HashSet<int>(); bool _capDirDone; readonly HashSet<float> _shotAtDone = new HashSet<float>(); int _diagN; float _diagT; float _endStationF = 1f, _endTrainF = 1f; int _pileNearStation, _nearTrain, _pileWall; float _wallHp, _wallMax; readonly List<Target> _allT = new List<Target>(); readonly ContactResult _contact = new ContactResult(); readonly float _contactR2 = 1200f * 1200f; readonly int _contactPpm = 1000000 * 14 / 1000 / 30;   // NightSimParams de Nacho: 1,2 m y 14 ‰ por zombi y segundo (por tick)
 
         int CurrentWave()
         {
