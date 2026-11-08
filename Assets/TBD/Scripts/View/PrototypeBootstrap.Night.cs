@@ -427,7 +427,16 @@ namespace TBD.View
             var from = new Vector3(man.X / 1000f, 1.2f, man.Y / 1000f); var to = new Vector3(s.AimX / 1000f, 0.8f, s.AimY / 1000f);
             // trazadora que viaja (no un rayo): 1 de cada 3 balas en fusileros, 1 de cada 4 en ametralladoras, todas en tiradores y granadas (Lucia §4.1)
             bool tracer = s.Splash || s.Kind == InfKind.Tirador || UnityEngine.Random.value < (s.Kind == InfKind.Ametrallador ? 0.25f : 0.34f);
-            if (tracer) SpawnTracer(from, to, s.Splash ? 60f : 200f, s.Splash ? 0.16f : 0.07f, s.Splash ? 3f : 5f);
+            // Teo (8-nov): el disparo sale de Muzzle_n del modelo (hueso hijo de «brazos», sigue al arma en cada clip). Se usa su POSICIÓN y la
+            // dirección hacia el blanco, no su +Z: el fusil del modelo apunta unos 35° a la derecha porque va cruzado entre las manos.
+            var boca = _views.TryGetValue(man.Id, out var vista) && vista != null ? VxBocaSoldado(vista.Go, s.Splash) : null;
+            if (boca != null)
+            {
+                var w = s.Splash ? WeaponId.Lanzagranadas : s.Kind == InfKind.Ametrallador ? WeaponId.MgLigera : s.Kind == InfKind.Tirador ? WeaponId.FusilPrecision : WeaponId.Fusil;
+                VfxShot(w, boca.position, to, true, tracer, false);                                             // sin impacto propio: la granada y la sangre ya llegan por la simulación
+                return;
+            }
+            if (tracer) SpawnTracer(from, to, s.Splash ? 60f : 200f, s.Splash ? 0.16f : 0.07f, s.Splash ? 3f : 5f);   // modelo sin Muzzle: lo de antes
             SpawnFlash(from + (to - from).normalized * 0.6f, s.Kind == InfKind.Ametrallador ? 0.5f : 0.38f);
         }
 
