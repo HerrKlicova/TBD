@@ -461,7 +461,10 @@ namespace TBD.Sim.Tests
                 bool libre = true; foreach (var p in plan) if (p.Largo > 0 && Math.Abs(p.X - 85) < 0.01f && p.Z > 60.8f + 0.1f && p.Z < 68.2f - 0.1f) libre = false;
                 check(libre, "la puerta de vía doble del oeste queda libre (Z 60,8–68,2)");
                 var swc = esq.Find(p => Math.Abs(p.X - 85) < 0.01f && Math.Abs(p.Z - 40) < 0.01f); check(Math.Abs(swc.Yaw - 270) < 0.01f, "la esquina suroeste gira 270 (recinto al noreste)");
-                float u = RecintoPlan.Coste(plan); check(u > 40 && u < 200, $"coste del recinto con las tarifas de Hugo: {u:0} u (Lucía: 130 u; lo cierra Hugo)");
+                float u = RecintoPlan.UltimoCosteLineal, up = RecintoPlan.CostePuertas(BalanceSource.Read("estacion_nules.json"));
+                check(up == 42f, $"puertas de Nules: 2 de vía dobles (12), 1 de vía (8) y 1 de vehículos (10) = {up} u");
+                check(u + up >= 110 && u + up <= 140, $"coste del recinto (Hugo: HESCO al este con alas de 15 m y sacos en el resto): muros {u:0.0} u + puertas {up} u = {u + up:0.0} u (entre 110 y 140)");
+                check(plan.Exists(p => p.Malla.Contains("Hesco") && Math.Abs(p.Z - 40) < 0.01f && p.X > 173 && p.X < 188) && plan.Exists(p => p.Malla.StartsWith("SM_MuroSacos_") && Math.Abs(p.Z - 40) < 0.01f && p.X < 173), "alas de HESCO de 15 m en el sur junto al este; el resto del sur, sacos");
                 check(RecintoPlan.Estado(1f) == 0 && RecintoPlan.Estado(0.5f) == 1 && RecintoPlan.Estado(0.1f) == 2 && RecintoPlan.Estado(0f) == 3, "estados: Sano ≥ 70 %, Dañado, Muy dañado y Brecha");
                 check(RecintoPlan.Nules(BalanceSource.Read("estacion_nules.json"), 0.5f).TrueForAll(p => p.Malla.Contains("_e1_Danado")), "con la vida al 50 % todas las piezas salen dañadas");
                 check(RecintoPlan.VallaBetera(5000, false) == "SM_VallaBetera_Malla_e0_Sana" && RecintoPlan.VallaBetera(4000, true) == "SM_VallaBetera_MuroBajo_e1_SanaGolpeada" && RecintoPlan.VallaBetera(2000, false) == "SM_VallaBetera_Malla_e2_Danada" && RecintoPlan.VallaBetera(1000, false) == "SM_VallaBetera_Malla_e3_MuyDanada" && RecintoPlan.VallaBetera(0, false) == "SM_VallaBetera_Malla_e4_Brecha",

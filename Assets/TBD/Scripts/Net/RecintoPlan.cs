@@ -18,7 +18,15 @@ namespace TBD.Net
     public static class RecintoPlan
     {
         public const float HescoTramo = 10f, SacosTramo = 8f, HescoCelda = 1.11f, HescoEsquinaM = 2.78f, SacosEsquinaM = 3.9f;
-        public const float HescoUporM = 0.6f, SacosUporM = 0.2f;
+        public const float HescoUporM = 0.6f, SacosUporM = 0.2f, AlaHescoM = 15f;
+
+        /// <summary>Coste de las puertas (Hugo): de vía doble 12 u, de vía 8 u, de vehículos 10 u.</summary>
+        public static float CostePuertas(string json)
+        {
+            var root = TBD.Units.Mini.Parse(json) as Dictionary<string, object>; float u = 0;
+            foreach (var o in (List<object>)root["puertas"]) { var t = (string)((Dictionary<string, object>)o)["tipo"]; u += t == "via_doble" ? 12f : t == "via" ? 8f : t == "vehiculos" ? 10f : 0f; }
+            return u;
+        }
         static readonly string[] HescoVar = { "MallaLimpia", "Geotextil", "Escalonado", "RemateSacos", "Red" };
         static readonly string[] SacosVar = { "Recto", "Talud", "Irregular", "Tablon", "Red" };
         static readonly string[] Estados = { "e0_Sano", "e1_Danado", "e2_MuyDanado", "e3_Brecha" };
@@ -58,6 +66,8 @@ namespace TBD.Net
                 float res0 = m == MaterialMuro.Hesco ? HescoEsquinaM : SacosEsquinaM;
                 // extremos: esquina si el vecino es muro (convexa), remate si es edificio; los dos reservan su brazo
                 bool prevEdif = edificio((i - 1 + n) % n), nextEdif = edificio((i + 1) % n);
+                // vértices alineados (cambio de material a mitad de un lado, p. ej. las alas de HESCO de Hugo): ni esquina ni hueco de esquina
+                bool iniRecto = Alineado(poly[(i - 1 + n) % n], a, b), finRecto = Alineado(a, b, poly[(i + 2) % n]);
                 // trozos libres del lado, quitando las puertas
                 var cortes = new List<Hueco>(); if (huecos != null && huecos.TryGetValue(i, out var hs)) cortes.AddRange(hs);
                 cortes.Sort((p, q) => p.A.CompareTo(q.A));
@@ -65,7 +75,7 @@ namespace TBD.Net
                 foreach (var c in cortes) { if (c.A > desde) trozos.Add(new[] { desde, c.A, 1f }); desde = Math.Max(desde, c.B); }
                 if (desde < len) trozos.Add(new[] { desde, len, 0f });
                 // esquina en el vértice de inicio (si el lado anterior es muro): una por vértice
-                if (!prevEdif)
+                if (!prevEdif && !iniRecto)
                 {
                     // la esquina de Teo tiene el recinto en (+X, −Z) con yaw 0; se gira según hacia dónde quedan los dos muros desde el vértice
                     var pv = poly[(i - 1 + n) % n]; float wx = pv[0] - a[0], wz = pv[1] - a[1];
@@ -78,13 +88,20 @@ namespace TBD.Net
                     float s0 = trozos[t][0], s1 = trozos[t][1];
                     bool iniEsquina = s0 == 0f, finEsquina = s1 >= len - 1e-3f;
                     // remates junto a puertas y junto al edificio
-                    if (!iniEsquina || prevEdif) res.Add(Remate(m, a, ux, uz, s0, yaw, estado, +1));
-                    if (!finEsquina || nextEdif) res.Add(Remate(m, a, ux, uz, s1, yaw, estado, -1));
-                    float l0 = s0 + res0, l1 = s1 - res0; if (l1 - l0 < 0.3f) continue;
+                    if ((!iniEsquina || prevEdif) && !(iniEsquina && iniRecto)) res.Add(Remate(m, a, ux, uz, s0, yaw, estado, +1));
+                    if ((!finEsquina || nextEdif) && !(finEsquina && finRecto)) res.Add(Remate(m, a, ux, uz, s1, yaw, estado, -1));
+                    float l0 = s0 + (iniEsquina && iniRecto ? 0f : res0), l1 = s1 - (finEsquina && finRecto ? 0f : res0); if (l1 - l0 < 0.3f) continue;
                     Rellenar(res, m, a, ux, uz, l0, l1, yaw, estado);
                 }
             }
             return res;
+        }
+
+        static bool Alineado(float[] p, float[] q, float[] r)
+        {
+            double c = (q[0] - p[0]) * (r[1] - q[1]) - (q[1] - p[1]) * (r[0] - q[0]);
+            double d = (q[0] - p[0]) * (r[0] - q[0]) + (q[1] - p[1]) * (r[1] - q[1]);
+            return Math.Abs(c) < 1e-3 && d > 0;
         }
 
         static PiezaMuro Remate(MaterialMuro m, float[] a, float ux, float uz, float s, float yaw, int estado, int hacia)
@@ -112,6 +129,24 @@ namespace TBD.Net
             res.Add(new PiezaMuro { Malla = Nombre(pieza, m, EstacionDato.VariantOf(x, z, 5), estado), X = x, Z = z, Yaw = yaw, Largo = l, EscalaX = escala, Material = m });
         }
 
+        /// <summary>
+        /// Coste lineal del recinto como lo cuenta Hugo: metros de muro por material (lados menos huecos de puerta y menos el edificio), a 0,6 u/m de HESCO y
+        /// 0,2 u/m de sacos. Las esquinas y los remates ya van dentro de esos metros.
+        /// </summary>
+        public static float CosteLineal(float[][] poly, Func<int, MaterialMuro> material, Func<int, bool> edificio, Dictionary<int, List<Hueco>> huecos)
+        {
+            float u = 0; int n = poly.Length;
+            for (int i = 0; i < n; i++)
+            {
+                if (edificio(i)) continue;
+                var a = poly[i]; var b = poly[(i + 1) % n]; float len = (float)Math.Sqrt((b[0] - a[0]) * (b[0] - a[0]) + (b[1] - a[1]) * (b[1] - a[1]));
+                if (huecos != null && huecos.TryGetValue(i, out var hs)) foreach (var h in hs) len -= Math.Max(0f, Math.Min(h.B, len) - Math.Max(h.A, 0f));
+                u += len * (material(i) == MaterialMuro.Hesco ? HescoUporM : SacosUporM);
+            }
+            return u;
+        }
+
+        /// <summary>Coste de las piezas de tramo (sin esquinas ni remates): solo para comprobar la colocación.</summary>
         public static float Coste(List<PiezaMuro> plan)
         {
             float u = 0; foreach (var p in plan) u += p.Largo * (p.Material == MaterialMuro.Hesco ? HescoUporM : SacosUporM);
@@ -125,8 +160,17 @@ namespace TBD.Net
             var rl = (List<object>)root["recinto"]; var poly = new float[rl.Count][];
             for (int i = 0; i < rl.Count; i++) { var p = (List<object>)rl[i]; poly[i] = new[] { Convert.ToSingle(p[0], System.Globalization.CultureInfo.InvariantCulture), Convert.ToSingle(p[1], System.Globalization.CultureInfo.InvariantCulture) }; }
             float maxX = float.MinValue; foreach (var p in poly) maxX = Math.Max(maxX, p[0]);
+            // Hugo (nules-recinto.md §2): HESCO en el frente este y un ala de 15 m en cada esquina norte y sur del este; se parte el lado con un vértice alineado
+            var lista = new List<float[]>();
+            for (int i = 0; i < poly.Length; i++)
+            {
+                var a0 = poly[i]; var b0 = poly[(i + 1) % poly.Length]; lista.Add(a0);
+                if (Math.Abs(a0[1] - b0[1]) < 1e-3f && (Math.Abs(a0[0] - maxX) < 1e-3f || Math.Abs(b0[0] - maxX) < 1e-3f))
+                { float x = maxX - AlaHescoM; if (x > Math.Min(a0[0], b0[0]) && x < Math.Max(a0[0], b0[0])) lista.Add(new[] { x, a0[1] }); }
+            }
+            poly = lista.ToArray();
             Func<int, bool> edif = i => { var a = poly[i]; var b = poly[(i + 1) % poly.Length]; return (a[1] > 96f + 1e-3f || b[1] > 96f + 1e-3f); };   // los tres lados que rodean el edificio
-            Func<int, MaterialMuro> mat = i => { var a = poly[i]; var b = poly[(i + 1) % poly.Length]; return Math.Abs(a[0] - maxX) < 1e-3f && Math.Abs(b[0] - maxX) < 1e-3f ? MaterialMuro.Hesco : MaterialMuro.Sacos; };
+            Func<int, MaterialMuro> mat = i => { var a = poly[i]; var b = poly[(i + 1) % poly.Length]; return Math.Min(a[0], b[0]) >= maxX - AlaHescoM - 1e-3f ? MaterialMuro.Hesco : MaterialMuro.Sacos; };
             // puertas: cada una corta el lado donde cae
             var huecos = new Dictionary<int, List<Hueco>>();
             foreach (var o in (List<object>)root["puertas"])
@@ -147,8 +191,11 @@ namespace TBD.Net
                     l.Add(new Hueco { A = Math.Min(h0, h1b), B = Math.Max(h0, h1b) });
                 }
             }
+            UltimoCosteLineal = CosteLineal(poly, mat, edif, huecos);
             return Plan(poly, mat, edif, huecos, vida);
         }
+        /// <summary>Coste lineal (Hugo) del último recinto planificado con Nules().</summary>
+        public static float UltimoCosteLineal { get; private set; }
 
         static float[] Fs(object o) { var l = (List<object>)o; return new[] { Convert.ToSingle(l[0], System.Globalization.CultureInfo.InvariantCulture), Convert.ToSingle(l[1], System.Globalization.CultureInfo.InvariantCulture) }; }
 
