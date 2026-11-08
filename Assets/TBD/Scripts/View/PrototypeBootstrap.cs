@@ -452,7 +452,7 @@ namespace TBD.View
 
         void StepSimulation()
         {
-            if (_nightOn) NightTick();
+            if (_nightOn) { NightTick(); if ((_ng.Tick & 15) == 0) SyncWorks(); }
             _groupA.Update();
             HashLogLine();
             if (_checkEnabled)
@@ -655,7 +655,7 @@ namespace TBD.View
             _statsTimer -= Time.unscaledDeltaTime;
             if (_statsTimer > 0f) return;
             _statsTimer = 0.5f;
-            SyncWorks();
+            if (!_nightOn) SyncWorks();      // de noche, SyncWorks va dentro del tick (los comandos de obra salen siempre en el mismo tick, con o sin turbo)
             var zs = _zombieQuery.ToComponentDataArray<Zombie>(Allocator.Temp);
             _total = zs.Length;
             _walking = _falling = _settled = 0;
