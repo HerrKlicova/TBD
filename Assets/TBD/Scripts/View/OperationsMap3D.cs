@@ -97,7 +97,7 @@ namespace TBD.View
         void Start()
         {
             _mapT0 = Time.realtimeSinceStartup;
-            if (NightRun.Active && NightRun.Session == null) { EnterZone(0); return; }                                    // «Jugar»: directo a la noche de Sagunto (D-N71)
+            if (NightRun.Active && NightRun.Session == null) { EnterZone(ZonaArg()); return; }                            // «Jugar»: directo a la noche de Sagunto (D-N71); QA: -zona <nombre> entra en otra (D-N173, Sara)
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k-sagunto") >= 0) { EnterZone(0); return; }       // prueba de rendimiento en la zona de Sagunto (con la muestra del suelo)
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k") >= 0 && NetSession.DebugForceAmbush()) { NetSession.PendingAmbush = true; UnityEngine.SceneManagement.SceneManager.LoadScene("SampleScene"); return; }   // prueba de rendimiento (D-N61)
             Application.targetFrameRate = 60;
@@ -120,6 +120,15 @@ namespace TBD.View
                 _pitch = 50f;
                 NetSession.ReturnFromNode = -1;
             }
+        }
+
+        /// <summary>QA (Sara, D-N173): -zona &lt;nombre&gt; (Nules, Castellón...) elige la zona de la noche; sin ella o si no existe, Sagunto (nodo 0).</summary>
+        static int ZonaArg()
+        {
+            var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-zona"); if (i < 0 || i + 1 >= a.Length) return 0;
+            NetSession.Ensure(); string id = TrenPreparar.IdDe(a[i + 1]); int n = TrenPreparar.NodoPorId(NetSession.A, id);
+            if (n < 0) { Debug.LogWarning("[NOCHE] -zona " + a[i + 1] + ": no es un nodo de la red (Bétera es el aeródromo, va aparte); entro en Sagunto"); return 0; }
+            Debug.Log("[NOCHE] -zona " + a[i + 1] + " → nodo " + n); return n;
         }
 
         void SetupCamera()

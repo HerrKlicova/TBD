@@ -99,7 +99,7 @@ namespace TBD.View
             NearWall(Vector2.zero); Debug.Log($"[NOCHE] muros_obras={_wallSegs.Count}");
             Debug.Log($"[NOCHE] reloj_x={_ng.P.ClockX} municion_u={_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.#} materiales_u=40 combustible_u=30 almacen_combustible_u=16");
             if (_sel.Count == 0 && _uw.Platoons.Count > 0) _sel.Add(_uw.Platoons[0].Id);
-            InitVehicles();
+            InitVehicles(); Debug.Log($"[NOCHE] vehículos de {_estacionZona}: {_vehs.Count} ({string.Join(", ", _vehs.ConvertAll(v => v.Name))})");
             _rec = resume && NightRun.Session.Rec != null ? NightRun.Session.Rec : new NightTraceRecorder("zona", 1285, 9000, 30);
             if (resume && NightRun.Session.Bot != null) _bot = NightRun.Session.Bot;
             if (!resume && NightRun.Session == null) NightRun.Session = new NightSession { Ng = _ng, Uw = _uw };
