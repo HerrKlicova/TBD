@@ -111,7 +111,7 @@ namespace TBD.Net
         public static string HhMm(long ticks)
         {
             if (ticks < 0) return "—";
-            long min = ticks * NetConst.GameMsPerTick / 60000;
+            long min = NetConst.GameMs(ticks) / 60000;
             return $"{min / 60}:{min % 60:00}";
         }
     }

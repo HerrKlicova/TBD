@@ -61,8 +61,8 @@ namespace TBD.Sim.Tests
 
             // Chispas en el taller: rehabilitar un 25 % más rápido; fabricar igual
             var wc = World(true);
-            wc.OrderTrain(TallerKind.RehabTren3); Steps(wc, 43_199); bool nb = wc.Services.Count == 0; wc.Step();
-            check(nb && wc.Services.Count == 1, "con Chispas en el taller el Tren 3 sale a las 28,8 h (43.200 ticks), no antes");
+            wc.OrderTrain(TallerKind.RehabTren3); Steps(wc, 30_239); bool nb = wc.Services.Count == 0; wc.Step();
+            check(nb && wc.Services.Count == 1, "con Chispas en el taller el Tren 3 sale a las 28,8 h (30.240 ticks), no antes");
             wc.OrderTrain(TallerKind.Carga); long day3 = 3L * NetConst.DayTicks;
             int peopleBefore = S(wc, Res.Personas);
             Steps(wc, day3 - 1); bool nb2 = wc.Services.Count == 1; wc.Step();
@@ -153,7 +153,7 @@ namespace TBD.Sim.Tests
             var res = NetGolden.Verify(gold);
             check(res.Ok && gold.Contains(";16;") && gold.Contains(";17;") && gold.Contains(";18;"), $"las órdenes del taller se graban y se reproducen igual: {res}");
 
-            // Chispas a bordo del tren de obras acelera las reparaciones de vía (36.000 obrero·ticks → 28.800: 3.600 ticks con 8 obreros)
+            // Chispas a bordo del tren de obras acelera las reparaciones de vía (25.200 obrero·ticks → 20.160: 2.520 ticks con 8 obreros)
             NetWorld Rep(bool onTrain, out RailEdge edge)
             {
                 var r = NetScenario.Mvp(false); r.Tick = NetConst.Hours(8); r.Taller.ChispasAt = onTrain ? 0 : -1;
@@ -167,7 +167,7 @@ namespace TBD.Sim.Tests
             }
             var rn = Rep(false, out var en); rn.RepairEdge(en.Id, 0); int tn = 0; while (en.Debris && tn < 20_000) { rn.Step(); tn++; }
             var rc = Rep(true, out var ec); rc.RepairEdge(ec.Id, 0); int tc = 0; while (ec.Debris && tc < 20_000) { rc.Step(); tc++; }
-            check(tn == 4_500 && tc == 3_600, $"con Chispas en el taller reparar un tramo tarda 3 h (4.500 ticks) y con Chispas a bordo del tren de obras 2,4 h (3.600): {tn} y {tc}");
+            check(tn == 3_150 && tc == 2_520, $"con Chispas en el taller reparar un tramo tarda 3 h (3.150 ticks) y con Chispas a bordo del tren de obras 2,4 h (2.520): {tn} y {tc}");
         }
     }
 }

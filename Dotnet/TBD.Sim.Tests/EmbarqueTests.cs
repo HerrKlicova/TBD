@@ -54,11 +54,11 @@ namespace TBD.Sim.Tests
             check(w.LoadBlockReason(sv, PasajeroTipo.Peloton, 9, nul) == "Está en Sagunto", "un pelotón de casa no sube en Nules");
             // CmdCargo (Iker): descargar la carga en Nules sin salir; el tren sigue «en» Nules
             { int mat = (int)Res.Materiales; svc.Cargo[mat] = 50; int st = w.Stock[nul, mat]; ulong hc = w.Hash();
-              w.Push(NetWorld.CmdCargo(w.Tick, sv, nul, new[] { 0, 0, -30, 0 })); w.Step();
+              w.Push(NetWorld.CmdCargo(w.Tick, sv, nul, new[] { 0, 0, -30, 0, 0 })); w.Step();
               check(svc.Cargo[mat] == 20 && w.Stock[nul, mat] == st + 30 && w.Hash() != hc, $"CmdCargo con el tren parado baja 30 u de materiales a la estación ({st} → {w.Stock[nul, mat]}) sin salir");
-              check(w.MoveCargo(sv, nul, new[] { 0, 0, -999, 0 }) == 20 && svc.Cargo[mat] == 0, "no baja más de lo que lleva");
-              int up = w.MoveCargo(sv, nul, new[] { 0, 0, 10, 0 }); check(up == Math.Min(10, w.Stock[nul, mat] + 0 >= 10 ? 10 : up) && svc.Cargo[mat] == up, $"y sube de la estación al tren ({up} u)");
-              check(w.MoveCargo(sv, val, new[] { 0, 0, -1, 0 }) == -1 && w.MoveCargo(sv, nul, new[] { 1, 2 }) == -1, "no se mueve en una estación donde no está, ni con un vector mal formado"); svc.Cargo[mat] = 0; svc.Train.CargoTonnes = svc.CargoTotal(); }
+              check(w.MoveCargo(sv, nul, new[] { 0, 0, -999, 0, 0 }) == 20 && svc.Cargo[mat] == 0, "no baja más de lo que lleva");
+              int up = w.MoveCargo(sv, nul, new[] { 0, 0, 10, 0, 0 }); check(up == Math.Min(10, w.Stock[nul, mat] + 0 >= 10 ? 10 : up) && svc.Cargo[mat] == up, $"y sube de la estación al tren ({up} u)");
+              check(w.MoveCargo(sv, val, new[] { 0, 0, -1, 0, 0 }) == -1 && w.MoveCargo(sv, nul, new[] { 1, 2 }) == -1, "no se mueve en una estación donde no está, ni con un vector mal formado"); svc.Cargo[mat] = 0; svc.Train.CargoTonnes = svc.CargoTotal(); }
             svc.Stops.Clear(); svc.Stops.AddRange(stops); svc.StopIndex = si0; svc.AtStop = at0;
 
             // zona: tiempos y regla de noche

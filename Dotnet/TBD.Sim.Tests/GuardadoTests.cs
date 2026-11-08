@@ -65,7 +65,7 @@ namespace TBD.Sim.Tests
         public static string DeepDiff(NetWorld a, NetWorld b) { return Diff(a, b, "mundo", new HashSet<(object, object)>()); }
 
         static int Id(NetWorld w, string name) { for (int i = 0; i < w.Graph.Nodes.Count; i++) if (w.Graph.Nodes[i].Name == name) return i; return -1; }
-        static int[] Stop(int node, long at, int mun = 0, int comb = 0, int mat = 0, int per = 0) { return new[] { node, (int)at, mun, comb, mat, per }; }
+        static int[] Stop(int node, long at, int mun = 0, int comb = 0, int mat = 0, int per = 0, int viv = 0) { return new[] { node, (int)at, mun, comb, mat, per, viv }; }
 
         /// <summary>Un guion con de todo: velocidad, taller, zona materializada, obras con obreros, horario nuevo, retención de trenes y consumo de munición.</summary>
         static List<NetCommand> RichScript(NetWorld w)

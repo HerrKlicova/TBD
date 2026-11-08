@@ -32,7 +32,7 @@ namespace TBD.Net
         public long RepairDone;               // avance de la reparación, en obrero·ticks
         public long RepairNeed;               // trabajo total de la reparación en obrero·ticks (0 = el de un tramo normal)
         public int RepairU;                   // materiales de la reparación (0 = los de un tramo normal)
-        public long HordeSpeedMmPerTick = 1333; // horda común a 2 km/h de juego con 2,4 s por tick (decisión D-N11 de Lucía); los rápidos, 6 km/h
+        public long HordeSpeedMmPerTick = 1905; // horda común a 2 km/h de juego con 24/7 s por tick (1.904,8 mm) (decisión D-N11 de Lucía); los rápidos, 6 km/h
     }
 
     public enum AmbushKind : byte { Desmonte = 0, Curva = 1, Puente = 2 }
@@ -226,17 +226,15 @@ namespace TBD.Net
 
     public static class AlertEngine
     {
-        public const int GameMsPerTick = 2400;     // igual que NetConst.GameMsPerTick (1 tick = 2,4 s de juego)
 
         /// <summary>Minutos de JUEGO hasta el impacto (QA Q3: antes eran segundos reales a x1, que a x4 duraban la cuarta parte).</summary>
-        public static long EtaMinutes(long etaTicks) { return etaTicks * GameMsPerTick / 60000; }
+        public static long EtaMinutes(long etaTicks) { return NetConst.GameMs(etaTicks) / 60000; }
 
         public const long DetectMm = 3_000_000;    // detección de la horda a unos 3 km (D-N11): unos 75 s reales de aviso a x1
 
         static string ClockAt(long tick)
         {
-            long secs = (tick % 36000) * GameMsPerTick / 1000;
-            return (secs / 3600).ToString("00") + ":" + (secs / 60 % 60).ToString("00");
+            return NetConst.Clock(tick);
         }
 
         static string When(long eta, long nowTick)
@@ -304,7 +302,7 @@ namespace TBD.Net
         /// Red canónica del MVP (D-N14 de Lucía, aprobada por Mak): nudo de Sagunto (con el Puerto dentro del nodo), rama sur
         /// Puçol–Valencia, rama norte Almenara–Nules–Castellón y rama interior Segorbe–Barracas–Teruel–(puente del Jiloca)–Caminreal–
         /// Calamocha–Cariñena–Zaragoza. Calatayud y Vinaròs quedan fuera (ganchos del acceso anticipado).
-        /// Kilómetros desde Sagunto: los de balance_nodos.csv de Hugo. Posiciones del mapa: latitud y longitud APROXIMADAS (de memoria,
+        /// Kilómetros desde Sagunto: los reales (Paula, PK del C-6; 8-nov), con el puente del Mijares en el km 34,5 (Álvaro). El Carraixet sigue en el km 24 (SIN VERIFICAR). Posiciones del mapa: latitud y longitud APROXIMADAS (de memoria,
         /// sin verificar) con x = 50 + (lon + 0,38) · 24, y = 80 − (lat − 39,47) · 32; una unidad ≈ 3,5 km.
         /// Puntos de emboscada: propuestos por Marcos y revisados por Lucía (5-nov): seis valen, Paniza queda por verificar con la BTN
         /// y Lucía añade el puente del barranco del Carraixet.
@@ -327,14 +325,14 @@ namespace TBD.Net
             int zaragoza = g.AddNode("Zaragoza", 38, 10).Id;
             const long km = 1_000_000L;
             // rama sur
-            g.AddEdge(sagunto, pucol, 12 * km, 0);
-            var pv = g.AddEdge(pucol, valencia, 18 * km, 12 * km);
+            g.AddEdge(sagunto, pucol, 7_130_000L, 0);                                    // km reales (Paula, PK del C-6): 7,13
+            var pv = g.AddEdge(pucol, valencia, 26_500_000L, 7_130_000L);                 // 26,50 (Valencia Nord a 33,63 de Sagunto)
             pv.Ambush.Add(new AmbushPoint { KmMm = 24 * km, Kind = AmbushKind.Puente, Name = "puente del barranco del Carraixet" });   // junto al nido de Valencia (Lucía)
             // rama norte
-            g.AddEdge(sagunto, almenara, 10 * km, 0);
-            g.AddEdge(almenara, nules, 12 * km, 10 * km);
-            var nc = g.AddEdge(nules, castellon, 18 * km, 22 * km);
-            nc.Ambush.Add(new AmbushPoint { KmMm = 31 * km, Kind = AmbushKind.Puente, Name = "puente del Mijares" });
+            g.AddEdge(sagunto, almenara, 9_590_000L, 0);                                 // 9,59
+            g.AddEdge(almenara, nules, 11_760_000L, 9_590_000L);                          // 11,76 (Nules a 21,35)
+            var nc = g.AddEdge(nules, castellon, 18_620_000L, 21_350_000L);               // 18,62 (Castellón a 39,97)
+            nc.Ambush.Add(new AmbushPoint { KmMm = 34_500_000L,     /* Álvaro (red-inicio.md v1): km 34,5, hasta que Paula lo mida */ Kind = AmbushKind.Puente, Name = "puente del Mijares" });
             // rama interior
             var ss = g.AddEdge(sagunto, segorbe, 35 * km, 0);
             ss.Ambush.Add(new AmbushPoint { KmMm = 21 * km, Kind = AmbushKind.Curva, Name = "curvas del Palancia" });

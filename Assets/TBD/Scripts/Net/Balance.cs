@@ -293,11 +293,11 @@ namespace TBD.Net
             return pileMm + (alive + killed * corpsesPermil / 1000) * mmPerZombieMeter / wallMeters;
         }
 
-        /// <summary>Ticks de un viaje de ida y vuelta (§3): a 60 km/h, 1 km = 25 ticks (1 tick = 2,4 s); más la carga y descarga.</summary>
+        /// <summary>Ticks de un viaje de ida y vuelta (§3): a 60 km/h, 1 km = 17,5 ticks (1 tick = 24/7 s); más la carga y descarga.</summary>
         public static long RoundTripTicks(long km, long speedKmh, long loadHoursMil)
         {
             Positive(speedKmh, nameof(speedKmh));
-            long ticksPerHour = 3600L * 1000 / NetConst.GameMsPerTick;          // 1.500
+            long ticksPerHour = NetConst.HourTicks;          // 1.050
             return 2 * km * ticksPerHour / speedKmh + loadHoursMil * ticksPerHour / 1000;
         }
 

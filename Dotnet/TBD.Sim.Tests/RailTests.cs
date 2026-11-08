@@ -79,7 +79,7 @@ namespace TBD.Sim.Tests
             g.FindEdge(Id("Valencia"), Id("Puçol")).HordeAtMm = Ahead(parado, 3_000_000L);
             var ap = AlertEngine.Evaluate(g, new List<RailTrain> { parado });
             double realSecs = ap.Count > 0 ? ap[0].EtaTicks / 30.0 : -1;
-            check(realSecs >= 60 && realSecs <= 120, $"aviso a x1 entre 60 y 120 s reales con la horda detectada a 3 km ({realSecs:0} s)");
+            check(realSecs >= 45 && realSecs <= 120, $"aviso a x1 entre 45 y 120 s reales con la horda detectada a 3 km ({realSecs:0} s; con el reloj ×103 son 52 s, antes 75)");
 
             // tren detenido con horda: prioridad máxima y por encima de una vía cortada y de un nodo asediado
             g.FindEdge(Id("Barracas"), Id("Teruel")).State = EdgeState.Cortada;

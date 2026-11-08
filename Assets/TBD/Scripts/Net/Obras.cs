@@ -22,7 +22,7 @@ namespace TBD.Net
         public bool Built;               // false = obra en marcha o fantasma pagado; solo lo construido cuenta para el nivel
         public int MaxWorkers;           // obreros que pueden trabajar a la vez en esta pieza (el valor del CSV; el puente del Jiloca lleva 8)
         public int Id;                   // número de la obra (una orden = una obra) dentro del nodo; cancelar actúa sobre una obra entera
-        public int NeedE4;               // trabajo necesario, en 1/10.000 de obrero·tick (1 obrero·h = 1.500 obrero·ticks)
+        public int NeedE4;               // trabajo necesario, en 1/10.000 de obrero·tick (1 obrero·h = 1.050 obrero·ticks)
         public int WorkE4;               // trabajo hecho (mismas unidades)
         public bool IsWall => Kind == PieceKind.Sacos || Kind == PieceKind.Hesco;
         public bool IsGate => Kind == PieceKind.PuertaVia || Kind == PieceKind.PuertaVeh;     // de vía (8 u, para el tren) o de vehículos (10 u, 8 m, para los vehículos del jugador): mismo estado y mismas reglas
@@ -112,10 +112,10 @@ namespace TBD.Net
         public ObrasParams WithEconomia(CsvTable e) { var d = this; d.LevelDivU = (int)e.TryValue("fort_materiales_por_nivel", d.LevelDivU); d.WearDayMil = (int)e.TryValue("fort_desgaste_dia", d.WearDayMil); d.BridgeU = (int)e.TryValue("puente_jiloca_materiales", d.BridgeU); BalanceMath.Positive(d.LevelDivU, "fort_materiales_por_nivel"); return d; }
 
         /// <summary>Trabajo de reparar un tramo normal, en obrero·ticks (1 obrero·h = 1.500 ticks): 3 h con 8 obreros = 24 obrero·h.</summary>
-        public long RepairNeedTicks { get { return (long)RepairHours * WorksCrew * 1500; } }
+        public long RepairNeedTicks { get { return (long)RepairHours * WorksCrew * NetConst.HourTicks; } }
 
         /// <summary>Trabajo del puente del Jiloca: 192 obrero·h (8 obreros × 12 h × 2 días). Se trabaja solo de 06:00 a 18:00: con 8 obreros son 2 días.</summary>
-        public long BridgeNeedTicks { get { return (long)BridgeObreroH * 1500; } }
+        public long BridgeNeedTicks { get { return (long)BridgeObreroH * NetConst.HourTicks; } }
 
         /// <summary>¿Es hora de obra a esta hora del día (ticks desde las 00:00)? De WorkStartHour a WorkEndHour; fuera de ese horario todas las obras se paran sin perder progreso.</summary>
         public bool IsWorkTime(long tickOfDay) { return tickOfDay >= NetConst.Hours(WorkStartHour) && tickOfDay < NetConst.Hours(WorkEndHour); }
@@ -125,7 +125,7 @@ namespace TBD.Net
         /// <summary>Trabajo de una pieza en 1/10.000 de obrero·tick: horas × 1.500 ticks por hora × 10.000. En muros, por la longitud en mm (÷ 10.000 mm × 10.000 = ×1).</summary>
         public int WorkE4(PieceKind k, long lengthMm)
         {
-            const long TicksPerHour = 1500;
+            const long TicksPerHour = NetConst.HourTicks;
             switch (k)
             {
                 case PieceKind.Sacos: return (int)(HSacos10 * TicksPerHour * lengthMm);
