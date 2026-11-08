@@ -405,7 +405,7 @@ namespace TBD.View
             if (NightRun.Active && !_nightInit && _zoneNode >= 0 && _worldA != null && _worldA.IsCreated && !_cutting) InitNight();
             if (_nightOn) NightUpdate();
 
-            if (!_paused && !TutorialHud.PidePausa)
+            if (!_paused && !TutorialHud.PidePausa && !(NightRun.Active && !_nightInit))      // la noche no corre ticks hasta que InitNight los pueda contar (el turbo y la velocidad del equipo no cambian el tick de arranque)
             {
                 _acc += Time.unscaledDeltaTime * TurboN;
                 int steps = 0;
