@@ -17,7 +17,7 @@ from taller import Taller
 
 PIEZAS = ["casco", "bastidor", "rueda", "optica", "tablero", "chapa", "metal", "sacos", "carga"]
 COLORES = {
-    "casco": "70784c",     # D-N157: entregar con --costado 70784c y --claro 88885c; chapa del parapeto: laterales del tren (D-N42); el canto de arriba pasa a b8b8b8
+    "casco": "88885c",     # D-N157: entregar con --costado 88885c y --claro b8b8b8 (Lucía 23:44); chapa del parapeto: laterales del tren (D-N42); el canto de arriba pasa a b8b8b8
     "bastidor": "303424",
     "rueda": "1c200c",
     "optica": "181c30",    # hueco de las aspilleras (se ve oscuro: dentro no da la luz)
