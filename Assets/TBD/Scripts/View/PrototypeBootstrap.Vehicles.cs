@@ -21,7 +21,7 @@ namespace TBD.View
             public float Speed, Alt, Tilt, Rpm, SpinWheel, Steer, TurretYaw, GunElev; public Vector2 Target; public bool HasTarget; public Vector2 Home;
             public Transform[] WheelsFront, WheelsAll; public Quaternion[] WheelInit; public Transform Turret, Gun, RotorMain, RotorTail, Disc; public Quaternion TurretInit, GunInit, RotorMainInit, RotorTailInit;
             public float FireAt; public int FireTick; public float Ammo = 1f; public GameObject Shadow; public int State;                  // helicóptero: 0 en tierra, 1 despegando, 2 en vuelo, 3 aterrizando
-            public float StateT; public float SpinMainDeg, SpinTailDeg; public VehicleNav Nav = new VehicleNav(); public bool Fire = true; public int ResupT = -1; public float ResupU;
+            public float StateT; public float SpinMainDeg, SpinTailDeg; public VehicleNav Nav = new VehicleNav(); public bool Parked, ReturnToRearm; public bool Fire = true; public int ResupT = -1; public float ResupU;
         }
         readonly List<Veh> _vehs = new List<Veh>(); Veh _selVeh; readonly List<TargetHit> _vehHits = new List<TargetHit>(); readonly List<Vector2> _zomPos = new List<Vector2>(); readonly List<uint> _zomId = new List<uint>();
         readonly Dictionary<string, Material> _vehMats = new Dictionary<string, Material>();
@@ -69,10 +69,15 @@ namespace TBD.View
             foreach (var v in _vehs)
             {
                 if (v.Go == null) continue;
-                if (v.Heli)                                                                  // el NH90 sale solo cuando hay horda y vuelve a su plataforma cuando no queda ninguna (Eugenio: «no despega ni dispara»); la orden del jugador manda
+                if (v.Heli)                                                                  // D-N167 (Lucia): el NH90 sale solo con horda, vuelve solo a rearmar por debajo del 30 % de municion, aterriza, rearma y se queda posado hasta una orden del jugador
                 {
-                    if (v.Fire && v.State == 0 && !v.HasTarget && _zomPos.Count > 30 && v.Ammo > 0.05f) { v.State = 1; v.StateT = 0f; v.Target = new Vector2(100f, 64f); v.HasTarget = true; Debug.Log("[NOCHE] NH90 despega: hay horda"); }
-                    else if (v.State == 2 && !v.HasTarget && _zomPos.Count == 0) { v.Target = v.Home; v.HasTarget = true; v.State = 3; }
+                    if (v.State == 2 && v.Ammo < 0.30f && !v.ReturnToRearm) { v.ReturnToRearm = true; v.Target = v.Home; v.HasTarget = true; v.State = 3; HintMsg("NH90 · vuelve a rearmar", true); }
+                    else if (v.State == 0 && v.ReturnToRearm)
+                    {
+                        if (v.Ammo < 0.99f && v.ResupT < 0 && _ng != null && _ng.Tick % 30 == 0) StartVehicleResupply(v);
+                        if (v.Ammo >= 0.99f && v.ResupT < 0) { v.ReturnToRearm = false; v.Parked = true; HintMsg("NH90 rearmado", false); }
+                    }
+                    else if (v.Fire && v.State == 0 && !v.HasTarget && !v.Parked && !v.ReturnToRearm && _zomPos.Count > 30 && v.Ammo > 0.30f) { v.State = 1; v.StateT = 0f; v.Target = new Vector2(100f, 64f); v.HasTarget = true; Debug.Log("[NOCHE] NH90 despega: hay horda"); }
                     HeliStep(v, dt);
                 }
                 else GroundStep(v, dt);
@@ -265,6 +270,7 @@ namespace TBD.View
         void VehicleOrder(Veh v, Vector3 ground)
         {
             var tgt = new Vector2(ground.x, ground.z);
+            v.Parked = false; v.ReturnToRearm = false;
             if (v.Heli)
             {
                 if ((tgt - v.Home).magnitude < 12f && v.State == 2) { v.Target = v.Home; v.HasTarget = true; v.State = 3; return; }

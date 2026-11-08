@@ -74,6 +74,13 @@ namespace TBD.View
             if (_wallMax > 0f) { float sumH = SegTotal(false), sumM = SegTotal(true); if (sumM > 0f) _ng.WallPermil = Mathf.RoundToInt(1000f * sumH / sumM); }
         }
 
+        /// <summary>Tiempo de reconstruir (Hugo): ticks = obra_h x 3600 / reloj_x / (2 x zapadores vivos) x 30, con obra_h = 0,4 obrero.h por metro de tramo (D-N44).</summary>
+        int RebuildTicksFor(Seg s)
+        {
+            int sappers = 0; foreach (var pl in _uw.Platoons) if (pl.Kind == PlatoonKind.Zapadores) sappers += pl.AliveCount(); sappers = Mathf.Max(1, sappers);
+            float obraH = 0.4f * Vector2.Distance(s.A, s.B); return Mathf.Max(30, Mathf.RoundToInt(obraH * 3600f / Mathf.Max(1, _ng.P.ClockX) / (2f * sappers) * 30f));
+        }
+
         static float DistSeg(Vector2 p, Vector2 a, Vector2 b) { var ab = b - a; float l2 = ab.sqrMagnitude; float t = l2 < 1e-6f ? 0f : Mathf.Clamp01(Vector2.Dot(p - a, ab) / l2); return (a + ab * t - p).magnitude; }
 
         void TramosUpdate()
@@ -122,11 +129,11 @@ namespace TBD.View
             {
                 var s = _segSel; bool rebuild = s.Open; string why = SegBlockReason(s, rebuild); float need = rebuild ? s.Max / 11924f : Mathf.Max(0.01f, (s.Max - s.Hp) / 5000f);
                 GUI.Label(new Rect(x, y, r.width - 16f * k, lh), $"{s.Name}: {(s.Open ? "BRECHA" : Mathf.RoundToInt(100f * s.Hp / s.Max) + " %")}", st); y += lh;
-                GUI.Label(new Rect(x, y, r.width - 16f * k, lh), (rebuild ? "Reconstruir" : "Reparar") + $" · {need:0.0} u" + (rebuild ? " · 10 s (provisional)" : ""), st); y += lh;
+                GUI.Label(new Rect(x, y, r.width - 16f * k, lh), (rebuild ? "Reconstruir" : "Reparar") + $" · {need:0.0} u" + (rebuild ? $" · {RebuildTicksFor(s) / 30f:0} s" : ""), st); y += lh;
                 var bs = new GUIStyle(GUI.skin.button) { fontSize = Mathf.Max(11, Mathf.RoundToInt(14 * k)) }; GUI.enabled = why == null || (why != null && false);
                 if (GUI.Button(new Rect(x, y, 150f * k, 30f * k), rebuild ? "Reconstruir" : "Reparar", bs) && why == null)
                 {
-                    if (rebuild) { _mats -= s.Max / 11924f; s.RebuildTick = _ng.Tick + 300; } else s.Queued = true;
+                    if (rebuild) { _mats -= s.Max / 11924f; s.RebuildTick = _ng.Tick + RebuildTicksFor(s); } else s.Queued = true;
                 }
                 GUI.enabled = true; y += 34f * k;
                 if (why != null) GUI.Label(new Rect(x, y, r.width - 16f * k, lh * 2f), why, st);

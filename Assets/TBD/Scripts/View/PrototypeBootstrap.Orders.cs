@@ -32,6 +32,8 @@ namespace TBD.View
             for (int i = 0; i <= N; i++) { float a = i * Mathf.PI * 2f / N; var q = ToGui(new Vector3(c.x + Mathf.Cos(a) * r, 0.06f, c.z + Mathf.Sin(a) * r)); if (i > 0) OvLine(prev, q, w, col, al); prev = q; }
         }
 
+        string _hintMsg = ""; float _hintUntil; bool _hintAmber;
+        void HintMsg(string s, bool amber) { _hintMsg = s; _hintAmber = amber; _hintUntil = Time.unscaledTime + 4f; }
         bool _c90Aim; string _c90Msg = ""; float _c90MsgUntil;
         bool _vehFire = true; float _lastDigitT = -1f; int _lastDigit = -1;
         /// <summary>1-5 elige el pelotón (Mayus suma), 6-8 los vehiculos; pulsar dos veces seguidas centra la camara en ellos (D-N139).</summary>
@@ -162,6 +164,7 @@ namespace TBD.View
                 }
             }
             if (Time.unscaledTime < _c90MsgUntil) { var cst = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(14, Screen.height / 45), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter }; cst.normal.textColor = OvHueso; GUI.Label(new Rect(0, Screen.height * 0.12f, Screen.width, 40f), _c90Msg, cst); }
+            if (Time.unscaledTime < _hintUntil) { var hs = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(13, Screen.height / 50), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft }; hs.normal.textColor = _hintAmber ? SgAmbar : OvHueso; var hr = new Rect(16f, 120f * Screen.height / 1080f, 420f * Screen.height / 1080f, 34f); OvEnsure(); var oc = GUI.color; GUI.color = new Color(0.094f, 0.11f, 0.188f, 0.85f); GUI.DrawTexture(hr, _ovTex); GUI.color = oc; GUI.Label(new Rect(hr.x + 10f, hr.y, hr.width, hr.height), _hintMsg, hs); }
             TramosGUI();
             // formacion activa
             { var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(11, Screen.height / 70), wordWrap = false, clipping = TextClipping.Overflow }; st.normal.textColor = OvHueso; if (_sel.Count > 0 && _selVeh == null) GUI.Label(new Rect(12f, Screen.height * 0.80f - st.fontSize * 1.6f, Screen.width * 0.6f, st.fontSize * 1.6f), "Formación " + _curForm + "  (F1 línea · F2 cuña · F3 columna · F4 bloque) · clic derecho y arrastrar = frente", st); }
