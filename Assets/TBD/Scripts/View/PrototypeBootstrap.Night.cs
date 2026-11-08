@@ -243,6 +243,7 @@ namespace TBD.View
             VehiclesTick(default(NativeSnapshot)); if (_vehHits.Count > 0) { KillZombies(_vehHits); _vehHits.Clear(); }
             if (_res.Hits.Count > 0) KillZombies(_res.Hits);
             for (int i = 0; i < _res.Shots.Count; i++) NightShotFx(_res.Shots[i]);
+            for (int i = 0; i < _res.Blasts.Count; i++) { var b = _res.Blasts[i]; VfxBlast(new Vector3(b.X / 1000f, 0f, b.Y / 1000f), b.RadiusMm / 1000f, b.Weapon); }
         }
         readonly List<(Vector2 a, Vector2 b)> _wallSegs = new List<(Vector2, Vector2)>(); float _wallSegsT = -10f;
 
@@ -466,6 +467,7 @@ namespace TBD.View
             ColorCases();
             OrdersUpdate();
             UpdateFx();
+            UpdateVfxArmas();
             GradeSweepCheck();
             ListObjsCheck();
             InputTestCheck();
