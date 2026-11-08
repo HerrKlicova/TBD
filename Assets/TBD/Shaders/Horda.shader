@@ -1,5 +1,6 @@
 // D-N80 · Horda: un solo material para todas las siluetas de Teo. Bruno (Arte técnico), 8-nov.
 // - Máscara en el COLOR DE VÉRTICE (canales puros): R = camisa, G = pantalón, B = piel/pelo; negro = zapatos/suciedad (#1c200c).
+//   Alfa del color de vértice = semilla por cuerpo (255 = ninguna): varía el tono dentro de una misma malla (pila de zombis).
 // - Tono por instancia desde horda_paleta_lut.png (8x3, Point): fila 0 camisas (8), fila 1 pantalones (6), fila 2 piel (4).
 //   Todos en L* 9–13 (la horda es lo más oscuro de la escena, D-N61); la variedad va en matiz, nunca en valor.
 // - _HordaPack por instancia (Entities Graphics, componente ZombiePaleta): x camisa 0–7, y pantalón 0–5, z piel 0–3, w sangre 0–15.
@@ -99,6 +100,16 @@ Shader "TBD/Horda"
             {
                 UNITY_SETUP_INSTANCE_ID(i);
                 float4 pack = _HordaPack;
+                // Semilla por cuerpo en el alfa del color de vértice (Teo, pila de zombis contra el muro): 255 = sin cambio (zombi suelto);
+                // cualquier otro valor desplaza camisa, pantalón y piel dentro de la misma instancia, para que cada cuerpo de la pila sea distinto.
+                // OJO: el desplazamiento no aplica la regla de ΔE < 4 de la mezcla; en una pila de cuerpos revueltos no se nota.
+                float semilla = 255.0 - round(i.color.a * 255.0);
+                if (semilla > 0.5)
+                {
+                    pack.x = fmod(pack.x + semilla * 3.0, 8.0);
+                    pack.y = fmod(pack.y + semilla * 5.0, 6.0);
+                    pack.z = fmod(pack.z + semilla, 4.0);
+                }
                 // La máscara es de canales puros; el mayor gana (el FBX puede traer interpolación en las costuras).
                 float3 m = i.color.rgb;
                 half3 albedo = _Resto.rgb;
