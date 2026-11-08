@@ -59,4 +59,34 @@ namespace TBD.Tutorial
         /// <summary>La munición baja en Nules (CmdCargo). Con Nules sitiada no se llama: la carga se queda a bordo (D-N166).</summary>
         public void Descargado(int tren, string estacion) { if (Paso == PasoViaje.Descargar && tren == _tren && estacion == "Nules") Paso = PasoViaje.Volver; }
     }
+
+    public enum EstadoDefensa : byte { Inactivo, Activo, Cumplido, Caducado, Fallido }
+
+    /// <summary>
+    /// D-N179 (Lucía, 8-nov): al amanecer del día 2 sale «Defiende Nules antes de la noche: manda tropa y munición (≥20 u)». Se suma al aviso de las 19:00
+    /// (la horda de zona de Nacho). Se cumple con Nules con 20 u de munición o más y tropa del jugador bajada allí (NetWorld.ZoneDefended); caduca a las 22:00,
+    /// cuando empieza el asedio, y falla si Nules se pierde (el parte ZS-2 dice qué faltó). Solo lee: no toca la simulación.
+    /// </summary>
+    public sealed class ObjetivoDefensa
+    {
+        public const string Titulo = "Defiende Nules antes de la noche";
+        public const int MunicionMin = 20;
+        public EstadoDefensa Estado { get; private set; }
+        public static long Desde { get { return TBD.Net.NetConst.DayTicks + TBD.Net.NetConst.Hours(6); } }     // amanecer del día 2
+        public static long Hasta { get { return TBD.Net.NetConst.DayTicks + TBD.Net.NetConst.Hours(22); } }    // empieza el asedio de la 2.ª noche
+
+        public void Actualizar(long tick, int municionNules, bool tropaNules, bool perdida)
+        {
+            if (Estado == EstadoDefensa.Inactivo && tick >= Desde && tick < Hasta) Estado = EstadoDefensa.Activo;
+            if (Estado != EstadoDefensa.Activo) return;
+            if (perdida) Estado = EstadoDefensa.Fallido;
+            else if (municionNules >= MunicionMin && tropaNules) Estado = EstadoDefensa.Cumplido;
+            else if (tick >= Hasta) Estado = EstadoDefensa.Caducado;
+        }
+
+        public static string Texto(int municionNules, bool tropaNules)
+        {
+            return "manda tropa y munición (≥" + MunicionMin + " u) · munición " + System.Math.Min(municionNules, 999) + "/" + MunicionMin + " · tropa " + (tropaNules ? "sí" : "no");
+        }
+    }
 }

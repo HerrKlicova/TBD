@@ -78,6 +78,8 @@ namespace TBD.View
 
         // objetivo de después de la primera noche (D-N172 ajustada): «Viaje de carga a Nules», sin tarjetas de tutorial. Lo avanza TrenPanel.
         public static readonly ObjetivoViaje Viaje = new ObjetivoViaje();
+        public static readonly ObjetivoDefensa Defensa = new ObjetivoDefensa();      // D-N179: «Defiende Nules antes de la noche»
+        static float _defensaHasta = -1f;
         static float _viajeCumplidoHasta = -1f;
         static void VigilarViaje()
         {
@@ -428,6 +430,23 @@ namespace TBD.View
                 var r = new Rect(8, Ancla(), Mathf.Min(640f, Screen.width * 0.42f), u * 2.4f);
                 GUI.DrawTexture(r, _panel); Frame(r, 0.5f);
                 GUI.Label(new Rect(r.x + u * 0.7f, r.y + u * 0.4f, r.width, r.height), txt, _line);
+            }
+            // D-N179: objetivo de defensa de Nules (desde el amanecer del día 2 hasta las 22:00)
+            {
+                var wn = NetSession.A; int nul = wn != null ? TrenPreparar.Nodo(wn, "Nules") : -1;
+                if (wn != null && nul >= 0)
+                {
+                    int mun = wn.Stock[nul, (int)Res.Municion]; bool tropa = wn.ZoneDefended(nul); var antes = Defensa.Estado;
+                    Defensa.Actualizar(wn.Tick, mun, tropa, wn.NodeLost[nul]);
+                    if (antes != Defensa.Estado) { Debug.Log("[TUTORIAL] objetivo " + ObjetivoDefensa.Titulo + ": " + Defensa.Estado); if (Defensa.Estado != EstadoDefensa.Activo) _defensaHasta = Time.unscaledTime + 6f; }
+                    if (Defensa.Estado == EstadoDefensa.Activo || Time.unscaledTime < _defensaHasta)
+                    {
+                        string fin = Defensa.Estado == EstadoDefensa.Cumplido ? "cumplido" : Defensa.Estado == EstadoDefensa.Fallido ? "Nules se ha perdido" : Defensa.Estado == EstadoDefensa.Caducado ? "llega la noche" : ObjetivoDefensa.Texto(mun, tropa);
+                        var r = new Rect(8, Ancla() + (ObjetivoVisible ? u * 2.7f : 0f), Mathf.Min(640f, Screen.width * 0.42f), u * 2.4f);
+                        GUI.DrawTexture(r, _panel); Frame(r, 0.5f);
+                        GUI.Label(new Rect(r.x + u * 0.7f, r.y + u * 0.4f, r.width, r.height), "Objetivo · " + ObjetivoDefensa.Titulo + ": " + fin, _line);
+                    }
+                }
             }
         }
 

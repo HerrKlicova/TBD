@@ -591,6 +591,16 @@ namespace TBD.Sim.Tests
                 var f2 = wg.GateFightFor(5250, 0, NetConst.TrainHpMax, sg); check(f2.Attackers == 0 && !f2.Destroyed, "Sagunto, puerta este sin escolta: intacto");
             }
 
+            // --- D-N179: «Defiende Nules antes de la noche»
+            {
+                var od = new ObjetivoDefensa(); od.Actualizar(NetConst.Hours(12), 0, false, false); check(od.Estado == EstadoDefensa.Inactivo, "día 1: aún no sale");
+                od.Actualizar(ObjetivoDefensa.Desde, 5, false, false); check(od.Estado == EstadoDefensa.Activo && ObjetivoDefensa.Texto(5, false).Contains("5/20"), "amanecer del día 2: sale, con la munición de Nules a la vista");
+                od.Actualizar(ObjetivoDefensa.Desde + 100, 20, false, false); check(od.Estado == EstadoDefensa.Activo, "con 20 u pero sin tropa, aún no");
+                od.Actualizar(ObjetivoDefensa.Desde + 200, 20, true, false); check(od.Estado == EstadoDefensa.Cumplido, "con 20 u y tropa bajada en Nules: cumplido");
+                var o2 = new ObjetivoDefensa(); o2.Actualizar(ObjetivoDefensa.Desde, 0, false, false); o2.Actualizar(ObjetivoDefensa.Hasta, 0, false, false); check(o2.Estado == EstadoDefensa.Caducado, "a las 22:00 sin cumplir: caduca (empieza el asedio)");
+                var o3 = new ObjetivoDefensa(); o3.Actualizar(ObjetivoDefensa.Desde, 0, false, false); o3.Actualizar(ObjetivoDefensa.Desde + 5, 0, false, true); check(o3.Estado == EstadoDefensa.Fallido, "si Nules se pierde: fallido");
+            }
+
             // --- D-N156: Nules sin asedio la 1.ª noche
             {
                 var wi = NetScenario.Inicio(); int nu = TrenPreparar.Nodo(wi, "Nules");
