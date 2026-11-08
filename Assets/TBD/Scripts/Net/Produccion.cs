@@ -8,13 +8,13 @@ namespace TBD.Net
     //
     // Reglas (de sim_economia.py, «2) PRODUCCIÓN»):
     //  - Produce cada nodo con gente (personas > 0) que no esté perdido lo de balance_nodos.csv (prod_*), en un pulso por hora de juego
-    //    (tick % 1500 == 0, prod × factor / 24; decisión de Mak del 7-nov a petición de Hugo, para que el almacén se llene a lo largo del día).
+    //    (tick % HourTicks == 0, prod × factor / 24; decisión de Mak del 7-nov a petición de Hugo, para que el almacén se llene a lo largo del día).
     //  - Rendimiento por plantilla: req = guarnicion_minima (12), ×2,5 en las ciudades. f = min(1, pob/req); en una ciudad con pob > req,
     //    f = min(rend_ciudad_max, 1 + rend_ciudad_pendiente·(pob/req − 1)). En milésimas, con remanente exacto por nodo y recurso en 1/24.000 de u.
     //  - Tope del almacén POR RECURSO (confirmado por Hugo): almacen_base_u (100) + almacen_deposito_extra_u (200) por
     //    depósito construido y sano; el nudo (rama 0, Sagunto) parte de almacen_nudo_u (1000) y sus depósitos también suman (Hugo). La producción que no cabe se pierde («Castellón no puede
     //    tirar producción»); lo que llega en tren o ya estaba no se recorta.
-    //  - Víveres: el MVP de Unity no tiene ese recurso (Res), así que prod_viveres no se usa. El chatarreo (3 u al día al azar) tampoco.
+    //  - Víveres (D-N176): cuarto recurso producido (prod_viveres: Valencia 30, Teruel 12, Nules, Segorbe y Cariñena 6). El chatarreo (3 u al día al azar) sigue sin usarse.
 
     public struct ProductionParams
     {
@@ -26,7 +26,7 @@ namespace TBD.Net
         public int StoreDepositU;        // almacen_deposito_extra_u: 200 por depósito
         public int StoreHubU;            // almacen_nudo_u: 1000 (Sagunto)
         public string[] Names;           // nodo de cada fila de balance_nodos.csv
-        public int[] ProdU;              // por fila y recurso (Municion, Combustible, Materiales): u al día con plantilla plena
+        public int[] ProdU;              // por fila y recurso producido (Municion, Combustible, Materiales, Viveres): u al día con plantilla plena
         public bool[] City, Hub;
 
         public static ProductionParams Default
@@ -35,8 +35,9 @@ namespace TBD.Net
             {
                 // copia de balance_nodos.csv (una prueba vigila que coincidan)
                 var names = new[] { "Sagunto", "Puçol", "Valencia", "Almenara", "Nules", "Castellón", "Segorbe", "Barracas", "Teruel", "Caminreal", "Calamocha", "Cariñena", "Zaragoza" };
-                var prod = new int[names.Length * 3];
-                prod[0 * 3 + 2] = 80; prod[5 * 3 + 1] = 60; prod[8 * 3 + 2] = 20; prod[12 * 3 + 0] = 40;
+                const int K = ProductionState.ProdRes; var prod = new int[names.Length * K];
+                prod[0 * K + 2] = 80; prod[5 * K + 1] = 60; prod[8 * K + 2] = 20; prod[12 * K + 0] = 40;
+                prod[2 * K + 3] = 30; prod[4 * K + 3] = 6; prod[6 * K + 3] = 6; prod[8 * K + 3] = 12; prod[11 * K + 3] = 6;   // víveres (D-N176): Valencia, Nules, Segorbe, Teruel y Cariñena
                 var city = new bool[names.Length]; foreach (int i in new[] { 0, 2, 5, 8, 12 }) city[i] = true;
                 var hub = new bool[names.Length]; hub[0] = true;
                 return new ProductionParams
@@ -54,18 +55,20 @@ namespace TBD.Net
             if (nodos != null)
             {
                 int cn = nodos.Col("nodo"), cr = nodos.Col("rama"), cc = nodos.Col("ciudad");
-                int cm = nodos.Col("prod_municion"), cf = nodos.Col("prod_combustible"), ct = nodos.Col("prod_materiales");
+                int cm = nodos.Col("prod_municion"), cf = nodos.Col("prod_combustible"), ct = nodos.Col("prod_materiales"), cv = nodos.Col("prod_viveres");
+                const int K = ProductionState.ProdRes;
                 int n = nodos.Rows.Count;
-                d.Names = new string[n]; d.ProdU = new int[n * 3]; d.City = new bool[n]; d.Hub = new bool[n];
+                d.Names = new string[n]; d.ProdU = new int[n * K]; d.City = new bool[n]; d.Hub = new bool[n];
                 for (int i = 0; i < n; i++)
                 {
                     var r = nodos.Rows[i];
                     d.Names[i] = r[cn].Trim();
                     d.Hub[i] = CsvTable.Int(r[cr]) == 0;
                     d.City[i] = CsvTable.Int(r[cc]) != 0;
-                    d.ProdU[i * 3 + 0] = (int)CsvTable.Int(r[cm]);
-                    d.ProdU[i * 3 + 1] = (int)CsvTable.Int(r[cf]);
-                    d.ProdU[i * 3 + 2] = (int)CsvTable.Int(r[ct]);
+                    d.ProdU[i * K + 0] = (int)CsvTable.Int(r[cm]);
+                    d.ProdU[i * K + 1] = (int)CsvTable.Int(r[cf]);
+                    d.ProdU[i * K + 2] = (int)CsvTable.Int(r[ct]);
+                    d.ProdU[i * K + 3] = cv >= 0 ? (int)CsvTable.Int(r[cv]) : 0;
                 }
             }
             if (economia != null)
@@ -88,10 +91,14 @@ namespace TBD.Net
     /// <summary>Remanentes de la producción (milésimas de u) y lo que se ha perdido por almacén lleno. Va dentro del hash de NetWorld (existencias).</summary>
     public sealed class ProductionState
     {
-        public const int ProdRes = 3;                 // Municion, Combustible, Materiales (las personas no se producen)
+        public const int ProdRes = 4;                 // Municion, Combustible, Materiales, Viveres (las personas no se producen)
+        /// <summary>Recurso de la red (Res) de cada índice de producción.</summary>
+        public static readonly int[] ProdToRes = { (int)Res.Municion, (int)Res.Combustible, (int)Res.Materiales, (int)Res.Viveres };
+        /// <summary>Índice de producción de un recurso de la red, o −1 (las personas).</summary>
+        public static int ResToProd(int res) { return res == (int)Res.Viveres ? 3 : res >= 0 && res < 3 ? res : -1; }
         public ProductionParams P;
         public readonly int[] Row;                    // fila de balance_nodos.csv de cada nodo del grafo (-1 = no está: no produce)
-        public const int HourTicks = 1500;           // 1 h de juego (2,4 s por tick)
+        public const int HourTicks = NetConst.HourTicks;     // 1 h de juego (1.050 ticks con el reloj ×103)
         public const int RemDen = 24_000;            // el remanente va en 1/24.000 de u: u al día × milésimas / 24 h
         public readonly int[] Rem;                    // por nodo y recurso: 1/24.000 de u acumulados que aún no llegan a 1 u
         public readonly long[] WastedU;               // por nodo y recurso: u perdidas porque el almacén estaba lleno (para QA y el panel)
@@ -117,7 +124,7 @@ namespace TBD.Net
         }
 
         /// <summary>Producción con plantilla plena del nodo, en u al día (0 si no está en el CSV).</summary>
-        public int BaseU(int node, int res) { int row = Row[node]; return row < 0 ? 0 : P.ProdU[row * ProdRes + res]; }
+        public int BaseU(int node, int res) { int row = Row[node], k = ResToProd(res); return row < 0 || k < 0 ? 0 : P.ProdU[row * ProdRes + k]; }
 
         public bool IsHub(int node) { int row = Row[node]; return row >= 0 && P.Hub[row]; }
 
@@ -178,16 +185,17 @@ namespace TBD.Net
                 int cap = -1;
                 for (int r = 0; r < ProductionState.ProdRes; r++)
                 {
-                    int baseU = Production.BaseU(n, r);
+                    int res = ProductionState.ProdToRes[r];
+                    int baseU = Production.BaseU(n, res);
                     if (baseU <= 0) continue;
                     int k = n * ProductionState.ProdRes + r;
                     long total = Production.Rem[k] + (long)baseU * f;            // (u al día × milésimas) por hora = 1/24.000 de u
                     int give = (int)(total / ProductionState.RemDen);
                     Production.Rem[k] = (int)(total % ProductionState.RemDen);
                     if (cap < 0) cap = StoreCapU(n);
-                    int room = Math.Max(0, cap - Stock[n, r]);
+                    int room = Math.Max(0, cap - Stock[n, res]);
                     int add = Math.Min(give, room);
-                    Stock[n, r] += add;
+                    Stock[n, res] += add;
                     if (give > add) Production.WastedU[k] += give - add;
                 }
             }
@@ -218,9 +226,9 @@ namespace TBD.Net
             {
                 bool atSag = k % 2 == 0;
                 d.Add(atSag ? sag : cas); d.Add((int)NetConst.Hours(Horas[k]));
-                // munición, combustible, materiales, personas (+ al tren, − a la estación)
-                if (atSag) { d.Add(0); d.Add(-comb); d.Add(mat); d.Add(per); }
-                else { d.Add(0); d.Add(comb); d.Add(-mat); d.Add(-per); }
+                // munición, combustible, materiales, personas, víveres (+ al tren, − a la estación)
+                if (atSag) { d.Add(0); d.Add(-comb); d.Add(mat); d.Add(per); d.Add(0); }
+                else { d.Add(0); d.Add(comb); d.Add(-mat); d.Add(-per); d.Add(0); }
             }
             return d.ToArray();
         }

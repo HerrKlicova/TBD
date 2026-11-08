@@ -7,29 +7,33 @@ namespace TBD.Net
     // Reloj: 1 tick = 2,4 s de juego (un día de juego = 36.000 ticks = 20 min reales a x1 y 30 Hz, GDD §3).
     // Todo lo que hace el jugador entra como orden (NetCommand) con número de tick, incluidas la velocidad y la pausa (GDD §17.3, regla 9).
 
-    public enum Res : byte { Municion = 0, Combustible = 1, Materiales = 2, Personas = 3 }   // los 4 recursos del MVP (GDD §9)
+    public enum Res : byte { Municion = 0, Combustible = 1, Materiales = 2, Personas = 3, Viveres = 4 }   // los 5 recursos del MVP (GDD §9; D-N176: los víveres, al final para no mover índices)
 
     public static class NetConst
     {
         public const int TickRate = 30;
-        public const int GameMsPerTick = 2400;
-        public const int DayTicks = 24 * 3600 * 1000 / GameMsPerTick;     // 36.000
-        public const int ResCount = 4;
+        /// <summary>D-N161 (reloj único): 24 h de juego = 14 min reales a 30 Hz (×102,86). 25.200 ticks por día y 1.050 por hora; 1 tick = 24/7 s de juego (3,43 s).
+        /// No cabe en ms enteros: los ms de juego salen de GameMs (24.000/7 por tick), sin decimales.</summary>
+        public const int DayTicks = 25_200;
+        public const int HourTicks = DayTicks / 24;                         // 1.050
+        public const long GameMsNum = 24_000, GameMsDen = 7;               // ms de juego por tick = 24.000 / 7
+        public static long GameMs(long ticks) { return ticks * GameMsNum / GameMsDen; }
+        public const int ResCount = 5;
         public const int FieldEvery = 15;                                   // la mancha avanza cada 15 ticks (medio segundo real a x1)
-        public const long TrainMmPerTick = 40_000;                          // 60 km/h con 2,4 s por tick
+        public const long TrainMmPerTick = 57_143;                          // 60 km/h con 24/7 s por tick (57.142,9 mm)
         public const int TrainCapacity = 400;                               // toneladas (PROTOTIPO)
 
-        public static long Hours(double h) { return (long)Math.Round(h * 3600.0 * 1000.0 / GameMsPerTick); }
+        public static long Hours(double h) { return (long)Math.Round(h * HourTicks); }
         public static string Clock(long tick)
         {
             long t = tick % DayTicks;
-            long secs = t * GameMsPerTick / 1000;
+            long secs = t * 86400 / DayTicks;
             return (secs / 3600).ToString("00") + ":" + (secs / 60 % 60).ToString("00");
         }
     }
 
     // ================================================================== órdenes
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, TrainCargo = 23 }   // 22: SpendMaterials (nacho/tramos-zona)
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, SpendMaterials = 22, TrainCargo = 23 }
 
     public struct NetCommand
     {
@@ -379,7 +383,7 @@ namespace TBD.Net
         /// </summary>
         public struct AmbushEncounter { public bool Active; public int Service, Edge, Cell, Taken; public long ExpireTick; }
         public AmbushEncounter Encounter;
-        public const long AmbushWaitTicks = 750;           // 30 min de juego (a 2,4 s por tick: 1.800 s)
+        public const long AmbushWaitTicks = NetConst.HourTicks / 2;     // 30 min de juego (525 ticks con el reloj ×103)
         public const int AmbushCargoLossMil = 200;         // carga que pierde el tren si no se resuelve (D-N39, Hugo: 20 %)
         public readonly List<int> PendingAmbushes = new List<int>();      // tramos con emboscada preparada (TR-3 cuando el tren cae en ella)
         readonly List<NetCommand> _queue = new List<NetCommand>();
@@ -414,6 +418,7 @@ namespace TBD.Net
             Director.SaveState(w);
             Production.SaveState(w);                    // NetVersion 2
             Embarque.SaveState(w);                      // NetVersion 3 (D-N166)
+            w.Ints(FoodRemMil); w.Long(StarvedTotal);   // NetVersion 4 (D-N176)
         }
 
         public void LoadState(SaveReader r)
@@ -453,6 +458,7 @@ namespace TBD.Net
             Director.LoadState(r);
             Production.LoadState(r);
             Embarque.LoadState(r);
+            ReadInto(r.Ints(), FoodRemMil, "víveres"); StarvedTotal = r.Long();
             Injections.Clear(); Retirements.Clear(); LostThisTick = 0; RetiredThisTick = 0;      // datos de QA del tick: empiezan limpios
         }
 
@@ -468,6 +474,7 @@ namespace TBD.Net
             Attraction = new int[g.Nodes.Count];
             BaseAttraction = new int[g.Nodes.Count];
             Stock = new int[g.Nodes.Count, NetConst.ResCount];
+            FoodRemMil = new int[g.Nodes.Count];
             Works = new ObrasState(g.Nodes.Count, BalanceSource.Obras());
             Stations = new StationState(g, BalanceSource.Stations());
             Taller = new TallerState(g, BalanceSource.Taller());
@@ -513,6 +520,7 @@ namespace TBD.Net
                     case NetCmdType.ResolveAmbush: ResolveAmbush(c.Arg & 0xFF, c.Arg2, false, c.Arg >> 8); break;       // Arg = servicio | (munición gastada en u) << 8
                     case NetCmdType.Dematerialize: Dematerialize(c.Arg, c.Arg2); break;
                     case NetCmdType.ConsumeAmmo: ConsumeAmmo(c.Arg, c.Arg2); break;
+                    case NetCmdType.SpendMaterials: SpendMaterials(c.Arg, c.Arg2); break;      // Arg = nodo, Arg2 = u (D-N163: lo que gastan reparar y reconstruir en la zona)
                     case NetCmdType.AssignWorkers: AssignWorkers(c.Arg, c.Arg2); break;                    // Arg = nodo, Arg2 = obreros
                     case NetCmdType.HaltAtSite: HaltAtSite(c.Arg, c.Arg2); break;                           // Arg = emplazamiento (-1 cancela), Arg2 = servicio
                     case NetCmdType.SetSchedule: SetSchedule(c.Arg, c.Payload); break;
@@ -553,6 +561,15 @@ namespace TBD.Net
                 if (sv.AtStop && sv.Stops.Count > 0 && sv.Stops[sv.StopIndex].Node == node) u += sv.Cargo[(int)Res.Municion];
             return u;
         }
+
+        /// <summary>D-N163: la zona gasta materiales de la estación (reparar y reconstruir tramos del muro). Sin bajar de 0. Devuelve lo gastado.</summary>
+        public int SpendMaterials(int node, int units)
+        {
+            if (node < 0 || node >= Graph.Nodes.Count || units <= 0) return 0;
+            int take = Math.Min(units, Math.Max(0, Stock[node, (int)Res.Materiales]));
+            Stock[node, (int)Res.Materiales] -= take; return take;
+        }
+        public static NetCommand CmdSpendMaterials(long tick, int node, int units) { return new NetCommand { Tick = tick, Type = NetCmdType.SpendMaterials, Arg = node, Arg2 = units }; }
 
         /// <summary>Gasta munición en un nodo: primero la de los trenes del andén (en orden de id), luego la de la estación.</summary>
         void ConsumeAmmo(int node, int units)
@@ -871,6 +888,33 @@ namespace TBD.Net
 
         /// <summary>Un tick de obra en cada nodo con obreros efectivos.</summary>
         /// <summary>Cada día, cada estación con obras paga el mantenimiento (MaintenanceU) de su almacén; si no puede, lo construido se desgasta (Hugo).</summary>
+        // ------------------------------------------------------------------ víveres (D-N176, Lucía; reglas de sim_economia.py, líneas 484-491)
+        /// <summary>Consumo de víveres: 0,10 u por persona y día (milésimas: 100). Lo que no llega a 1 u se queda en FoodRemMil (por nodo, en el hash y en el guardado).</summary>
+        public int FoodPerPersonMil = 100;
+        /// <summary>Si falta, el nodo pierde FoodLossPermil ‰ de su gente por la fracción no cubierta (50 = el 5 % al día sin nada).</summary>
+        public int FoodLossPermil = 50;
+        public int[] FoodRemMil;
+        /// <summary>Personas perdidas por hambre (para QA y el informe). Va en el guardado, no en el hash (sale de las existencias).</summary>
+        public long StarvedTotal;
+
+        /// <summary>Una vez al día, antes del mantenimiento: cada nodo con gente come; si no tiene para el día, se queda en 0 y pierde gente (pob ×= 1 − 0,05 × falta).</summary>
+        void ConsumeFood()
+        {
+            for (int n = 0; n < Graph.Nodes.Count; n++)
+            {
+                int pob = Stock[n, (int)Res.Personas];
+                if (pob <= 0) continue;
+                long acc = FoodRemMil[n] + (long)pob * FoodPerPersonMil;
+                int need = (int)(acc / 1000); FoodRemMil[n] = (int)(acc % 1000);
+                if (need <= 0) continue;
+                int have = Math.Max(0, Stock[n, (int)Res.Viveres]);
+                if (have >= need) { Stock[n, (int)Res.Viveres] = have - need; continue; }
+                Stock[n, (int)Res.Viveres] = 0;
+                int lost = (int)((long)pob * FoodLossPermil * (need - have) / (1000L * need));     // falta = (need − have) / need
+                if (lost > 0) { Stock[n, (int)Res.Personas] = pob - lost; StarvedTotal += lost; }
+            }
+        }
+
         void WearAndMaintain()
         {
             for (int n = 0; n < Works.Nodes; n++)
@@ -1021,7 +1065,7 @@ namespace TBD.Net
             AdvanceTaller();
             if (ActiveZoneNode >= 0 && ActiveZoneNode < Director.AttentionTicks.Length) { Director.AttentionTicks[ActiveZoneNode]++; Director.LastSeenTick[ActiveZoneNode] = Tick; }   // memoria de atención
             if (Encounter.Active && Tick >= Encounter.ExpireTick) ResolveAmbush(Encounter.Service, Encounter.Taken, true);   // nadie respondió: la horda se dispersa y el tren pierde carga
-            if (DirectorEnabled && Tick % 1500 == 0) Director.Hourly(this);       // una vez por hora de juego
+            if (DirectorEnabled && Tick % NetConst.HourTicks == 0) Director.Hourly(this);       // una vez por hora de juego
             if (Tick % NetConst.FieldEvery == 0)
             {
                 for (int n = 0; n < Attraction.Length; n++)
@@ -1034,7 +1078,7 @@ namespace TBD.Net
             }
             Tick++;
             if (Tick % ProductionState.HourTicks == 0) ProduceHour(); // producción de la hora (1/24 del día), hasta el tope del almacén (Produccion.cs)
-            if (Tick % NetConst.DayTicks == 0) WearAndMaintain();     // mantenimiento diario de lo construido (Hugo, 1 %)
+            if (Tick % NetConst.DayTicks == 0) { ConsumeFood(); WearAndMaintain(); }     // D-N176: primero los víveres (Hugo), luego el mantenimiento     // mantenimiento diario de lo construido (Hugo, 1 %)
             if (Tick % NetConst.DayTicks == 0 && Traffic != null)
                 Traffic.Decay((e, slot) => Intel.Add(new IntelEntry { Tick = Tick, Id = "TR-5", Vars = new[] { "tramo", EdgeName(Graph.Edges[e]) } }));
             if (Tick % NetConst.FieldEvery == 0)
@@ -1163,7 +1207,7 @@ namespace TBD.Net
             if (e == null || Traffic == null) return;
             if (Traffic.OnPass(e.Id, Tick, s.Train.Id))
             {
-                string hora = NetConst.Clock(Tick / 1500 * 1500);             // la hora en punto: «hacia las 08:00»
+                string hora = NetConst.Clock(Tick / NetConst.HourTicks * NetConst.HourTicks);             // la hora en punto: «hacia las 08:00»
                 Intel.Add(new IntelEntry { Tick = Tick, Id = "TR-1", Vars = new[] { "tren", "Tren " + s.Train.Name, "tramo", EdgeName(e), "hora", hora } });
             }
         }
@@ -1303,6 +1347,7 @@ namespace TBD.Net
             {
                 h += Mix(((ulong)(uint)n << 32) ^ (ulong)(uint)Attraction[n]);
                 for (int r2 = 0; r2 < NetConst.ResCount; r2++) h += Mix(((ulong)(uint)n << 40) ^ ((ulong)r2 << 32) ^ (ulong)(uint)Stock[n, r2]);
+                if (FoodRemMil[n] != 0) h += Mix(0xD176UL ^ ((ulong)(uint)n << 40) ^ (ulong)(uint)FoodRemMil[n]);
             }
             h += Works.Hash();
             h += Stations.Hash();
@@ -1345,15 +1390,15 @@ namespace TBD.Net
             Base("Zaragoza", 50);
 
             // existencias iniciales (toneladas; personas = plazas)
-            void Stock(string n, int mun, int comb, int mat, int per) { int i = Id(n); w.Stock[i, 0] = mun; w.Stock[i, 1] = comb; w.Stock[i, 2] = mat; w.Stock[i, 3] = per; }
+            void Stock(string n, int mun, int comb, int mat, int per, int viv = 0) { int i = Id(n); w.Stock[i, 0] = mun; w.Stock[i, 1] = comb; w.Stock[i, 2] = mat; w.Stock[i, 3] = per; w.Stock[i, 4] = viv; }
             Stock("Valencia", 600, 800, 900, 300);
-            Stock("Sagunto", 200, 1400, 700, 80);               // incluye el Puerto (D-N14): combustible y acero. 80 personas (Mak, 7-nov, con la medida de Hugo: con 170 y Castellón propia solo se perdía el 1,8 %)
+            Stock("Sagunto", 200, 1400, 700, 80, 80);         // D-N176: 80 u de víveres               // incluye el Puerto (D-N14): combustible y acero. 80 personas (Mak, 7-nov, con la medida de Hugo: con 170 y Castellón propia solo se perdía el 1,8 %)
             // Castellón empieza infestada, sin gente ni almacén propio (D-N124, decisión de Mak del 7-nov): se reclama el primer día con la misma orden
             // que una fundación (FoundStation: 30 u y 12 personas desde un tren parado). Hereda el depósito de combustible (Hugo: 100 + 200 = 300 u).
             w.Stations.P.Sites = new[] { "Nules", "Castellón" };
             Stock("Teruel", 20, 30, 40, 40);
 
-            int[] T(int mun, int comb, int mat, int per) { return new[] { mun, comb, mat, per }; }
+            int[] T(int mun, int comb, int mat, int per) { return new[] { mun, comb, mat, per, 0 }; }
             ScheduleStop Stop(string n, double hour, int[] tr) { return new ScheduleStop { Node = Id(n), DepartAt = NetConst.Hours(hour), Transfer = tr }; }
 
             // Dos trenes al empezar (balance de Hugo: trenes_inicio = 2; el Tren 3 está a medio montar en el taller de Sagunto)

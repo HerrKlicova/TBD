@@ -152,8 +152,8 @@ namespace TBD.Sim.Tests
             // ---- P5: viajes
             long vel = eco.PositiveValue("tren_vel_kmh"), carga = eco.Value("tren_horas_carga_viaje"), utiles = eco.Value("tren_horas_utiles_dia");
             long ter = BalanceMath.RoundTripTicks(130, vel, carga), zar = BalanceMath.RoundTripTicks(310, vel, carga);
-            long viajes = utiles * 1500 * 1000 / ter;
-            check(ter == 12500 && zar == 21500 && viajes == 1920, $"P5: Teruel {ter} ticks, Zaragoza {zar} ticks, {viajes} viajes/día ×1000 (esperado 12500 · 21500 · 1920)");
+            long viajes = utiles * NetConst.HourTicks * 1000 / ter;
+            check(ter == 8750 && zar == 15050 && viajes == 1920, $"P5: Teruel {ter} ticks, Zaragoza {zar} ticks, {viajes} viajes/día ×1000 (esperado 8750 · 15050 · 1920)");
 
             // ---- P6: producción de Castellón según población
             long staff = eco.PositiveValue("plantilla_ciudad"), max = eco.Value("rend_ciudad_max"), slope = eco.Value("rend_ciudad_pendiente");

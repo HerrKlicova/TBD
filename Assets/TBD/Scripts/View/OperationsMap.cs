@@ -292,7 +292,7 @@ namespace TBD.View
             var t = s.Train;
             string st = s.Held ? "<color=#E8C040>retenido</color>" : s.AtStop ? "en estación" : t.State == RailTrainState.Detenido ? "<color=#F05040>detenido</color>" : "en marcha";
             GUI.Label(new Rect(px + 10, y, pw, 30), $"<b>TREN {t.Name}</b> · {st} · {s.CargoTotal()}/{NetConst.TrainCapacity} t", _label); y += _label.fontSize * 1.6f;
-            string[] res = { "Munición", "Combustible", "Materiales", "Personas" };
+            string[] res = { "Munición", "Combustible", "Materiales", "Personas", "Víveres" };
             _sb.Clear();
             for (int r = 0; r < NetConst.ResCount; r++) _sb.Append(res[r]).Append(' ').Append(s.Cargo[r]).Append(r < NetConst.ResCount - 1 ? " · " : "");
             GUI.Label(new Rect(px + 14, y, pw - 20, 30), _sb.ToString(), _small); y += _small.fontSize * 1.8f;

@@ -20,7 +20,8 @@ namespace TBD.Sim.Tests
                 && csv.StoreBaseU == def.StoreBaseU && csv.StoreDepositU == def.StoreDepositU && csv.StoreHubU == def.StoreHubU;
             for (int i = 0; same && i < csv.Names.Length; i++)
                 same = csv.Names[i] == def.Names[i] && csv.City[i] == def.City[i] && csv.Hub[i] == def.Hub[i]
-                    && csv.ProdU[i * 3] == def.ProdU[i * 3] && csv.ProdU[i * 3 + 1] == def.ProdU[i * 3 + 1] && csv.ProdU[i * 3 + 2] == def.ProdU[i * 3 + 2];
+                    && csv.ProdU[i * ProductionState.ProdRes] == def.ProdU[i * ProductionState.ProdRes] && csv.ProdU[i * ProductionState.ProdRes + 1] == def.ProdU[i * ProductionState.ProdRes + 1]
+                    && csv.ProdU[i * ProductionState.ProdRes + 2] == def.ProdU[i * ProductionState.ProdRes + 2] && csv.ProdU[i * ProductionState.ProdRes + 3] == def.ProdU[i * ProductionState.ProdRes + 3];     // + víveres (D-N176)
             check(same, "los valores por defecto coinciden con balance_nodos.csv, balance_economia.csv y balance_construccion.csv");
 
             var w = NetScenario.Mvp();
@@ -52,7 +53,7 @@ namespace TBD.Sim.Tests
             }
             int Hours(int pob, int target)              // horas hasta que Castellón (sin nada al empezar) tiene «target» u de combustible
             {
-                var x = NetScenario.Mvp(); x.DirectorEnabled = false; x.Services.Clear(); x.Stock[cas, Per] = pob;
+                var x = NetScenario.Mvp(); x.DirectorEnabled = false; x.Services.Clear(); x.Stock[cas, Per] = pob; x.FoodPerPersonMil = 0;     // sin hambre (D-N176): aquí se mide solo la producción
                 for (int h = 1; h <= 24 * 30; h++) { x.Tick = (long)h * H - 1; x.Step(); if (x.Stock[cas, Comb] >= target) return h; }
                 return -1;
             }
@@ -101,14 +102,17 @@ namespace TBD.Sim.Tests
             var wl = NetScenario.Mvp(); wl.Services.Clear(); NetSave.Load(bytes, wl);
             check(wl.Hash() == w1.Hash() && wl.Production.Rem[k] == 23_520 && wl.Production.WastedU[k] == 59, "guardar y cargar conserva el remanente y las pérdidas (mismo hash)");
             var fresh = NetScenario.Mvp(false);
-            var sw = new SaveWriter(); fresh.SaveState(sw); var v3 = sw.ToArray();
+            var sw = new SaveWriter(); fresh.SaveState(sw); var v4 = sw.ToArray();
+            var fw = new SaveWriter(); fw.Ints(new int[fresh.Graph.Nodes.Count]); fw.Long(0); var v3 = new byte[v4.Length - fw.ToArray().Length]; Array.Copy(v4, v3, v3.Length);     // D-N176: los víveres van al final, NetVersion 4
             var ew = new SaveWriter(); EmbarqueState.WriteEmpty(ew); int etail = ew.ToArray().Length;      // D-N166: los pasajeros (vacío) van al final, NetVersion 3
             var v2 = new byte[v3.Length - etail]; Array.Copy(v3, v2, v2.Length);
             int tail = ProductionTailLength(fresh.Graph.Nodes.Count);
             var v1 = new byte[v2.Length - tail]; Array.Copy(v2, v1, v1.Length);
             var mig = NetSave.NetMigrations[1](v1);
             check(BytesEqual(mig, v2), "la migración 1 → 2 añade la producción a 0 y deja la sección igual que una partida v2 nueva");
-            check(NetSave.NetVersion == 3 && BytesEqual(NetSave.NetMigrations[2](v2), v3), "D-N166: la migración 2 → 3 añade los pasajeros (ninguno) y deja la sección igual que una partida nueva");
+            check(BytesEqual(NetSave.NetMigrations[2](v2), v3), "D-N166: la migración 2 → 3 añade los pasajeros (ninguno) y deja la sección igual que una partida v3");
+            SaveError e34 = SaveError.None; try { NetSave.NetMigrations[3](v3); } catch (SaveException ex) { e34 = ex.Error; }
+            check(NetSave.NetVersion == 4 && e34 == SaveError.TooOld, "una partida v3 no se carga (TooOld): el reloj ×103 y los víveres cambian el sentido de los ticks y de las existencias (D-N161, D-N176)");
             check(fresh.Production.Hash() == 0, "sin producir nada el hash de la producción es 0");
         }
 

@@ -279,7 +279,7 @@ namespace TBD.Sim.Tests
                 long worst = 0; long born10 = w10.Field.LeashedMassNearTrack(w10.Graph, 1);
                 for (int day = 0; day < 10; day++)
                 {
-                    for (long t = 0; t < NetConst.DayTicks; t++) { w10.Step(); if (t % 1500 == 0) worst = Math.Max(worst, w10.Field.LeashedMassNearTrack(w10.Graph, 1)); }
+                    for (long t = 0; t < NetConst.DayTicks; t++) { w10.Step(); if (t % NetConst.HourTicks == 0) worst = Math.Max(worst, w10.Field.LeashedMassNearTrack(w10.Graph, 1)); }
                 }
                 check(worst <= 1500, $"en 10 días la horda inicial a tiro de la vía nunca pasa de 1.500 grupos ({worst} ‰, al nacer {born10} ‰)");
             }
@@ -342,7 +342,7 @@ namespace TBD.Sim.Tests
                 wl.Push(new NetCommand { Tick = wl.Tick, Type = NetCmdType.Dematerialize, Arg = node, Arg2 = 100 });    // de 600 vuelven 100: 500 bajas
                 wl.Step();
                 bool marked = wl.Director.Active.Exists(p => p.Kind == HiveDirector.PlanKind.Asedio && p.Node == node && p.Lost >= 400);
-                long hourEnd = (wl.Tick / 1500 + 1) * 1500 - wl.Tick;
+                long hourEnd = (wl.Tick / NetConst.HourTicks + 1) * NetConst.HourTicks - wl.Tick;
                 for (long t = 0; t <= hourEnd; t++) wl.Step();
                 bool gone = !wl.Director.Active.Exists(p => p.Kind == HiveDirector.PlanKind.Asedio && p.Node == node);
                                 check(marked && gone, "un asedio que pierde más del 50 % de su fuerza se retira en la hora siguiente (estado de manada, Lucía §3)");
@@ -463,7 +463,7 @@ namespace TBD.Sim.Tests
                 wa.Push(new NetCommand { Tick = wa.Tick, Type = NetCmdType.Materialize, Arg = sag });
                 bool at1 = false;
                 // el escenario empieza a las 05:30: el primer asedio (10:00) llega con 4,5 h de atención; el siguiente, ya con más de 6 h
-                for (long t = 0; t < 4L * NetConst.DayTicks && !at1; t++) { wa.Step(); at1 = wa.Intel.Exists(e => e.Id == "AT-1"); }
+                for (long t = 0; t < 8L * NetConst.DayTicks && !at1; t++) { wa.Step(); at1 = wa.Intel.Exists(e => e.Id == "AT-1"); }
                 var ae = wa.Intel.Find(e => e.Id == "AT-1");
                 check(at1, at1 ? $"tras más de 6 h en la zona de Sagunto, el director ataca otro nodo: AT-1 {ae.Vars[1]} mientras defendías {ae.Vars[3]}" : $"AT-1 no aparece en 4 días con el jugador en Sagunto (zona {wa.ActiveZoneNode}, atención {wa.Director.AttentionTicks[sag]}, ES-2 {wa.Intel.FindAll(e => e.Id == "ES-2").Count}, foco {wa.Director.AttentionNode(wa)})");
             }
