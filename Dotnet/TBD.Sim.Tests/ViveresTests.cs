@@ -11,6 +11,17 @@ namespace TBD.Sim.Tests
         public static void Run(Action<bool, string> check)
         {
             Console.WriteLine("\n[35] Víveres (D-N176) y reloj ×103 (D-N161)");
+            if (Environment.GetEnvironmentVariable("TBD_VIV_SERIE") == "1")      // para Hugo: 30 días de NetScenario.Mvp() con el director, víveres y gente por día
+            {
+                var sw = NetScenario.Mvp(); Console.WriteLine($"# hash inicial {sw.Hash():X16} · tick {sw.Tick} ({NetConst.Clock(sw.Tick)})");
+                int[] ns = { Id(sw, "Sagunto"), Id(sw, "Nules"), Id(sw, "Valencia"), Id(sw, "Castellón") };
+                Console.WriteLine("dia;hash;" + string.Join(";", Array.ConvertAll(ns, n => sw.Graph.Nodes[n].Name + "_viv;" + sw.Graph.Nodes[n].Name + "_pob")) + ";hambre_total");
+                for (int d = 1; d <= 30; d++)
+                {
+                    long end = (sw.Tick / NetConst.DayTicks + 1) * NetConst.DayTicks + 1; while (sw.Tick < end) { sw.ApplyCommands(); sw.Step(); }
+                    Console.WriteLine($"{d};{sw.Hash():X16};" + string.Join(";", Array.ConvertAll(ns, n => sw.Stock[n, (int)Res.Viveres] + ";" + sw.Stock[n, (int)Res.Personas])) + $";{sw.StarvedTotal}");
+                }
+            }
             const int V = (int)Res.Viveres, P = (int)Res.Personas;
 
             // ---- reloj
@@ -47,6 +58,11 @@ namespace TBD.Sim.Tests
             check(c.Stock[sag, P] == 76 && c.Stock[sag, V] == 0 && c.StarvedTotal == 4, $"sin víveres, 80 personas pierden el 5 % (4) en un día ({80 - c.Stock[sag, P]})");
             c.Stock[sag, V] = 4; c.Stock[sag, P] = 80; c.FoodRemMil[sag] = 0; c.Tick = d0 + 3 * NetConst.DayTicks - 1; c.Step();
             check(c.Stock[sag, P] == 78 && c.Stock[sag, V] == 0, $"con la mitad (4 de 8 u), pierden el 2,5 % (2) y se acaban los víveres ({80 - c.Stock[sag, P]})");
+
+            // nodo pequeño con falta parcial: el hambre se acumula en milésimas (Hugo) y de media cuadra con el modelo
+            int ala = Id(c, "Almenara"); c.Stock[ala, P] = 12; c.Stock[ala, V] = 0; c.FoodRemMil[ala] = 0; c.StarveRemMil[ala] = 0; int lostSmall = 0;
+            for (int d = 4; d < 14; d++) { c.Stock[ala, V] = 0; int before = c.Stock[ala, P]; c.Tick = d0 + d * NetConst.DayTicks - 1; c.Step(); lostSmall += before - c.Stock[ala, P]; }
+            check(lostSmall >= 5 && lostSmall <= 6, $"12 personas sin comida pierden 0,6 al día (5 %): {lostSmall} en 10 días; antes el floor daba 0");
 
             // producción por hora, como el resto: 6 u al día en Nules con la plantilla entera (12)
             var p = NetScenario.Mvp(); p.DirectorEnabled = false; p.Services.Clear(); p.Stock[nul, P] = 12; p.Stock[nul, V] = 0;

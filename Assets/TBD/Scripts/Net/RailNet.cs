@@ -230,7 +230,7 @@ namespace TBD.Net
         /// <summary>Minutos de JUEGO hasta el impacto (QA Q3: antes eran segundos reales a x1, que a x4 duraban la cuarta parte).</summary>
         public static long EtaMinutes(long etaTicks) { return NetConst.GameMs(etaTicks) / 60000; }
 
-        public const long DetectMm = 3_000_000;    // detección de la horda a unos 3 km (D-N11): unos 75 s reales de aviso a x1
+        public const long DetectMm = 5_000_000;    // detección de la horda a 5 km (Lucía, 8-nov, con el reloj ×103): unos 87 s reales de aviso a x1 (D-N11: 60–120 s)
 
         static string ClockAt(long tick)
         {
