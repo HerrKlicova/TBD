@@ -14,7 +14,7 @@ namespace TBD.View
     /// </summary>
     public partial class PrototypeBootstrap
     {
-        sealed class Seg { public int Id; public Vector2 A, B; public float Hp, Max; public bool Open; public string Name; public int Pile; public bool Queued; public float RebuildT = -1f; }
+        sealed class Seg { public int Id; public Vector2 A, B; public float Hp, Max; public bool Open; public string Name; public int Pile; public bool Queued; public int RebuildTick = -1; public bool IsGate; }
         readonly List<Seg> _segs = new List<Seg>(); readonly bool _tramos = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-tramos") >= 0; bool _segsInit, _obras, _tt1, _tt2; float _mats = 40f; Seg _segSel; float _segMsgUntil; string _segMsg = ""; float _repairAcc;
         static readonly Color SgAmbar = new Color32(0xe0, 0x8c, 0x30, 255), SgRojo = new Color32(0x98, 0x24, 0x20, 255);
 
@@ -25,10 +25,11 @@ namespace TBD.View
             _segsInit = true; int id = 16;
             foreach (var w in pieces)
             {
-                if (!w.Built || !w.IsWall || w.IsGate) continue;
+                if (!w.Built || !(w.IsWall || w.Kind == PieceKind.PuertaVia)) continue;
                 var a = new Vector2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f); var b = new Vector2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f);
                 if (Mathf.Abs(a.x - 70f) > 0.6f || Mathf.Abs(b.x - 70f) > 0.6f) continue;                       // solo el muro oeste
-                _segs.Add(new Seg { Id = id++, A = a, B = b, Hp = w.CostE4, Max = w.CostE4, Name = "Tramo oeste " + (_segs.Count + 1) });
+                float lifeMax = w.CostE4 * 1.1924f;                                                           // 11.924 de vida por u (Hugo, 1.200.000 en total) en vez de 10.000
+                _segs.Add(new Seg { Id = id++, A = a, B = b, Hp = lifeMax, Max = lifeMax, IsGate = w.Kind == PieceKind.PuertaVia, Name = (w.Kind == PieceKind.PuertaVia ? "Puerta de la vía" : "Tramo oeste " + (_segs.Count + 1)) });
             }
             if (_segs.Count == 0) { Debug.Log("[NOCHE] tramos: no hay piezas de muro en el oeste"); return; }
             Push(CmdType.ClearWest);
@@ -57,9 +58,9 @@ namespace TBD.View
             float dmg = NightSimParams.Default().WallDmgPerZombieS / 30f;
             foreach (var s in _segs)
             {
-                if (s.Open) { if (s.RebuildT >= 0f && Time.unscaledTime >= s.RebuildT) { s.Open = false; s.Hp = s.Max * 0.3f; s.RebuildT = -1f; Push(CmdType.SetSegment, s.Id * 10 + 0); Debug.Log("[NOCHE] " + s.Name + " reconstruido al 30 %"); } continue; }
-                if (s.Pile > 0) s.Hp = Mathf.Max(0f, s.Hp - s.Pile * dmg * 25f);                                // 25 = el desgaste calibrado en NightSim (Nacho) por zombi y segundo; ajustable
-                if (s.Hp <= 0f && !s.Open) { s.Open = true; Push(CmdType.SetSegment, s.Id * 10 + 1); Debug.Log("[NOCHE] BRECHA en " + s.Name); }
+                if (s.Open) { if (s.RebuildTick >= 0 && _ng.Tick >= s.RebuildTick) { s.Open = false; s.Hp = s.Max * 0.3f; s.RebuildTick = -1; Push(CmdType.SetSegment, s.Id * 10 + 0); if (s.IsGate) Push(CmdType.ToggleGate); Debug.Log("[NOCHE] " + s.Name + " reconstruido al 30 %"); } continue; }
+                if (s.Pile > 0) s.Hp = Mathf.Max(0f, s.Hp - s.Pile * dmg);                                          // 1 punto por zombi de la pila y por segundo, sin factor (NightSim, Nacho)
+                if (s.Hp <= 0f && !s.Open) { s.Open = true; Push(CmdType.SetSegment, s.Id * 10 + 1); if (s.IsGate) Push(CmdType.ToggleGate); Debug.Log("[NOCHE] BRECHA en " + s.Name); }
             }
             // reparacion: los zapadores vivos reparan los tramos en cola o el seleccionado (si no hay zombis pegados)
             int sappers = 0; foreach (var pl in _uw.Platoons) if (pl.Kind == PlatoonKind.Zapadores) sappers += pl.AliveCount();
@@ -119,18 +120,18 @@ namespace TBD.View
             if (_segSel == null) GUI.Label(new Rect(x, y, r.width - 16f * k, lh * 2f), "Clic en un tramo del muro oeste.", st);
             else
             {
-                var s = _segSel; bool rebuild = s.Open; string why = SegBlockReason(s, rebuild); float need = rebuild ? 1.6f : Mathf.Max(0.01f, (s.Max - s.Hp) / 5000f);
+                var s = _segSel; bool rebuild = s.Open; string why = SegBlockReason(s, rebuild); float need = rebuild ? s.Max / 11924f : Mathf.Max(0.01f, (s.Max - s.Hp) / 5000f);
                 GUI.Label(new Rect(x, y, r.width - 16f * k, lh), $"{s.Name}: {(s.Open ? "BRECHA" : Mathf.RoundToInt(100f * s.Hp / s.Max) + " %")}", st); y += lh;
-                GUI.Label(new Rect(x, y, r.width - 16f * k, lh), (rebuild ? "Reconstruir" : "Reparar") + $" · {need:0.0} u" + (rebuild ? " · 10 s" : ""), st); y += lh;
+                GUI.Label(new Rect(x, y, r.width - 16f * k, lh), (rebuild ? "Reconstruir" : "Reparar") + $" · {need:0.0} u" + (rebuild ? " · 10 s (provisional)" : ""), st); y += lh;
                 var bs = new GUIStyle(GUI.skin.button) { fontSize = Mathf.Max(11, Mathf.RoundToInt(14 * k)) }; GUI.enabled = why == null || (why != null && false);
                 if (GUI.Button(new Rect(x, y, 150f * k, 30f * k), rebuild ? "Reconstruir" : "Reparar", bs) && why == null)
                 {
-                    if (rebuild) { _mats -= 1.6f; s.RebuildT = Time.unscaledTime + 10f; } else s.Queued = true;
+                    if (rebuild) { _mats -= s.Max / 11924f; s.RebuildTick = _ng.Tick + 300; } else s.Queued = true;
                 }
                 GUI.enabled = true; y += 34f * k;
                 if (why != null) GUI.Label(new Rect(x, y, r.width - 16f * k, lh * 2f), why, st);
                 else if (s.Queued) GUI.Label(new Rect(x, y, r.width - 16f * k, lh), "En cola: los zapadores reparan.", st);
-                else if (s.RebuildT >= 0f) GUI.Label(new Rect(x, y, r.width - 16f * k, lh), "Reconstruyendo…", st);
+                else if (s.RebuildTick >= 0) GUI.Label(new Rect(x, y, r.width - 16f * k, lh), "Reconstruyendo…", st);
             }
         }
     }
