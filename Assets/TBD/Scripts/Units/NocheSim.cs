@@ -88,6 +88,8 @@ namespace TBD.Units
         public bool Airborne;               // el helicóptero solo dispara en vuelo (en la zona: State == 2)
         public int Shots, NextFireTick, ResupplyUntil = -1;
         public int HomeX, HomeY;            // NH90: su plataforma, para volver al acabar
+        public bool Parked;                 // D-N167: volvió solo por munición, rearmó y se queda posado hasta una orden del jugador (TakeOffOrder)
+        public int AutoReturns;             // D-N167: veces que ha vuelto solo a rearmar
         public int Kills, ShotsFired, Resupplies, ResupplyShotsSpent;
 
         public static NightVehicle Make(string name, NightVehKind k, int x, int y)
@@ -118,7 +120,7 @@ namespace TBD.Units
         }
         /// <summary>Coste de llenar la reserva, en disparos del almacén (1 u = WeaponCatalog.ShotsPerU): ResupplyMilliU × lo que falta / MaxShots.</summary>
         public int RefillCostShots() { return MaxShots <= 0 ? 0 : (int)((long)ResupplyMilliU * WeaponCatalog.ShotsPerU / 1000 * (MaxShots - Shots) / MaxShots); }
-        public ulong Hash() { return IMath.Mix((ulong)(uint)Shots + ((ulong)(uint)NextFireTick << 32) + (ulong)Kind) + IMath.Mix((ulong)(uint)ResupplyUntil + ((ulong)(uint)Kills << 32) + (Fire ? 7UL : 11UL) + (Airborne ? 13UL : 0UL)); }
+        public ulong Hash() { return IMath.Mix((ulong)(uint)Shots + ((ulong)(uint)NextFireTick << 32) + (ulong)Kind) + IMath.Mix((ulong)(uint)ResupplyUntil + ((ulong)(uint)Kills << 32) + (Fire ? 7UL : 11UL) + (Airborne ? 13UL : 0UL) + (Parked ? 0x167UL << 40 : 0UL)); }
     }
 
     /// <summary>D-N148 (Lucía, 7-nov): a qué va un zombi que ha pasado el muro (trepando la pila o por una brecha). Lo vivo más cercano a menos de «seekMm», por este
@@ -150,7 +152,7 @@ namespace TBD.Units
 
     public sealed class NightSim
     {
-        sealed class Zomb { public int X, Y; public bool Alive = true; public int TX, TY; public byte Goal; }   // Goal (D-N148): 0 sin decidir, 1 infantería, 2 vehículo, 3 obrero, 4 tren
+        sealed class Zomb { public int X, Y; public bool Alive = true; public int TX, TY; public byte Goal; public bool HitTrain; }   // Goal (D-N148): 0 sin decidir, 1 infantería, 2 vehículo, 3 obrero, 4 tren
 
         public NightSimParams SP;
         public readonly UnitsWorld Units;
@@ -289,7 +291,9 @@ namespace TBD.Units
         public void Run(int ticks) { for (int i = 0; i < ticks && Night.State == NightState.Jugando; i++) Step(); }
         /// <summary>D-N164: ya no se gana a las 06:00, así que una horda que no cae podría no acabar nunca. Las corridas en lote paran aquí
         /// (dos noches de reloj: a ×28 son unos 34 min reales) y cuentan la partida como «sin acabar», que NO es victoria.</summary>
-        public int TickCap { get { return Night.TotalTicks * 2; } }
+        public int TickCap { get { return Math.Max(Night.TotalTicks * 2, 20 * 60 * IMath.TickRate); } }     // con el reloj ×103 la noche dura 279 s: mínimo 20 min reales
+        /// <summary>Medidas para Hugo (D-N165): pico de zombis pegados al tren a la vez y zombis distintos que lo han tocado.</summary>
+        public int TrainPeakAttackers, TrainTouched;
         public bool Unfinished { get { return Night.State == NightState.Jugando; } }
 
         public void Step()
@@ -349,15 +353,39 @@ namespace TBD.Units
             else
             {
                 // D-N163: el daño de la pila va al tramo que toca cada zombi (los que trepan ya no cuentan)
+                if (PileSpreadPermil <= 0)
                 for (int i = 0; i < Segments.Count; i++)
                 {
                     var g = Segments[i]; if (g.Hp <= 0 || _segPile[i] == 0) continue;
                     g.Rem += _segPile[i] * SP.WallDmgPerZombieS; int dmg = g.Rem / IMath.TickRate; g.Rem %= IMath.TickRate; g.Hp = Math.Max(0, g.Hp - dmg); if (g.Hp == 0) g.Rem = 0;
                 }
+                else
+                {
+                    // D-N165 (b): la pila empuja a los lados. PileSpreadPermil ‰ del empuje de cada tramo pasa a sus vecinos vivos del mismo lado (a medias si hay dos);
+                    // sin vecino vivo se queda en el tramo. Cuentas en milésimas de zombi; Rem en 1/(TickRate·1000) de vida, exacto.
+                    if (_segPush == null || _segPush.Length != Segments.Count) _segPush = new long[Segments.Count];
+                    Array.Clear(_segPush, 0, _segPush.Length);
+                    for (int i = 0; i < Segments.Count; i++)
+                    {
+                        if (_segPile[i] == 0) continue; long all = _segPile[i] * 1000L, out_ = all * PileSpreadPermil / 1000;
+                        bool l = i > 0 && Segments[i - 1].Side == Segments[i].Side && Segments[i - 1].Hp > 0, r = i + 1 < Segments.Count && Segments[i + 1].Side == Segments[i].Side && Segments[i + 1].Hp > 0;
+                        if (!l && !r) out_ = 0;
+                        _segPush[i] += all - out_;
+                        if (l && r) { _segPush[i - 1] += out_ / 2; _segPush[i + 1] += out_ - out_ / 2; } else if (l) _segPush[i - 1] += out_; else if (r) _segPush[i + 1] += out_;
+                    }
+                    long q = (long)IMath.TickRate * 1000;
+                    for (int i = 0; i < Segments.Count; i++)
+                    {
+                        var g = Segments[i]; if (g.Hp <= 0 || _segPush[i] == 0) continue;
+                        long acc = g.Rem + _segPush[i] * SP.WallDmgPerZombieS; int dmg = (int)(acc / q); g.Rem = (int)(acc % q); g.Hp = Math.Max(0, g.Hp - dmg); if (g.Hp == 0) g.Rem = 0;
+                    }
+                }
                 SumSegments();
             }
             WallJobsStep();
-            { _targets.Clear(); for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); int aS, aT; Night.CountAttackers(_targets, out aS, out aT); Night.Attack(aS, aT); }
+            { _targets.Clear(); for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); int aS, aT; Night.CountAttackers(_targets, out aS, out aT); Night.Attack(aS, aT);
+              if (aT > TrainPeakAttackers) TrainPeakAttackers = aT;
+              if (aT > 0) for (int i = 0; i < _z.Count; i++) if (_z[i].Alive && !_z[i].HitTrain && Night.TouchesTrain(_z[i].X, _z[i].Y)) { _z[i].HitTrain = true; TrainTouched++; } }
             // 4) los pelotones disparan; los impactos abaten
             _targets.Clear(); _ids.Clear();
             for (int i = 0; i < _z.Count; i++) if (_z[i].Alive && NearPlatoon(_z[i].X, _z[i].Y)) { _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); }
@@ -414,11 +442,17 @@ namespace TBD.Units
         {
             if (index < 0 || index >= Vehicles.Count) return 0; var v = Vehicles[index];
             if (v.ResupplyUntil >= 0 || v.Shots * 100 > v.MaxShots * 95) return 0;
+            if (v.Kind == NightVehKind.Nh90 && v.Airborne) return 0;          // D-N167: el NH90 solo rearma posado en su helipuerto (como la zona: en tierra y a menos de 12 m)
             int cost = v.RefillCostShots(); if (cost <= 0 || Units.StockShots < cost) return 0;
             Units.StockShots -= cost; v.ResupplyUntil = Night.Tick + v.ResupplyTicks; v.Resupplies++; v.ResupplyShotsSpent += cost; VehicleResupplies++;
             var w = Current(); if (w != null) w.VehicleResupplies++;
             return cost;
         }
+
+        /// <summary>D-N167: umbral de vuelta sola del NH90 (% de su reserva).</summary>
+        public int Nh90ReturnBelowPct = 30;
+        /// <summary>Orden del jugador al NH90 (despegar o cualquier otra): anula el «posado» de la D-N167 y vuelve a despegar solo con horda. false si no es un NH90.</summary>
+        public bool TakeOffOrder(int index) { if (index < 0 || index >= Vehicles.Count || Vehicles[index].Kind != NightVehKind.Nh90) return false; Vehicles[index].Parked = false; return true; }
 
         void VehiclesStep(WaveStats cur)
         {
@@ -431,8 +465,13 @@ namespace TBD.Units
                 if (!v.Fire || v.Shots <= 0 || tick < v.NextFireTick) continue;
                 if (v.Kind == NightVehKind.Nh90)            // como la zona (Noche50, Marcos): el NH90 despega solo con más de 30 zombis y va sobre el andén (100;64); sin zombis vuelve a su plataforma
                 {
-                    if (!v.Airborne && v.Fire && _aliveForHeli > 30 && v.Shots * 20 > v.MaxShots) { v.HomeX = v.X; v.HomeY = v.Y; v.X = 100000; v.Y = 64000; v.Airborne = true; }
+                    if (!v.Airborne && !v.Parked && v.Fire && _aliveForHeli > 30 && v.Shots * 20 > v.MaxShots) { v.HomeX = v.X; v.HomeY = v.Y; v.X = 100000; v.Y = 64000; v.Airborne = true; }
                     else if (v.Airborne && _aliveForHeli == 0 && v.HomeX != 0) { v.X = v.HomeX; v.Y = v.HomeY; v.Airborne = false; }
+                    else if (v.Airborne && v.HomeX != 0 && v.Shots * 100 < v.MaxShots * Nh90ReturnBelowPct)
+                    {
+                        // D-N167 (Lucía): por debajo del 30 % vuelve solo a su helipuerto, rearma y se queda posado (el pelotón que lleve sigue a bordo). Vuelo instantáneo en NightSim.
+                        v.X = v.HomeX; v.Y = v.HomeY; v.Airborne = false; v.Parked = true; v.AutoReturns++; ResupplyVehicle(vi);
+                    }
                     if (!v.Airborne) continue;
                 }
                 long best = (long)v.RangeMm * v.RangeMm; int bi = -1;
@@ -472,9 +511,16 @@ namespace TBD.Units
             int tx, ty; z.Goal = ClimberTargets.Pick(z.X, z.Y, _men, _vehT, _workers, ClimberSeekMm, Night.P.TrainRect, out tx, out ty); z.TX = tx; z.TY = ty;
         }
 
+        /// <summary>Tope de trepadores por segundo (0 = sin tope). Va fuera del hash si es 0.</summary>
+        public int ClimbMaxPerS; long _capAcc;
         int ClimbStep(int excess)
         {
             long acc = _climbRem + (long)excess * SP.ClimbPermilS; int n = (int)(acc / (1000L * IMath.TickRate)); _climbRem = acc % (1000L * IMath.TickRate);
+            if (ClimbMaxPerS > 0)      // tope de paso (calibración con la Noche58a, Hugo): como mucho ClimbMaxPerS por segundo, sin acumular más de 1 s
+            {
+                _capAcc = Math.Min(_capAcc + ClimbMaxPerS, (long)ClimbMaxPerS * IMath.TickRate); int capN = (int)(_capAcc / IMath.TickRate);
+                if (n > capN) n = capN; _capAcc -= (long)n * IMath.TickRate;
+            }
             int moved = 0;
             for (int i = _z.Count - 1; i >= 0 && moved < n; i--)
             {
@@ -495,7 +541,7 @@ namespace TBD.Units
             return inX && inY;     // fuera del recinto y a menos de r de él
         }
 
-        int AliveZombies() { int n = 0; for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) n++; return n; }
+        public int AliveZombies() { int n = 0; for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) n++; return n; }
         int PlatoonAmmo() { int n = 0; foreach (var p in Units.Platoons) n += p.AmmoShots; return n; }
         int TotalAmmo() { return PlatoonAmmo() + Units.StockShots; }
 
@@ -556,6 +602,8 @@ namespace TBD.Units
             SumSegments();
         }
         public int TramoVidaPorU = 10000;
+        /// <summary>D-N165 (b): ‰ del empuje de la pila que pasa a los tramos vecinos (0 = todo al tramo que toca, como en fa66281). Propuesta de Nacho: 500.</summary>
+        public int PileSpreadPermil; long[] _segPush;
         void SumSegments() { long t = 0; foreach (var g in Segments) t += g.Hp; WallHp = (int)t; }
         /// <summary>Recalcula WallHp tras tocar a mano la vida de un tramo (pruebas y la zona al sincronizar).</summary>
         public void SumForTests() { if (Segments != null) SumSegments(); }

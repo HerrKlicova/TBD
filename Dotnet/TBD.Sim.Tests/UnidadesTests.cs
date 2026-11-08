@@ -31,6 +31,7 @@ namespace TBD.Sim.Tests
             string difs = Environment.GetEnvironmentVariable("TBD_DIF") ?? "todas";
             int climb = -1; int.TryParse(Environment.GetEnvironmentVariable("TBD_CLIMB") ?? "-1", out climb);   // ClimbPileZ (−1 = el del código o el JSON)
             int climbR = -1; int.TryParse(Environment.GetEnvironmentVariable("TBD_CLIMB_R") ?? "-1", out climbR);   // ClimbPermilS
+            int climbMax = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_CLIMB_MAX") ?? "0", out climbMax);   // tope de trepadores por segundo (Noche58a: 55)
             int trainX0 = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_TRAIN_X0") ?? "0", out trainX0);   // cola del tren en mm; el tren mide 64 m (74000 = como en la qa25)
             string vehs = Environment.GetEnvironmentVariable("TBD_VEH") ?? "ambos";
             // comparación con la zona (8-nov): TBD_TGT_M = radio de blancos alrededor de los pelotones (la zona usa 60), TBD_FUERZA=zona (posiciones de InitNight), TBD_BOT=no (sin órdenes, solo la recarga automática al 30 %)
@@ -41,16 +42,17 @@ namespace TBD.Sim.Tests
             // D-N165 (8-nov): TBD_PIEZAS=sagunto carga los tramos con las piezas reales de Works.Snapshot(Sagunto) de NetWorld.Mvp(); TBD_VIDA_U = vida por u (A 10000, B 13010)
             bool piezas = Environment.GetEnvironmentVariable("TBD_PIEZAS") == "sagunto"; int vidaU = 10000; int.TryParse(Environment.GetEnvironmentVariable("TBD_VIDA_U") ?? "10000", out vidaU);
             var sagPieces = piezas ? SaguntoPieces(vidaU) : null;
+            int spread = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_EMPUJE") ?? "0", out spread);   // D-N165 (b): PileSpreadPermil
             if (piezas) { long tot = 0; foreach (var q in sagPieces) tot += q.HpMax; Console.WriteLine($"# tramos de Works.Snapshot(Sagunto): {sagPieces.Count}, vida total {tot} a {vidaU} por u"); tramos = true; }
-            Console.WriteLine("dificultad;vehiculos;partidas;victorias;municion_p10_u;muro_medio_pct;pila_max_media;abatidos_vehiculos_medio;recargas_vehiculos_medio;municion_final_media_u;bajas_medias;derrotas_tren;derrotas_estacion;tren_final_medio_pct;estacion_final_media_pct;trepan_medio;muro_p50_pct;sin_acabar;con_brecha;brecha_min_p50;brecha_hora_p50;brecha_tramo_moda;brecha_tramo_moda_n;reparados_medio;reconstruidos_medio;vida_reparada_media");
+            Console.WriteLine("dificultad;vehiculos;partidas;victorias;municion_p10_u;muro_medio_pct;pila_max_media;abatidos_vehiculos_medio;recargas_vehiculos_medio;municion_final_media_u;bajas_medias;derrotas_tren;derrotas_estacion;tren_final_medio_pct;estacion_final_media_pct;trepan_medio;muro_p50_pct;sin_acabar;con_brecha;brecha_min_p50;brecha_hora_p50;brecha_tramo_moda;brecha_tramo_moda_n;reparados_medio;reconstruidos_medio;vida_reparada_media;tren_cae_min_p50;pila_max_p50;pila_max_p90;al_tren_pico_medio;al_tren_distintos_p50;nh90_vueltas_medio");
             foreach (var dif in difs == "todas" ? new[] { "facil", "normal", "dificil" } : new[] { difs })
                 foreach (bool veh in vehs == "si" ? new[] { true } : vehs == "no" ? new[] { false } : new[] { false, true })
                 {
-                    int wins = 0; var ammos = new List<int>(); long wall = 0, pile = 0, vk = 0, vr = 0, ammo = 0, deaths = 0, trainF = 0, stF = 0, climbed = 0; int lostT = 0, lostS = 0; var walls = new List<int>(); int unfinished = 0; var brkTicks = new List<int>(); var brkSegs = new Dictionary<string, int>(); long repN = 0, rebN = 0, repHp = 0;
+                    int wins = 0; var ammos = new List<int>(); long wall = 0, pile = 0, vk = 0, vr = 0, ammo = 0, deaths = 0, trainF = 0, stF = 0, climbed = 0; int lostT = 0, lostS = 0; var walls = new List<int>(); int unfinished = 0; var brkTicks = new List<int>(); var brkSegs = new Dictionary<string, int>(); long repN = 0, rebN = 0, repHp = 0, nhRet = 0; var trainFall = new List<int>(); var piles = new List<int>(); var touched = new List<int>(); long tPeak = 0;
                     for (int i = 0; i < n; i++)
                     {
-                        var sim = NightSim.FromJson(json, dif, (uint)(i + 1 + seed0)); if (climb >= 0) sim.SP.ClimbPileZ = climb; if (climbR >= 0) sim.SP.ClimbPermilS = climbR; if (trainX0 > 0) { var tp = sim.Night.P; tp.TrainRect = new RectMm(trainX0, tp.TrainRect.Y0, trainX0 + 64000, tp.TrainRect.Y1); sim.Night.P = tp; }
-                        sim.TargetRadiusMm = tgtM * 1000; if (zoneForce) sim.AddZoneForce(); else sim.AddDefaultForce(); if (veh) sim.AddDefaultVehicles(true); if (noBot) sim.AutoPlatoonResupply = true; else sim.Bot = NightBot.FromParams(sim.SP); if (tramos) { if (sagPieces != null) sim.EnableSegments(sagPieces); else sim.EnableSegments(); sim.AutoRepair = repairOn; }
+                        var sim = NightSim.FromJson(json, dif, (uint)(i + 1 + seed0)); _clk = sim.Night.P.ClockX; if (climb >= 0) sim.SP.ClimbPileZ = climb; if (climbR >= 0) sim.SP.ClimbPermilS = climbR; sim.ClimbMaxPerS = climbMax; if (trainX0 > 0) { var tp = sim.Night.P; tp.TrainRect = new RectMm(trainX0, tp.TrainRect.Y0, trainX0 + 64000, tp.TrainRect.Y1); sim.Night.P = tp; }
+                        sim.TargetRadiusMm = tgtM * 1000; if (zoneForce) sim.AddZoneForce(); else sim.AddDefaultForce(); if (veh) sim.AddDefaultVehicles(true); if (noBot) sim.AutoPlatoonResupply = true; else sim.Bot = NightBot.FromParams(sim.SP); if (tramos) { if (sagPieces != null) sim.EnableSegments(sagPieces); else sim.EnableSegments(); sim.AutoRepair = repairOn; sim.PileSpreadPermil = spread; }
                         int brk = -1, brkSeg = -1;
                         while (sim.Night.State == NightState.Jugando && sim.Night.Tick < sim.TickCap)
                         {
@@ -58,18 +60,20 @@ namespace TBD.Sim.Tests
                             if (tramos && brk < 0) for (int k = 0; k < sim.Segments.Count; k++) if (sim.Segments[k].Hp == 0) { brk = sim.Night.Tick; brkSeg = k; break; }
                         }
                         if (sim.Unfinished) unfinished++; repN += sim.Repaired; rebN += sim.Rebuilt; repHp += sim.RepairHp;
+                        if (sim.Night.State == NightState.Derrota && sim.Night.EndedByTrain) trainFall.Add(sim.Night.DefeatTick); piles.Add(sim.PeakPile); touched.Add(sim.TrainTouched); tPeak += sim.TrainPeakAttackers; foreach (var vv in sim.Vehicles) nhRet += vv.AutoReturns;
                         if (brk >= 0) { brkTicks.Add(brk); string key = SegLabel(sim.Segments[brkSeg], brkSeg); int c; brkSegs.TryGetValue(key, out c); brkSegs[key] = c + 1; }
                         if (sim.Night.State == NightState.Victoria) wins++; ammos.Add(sim.AmmoMilliU());
                         if (sim.Night.State == NightState.Derrota) { if (sim.Night.EndedByTrain) lostT++; if (sim.Night.EndedByStation) lostS++; }
                         trainF += (long)sim.Night.TrainHp * 100 / Math.Max(1, sim.Night.P.TrainHp); stF += (long)sim.Night.StationHp * 100 / Math.Max(1, sim.Night.P.StationHp); climbed += sim.Climbed; walls.Add((int)((long)sim.WallHp * 100 / Math.Max(1, sim.SP.WallHp)));
                         wall += (long)sim.WallHp * 100 / Math.Max(1, sim.SP.WallHp); pile += sim.PeakPile; vk += sim.VehicleKills; vr += sim.VehicleResupplies; ammo += sim.AmmoMilliU(); deaths += sim.SoldierDeaths;
                     }
-                    Console.WriteLine($"{dif};{(veh ? "si" : "no")};{n};{wins};{P10(ammos) / 1000.0:0.0};{wall / n};{pile / n};{vk / n};{(vr * 10 / n) / 10.0:0.0};{(ammo / n) / 1000.0:0.0};{(deaths * 10 / n) / 10.0:0.0};{lostT};{lostS};{trainF / n};{stF / n};{climbed / n};{Median(walls)};{unfinished};{brkTicks.Count};{BreachMin(brkTicks)};{BreachHour(brkTicks)};{Mode(brkSegs)};{(repN * 10 / n) / 10.0:0.0};{(rebN * 10 / n) / 10.0:0.0};{repHp / n}");
+                    Console.WriteLine($"{dif};{(veh ? "si" : "no")};{n};{wins};{P10(ammos) / 1000.0:0.0};{wall / n};{pile / n};{vk / n};{(vr * 10 / n) / 10.0:0.0};{(ammo / n) / 1000.0:0.0};{(deaths * 10 / n) / 10.0:0.0};{lostT};{lostS};{trainF / n};{stF / n};{climbed / n};{Median(walls)};{unfinished};{brkTicks.Count};{BreachMin(brkTicks)};{BreachHour(brkTicks)};{Mode(brkSegs)};{(repN * 10 / n) / 10.0:0.0};{(rebN * 10 / n) / 10.0:0.0};{repHp / n};{BreachMin(trainFall)};{Median(piles)};{P90(piles)};{tPeak / n};{Median(touched)};{(nhRet * 10 / n) / 10.0:0.0}");
                 }
         }
 
         static string BreachMin(List<int> t) { if (t.Count == 0) return "-"; var c = new List<int>(t); return (Median(c) / 30.0 / 60).ToString("0.0"); }   // minutos reales desde las 22:00
-        static string BreachHour(List<int> t) { if (t.Count == 0) return "-"; var c = new List<int>(t); long gs = (long)Median(c) * 28 / 30; return $"{(22 + gs / 3600) % 24:00}:{gs / 60 % 60:00}"; }   // a ×28
+        static string BreachHour(List<int> t) { if (t.Count == 0) return "-"; var c = new List<int>(t); long gs = (long)Median(c) * _clk / 30; return $"{(22 + gs / 3600) % 24:00}:{gs / 60 % 60:00}"; }   // al reloj de la noche
+        static int _clk = 28;
         static string Mode(Dictionary<string, int> d) { string b = "-"; int bn = 0; foreach (var kv in d) if (kv.Value > bn || (kv.Value == bn && string.CompareOrdinal(kv.Key, b) < 0)) { b = kv.Key; bn = kv.Value; } return b + ";" + bn; }
         static string SegLabel(NightSim.WallSegment g, int i) { string[] side = { "oeste", "este", "sur", "norte" }; return $"{i}:{side[g.Side]}_{g.A0 / 1000.0:0.#}-{g.A1 / 1000.0:0.#}"; }
 
@@ -92,6 +96,29 @@ namespace TBD.Sim.Tests
             return list;
         }
 
+        /// <summary>TBD_CALIB=1 (Hugo, Noche58a): con la fuerza y los blancos de la zona, el NightBot y los vehículos, entradas acumuladas (Climbed) a las 22:35 y 22:55 y hora de caída del tren.
+        /// TBD_CLIMB_R (‰/s), TBD_CLIMB_MAX (tope por s, 0 = sin tope), TBD_SEEDS. Objetivo: ~773 y ~2612, tren hacia las 22:55.</summary>
+        public static void CalibReport()
+        {
+            string json = TBD.Net.BalanceSource.Read("noche_sagunto.json");
+            int n = 30; int.TryParse(Environment.GetEnvironmentVariable("TBD_SEEDS") ?? "30", out n);
+            int r = 20; int.TryParse(Environment.GetEnvironmentVariable("TBD_CLIMB_R") ?? "20", out r);
+            int cap = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_CLIMB_MAX") ?? "0", out cap);
+            var a35 = new List<int>(); var a55 = new List<int>(); var fall = new List<int>(); var piles = new List<int>(); int wins = 0;
+            for (int i = 0; i < n; i++)
+            {
+                var sim = NightSim.FromJson(json, "normal", (uint)(i + 1)); sim.SP.ClimbPermilS = r; _clk = sim.Night.P.ClockX; sim.ClimbMaxPerS = cap; sim.TargetRadiusMm = 60000; sim.AddZoneForce(); sim.AddDefaultVehicles(true); sim.Bot = NightBot.FromParams(sim.SP);
+                int cx = sim.Night.P.ClockX, t35 = 35 * 60 * 30 / cx, t55 = 55 * 60 * 30 / cx; int c35 = -1, c55 = -1;
+                while (sim.Night.State == NightState.Jugando && sim.Night.Tick < sim.TickCap) { sim.Run(1); if (sim.Night.Tick == t35) c35 = sim.Climbed; if (sim.Night.Tick == t55) c55 = sim.Climbed; }
+                if (c35 < 0) c35 = sim.Climbed; if (c55 < 0) c55 = sim.Climbed;
+                a35.Add(c35); a55.Add(c55); piles.Add(sim.PeakPile); if (sim.Night.State == NightState.Victoria) wins++;
+                if (sim.Night.State == NightState.Derrota && sim.Night.EndedByTrain) fall.Add(sim.Night.DefeatTick);
+            }
+            Console.WriteLine($"climb_r;tope;partidas;victorias;entran_2235_p50;entran_2255_p50;tren_cae_n;tren_cae_hora_p50;pila_max_p50");
+            Console.WriteLine($"{r};{cap};{n};{wins};{Median(a35)};{Median(a55)};{fall.Count};{BreachHour(fall)};{Median(piles)}");
+        }
+
+        static int P90(List<int> v) { if (v.Count == 0) return 0; v.Sort(); return v[Math.Min(v.Count - 1, v.Count * 9 / 10)]; }
         static int P10(List<int> v) { if (v.Count == 0) return 0; v.Sort(); return v[v.Count / 10]; }
         static int Median(List<int> v) { if (v.Count == 0) return 0; v.Sort(); return v[v.Count / 2]; }
 
@@ -979,6 +1006,19 @@ namespace TBD.Sim.Tests
                     var hs = NightSim.FromJson(TBD.Net.BalanceSource.Read("noche_sagunto.json"), null, 4); hs.AddDefaultForce(); hs.AddDefaultVehicles(true);
                     var heli = hs.Vehicles.Find(v => v.Kind == NightVehKind.Nh90); bool up = false; for (int t = 0; t < 4000 && hs.Night.State == NightState.Jugando; t++) { hs.Step(); up |= heli.Airborne; }
                     check(up && heli.Kills > 0 && heli.ShotsFired > 0, $"NH90: despega solo con la horda y dispara en vuelo ({heli.ShotsFired} disparos, {heli.Kills} abatidos)");
+                }
+                // D-N167 (Lucía): por debajo del 30 % el NH90 vuelve solo al helipuerto, rearma y se queda posado hasta una orden del jugador
+                {
+                    var hs = NightSim.FromJson(TBD.Net.BalanceSource.Read("noche_sagunto.json"), null, 4); hs.AddDefaultForce(); hs.AddDefaultVehicles(true);
+                    int hi = hs.Vehicles.FindIndex(v => v.Kind == NightVehKind.Nh90); var heli = hs.Vehicles[hi]; long stock0 = 0;
+                    for (int t = 0; t < 6000 && hs.Night.State == NightState.Jugando && !heli.Airborne; t++) hs.Step();
+                    check(heli.Airborne && hs.ResupplyVehicle(hi) == 0, "D-N167: en vuelo el NH90 no rearma (solo posado en su helipuerto)");
+                    heli.Shots = heli.MaxShots * 29 / 100; stock0 = hs.Units.StockShots; hs.Step();
+                    check(!heli.Airborne && heli.Parked && heli.AutoReturns == 1 && heli.X == heli.HomeX && heli.Y == heli.HomeY && heli.ResupplyUntil > 0 && hs.Units.StockShots < stock0, $"D-N167: al bajar del 30 % vuelve solo a su helipuerto y rearma del almacén ({stock0 - hs.Units.StockShots} disparos)");
+                    for (int t = 0; t < 1200 && hs.Night.State == NightState.Jugando; t++) hs.Step();
+                    check(!heli.Airborne && heli.Parked && heli.Shots == heli.MaxShots, "D-N167: rearmado, se queda posado aunque siga la horda");
+                    check(hs.TakeOffOrder(hi) && !heli.Parked, "D-N167: una orden del jugador anula el posado");
+                    hs.Step(); check(heli.Airborne || hs.AliveZombies() <= 30, "D-N167: tras la orden vuelve a despegar solo con horda");
                 }
                 // D-N139: la infantería no atraviesa edificios, muros, vehículos ni el tren: los rodea
                 {
