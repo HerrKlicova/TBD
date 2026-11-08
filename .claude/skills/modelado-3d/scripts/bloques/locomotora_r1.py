@@ -17,7 +17,7 @@ from taller import Taller
 
 PIEZAS = ["casco", "bastidor", "rueda", "optica", "foco", "franja", "chapa", "rejilla", "metal", "sacos", "arado"]
 COLORES = {
-    "casco": "50541c",     # laterales del tren (D-N42); el techo pasa a b8b8b8 con valor_partido(claro="b8b8b8")
+    "casco": "70784c",     # laterales del tren (D-N42; D-N157: un escalón más claro, entregar con --costado 70784c); el techo pasa a b8b8b8 con valor_partido(claro="b8b8b8")
     "bastidor": "303424",  # bastidor, bogies y depósito: el gris más oscuro sin caer al negro del contorno
     "rueda": "1c200c",
     "optica": "181c30",    # cristales y mirillas

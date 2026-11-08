@@ -25,7 +25,7 @@ COLORES = dict(R.COLORES, bastidor="48403c", rueda="48403c", metal="48403c", rej
 PERMITIR = ("e08c30",)          # franja ámbar del frontal (D-N42, única excepción)
 ABAJO_CASCO = "50541c"
 L_MIN = 28.0
-VALOR_PIEZAS = {"casco": ("b8b8b8", "50541c", "50541c")}
+VALOR_PIEZAS = {"casco": ("b8b8b8", "70784c", "50541c")}  # D-N157 (Lucía, 8-nov 24:33): el lateral sube un escalón, de 50541c a 70784c (ΔL* ≥ 8 con el balasto de día)
 VENTANILLAS = {"Ventanillas": ["optica"], "Emision": ["luz"]}
 ESCAPE = (0.4, -4.2, R.Z_CAJA + 0.4)           # boca del tubo delantero (el trasero, 0,6 m detrás)
 

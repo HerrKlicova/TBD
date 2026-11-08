@@ -31,7 +31,7 @@ VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 ASPECTO = VAR % 6
 PIEZAS = ["casco", "bastidor", "rueda", "ventana", "puerta", "fuelle", "metal", "sacos", "chapa", "tablero",
           "contenedor", "contenedor2", "cisterna", "carga", "optica", "foco", "luz"]
-COLORES = {"casco": "50541c", "bastidor": "48403c", "rueda": "48403c", "ventana": "60546c", "puerta": "605c48",
+COLORES = {"casco": "70784c", "bastidor": "48403c", "rueda": "48403c", "ventana": "60546c", "puerta": "605c48",
            "fuelle": "48403c", "metal": "48403c", "sacos": "847c34", "chapa": "605c48", "tablero": "605c48",
            "contenedor": "6c7874", "contenedor2": "847c34", "cisterna": "94948c", "carga": "88885c",
            "optica": "60546c", "foco": "48403c", "luz": "f0dc9c"}
@@ -40,7 +40,8 @@ if ASPECTO == 5:
 ABAJO_CASCO = "50541c"
 L_MIN = 28.0
 # techo b8b8b8 en los coches (D-N42, como la locomotora); canto del parapeto en 70784c en el de tropa (Lucía, R2)
-VALOR_PIEZAS = {"casco": (("70784c" if ASPECTO == 2 else "b8b8b8"), "50541c", "50541c")}
+VALOR_PIEZAS = {"casco": (("88885c" if ASPECTO == 2 else "b8b8b8"), "70784c", "50541c")}  # D-N157 (Lucía, 8-nov 24:33): el lateral sube un escalón, de 50541c a 70784c (ΔL* ≥ 8 con el balasto de día); el techo
+# de v2 pasa de 70784c a 88885c para no fundirse con el lateral
 VENTANILLAS = {"Ventanillas": ["ventana"], "Emision": ["luz"]}
 # De noche (coordinador, 7-nov 00:57: el tren se veía demasiado oscuro en la vista cercana), en el v2 y el v3: faroles
 # (pieza «foco», apagados en 48403c) y una capa «Emision» 1,5 cm por fuera en f0dc9c que Marcos enciende de noche. En
