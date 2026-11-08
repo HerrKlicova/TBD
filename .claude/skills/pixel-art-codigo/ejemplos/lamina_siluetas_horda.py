@@ -8,9 +8,12 @@ Entrada: OBJ (Blender: Archivo → Exportar → Wavefront, +Y arriba, con «Colo
   Un OBJ por silueta. Se toma la malla tal cual (pivote en los pies, delante hacia −Z del OBJ = +Z de Unity).
 Salida (en --salida):
   lamina_horda.png   cada silueta en 8 orientaciones a 1 px = 0,144 m (×4 para verla), sobre suelo de noche, y a ×3 de zoom
-  siluetas.csv       triángulos, altura en px, ancho medio, y la IoU media con cada otra silueta (0 = nada en común, 1 = igual)
-Criterio que propongo (a validar con Lucía): cada par con IoU media <= 0,70 a ortho 26. Si dos pasan de ahí, a 16 px
-se leen como la misma figura y hay que exagerar la diferencia (encorvado, ancho de hombros, brazos, sombrero).
+  siluetas.csv       triángulos, altura en px, ancho medio y poses de cada silueta
+  pares.csv          por par: IoU media (pose base, 8 orientaciones), IoU máxima (todas las orientaciones y poses) y veredicto
+Criterio (Lucía, 8-nov): en negro puro, sin tono por instancia; IoU media <= 0,70 por par y ningún par > 0,80 en ninguna
+orientación ni fotograma clave (andar, trepar). Si no, a 16 px se leen como la misma figura: exagerar encorvado, hombros, brazos, sombrero.
+Fotogramas clave: un OBJ por pose, «<silueta>__<pose>.obj» (p. ej. civil__andar1.obj, civil__trepar.obj); la pose base es
+«<silueta>.obj» o, si no está, la primera por orden alfabético.
 
 Uso: python3 -I lamina_siluetas_horda.py civil.obj obrero.obj ... [--salida DIR] [--ortho 26] [--escala 1.3]
      python3 -I lamina_siluetas_horda.py --prueba      (5 figuras de cajas, para comprobar la herramienta)
@@ -151,7 +154,14 @@ def main(argv):
         if a == "--escala": escala = float(argv[i + 1]); i += 2; continue
         if a == "--prueba": usar_prueba = True; i += 1; continue
         objs.append(Path(a)); i += 1
-    figuras = prueba() if usar_prueba else {p.stem: leer_obj(p) for p in objs}
+    poses = {}                                       # silueta → {pose: malla}; «civil__trepar.obj» es la pose «trepar» de «civil»
+    if usar_prueba:
+        poses = {n: {"base": m} for n, m in prueba().items()}
+    else:
+        for p in objs:
+            n, _, pose = p.stem.partition("__")
+            poses.setdefault(n, {})[pose or "base"] = leer_obj(p)
+    figuras = {n: (ps["base"] if "base" in ps else ps[sorted(ps)[0]]) for n, ps in poses.items()}
     if len(figuras) < 2:
         print(__doc__); return 1
     salida.mkdir(parents=True, exist_ok=True)
@@ -183,28 +193,39 @@ def main(argv):
     d.text((140 + len(YAWS) * celda + 4, 8), "x3 zoom", fill=HUESO)
     out.save(salida / "lamina_horda.png")
 
-    # Medida de forma: IoU media sobre las 8 orientaciones, alineando los pies (mismo origen).
-    filas, peor = [], (0, "", "")
-    for a in nombres:
+    # Medida de forma (criterio de Lucía, 8-nov): siluetas en negro puro, sin el tono por instancia.
+    #  1) IoU media <= 0,70 por par, en la pose base y en las 8 orientaciones de cámara;
+    #  2) ningún par > 0,80 en ninguna orientación ni en ningún fotograma clave (cada pose de A contra cada pose de B).
+    mp = {n: {po: [mascara(*m, y, escala, px, L) for y in YAWS] for po, m in ps.items()} for n, ps in poses.items()}
+    filas, pares = [], []
+    for ai, a in enumerate(nombres):
         alto, ancho = medidas(masc[a][0])
-        r = {"silueta": a, "triangulos": len(figuras[a][1]), "alto_px": alto, "ancho_medio_px": round(ancho, 1)}
-        for b in nombres:
-            if b == a:
-                continue
-            v = sum(iou(masc[a][k], masc[b][k]) for k in range(len(YAWS))) / len(YAWS)
-            r[f"iou_{b}"] = round(v, 2)
-            if v > peor[0]:
-                peor = (v, a, b)
-        filas.append(r)
-    campos = ["silueta", "triangulos", "alto_px", "ancho_medio_px"] + [f"iou_{b}" for b in nombres]
+        filas.append({"silueta": a, "triangulos": len(figuras[a][1]), "alto_px": alto, "ancho_medio_px": round(ancho, 1),
+                      "poses": " ".join(sorted(poses[a]))})
+        for b in nombres[ai + 1:]:
+            media = sum(iou(masc[a][k], masc[b][k]) for k in range(len(YAWS))) / len(YAWS)
+            pico, donde = 0.0, ""
+            for pa, ma in mp[a].items():
+                for pb, mb in mp[b].items():
+                    for k, yaw in enumerate(YAWS):
+                        v = iou(ma[k], mb[k])
+                        if v > pico:
+                            pico, donde = v, f"{pa}/{pb} a {yaw}°"
+            ok = media <= 0.70 and pico <= 0.80
+            pares.append({"par": f"{a} / {b}", "iou_media": round(media, 2), "iou_max": round(pico, 2), "peor_caso": donde,
+                          "apto": "APTO" if ok else ("MEDIA > 0,70" if media > 0.70 else "PICO > 0,80")})
     with open(salida / "siluetas.csv", "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=campos); w.writeheader(); w.writerows(filas)
-    print(f"{'silueta':14} {'tris':>5} {'alto':>5} {'ancho':>6}  IoU con las demás")
+        w = csv.DictWriter(f, fieldnames=list(filas[0])); w.writeheader(); w.writerows(filas)
+    with open(salida / "pares.csv", "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=list(pares[0])); w.writeheader(); w.writerows(pares)
+    print(f"{'silueta':14} {'tris':>5} {'alto':>5} {'ancho':>6}  poses")
     for r in filas:
-        otros = "  ".join(f"{k[4:]} {v}" for k, v in r.items() if k.startswith("iou_"))
-        print(f"{r['silueta']:14} {r['triangulos']:5} {r['alto_px']:5} {r['ancho_medio_px']:6}  {otros}")
-    print(f"Par más parecido: {peor[1]} / {peor[2]} con IoU {peor[0]:.2f} → {'APTO' if peor[0] <= 0.70 else 'DEMASIADO PARECIDOS'} (criterio ≤ 0,70)")
-    print(f"{salida / 'lamina_horda.png'} · {salida / 'siluetas.csv'}")
+        print(f"{r['silueta']:14} {r['triangulos']:5} {r['alto_px']:5} {r['ancho_medio_px']:6}  {r['poses']}")
+    print(f"\n{'par':28} {'media':>5} {'máx':>5}  peor caso               veredicto")
+    for r in pares:
+        print(f"{r['par']:28} {r['iou_media']:5} {r['iou_max']:5}  {r['peor_caso']:22}  {r['apto']}")
+    n_ok = sum(r["apto"] == "APTO" for r in pares)
+    print(f"\n{n_ok}/{len(pares)} pares aptos (media <= 0,70 y máx <= 0,80) · {salida / 'lamina_horda.png'} · {salida / 'pares.csv'}")
     return 0
 
 
