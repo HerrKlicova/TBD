@@ -287,6 +287,10 @@ namespace TBD.Units
         bool InFort(int x, int y) { return x > SP.FortX0 && x < SP.FortX1 && y > SP.FortY0 && y < SP.FortY1; }
 
         public void Run(int ticks) { for (int i = 0; i < ticks && Night.State == NightState.Jugando; i++) Step(); }
+        /// <summary>D-N164: ya no se gana a las 06:00, así que una horda que no cae podría no acabar nunca. Las corridas en lote paran aquí
+        /// (dos noches de reloj: a ×28 son unos 34 min reales) y cuentan la partida como «sin acabar», que NO es victoria.</summary>
+        public int TickCap { get { return Night.TotalTicks * 2; } }
+        public bool Unfinished { get { return Night.State == NightState.Jugando; } }
 
         public void Step()
         {
@@ -548,6 +552,7 @@ namespace TBD.Units
         {
             Segments = new List<WallSegment>();
             foreach (var q in pieces) { var g = new WallSegment { Side = q.Side, A0 = q.A0, A1 = q.A1, PriceU = q.PriceU, ObraMh = q.ObraMh, HpMax = q.HpMax > 0 ? q.HpMax : q.PriceU * TramoVidaPorU }; g.Hp = q.Hp < 0 ? g.HpMax : Math.Min(q.Hp, g.HpMax); Segments.Add(g); }
+            long mx = 0; foreach (var g in Segments) mx += g.HpMax; SP.WallHp = (int)mx;      // D-N165: el máximo del muro es la suma de sus piezas (el % del muro y el parte se miden contra esto)
             SumSegments();
         }
         public int TramoVidaPorU = 10000;

@@ -132,6 +132,7 @@ namespace TBD.Sim.Tests
             }
             if (Environment.GetEnvironmentVariable("TBD_BOT_REPORT") == "1") { UnidadesTests.BotReport(); return 0; }
             if (Environment.GetEnvironmentVariable("TBD_VEH_REPORT") == "1") { UnidadesTests.VehReport(); return 0; }
+            if (Environment.GetEnvironmentVariable("TBD_PIEZAS_DUMP") == "1") { var sb = new System.Text.StringBuilder("tipo;lado;a0_mm;a1_mm;largo_mm;precio_u;vida\n"); var l = UnidadesTests.SaguntoPieces(10000, sb); Console.Write(sb); long t = 0; foreach (var q in l) t += q.HpMax; Console.WriteLine($"total {l.Count} tramos, vida {t} a 10.000 por u"); return 0; }
             if (Environment.GetEnvironmentVariable("TBD_WAVE_REPORT") == "1") { UnidadesTests.WaveReport(); return 0; }
             if (Environment.GetEnvironmentVariable("TBD_KILL_TIMELINE") == "1") { UnidadesTests.KillTimeline(); return 0; }
             if (Environment.GetEnvironmentVariable("TBD_NIGHT_REPORT") == "1") { UnidadesTests.NightReport(); return 0; }
