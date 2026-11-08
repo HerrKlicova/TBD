@@ -119,6 +119,17 @@ namespace TBD.Sim.Tests
             var rp = World(); var rs = Svc(rp, 923, sag, 1, nul, 22); rs.Hp = 91_200;
             check(rp.TrainRepairU(0) == 6, $"reparar 28.800 de vida cuesta 6 u (1 por 5.000, redondeo arriba) ({rp.TrainRepairU(0)})");
 
+            // --- aviso ámbar: la horda va a una zona sin defensa
+            var u = World(); u.Embarque.HomeNode = sag;
+            u.Director.Active.Add(new HiveDirector.Plan { Kind = HiveDirector.PlanKind.Asedio, Node = nul, StartTick = u.Tick + NetConst.Hours(3) });
+            u.Director.Active.Add(new HiveDirector.Plan { Kind = HiveDirector.PlanKind.Asedio, Node = sag, StartTick = u.Tick + NetConst.Hours(2) });
+            var uw = u.UndefendedWarnings();
+            check(uw.Count == 1 && uw[0].Node == nul && uw[0].EtaTicks == NetConst.Hours(3) && uw[0].Text == "La horda va hacia Nules (llega hacia las 03:00) y no hay tropa", $"asedio anunciado contra Nules sin tropa: aviso («{(uw.Count > 0 ? uw[0].Text : "")}»); Sagunto (casa) no avisa");
+            u.Embarque.Lista.Add(new Pasajero { Tipo = PasajeroTipo.Peloton, Id = 5, Service = -1, Node = nul, Estado = PasajeroEstado.EnEstacion });
+            check(u.UndefendedWarnings().Count == 0 && u.ZoneDefended(nul), "con un pelotón bajado en Nules, sin aviso");
+            u.Embarque.Lista.Clear(); var p0 = u.Director.Active[0]; p0.Started = true; u.Director.Active[0] = p0;
+            check(u.UndefendedWarnings()[0].Text == "La horda ataca Nules y no hay tropa" && u.UndefendedWarnings()[0].EtaTicks == 0, "ya empezado: «La horda ataca Nules y no hay tropa»");
+
             // --- hash y apagado
             var a = World(); var b = World(); Svc(a, 907, nul, 6, sag, 8); Svc(b, 907, nul, 6, sag, 8); b.GatesEnabled = false; a.ActiveZoneNode = b.ActiveZoneNode = sag;
             Siege(a, sag, true); Siege(b, sag, true); Run(a, 7); Run(b, 7);
