@@ -23,6 +23,7 @@ namespace TBD.View
         public static AerodromoEstado Estado { get { if (_a == null) Cargar(); return _a; } }
         public static readonly Queue<Llegada> Llegadas = new Queue<Llegada>();   // la zona las saca al entrar o mientras está en ella
         static string _aviso; static float _avisoHasta;
+        readonly DobleClic _dobleClic = new DobleClic();
         bool _abierto; int _sel; bool _conPeloton = true; string _destino;
         GUIStyle _t, _s, _b, _bOff; Texture2D _panel, _btn, _btnHot, _btnOff; int _sh;
         static readonly Color Bone = new Color32(0xd4, 0xd0, 0xcc, 255), Ink = new Color32(0x1c, 0x20, 0x0c, 255);
@@ -130,7 +131,12 @@ namespace TBD.View
                     GUI.DrawTexture(new Rect(r.x + px * 0.25f, r.y + px * 0.3f, px * 0.7f, px * 0.7f), _btnHot);
                     GUI.Label(new Rect(r.x + px * 0.36f, r.y + px * 0.28f, px, px), "<b><color=#1c200c>H</color></b>", _s);
                     GUI.Label(new Rect(r.xMax + 4, r.y + px * 0.3f, u * 16, u * 2.2f), "Bétera (base aérea)", _s);
-                    if (GUI.Button(r, GUIContent.none, GUIStyle.none)) { _abierto = !_abierto; if (_abierto) TutorialHud.AbrirAerodromo(); }
+                    if (GUI.Button(r, GUIContent.none, GUIStyle.none))
+                    {
+                        var ev = Event.current;
+                        if (_dobleClic.Clic("betera", Time.unscaledTime, ev.mousePosition.x, ev.mousePosition.y)) { op.Foco = OperationsMap3D.MapToWorldFlat(a.MapX, a.MapY); op.DistanciaObjetivo = 6f; _abierto = true; Debug.Log("[MAPA] doble clic en Bétera: la cámara va a la base (sin zona en el MVP)"); }   // D-N170
+                        else { _abierto = !_abierto; if (_abierto) TutorialHud.AbrirAerodromo(); }
+                    }
                 }
             }
             // NH90 en camino: «NH90 1 · llega a Sagunto en 0:xx»

@@ -290,6 +290,23 @@ namespace TBD.Sim.Tests
                 check(!memT.Leer(TutorialMotor.ClaveVisto + TutorialMotor.ClaveSaltado), "acabarlo no deja la marca «saltado»");
             }
 
+            // --- gestos del mapa (D-N170): doble clic y seguir un tren
+            {
+                var dc = new DobleClic();
+                check(!dc.Clic("nodo:0", 1.0f, 100, 100) && dc.Clic("nodo:0", 1.3f, 104, 98), "dos clics en el mismo sitio en menos de 0,4 s: doble clic");
+                check(!dc.Clic("nodo:0", 2.0f, 100, 100) && !dc.Clic("nodo:0", 2.5f, 100, 100), "con más de 0,4 s entre clics no hay doble clic");
+                check(!dc.Clic("nodo:1", 3.0f, 100, 100) && !dc.Clic("nodo:2", 3.1f, 100, 100), "clics en objetivos distintos no hacen doble clic");
+                check(!dc.Clic("tren:0", 4.0f, 100, 100) && !dc.Clic("tren:0", 4.1f, 140, 100), "si el ratón se ha movido más de 12 px, no cuenta");
+                check(!dc.Clic("tren:0", 5.0f, 0, 0) && dc.Clic("tren:0", 5.1f, 0, 0) && !dc.Clic("tren:0", 5.2f, 0, 0), "un tercer clic no repite el doble clic");
+                var sg = new SeguirTren();
+                check(!sg.Activo && !sg.Paso(false, true, 10), "sin tren elegido no sigue nada");
+                sg.Empezar(1);
+                check(sg.Activo && sg.Paso(false, true, 10) && sg.Paso(false, true, 8), "sigue al tren mientras va de viaje y nadie toca la cámara");
+                check(!sg.Paso(true, true, 8) && !sg.Activo && sg.PorQueSuelta.Contains("movió"), "al mover la cámara el jugador, se suelta");
+                sg.Empezar(1); check(!sg.Paso(false, false, 0.5) && sg.PorQueSuelta.Contains("parado"), "si el tren para, se suelta");
+                check(SeguirTren.Distancia(10) == SeguirTren.DistanciaKm && SeguirTren.Distancia(1.0) >= 2.5f, "de cerca (1,2 km), pero junto a una estación la cámara no baja de 2,5 km: no entra en su zona sin querer");
+            }
+
             // --- intro C
             var it = new IntroSecuencia();
             check(it.Tarjetas.Length == 5 && it.TextoEntero == "Día 41 desde el brote.", "intro C: 5 tarjetas y empieza por «Día 41 desde el brote.»");

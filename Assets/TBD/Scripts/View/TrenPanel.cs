@@ -214,7 +214,8 @@ namespace TBD.View
         enum Vista { Nada, Menu, Preparar }
         Vista _vista; int _nodoMenu = -1, _origenP = -1;
         readonly int[] _carga = new int[NetConst.ResCount];
-        int _destinoP = -1; bool _sinApoyo, _sinCarga; float _clicSagT = -10f;
+        int _destinoP = -1; bool _sinApoyo, _sinCarga;
+        readonly DobleClic _dobleClic = new DobleClic(); readonly SeguirTren _seguir = new SeguirTren();
         GUIStyle _t, _s, _b, _bOff; Texture2D _panel, _btn, _btnHot, _btnOff; int _sh;
         static readonly Color Bone = new Color32(0xd4, 0xd0, 0xcc, 255), Ink = new Color32(0x1c, 0x20, 0x0c, 255);
         static readonly string[] ResNombre = { "Munición", "Combustible", "Materiales", "Personas" };
@@ -222,8 +223,25 @@ namespace TBD.View
         void Update()
         {
             Vigilar();
+            Seguir();
             if (Arg("-trenpanel-auto")) AutoIdaVuelta();
             if (Arg("-refuerzos-auto")) AutoRefuerzos();
+        }
+
+        /// <summary>Cámara pegada al tren seguido (D-N170). Se suelta si el jugador toca la cámara o si el tren para.</summary>
+        void Seguir()
+        {
+            if (!_seguir.Activo || W == null) return;
+            var op = FindFirstObjectByType<OperationsMap3D>(); int i = _seguir.Tren;
+            if (op == null || i >= op.TrenesVistos || i >= W.Services.Count) { _seguir.Empezar(-1); return; }
+            var kb = UnityEngine.InputSystem.Keyboard.current; var ms = UnityEngine.InputSystem.Mouse.current;
+            bool movio = (kb != null && (kb.wKey.isPressed || kb.aKey.isPressed || kb.sKey.isPressed || kb.dKey.isPressed || kb.qKey.isPressed || kb.eKey.isPressed || kb.rKey.isPressed || kb.fKey.isPressed
+                         || kb.upArrowKey.isPressed || kb.downArrowKey.isPressed || kb.leftArrowKey.isPressed || kb.rightArrowKey.isPressed || kb.jKey.wasPressedThisFrame))
+                      || (ms != null && (Mathf.Abs(ms.scroll.ReadValue().y) > 0.01f || ms.rightButton.isPressed));
+            var pos = op.TrenPos(i); double km = double.MaxValue;
+            foreach (var n in W.Graph.Nodes) km = Math.Min(km, Vector3.Distance(new Vector3(pos.x, 0, pos.z), OperationsMap3D.MapToWorldFlat(n.XMeters, n.YMeters)));
+            if (!_seguir.Paso(movio, !W.Services[i].AtStop, km)) { Debug.Log("[MAPA] deja de seguir el tren: " + _seguir.PorQueSuelta); return; }
+            op.Foco = pos; op.DistanciaObjetivo = SeguirTren.Distancia(km);
         }
 
         void AbrirMenu(int node)
@@ -315,16 +333,31 @@ namespace TBD.View
             GUI.depth = -50; Styles();
             float u = _s.fontSize; int sag = Casa, nul = Nodo("Nules");
             // clic en los nodos (botón invisible sobre el icono); doble clic en Sagunto: a la zona (D-N170)
-            foreach (int node in new[] { sag, nul })
+            // D-N170: clic en una localización abre su menú (Sagunto y Nules); doble clic lleva directamente a ella (entra en su zona). Doble clic en un tren
+            // en viaje: la cámara lo sigue de cerca hasta que el jugador la mueva (SeguirTren).
+            var opG = FindFirstObjectByType<OperationsMap3D>();
+            var ev = Event.current;
+            for (int node = 0; node < W.Graph.Nodes.Count; node++)
             {
                 var rn = NodoRect(node);
-                if (rn.width > 0 && GUI.Button(rn, GUIContent.none, GUIStyle.none))
+                if (rn.width <= 0 || !GUI.Button(rn, GUIContent.none, GUIStyle.none)) continue;
+                if (_dobleClic.Clic("nodo:" + node, Time.unscaledTime, ev.mousePosition.x, ev.mousePosition.y))
                 {
-                    if (node == sag && Time.unscaledTime - _clicSagT < 0.4f) { var op = FindFirstObjectByType<OperationsMap3D>(); if (op != null) { Debug.Log("[TREN] doble clic en Sagunto: a la zona"); op.EnterZone(sag); } }
-                    if (node == sag) _clicSagT = Time.unscaledTime;
-                    if (_vista == Vista.Menu && _nodoMenu == node) _vista = Vista.Nada; else AbrirMenu(node);
+                    if (opG != null) { Debug.Log($"[MAPA] doble clic en {W.Graph.Nodes[node].Name}: a la zona"); _seguir.Empezar(-1); opG.EnterZone(node); }
+                    continue;
                 }
+                if (node == sag || node == nul) { if (_vista == Vista.Menu && _nodoMenu == node) _vista = Vista.Nada; else AbrirMenu(node); }
             }
+            if (opG != null && Camera.main != null)
+                for (int i = 0; i < opG.TrenesVistos && i < W.Services.Count; i++)
+                {
+                    if (W.Services[i].AtStop) continue;                                    // solo trenes en viaje
+                    var sp = Camera.main.WorldToScreenPoint(opG.TrenPos(i)); if (sp.z <= 0) continue;
+                    int tp = 32 * Mathf.Max(1, Mathf.RoundToInt(Screen.height / 540f));
+                    var rt = new Rect(sp.x - tp * 0.6f, Screen.height - sp.y - tp * 1.7f, tp * 1.2f, tp * 1.4f);
+                    if (!GUI.Button(rt, GUIContent.none, GUIStyle.none)) continue;
+                    if (_dobleClic.Clic("tren:" + i, Time.unscaledTime, ev.mousePosition.x, ev.mousePosition.y)) { _seguir.Empezar(i); Debug.Log($"[MAPA] doble clic en el tren {W.Services[i].Train.Name}: la cámara lo sigue"); }
+                }
             // tren en camino: «Refuerzos de Nules · llegan en 0:xx» o «El tren llega a Nules en 0:xx»
             if (Viaje >= 0 && !_descargando && Viaje < W.Services.Count && !W.Services[Viaje].AtStop)
             {
