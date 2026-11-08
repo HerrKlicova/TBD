@@ -34,7 +34,9 @@ namespace TBD.View
             var piezas = new GameObject("Piezas").transform; piezas.SetParent(root, false);
             foreach (var c in n.Piezas)
             {
-                var go = Model(c.Carpeta, c.Malla + "_v" + c.Variante + "_LOD1", piezas);
+                // la valla, con el kit de defensas de Teo por vida (valla_betera: e0 sana … e4 brecha); la variante 1 de la valla vieja era «sobre muro bajo»
+                var go = c.Carpeta == "valla_base" ? ModelEn("Defensas/valla_betera", RecintoPlan.VallaBetera(VidaValla, c.Variante == 1) + "_LOD1", piezas) ?? Model(c.Carpeta, c.Malla + "_v" + c.Variante + "_LOD1", piezas)
+                                                   : Model(c.Carpeta, c.Malla + "_v" + c.Variante + "_LOD1", piezas);
                 if (go == null) { go = Placeholder(piezas, c.Pieza); res.Missing.Add(c.Pieza + " (" + c.X + ", " + c.Z + ")"); }
                 go.transform.localPosition = new Vector3(c.X, 0f, c.Z);
                 go.transform.localRotation = Quaternion.Euler(0f, c.Yaw, 0f) * go.transform.localRotation;
@@ -44,9 +46,12 @@ namespace TBD.View
             return res;
         }
 
-        static GameObject Model(string carpeta, string file, Transform parent)
+        public static int VidaValla = 5000;      // HP de cada tramo de valla (5.000 = sana); sin asedios en el MVP, siempre sana
+
+        static GameObject Model(string carpeta, string file, Transform parent) { return ModelEn("Betera/" + carpeta, file, parent); }
+
+        static GameObject ModelEn(string folder, string file, Transform parent)
         {
-            string folder = "Betera/" + carpeta;
             var prefab = Resources.Load<GameObject>("Models/" + folder + "/" + file);
             if (prefab == null) return null;
             var inst = Object.Instantiate(prefab, parent); inst.name = file;
