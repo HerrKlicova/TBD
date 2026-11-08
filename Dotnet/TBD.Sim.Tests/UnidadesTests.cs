@@ -42,6 +42,7 @@ namespace TBD.Sim.Tests
             // D-N165 (8-nov): TBD_PIEZAS=sagunto carga los tramos con las piezas reales de Works.Snapshot(Sagunto) de NetWorld.Mvp(); TBD_VIDA_U = vida por u (A 10000, B 13010)
             bool piezas = Environment.GetEnvironmentVariable("TBD_PIEZAS") == "sagunto"; int vidaU = 10000; int.TryParse(Environment.GetEnvironmentVariable("TBD_VIDA_U") ?? "10000", out vidaU);
             var sagPieces = piezas ? SaguntoPieces(vidaU) : null;
+            string extra = Environment.GetEnvironmentVariable("TBD_EXTRA") ?? "";   // D-N171 (Lucía): refuerzo de Nules en el tutorial: «fus» = un pelotón de fusileros más; «fus+lince» = y un Lince (modelado como VAMTAC, supuesto de Hugo)
             int guard = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_GUARDIA") ?? "0", out guard);   // D-N168: pelotones de combate que se quedan dentro, junto al tren (el NightBot no los mueve)
             int spread = 0; int.TryParse(Environment.GetEnvironmentVariable("TBD_EMPUJE") ?? "0", out spread);   // D-N165 (b): PileSpreadPermil
             if (piezas) { long tot = 0; foreach (var q in sagPieces) tot += q.HpMax; Console.WriteLine($"# tramos de Works.Snapshot(Sagunto): {sagPieces.Count}, vida total {tot} a {vidaU} por u"); tramos = true; }
@@ -54,7 +55,7 @@ namespace TBD.Sim.Tests
                     for (int i = 0; i < n; i++)
                     {
                         var sim = NightSim.FromJson(json, dif, (uint)(i + 1 + seed0)); _clk = sim.Night.P.ClockX; if (climb >= 0) sim.SP.ClimbPileZ = climb; if (climbR >= 0) sim.SP.ClimbPermilS = climbR; if (climbMax >= 0) sim.ClimbMaxPerS = climbMax; if (trainX0 > 0) { var tp = sim.Night.P; tp.TrainRect = new RectMm(trainX0, tp.TrainRect.Y0, trainX0 + 64000, tp.TrainRect.Y1); sim.Night.P = tp; }
-                        sim.TargetRadiusMm = tgtM * 1000; if (zoneForce) sim.AddZoneForce(); else sim.AddDefaultForce(); if (veh) sim.AddDefaultVehicles(true); if (noBot) sim.AutoPlatoonResupply = true; else sim.Bot = NightBot.FromParams(sim.SP); if (guard > 0 && sim.Bot != null) GuardTrain(sim, guard); if (tramos) { if (sagPieces != null) sim.EnableSegments(sagPieces); else sim.EnableSegments(); sim.AutoRepair = repairOn; sim.PileSpreadPermil = spread; }
+                        sim.TargetRadiusMm = tgtM * 1000; if (zoneForce) sim.AddZoneForce(); else sim.AddDefaultForce(); if (veh) sim.AddDefaultVehicles(true); if (noBot) sim.AutoPlatoonResupply = true; else sim.Bot = NightBot.FromParams(sim.SP); if (guard > 0 && sim.Bot != null) GuardTrain(sim, guard); if (extra.Contains("fus")) sim.Units.AddPlatoon(PlatoonKind.Fusileros, 86000, 73000, 0); if (extra.Contains("lince") && veh) { var lv = NightVehicle.Make("Lince", NightVehKind.Vamtac, 74000, 64500); lv.Fire = true; sim.Vehicles.Add(lv); NightVehicle.ApplyParams(lv, sim.VehicleParamsJson); } if (tramos) { if (sagPieces != null) sim.EnableSegments(sagPieces); else sim.EnableSegments(); sim.AutoRepair = repairOn; sim.PileSpreadPermil = spread; }
                         int brk = -1, brkSeg = -1;
                         int c90Last = -100000; int[] c90Last4 = { -100000, -100000, -100000, -100000 }; int c90Sec = 0;
                         while (sim.Night.State == NightState.Jugando && sim.Night.Tick < sim.TickCap)
