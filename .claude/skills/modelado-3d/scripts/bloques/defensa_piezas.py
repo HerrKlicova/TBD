@@ -79,14 +79,44 @@ def juntar(nombre, partes):
     return obj
 
 
-def pieza(mod, tipo, nombre, lod, bloque, brazo, n_bloque=None, n_brazo=None, solape=0.0):
+def quitar_fuera(o, limite=-0.6, en_x=True):
+    """Quita las islas cuyo centro cae fuera (x < limite o y < limite): en una azotea, lo que cae fuera no se queda en
+    el aire."""
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    vistos, fuera = set(), []
+    for f in bm.faces:
+        if f in vistos:
+            continue
+        isla, pila = set(), [f]
+        while pila:
+            g = pila.pop()
+            if g in isla:
+                continue
+            isla.add(g)
+            for e in g.edges:
+                pila.extend(h for h in e.link_faces if h not in isla)
+        vistos |= isla
+        vs = {v for g in isla for v in g.verts}
+        c = sum((v.co for v in vs), Vector()) / len(vs)
+        if (en_x and c.x < limite) or c.y < limite:
+            fuera.extend(isla)
+    if fuera:
+        bmesh.ops.delete(bm, geom=list(set(fuera)), context="FACES")
+    bm.to_mesh(o.data)
+    bm.free()
+    return o
+
+
+def pieza(mod, tipo, nombre, lod, bloque, brazo, n_bloque=None, n_brazo=None, solape=0.0, brazo_b=None):
     """tipo 0 esquina, 1 remate. bloque: lado del bloque de esquina; brazo: largo de cada brazo."""
     c = bloque / 2 + brazo / 2 - solape
     partes = [_tramo(mod, bloque, n_bloque, "tmp_c", lod),
               _tramo(mod, brazo, n_brazo, "tmp_a", lod, dx=c)]
     if tipo == 0:
         # brazo hacia −X (fuera −Y) girado −90°: queda hacia +Y con fuera −X
-        partes.append(_tramo(mod, brazo, n_brazo, "tmp_b", lod, dx=-c, giro=-90.0))
+        bb = brazo if brazo_b is None else brazo_b
+        partes.append(_tramo(mod, bb, n_brazo, "tmp_b", lod, dx=-(bloque / 2 + bb / 2 - solape), giro=-90.0))
     else:
         cv = bloque - solape                          # vuelta de un bloque hacia dentro (+Y)
         partes.append(_tramo(mod, bloque, n_bloque, "tmp_b", lod, dx=-cv, giro=-90.0))
