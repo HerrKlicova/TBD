@@ -45,6 +45,8 @@ namespace TBD.View
         public static int Variants = 1, MeshVariants = 1;      // camisas (materiales) y siluetas (mallas) del zombi de Teo
         public static RenderMeshArray Array;
         public static bool Ready;
+        /// <summary>D-N80: material único TBD/Horda; el tono va por instancia en ZombiePaleta (no en ZombieBaseColor).</summary>
+        public static bool Horda;
         /// <summary>D-N61: a poco zoom cada zombi se dibuja con el sprite de masa de 8 px (con histéresis, la decide PrototypeBootstrap).</summary>
         public static bool LodOn;
         public static bool FigureMode { get { return RenderAttachSystem.FigureMode; } }
@@ -95,7 +97,7 @@ namespace TBD.View
             var desc = new RenderMeshDescription(FigureMode ? ShadowCastingMode.On : ShadowCastingMode.Off, FigureMode);
             var mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(RenderAssets.LodOn ? 1 : 0, 0);
             var scale = new PostTransformMatrix { Value = SpriteMatrix(RenderAssets.LodOn) };
-            bool teo = RenderAssets.Variants > 1;   // sprite de Bruno tumbado sobre el suelo
+            bool teo = RenderAssets.Variants > 1 || RenderAssets.Horda;   // sprite de Bruno tumbado sobre el suelo
             var ents = _query.ToEntityArray(Allocator.Temp);
             var zs = _query.ToComponentDataArray<Zombie>(Allocator.Temp);
             var em = EntityManager;
@@ -115,6 +117,7 @@ namespace TBD.View
                 em.AddComponentData(e, scale);
                 em.AddComponentData(e, new ZombieBaseColor { Value = ColorFor(zs[i].SimId) });
                 em.AddComponentData(e, new ZombieAtlasST { Value = AtlasST(zs[i].SimId, 0.0) });
+                if (RenderAssets.Horda) em.AddComponentData(e, new ZombiePaleta { Value = HordaPaleta.Pack(zs[i].SimId) });
             }
             ents.Dispose();
             zs.Dispose();

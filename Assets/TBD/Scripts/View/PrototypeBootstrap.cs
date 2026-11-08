@@ -1228,6 +1228,32 @@ namespace TBD.View
         }
 
         // ================================================================ decorado con primitivas
+        /// <summary>D-N80 (Lucía, aprobada el 8-nov): las 5 siluetas de Teo (civil, huerta, uniformado, gordo y rápido) con el shader
+        /// TBD/Horda de Bruno: un material para todas, tono por instancia desde horda_paleta_lut con la máscara de color de vértice.
+        /// Las mallas se buscan en Resources/Models/ZombiDN80/SM_Zombi_*_LOD1. Devuelve false (y no toca nada) si falta alguna pieza.</summary>
+        static bool HordaDN80()
+        {
+            var sh = Shader.Find("TBD/Horda");
+            var lut = Resources.Load<Texture2D>("Icons/noche/horda_paleta_lut");
+            if (sh == null || lut == null) return false;
+            var meshes = new System.Collections.Generic.List<Mesh>();
+            foreach (var n in new[] { "v3_Civil", "v18_Huerta", "v19_Uniformado", "v17_Gordo", "v16_Rapido" })
+            {
+                var go = Resources.Load<GameObject>("Models/ZombiDN80/SM_Zombi_" + n + "_LOD1");
+                var mf = go != null ? go.GetComponentInChildren<MeshFilter>() : null;
+                if (mf == null) { Debug.LogWarning("[D-N80] falta Models/ZombiDN80/SM_Zombi_" + n + "_LOD1; sigo con los zombis de antes"); return false; }
+                meshes.Add(mf.sharedMesh);
+            }
+            var mat = new Material(sh) { name = "Horda", enableInstancing = true };
+            mat.SetTexture("_HordaLut", lut);
+            var sangre = Resources.Load<Texture2D>("Icons/noche/sangre_rampa");
+            if (sangre != null) mat.SetTexture("_SangreRampa", sangre);
+            RenderAssets.SetVariants(meshes.ToArray(), new[] { mat });
+            RenderAssets.Horda = true;
+            Debug.Log("[D-N80] horda con TBD/Horda: " + meshes.Count + " siluetas, 1 material");
+            return true;
+        }
+
         Material _mGround, _mWall, _mRoof, _mRail, _mSleeper, _mTrain, _mWagon, _mGate;
 
         static Color HexColor(string hex)
@@ -2151,7 +2177,9 @@ namespace TBD.View
                     if (mf != null) teoMeshes.Add(mf.sharedMesh);
                 }
                 if (teoMeshes.Count == 0) { var g0 = Resources.Load<GameObject>("Models/Zombi/camisa_303424/SM_zombi_fino_LOD1"); if (g0 != null) teoMeshes.Add(g0.GetComponentInChildren<MeshFilter>().sharedMesh); }
-                if (teoMats.Count == 3 && teoMeshes.Count > 0) RenderAssets.SetVariants(teoMeshes.ToArray(), teoMats.ToArray());
+                var horda = HordaDN80();                                                                                 // D-N80: 5 siluetas de Teo con un solo material (TBD/Horda); si falta algo, lo de antes
+                if (horda) { }
+                else if (teoMats.Count == 3 && teoMeshes.Count > 0) RenderAssets.SetVariants(teoMeshes.ToArray(), teoMats.ToArray());
                 else { capsule = BuildZombieFigure(); zm = Mat("ffffff"); zl = zm; RenderAssets.Set(capsule, zm, zl); }
             }
             else RenderAssets.Set(capsule, zm, zl);              // el color por instancia es blanco (ZombieBaseColor); la máscara lo pone magenta
