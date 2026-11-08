@@ -45,14 +45,14 @@ namespace TBD.View
             {
                 if (!keys[d].wasPressedThisFrame) continue;
                 bool dbl = _lastDigit == d && Time.unscaledTime - _lastDigitT < 0.4f; _lastDigit = d; _lastDigitT = Time.unscaledTime; Vector3? at = null;
-                if (d < 5)
+                if (d < 7)
                 {
                     if (d >= _uw.Platoons.Count) continue; var pl = _uw.Platoons[d]; _selVeh = null; if (!kb.leftShiftKey.isPressed) _sel.Clear(); if (!_sel.Contains(pl.Id)) _sel.Add(pl.Id);
                     if (dbl) { float cx = 0f, cy = 0f; int n = 0; foreach (var m in pl.Men) if (m.Alive) { cx += m.X; cy += m.Y; n++; } if (n > 0) at = new Vector3(cx / (1000f * n), 0f, cy / (1000f * n)); }
                 }
                 else
                 {
-                    int k = d - 5, vi = 0; Veh pick = null; foreach (var v in _vehs) { if (v.Go == null || v.Name == "VAMTAC 2") continue; if (vi++ == k) { pick = v; break; } }
+                    int k = d - 7, vi = 0; Veh pick = null; foreach (var v in _vehs) { if (v.Go == null || v.Name == "VAMTAC 2") continue; if (vi++ == k) { pick = v; break; } }
                     if (pick == null) continue; _selVeh = pick; _sel.Clear(); if (dbl) at = new Vector3(pick.Pos.x, 0f, pick.Pos.y);
                 }
                 if (at.HasValue) _focus = at.Value;

@@ -41,7 +41,7 @@ namespace TBD.View
             var ev = Event.current; int idxClick = -1;
             // tarjetas
             var cards = new List<(string name, string key, Platoon pl, Veh v)>();
-            int pi = 0; foreach (var p in _uw.Platoons) { if (pi >= 5) break; cards.Add((_pname.TryGetValue(p.Id, out var nm) ? nm : "Pelotón", (pi + 1).ToString(), p, null)); pi++; }
+            int pi = 0; foreach (var p in _uw.Platoons) { if (pi >= 7) break; cards.Add((_pname.TryGetValue(p.Id, out var nm) ? nm : "Pelotón", (pi + 1).ToString(), p, null)); pi++; }
             foreach (var v in _vehs) { if (v.Go == null || v.Name == "VAMTAC 2") continue; if (cards.Count >= 8) break; cards.Add((v.Name, (cards.Count + 1).ToString(), null, v)); }
             for (int i = 0; i < cards.Count; i++)
             {

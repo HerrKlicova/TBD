@@ -40,7 +40,8 @@ namespace TBD.View
         bool _nightOn, _nightInit; NightGame _ng; UnitsWorld _uw; readonly List<SpawnPoint> _spawns = new List<SpawnPoint>(); StepResult _res = new StepResult();
         readonly List<Target> _tgt = new List<Target>(); readonly HashSet<uint> _killSet = new HashSet<uint>();
         int _nightKills, _nightLost, _nightShotsSpent; int _lastWave = -1; float _bannerUntil; string _bannerText = "";
-        NightBot _bot; NightTraceRecorder _rec; int _spawnedTotal; int _resupplies; float _fpsLogT; bool _debugHud; float _nightT0; int _shotsTaken; float _lastStep; string _endReason = "";
+        static uint SemillaQA { get { var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-semilla"); uint s = 0; return i >= 0 && i + 1 < a.Length && uint.TryParse(a[i + 1], out s) ? s * 7919u : 0u; } }   // QA (Hugo): semilla distinta por corrida
+        int _pilaMaxVista; NightBot _bot; NightTraceRecorder _rec; int _spawnedTotal; int _resupplies; float _fpsLogT; bool _debugHud; float _nightT0; int _shotsTaken; float _lastStep; string _endReason = "";
         readonly List<int> _sel = new List<int>();
         bool _selDrag; Vector2 _selStart; bool _rmbDown; Vector2 _rmbStart; bool _attackNext;
         static readonly Vector2 StationC = new Vector2(113f, 64.5f), TrainC = new Vector2(143f, 64.5f);
@@ -69,16 +70,18 @@ namespace TBD.View
                 var tn = new CsvTable(System.IO.File.ReadAllText(System.IO.Path.Combine(dir, "balance_noche.csv")));
                 var jp = _ng.P; var np = NightParams.FromCsv(tn); np.Waves = jp.Waves; np.Entries = jp.Entries; np.ClockX = jp.ClockX; np.ScalePermil = jp.ScalePermil;
                 np.EndHour = (np.StartHour + 23) % 24;                                  // D-N164: sin victoria por tiempo; solo se gana acabando con la horda
-                _ng = new NightGame(np, 77u);
+                _ng = new NightGame(np, 77u + SemillaQA);
             }
             catch (System.Exception e) { Debug.LogWarning("[TBD] balance_*.csv no se pudo leer (" + e.Message + "): valores por defecto de Nacho"); }
-            _uw = new UnitsWorld(1234u) { StockShots = stock };
+            _uw = new UnitsWorld(1234u + SemillaQA) { StockShots = stock };
             int west = 32768;                                                        // rumbo −X (hacia la puerta oeste)
             _pname.Clear();
             // D-N173 (Iker): cada estación saca su propio plantel (Plantel.Pelotones); Sagunto, los cinco de siempre en los mismos sitios
             _estacionZona = NetSession.A != null && _zoneNode >= 0 && _zoneNode < NetSession.A.Graph.Nodes.Count ? NetSession.A.Graph.Nodes[_zoneNode].Name : "Sagunto";
             foreach (var pp in TBD.Net.Plantel.Pelotones(_estacionZona, TutorialHud.Activo)) _pname[_uw.AddPlatoon(pp.Tipo, pp.X, pp.Y, pp.Rumbo, pp.Formacion).Id] = pp.Nombre;
             Debug.Log($"[NOCHE] plantel de {_estacionZona}: {_pname.Count} pelotones");
+            if (_estacionZona == "Sagunto" && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinazotea") < 0)      // D-N174 (Lucia, Alvaro 10.15): 2 pelotones de tiradores libres en el ala oeste del edificio de viajeros, boca a 6,35 m
+                for (int az = 0; az < 2; az++) { var pa = _uw.AddPlatoon(PlatoonKind.Tiradores, 84500, 74300 + 4000 * az, west, Formation.Cuna); pa.EyeMm = 6350; _pname[pa.Id] = "Tiradores " + (az == 0 ? "azotea 1" : "azotea 2"); }
             bool resume = NightRun.Session != null && NightRun.Session.Away && NightRun.Session.Ng != null;
             if (resume)                                                              // la noche ya existia: se reanuda con su NightGame y su UnitsWorld
             {
@@ -102,8 +105,10 @@ namespace TBD.View
             InitVehicles(); Debug.Log($"[NOCHE] vehículos de {_estacionZona}: {_vehs.Count} ({string.Join(", ", _vehs.ConvertAll(v => v.Name))})");
             _rec = resume && NightRun.Session.Rec != null ? NightRun.Session.Rec : new NightTraceRecorder("zona", 1285, 9000, 30);
             if (resume && NightRun.Session.Bot != null) _bot = NightRun.Session.Bot;
+            LosInit();   // D-N174: linea de vision (sagunto_obstaculos_v1.csv de Alvaro); -sinlos la apaga
             if (!resume && NightRun.Session == null) NightRun.Session = new NightSession { Ng = _ng, Uw = _uw };
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-nightbot") >= 0) { try { _bot = NightBot.FromParams(NightSimParams.FromJson(BalanceSource.Read("nightsim_params.json"))); Debug.Log("[NOCHE] prueba: -nightbot (NightBot de Nacho)"); } catch (System.Exception e) { Debug.LogWarning("[TBD] NightBot: " + e.Message); } }
+            if (_bot != null) foreach (var kvb in _pname) if (kvb.Value.StartsWith("Tiradores azotea")) _bot.Busy.Add(kvb.Key);      // el bot no mueve a los de la azotea (libres: solo el jugador)
             if (resume) ResumeNightSession();
         }
 
@@ -208,13 +213,13 @@ namespace TBD.View
                 { for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; bool inside = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; uint zid = _zomId[ci]; if (inside) { if (_insideIds.Add(zid)) { _climbSec++; _entTot++; float dW = zp.x - Level.FortX0, dE = Level.FortX1 - zp.x, dS = zp.y - Level.FortY0, dN = Level.FortY1 - zp.y; float mn = Mathf.Min(Mathf.Min(dW, dE), Mathf.Min(dS, dN)); _entSide[mn == dW ? 0 : mn == dS ? 1 : mn == dE ? 2 : 3]++; } } else _insideIds.Remove(zid); }
                   { var tr = _ng.P.TrainRect; float r = _ng.P.AttackReachMm / 1000f; float tx0 = tr.X0 / 1000f - r, tx1 = tr.X1 / 1000f + r, ty0 = tr.Y0 / 1000f - r, ty1 = tr.Y1 / 1000f + r; int tin = 0, tout = 0; for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; if (zp.x < tx0 || zp.x > tx1 || zp.y < ty0 || zp.y > ty1) continue; bool insideF = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; if (insideF) tin++; else tout++; } _trainIn = tin; _trainOut = tout; } }
                 _allT.Clear(); for (int i = 0; i < _zomPos.Count; i++) _allT.Add(new Target { Id = (int)_zomId[i], X = (int)(_zomPos[i].x * 1000f), Y = (int)(_zomPos[i].y * 1000f) });
-                _ng.CountAttackers(_allT, out _pileNearStation, out _nearTrain); TutorialHud.ComprobarC90(_uw, _allT, (cx, cy) => cx > (int)(Level.FortX0 * 1000f) + 1000 && cx < (int)(Level.FortX1 * 1000f) - 1000 && cy > (int)(Level.FortY0 * 1000f) + 1000 && cy < (int)(Level.FortY1 * 1000f) - 1000);
-                if (TutorialHud.Activo)
-                {   // las 4 señales de la zona para los capítulos 1 y 2 (Iker): zombis vivos, vehículos fuera del tren y la vida de cada tramo del muro
-                    int vf = 0; foreach (var v in _vehs) if (v.Go != null && v.Go.activeSelf) vf++;
-                    _tramosPm.Clear(); foreach (var sg in _segs) if (!sg.IsGate && sg.Max > 0f) _tramosPm.Add(sg.Open ? 0 : (int)(sg.Hp * 1000f / sg.Max));
-                    TutorialHud.Zona(_zomPos.Count, vf, _tramosPm);
-                }
+                _ng.CountAttackers(_allT, out _pileNearStation, out _nearTrain); if (_pileNearStation > _pilaMaxVista) _pilaMaxVista = _pileNearStation; TutorialHud.ComprobarC90(_uw, _allT, (cx, cy) => cx > (int)(Level.FortX0 * 1000f) + 1000 && cx < (int)(Level.FortX1 * 1000f) - 1000 && cy > (int)(Level.FortY0 * 1000f) + 1000 && cy < (int)(Level.FortY1 * 1000f) - 1000);
+                if (TutorialHud.Activo)
+                {   // las 4 señales de la zona para los capítulos 1 y 2 (Iker): zombis vivos, vehículos fuera del tren y la vida de cada tramo del muro
+                    int vf = 0; foreach (var v in _vehs) if (v.Go != null && v.Go.activeSelf) vf++;
+                    _tramosPm.Clear(); foreach (var sg in _segs) if (!sg.IsGate && sg.Max > 0f) _tramosPm.Add(sg.Open ? 0 : (int)(sg.Hp * 1000f / sg.Max));
+                    TutorialHud.Zona(_zomPos.Count, vf, _tramosPm);
+                }
                 if ((_nearTrain > 0 || _pileNearStation > 0) && _diagN < 6 && Time.unscaledTime - _diagT > 2f)
                 {
                     _diagN++; _diagT = Time.unscaledTime; var sbd = new System.Text.StringBuilder(); int k = 0;
@@ -277,6 +282,7 @@ namespace TBD.View
             }
             return false;
         }
+        NightSim _aggroSh; readonly Dictionary<int, Vector2Int> _aggroGoal = new Dictionary<int, Vector2Int>();
         bool _zomCounted;
         readonly List<Target> _cgMen = new List<Target>(), _cgVeh = new List<Target>(), _cgWork = new List<Target>();
         /// <summary>D-N148 (Nacho): a los zombis que han pasado el muro (dentro del recinto) les pone su objetivo con ClimberTargets.Pick, la misma regla que NightSim:
@@ -288,6 +294,30 @@ namespace TBD.View
             foreach (var p in _uw.Platoons) { if (p.Aboard != 0) continue; foreach (var m in p.Men) if (m.Alive) _cgMen.Add(new Target { Id = m.Id, X = m.X, Y = m.Y }); }
             for (int i = 0; i < _vehs.Count; i++) { var v = _vehs[i]; if (v.Heli ? v.State != 0 : v.Speed > 0.1f) continue; _cgVeh.Add(new Target { Id = i, X = (int)(v.Pos.x * 1000f), Y = (int)(v.Pos.y * 1000f) }); }
             var tr = _ng.P.TrainRect;
+            // D-N175 (Lucia, Nacho): un zombi de FUERA con tropa a 25 m o menos deja la puerta y va a por ella, con tope del 30 % de la horda; la pila y los del muro no cambian.
+            // Se decide una sola vez con el mundo A (sombra de NightSim) y se aplica igual a los dos mundos por SimId.
+            _aggroGoal.Clear();
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinaggro") < 0 && _worldA != null && _worldA.IsCreated)
+            {
+                try
+                {
+                    if (_aggroSh == null) { _aggroSh = NightSim.ShadowFor(_ng.P, NightSimParams.FromJson(BalanceSource.Read("nightsim_params.json")), new List<NightSim.WallSegment>(), 0); _aggroSh.OutsideAggroMm = 25000; _aggroSh.OutsideAggroCapPm = 300; }
+                    var outside = new List<Target>(); int aliveAll = 0;
+                    using (var qa = _worldA.EntityManager.CreateEntityQuery(typeof(Zombie)))
+                    {
+                        var za = qa.ToComponentDataArray<Zombie>(Allocator.Temp);
+                        for (int i = 0; i < za.Length; i++)
+                        {
+                            var z = za[i]; aliveAll++; float x = z.Pos.x, y = z.Pos.z;
+                            if (!(x > Level.FortX0 && x < Level.FortX1 && y > Level.FortY0 && y < Level.FortY1)) outside.Add(new Target { Id = (int)z.SimId, X = (int)(x * 1000f), Y = (int)(y * 1000f) });
+                        }
+                        za.Dispose();
+                    }
+                    var troops = new List<Target>(_cgMen); troops.AddRange(_cgVeh);
+                    foreach (var o in _aggroSh.TickOutsideAggro(outside, troops, aliveAll)) _aggroGoal[o.ZombieId] = new Vector2Int(o.TX, o.TY);
+                }
+                catch (System.Exception e) { Debug.LogWarning("[NOCHE] D-N175: " + e.Message); }
+            }
             foreach (var wld in new[] { _worldA, _worldB })
             {
                 if (wld == null || !wld.IsCreated) continue;
@@ -299,7 +329,12 @@ namespace TBD.View
                     {
                         var z = zs[i]; float x = z.Pos.x, y = z.Pos.z;
                         bool inside = x > Level.FortX0 && x < Level.FortX1 && y > Level.FortY0 && y < Level.FortY1;
-                        if (!inside) { if (z.HasGoal != 0) { z.HasGoal = 0; zs[i] = z; dirty = true; } continue; }
+                        if (!inside)
+                        {
+                            if (_aggroGoal.TryGetValue((int)z.SimId, out var ag)) { z.Goal = new float2(ag.x / 1000f, ag.y / 1000f); z.HasGoal = 1; zs[i] = z; dirty = true; }
+                            else if (z.HasGoal != 0) { z.HasGoal = 0; zs[i] = z; dirty = true; }
+                            continue;
+                        }
                         int tx, ty; ClimberTargets.Pick((int)(x * 1000f), (int)(y * 1000f), _cgMen, _cgVeh, _cgWork, NightSim.ClimberSeekMm, tr, out tx, out ty);
                         z.Goal = new float2(tx / 1000f, ty / 1000f); z.HasGoal = 1; zs[i] = z; dirty = true;
                     }
@@ -361,7 +396,7 @@ namespace TBD.View
             _nightLost = total - alive;
             float left = a.StockShots / (float)WeaponCatalog.ShotsPerU;
             _endStationF = _ng.StationHp / (float)Mathf.Max(1, _ng.StationHpMax); _endTrainF = _ng.TrainHp / (float)Mathf.Max(1, _ng.TrainHpMax);   // el parte congela estas cifras: despues del amanecer la horda sigue y no debe vaciar la barra (Sara)
-            Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 recargas={_resupplies} desync={_desync} hora_fin={TimeStr()}");
+            Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 pila_max={_pilaMaxVista} recargas={_resupplies} desync={_desync} hora_fin={TimeStr()}");
             _endReason = win ? (_ng.WonByClear ? $"{TimeStr()}. Sagunto resiste.\nLa horda ha caído." : "06:00. Sagunto resiste.\nAmanece.") : _ng.DefeatHeadline();   // D-N136/D-N146
         }
         bool _endDismissed, _reportClosed;
