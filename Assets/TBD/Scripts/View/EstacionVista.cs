@@ -73,7 +73,7 @@ namespace TBD.View
                     var c = pieces.GetChild(i); var q = c.localPosition;
                     if (q.y == 0f && q.z > dato.Sub.Losa[1] + 0.5f && q.z < dato.Sub.Losa[3] - 0.5f) c.localPosition = new Vector3(q.x, q.y + dato.Sub.CotaVia, q.z);
                 }
-                Subterranea(root, dato.Sub, res, !dato.Piezas.Exists(x => x.Pieza == "castellon/vestibulo"));
+                Subterranea(root, dato.Sub, res, !dato.Piezas.Exists(x => x.Pieza == "castellon/vestibulo"), !dato.Piezas.Exists(x => x.Pieza == "castellon/anden_losa"));
             }
 
             if (dato.Recinto != null) Enclosure(root, dato);
@@ -136,6 +136,7 @@ namespace TBD.View
                 int k = EstacionDato.VariantOf(p.X, p.Z, 6);
                 go = SaguntoPiece(piece, k, parent);
             }
+            else if (CastellonKit.Archivo(p, out var kc, out var ka)) go = Model("Castellon/" + kc, ka + "_LOD1", parent);   // kit subterráneo de Teo (v0.4)
             else if (name == "kit/anden_10m") go = Model("KitEstaciones", "SM_KitAnden_v" + PlatformVariant(p) + "_LOD1", parent);
             else if (name == "kit_paso") go = Model("KitEstaciones", "SM_KitPaso_v" + Mathf.Max(0, p.Variante) + "_LOD1", parent);   // paso inferior: el de Castellón por defecto (LEEME de Teo)
             else if (name == "kit_cuerpo" || name == "kit_remate")
@@ -269,25 +270,30 @@ namespace TBD.View
         /// funde con la cámara cuando hay unidades debajo), trincheras abiertas con muros de contención de la altura de la cota y el vestíbulo de calle con la boca
         /// de escalera. Primitivas hasta que lleguen los módulos de Teo (el vestíbulo, si falta, sale como caja gris con su nombre).
         /// </summary>
-        static void Subterranea(Transform root, EstacionDato.Subterranea sub, Result res, bool vestibulo = true)
+        static void Subterranea(Transform root, EstacionDato.Subterranea sub, Result res, bool vestibulo = true, bool primitivas = true)
         {
             var t = new GameObject("Estación subterránea").transform; t.SetParent(root, false);
             float h = -sub.CotaVia, l = sub.Losa[2] - sub.Losa[0], d = sub.Losa[3] - sub.Losa[1], cx = (sub.Losa[0] + sub.Losa[2]) * 0.5f, cz = (sub.Losa[1] + sub.Losa[3]) * 0.5f;
             var concreto = Flat("8c8a84");
             Bar(t, "Suelo del cajón", new Vector3(cx, sub.CotaVia - 0.1f, cz), 0f, new Vector3(l, 0.2f, d), concreto);
-            var losa = new GameObject("Losa").transform; losa.SetParent(t, false);
-            Bar(losa, "Losa", new Vector3(cx, -0.75f, cz), 0f, new Vector3(l, 1.5f, d), concreto);
+            // con el kit de Teo (v0.4) la losa va de hijo «Losa» de cada andén y los muros de la trinchera son piezas: aquí solo quedan los suelos y el muro del haz
+            if (primitivas)
+            {
+                var losa = new GameObject("Losa").transform; losa.SetParent(t, false);
+                Bar(losa, "Losa", new Vector3(cx, -0.75f, cz), 0f, new Vector3(l, 1.5f, d), concreto);
+                Bar(t, "Muro de fondo", new Vector3(cx, sub.CotaVia * 0.5f, sub.Losa[3]), 90f, new Vector3(0.6f, h, l), concreto);
+            }
             foreach (var tr in sub.Trincheras)
             {
                 float tl = tr[2] - tr[0], tcx = (tr[0] + tr[2]) * 0.5f;
                 Bar(t, "Suelo de la trinchera", new Vector3(tcx, sub.CotaVia - 0.1f, (tr[1] + tr[3]) * 0.5f), 0f, new Vector3(tl, 0.2f, tr[3] - tr[1]), concreto);
+                if (!primitivas) continue;
                 Bar(t, "Muro de contención", new Vector3(tcx, sub.CotaVia * 0.5f, tr[1]), 90f, new Vector3(0.6f, h, tl), concreto);
                 Bar(t, "Muro de contención", new Vector3(tcx, sub.CotaVia * 0.5f, tr[3]), 90f, new Vector3(0.6f, h, tl), concreto);
             }
-            Bar(t, "Muro de fondo", new Vector3(cx, sub.CotaVia * 0.5f, sub.Losa[3]), 90f, new Vector3(0.6f, h, l), concreto);
             Bar(t, "Muro del haz", new Vector3(cx, sub.CotaVia * 0.5f, sub.Losa[1]), 90f, new Vector3(0.6f, h, l), concreto);
             if (!vestibulo) return;          // v0.2: el vestíbulo es pieza del JSON (castellon/vestibulo) y lo coloca PlacePiece
-            var vest = Model("Castellon", "SM_Vestibulo_v0_LOD1", t) ?? Placeholder(t, "vestibulo");
+            var vest = Model("Castellon/vestibulo", "SM_VestibuloCastellon_v0_Abandonada_LOD1", t) ?? Placeholder(t, "vestibulo");
             if (vest.name.StartsWith("FALTA")) { vest.transform.localScale = new Vector3(Mathf.Max(4f, sub.VestAncho), 5f, Mathf.Max(4f, sub.VestFondo)); res.Missing.Add("vestibulo (" + sub.VestX + ", " + sub.VestZ + ")"); }
             vest.name = "Vestíbulo"; vest.transform.localPosition = new Vector3(sub.VestX, vest.name.StartsWith("FALTA") ? 2.5f : 0f, sub.VestZ); vest.transform.localRotation = Quaternion.Euler(0f, sub.VestYaw, 0f);
         }

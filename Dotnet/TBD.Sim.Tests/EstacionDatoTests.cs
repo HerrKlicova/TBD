@@ -13,10 +13,10 @@ namespace TBD.Sim.Tests
             var d = EstacionDato.FromJson(File.ReadAllText(Path.Combine(BalanceTests.DataDirPublic(), "estacion_castellon.json")));
             check(d.Id == "castellon" && d.Nombre == "Castellón" && d.Tamano == EstacionTamano.Principal && d.EstadoInicial == EstacionInicio.Infestada && d.Funcion == "combustible",
                 $"cabecera y campos de Lucía: {d}");
-            check(d.Piezas.Count == 90 && d.Vias.Count == 8 && d.Andenes.Count == 2 && d.Puertas.Count == 6 && d.Recinto != null && d.Recinto.Length == 10,
-                $"90 piezas, 8 vías, 2 andenes, 6 puertas y un recinto de 5 vértices → {d.Piezas.Count}, {d.Vias.Count}, {d.Andenes.Count}, {d.Puertas.Count}, {(d.Recinto == null ? 0 : d.Recinto.Length / 2)}");
-            int cuerpos = 0; foreach (var p in d.Piezas) if (p.Pieza == "kit_cuerpo" && p.Variante == 6 && p.Fondo == 13f) cuerpos++;
-            check(cuerpos == 4, "el cuerpo central lleva 4 módulos kit_cuerpo v6 de 13 m de fondo (variante y fondo del JSON)");
+            check(d.Piezas.Count == 139 && d.Vias.Count == 8 && d.Andenes.Count == 2 && d.Puertas.Count == 6 && d.Recinto != null && d.Recinto.Length == 10,
+                $"139 piezas (v0.4, estación subterránea), 8 vías, 2 andenes, 6 puertas y un recinto de 5 vértices → {d.Piezas.Count}, {d.Vias.Count}, {d.Andenes.Count}, {d.Puertas.Count}, {(d.Recinto == null ? 0 : d.Recinto.Length / 2)}");
+            int cuerpos = 0; foreach (var p in d.Piezas) if (p.Pieza == "kit_cuerpo" || p.Pieza == "kit_remate") cuerpos++;
+            check(cuerpos == 0, "v0.4: sin edificio de viajeros de superficie (kit_cuerpo/kit_remate): la estación va bajo losa con el vestíbulo de Teo");
             int c2 = d.FindSitio("C2_deposito");
             check(d.Sitios.Count == 4 && c2 >= 0 && d.Sitios[c2].X == 178f && d.Sitios[c2].Z == 22f && d.OrdenLiberacion.Count == 4 && d.OrdenLiberacion[0] == "C3_ronda" && d.OrdenLiberacion[3] == "C1_estacion",
                 "sitios C1–C4 (el depósito en (178; 22)) y orden de liberación C3, C4, C2, C1");

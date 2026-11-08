@@ -505,7 +505,26 @@ namespace TBD.Sim.Tests
                 check(cd.Sub.VestAncho == 24 && cd.Sub.VestFondo == 14 && BajadaSubterranea.CargaderoZ0 == 34 && BajadaSubterranea.CargaderoZ1 == 37, "vestíbulo de 24 × 14 m; los vehículos bajan en el cargadero de superficie (Z 34–37)");
                 check(BajadaSubterranea.Vehiculos(cd, out float bx, out float bz, out float bv) && bx == 144f && bz == 38f && bv == 44f && cd.Sub.PlataformaX0 == 140 && cd.Sub.PlataformaX1 == 148, "v0.2: los vehículos bajan en superficie en (144; 38), con el tren en la vía 44 y la plataforma en X 140–148");
                 check(Math.Abs(BajadaSubterranea.Escalera(cd) - 7.1f) < 0.01f, "la escalera del vestíbulo sube 7,1 m");
-                check(!cd.Piezas.Exists(x => x.Pieza == "kit_cuerpo" || x.Pieza == "kit_remate" || x.Pieza.Contains("marquesina")) && cd.Piezas.FindAll(x => x.Pieza == "kit/anden_10m" && x.Y == -8f).Count == 24 && cd.Piezas.Exists(x => x.Pieza == "kit_paso" && x.Y == -8f) && cd.Piezas.Exists(x => x.Pieza == "castellon/vestibulo"), "v0.2: sin edificio de superficie ni marquesinas; 24 andenes y el paso a −8; vestíbulo como pieza");
+                check(!cd.Piezas.Exists(x => x.Pieza == "kit_cuerpo" || x.Pieza == "kit_remate" || x.Pieza.Contains("marquesina") || x.Pieza == "kit/anden_10m") && cd.Piezas.Exists(x => x.Pieza == "kit_paso" && x.Y == -8f) && cd.Piezas.Exists(x => x.Pieza == "castellon/vestibulo"), "sin edificio de superficie ni marquesinas; el paso a −8; vestíbulo como pieza");
+                {
+                    // v0.4 de Álvaro con el kit de Teo: 24 andenes y 24 catenarias abajo, 28 muros y 2 bocas, 4 barricadas y 4 vagones; todos con su archivo
+                    int an = 0, ca = 0, mu = 0, bo = 0, ba = 0, va = 0, abajo = 0, sinArchivo = 0; string falta = null;
+                    string dir = System.IO.Path.GetDirectoryName(typeof(TutorialTests).Assembly.Location);
+                    while (dir != null && !System.IO.Directory.Exists(System.IO.Path.Combine(dir, "Assets"))) dir = System.IO.Path.GetDirectoryName(dir);
+                    foreach (var x in cd.Piezas)
+                    {
+                        if (!CastellonKit.Archivo(x, out var kc, out var ka)) continue;
+                        if (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir, "Assets", "TBD", "Resources", "Models", "Castellon", kc, ka + "_LOD1.fbx"))) { sinArchivo++; falta ??= kc + "/" + ka; }
+                        switch (x.Pieza) { case "castellon/anden_losa": an++; if (x.Y == -8f) abajo++; break; case "castellon/catenaria_losa": ca++; if (x.Y == -8f) abajo++; break; case "castellon/muro_trinchera": if (x.Tipo == "Boca") bo++; else mu++; break; case "castellon/barricada_civil": ba++; break; case "castellon/vagon_abandonado": va++; break; }
+                    }
+                    check(cd.Piezas.Count == 139 && an == 24 && ca == 24 && abajo == 48 && mu == 28 && bo == 2 && ba == 4 && va == 4, $"v0.4: 139 piezas; 24 andenes y 24 catenarias a −8, 28 muros y 2 bocas, 4 barricadas y 4 vagones ({cd.Piezas.Count}; {an}, {ca}, {abajo}, {mu}, {bo}, {ba}, {va})");
+                    check(dir != null && sinArchivo == 0, "cada pieza del kit tiene su FBX en Resources/Models/Castellon" + (falta != null ? " (falta " + falta + ")" : ""));
+                    var boca = cd.Piezas.Find(x => x.Tipo == "Boca" && x.X == 70f); var bocaE = cd.Piezas.Find(x => x.Tipo == "Boca" && x.X == 190f);
+                    check(boca.Yaw == 90f && bocaE.Yaw == 270f, "bocas del túnel en X 70 (yaw 90) y X 190 (yaw 270)");
+                    check(!cd.Piezas.Exists(x => x.Pieza == "castellon/vagon_abandonado" && Math.Abs(x.Z - 44f) < 2f) && !cd.Piezas.Exists(x => x.Pieza != "vagon_cisterna" && x.Y == 0f && Math.Abs(x.Z - 44f) < 1f && x.X >= 140 && x.X <= 148), "la vía 44 queda libre en la plataforma de bajada de vehículos");
+                    var b0 = cd.Piezas.Find(x => x.Pieza == "castellon/barricada_civil"); CastellonKit.Archivo(b0, out _, out var bn);
+                    check(bn.Contains("_e2_") || bn.Contains("_e3_"), "las barricadas de la plaza salen dañadas (e2 o e3): " + bn);
+                }
                 var nd = EstacionDato.FromJson(BalanceSource.Read("estacion_nules.json")); check(nd.Sub == null && !BajadaSubterranea.Tropa(nd, out _, out _, out _), "Nules es de superficie");
             }
 

@@ -169,7 +169,8 @@
   ],
   "piezas": [
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Central",
       "pos": [
         75,
         -8,
@@ -177,10 +178,11 @@
       ],
       "yaw": 0,
       "variante": 1,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Central_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Lateral",
       "pos": [
         75,
         -8,
@@ -188,10 +190,11 @@
       ],
       "yaw": 0,
       "variante": 4,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Lateral_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Central",
       "pos": [
         85,
         -8,
@@ -199,10 +202,11 @@
       ],
       "yaw": 0,
       "variante": 2,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Central_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Lateral",
       "pos": [
         85,
         -8,
@@ -210,10 +214,11 @@
       ],
       "yaw": 0,
       "variante": 1,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Lateral_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Central",
       "pos": [
         95,
         -8,
@@ -221,10 +226,11 @@
       ],
       "yaw": 0,
       "variante": 2,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Central_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Lateral",
       "pos": [
         95,
         -8,
@@ -232,10 +238,11 @@
       ],
       "yaw": 0,
       "variante": 1,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Lateral_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Central",
       "pos": [
         105,
         -8,
@@ -243,10 +250,11 @@
       ],
       "yaw": 0,
       "variante": 0,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Central_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Lateral",
       "pos": [
         105,
         -8,
@@ -254,10 +262,11 @@
       ],
       "yaw": 0,
       "variante": 1,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Lateral_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Central",
       "pos": [
         115,
         -8,
@@ -265,10 +274,11 @@
       ],
       "yaw": 0,
       "variante": 0,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Central_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Lateral",
       "pos": [
         115,
         -8,
@@ -276,10 +286,11 @@
       ],
       "yaw": 0,
       "variante": 1,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Lateral_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Central",
       "pos": [
         125,
         -8,
@@ -287,10 +298,11 @@
       ],
       "yaw": 0,
       "variante": 2,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Central_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Lateral",
       "pos": [
         125,
         -8,
@@ -298,10 +310,11 @@
       ],
       "yaw": 0,
       "variante": 1,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Lateral_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Central",
       "pos": [
         135,
         -8,
@@ -309,10 +322,11 @@
       ],
       "yaw": 0,
       "variante": 3,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Central_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Lateral",
       "pos": [
         135,
         -8,
@@ -320,10 +334,11 @@
       ],
       "yaw": 0,
       "variante": 3,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Lateral_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Central",
       "pos": [
         145,
         -8,
@@ -331,10 +346,11 @@
       ],
       "yaw": 0,
       "variante": 1,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Central_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Lateral",
       "pos": [
         145,
         -8,
@@ -342,10 +358,11 @@
       ],
       "yaw": 0,
       "variante": 4,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Lateral_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Central",
       "pos": [
         155,
         -8,
@@ -353,10 +370,11 @@
       ],
       "yaw": 0,
       "variante": 0,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Central_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Lateral",
       "pos": [
         155,
         -8,
@@ -364,10 +382,11 @@
       ],
       "yaw": 0,
       "variante": 4,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Lateral_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Central",
       "pos": [
         165,
         -8,
@@ -375,10 +394,11 @@
       ],
       "yaw": 0,
       "variante": 0,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Central_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Lateral",
       "pos": [
         165,
         -8,
@@ -386,10 +406,11 @@
       ],
       "yaw": 0,
       "variante": 3,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Lateral_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Central",
       "pos": [
         175,
         -8,
@@ -397,10 +418,11 @@
       ],
       "yaw": 0,
       "variante": 2,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Central_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Lateral",
       "pos": [
         175,
         -8,
@@ -408,10 +430,11 @@
       ],
       "yaw": 0,
       "variante": 1,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Lateral_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Central",
       "pos": [
         185,
         -8,
@@ -419,10 +442,11 @@
       ],
       "yaw": 0,
       "variante": 2,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Central_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
-      "pieza": "kit/anden_10m",
+      "pieza": "castellon/anden_losa",
+      "tipo": "Lateral",
       "pos": [
         185,
         -8,
@@ -430,7 +454,7 @@
       ],
       "yaw": 0,
       "variante": 3,
-      "nota": "bajo la losa, a la cota de vía −8 (§7)"
+      "nota": "SM_AndenLosa_Lateral_v<n>, con la losa como hijo; módulo de 10 m (largo SIN VERIFICAR con el LEEME de Teo)"
     },
     {
       "pieza": "sagunto/bloque_pisos",
@@ -973,7 +997,727 @@
         14
       ],
       "alto_m": 5,
-      "nota": "pieza nueva de Teo (24 × 14 × 5 m, 5 estados D-N124); sustituye al edificio de viajeros de la v0. El nombre de la pieza está SIN VERIFICAR: lo da Teo"
+      "nota": "SM_VestibuloCastellon_v<n>_<Estado> (Teo), con la cubierta como hijo; 24 × 14 × 5 m, 5 estados D-N124"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        75,
+        -8,
+        57.5
+      ],
+      "yaw": 0,
+      "variante": 2,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        85,
+        -8,
+        57.5
+      ],
+      "yaw": 0,
+      "variante": 3,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        95,
+        -8,
+        57.5
+      ],
+      "yaw": 0,
+      "variante": 4,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        105,
+        -8,
+        57.5
+      ],
+      "yaw": 0,
+      "variante": 0,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        115,
+        -8,
+        57.5
+      ],
+      "yaw": 0,
+      "variante": 1,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        125,
+        -8,
+        57.5
+      ],
+      "yaw": 0,
+      "variante": 2,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        135,
+        -8,
+        57.5
+      ],
+      "yaw": 0,
+      "variante": 3,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        145,
+        -8,
+        57.5
+      ],
+      "yaw": 0,
+      "variante": 4,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        155,
+        -8,
+        57.5
+      ],
+      "yaw": 0,
+      "variante": 0,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        165,
+        -8,
+        57.5
+      ],
+      "yaw": 0,
+      "variante": 1,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        175,
+        -8,
+        57.5
+      ],
+      "yaw": 0,
+      "variante": 2,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        185,
+        -8,
+        57.5
+      ],
+      "yaw": 0,
+      "variante": 3,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        75,
+        -8,
+        66.5
+      ],
+      "yaw": 0,
+      "variante": 2,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        85,
+        -8,
+        66.5
+      ],
+      "yaw": 0,
+      "variante": 3,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        95,
+        -8,
+        66.5
+      ],
+      "yaw": 0,
+      "variante": 4,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        105,
+        -8,
+        66.5
+      ],
+      "yaw": 0,
+      "variante": 0,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        115,
+        -8,
+        66.5
+      ],
+      "yaw": 0,
+      "variante": 1,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        125,
+        -8,
+        66.5
+      ],
+      "yaw": 0,
+      "variante": 2,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        135,
+        -8,
+        66.5
+      ],
+      "yaw": 0,
+      "variante": 3,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        145,
+        -8,
+        66.5
+      ],
+      "yaw": 0,
+      "variante": 4,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        155,
+        -8,
+        66.5
+      ],
+      "yaw": 0,
+      "variante": 0,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        165,
+        -8,
+        66.5
+      ],
+      "yaw": 0,
+      "variante": 1,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        175,
+        -8,
+        66.5
+      ],
+      "yaw": 0,
+      "variante": 2,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/catenaria_losa",
+      "pos": [
+        185,
+        -8,
+        66.5
+      ],
+      "yaw": 0,
+      "variante": 3,
+      "nota": "SM_CatenariaLosa_v<n>, sobre el eje de la vía, cada 10 m"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        5,
+        -8,
+        54.7
+      ],
+      "yaw": 180,
+      "variante": 0,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 55, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        5,
+        -8,
+        74.3
+      ],
+      "yaw": 0,
+      "variante": 1,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 74, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        15,
+        -8,
+        54.7
+      ],
+      "yaw": 180,
+      "variante": 2,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 55, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        15,
+        -8,
+        74.3
+      ],
+      "yaw": 0,
+      "variante": 3,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 74, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        25,
+        -8,
+        54.7
+      ],
+      "yaw": 180,
+      "variante": 4,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 55, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        25,
+        -8,
+        74.3
+      ],
+      "yaw": 0,
+      "variante": 0,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 74, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        35,
+        -8,
+        54.7
+      ],
+      "yaw": 180,
+      "variante": 1,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 55, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        35,
+        -8,
+        74.3
+      ],
+      "yaw": 0,
+      "variante": 2,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 74, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        45,
+        -8,
+        54.7
+      ],
+      "yaw": 180,
+      "variante": 3,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 55, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        45,
+        -8,
+        74.3
+      ],
+      "yaw": 0,
+      "variante": 4,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 74, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        55,
+        -8,
+        54.7
+      ],
+      "yaw": 180,
+      "variante": 0,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 55, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        55,
+        -8,
+        74.3
+      ],
+      "yaw": 0,
+      "variante": 1,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 74, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        65,
+        -8,
+        54.7
+      ],
+      "yaw": 180,
+      "variante": 2,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 55, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        65,
+        -8,
+        74.3
+      ],
+      "yaw": 0,
+      "variante": 3,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 74, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        195,
+        -8,
+        54.7
+      ],
+      "yaw": 180,
+      "variante": 4,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 55, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        195,
+        -8,
+        74.3
+      ],
+      "yaw": 0,
+      "variante": 0,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 74, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        205,
+        -8,
+        54.7
+      ],
+      "yaw": 180,
+      "variante": 1,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 55, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        205,
+        -8,
+        74.3
+      ],
+      "yaw": 0,
+      "variante": 2,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 74, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        215,
+        -8,
+        54.7
+      ],
+      "yaw": 180,
+      "variante": 3,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 55, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        215,
+        -8,
+        74.3
+      ],
+      "yaw": 0,
+      "variante": 4,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 74, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        225,
+        -8,
+        54.7
+      ],
+      "yaw": 180,
+      "variante": 0,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 55, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        225,
+        -8,
+        74.3
+      ],
+      "yaw": 0,
+      "variante": 1,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 74, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        235,
+        -8,
+        54.7
+      ],
+      "yaw": 180,
+      "variante": 2,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 55, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        235,
+        -8,
+        74.3
+      ],
+      "yaw": 0,
+      "variante": 3,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 74, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        245,
+        -8,
+        54.7
+      ],
+      "yaw": 180,
+      "variante": 4,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 55, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        245,
+        -8,
+        74.3
+      ],
+      "yaw": 0,
+      "variante": 0,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 74, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        255,
+        -8,
+        54.7
+      ],
+      "yaw": 180,
+      "variante": 1,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 55, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Muro",
+      "pos": [
+        255,
+        -8,
+        74.3
+      ],
+      "yaw": 0,
+      "variante": 2,
+      "nota": "SM_MuroTrinchera_Muro_v<n>; cara vista en Z 74, hacia la vía"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Boca",
+      "pos": [
+        70,
+        -8,
+        64.5
+      ],
+      "yaw": 90,
+      "variante": 0,
+      "nota": "boca oeste de la losa, 19 m (Z 55–74); yaw a comprobar con la primera (Teo)"
+    },
+    {
+      "pieza": "castellon/muro_trinchera",
+      "tipo": "Boca",
+      "pos": [
+        190,
+        -8,
+        64.5
+      ],
+      "yaw": 270,
+      "variante": 1,
+      "nota": "boca este de la losa, 19 m (Z 55–74); yaw a comprobar con la primera (Teo)"
+    },
+    {
+      "pieza": "castellon/barricada_civil",
+      "pos": [
+        110,
+        0,
+        92
+      ],
+      "yaw": 0,
+      "variante": 0,
+      "nota": "SM_BarricadaCivil, 8 m, fuera hacia la plaza (norte); hueco X 122–138 frente a la entrada del vestíbulo"
+    },
+    {
+      "pieza": "castellon/barricada_civil",
+      "pos": [
+        118,
+        0,
+        92
+      ],
+      "yaw": 0,
+      "variante": 2,
+      "nota": "SM_BarricadaCivil, 8 m, fuera hacia la plaza (norte); hueco X 122–138 frente a la entrada del vestíbulo"
+    },
+    {
+      "pieza": "castellon/barricada_civil",
+      "pos": [
+        142,
+        0,
+        92
+      ],
+      "yaw": 0,
+      "variante": 1,
+      "nota": "SM_BarricadaCivil, 8 m, fuera hacia la plaza (norte); hueco X 122–138 frente a la entrada del vestíbulo"
+    },
+    {
+      "pieza": "castellon/barricada_civil",
+      "pos": [
+        150,
+        0,
+        92
+      ],
+      "yaw": 0,
+      "variante": 3,
+      "nota": "SM_BarricadaCivil, 8 m, fuera hacia la plaza (norte); hueco X 122–138 frente a la entrada del vestíbulo"
+    },
+    {
+      "pieza": "castellon/vagon_abandonado",
+      "tipo": "cerrado",
+      "pos": [
+        90,
+        0,
+        52
+      ],
+      "yaw": 90,
+      "variante": 0,
+      "largo_m": 18,
+      "nota": "SM_VagonAbandonado_v<n>, en el haz; deja libre la vía 44 (bajada de vehículos y cisternas) y las del cajón (parada del tren)"
+    },
+    {
+      "pieza": "castellon/vagon_abandonado",
+      "tipo": "plataforma",
+      "pos": [
+        115,
+        0,
+        52
+      ],
+      "yaw": 90,
+      "variante": 0,
+      "largo_m": 19.9,
+      "nota": "SM_VagonAbandonado_v<n>, en el haz; deja libre la vía 44 (bajada de vehículos y cisternas) y las del cajón (parada del tren)"
+    },
+    {
+      "pieza": "castellon/vagon_abandonado",
+      "tipo": "coche",
+      "pos": [
+        100,
+        0,
+        48
+      ],
+      "yaw": 90,
+      "variante": 0,
+      "largo_m": 23.5,
+      "nota": "SM_VagonAbandonado_v<n>, en el haz; deja libre la vía 44 (bajada de vehículos y cisternas) y las del cajón (parada del tren)"
+    },
+    {
+      "pieza": "castellon/vagon_abandonado",
+      "tipo": "cisterna",
+      "pos": [
+        215,
+        0,
+        52
+      ],
+      "yaw": 90,
+      "variante": 0,
+      "largo_m": 14.5,
+      "nota": "SM_VagonAbandonado_v<n>, en el haz; deja libre la vía 44 (bajada de vehículos y cisternas) y las del cajón (parada del tren)"
     }
   ],
   "carreteras": [
@@ -1129,7 +1873,7 @@
       "desnivel_escalera_m": 7.1,
       "nota_desnivel": "del andén (cota −7,1: vía −8 + andén 0,9) a la calle (0); SIN VERIFICAR con la cota real"
     },
-    "nota": "v0.2 (castellon-nivel.md §7): estación bajo losa como la real; cota SIN VERIFICAR. Quitados el edificio de viajeros de superficie (kit_cuerpo/kit_remate) y las 5 marquesinas; andenes y paso a −8; vestíbulo añadido",
+    "nota": "v0.4 (castellon-nivel.md §7): estación bajo losa como la real; cota SIN VERIFICAR. Quitados el edificio de viajeros de superficie (kit_cuerpo/kit_remate) y las 5 marquesinas; andenes y paso a −8; vestíbulo añadido; nombres de Teo (18:12); trinchera, bocas, barricadas y vagones colocados con las medidas de Teo (18:13)",
     "bajada_vehiculos": {
       "via_z": 44,
       "vagon_plataforma_x": [
