@@ -45,7 +45,7 @@ namespace TBD.Tutorial
                 Cargas = "cargas_tren", ListaUnidades = "lista_unidades", ListaVehiculos = "lista_vehiculos", Eta = "eta_tren", BotonEnviar = "boton_enviar",
                 EstadoNules = "estado_nules", BotonDescargar = "boton_descargar",
                 AvisoRadar = "aviso_radar", ManchaHorda = "mancha_horda", TarjetasDestacamento = "tarjetas_destacamento", EstadoSagunto = "estado_sagunto", TrenAnden = "tren_anden",
-                Pila = "pila", AvisoPila = "aviso_pila",
+                Pila = "pila", AvisoPila = "aviso_pila", FlancoSur = "flanco_sur",   // D-N175: el punto del flanco sur (100; 34), TrenAnden.ObjetivoAtaque
                 NodoBetera = "nodo_betera", TarjetasNH90 = "tarjetas_nh90", ConPeloton = "con_peloton", FlechaBorde = "flecha_borde";
         }
 
@@ -116,7 +116,7 @@ namespace TBD.Tutorial
             var p31b = T("3.1b", "La horda está en el muro. Sagunto sola no aguantará mucho. Nules, la estación de al lado, puede mandarte ayuda.", 4, Resaltes.Pila, Resaltes.AvisoPila);
             p31.Espera = p31b.Espera = Senales.Cap3Dispara;     // pila > 150 o 60 s desde el primer contacto, lo que ocurra antes (Lucía)
             p31.AltSi = Senales.Cap3PorTiempo; p31.Alt = p31b;  // si salta por tiempo, el 3.1b
-            var p37 = S("3.7", "Sagunto está sitiada: el tren espera a las puertas. Baja la tropa: atacará a la horda por la espalda.", R(Resaltes.TrenAnden, Resaltes.BotonDescargar), Senales.TropaEnTierra, Senales.RefuerzosEnTierra);
+            var p37 = S("3.7", "Sagunto está sitiada: el tren espera en la puerta este. Baja la tropa.", R(Resaltes.TrenAnden, Resaltes.BotonDescargar), Senales.TropaEnTierra, Senales.RefuerzosEnTierra);
             p37.Espera = Senales.TrenEnSagunto;     // «Al llegar el tren»
             return new Capitulo
             {
@@ -130,7 +130,7 @@ namespace TBD.Tutorial
                     S("3.5", "Destino: Sagunto. Mira el ETA y envíalo.", R(Resaltes.NodoSagunto, Resaltes.Eta, Resaltes.BotonEnviar), Senales.TrenEnviado),
                     S("3.6", "Vuelve a Sagunto y aguanta: doble clic en Sagunto o acerca la cámara. La ayuda llega en {eta}.", R(Resaltes.NodoSagunto), Senales.VueltaZona),
                     p37,
-                    S("3.8", "Llévalos contra la pila del oeste.", R(Resaltes.Pila), Senales.OrdenMover, Senales.OrdenAtacar),
+                    S("3.8", "Llévalos al flanco sur y dispara desde ahí. Si te pegas a la horda, irá a por ellos.", R(Resaltes.FlancoSur), Senales.OrdenMover, Senales.OrdenAtacar)   // D-N175,
                 }
             };
         }

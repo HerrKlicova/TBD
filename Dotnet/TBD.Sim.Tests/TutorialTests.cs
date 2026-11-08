@@ -123,7 +123,7 @@ namespace TBD.Sim.Tests
                 m4.Senal(TutorialGuion.Senales.VueltaZona);
                 check(m4.Actual.Id == "3.7" && !m4.Visible, "3.7 espera al tren");
                 m4.Senal(TutorialGuion.Senales.TrenEnSagunto);
-                check(m4.Visible && m4.Texto.StartsWith("Sagunto está sitiada"), "con el tren a las puertas sale el 3.7");
+                check(m4.Visible && m4.Texto == "Sagunto está sitiada: el tren espera en la puerta este. Baja la tropa.", "con el tren a las puertas sale el 3.7 (D-N175)");
                 m4.Senal(TutorialGuion.Senales.TropaEnTierra); check(m4.Actual.Id == "3.8", "tropa en tierra: 3.8");
                 m4.Senal(TutorialGuion.Senales.OrdenAtacar); check(m4.Estado == EstadoTutorial.Terminado, "3.8 acaba el tutorial con la orden de atacar (o de mover)");
                 // si salta por los 60 s (sin tromba), sale el 3.1b
@@ -409,6 +409,32 @@ namespace TBD.Sim.Tests
                 var an = new AlmacenZona(nul); an.EmpiezaAtaque(w);
                 check(an.Actual[0] == 0, "Nules empieza con la reserva a 0: el almacén de su zona también (la guarnición lleva su dotación)");
                 w.Stock[nul, 0] = 20; an.AcabaAtaque(w); an.EmpiezaAtaque(w); check(an.Actual[0] == 20 && w.Stock[nul, 0] == 0, "con 20 u traídas en tren, el siguiente ataque toma las 20 (menos que el tope)");
+            }
+
+            // --- zona mínima de Bétera: colocación de las piezas (betera.json v0.2, piezas de Teo r2) yy despegue yy toma del NH90
+            {
+                var nv = AerodromoNivel.FromJson(BalanceSource.Read("estacion_betera.json"));
+                check(nv.ZonaX0 == 0 && nv.ZonaZ0 == -4 && nv.ZonaX1 == 256 && nv.ZonaZ1 == 124, "encuadre de reserva de 256 × 128 m (zona [0, −4, 256, 124])");
+                var torretas = nv.Piezas.FindAll(c => c.Carpeta == "torreta_vigia");
+                check(torretas.Count == 2 && torretas.Exists(c => c.X == 4 && c.Z == 121 && c.Yaw == 0) && torretas.Exists(c => c.X == 252 && c.Z == 121), "solo las 2 torretas del MVP, en (4; 121) y (252; 121) con yaw 0");
+                check(nv.Piezas.FindAll(c => c.Carpeta == "hangar").Count == 2 && nv.Piezas.Exists(c => c.Carpeta == "polvorin") && nv.Piezas.Exists(c => c.Carpeta == "torre_control" && c.X == 224 && c.Z == 4), "2 hangares, polvorín y la torre de control en (224; 4)");
+                var heli = nv.Piezas.Find(c => c.Carpeta == "helipuerto");
+                check(heli.Variante == 4 && heli.X == 128 && heli.Z == 104 && heli.Malla == "SM_Helipuerto", "el helipuerto v4 es la losa P1 (128; 104)");
+                check(AerodromoNivel.Malla("torre_control") == "SM_TorreControl" && AerodromoNivel.Malla("valla_base") == "SM_VallaBase" && AerodromoNivel.Malla("rearme_set") == "SM_RearmeSet", "nombres de malla de Teo: SM_<Carpeta en PascalCase>");
+                var valla = nv.Piezas.FindAll(c => c.Carpeta == "valla_base");
+                check(valla.Count >= 55 && valla.TrueForAll(c => c.Variante >= 0 && c.Variante < 5), $"valla de la base en tramos de 10 m ({valla.Count} tramos, 5 variantes)");
+                check(nv.Piezas.Exists(c => c.Carpeta == "polvorin" && c.Faldon) && !nv.Piezas.Exists(c => c.Carpeta == "hangar" && c.Faldon), "el polvorín va de faldón y los hangares dentro de la zona");
+                check(nv.Claros.Count == 6 && nv.Claros["P1"][2] == 30 && nv.Claros["P2"][2] == 25 && nv.Claros["C1"][0] == 100 && nv.Claros["C1"][1] == 160, "claros P1–P3 y C1–C3: P1 losa de 30 m, el resto de 25 m, C1 en (100; 160)");
+                check(nv.Pista[0] == -37 && nv.Pista[2] == 238 && nv.CuartelX == 36 && nv.CuartelZ == -44, "pista de 275 m y la guarnición en su sitio (36; −44)");
+                bool variaHangar = false; var h = nv.Piezas.FindAll(c => c.Carpeta == "valla_base"); for (int i = 1; i < h.Count; i++) if (h[i].Variante != h[0].Variante) variaHangar = true;
+                check(variaHangar, "las variantes cambian de un tramo a otro (semilla por posición)");
+                // despegue yy toma
+                VueloLocal.Despegue(128, 104, 252, 5f, out float xx, out float zz, out float yy);
+                check(xx == 128 && zz == 104 && yy == 0, "despegue: los primeros 12 s, rotor en el suelo");
+                VueloLocal.Despegue(128, 104, 252, 16f, out xx, out zz, out yy); check(yy > 0 && yy < VueloLocal.AlturaM && xx == 128, "de 12 a 20 s sube en vertical");
+                VueloLocal.Despegue(128, 104, 72, 30f, out xx, out zz, out yy); check(yy == VueloLocal.AlturaM && xx > 128 && zz > 104, "después sale con el rumbo del destino (72°: este-noreste, hacia Sagunto)");
+                VueloLocal.Toma(128, 104, 252, 0f, out xx, out zz, out yy); check(xx == 128 && zz == 104 && yy == 0, "toma: acaba parado en la losa");
+                VueloLocal.Toma(128, 104, 252, 40f, out xx, out zz, out yy); check(yy == VueloLocal.AlturaM && xx > 128, "antes de tomar viene en vuelo desde el lado del rumbo de llegada (252°: llega desde el este-noreste)");
             }
 
             // --- intro C
