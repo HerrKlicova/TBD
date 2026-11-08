@@ -12,11 +12,15 @@ namespace TBD.Net
     /// al principio (30 km/h en ~26 s con 800 t). Las cifras son ESTIMACIONES de Paula salvo el aviso de 3 s.
     /// </summary>
     public enum SalidaFase : byte { AvisoPuertas, CierrePuertas, Comprobacion, Arranque }
+
+    /// <summary>Un sonido de la salida y dónde suena: Puerta ≥ 0 en esa puerta; Puerta = −1 en el andén (aviso y silbato); Cabeza en la cabeza del tren (arranque).
+    /// Todos en 3D (Sfx.PlayAt) y a volumen 1: la mezcla ya va horneada (Nuria).</summary>
+    public struct SonidoSalida { public string Clip; public int Puerta; public bool Cabeza; }
     public enum TipoTren : byte { Electrico, Diesel }
 
     public sealed class SalidaTren
     {
-        public const float AvisoS = 3f, CierreS = 3f, ComprobacionS = 2f;
+        public const float AvisoS = 3f, CierreS = 3f, DesfasePuertaMaxS = 0.3f, ArranqueMinS = 2f, ArranqueMaxS = 5f;   // Nuria: arranque de 2 a 5 s tras el cierre
         public const string SonAviso = "sfx_tren_aviso_puertas", SonCierre = "sfx_tren_cierre_puertas", SonSilbato = "sfx_tren_silbato_salida",
             SonArranqueElectrico = "sfx_tren_arranque_electrico", SonArranqueDiesel = "sfx_tren_arranque_diesel333";   // nombres de Nuria (docs/sonido/salida-tren/encargo.md), cada uno con variantes _1 a _5
 
@@ -27,10 +31,22 @@ namespace TBD.Net
         public float Distancia { get; private set; }  // m recorridos desde la parada
         float _paso = 0.02f;
 
-        public SalidaTren(TipoTren tipo, float vmaxKmh = 60f, uint semilla = 1) { Tipo = tipo; VmaxMs = vmaxKmh / 3.6f; _rng = semilla == 0 ? 1u : semilla; }
+        public readonly int NumPuertas; public readonly bool ConSilbato;
+        public readonly float ComprobacionS;          // 2 a 5 s, con la semilla
+        readonly float[] _desfase;                    // 0 a 0,3 s por puerta
+
+        /// <summary>«semilla»: según el tren y la parada (p. ej. TrenPreparar.Semilla(tren, nodo, día)), para que dos salidas no suenen igual.</summary>
+        public SalidaTren(TipoTren tipo, float vmaxKmh = 60f, uint semilla = 1, int puertas = 1, bool silbato = true)
+        {
+            Tipo = tipo; VmaxMs = vmaxKmh / 3.6f; _rng = semilla == 0 ? 1u : semilla; NumPuertas = Math.Max(0, puertas); ConSilbato = silbato;
+            ComprobacionS = ArranqueMinS + (ArranqueMaxS - ArranqueMinS) * (Next() % 1001) / 1000f;
+            _desfase = new float[NumPuertas]; for (int i = 0; i < NumPuertas; i++) _desfase[i] = DesfasePuertaMaxS * (Next() % 1001) / 1000f;
+        }
         uint _rng;
-        /// <summary>Variante _1 a _5 del clip, al azar con la semilla de la salida (así dos trenes no suenan igual).</summary>
-        string Variante(string clip) { _rng ^= _rng << 13; _rng ^= _rng >> 17; _rng ^= _rng << 5; return clip + "_" + (1 + _rng % 5); }
+        uint Next() { _rng ^= _rng << 13; _rng ^= _rng >> 17; _rng ^= _rng << 5; return _rng; }
+        /// <summary>Variante _1 a _5 del clip, con la semilla de la salida.</summary>
+        string Variante(string clip) { return clip + "_" + (1 + Next() % 5); }
+        public float Desfase(int puerta) { return _desfase[puerta]; }
 
         public float InicioArranque { get { return AvisoS + CierreS + ComprobacionS; } }
         public SalidaFase Fase
@@ -61,14 +77,22 @@ namespace TBD.Net
             return Math.Max(0.06f, suave * Math.Min(1f, 8.3f / Math.Max(8.3f, v)));
         }
 
-        /// <summary>Avanza dt segundos reales y añade los sonidos que tocan.</summary>
+        /// <summary>Avanza dt segundos reales y añade los sonidos que tocan (solo el nombre del clip).</summary>
         public void Avanzar(float dt, List<string> sonidos)
         {
+            List<SonidoSalida> l = sonidos == null ? null : new List<SonidoSalida>();
+            Avanzar(dt, l);
+            if (l != null) foreach (var x in l) sonidos.Add(x.Clip);
+        }
+
+        /// <summary>Avanza dt segundos reales y añade los sonidos que tocan, con dónde suenan. El tren no pita (Paula: no es obligatorio; Nuria).</summary>
+        public void Avanzar(float dt, List<SonidoSalida> sonidos)
+        {
             float t0 = T, fin = T + Math.Max(0f, dt);
-            Sonar(t0, fin, 0f, SonAviso, sonidos);
-            Sonar(t0, fin, AvisoS, SonCierre, sonidos);
-            Sonar(t0, fin, InicioArranque - 0.6f, SonSilbato, sonidos);                     // el silbato de dos tonos, justo antes de moverse
-            Sonar(t0, fin, InicioArranque, Tipo == TipoTren.Electrico ? SonArranqueElectrico : SonArranqueDiesel, sonidos);
+            Sonar(t0, fin, 0f, SonAviso, -1, false, sonidos);
+            for (int i = 0; i < NumPuertas; i++) Sonar(t0, fin, AvisoS + _desfase[i], SonCierre, i, false, sonidos);   // cada puerta con su desfase
+            if (ConSilbato) Sonar(t0, fin, InicioArranque - 0.6f, SonSilbato, -1, false, sonidos);              // el silbato de dos tonos del jefe, justo antes de moverse
+            Sonar(t0, fin, InicioArranque, Tipo == TipoTren.Electrico ? SonArranqueElectrico : SonArranqueDiesel, -1, true, sonidos);
             while (T < fin)
             {
                 float h = Math.Min(_paso, fin - T);
@@ -77,12 +101,12 @@ namespace TBD.Net
             }
         }
 
-        void Sonar(float t0, float t1, float at, string s, List<string> l) { if (l != null && t0 <= at && at < t1 && !(t0 == at && t0 > 0)) l.Add(Variante(s)); }
+        void Sonar(float t0, float t1, float at, string s, int puerta, bool cabeza, List<SonidoSalida> l) { if (l != null && t0 <= at && at < t1 && !(t0 == at && t0 > 0)) l.Add(new SonidoSalida { Clip = Variante(s), Puerta = puerta, Cabeza = cabeza }); }
 
         /// <summary>Segundos desde el principio del arranque hasta alcanzar esa velocidad (km/h); −1 si no llega en 600 s. Para las pruebas.</summary>
         public static float TiempoHasta(TipoTren tipo, float kmh)
         {
-            var s = new SalidaTren(tipo, 120f); var l = new List<string>();
+            var s = new SalidaTren(tipo, 120f); var l = new List<SonidoSalida>();
             s.Avanzar(s.InicioArranque, l);
             float t = 0; while (s.Velocidad * 3.6f < kmh && t < 600f) { s.Avanzar(0.05f, l); t += 0.05f; }
             return t < 600f ? t : -1f;

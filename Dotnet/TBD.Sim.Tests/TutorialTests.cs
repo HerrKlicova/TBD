@@ -314,15 +314,22 @@ namespace TBD.Sim.Tests
                 check(st.Fase == SalidaFase.AvisoPuertas && son.Count == 1 && son[0].StartsWith("sfx_tren_aviso_puertas_") && st.Puertas == 0f && st.Distancia == 0f, "empieza con el aviso de puertas (con variante _1 a _5), puertas abiertas y parado");
                 son.Clear(); st.Avanzar(3.0f, son);
                 check(st.Fase == SalidaFase.CierrePuertas && son.Exists(x => x.StartsWith("sfx_tren_cierre_puertas_")) && st.Puertas > 0f && st.Puertas < 1f && st.Distancia == 0f, "a los 3 s cierra las puertas (≥ 3 s de aviso, EN 14752) y sigue parado");
-                son.Clear(); st.Avanzar(5.0f, son);
+                son.Clear(); st.Avanzar(st.InicioArranque - st.T + 0.1f, son);
                 check(son.Exists(x => x.StartsWith("sfx_tren_silbato_salida_")) && son.Exists(x => x.StartsWith("sfx_tren_arranque_electrico_")) && st.Fase == SalidaFase.Arranque && st.Puertas == 1f, "silbato de dos tonos y arranque, con las puertas cerradas");
+                bool huecoA = true; for (uint sd = 1; sd < 60; sd++) { var x = new SalidaTren(TipoTren.Electrico, 60, sd); if (x.ComprobacionS < 2f || x.ComprobacionS > 5f) huecoA = false; }
+                check(huecoA, "el arranque llega entre 2 y 5 s después del cierre (Nuria), según la semilla");
+                var sp = new SalidaTren(TipoTren.Electrico, 60, TrenPreparar.SemillaSalida(1, 3, 2), puertas: 6, silbato: false); var ls = new List<SonidoSalida>(); sp.Avanzar(20f, ls);
+                var cierres = ls.FindAll(x => x.Clip.StartsWith("sfx_tren_cierre_puertas_"));
+                bool desf = true; for (int i = 0; i < 6; i++) if (sp.Desfase(i) < 0 || sp.Desfase(i) > 0.3f) desf = false;
+                check(cierres.Count == 6 && cierres.TrueForAll(x => x.Puerta >= 0) && desf, "un cierre por puerta, con un desfase de 0 a 0,3 s");
+                check(!ls.Exists(x => x.Clip.StartsWith("sfx_tren_silbato")) && ls.Exists(x => x.Cabeza && x.Clip.StartsWith("sfx_tren_arranque_electrico_")) && ls.Exists(x => x.Puerta == -1 && x.Clip.StartsWith("sfx_tren_aviso")), "silbato opcional; el arranque suena en la cabeza y el aviso en el andén");
                 bool v = true; foreach (var x in son) { int k = x[x.Length - 1] - '0'; if (k < 1 || k > 5 || x[x.Length - 2] != '_') v = false; }
                 check(v, "todas las variantes son _1 a _5");
                 float t30 = SalidaTren.TiempoHasta(TipoTren.Electrico, 30), t60 = SalidaTren.TiempoHasta(TipoTren.Electrico, 60), t100 = SalidaTren.TiempoHasta(TipoTren.Electrico, 100);
                 check(t30 >= 7.5f && t30 <= 10f && t60 >= 15f && t60 <= 21f && t100 >= 35f && t100 <= 47f, $"Cercanías: 30 km/h en {t30:0.0} s, 60 en {t60:0.0} s, 100 en {t100:0} s (Paula: ~9, ~18 y 37–45)");
                 float d30 = SalidaTren.TiempoHasta(TipoTren.Diesel, 30), d60 = SalidaTren.TiempoHasta(TipoTren.Diesel, 60);
                 check(d30 >= 20f && d30 <= 40f && d60 >= 60f && d60 <= 130f, $"mercancías diésel 333 con carga: 30 km/h en {d30:0} s, 60 en {d60:0} s (Paula: ~26 y ~90)");
-                var lento = new SalidaTren(TipoTren.Electrico); lento.Avanzar(60f, null);
+                var lento = new SalidaTren(TipoTren.Electrico); lento.Avanzar(60f, (List<string>)null);
                 check(Math.Abs(lento.Velocidad - 60f / 3.6f) < 0.01f, "no pasa de la velocidad de la red (60 km/h)");
                 var a1 = new SalidaTren(TipoTren.Diesel, 60, 3); var a2 = new SalidaTren(TipoTren.Diesel, 60, 3); var l1 = new List<string>(); var l2 = new List<string>();
                 a1.Avanzar(12f, l1); a2.Avanzar(12f, l2); check(string.Join(",", l1) == string.Join(",", l2) && l1.Exists(x => x.StartsWith("sfx_tren_arranque_diesel333_")), "misma semilla, mismos clips; el diésel usa sfx_tren_arranque_diesel333");
