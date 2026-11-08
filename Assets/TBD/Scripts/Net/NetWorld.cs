@@ -1333,6 +1333,38 @@ namespace TBD.Net
             return null;
         }
 
+        // ---------------------------------------------------------------- aviso ámbar: la horda va a una zona sin defensa (Lucía, 8-nov; con Iker, en Inicio)
+        public struct ZoneWarning { public int Node; public long EtaTicks; public bool Started; public string Text; }
+
+        /// <summary>¿Tiene la zona tropa del jugador? Casa (Embarque.HomeNode, Sagunto) siempre; en las demás, algún pelotón o vehículo bajado allí (EnEstacion).
+        /// La guarnición abstracta (la regla del asedio contra el recinto) no cuenta como defensa.</summary>
+        public bool ZoneDefended(int node)
+        {
+            if (node < 0 || node >= Graph.Nodes.Count) return false;
+            if (node == Embarque.HomeNode) return true;
+            foreach (var p in Embarque.Lista) if (p.Estado == PasajeroEstado.EnEstacion && p.Node == node) return true;
+            return false;
+        }
+
+        /// <summary>Avisos en ámbar: un asedio anunciado (o ya empezado) contra una zona sin tropa. Por nodo, el más próximo, ordenados por ETA y luego por nodo.
+        /// Texto: «La horda va hacia Nules (llega hacia las 22:00) y no hay tropa». Solo lectura: no toca el hash.</summary>
+        public List<ZoneWarning> UndefendedWarnings()
+        {
+            var l = new List<ZoneWarning>();
+            foreach (var pl in Director.Active)
+            {
+                if (pl.Kind != HiveDirector.PlanKind.Asedio || pl.Node < 0 || pl.Node >= Graph.Nodes.Count || ZoneDefended(pl.Node)) continue;
+                long eta = pl.Started ? 0 : Math.Max(0, pl.StartTick - Tick);
+                int k = l.FindIndex(x => x.Node == pl.Node);
+                if (k >= 0) { if (l[k].EtaTicks <= eta) continue; l.RemoveAt(k); }
+                string nm = Graph.Nodes[pl.Node].Name;
+                string txt = pl.Started ? "La horda ataca " + nm + " y no hay tropa" : "La horda va hacia " + nm + " (llega hacia las " + NetConst.Clock((Tick + eta) / NetConst.HourTicks * NetConst.HourTicks) + ") y no hay tropa";
+                l.Add(new ZoneWarning { Node = pl.Node, EtaTicks = eta, Started = pl.Started, Text = txt });
+            }
+            l.Sort((a, b) => a.EtaTicks != b.EtaTicks ? a.EtaTicks.CompareTo(b.EtaTicks) : a.Node.CompareTo(b.Node));
+            return l;
+        }
+
         /// <summary>Trenes que esperan a las puertas del nodo, por orden de llegada (para la zona: el tren queda fuera del muro y se le puede atacar, D-N148).</summary>
         public List<int> TrainsAtGate(int node)
         {
