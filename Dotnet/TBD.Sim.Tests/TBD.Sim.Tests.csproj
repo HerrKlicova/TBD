@@ -36,6 +36,7 @@
     <Compile Include="UnidadesTests.cs" />
     <Compile Include="TutorialTests.cs" />
     <Compile Include="EmbarqueTests.cs" />
+    <Compile Include="TramosZonaTests.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\Hive.cs" Link="Net\Hive.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\HiveDirector.cs" Link="Net\HiveDirector.cs" />
     <Compile Include="..\..\Assets\TBD\Scripts\Net\NetGolden.cs" Link="Net\NetGolden.cs" />
