@@ -80,7 +80,8 @@ namespace TBD.Tutorial
         float _enSuelta;
         public readonly List<string> Registro = new List<string>();   // para los registros de las corridas automáticas (Sara)
 
-        public TutorialMotor(Capitulo[] caps, Suelta[] sueltas, IMemoria mem) { _caps = caps; _sueltas = sueltas ?? new Suelta[0]; _mem = mem; }
+        public TutorialMotor(Capitulo[] caps, Suelta[] sueltas, IMemoria mem, string clave = ClaveVisto) { _caps = caps; _sueltas = sueltas ?? new Suelta[0]; _mem = mem; _clave = clave; }
+        readonly string _clave;      // lo que se recuerda al acabar o saltar: el principal usa ClaveVisto; el capítulo 4, el suyo
 
         public static bool HayTutorial(int dificultadPermil) { return dificultadPermil < DificilDesde; }
 
@@ -127,7 +128,7 @@ namespace TBD.Tutorial
         /// <summary>Arranca el tutorial desde el capítulo 0. Devuelve false (y no hace nada) en difícil o si ya se vio o se saltó antes.</summary>
         public bool Arrancar(int dificultadPermil, bool forzar = false)
         {
-            if (!forzar && (!HayTutorial(dificultadPermil) || _mem.Leer(ClaveVisto))) { Log("no arranca: " + (!HayTutorial(dificultadPermil) ? "difícil" : "ya visto")); return false; }
+            if (!forzar && (!HayTutorial(dificultadPermil) || _mem.Leer(_clave))) { Log("no arranca: " + (!HayTutorial(dificultadPermil) ? "difícil" : "ya visto")); return false; }
             Estado = EstadoTutorial.Activo; EntrarCapitulo(0); return true;
         }
 
@@ -136,7 +137,7 @@ namespace TBD.Tutorial
         {
             if (Estado != EstadoTutorial.Activo) return;
             Log($"saltado en {Actual?.Id ?? "?"}");
-            Estado = EstadoTutorial.Saltado; SueltaActual = null; _mem.Escribir(ClaveVisto);
+            Estado = EstadoTutorial.Saltado; SueltaActual = null; _mem.Escribir(_clave);
         }
 
         public void Senal(string s)
@@ -199,7 +200,7 @@ namespace TBD.Tutorial
             var c = Cap; Repeticiones = 0; EnPaso = 0; _sinAvance = 0; _enPaso.Clear(); _alt = false; _altDecidido = false;
             if (PasoIndex + 1 < c.Pasos.Length) { PasoIndex++; Log($"paso {Actual.Id}"); return; }
             if (CapIndex + 1 < _caps.Length) { EntrarCapitulo(CapIndex + 1); return; }
-            Estado = EstadoTutorial.Terminado; _mem.Escribir(ClaveVisto); Log("terminado");
+            Estado = EstadoTutorial.Terminado; _mem.Escribir(_clave); Log("terminado");
         }
 
         void EntrarCapitulo(int i)

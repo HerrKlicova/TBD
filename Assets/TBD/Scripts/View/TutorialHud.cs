@@ -57,7 +57,7 @@ namespace TBD.View
         static bool Arg(string a) { return Array.IndexOf(Environment.GetCommandLineArgs(), a) >= 0; }
 
         /// <summary>Lo llama «Nueva partida» (a través de IntroVista.Antes): el tutorial arranca al cargar la zona de Sagunto.</summary>
-        public static void NuevaPartida() { Ensure(); _pendiente = true; _pila150 = false; _contactoT = -1f; if (_i._m != null && _i._m.Estado == EstadoTutorial.Activo) _i._m.Saltar(); _i._m = null; }
+        public static void NuevaPartida() { Ensure(); _pendiente = true; _pila150 = false; _contactoT = -1f; AerodromoVista.Reiniciar(); if (_i._m != null && _i._m.Estado == EstadoTutorial.Activo) _i._m.Saltar(); _i._m = null; }
 
         /// <summary>D-N172: ¿hay destacamento en Nules? Solo con el tutorial en marcha (fácil y normal, la primera vez). La zona lo mira al crear sus unidades.</summary>
         public static bool DestacamentoNules { get { return Activo; } }
@@ -83,9 +83,32 @@ namespace TBD.View
             get
             {
                 var w = NetSession.A;
-                return _i != null && _i._m != null && _i._m.Estado == EstadoTutorial.Terminado && !_objCumplido && w != null && w.Tick >= NetConst.DayTicks + NetConst.Hours(7);
+                return _i != null && _i._principal != null && _i._principal.Estado == EstadoTutorial.Terminado && !_objCumplido && w != null && w.Tick >= NetConst.DayTicks + NetConst.Hours(7);
             }
         }
+        TutorialMotor _principal;                 // el tutorial de la primera partida (capítulos 0 a 3)
+        bool _cap4Pendiente;
+
+        /// <summary>
+        /// El jugador abre el aeródromo (AerodromoVista). La primera vez salta el capítulo 4 (D-N173), en fácil y normal. Si el tutorial principal está en
+        /// marcha, espera a que acabe.
+        /// </summary>
+        public static void AbrirAerodromo()
+        {
+            Ensure(); Senal(TutorialGuion.Senales.AerodromoAbierto);
+            var prefs = new Prefs();
+            if (_i._cap4Pendiente || !TutorialMotor.HayTutorial(NightRun.Difficulty) || prefs.Leer(TutorialGuion.ClaveCap4) || Arg("-sintutorial")) return;
+            if (_i._m != null && _i._m.Estado == EstadoTutorial.Activo && _i._m == _i._principal) { _i._cap4Pendiente = true; return; }
+            _i.ArrancarCap4();
+        }
+        void ArrancarCap4()
+        {
+            var m4 = TutorialGuion.NuevoCap4(new Prefs()); m4.EstadoActual = EstadoJuego; m4.Relleno = t => t.Replace("{eta}", AerodromoVista.EtaTexto());
+            if (!m4.Arrancar(NightRun.Difficulty, forzar: Arg("-tutorial"))) return;
+            _cap4Pendiente = false; _m = m4; _logVisto = 0; _pasoVisto = null;
+            Debug.Log("[TUTORIAL] capítulo 4 (aeródromo): arranca");
+        }
+
         public static void CumplirObjetivo() { if (!ObjetivoVisible) return; _objCumplido = true; _objCumplidoHasta = Time.unscaledTime + 6f; Debug.Log("[TUTORIAL] objetivo cumplido: " + TutorialGuion.ObjetivoDevolverTren); }
 
         public static void Senal(string s)
@@ -139,7 +162,7 @@ namespace TBD.View
                 if (_pendiente && NightRun.Active && !Arg("-sintutorial"))
                 {
                     _pendiente = false;
-                    _m = TutorialGuion.Nuevo(new Prefs()); _logVisto = 0; _m.EstadoActual = EstadoJuego; _m.Relleno = t => t.Replace("{eta}", TrenPanel.EtaTexto());
+                    _m = TutorialGuion.Nuevo(new Prefs()); _logVisto = 0; _m.EstadoActual = EstadoJuego; _m.Relleno = t => t.Replace("{eta}", TrenPanel.EtaTexto()); _principal = _m;
                     bool ok = _m.Arrancar(NightRun.Difficulty, forzar: Arg("-tutorial") || Arg("-tutorial-auto"));
                     Debug.Log(ok ? $"[TUTORIAL] arranca (dificultad {NightRun.Difficulty})" : $"[TUTORIAL] no arranca (dificultad {NightRun.Difficulty})");
                     if (!ok) _m = null;
@@ -167,6 +190,7 @@ namespace TBD.View
 
         void Update()
         {
+            if (_cap4Pendiente && (_m == null || _m.Estado != EstadoTutorial.Activo)) ArrancarCap4();
             if (_m == null || IntroVista.Mostrando) return;     // mientras sale la intro, el tutorial espera
             _m.Avanzar(Time.unscaledDeltaTime);
             // tren en Nules: lo mira en la red (servicio parado en Nules) una vez enviado

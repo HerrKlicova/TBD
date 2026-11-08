@@ -222,6 +222,32 @@ namespace TBD.Sim.Tests
                 check(s.AtStop && s.Stops[s.StopIndex].Node == sag && s.CargoTotal() == 0 && w.Stock[sag, (int)Res.Municion] >= sagMun2, "aparcado en Sagunto no repite nada en dos días");
             }
 
+            // --- aeródromo de Bétera (D-N173): datos de Álvaro, ETA real, salida, vuelta sola a rearmar, existencias propias; plantel por estación
+            {
+                string bj = BalanceSource.Read("estacion_betera.json");
+                check(bj != null, "existe Data/estacion_betera.json (Álvaro, v0)");
+                var ae = AerodromoEstado.FromJson(bj);
+                check(ae.Aeronaves.Count == 2 && ae.Pelotones.Count == 2 && Math.Abs(ae.MapX - 49) < 0.01 && Math.Abs(ae.MapY - 75) < 0.01, "Bétera: 2 NH90 y 2 pelotones de embarque, en (49; 75) del mapa");
+                check(Math.Abs(ae.Km("Sagunto") - 18.1) < 0.01 && Math.Abs(ae.Km("Nules") - 37.4) < 0.01 && ae.Destinos["Sagunto"].RumboLlegada == 252, "distancias reales: 18,1 km a Sagunto (llega con rumbo 252°) y 37,4 km a Nules");
+                float vS = AerodromoEstado.VueloS(18.1), vN = AerodromoEstado.VueloS(37.4);
+                check(vS > 0 && vN > vS * 2 - 0.01f && vN < vS * 2.2f, $"el vuelo sale de la distancia real ({vS:0.0} s a Sagunto, {vN:0.0} s a Nules)");
+                check(Math.Abs(ae.EtaIdaS("Sagunto") - (20f + vS)) < 0.01f, "ETA de ida = 20 s de preparar y despegar + vuelo");
+                check(ae.Enviar(0, "Sagunto", 3, true) == null && ae.Aeronaves[0].Peloton == 0 && !ae.PelotonEnBase[0] && ae.CombustibleMilliU == 67_000, "sale con un pelotón a bordo y gasta 3 u de combustible");
+                check(ae.Enviar(0, "Sagunto", 3, true) != null, "no puede salir otra vez si no está en la base");
+                var evs = new List<AerodromoEstado.Suceso>(); float ta = 0;
+                while (ae.Aeronaves[0].Estado != AeronaveEstado.EnZona && ta < 100) { evs.AddRange(ae.Avanzar(0.1f)); ta += 0.1f; }
+                check(ae.Aeronaves[0].Estado == AeronaveEstado.EnZona && Math.Abs(ta - ae.EtaIdaS("Sagunto")) < 0.25f && evs.Exists(e => e.Nuevo == AeronaveEstado.EnZona && e.Destino == 3), $"entra en la zona de Sagunto a su ETA ({ta:0.0} s)");
+                ae.Aeronaves[0].MunicionPm = 200; ae.PelotonBajado(0);
+                check(ae.Volver(0) && ae.Aeronaves[0].Estado == AeronaveEstado.Volviendo, "al bajar del 30 % vuelve solo a Bétera");
+                float eta = ae.Eta(0); check(Math.Abs(eta - (vS + 20f + 30f)) < 0.01f, "ETA de vuelta = vuelo + 20 s de tomar tierra + 30 s de rearme");
+                ta = 0; while (ae.Aeronaves[0].Estado != AeronaveEstado.EnBase && ta < 200) { ae.Avanzar(0.1f); ta += 0.1f; }
+                check(ae.Aeronaves[0].Estado == AeronaveEstado.EnBase && ae.Aeronaves[0].MunicionPm == 1000 && ae.MunicionMilliU == 50_000 - 1440, $"rearmado en la base: gasta 1,44 u de munición (80 % de 1,8 u) ({ta:0} s)");
+                check(!ae.PelotonEnBase[0], "el pelotón que bajó en Sagunto ya no está en la base");
+                ae.CombustibleMilliU = 2000; check(ae.PorQueNo(1, "Nules") == "No queda combustible", "sin combustible no despega (existencias propias, sin logística)");
+                check(Plantel.De("Sagunto").NH90 == 0 && Plantel.De("betera").NH90 == 2 && Plantel.De("Castellón").Pelotones.Length == 0 && Plantel.De("Nules").Pelotones.Length == 0 && Plantel.De("Nules", true).Pelotones.Length == 1, "plantel por estación: Sagunto sin NH90, Bétera con 2, Nules solo con el tutorial");
+                var ed = EstacionDato.FromJson(bj); check(ed.Tamano == EstacionTamano.Aerodromo, "EstacionDato lee Bétera como aeródromo");
+            }
+
             // --- intro C
             var it = new IntroSecuencia();
             check(it.Tarjetas.Length == 5 && it.TextoEntero == "Día 41 desde el brote.", "intro C: 5 tarjetas y empieza por «Día 41 desde el brote.»");

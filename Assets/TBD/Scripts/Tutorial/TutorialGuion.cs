@@ -26,7 +26,10 @@ namespace TBD.Tutorial
                 MaterialesPuestos = "materiales_puestos", SinCarga = "sin_carga", DestinoSagunto = "destino_sagunto", TrenEnSagunto = "tren_en_sagunto",
                 SaguntoSitiada = "sagunto_sitiada", RefuerzosEnTierra = "refuerzos_en_tierra", TropaEnTierra = "tropa_en_tierra", LinceABordo = "lince_a_bordo",
                 Pila150 = "pila_150", OrdenAtacar = "orden_atacar",
-                ContactoMuro = "contacto_muro",                 // la zona: el primer zombi toca el muro
+                ContactoMuro = "contacto_muro",
+                // capítulo 4 (aeródromo): el panel de Bétera manda las tres primeras; la zona (Marcos), posado y descargado
+                AerodromoAbierto = "aerodromo_abierto", NH90ConPeloton = "nh90_con_peloton", NH90Enviado = "nh90_enviado", NH90Llega = "nh90_llega",
+                NH90Posado = "nh90_posado", NH90Descargado = "nh90_descargado",                 // la zona: el primer zombi toca el muro
                 Cap3Dispara = "cap3_dispara", Cap3PorTiempo = "cap3_por_tiempo";   // estados de la vista: pila > 150, o 60 s reales desde el primer contacto   // la zona manda pila_150 la primera vez que la pila pasa de 150 (D-N168); se recuerda como estado
             // tarjeta suelta del C90 (zona: C90Aviso.Buscar)
             public const string C90ATiro = "c90_a_tiro", C90Lanzado = "c90_lanzado";
@@ -42,7 +45,8 @@ namespace TBD.Tutorial
                 Cargas = "cargas_tren", ListaUnidades = "lista_unidades", ListaVehiculos = "lista_vehiculos", Eta = "eta_tren", BotonEnviar = "boton_enviar",
                 EstadoNules = "estado_nules", BotonDescargar = "boton_descargar",
                 AvisoRadar = "aviso_radar", ManchaHorda = "mancha_horda", TarjetasDestacamento = "tarjetas_destacamento", EstadoSagunto = "estado_sagunto", TrenAnden = "tren_anden",
-                Pila = "pila", AvisoPila = "aviso_pila";
+                Pila = "pila", AvisoPila = "aviso_pila",
+                NodoBetera = "nodo_betera", TarjetasNH90 = "tarjetas_nh90", ConPeloton = "con_peloton", FlechaBorde = "flecha_borde";
         }
 
         static Paso S(string id, string texto, string[] resalta, params string[] senales) { return new Paso { Id = id, Texto = texto, Resalta = resalta ?? new string[0], Cierre = Cierre.Senal, Senales = senales }; }
@@ -133,6 +137,33 @@ namespace TBD.Tutorial
 
         /// <summary>Después de la primera noche (D-N172): objetivo sin tarjetas de tutorial (el viaje con carga de la D-N154).</summary>
         public const string ObjetivoDevolverTren = "Lleva el tren a Nules con munición";
+
+        /// <summary>
+        /// Capítulo 4, apoyo aéreo desde Bétera (D-N173; adapta tutorial-refuerzos.md con el aeródromo como origen). Salta la primera vez que el jugador abre el
+        /// aeródromo, con las reglas de siempre (fácil y normal, una vez). Textos de Iker sobre los de Lucía: PENDIENTES DE SU REVISIÓN.
+        /// </summary>
+        public static Capitulo Cap4()
+        {
+            var p45 = T("4.5", "Ya viene. Mira el borde de la pantalla.", 5, Resaltes.FlechaBorde);
+            p45.Espera = Senales.NH90Llega;
+            return new Capitulo
+            {
+                Numero = 4, Titulo = "Apoyo aéreo desde Bétera",
+                Pasos = new[]
+                {
+                    T("4.1", "Esto es la base de Bétera. Aquí viven los helicópteros: dos NH90, y pelotones de fusileros para embarcar.", 5, Resaltes.TarjetasNH90),
+                    S("4.2", "Elige un NH90 y sube un pelotón.", R(Resaltes.TarjetasNH90, Resaltes.ConPeloton), Senales.NH90ConPeloton),
+                    S("4.3", "Mándalo a Sagunto. Fíjate en el ETA: es lo que tarda en llegar.", R(Resaltes.NodoSagunto, Resaltes.Eta, Resaltes.BotonEnviar), Senales.NH90Enviado),
+                    S("4.4", "Vuelve a Sagunto: doble clic en Sagunto o acerca la cámara.", R(Resaltes.NodoSagunto), Senales.VueltaZona),
+                    p45,
+                    S("4.6", "Pósalo en un claro de 20 × 20 m: tecla L.", R(Resaltes.TarjetasNH90), Senales.NH90Posado),
+                    S("4.7", "Baja la tropa: tecla U.", R(Resaltes.TarjetasNH90), Senales.NH90Descargado),
+                    T("4.8", "Cuando le quede poca munición, volverá solo a Bétera a rearmar. Tarda: tenlo en cuenta.", 6),
+                }
+            };
+        }
+        public const string ClaveCap4 = "tutorial4.visto";
+        public static TutorialMotor NuevoCap4(IMemoria mem) { return new TutorialMotor(new[] { Cap4() }, null, mem, ClaveCap4); }
 
         public static Suelta C90()
         {

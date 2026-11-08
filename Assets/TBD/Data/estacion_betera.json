@@ -1,0 +1,417 @@
+{
+ "id": "betera",
+ "nombre": "Bétera · Base «Jaime I»",
+ "tipo": "aerodromo",
+ "tamano": "estacion",
+ "funcion": "aereo",
+ "estado_inicial": "propia",
+ "nota": "Álvaro (3), 8-nov, v0.2: ajustada a la planta real de Paula (OSM y PNOA), a escala 1:1. X al este, Z al norte. Zona propuesta de 324 × 224 m (campo «zona»); si tiene que ser de 256 × 128, el encuadre de reserva es «zona_reserva» y lo demás va como faldón. Piezas «aerodromo/*» nuevas (Teo). Sin asedios en el MVP (asedios_mvp: false).",
+ "nodo": {
+  "lat": 39.6244,
+  "lon": -0.4725,
+  "mapa_xy": [
+   49,
+   75
+  ],
+  "fuente": "helis.com LEBT (ficha de Paula); mapa_xy ajustado por mínimos cuadrados con Sagunto, Nules, Valencia y Castellón (error ≤0,5)",
+  "destinos": {
+   "Sagunto": {
+    "km": 18.1,
+    "rumbo": 72,
+    "entra_por": "borde oeste, algo al sur (rumbo de llegada 252°)"
+   },
+   "Nules": {
+    "km": 37.4,
+    "rumbo": 47
+   }
+  },
+  "plantel": {
+   "NH90": 2,
+   "pelotones_embarque": 2,
+   "peloton_guarnicion": 1
+  },
+  "plantel_nota": "Lucía, 8-nov (D-N143: un pelotón por aparato y uno fijo); lo revisa Hugo"
+ },
+ "vias": [],
+ "andenes": [],
+ "recinto": [
+  [
+   -36,
+   -36
+  ],
+  [
+   276,
+   -36
+  ],
+  [
+   276,
+   124
+  ],
+  [
+   -36,
+   124
+  ]
+ ],
+ "valla": [
+  [
+   -80,
+   176
+  ],
+  [
+   305,
+   176
+  ],
+  [
+   305,
+   -44
+  ]
+ ],
+ "puertas": [
+  {
+   "tipo": "vehiculos",
+   "pos": [
+    31,
+    124
+   ]
+  },
+  {
+   "tipo": "vehiculos",
+   "pos": [
+    128,
+    124
+   ]
+  },
+  {
+   "tipo": "vehiculos",
+   "pos": [
+    226,
+    124
+   ]
+  },
+  {
+   "tipo": "vehiculos",
+   "pos": [
+    36,
+    -36
+   ]
+  },
+  {
+   "tipo": "vehiculos",
+   "pos": [
+    213,
+    -36
+   ]
+  }
+ ],
+ "piezas": [
+  {
+   "pieza": "helipuerto",
+   "pos": [
+    128,
+    0,
+    104
+   ],
+   "yaw": 0,
+   "variante": -1
+  },
+  {
+   "pieza": "rearme_set",
+   "pos": [
+    172,
+    0,
+    104
+   ],
+   "yaw": 90,
+   "variante": -1
+  },
+  {
+   "pieza": "aerodromo/hangar",
+   "pos": [
+    90,
+    0,
+    40
+   ],
+   "yaw": 0,
+   "variante": -1
+  },
+  {
+   "pieza": "aerodromo/hangar",
+   "pos": [
+    160,
+    0,
+    40
+   ],
+   "yaw": 0,
+   "variante": -1
+  },
+  {
+   "pieza": "aerodromo/torre_control",
+   "pos": [
+    224,
+    0,
+    4
+   ],
+   "yaw": 0,
+   "variante": -1
+  },
+  {
+   "pieza": "aerodromo/tanque_combustible",
+   "pos": [
+    249,
+    0,
+    -25
+   ],
+   "yaw": 90,
+   "variante": -1
+  },
+  {
+   "pieza": "aerodromo/tanque_combustible",
+   "pos": [
+    249,
+    0,
+    -18
+   ],
+   "yaw": 90,
+   "variante": -1
+  },
+  {
+   "pieza": "aerodromo/tanque_combustible",
+   "pos": [
+    249,
+    0,
+    -11
+   ],
+   "yaw": 90,
+   "variante": -1
+  },
+  {
+   "pieza": "aerodromo/polvorin",
+   "pos": [
+    -18,
+    0,
+    -26
+   ],
+   "yaw": 90,
+   "variante": -1
+  },
+  {
+   "pieza": "aerodromo/polvorin",
+   "pos": [
+    -18,
+    0,
+    -8
+   ],
+   "yaw": 90,
+   "variante": -1
+  }
+ ],
+ "pista": {
+  "rect": [
+   -37,
+   154,
+   238,
+   172
+  ],
+  "rumbos": "09/27",
+  "largo_m": 275,
+  "nota": "Largo y posición de OSM (y GlobalMilitary); ancho de 18 m SIN VERIFICAR."
+ },
+ "plataforma": [
+  -10,
+  24,
+  267,
+  123
+ ],
+ "claros": {
+  "P1": [
+   128,
+   104
+  ],
+  "P2": [
+   31,
+   104
+  ],
+  "P3": [
+   226,
+   104
+  ],
+  "C1": [
+   100,
+   163
+  ],
+  "C2": [
+   -20,
+   140
+  ],
+  "C3": [
+   128,
+   -14
+  ]
+ },
+ "carreteras": [
+  {
+   "id": "vial_oeste",
+   "nombre": "Vial a la zona de vida (oeste)",
+   "tramo": [
+    [
+     36,
+     24
+    ],
+    [
+     36,
+     -44
+    ]
+   ],
+   "habilitada": true
+  },
+  {
+   "id": "vial_este",
+   "nombre": "Vial a la zona de vida (este)",
+   "tramo": [
+    [
+     213,
+     24
+    ],
+    [
+     213,
+     -44
+    ]
+   ],
+   "habilitada": true
+  },
+  {
+   "id": "vial_transversal",
+   "nombre": "Vial transversal",
+   "tramo": [
+    [
+     36,
+     -30
+    ],
+    [
+     213,
+     -30
+    ]
+   ],
+   "habilitada": true
+  }
+ ],
+ "sitios": {
+  "plataforma": [
+   128,
+   74
+  ],
+  "polvorin": [
+   -18,
+   -17
+  ],
+  "puerta_sureste": [
+   213,
+   -36
+  ],
+  "pista": [
+   100,
+   163
+  ]
+ },
+ "sitio_cuartel": [
+  36,
+  -44
+ ],
+ "sitio_inteligencia": {
+  "tipo": "torre",
+  "pos": [
+   224,
+   4
+  ],
+  "yaw": 0
+ },
+ "paradas_asalto": [],
+ "orden_liberacion": [],
+ "entradas_horda": {
+  "Ba": {
+   "desde": "Valencia (sur, rumbo 154°), por la zona de vida",
+   "borde": [
+    [
+     0,
+     -44
+    ],
+    [
+     256,
+     -44
+    ]
+   ]
+  },
+  "Bb": {
+   "desde": "campo de maniobras (oeste)",
+   "borde": [
+    [
+     -40,
+     -36
+    ],
+    [
+     -40,
+     170
+    ]
+   ]
+  },
+  "Bc": {
+   "desde": "Bétera (este, carretera)",
+   "borde": [
+    [
+     284,
+     -36
+    ],
+    [
+     284,
+     40
+    ]
+   ]
+  }
+ },
+ "asedios_mvp": false,
+ "zona": [
+  -40,
+  -44,
+  284,
+  180
+ ],
+ "zona_reserva": [
+  0,
+  -4,
+  256,
+  124
+ ],
+ "rodaduras": [
+  [
+   [
+    31,
+    123
+   ],
+   [
+    31,
+    154
+   ]
+  ],
+  [
+   [
+    128,
+    123
+   ],
+   [
+    128,
+    154
+   ]
+  ],
+  [
+   [
+    226,
+    123
+   ],
+   [
+    226,
+    154
+   ]
+  ]
+ ],
+ "fuente_planta": "Paula, betera_planta.md: OSM (ODbL, vía 28352857) y PNOA del IGN (CC BY 4.0). Hangares SIN VERIFICAR."
+}
