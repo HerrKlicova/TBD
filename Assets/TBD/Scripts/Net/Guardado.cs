@@ -201,7 +201,7 @@ namespace TBD.Net
     {
         public const uint Magic = 0x53444254;           // «TBDS»
         public const ushort FormatVersion = 1;          // contenedor: cabecera, secciones y suma de comprobación
-        public const ushort NetVersion = 2;             // sección NET: el estado de NetWorld. 2 = producción de las estaciones (remanentes y pérdidas al final)
+        public const ushort NetVersion = 3;             // sección NET: el estado de NetWorld. 2 = producción de las estaciones (remanentes y pérdidas al final); 3 = pasajeros de los trenes (D-N166)
         public const ushort MinNetVersion = 1;          // la más antigua que sabe leer (con las migraciones registradas)
         public static readonly uint NetTag = SaveSection.Tag("NET\0");
 
@@ -212,6 +212,7 @@ namespace TBD.Net
         public static readonly Dictionary<int, Func<byte[], byte[]>> NetMigrations = new Dictionary<int, Func<byte[], byte[]>>
         {
             { 1, MigrateNet1To2 },
+            { 2, MigrateNet2To3 },
         };
 
         /// <summary>1 → 2: la producción (Produccion.cs) añade remanentes y pérdidas al final; en una partida vieja valen 0. El número de nodos sale de
@@ -222,6 +223,9 @@ namespace TBD.Net
             var w = new SaveWriter(); w.Raw(v1); ProductionState.WriteEmpty(w, nodes);
             return w.ToArray();
         }
+
+        /// <summary>2 → 3: los pasajeros de los trenes (Embarque.cs) van al final; una partida vieja no tiene ninguno.</summary>
+        static byte[] MigrateNet2To3(byte[] v2) { var w = new SaveWriter(); w.Raw(v2); EmbarqueState.WriteEmpty(w); return w.ToArray(); }
 
         /// <summary>Recorre la cabecera de la sección NET v1 (el orden de NetWorld.SaveState) hasta la atracción por nodo y devuelve su longitud.</summary>
         static int NodesOfV1(byte[] v1)

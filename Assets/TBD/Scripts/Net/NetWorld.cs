@@ -29,7 +29,7 @@ namespace TBD.Net
     }
 
     // ================================================================== órdenes
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21 }
 
     public struct NetCommand
     {
@@ -413,6 +413,7 @@ namespace TBD.Net
             if (Alerts != null) foreach (var a in Alerts) { w.Int(a.Id); w.Byte((byte)a.Kind); w.Int(a.Priority); w.Long(a.EtaTicks); w.Int(a.Subject); w.Str(a.Text); }
             Director.SaveState(w);
             Production.SaveState(w);                    // NetVersion 2
+            Embarque.SaveState(w);                      // NetVersion 3 (D-N166)
         }
 
         public void LoadState(SaveReader r)
@@ -451,6 +452,7 @@ namespace TBD.Net
             else { Alerts = new List<Alert>(n); for (int i = 0; i < n; i++) Alerts.Add(new Alert { Id = r.Int(), Kind = (AlertKind)r.Byte(), Priority = r.Int(), EtaTicks = r.Long(), Subject = r.Int(), Text = r.Str() }); }
             Director.LoadState(r);
             Production.LoadState(r);
+            Embarque.LoadState(r);
             Injections.Clear(); Retirements.Clear(); LostThisTick = 0; RetiredThisTick = 0;      // datos de QA del tick: empiezan limpios
         }
 
@@ -513,7 +515,9 @@ namespace TBD.Net
                     case NetCmdType.ConsumeAmmo: ConsumeAmmo(c.Arg, c.Arg2); break;
                     case NetCmdType.AssignWorkers: AssignWorkers(c.Arg, c.Arg2); break;                    // Arg = nodo, Arg2 = obreros
                     case NetCmdType.HaltAtSite: HaltAtSite(c.Arg, c.Arg2); break;                           // Arg = emplazamiento (-1 cancela), Arg2 = servicio
-                    case NetCmdType.SetSchedule: SetSchedule(c.Arg, c.Payload); break;       // Arg = tren, Payload = [nodo, hora de salida (ticks), 4 cargas] por parada
+                    case NetCmdType.SetSchedule: SetSchedule(c.Arg, c.Payload); break;
+                    case NetCmdType.TrainLoad: if (c.Payload != null && c.Payload.Length == 2) LoadPassenger(c.Arg, (PasajeroTipo)(c.Arg2 & 1), c.Payload[0], c.Payload[1]); break;   // D-N166: Arg = tren, Arg2 = tipo, Payload = [id, nodo]
+                    case NetCmdType.TrainUnload: UnloadPassengers(c.Arg, c.Arg2); break;                    // D-N166: Arg = tren, Arg2 = nodo       // Arg = tren, Payload = [nodo, hora de salida (ticks), 4 cargas] por parada
                     case NetCmdType.OrderTrain: OrderTrain((TallerKind)c.Arg); break;
                     case NetCmdType.CancelTrainOrder: CancelTrainOrder(c.Arg); break;
                     case NetCmdType.SetChispas: MoveChispas(c.Arg); break;       // Arg = 0 al taller, k > 0 al tren de índice k − 1
@@ -1267,6 +1271,7 @@ namespace TBD.Net
                     }
             foreach (var sv in Services) if (sv.WorksTrain) h += Mix(0x70B5UL ^ ((ulong)(uint)sv.Train.Id << 32));
             foreach (var sv in Services) if (sv.HaltAt >= 0) h += Mix(0x4A17UL ^ ((ulong)(uint)sv.Train.Id << 32) ^ (ulong)(uint)(sv.HaltAt + 1));
+            h += Embarque.Hash();                                                 // D-N166: 0 sin pasajeros (no mueve los goldens)
             r.Trains = h;
             h = 0;
             for (int n = 0; n < Graph.Nodes.Count; n++)
@@ -1340,6 +1345,7 @@ namespace TBD.Net
             w.Field.SeedStatic(42, 62, 300, 100);              // guarnición pegada a Barracas (700 ‰)
             w.Field.BlobStatic(61, 55, 5, 600);           // al norte de Castellón, tierra adentro (no en el mar)
             w.Field.BlobStatic(42, 44, 4, 500);                // paisaje: al este de Teruel, lejos de la vía
+            for (int i = 0; i < w.Graph.Nodes.Count; i++) if (w.Graph.Nodes[i].Name == "Sagunto") w.Embarque.HomeNode = i;     // D-N166: la tropa y los vehículos están en casa en Sagunto
             if (saguntoWalls) SagunteStart(w);     // D-N63: Sagunto empieza con 120 u de muro ya construidas
             if (saguntoWalls)                      // con las estructuras de partida: Castellón hereda su depósito de combustible (Hugo: 100 + 200 = 300 u)
             {
