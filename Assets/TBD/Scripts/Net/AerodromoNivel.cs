@@ -172,7 +172,7 @@ namespace TBD.Net
         public static readonly Sitio[] Sitios =
         {
             new Sitio { EsCamion = true, EnP1 = true, X = 152f, Z = 100f, Yaw = 180f, Variante = 0, VarianteRearme = 1 },
-            new Sitio { EsCamion = false, EnP1 = true, X = 152f, Z = 109f, Yaw = 180f, Variante = 0, VarianteRearme = 2 },
+            new Sitio { EsCamion = false, EnP1 = true, X = 152f, Z = 106.5f, Yaw = 180f, Variante = 0, VarianteRearme = 2 },
             new Sitio { EsCamion = true, X = 31f, Z = 84f, Yaw = 90f, Variante = 0, VarianteRearme = 0 },
             new Sitio { EsCamion = false, X = 226f, Z = 84f, Yaw = 90f, Variante = 3, VarianteRearme = 3 },
         };
