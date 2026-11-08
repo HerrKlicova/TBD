@@ -21,7 +21,8 @@ VARIANTE, ESTADO = VAR // 4, VAR % 4
 NOMBRES_V = ["TuboChapa", "ChapaOndulada", "Tablones", "MallaEspino", "Blindada"]
 NOMBRES_E = ["Sano", "Danado", "MuyDanado", "Brecha"]
 PIEZAS = PV.PIEZAS + ["boquete"]
-COLORES = dict(PV.COLORES, sacos="605c48", tablon="a86c50", malla="b8b8b8", boquete="48403c")
+COLORES = dict(PV.COLORES, sacos="605c48", tablon="a86c50", malla="b8b8b8", boquete="48403c",
+               placa="b8b8b8")   # placa: antes d4d0cc, que es el hueso reservado a la interfaz (Bruno, 8-nov 23:44)
 FACCION = "propio"
 PRESUPUESTO = {0: (60, 3000), 1: (30, 1500)}
 UMBRAL_CONTORNO = PV.UMBRAL_CONTORNO

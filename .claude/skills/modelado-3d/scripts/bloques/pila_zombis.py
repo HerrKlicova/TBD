@@ -180,3 +180,15 @@ def construir(nombre="SM_PilaZombi", lod=0):
                 t.caja((x, y, z + 0.12 - hund), (0.3, 0.18, 0.36), "objeto", rot_z=rz, rot_x=1.2)
     marcar(n)
     return t.objeto(nombre, bisel=0)
+
+
+_construir = construir
+
+
+def construir(nombre="SM_PilaZombi", lod=0):
+    """El origen va al pie de la cara de fuera del muro (x = 0, y = 0, z = 0), no al centro de la base: entregar.py
+    llevaba el origen al centro de la caja (con la rampa, unos 1,3–1,9 m hacia fuera) y la pila quedaba metida en el
+    muro (Teo, 9-nov, al encajarla delante de las puertas de la D-N151)."""
+    o = _construir(nombre, lod)
+    o["tbd_base_fija"] = [0.0, 0.0, 0.0]
+    return o
