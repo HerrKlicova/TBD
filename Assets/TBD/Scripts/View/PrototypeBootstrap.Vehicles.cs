@@ -21,7 +21,7 @@ namespace TBD.View
             public float Speed, Alt, Tilt, Rpm, SpinWheel, Steer, TurretYaw, GunElev; public Vector2 Target; public bool HasTarget; public Vector2 Home;
             public Transform[] WheelsFront, WheelsAll; public Quaternion[] WheelInit; public Transform Turret, Gun, RotorMain, RotorTail, Disc; public Quaternion TurretInit, GunInit, RotorMainInit, RotorTailInit;
             public float FireAt; public int FireTick; public float Ammo = 1f; public GameObject Shadow; public int State;                  // helicóptero: 0 en tierra, 1 despegando, 2 en vuelo, 3 aterrizando
-            public float StateT; public float SpinMainDeg, SpinTailDeg; public bool Fire = true; public int ResupT = -1; public float ResupU;
+            public float StateT; public float SpinMainDeg, SpinTailDeg; public VehicleNav Nav = new VehicleNav(); public bool Fire = true; public int ResupT = -1; public float ResupU;
         }
         readonly List<Veh> _vehs = new List<Veh>(); Veh _selVeh; readonly List<TargetHit> _vehHits = new List<TargetHit>(); readonly List<Vector2> _zomPos = new List<Vector2>(); readonly List<uint> _zomId = new List<uint>();
         readonly Dictionary<string, Material> _vehMats = new Dictionary<string, Material>();
@@ -113,11 +113,32 @@ namespace TBD.View
             }
             return s;
         }
+        // ---- A* de vehiculos (Nacho: NavGrid y VehicleNav en Units/Vehiculos.cs). Obstaculos: muros del recinto (E4 abierta), edificio, tren y obras (sacos).
+        NavGrid _nav; readonly List<RectMm> _navObs = new List<RectMm>(), _navDyn = new List<RectMm>(); bool _navBuilt; float _navT;
+        static int Mm(float m) { return (int)(m * 1000f); }
+        void BuildNavIfNeeded()
+        {
+            if (_ng == null) return; if (_navBuilt && Time.unscaledTime - _navT < 5f) return;
+            _navBuilt = true; _navT = Time.unscaledTime;
+            _navObs.Clear(); NavGrid.FortWalls(_navObs, 70000, 44000, 156000, 85000, 95000, 103000);
+            _navObs.Add(_ng.P.StationRect); _navObs.Add(_ng.P.TrainRect);
+            var pieces = NetSession.A != null && _zoneNode >= 0 ? NetSession.A.Works.At(_zoneNode) : null;                // sacos y obras construidas
+            if (pieces != null) foreach (var w in pieces) if (w.IsWall && w.Built) { int x0 = Mathf.Min(w.X0, w.X1) + Mm(WorkOrigin.x), x1 = Mathf.Max(w.X0, w.X1) + Mm(WorkOrigin.x), y0 = Mathf.Min(w.Y0, w.Y1) + Mm(WorkOrigin.y), y1 = Mathf.Max(w.Y0, w.Y1) + Mm(WorkOrigin.y); _navObs.Add(new RectMm(x0 - 500, y0 - 500, x1 + 500, y1 + 500)); }
+            if (_nav == null) _nav = new NavGrid(0, 0, 510000, 480000, 1000);
+            _nav.Build(_navObs, 2000);
+            if (_uw != null) { _uw.Obstacles.Clear(); _uw.Obstacles.AddRange(_navObs); }                                  // la infanteria tambien rodea (D-N139)
+        }
+        IList<RectMm> OthersOf(Veh me)
+        {
+            _navDyn.Clear(); foreach (var o in _vehs) { if (o == me || o.Go == null || o.Heli) continue; _navDyn.Add(new RectMm(Mm(o.Pos.x) - 2000, Mm(o.Pos.y) - 2000, Mm(o.Pos.x) + 2000, Mm(o.Pos.y) + 2000)); }
+            return _navDyn;
+        }
         struct NativeSnapshot { public int N; }
 
         void GroundStep(Veh v, float dt)
         {
             float maxSpeed = 9f, accel = 4f, wheelbase = 4.5f, maxSteer = 35f;
+            if (v.HasTarget && _nav != null && v.Nav.HasGoal) { if (v.Nav.Steer(_nav, Mm(v.Pos.x), Mm(v.Pos.y), out int ax, out int ay, OthersOf(v))) { v.Target = new Vector2(ax / 1000f, ay / 1000f); } else v.HasTarget = false; }
             float desired = 0f, steerCmd = 0f;
             if (v.HasTarget)
             {
@@ -130,7 +151,7 @@ namespace TBD.View
             v.Steer = Mathf.MoveTowards(v.Steer, steerCmd * maxSteer, 120f * dt);
             v.Heading += v.Speed / wheelbase * Mathf.Tan(v.Steer * Mathf.Deg2Rad) * Mathf.Rad2Deg * dt;
             float hr = v.Heading * Mathf.Deg2Rad; var np = v.Pos + new Vector2(Mathf.Sin(hr), Mathf.Cos(hr)) * v.Speed * dt;
-            if (WallBlocks(v.Pos, np)) { if (v.Speed > 1f) Debug.Log($"[NOCHE] choque {v.Name} contra el muro en ({v.Pos.x:0.0};{v.Pos.y:0.0})"); v.Speed = 0f; v.HasTarget = false; np = v.Pos; }
+            if (WallBlocks(v.Pos, np)) { if (v.Speed > 1f) Debug.Log($"[NOCHE] choque {v.Name} contra el muro en ({v.Pos.x:0.0};{v.Pos.y:0.0})"); v.Speed = 0f; if (v.Nav == null || !v.Nav.HasGoal) v.HasTarget = false; np = v.Pos; }
             v.Pos = np;
             v.Pos.x = Mathf.Clamp(v.Pos.x, 5f, 505f); v.Pos.y = Mathf.Clamp(v.Pos.y, 5f, 475f);
             v.SpinWheel += v.Speed / 0.55f * Mathf.Rad2Deg * dt;
@@ -188,9 +209,8 @@ namespace TBD.View
             int kills = dragon ? 3 : 1; var tp = _zomPos[best];
             for (int i = 0; i < _zomPos.Count && kills > 0; i++) if ((_zomPos[i] - tp).sqrMagnitude < (dragon ? 9f : 1.2f)) { _vehHits.Add(new TargetHit { TargetId = (int)_zomId[i], Damage = 100, Platoon = -1 }); kills--; }
             if (_trMat == null) { _trMat = new Material(Shader.Find("Universal Render Pipeline/Unlit")); _trMat.SetColor("_BaseColor", new Color32(0xf0, 0xdc, 0x9c, 255)); }
-            SpawnTracer(new Vector3(v.Pos.x, v.Alt + (v.Heli ? 1.5f : 2.2f), v.Pos.y), new Vector3(tp.x, 0.8f, tp.y), dragon ? 150f : 200f, dragon ? 0.14f : 0.07f, dragon ? 7f : 5f);
-            SpawnFlash(new Vector3(v.Pos.x, v.Alt + (v.Heli ? 1.5f : 2.2f), v.Pos.y), dragon ? 1.1f : 0.5f);
-            Sfx.PlayDistAt(dragon ? "canon_30" : "ametralladora", new Vector3(v.Pos.x, v.Alt + 2f, v.Pos.y), 1f, dragon ? 0.5f : 0.25f); if (dragon) { Sfx.PlayAt("impacto_30mm", new Vector3(tp.x, 0.5f, tp.y), 0.7f, 0.5f); Sfx.PlayAt("cola_urbana", new Vector3(v.Pos.x, v.Alt + 2f, v.Pos.y), 0.4f, 0.5f); }
+            VfxVehicleShot(v, new Vector3(tp.x, 0.8f, tp.y));                          // trazadora, fogonazo, humo y casquillos desde la boca del arma (Bruno)
+            Sfx.PlayDistAt(dragon ? "canon_30" : "ametralladora", new Vector3(v.Pos.x, v.Alt + 2f, v.Pos.y), 1f, dragon ? 0.5f : 0.25f); if (dragon) { Sfx.PlayAt("cola_urbana", new Vector3(v.Pos.x, v.Alt + 2f, v.Pos.y), 0.4f, 0.5f); }
         }
 
         // ---------------------------------------------------------------- atropello
@@ -251,7 +271,12 @@ namespace TBD.View
                 if (v.State == 0) { v.State = 1; v.StateT = 0f; }
                 v.Target = tgt; v.HasTarget = true; if (v.State == 3) v.State = 2;
             }
-            else { v.Target = tgt; v.HasTarget = true; }
+            else
+            {
+                BuildNavIfNeeded();
+                v.Target = tgt; v.HasTarget = true;
+                if (_nav != null) { v.Nav.SetGoal(_nav, Mm(v.Pos.x), Mm(v.Pos.y), Mm(tgt.x), Mm(tgt.y), OthersOf(v)); v.HasTarget = v.Nav.HasGoal; }      // A* por la rejilla (Nacho): rodea el muro, entra y sale por E4
+            }
             Sfx.Play("ui_orden", Vector3.zero, 0.6f, 0.05f);
         }
     }

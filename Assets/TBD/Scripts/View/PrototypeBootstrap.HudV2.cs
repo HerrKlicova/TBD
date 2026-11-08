@@ -58,6 +58,7 @@ namespace TBD.View
                     float am = p.AmmoCap > 0 ? p.AmmoShots / (float)p.AmmoCap : 0f; int alive = p.AliveCount();
                     V2Txt("Munición", ox + (x + 8) * k, (y + 60) * k, 80 * k, 11, FontStyle.Normal, V2Sec, TextAnchor.UpperLeft, k); V2Txt(Mathf.RoundToInt(am * 100f) + " %", ox + (x + 8) * k, (y + 60) * k, 136 * k, 11, FontStyle.Normal, V2Hueso, TextAnchor.UpperRight, k);
                     V2Rect(R(x + 8, y + 76, 136, 5), V2Hueco); V2Rect(R(x + 8, y + 76, 136 * Mathf.Clamp01(am), 5), am < 0.25f ? V2Ambar : V2Mun);
+                    if (p.Kind == PlatoonKind.Fusileros) V2Txt("C90 x" + p.C90Left + "  (C)", ox + (x + 8) * k, (y + 88) * k, 136 * k, 11, FontStyle.Normal, p.C90Left > 0 ? V2Hueso : V2Sec, TextAnchor.UpperLeft, k);
                     string st = alive == 0 ? "Sin efectivos" : am <= 0.01f ? "Sin munición" : p.Moving ? "En marcha" : p.Deploy ? "Emplazado" : "En posición"; Color sc = (am <= 0.01f && alive > 0) ? V2Ambar : V2Hueso;
                     V2Txt(st, ox + (x + 8) * k, (y + 104) * k, 136 * k, 13, FontStyle.Bold, sc, TextAnchor.UpperLeft, k);
                 }

@@ -173,6 +173,8 @@ namespace TBD.Units
             long dx = x < r.X0 ? r.X0 - x : x > r.X1 ? x - r.X1 : 0, dy = y < r.Y0 ? r.Y0 - y : y > r.Y1 ? y - r.Y1 : 0;
             return dx * dx + dy * dy;
         }
+        /// <summary>¿Está (x, y) pegado al tren (la misma regla que CountAttackers)?</summary>
+        public bool TouchesTrain(int x, int y) { return Dist2(x, y, P.TrainRect) <= (long)P.AttackReachMm * P.AttackReachMm; }
         public bool StationAlive { get { return StationHp > 0; } }
         public bool TrainAlive { get { return TrainHp > 0; } }
         /// <summary>Reparación (la pagará la economía): suma sin pasar del máximo. Un edificio o un tren a 0 no se reparan: la partida ya acabó.</summary>
