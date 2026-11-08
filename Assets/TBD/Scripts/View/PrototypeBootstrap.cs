@@ -197,6 +197,7 @@ namespace TBD.View
             _groupA = SimWorldSetup.CreateSystems(_worldA);
             var kind = _cutting ? ZoneKind.Cutting : ZoneKind.Station;
             float trainX = NightRun.Active && _netZone && !_cutting ? Level.TrainNightX : float.NaN;   // QA-35 (Nacho): de noche el tren espera en el centro del recinto, a 11 m de los muros oeste y este
+            _dbgSeed = seed;
             _rootA = SimWorldSetup.Populate(_worldA.EntityManager, zombies, siege, seed, _combat, shots, hasTrain, kind, !_netZone, trainX);
             sw.Stop();
             LastMaterializeMs = sw.Elapsed.TotalMilliseconds;
@@ -438,10 +439,12 @@ namespace TBD.View
         // QA (Sara): -turbo N multiplica el tiempo de la simulacion (solo para corridas por lotes); -hashlog <ruta> escribe una linea por tick: tick;SimHash;NightGame;UnitsWorld
         static readonly int TurboN = TurboArg();
         static int TurboArg() { var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-turbo"); int n; return i >= 0 && i + 1 < a.Length && int.TryParse(a[i + 1], out n) && n >= 1 && n <= 64 && System.Array.IndexOf(a, "-batchmode") >= 0 ? n : 1; }
-        System.IO.StreamWriter _hashLog; bool _hashLogInit;
+        System.IO.StreamWriter _hashLog; bool _hashLogInit; uint _dbgSeed;
+        void HashLogCmd(string s) { HashLogEnsure(); if (_hashLog != null) _hashLog.WriteLine("#CMD;" + s); }
+        void HashLogEnsure() { if (_hashLogInit) return; _hashLogInit = true; var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-hashlog"); if (i >= 0 && i + 1 < a.Length) { try { _hashLog = new System.IO.StreamWriter(a[i + 1], false); _hashLog.WriteLine("#SEED;" + _dbgSeed + ";nodo;" + _zoneNode + ";desde_tick_red;" + (NetSession.A != null ? NetSession.A.ActiveZoneSinceTick : -1)); } catch (System.Exception e) { Debug.LogWarning("[TBD] -hashlog: " + e.Message); } } }
         void HashLogLine()
         {
-            if (!_hashLogInit) { _hashLogInit = true; var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-hashlog"); if (i >= 0 && i + 1 < a.Length) { try { _hashLog = new System.IO.StreamWriter(a[i + 1], false); } catch (System.Exception e) { Debug.LogWarning("[TBD] -hashlog: " + e.Message); } } }
+            HashLogEnsure();
             if (_hashLog == null) return;
             var h = _worldA.EntityManager.GetComponentData<SimHash>(_rootA);
             _hashLog.WriteLine(h.Tick + ";" + h.Value.ToString("X16") + ";" + (_ng != null ? _ng.Hash().ToString("X16") : "0") + ";" + (_uw != null ? _uw.Hash().ToString("X16") : "0")); if ((h.Tick & 255) == 0) _hashLog.Flush();
@@ -479,7 +482,7 @@ namespace TBD.View
 
         void Push(CmdType type, int arg = 0, Unity.Mathematics.float2 p0 = default, Unity.Mathematics.float2 p1 = default)
         {
-            _cmdLog.Add($"tick {_worldA.EntityManager.GetComponentData<SimClock>(_rootA).Tick} {type} arg={arg}");
+            _cmdLog.Add($"tick {_worldA.EntityManager.GetComponentData<SimClock>(_rootA).Tick} {type} arg={arg}"); HashLogCmd(_worldA.EntityManager.GetComponentData<SimClock>(_rootA).Tick + ";" + type + ";" + arg);
             if (_cmdLog.Count > 40) _cmdLog.RemoveAt(0);
             PushTo(_worldA.EntityManager, _rootA, type, arg, p0, p1);
             PushTo(_worldB.EntityManager, _rootB, type, arg, p0, p1);
