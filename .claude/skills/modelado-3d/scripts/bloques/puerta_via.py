@@ -34,6 +34,8 @@ PARTES = ["puerta", "Hoja_O", "Hoja_E"]
 PIV = {"Hoja_O": (-BISAGRA, 0.0, 0.0), "Hoja_E": (BISAGRA, 0.0, 0.0)}
 GIRO_PRUEBA = {"Hoja_O": ("Z", 60), "Hoja_E": ("Z", -60)}      # entreabiertas hacia dentro
 JAMBA = BISAGRA + 0.46
+CATENARIAS = (0.0,)                        # x de los hilos de contacto bajo el dintel (la doble de Nules tiene dos)
+ESCOMBRO_X0 = 1.2                          # los trozos de las hojas caen fuera de la vía (|x| > 0,9)
 
 
 def construir(nombre="SM_PuertaVia", lod=0):
@@ -50,11 +52,12 @@ def construir(nombre="SM_PuertaVia", lod=0):
         # Anclaje de la catenaria bajo el dintel (Paula, FOM/1630/2015: hilo de contacto CA-160 a 5,30 m, zona libre del
         # pantógrafo 5,63 m; el sustentador, a ~6,7 m, no cabe y se ancla aquí, como bajo la losa de RC3). Soporte
         # colgado hasta 5,75 m con travesaño y dos aisladores; el hilo del nivel pasa por debajo, a 5,30 m.
-        m.caja((0, 0, 5.9), (0.16 if fino else 0.34, 0.16 if fino else 0.34, 0.25), "marco")
-        m.caja((0, 0, 5.75), (1.2, 0.12 if fino else 0.34, 0.1 if fino else 0.17), "marco")
-        if fino:
-            for x in (-0.45, 0.45):
-                m.cilindro((x, 0, 5.62), 0.06, 0.18, "Z", 8, "placa")
+        for xc in CATENARIAS:
+            m.caja((xc, 0, 5.9), (0.16 if fino else 0.34, 0.16 if fino else 0.34, 0.25), "marco")
+            m.caja((xc, 0, 5.75), (1.2, 0.12 if fino else 0.34, 0.1 if fino else 0.17), "marco")
+            if fino:
+                for x in (-0.45, 0.45):
+                    m.cilindro((xc + x, 0, 5.62), 0.06, 0.18, "Z", 8, "placa")
     if a == 3 and fino:
         for s in (-1, 1):
             m.cilindro((s * JAMBA, 0, 2.3), 0.25, 0.9, "X", 8, "alambre")
@@ -62,12 +65,12 @@ def construir(nombre="SM_PuertaVia", lod=0):
     if ESTADO == 3:                         # trozos de las hojas, hacia dentro (+Y) y fuera de la vía (|x| > 0,9)
         for k in range(5 if fino else 3):
             s = -1 if k % 2 else 1
-            m.caja((s * (1.2 + 0.4 * k / 2), 0.6 + 0.3 * (k % 3), 0.04 + 0.03 * (k % 2)), (0.9, 0.45, 0.06),
+            m.caja((s * (ESCOMBRO_X0 + 0.4 * k / 2), 0.6 + 0.3 * (k % 3), 0.04 + 0.03 * (k % 2)), (0.9, 0.45, 0.06),
                    mat if k % 3 else "marco", rot_z=k * 0.8)
-        m.caja((-1.6, 1.1, 0.03), (0.9, 0.7, 0.05), "boquete", rot_z=0.3)
+        m.caja((-(ESCOMBRO_X0 + 0.4), 1.1, 0.03), (0.9, 0.7, 0.05), "boquete", rot_z=0.3)
     elif ESTADO == 2:
         for k in range(2):
-            m.caja((-1.8 + 0.5 * k, 0.7, 0.04), (0.7, 0.4, 0.06), mat, rot_z=k * 1.1)
+            m.caja((-(ESCOMBRO_X0 + 0.6) + 0.5 * k, 0.7, 0.04), (0.7, 0.4, 0.06), mat, rot_z=k * 1.1)
     for nombre_p, s in (("Hoja_O", -1), ("Hoja_E", 1)):
         m.parte(nombre_p)
         if ESTADO == 3:

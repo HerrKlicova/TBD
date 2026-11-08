@@ -28,6 +28,7 @@ UMBRAL_CONTORNO = PV.UMBRAL_CONTORNO
 NORMALES_ARRIBA = True
 NORMALES_INCLINACION = 0.5
 BISAGRA, ALTO = PV.BISAGRA, PV.ALTO
+ROTO_FASE = 0.0                      # fase del borde roto de la hoja (la puerta doble la mueve para no pisar tablones)
 PARTES = PV.PARTES
 PIV = PV.PIV
 GIRO_PRUEBA = PV.GIRO_PRUEBA
@@ -46,7 +47,7 @@ def _hoja_danada(m, s, a, fino):
         m.caja((s * 2.2, -0.12, 1.0), (0.55, 0.04, 0.5), "boquete")
     if ESTADO == 2 and s < 0:            # queda la mitad de abajo, con el borde de arriba roto
         for w in vs:
-            w.co.z = min(w.co.z, 0.8 + 0.12 * math.sin(w.co.x * 3.1))   # ≥ 0,68: por encima del nervio bajo de la blindada
+            w.co.z = min(w.co.z, 0.8 + 0.12 * math.sin(w.co.x * 3.1 + ROTO_FASE))   # ≥ 0,68: por encima del nervio bajo de la blindada
     if ESTADO == 2 and s > 0:            # cuelga de la bisagra de arriba, en diagonal hasta el suelo
         for w in vs:
             w.co.z = max(w.co.z, 0.0)
