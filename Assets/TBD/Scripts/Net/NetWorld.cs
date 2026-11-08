@@ -428,7 +428,7 @@ namespace TBD.Net
             Embarque.SaveState(w);                      // NetVersion 3 (D-N166)
             w.Ints(FoodRemMil); w.Ints(StarveRemMil); w.Long(StarvedTotal);   // NetVersion 4 (D-N176)
             var gf = LastGateFight; w.Int(GateFights); w.Ints(new[] { gf.Service, gf.Node, gf.Horde, gf.Attackers, gf.Soldiers, gf.Killed, gf.Contact, gf.HpLost, gf.EscortLostMil, gf.AmmoU, gf.Destroyed ? 1 : 0 }); w.Long(gf.Tick);   // D-N177
-            var lost = new int[NodeLost.Length]; for (int q = 0; q < lost.Length; q++) lost[q] = NodeLost[q] ? 1 : 0; w.Ints(lost);    // NetVersion 5: hordas de zona
+            var lost = new int[NodeLost.Length]; for (int q = 0; q < lost.Length; q++) lost[q] = NodeLost[q] ? 1 : 0; w.Ints(lost); w.Ints(GarrisonMil); w.Ints(ZoneWallE4);    // NetVersion 5: hordas de zona
             var zs = LastZoneSiege; w.Ints(new[] { zs.Node, zs.Lost ? 1 : 0, zs.OnScreen ? 1 : 0 }); w.Long(zs.Zombies); w.Long(zs.Killed); w.Long(zs.SpentU); w.Long(zs.DamageU); w.Long(zs.Casualties); w.Long(zs.Tick);
         }
 
@@ -474,6 +474,10 @@ namespace TBD.Net
             LastGateFight = new GateFight { Service = gv[0], Node = gv[1], Horde = gv[2], Attackers = gv[3], Soldiers = gv[4], Killed = gv[5], Contact = gv[6], HpLost = gv[7], EscortLostMil = gv[8], AmmoU = gv[9], Destroyed = gv[10] != 0, Tick = r.Long() };
             var lv = r.Ints(); if (lv == null || (lv.Length != 0 && lv.Length != NodeLost.Length)) throw new SaveException(SaveError.TopologyMismatch, "nodos perdidos");
             for (int q = 0; q < NodeLost.Length; q++) NodeLost[q] = lv.Length != 0 && lv[q] != 0;
+            var gv5 = r.Ints(); if (gv5 == null || (gv5.Length != 0 && gv5.Length != GarrisonMil.Length)) throw new SaveException(SaveError.TopologyMismatch, "guarniciones");
+            for (int q = 0; q < GarrisonMil.Length; q++) GarrisonMil[q] = gv5.Length != 0 ? gv5[q] : 0;
+            var wv5 = r.Ints(); if (wv5 == null || (wv5.Length != 0 && wv5.Length != ZoneWallE4.Length)) throw new SaveException(SaveError.TopologyMismatch, "recintos abstractos");
+            for (int q = 0; q < ZoneWallE4.Length; q++) ZoneWallE4[q] = wv5.Length != 0 ? wv5[q] : 0;
             var zv = r.Ints(); if (zv == null || zv.Length != 3) throw new SaveException(SaveError.Corrupt, "horda de zona no válida");
             LastZoneSiege = new ZoneSiegeResult { Node = zv[0], Lost = zv[1] != 0, OnScreen = zv[2] != 0, Zombies = r.Long(), Killed = r.Long(), SpentU = r.Long(), DamageU = r.Long(), Casualties = r.Long(), Tick = r.Long() };
             Injections.Clear(); Retirements.Clear(); LostThisTick = 0; RetiredThisTick = 0;      // datos de QA del tick: empiezan limpios
@@ -491,7 +495,7 @@ namespace TBD.Net
             Attraction = new int[g.Nodes.Count];
             BaseAttraction = new int[g.Nodes.Count];
             Stock = new int[g.Nodes.Count, NetConst.ResCount];
-            FoodRemMil = new int[g.Nodes.Count]; StarveRemMil = new int[g.Nodes.Count]; NodeLost = new bool[g.Nodes.Count];
+            FoodRemMil = new int[g.Nodes.Count]; StarveRemMil = new int[g.Nodes.Count]; NodeLost = new bool[g.Nodes.Count]; GarrisonMil = new int[g.Nodes.Count]; ZoneWallE4 = new int[g.Nodes.Count];
             Works = new ObrasState(g.Nodes.Count, BalanceSource.Obras());
             Stations = new StationState(g, BalanceSource.Stations());
             Taller = new TallerState(g, BalanceSource.Taller());
@@ -1343,32 +1347,56 @@ namespace TBD.Net
         // ---------------------------------------------------------------- horda de zona, fuera de pantalla (Lucía, 8-nov 23:20; regla abstracta S0 de Hugo)
         /// <summary>Nodos perdidos: la horda de zona tomó la estación (persistente; el campo no lo deshace). Guardado v5.</summary>
         public bool[] NodeLost = new bool[0];
-        /// <summary>PROVISIONAL (cifra de Nacho, para que Hugo la sustituya): la estación cae si al amanecer sigue en pie más de este ‰ de la horda (sin munición para pararla).</summary>
-        public int ZoneFallPermil = 250;
+        /// <summary>Guarnición abstracta de cada nodo, en milésimas de persona (Hugo: Nules 12). No es población (no trabaja ni come); la pone el escenario. Guardado v5.</summary>
+        public int[] GarrisonMil = new int[0];
+        /// <summary>Recinto abstracto, en 1/10.000 de u, para un nodo sin piezas de obra (Nules en Inicio: 124,3 u). Si el nodo tiene piezas, mandan ellas. Guardado v5.</summary>
+        public int[] ZoneWallE4 = new int[0];
+        /// <summary>Regla del modelo económico (Hugo, sim_economia.py 549-561), la misma con la que está medida la economía.</summary>
+        public int ZoneZombiesPerU = 400, ZoneWallBonusMil = 200, ZoneWallStepU = 30, ZoneWallMaxSteps = 5, ZoneWallLossMilPerZombie = 10, ZoneGarrisonLossMilPerZombie = 4, ZoneNoWallMult = 3, ZoneFallAlivePermil = 500;
         public struct ZoneSiegeResult { public int Node; public long Zombies, Killed, SpentU, DamageU, Casualties; public bool Lost, OnScreen; public long Tick; }
         public ZoneSiegeResult LastZoneSiege;
 
-        /// <summary>Resuelve la noche de una horda de zona. En pantalla manda NightSim y aquí no se toca nada. Fuera: BalanceMath.Combat con la munición del nodo y el nivel del recinto
-        /// (gasta munición; los que quedan en pie dañan el muro y causan bajas); si queda en pie más de ZoneFallPermil, la estación se pierde (NodeLost) y se va la gente.</summary>
+        /// <summary>u de muro construido del nodo (piezas de muro y puertas, por lo pagado).</summary>
+        public long WallU(int node) { long e4 = 0; foreach (var p in Works.Snapshot(node)) if (p.Built && (p.IsWall || p.IsGate)) e4 += (long)p.CostE4 * p.LifeMil / 1000; if (e4 == 0 && node >= 0 && node < ZoneWallE4.Length) e4 = ZoneWallE4[node]; return e4 / 10_000; }
+
+        /// <summary>Resuelve la noche de una horda de zona (Hugo, sim_economia.py 549-561). En pantalla manda NightSim y aquí no se toca nada. Fuera:
+        /// eficacia = 400 × (1 + 0,2 × min(5, muro/30)) zombis por u; vivos = horda − munición × eficacia. Por cada vivo, el muro pierde 0,010 u y la guarnición 0,004 personas
+        /// (×3 si el muro ha llegado a 0). Cae si la guarnición baja de la mitad de la inicial, o si el muro llega a 0 con más del 50 % de la horda en pie: se pierden la gente, el muro
+        /// y todas las existencias (NodeLost).</summary>
         public void ResolveZoneSiege(int node, long zombies)
         {
             if (node < 0 || node >= Graph.Nodes.Count || zombies <= 0) return;
             var res = new ZoneSiegeResult { Node = node, Zombies = zombies, Tick = Tick, OnScreen = node == ActiveZoneNode };
             if (res.OnScreen) { LastZoneSiege = res; return; }
-            int lvl = Works.LevelMil(node); var pieces = Works.Snapshot(node); long wallE4 = 0;
-            foreach (var p in pieces) if (p.Built && (p.IsWall || p.IsGate)) wallE4 += p.CostE4;
-            var r = BalanceMath.Combat(zombies, Math.Max(0, Stock[node, (int)Res.Municion]) * 1000L, lvl, wallE4 > 0);
-            res.Killed = zombies - r.Alive; res.SpentU = Math.Min(Stock[node, (int)Res.Municion], (r.SpentMil + 999) / 1000); Stock[node, (int)Res.Municion] -= (int)res.SpentU;
-            res.DamageU = r.FortDamageMil / 1000;
-            if (wallE4 > 0 && r.FortDamageMil > 0)
+            var pieces = Works.Snapshot(node); long wallE4 = 0;
+            foreach (var p in pieces) if (p.Built && (p.IsWall || p.IsGate)) wallE4 += (long)p.CostE4 * p.LifeMil / 1000;
+            bool abstractWall = wallE4 == 0; if (abstractWall) wallE4 = ZoneWallE4[node];
+            long stepsMil = Math.Min((long)ZoneWallMaxSteps * 1000, wallE4 * 1000 / ((long)ZoneWallStepU * 10_000));
+            long eff = (long)ZoneZombiesPerU * (1000 + ZoneWallBonusMil * stepsMil / 1000) / 1000;        // Nules, 124,3 u: 731 zombis por u
+            long ammo = Math.Max(0, Stock[node, (int)Res.Municion]);
+            long alive = Math.Max(0, zombies - ammo * eff);
+            res.Killed = zombies - alive;
+            res.SpentU = Math.Min(ammo, (res.Killed + eff - 1) / eff); Stock[node, (int)Res.Municion] -= (int)res.SpentU;      // en u enteras, por arriba (Hugo: 3,3 u con 20)
+            long lossE4 = alive * ZoneWallLossMilPerZombie * 10;                                            // 0,010 u por vivo
+            res.DamageU = Math.Min(wallE4, lossE4) / 10_000;
+            bool wallGone = wallE4 <= 0 || lossE4 >= wallE4;
+            if (abstractWall) ZoneWallE4[node] = (int)Math.Max(0, wallE4 - lossE4);
+            else if (wallE4 > 0 && lossE4 > 0)
             {
-                int lifeMil = (int)Math.Min(1000, r.FortDamageMil * 10 * 1000 / wallE4);     // el mismo ‰ de vida a cada pieza del recinto (CostE4 en 1/10.000 de u)
+                int lifeMil = (int)Math.Min(1000, (lossE4 * 1000 + wallE4 - 1) / wallE4);
                 for (int i = pieces.Count - 1; i >= 0; i--) if (pieces[i].Built && (pieces[i].IsWall || pieces[i].IsGate)) Works.Damage(node, i, lifeMil);
             }
-            int pop = Math.Max(0, Stock[node, (int)Res.Personas]);
-            res.Casualties = Math.Min(pop, r.CasualtiesMil / 1000); Stock[node, (int)Res.Personas] = pop - (int)res.Casualties;
-            res.Lost = r.Alive * 1000 > zombies * ZoneFallPermil;
-            if (res.Lost) { NodeLost[node] = true; res.Casualties += Stock[node, (int)Res.Personas]; Stock[node, (int)Res.Personas] = 0; }
+            int g0 = GarrisonMil[node];
+            long gl = alive * ZoneGarrisonLossMilPerZombie * (wallGone ? ZoneNoWallMult : 1);
+            GarrisonMil[node] = (int)Math.Max(0, g0 - gl);
+            res.Casualties = (g0 - GarrisonMil[node]) / 1000;
+            res.Lost = (g0 > 0 && GarrisonMil[node] * 2 < g0) || (g0 <= 0 && alive > 0) || (wallGone && alive * 1000 > zombies * ZoneFallAlivePermil);
+            if (res.Lost)
+            {
+                NodeLost[node] = true; res.Casualties = g0 / 1000 + Math.Max(0, Stock[node, (int)Res.Personas]); GarrisonMil[node] = 0;
+                for (int r = 0; r < NetConst.ResCount; r++) Stock[node, r] = 0;
+                ZoneWallE4[node] = 0; var left = Works.Snapshot(node); for (int i = left.Count - 1; i >= 0; i--) if (left[i].Built && (left[i].IsWall || left[i].IsGate)) Works.Damage(node, i, 1000);
+            }
             LastZoneSiege = res;
             Intel.Add(new IntelEntry { Tick = Tick, Id = res.Lost ? "ZS-2" : "ZS-1", Vars = new[] { "nodo", Graph.Nodes[node].Name, "n", zombies.ToString(), "abatidos", res.Killed.ToString(), "u", res.SpentU.ToString(), "bajas", res.Casualties.ToString() } });
         }
@@ -1600,6 +1628,8 @@ namespace TBD.Net
                 if (FoodRemMil[n] != 0) h += Mix(0xD176UL ^ ((ulong)(uint)n << 40) ^ (ulong)(uint)FoodRemMil[n]);
                 if (StarveRemMil[n] != 0) h += Mix(0x5D176UL ^ ((ulong)(uint)n << 40) ^ (ulong)(uint)StarveRemMil[n]);
                 if (NodeLost[n]) h += Mix(0x205EUL ^ ((ulong)(uint)n << 40));
+                if (ZoneWallE4[n] != 0) h += Mix(0x2A11UL ^ ((ulong)(uint)n << 40) ^ (ulong)(uint)ZoneWallE4[n]);
+                if (GarrisonMil[n] != 0) h += Mix(0x6A225UL ^ ((ulong)(uint)n << 40) ^ (ulong)(uint)GarrisonMil[n]);
             }
             h += Works.Hash();
             h += Stations.Hash();
@@ -1768,7 +1798,7 @@ namespace TBD.Net
             w.Stations.P.Sites = new[] { "Castellón" };
             w.Stations.Founded[Id("Nules")] = true;
             w.Director.SinAsedioNodo = Id("Nules"); w.Director.SinAsedioHasta = NetConst.DayTicks + NetConst.Hours(8);     // D-N156: Nules sin asedio la 1.ª noche (hasta las 08:00 del día siguiente)
-            w.Director.ZoneHordes.Add(new HiveDirector.ZoneHorde { Node = Id("Nules"), FromDay = 1, Zombies = 2400 });   // Lucía (8-nov 23:20): horda propia de Nules desde la 2.ª noche, 2400 (Hugo, PROVISIONAL hasta medirla); Castellón, sin noche en el MVP
+            w.Director.ZoneHordes.Add(new HiveDirector.ZoneHorde { Node = Id("Nules"), FromDay = 1, Zombies = 2400 }); w.GarrisonMil[Id("Nules")] = 12_000; w.ZoneWallE4[Id("Nules")] = 1_243_000;   // guarnición de 12 y recinto de 124,3 u (Hugo; Lucía 23:30)   // Lucía (8-nov 23:20): horda propia de Nules desde la 2.ª noche, 2400 (Hugo, PROVISIONAL hasta medirla); Castellón, sin noche en el MVP
             w.Services.Clear();
             var cero = new int[NetConst.ResCount];
             Add(w, 1, "1 Costa", new ScheduleStop { Node = Id("Sagunto"), DepartAt = NetConst.Hours(9), Transfer = (int[])cero.Clone() });

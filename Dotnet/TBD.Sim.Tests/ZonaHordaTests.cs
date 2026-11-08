@@ -31,12 +31,12 @@ namespace TBD.Sim.Tests
             check(l.Hash() == hNight, "se guarda y se carga en mitad del asedio");
             To(w, 2 * D + NetConst.Hours(6) + 1);
             var r = w.LastZoneSiege;
-            check(r.Node == nul && !r.Lost && !r.OnScreen && r.Killed == 2400 && r.SpentU >= 5 && r.SpentU <= 7 && w.Stock[nul, (int)Res.Municion] == 20 - r.SpentU && !w.NodeLost[nul] && !w.Besieged(nul),
-                $"con 20 u, Nules aguanta: abate las 2400 y gasta {r.SpentU} u (unas 6, Hugo)");
+            check(r.Node == nul && !r.Lost && !r.OnScreen && r.Killed == 2400 && r.SpentU == 4 && r.Casualties == 0 && w.GarrisonMil[nul] == 12000 && w.Stock[nul, (int)Res.Municion] == 20 - r.SpentU && !w.NodeLost[nul] && !w.Besieged(nul),
+                $"con 20 u, Nules aguanta: abate las 2400 y gasta {r.SpentU} u (3,3 de Hugo, en u enteras por arriba)");
             check(w.Intel.Exists(e => e.Id == "ZS-1"), "parte «Nules aguanta la noche»");
 
             var z = NetScenario.Inicio(); To(z, D + NetConst.Hours(19) + 1); z.Stock[nul, (int)Res.Municion] = 0; To(z, 2 * D + NetConst.Hours(6) + 1);
-            check(z.LastZoneSiege.Lost && z.NodeLost[nul] && z.Stock[nul, (int)Res.Personas] == 0 && z.Intel.Exists(e => e.Id == "ZS-2"), "con 0 u, Nules se pierde: nodo perdido, sin gente y parte «Hemos perdido Nules»");
+            check(z.LastZoneSiege.Lost && z.NodeLost[nul] && z.GarrisonMil[nul] == 0 && z.WallU(nul) == 0 && z.Stock[nul, (int)Res.Viveres] == 0 && z.Intel.Exists(e => e.Id == "ZS-2"), $"con 0 u, Nules se pierde (2400 en pie: el muro baja {z.LastZoneSiege.DamageU} u y la guarnición a 2,4): sin gente, sin muro, sin existencias y parte «Hemos perdido Nules»");
             To(z, 2 * D + NetConst.Hours(8) + NetConst.FieldEvery + 1);
             check(z.Graph.Nodes[nul].State == NodeState.Perdida && z.Besieged(nul), "y sigue perdido (el campo no lo deshace): los trenes esperan a sus puertas");
             To(z, 2 * D + NetConst.Hours(20));
@@ -48,6 +48,10 @@ namespace TBD.Sim.Tests
             check(s3.LastZoneSiege.OnScreen && !s3.NodeLost[nul] && s3.Stock[nul, (int)Res.Municion] == 0 && !s3.Intel.Exists(e => e.Id == "ZS-2"), "con la zona de Nules en pantalla no se aplica: manda NightSim");
             check(NetSave.NetVersion == 5, "la versión de la red sube a 5");
             check(sag >= 0 && !w.NodeLost[sag], "");
+            var e = NetScenario.Inicio(); long wu = e.WallU(nul);
+            check(wu == 124, $"el recinto de Nules en Inicio: {wu} u (Lucía: 124,3)");
+            var f3 = NetScenario.Inicio(); To(f3, D + NetConst.Hours(19) + 1); f3.Stock[nul, (int)Res.Municion] = 2; To(f3, 2 * D + NetConst.Hours(6) + 1);
+            check(!f3.LastZoneSiege.Lost && f3.LastZoneSiege.Killed == 2 * 731 && f3.GarrisonMil[nul] == 12000 - (2400 - 1462) * 4, $"con 2 u: abate 1462 (731 por u), quedan 938 en pie, el muro baja {f3.LastZoneSiege.DamageU} u y la guarnición pierde 3,75: aguanta con {f3.GarrisonMil[nul] / 1000.0:0.00}");
         }
     }
 }
