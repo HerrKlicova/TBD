@@ -1228,7 +1228,28 @@ namespace TBD.View
         }
 
         // ================================================================ decorado con primitivas
-        Material _mGround, _mWall, _mRoof, _mRail, _mSleeper, _mTrain, _mWagon, _mGate, _mTraviesa, _mVia;
+        Material _mGround, _mWall, _mRoof, _mRail, _mSleeper, _mTrain, _mWagon, _mGate, _mTraviesa, _mVia, _mFantasmaOk, _mFantasmaMal;
+
+        /// <summary>Fantasma de obra (Lucía, 8-nov): válido en hueso d4d0cc y no válido en ámbar e08c30, los dos tramados en pantalla
+        /// (shader TBD/Fantasma). Nunca rojo ni 442c0c. Si el 50 % se confunde con la selección: -fantasma25 abre el tramado al 25 %.
+        /// Sin el shader, cae a un Lit plano del mismo color.</summary>
+        Material Fantasma(bool valido)
+        {
+            var cache = valido ? _mFantasmaOk : _mFantasmaMal;
+            if (cache != null) return cache;
+            var sh = Shader.Find("TBD/Fantasma");
+            string hex = valido ? "d4d0cc" : "e08c30";
+            Material m;
+            if (sh == null) m = Mat(hex);
+            else
+            {
+                m = new Material(sh) { name = valido ? "Fantasma válido" : "Fantasma no válido" };
+                m.SetColor("_BaseColor", HexColor(hex));
+                m.SetFloat("_Paso", System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-fantasma25") >= 0 ? 1f : 0f);
+            }
+            if (valido) _mFantasmaOk = m; else _mFantasmaMal = m;
+            return m;
+        }
 
         /// <summary>Vía en una sola textura que se repite (Resources/Vias/T_via_D, Bruno 8-nov, elegida por Lucía): 24 px = 3,6 m de ancho,
         /// 8 px = 1,2 m por repetición, a lo largo de X. Devuelve null si no está la textura (y entonces se dibujan las cajas de antes).</summary>
@@ -2143,7 +2164,8 @@ namespace TBD.View
         {
             // Revisión de arte de Lucía (5-nov): suelo claro y cálido, tejado de terracota (antes era del color del suelo)
             _mGround = Mat("b0a060"); _mWall = Mat("88885c"); _mRoof = Mat("a86c50"); _mRail = Mat("94948c");
-            _mSleeper = Mat("442c0c"); _mTraviesa = Mat("6c7874");   // _mSleeper queda solo para el fantasma de obra; las traviesas, en hormigón (442c0c es de la horda) _mTrain = Mat("303424"); _mWagon = Mat("605c48"); _mGate = Mat("7c3c18");
+            _mSleeper = Mat("442c0c"); _mTraviesa = Mat("6c7874");   // _mSleeper ya no se usa (442c0c es de la horda): traviesas en hormigón y fantasma de obra en TBD/Fantasma
+            _mTrain = Mat("303424"); _mWagon = Mat("605c48"); _mGate = Mat("7c3c18");
 
             // Zombi: cápsula de Unity (escalada a 0,5 x 1,8 m en RenderAttachSystem)
             // Zombi: cuadrado de 1 m (primitiva Quad) con el atlas de andar de Bruno (6 variantes de ropa x 4 fotogramas); el recorte va por instancia
@@ -2700,7 +2722,8 @@ namespace TBD.View
                 {
                     var a = new Vector3(WorkOrigin.x + w.X0 / 1000f, 0.15f, WorkOrigin.y + w.Y0 / 1000f);
                     var b = new Vector3(WorkOrigin.x + w.X1 / 1000f, 0.15f, WorkOrigin.y + w.Y1 / 1000f);
-                    var g = WallVisual(a, b, Level.WallHalf * 0.5f, 0.3f, _mSleeper);   // fantasma: obra en marcha
+                    var g = WallVisual(a, b, Level.WallHalf * 0.5f, 0.3f, Fantasma(true));   // fantasma: obra en marcha (Lucía 8-nov: hueso tramado al 50 %)
+                    g.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                     _workVisuals[i] = g;
                 }
             }
