@@ -156,9 +156,9 @@ namespace TBD.View
         {
             if (!_nightOn || _ng == null) return;
             bool playing = _ng.State == NightState.Jugando;
-            if (Time.unscaledTime - _gateT > 1f)    // las puertas de SagunteStart nacen construidas con la noche inactiva: SyncWorks no les hace el muro. Aqui, una sola vez por pieza (idempotente), por la cola como el resto de ordenes (Nacho)
+            if (_ng.Tick - _gateTk >= 30)    // las puertas de SagunteStart nacen construidas con la noche inactiva: SyncWorks no les hace el muro. Aqui, una sola vez por pieza (idempotente), por la cola como el resto de ordenes (Nacho)
             {
-                _gateT = Time.unscaledTime;
+                _gateTk = _ng.Tick;
                 var gp = NetSession.A != null && _zoneNode >= 0 ? NetSession.A.Works.At(_zoneNode) : null;
                 if (gp != null) for (int gi = 0; gi < gp.Count; gi++)
                 {
@@ -257,14 +257,14 @@ namespace TBD.View
             for (int i = 0; i < _res.Shots.Count; i++) NightShotFx(_res.Shots[i]);
             for (int i = 0; i < _res.Blasts.Count; i++) { var b = _res.Blasts[i]; VfxBlast(new Vector3(b.X / 1000f, 0f, b.Y / 1000f), b.RadiusMm / 1000f, b.Weapon); }
         }
-        readonly List<(Vector2 a, Vector2 b)> _wallSegs = new List<(Vector2, Vector2)>(); float _wallSegsT = -10f;
+        readonly List<(Vector2 a, Vector2 b)> _wallSegs = new List<(Vector2, Vector2)>(); float _wallSegsT = -10f; int _wallSegsTk = -1000, _gateTk = -1000;
 
         /// <summary>¿El zombi esta a 1,5 m o menos de un muro construido de las obras? Los segmentos salen de Works (se refrescan cada 2 s).</summary>
         bool NearWall(Vector2 p)
         {
-            if (Time.unscaledTime - _wallSegsT > 2f)
+            if (_ng.Tick - _wallSegsTk >= 60)
             {
-                _wallSegsT = Time.unscaledTime; _wallSegs.Clear();
+                _wallSegsTk = _ng.Tick; _wallSegs.Clear();
                 var pieces = NetSession.A != null && _zoneNode >= 0 ? NetSession.A.Works.At(_zoneNode) : null;
                 if (pieces != null) foreach (var w in pieces) if ((w.IsWall || w.IsGate) && w.Built) _wallSegs.Add((new Vector2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f), new Vector2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f)));
             }
