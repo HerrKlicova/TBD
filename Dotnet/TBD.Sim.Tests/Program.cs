@@ -145,6 +145,7 @@ namespace TBD.Sim.Tests
                 return _fail == 0 ? 0 : 1;
             }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_LOS") == "1") { LosTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
+            if (Environment.GetEnvironmentVariable("TBD_ONLY_SOMBRA") == "1") { TramosZonaTests.Run(Check); SombraLosTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_TZ") == "1") { TramosZonaTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_UNITS") == "1")      // solo la sección [29] (unidades), para iterar rápido
             {
@@ -190,6 +191,7 @@ namespace TBD.Sim.Tests
             TutorialTests.Run(Check);
             LosTests.Run(Check);
             TramosZonaTests.Run(Check);
+            SombraLosTests.Run(Check);
             GoldenTests.Run(Check);
             Console.WriteLine($"\nResumen: {_pass} correctas, {_fail} fallos");
             return _fail == 0 ? 0 : 1;
