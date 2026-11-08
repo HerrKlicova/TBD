@@ -101,6 +101,12 @@ namespace TBD.View
         void TerminarBajada()
         {
             PushBoth(NetWorld.CmdUnload(W.Tick, _bajadaService, _bajadaNode));
+            if (!_bajadaSolo)      // la carga baja al andén (CmdCargo de Nacho); con asedio se queda a bordo hasta que acabe (D-N166)
+            {
+                var sv = W.Services[_bajadaService]; var delta = new int[NetConst.ResCount]; bool hay = false;
+                for (int r = 0; r < NetConst.ResCount; r++) { delta[r] = -sv.Cargo[r]; hay |= sv.Cargo[r] > 0; }
+                if (hay) PushBoth(NetWorld.CmdCargo(W.Tick, _bajadaService, _bajadaNode, delta));
+            }
             Debug.Log($"[TREN] bajada en {W.Graph.Nodes[_bajadaNode].Name} acabada{(_bajadaSolo ? " (solo la tropa: sitiada)" : "")}");
             var fin = _bajadaFin; _bajadaService = -1; _bajadaFin = null; fin?.Invoke();
         }
@@ -195,7 +201,7 @@ namespace TBD.View
                 NetSession.PushPayload(NetCmdType.SetSchedule, Viaje, TrenPreparar.Aparcar(W, Viaje)); _aparcadoT = Time.unscaledTime;
                 string nombre = W.Graph.Nodes[meta].Name;
                 if (_descargando) { Debug.Log("[TREN] vuelve a " + nombre + " y se aparca"); Viaje = -1; _descargando = false; return; }
-                _llegado = true; _aviso = "Tren en " + nombre; _avisoHasta = Time.unscaledTime + 5f;
+                _llegado = true; _aviso = meta == Casa && W.Besieged(meta) ? "Tren a las puertas de " + nombre : "Tren en " + nombre; _avisoHasta = Time.unscaledTime + 5f;
                 Debug.Log($"[TREN] llega a {nombre} y se aparca (carga {sv.CargoTotal()} u, {W.Embarque.CountAboard(Viaje, PasajeroTipo.Peloton)} pelotón, {W.Embarque.CountAboard(Viaje, PasajeroTipo.Vehiculo)} vehículo)");
                 if (meta == Casa) TutorialHud.Senal(TutorialGuion.Senales.TrenEnSagunto);
                 if (meta == Nodo("Nules")) { TutorialHud.Senal(TutorialGuion.Senales.TrenEnNules); if (Origen == Casa && _munEnvio > 0) TutorialHud.CumplirObjetivo(); }
@@ -489,8 +495,7 @@ namespace TBD.View
                         if (W.Embarque.AtStation(nul, PasajeroTipo.Peloton).Count == 0 && ses != null && ses.Uw != null)
                         {
                             var p = ses.Uw.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0);
-                            NightRun.Vehs.Add(new NightRun.VehInfo { Name = "Lince", Tipo = "lince", Vivo = true });
-                            TutorialHud.RegistrarDestacamento(ses.Uw, p.Id, NightRun.Vehs.Count - 1);
+                            TutorialHud.RegistrarDestacamento(ses.Uw, p.Id);
                             Debug.Log("[TREN] auto: destacamento de prueba creado (falta el enganche de la zona)");
                         }
                         if (TrenPreparar.TrenEn(W, nul) < 0) { Destacamento.SembrarTren(W); if (NetSession.B != null) Destacamento.SembrarTren(NetSession.B); }
@@ -522,7 +527,8 @@ namespace TBD.View
     /// </summary>
     public sealed class TrenAnden : MonoBehaviour
     {
-        public static Vector2Int? PuntoBajada;     // mm de la zona, junto al muro oeste (Marcos). Sin él: junto al primer pelotón de Sagunto
+        public static Vector2Int? PuntoBajada;     // mm de la zona: el tren de Nules entra por el este y para fuera de la puerta este; la tropa baja en el costado sur (Álvaro, §10.10). Lo pone Marcos; sin él, junto al primer pelotón de Sagunto
+        public static readonly Vector2Int ObjetivoAtaque = new Vector2Int(100_000, 34_000);   // Álvaro §10.10: flanco sur de la horda, (100; 34) m, para el anillo del paso 3.8
         GUIStyle _s, _b; Texture2D _panel, _btn, _btnHot; bool _bajando; int _sh;
         static readonly Color Bone = new Color32(0xd4, 0xd0, 0xcc, 255), Ink = new Color32(0x1c, 0x20, 0x0c, 255);
         static NetWorld W { get { return NetSession.A; } }

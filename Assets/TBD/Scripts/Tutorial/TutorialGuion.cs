@@ -24,7 +24,10 @@ namespace TBD.Tutorial
                 PanelNulesAbierto = "panel_nules_abierto", Descargado = "descargado", VueltaZona = "vuelta_zona",
                 // D-N172 (capítulo 3: refuerzos de Nules)
                 MaterialesPuestos = "materiales_puestos", SinCarga = "sin_carga", DestinoSagunto = "destino_sagunto", TrenEnSagunto = "tren_en_sagunto",
-                SaguntoSitiada = "sagunto_sitiada", RefuerzosEnTierra = "refuerzos_en_tierra", TropaEnTierra = "tropa_en_tierra", LinceABordo = "lince_a_bordo";
+                SaguntoSitiada = "sagunto_sitiada", RefuerzosEnTierra = "refuerzos_en_tierra", TropaEnTierra = "tropa_en_tierra", LinceABordo = "lince_a_bordo",
+                Pila150 = "pila_150", OrdenAtacar = "orden_atacar",
+                ContactoMuro = "contacto_muro",                 // la zona: el primer zombi toca el muro
+                Cap3Dispara = "cap3_dispara", Cap3PorTiempo = "cap3_por_tiempo";   // estados de la vista: pila > 150, o 60 s reales desde el primer contacto   // la zona manda pila_150 la primera vez que la pila pasa de 150 (D-N168); se recuerda como estado
             // tarjeta suelta del C90 (zona: C90Aviso.Buscar)
             public const string C90ATiro = "c90_a_tiro", C90Lanzado = "c90_lanzado";
         }
@@ -38,7 +41,8 @@ namespace TBD.Tutorial
                 NodoSagunto = "nodo_sagunto", NodoNules = "nodo_nules", NodoCastellon = "nodo_castellon", BotonPrepararTren = "boton_preparar_tren",
                 Cargas = "cargas_tren", ListaUnidades = "lista_unidades", ListaVehiculos = "lista_vehiculos", Eta = "eta_tren", BotonEnviar = "boton_enviar",
                 EstadoNules = "estado_nules", BotonDescargar = "boton_descargar",
-                AvisoRadar = "aviso_radar", ManchaHorda = "mancha_horda", TarjetasDestacamento = "tarjetas_destacamento", EstadoSagunto = "estado_sagunto", TrenAnden = "tren_anden";
+                AvisoRadar = "aviso_radar", ManchaHorda = "mancha_horda", TarjetasDestacamento = "tarjetas_destacamento", EstadoSagunto = "estado_sagunto", TrenAnden = "tren_anden",
+                Pila = "pila", AvisoPila = "aviso_pila";
         }
 
         static Paso S(string id, string texto, string[] resalta, params string[] senales) { return new Paso { Id = id, Texto = texto, Resalta = resalta ?? new string[0], Cierre = Cierre.Senal, Senales = senales }; }
@@ -97,39 +101,38 @@ namespace TBD.Tutorial
             };
         }
 
-        /// <summary>Capítulo 3, «Pedir refuerzos a otra estación» (D-N172, idea de Eugenio). «{eta}» lo rellena la vista con lo que falta para que llegue el tren.</summary>
+        /// <summary>
+        /// Capítulo 3, «Pedir refuerzos a otra estación» (D-N172 revisada tras medirla Hugo y Nacho): salta en la primera noche, la primera vez que la pila
+        /// pasa de 150 (D-N168), y la horda NO espera. Nules manda 1 pelotón de fusileros (sin Lince); el tren llega a las puertas de Sagunto sitiada y la
+        /// tropa baja fuera (D-N166). «{eta}» lo rellena la vista.
+        /// </summary>
         public static Capitulo Cap3()
         {
-            var p311 = S("3.11", "Vuelve a Sagunto: doble clic en Sagunto o acerca la cámara. Los refuerzos llegan en {eta}.", R(Resaltes.NodoSagunto), Senales.VueltaZona);
-            var p312b = S("3.12b", "Llegan tarde: Sagunto está sitiada y el tren espera a las puertas. Baja la tropa. El Lince tendrá que esperar a que acabe el asedio.", R(Resaltes.TrenAnden, Resaltes.BotonDescargar), Senales.TropaEnTierra);
-            var p312 = S("3.12", "Ya están aquí. Descarga los refuerzos.", R(Resaltes.TrenAnden, Resaltes.BotonDescargar), Senales.RefuerzosEnTierra);
-            p312.Espera = Senales.TrenEnSagunto;                    // «Al entrar el tren»
-            p312.AltSi = Senales.SaguntoSitiada; p312.Alt = p312b;  // D-N166 / D-N152: el tutorial no espera al tren
-            p312b.Espera = Senales.TrenEnSagunto;
+            var p31 = T("3.1", "¡Están trepando el muro! Sagunto sola no aguantará. Nules, la estación de al lado, puede mandarte ayuda.", 4, Resaltes.Pila, Resaltes.AvisoPila);
+            var p31b = T("3.1b", "La horda está en el muro. Sagunto sola no aguantará mucho. Nules, la estación de al lado, puede mandarte ayuda.", 4, Resaltes.Pila, Resaltes.AvisoPila);
+            p31.Espera = p31b.Espera = Senales.Cap3Dispara;     // pila > 150 o 60 s desde el primer contacto, lo que ocurra antes (Lucía)
+            p31.AltSi = Senales.Cap3PorTiempo; p31.Alt = p31b;  // si salta por tiempo, el 3.1b
+            var p37 = S("3.7", "Sagunto está sitiada: el tren espera a las puertas. Baja la tropa: atacará a la horda por la espalda.", R(Resaltes.TrenAnden, Resaltes.BotonDescargar), Senales.TropaEnTierra, Senales.RefuerzosEnTierra);
+            p37.Espera = Senales.TrenEnSagunto;     // «Al llegar el tren»
             return new Capitulo
             {
                 Numero = 3, Titulo = "Pedir refuerzos a otra estación",
                 Pasos = new[]
                 {
-                    T("3.1", "El radar ve lo que viene esta noche: muchos más que esta mañana. Sagunto sola no aguantará.", 5, Resaltes.AvisoRadar, Resaltes.ManchaHorda),
-                    S("3.2", "Nules, la estación de al lado, puede mandarte ayuda. Sal al mapa: aleja la cámara del todo o pulsa M. Sagunto sigue aquí mientras estás fuera.", R(Resaltes.BarraAtajos), Senales.MapaAbierto),
-                    S("3.3", "Estas son tus 3 estaciones. Castellón está infestada; de momento, ni te acerques. Haz clic en Nules.", R(Resaltes.NodoSagunto, Resaltes.NodoNules, Resaltes.NodoCastellon), Senales.PanelNulesAbierto),
-                    S("3.4", "Nules tiene un tren en el andén y un destacamento: un pelotón de fusileros y un Lince. Abre Preparar tren.", R(Resaltes.TarjetasDestacamento, Resaltes.BotonPrepararTren), Senales.PanelTrenAbierto),
-                    S("3.5", "Sube el pelotón.", R(Resaltes.ListaUnidades), Senales.PelotonABordo),
-                    S("3.6", "Y el Lince, como apoyo terrestre: va en una plataforma.", R(Resaltes.ListaVehiculos), Senales.VehiculoABordo),
-                    S("3.7", "También puedes cargar suministros. A Sagunto le vendrán bien materiales para el muro.", R(Resaltes.Cargas), Senales.MaterialesPuestos, Senales.SinCarga),
-                    S("3.8", "Destino: Sagunto. Mira el ETA: tienen que llegar antes de que caiga la noche.", R(Resaltes.NodoSagunto, Resaltes.Eta), Senales.DestinoSagunto),
-                    S("3.9", "Envíalo.", R(Resaltes.BotonEnviar), Senales.TrenEnviado),
-                    T("3.10", "Si una estación está sitiada, el tren espera a las puertas y fuera le pueden atacar. Por eso se manda la ayuda antes, no durante.", 5, Resaltes.EstadoSagunto),
-                    p311,
-                    p312,
-                    S("3.13", "Coloca a los refuerzos junto al muro oeste. Cae la noche.", R(Resaltes.TramoOeste), Senales.OrdenMover),
+                    p31,
+                    S("3.2", "Sal al mapa: aleja la cámara del todo o pulsa M. El combate sigue mientras estás fuera.", R(Resaltes.BarraAtajos), Senales.MapaAbierto),
+                    S("3.3", "Haz clic en Nules. Castellón está infestada; de momento, ni te acerques.", R(Resaltes.NodoSagunto, Resaltes.NodoNules, Resaltes.NodoCastellon), Senales.PanelNulesAbierto),
+                    S("3.4", "Nules tiene un tren en el andén y un pelotón de fusileros. Abre Preparar tren y sube el pelotón.", R(Resaltes.TarjetasDestacamento, Resaltes.BotonPrepararTren, Resaltes.ListaUnidades), Senales.PelotonABordo),
+                    S("3.5", "Destino: Sagunto. Mira el ETA y envíalo.", R(Resaltes.NodoSagunto, Resaltes.Eta, Resaltes.BotonEnviar), Senales.TrenEnviado),
+                    S("3.6", "Vuelve a Sagunto y aguanta: doble clic en Sagunto o acerca la cámara. La ayuda llega en {eta}.", R(Resaltes.NodoSagunto), Senales.VueltaZona),
+                    p37,
+                    S("3.8", "Llévalos contra la pila del oeste.", R(Resaltes.Pila), Senales.OrdenMover, Senales.OrdenAtacar),
                 }
             };
         }
 
-        /// <summary>Después de la primera noche (D-N172): objetivo sin tarjetas de tutorial.</summary>
-        public const string ObjetivoDevolverTren = "Devuelve el tren a Nules con munición";
+        /// <summary>Después de la primera noche (D-N172): objetivo sin tarjetas de tutorial (el viaje con carga de la D-N154).</summary>
+        public const string ObjetivoDevolverTren = "Lleva el tren a Nules con munición";
 
         public static Suelta C90()
         {

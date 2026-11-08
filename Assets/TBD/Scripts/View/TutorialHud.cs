@@ -57,16 +57,16 @@ namespace TBD.View
         static bool Arg(string a) { return Array.IndexOf(Environment.GetCommandLineArgs(), a) >= 0; }
 
         /// <summary>Lo llama «Nueva partida» (a través de IntroVista.Antes): el tutorial arranca al cargar la zona de Sagunto.</summary>
-        public static void NuevaPartida() { Ensure(); _pendiente = true; if (_i._m != null && _i._m.Estado == EstadoTutorial.Activo) _i._m.Saltar(); _i._m = null; }
+        public static void NuevaPartida() { Ensure(); _pendiente = true; _pila150 = false; _contactoT = -1f; if (_i._m != null && _i._m.Estado == EstadoTutorial.Activo) _i._m.Saltar(); _i._m = null; }
 
         /// <summary>D-N172: ¿hay destacamento en Nules? Solo con el tutorial en marcha (fácil y normal, la primera vez). La zona lo mira al crear sus unidades.</summary>
         public static bool DestacamentoNules { get { return Activo; } }
 
         /// <summary>
-        /// D-N172: la zona (Marcos) ha creado el pelotón de fusileros y el Lince del destacamento de Nules. Aquí se apartan de Sagunto (el pelotón, con
-        /// Aboard = EnEstacion(Nules); el Lince, Embarcado) y se apuntan en la red, en los dos mundos.
+        /// D-N172: la zona (Marcos) ha creado el pelotón de fusileros del destacamento de Nules (sin Lince desde la revisión: vehIndex = −1). Aquí se aparta
+        /// de Sagunto (Aboard = EnEstacion(Nules)) y se apunta en la red, en los dos mundos.
         /// </summary>
-        public static void RegistrarDestacamento(UnitsWorld uw, int platoonId, int vehIndex)
+        public static void RegistrarDestacamento(UnitsWorld uw, int platoonId, int vehIndex = -1)
         {
             var w = NetSession.A; if (w == null) return;
             int nul = TrenPreparar.Nodo(w, Destacamento.Estacion);
@@ -88,7 +88,16 @@ namespace TBD.View
         }
         public static void CumplirObjetivo() { if (!ObjetivoVisible) return; _objCumplido = true; _objCumplidoHasta = Time.unscaledTime + 6f; Debug.Log("[TUTORIAL] objetivo cumplido: " + TutorialGuion.ObjetivoDevolverTren); }
 
-        public static void Senal(string s) { if (_i != null && _i._m != null) _i._m.Senal(s); }
+        public static void Senal(string s)
+        {
+            if (s == TutorialGuion.Senales.Pila150) _pila150 = true;
+            if (s == TutorialGuion.Senales.ContactoMuro && _contactoT < 0) _contactoT = Time.unscaledTime;
+            if (_i != null && _i._m != null) _i._m.Senal(s);
+        }
+        static float _contactoT = -1f;
+        public const float Cap3TrasContacto = 60f;      // Lucía: 60 s reales después del primer contacto con el muro
+        static bool PorTiempo { get { return _contactoT >= 0 && Time.unscaledTime - _contactoT >= Cap3TrasContacto; } }
+        static bool _pila150;      // la pila ya pasó de 150 alguna vez en esta partida (abre el capítulo 3 aunque pasara antes de acabar el 2)
         public static void Saltar() { if (_i != null && _i._m != null) _i._m.Saltar(); }
         public static void Objetivo(string clave, Rect pantalla) { if (_i != null) _i._obj[clave] = (pantalla, Time.frameCount); }
 
@@ -150,6 +159,9 @@ namespace TBD.View
         static bool EstadoJuego(string s)
         {
             if (s == TutorialGuion.Senales.MapaAbierto) return SceneManager.GetActiveScene().name == "Union";
+            if (s == TutorialGuion.Senales.Pila150) return _pila150;
+            if (s == TutorialGuion.Senales.Cap3Dispara) return _pila150 || PorTiempo;
+            if (s == TutorialGuion.Senales.Cap3PorTiempo) return !_pila150 && PorTiempo;
             return EstadoExtra != null && EstadoExtra(s);
         }
 
@@ -281,9 +293,7 @@ namespace TBD.View
         void Avisos()
         {
             // aviso de radar que abre el capítulo 3 (D-N172): 12 s arriba en el centro, en hueso (nada de rojo)
-            var c = _m.Cap;
-            if (_radarHasta < 0 && _m.Estado == EstadoTutorial.Activo && c != null && c.Numero == 3) _radarHasta = Time.unscaledTime + 12f;
-            float u = _txt.fontSize;
+            float u = _txt.fontSize;     // (el aviso de radar del capítulo 3 salió con la D-N172 revisada: ahora lo abre la pila)
             if (Time.unscaledTime < _radarHasta)
             {
                 var r = new Rect(Screen.width * 0.5f - u * 15, u * 4.2f, u * 30, u * 2.6f);

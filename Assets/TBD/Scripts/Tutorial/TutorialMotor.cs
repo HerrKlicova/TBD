@@ -20,7 +20,7 @@ namespace TBD.Tutorial
         public string[] Senales = new string[0];   // con Cierre.Senal: basta una de ellas, recibida DESPUÉS de que salga la tarjeta
         public bool Todas;                 // con Cierre.Senal: hacen falta todas (en cualquier orden), no una (1.1: cámara movida y rueda)
         public float Segundos;             // con Cierre.Segundos; con Cierre.Senal, si > 0, tope para cerrarse sola (red de seguridad)
-        public string Espera;              // si no es null, la tarjeta no sale hasta que haya llegado esta señal (en cualquier momento del capítulo)
+        public string Espera;              // si no es null, la tarjeta no sale hasta que haya llegado esta señal en el capítulo, o hasta que se cumpla como estado
         public string ExtraSi, Extra;      // si ha llegado la señal ExtraSi en el capítulo, se añade Extra al texto (1.3: vehículos fuera)
         public bool Pausa;                 // con la tarjeta fuera, el juego se pausa (solo la del capítulo 0)
         public bool Linea;                 // una sola línea, sin cabecera (1.9, mientras dura el ataque)
@@ -91,7 +91,7 @@ namespace TBD.Tutorial
         /// <summary>Rellena los huecos del texto («{eta}»: lo que falta para que llegue el tren). Lo pone la vista; null = sin cambios.</summary>
         public Func<string, string> Relleno;
         /// <summary>La tarjeta se ve: hay paso actual y no está esperando su señal previa.</summary>
-        public bool Visible { get { var p = Actual; return p != null && (p.Espera == null || _hechos.Contains(p.Espera)); } }
+        public bool Visible { get { var p = Actual; return p != null && (p.Espera == null || _hechos.Contains(p.Espera) || (EstadoActual != null && EstadoActual(p.Espera))); } }
         public bool PideHordaEnEspera
         {
             get
@@ -167,7 +167,7 @@ namespace TBD.Tutorial
         void DecidirAlt()
         {
             if (_altDecidido) return;
-            var p = Base; if (p == null || (p.Espera != null && !_hechos.Contains(p.Espera))) return;
+            var p = Base; if (p == null || (p.Espera != null && !_hechos.Contains(p.Espera) && !(EstadoActual != null && EstadoActual(p.Espera)))) return;
             _altDecidido = true;
             _alt = p.Alt != null && p.AltSi != null && (_hechos.Contains(p.AltSi) || (EstadoActual != null && EstadoActual(p.AltSi)));
             if (_alt) Log($"{p.Id}: sale {p.Alt.Id} (se cumple {p.AltSi})");

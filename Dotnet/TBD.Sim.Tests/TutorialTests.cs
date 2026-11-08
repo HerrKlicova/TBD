@@ -32,7 +32,7 @@ namespace TBD.Sim.Tests
 
             // --- textos y cabeceras
             var caps = TutorialGuion.Todos();
-            check(caps.Length == 4 && caps[0].Pasos.Length == 1 && caps[1].Pasos.Length == 10 && caps[2].Pasos.Length == 7 && caps[3].Pasos.Length == 13, "capítulos 0 a 3 con 1, 10, 7 y 13 pasos, como en tutorial-textos.md");
+            check(caps.Length == 4 && caps[0].Pasos.Length == 1 && caps[1].Pasos.Length == 10 && caps[2].Pasos.Length == 7 && caps[3].Pasos.Length == 8, "capítulos 0 a 3 con 1, 10, 7 y 8 pasos, como en tutorial-textos.md");
             bool sinCifra = true; foreach (var p in caps[3].Pasos) foreach (char c in p.Texto) if (char.IsDigit(c) && p.Id != "3.3") sinCifra = false;   // «3 estaciones» es la única cifra
             check(sinCifra, "el capítulo 3 no escribe ninguna cifra de ETA en el texto");
             var ids = new HashSet<string>(); bool unicos = true; foreach (var c in caps) foreach (var p in c.Pasos) if (!ids.Add(p.Id)) unicos = false;
@@ -79,7 +79,7 @@ namespace TBD.Sim.Tests
             var mem3 = new MemoriaEnRam(); var m3 = TutorialGuion.Nuevo(mem3); m3.Arrancar(850);
             var vistos = new List<string>();
             int n = Recorrer(m3, p => vistos.Add(p.Id));
-            check(m3.Estado == EstadoTutorial.Terminado && n == 31 && vistos[30] == "3.13", $"el recorrido completo pasa por los 31 pasos y acaba en 3.13 ({n})");
+            check(m3.Estado == EstadoTutorial.Terminado && n == 26 && vistos[25] == "3.8", $"el recorrido completo pasa por los 26 pasos y acaba en 3.8 ({n})");
             check(mem3.Leer(TutorialMotor.ClaveVisto), "al acabar queda como visto");
 
             // --- capítulo 1 entero (revisión de Nacho): la horda espera hasta el 1.8 y luego se suelta; el 1.9 tiene red de seguridad de 90 s
@@ -102,38 +102,40 @@ namespace TBD.Sim.Tests
             {
                 var ms = TutorialGuion.Nuevo(new MemoriaEnRam()); ms.Arrancar(850); bool mapa = false;
                 ms.EstadoActual = x => x == TutorialGuion.Senales.MapaAbierto && mapa;
-                while (ms.Actual.Id != "3.2") { var p = ms.Actual; if (p.Cierre == Cierre.Segundos) Run1(ms, p.Segundos); else foreach (var s in p.Senales) ms.Senal(s); }
+                while (ms.Actual.Id != "3.2") { var p = ms.Actual; if (!ms.Visible) { ms.Senal(p.Espera); continue; } if (p.Cierre == Cierre.Segundos) Run1(ms, p.Segundos); else foreach (var s in p.Senales) ms.Senal(s); }
                 ms.Avanzar(0.1f); check(ms.Actual.Id == "3.2", "3.2 espera mientras el mapa no está abierto");
                 mapa = true; ms.Avanzar(0.1f); check(ms.Actual.Id == "3.3", "con el mapa ya abierto, la 3.2 se cierra sola aunque la señal llegara antes");
             }
 
-            // --- capítulo 3 (D-N172): refuerzos de Nules. «{eta}» lo rellena la vista; el 3.12 espera al tren; si Sagunto está sitiada sale el 3.12b
+            // --- capítulo 3 (D-N172 revisada): salta con la pila > 150 en la primera noche, la horda no espera, el tren llega a las puertas
             {
                 Action<TutorialMotor, string> Hasta = (mm, id) => { while (mm.Actual != null && mm.Actual.Id != id) { var p = mm.Actual; if (!mm.Visible) { mm.Senal(p.Espera); continue; } if (p.Cierre == Cierre.Segundos) Run1(mm, p.Segundos); else foreach (var x in p.Senales) { mm.Senal(x); if (mm.Actual != p) break; } } };
-                var m4 = TutorialGuion.Nuevo(new MemoriaEnRam()); m4.Arrancar(850);
-                Hasta(m4, "3.1");
-                check(m4.Texto.StartsWith("El radar ve lo que viene esta noche") && Array.IndexOf(m4.Resalta, TutorialGuion.Resaltes.AvisoRadar) >= 0, "3.1 abre el capítulo con el aviso de radar resaltado");
-                Hasta(m4, "3.7");
-                m4.Senal(TutorialGuion.Senales.SinCarga); check(m4.Actual.Id == "3.8", "3.7 se cierra con «Sin carga»");
-                Hasta(m4, "3.10");
-                check(m4.Cabecera == "Capítulo 3 · Paso 10 de 13" && !m4.PideHordaEnEspera, "3.10: «Capítulo 3 · Paso 10 de 13» y sin horda en espera");
-                Run1(m4, 5.2f);
-                m4.Relleno = t => t.Replace("{eta}", "0:12");
-                check(m4.Actual.Id == "3.11" && m4.Texto.EndsWith("Los refuerzos llegan en 0:12."), "3.11 escribe el ETA real en lugar de «0:xx»");
+                var m4 = TutorialGuion.Nuevo(new MemoriaEnRam()); m4.Arrancar(850); bool pila = false;
+                m4.EstadoActual = x => (x == TutorialGuion.Senales.Cap3Dispara || x == TutorialGuion.Senales.Pila150) && pila;
+                while (m4.Cap.Numero < 3) { var p = m4.Actual; if (!m4.Visible) { m4.Senal(p.Espera); continue; } if (p.Cierre == Cierre.Segundos) Run1(m4, p.Segundos); else foreach (var x in p.Senales) { m4.Senal(x); if (m4.Actual != p) break; } }
+                Run1(m4, 30f);
+                check(m4.Actual.Id == "3.1" && !m4.Visible && !m4.PideHordaEnEspera, "al acabar el capítulo 2, el 3 espera a la pila (y la horda no espera)");
+                pila = true; m4.Avanzar(0.1f);
+                check(m4.Visible && m4.Texto.StartsWith("¡Están trepando el muro!"), "con la pila por encima de 150 sale el 3.1 (aunque pasara antes: es un estado)");
+                Hasta(m4, "3.6");
+                m4.Relleno = t => t.Replace("{eta}", "0:09");
+                check(m4.Texto.EndsWith("La ayuda llega en 0:09."), "3.6 escribe el ETA real");
                 m4.Senal(TutorialGuion.Senales.VueltaZona);
-                check(m4.Actual.Id == "3.12" && !m4.Visible, "3.12 no sale hasta que entra el tren");
+                check(m4.Actual.Id == "3.7" && !m4.Visible, "3.7 espera al tren");
                 m4.Senal(TutorialGuion.Senales.TrenEnSagunto);
-                check(m4.Visible && m4.Actual.Id == "3.12" && m4.Texto == "Ya están aquí. Descarga los refuerzos.", "con el tren en Sagunto sale el 3.12");
-                m4.Senal(TutorialGuion.Senales.RefuerzosEnTierra); check(m4.Actual.Id == "3.13", "refuerzos en tierra: 3.13");
-                m4.Senal(TutorialGuion.Senales.OrdenMover); check(m4.Estado == EstadoTutorial.Terminado, "3.13 acaba el tutorial con la orden de mover");
-                // 3.12b: Sagunto sitiada cuando entra el tren
-                var m5 = TutorialGuion.Nuevo(new MemoriaEnRam()); m5.Arrancar(850); bool sitiada = false;
-                m5.EstadoActual = x => x == TutorialGuion.Senales.SaguntoSitiada && sitiada;
-                Hasta(m5, "3.12"); check(!m5.Visible, "3.12 espera al tren (con asedio también)");
-                sitiada = true; m5.Senal(TutorialGuion.Senales.TrenEnSagunto);
-                check(m5.Actual.Id == "3.12b" && m5.Texto.StartsWith("Llegan tarde") && m5.Cabecera == "Capítulo 3 · Paso 12 de 13", "con Sagunto sitiada sale el 3.12b en lugar del 3.12");
-                m5.Senal(TutorialGuion.Senales.RefuerzosEnTierra); check(m5.Actual.Id == "3.12b", "el 3.12b no se cierra con «refuerzos en tierra»");
-                m5.Senal(TutorialGuion.Senales.TropaEnTierra); check(m5.Actual.Id == "3.13", "se cierra con la tropa en tierra (D-N166)");
+                check(m4.Visible && m4.Texto.StartsWith("Sagunto está sitiada"), "con el tren a las puertas sale el 3.7");
+                m4.Senal(TutorialGuion.Senales.TropaEnTierra); check(m4.Actual.Id == "3.8", "tropa en tierra: 3.8");
+                m4.Senal(TutorialGuion.Senales.OrdenAtacar); check(m4.Estado == EstadoTutorial.Terminado, "3.8 acaba el tutorial con la orden de atacar (o de mover)");
+                // si salta por los 60 s (sin tromba), sale el 3.1b
+                var mt = TutorialGuion.Nuevo(new MemoriaEnRam()); mt.Arrancar(725); bool tiempo = false;
+                mt.EstadoActual = x => (x == TutorialGuion.Senales.Cap3Dispara || x == TutorialGuion.Senales.Cap3PorTiempo) && tiempo;
+                while (mt.Cap.Numero < 3) { var p = mt.Actual; if (!mt.Visible) { mt.Senal(p.Espera); continue; } if (p.Cierre == Cierre.Segundos) Run1(mt, p.Segundos); else foreach (var x in p.Senales) { mt.Senal(x); if (mt.Actual != p) break; } }
+                check(!mt.Visible, "sin pila ni tiempo, el capítulo 3 espera");
+                tiempo = true; mt.Avanzar(0.1f);
+                check(mt.Visible && mt.Actual.Id == "3.1b" && mt.Texto.StartsWith("La horda está en el muro"), "a los 60 s del primer contacto sale el 3.1b");
+                Run1(mt, 4.2f); check(mt.Actual.Id == "3.2", "y sigue con el 3.2");
+                bool cifras = false; foreach (var p in caps[3].Pasos) foreach (char ch in p.Texto) if (char.IsDigit(ch)) cifras = true;
+                check(!cifras, "el capítulo 3 no escribe cifras (el ETA lo pone el juego)");
             }
 
             // --- destacamento de Nules (D-N172) sobre la red: tren parado en Nules, embarque, viaje a Sagunto y descarga en casa
@@ -143,11 +145,11 @@ namespace TBD.Sim.Tests
                 int n0 = w.Services.Count, sv = Destacamento.SembrarTren(w);
                 check(sv == n0 && Destacamento.SembrarTren(w) == sv && w.Services[sv].Train.Name.EndsWith("Nules"), "se crea un tren parado en Nules (una vez)");
                 check(TrenPreparar.TrenEn(w, nul) == sv, "TrenEn lo encuentra en Nules");
-                const int Pel = 77, Veh = 4;
+                const int Pel = 77, Veh = -1;     // sin Lince desde la revisión de la D-N172
                 check(w.LoadBlockReason(sv, PasajeroTipo.Peloton, Pel, nul) != null, "un pelotón que no es del destacamento no sube en Nules (está en Sagunto)");
                 Destacamento.Registrar(w, Pel, Veh); Destacamento.Registrar(w, Pel, Veh);
-                check(w.Embarque.AtStation(nul, PasajeroTipo.Peloton).Count == 1 && w.Embarque.AtStation(nul, PasajeroTipo.Vehiculo).Count == 1, "el destacamento está en Nules (un pelotón y un vehículo, sin duplicar)");
-                check(w.LoadBlockReason(sv, PasajeroTipo.Peloton, Pel, nul) == null && w.LoadPassenger(sv, PasajeroTipo.Peloton, Pel, nul) && w.LoadPassenger(sv, PasajeroTipo.Vehiculo, Veh, nul), "el pelotón y el Lince suben al tren de Nules");
+                check(w.Embarque.AtStation(nul, PasajeroTipo.Peloton).Count == 1 && w.Embarque.AtStation(nul, PasajeroTipo.Vehiculo).Count == 0, "el destacamento está en Nules (un pelotón, sin vehículo, sin duplicar)");
+                check(w.LoadBlockReason(sv, PasajeroTipo.Peloton, Pel, nul) == null && w.LoadPassenger(sv, PasajeroTipo.Peloton, Pel, nul), "el pelotón sube al tren de Nules");
                 var carga = new int[NetConst.ResCount]; carga[(int)Res.Materiales] = 20; w.Stock[nul, (int)Res.Materiales] = Math.Max(w.Stock[nul, (int)Res.Materiales], 20);
                 check(w.SetSchedule(sv, TrenPreparar.Envio(w, sv, sag, carga)) == ScheduleResult.Ok, "Preparar tren desde Nules: horario a Sagunto válido");
                 long eta = TrenPreparar.EtaDesdeParada(w, sv, sag);
@@ -155,7 +157,7 @@ namespace TBD.Sim.Tests
                 while (w.Tick - t0 < NetConst.DayTicks / 2) { w.Step(); if (!s.AtStop) salio = true; if (salio && s.AtStop) break; }
                 check(salio && s.AtStop && s.Stops[s.StopIndex].Node == sag && s.Cargo[(int)Res.Materiales] == 20, $"llega a Sagunto con los materiales ({TrenPreparar.HhMm(w.Tick - t0)}, ETA {TrenPreparar.HhMm(eta)})");
                 check(w.SetSchedule(sv, TrenPreparar.Aparcar(w, sv)) == ScheduleResult.Ok, "se aparca en Sagunto");
-                check(w.UnloadPassengers(sv, sag) == 2 && w.Embarque.Aboard(sv, PasajeroTipo.Peloton).Count == 0 && w.Embarque.Find(PasajeroTipo.Peloton, Pel) < 0, "en casa bajan los dos y salen de la lista (son tropa de Sagunto)");
+                check(w.UnloadPassengers(sv, sag) == 1 && w.Embarque.Aboard(sv, PasajeroTipo.Peloton).Count == 0 && w.Embarque.Find(PasajeroTipo.Peloton, Pel) < 0, "en casa baja y sale de la lista (ya es tropa de Sagunto)");
             }
 
             // --- tarjeta suelta del C90: una vez, y solo con el tutorial en marcha
