@@ -47,6 +47,14 @@ def construir(nombre="SM_PuertaVia", lod=0):
             PV._jamba_hesco(m, s * JAMBA, fino)
     if a == 4:                              # dintel con la cara de abajo a 6,0 m: deja pasar el tren y la catenaria
         m.caja((0, 0, 6.25), (2 * JAMBA + 0.9, 0.6, 0.5), "hormigon")    # (Lucía, 8-nov 10:22; gálibo SIN VERIFICAR)
+        # Anclaje de la catenaria bajo el dintel (Paula, FOM/1630/2015: hilo de contacto CA-160 a 5,30 m, zona libre del
+        # pantógrafo 5,63 m; el sustentador, a ~6,7 m, no cabe y se ancla aquí, como bajo la losa de RC3). Soporte
+        # colgado hasta 5,75 m con travesaño y dos aisladores; el hilo del nivel pasa por debajo, a 5,30 m.
+        m.caja((0, 0, 5.9), (0.16 if fino else 0.34, 0.16 if fino else 0.34, 0.25), "marco")
+        m.caja((0, 0, 5.75), (1.2, 0.12 if fino else 0.34, 0.1 if fino else 0.17), "marco")
+        if fino:
+            for x in (-0.45, 0.45):
+                m.cilindro((x, 0, 5.62), 0.06, 0.18, "Z", 8, "placa")
     if a == 3 and fino:
         for s in (-1, 1):
             m.cilindro((s * JAMBA, 0, 2.3), 0.25, 0.9, "X", 8, "alambre")
