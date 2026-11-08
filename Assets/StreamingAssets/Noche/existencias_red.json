@@ -1,0 +1,86 @@
+{
+  "_nota": "Existencias de partida de la red y topes del almacén de zona (Hugo (3), 8-nov; regla en docs/economia/escala-existencias.md). Generado por unidades.py; no editar a mano. Los id tienen que coincidir con los de RailNet.",
+  "unidad": "u",
+  "u_municion_zombis": 400,
+  "reglas": {
+    "llenado": [
+      "inicio_partida",
+      "inicio_ataque"
+    ],
+    "toma": "min(tope_zona, reserva) por recurso",
+    "fin_ataque": "lo que sobra en la zona vuelve a la reserva; lo gastado se pierde",
+    "durante_ataque": "no se repone de la reserva; la munición que llega en tren entra al almacén aunque pase del tope",
+    "entre_ataques": "el jugador puede reponer a mano desde la reserva hasta el tope",
+    "dotaciones": "la de los pelotones y vehículos (unas 10 u) va con ellos, no con el almacén"
+  },
+  "estaciones": [
+    {
+      "id": "sagunto",
+      "reserva": {
+        "municion_u": 150,
+        "combustible_u": 140,
+        "materiales_u": 100,
+        "viveres_u": 80
+      },
+      "personas": 80,
+      "tope_zona": {
+        "municion_u": 47,
+        "combustible_u": 30,
+        "materiales_u": 40
+      },
+      "se_repone": true,
+      "nota": "STOCK_INICIAL de sim_economia.py (equilibrado 14,2 %)"
+    },
+    {
+      "id": "nules",
+      "reserva": {
+        "municion_u": 0,
+        "combustible_u": 0,
+        "materiales_u": 0,
+        "viveres_u": 0
+      },
+      "personas": 0,
+      "tope_zona": {
+        "municion_u": 47,
+        "combustible_u": 30,
+        "materiales_u": 40
+      },
+      "se_repone": true,
+      "nota": "0 u de munición (Lucía); la guarnición lleva su dotación; víveres solo de su producción; recinto de partida 124,3 u ya construido"
+    },
+    {
+      "id": "betera",
+      "reserva": {
+        "municion_u": 50,
+        "combustible_u": 70,
+        "materiales_u": 0,
+        "viveres_u": 0
+      },
+      "personas": 0,
+      "tope_zona": {
+        "municion_u": 47,
+        "combustible_u": 30,
+        "materiales_u": 40
+      },
+      "se_repone": false,
+      "nota": "D-N173: base del aire; no se repone en el MVP; NH90: 1,8 u por rearme y unas 3 u de combustible por salida"
+    },
+    {
+      "id": "castellon",
+      "reserva": {
+        "municion_u": 0,
+        "combustible_u": 300,
+        "materiales_u": 0,
+        "viveres_u": 0
+      },
+      "personas": 0,
+      "tope_zona": {
+        "municion_u": 47,
+        "combustible_u": 30,
+        "materiales_u": 40
+      },
+      "se_repone": true,
+      "nota": "hereda el depósito de 300 u de combustible"
+    }
+  ]
+}
