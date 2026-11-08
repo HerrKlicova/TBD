@@ -78,7 +78,7 @@ namespace TBD.View
             }
             foreach (var v in _vehs)
             {
-                if (v.Go == null) continue;
+                if (v.Go == null) { var dead = NightVehicle.Make(v.Name, v.Heli ? NightVehKind.Nh90 : v.Name.StartsWith("Dragón") ? NightVehKind.Dragon : NightVehKind.Vamtac, 0, 0); dead.Shots = 0; dead.Fire = false; sim.Vehicles.Add(dead); continue; }   // el hueco se conserva: el id de vehiculo es el indice en _vehs (Nacho)
                 var kind = v.Heli ? NightVehKind.Nh90 : v.Name.StartsWith("Dragón") ? NightVehKind.Dragon : NightVehKind.Vamtac;
                 var nv = NightVehicle.Make(v.Name, kind, (int)(v.Pos.x * 1000f), (int)(v.Pos.y * 1000f));
                 try { NightVehicle.ApplyParams(nv, BalanceSource.Read("nightsim_params.json")); } catch (System.Exception) { }

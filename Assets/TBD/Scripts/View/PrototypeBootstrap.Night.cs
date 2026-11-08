@@ -22,6 +22,9 @@ namespace TBD.View
     {
         public static bool Active;
         public static bool LeftOnce;               // QA: -leaveat solo una vez
+        public sealed class VehInfo { public string Name; public string Tipo; public bool Vivo; public bool Embarcado; }
+        /// <summary>Registro estatico de los vehiculos de la noche (nombre, tipo, vivo), en orden de creacion: el id de vehiculo del embarque es el indice (Nacho). Lo lee el mapa siempre, tambien de dia.</summary>
+        public static readonly System.Collections.Generic.List<VehInfo> Vehs = new System.Collections.Generic.List<VehInfo>();
         public static NightSession Session;       // la noche persistente: sobrevive a la escena de la zona (D-N91)
         public static int Difficulty = 850;      // palanca única (D-N74): 725 fácil, 850 normal, 1000 difícil
     }

@@ -63,8 +63,15 @@ namespace TBD.View
         }
 
         // ---------------------------------------------------------------- un tick de vehículos (30 Hz)
+        /// <summary>Refresca NightRun.Vehs (nombre, tipo, vivo) una vez por segundo.</summary>
+        void RegisterVehs()
+        {
+            var L = NightRun.Vehs; while (L.Count < _vehs.Count) L.Add(new NightRun.VehInfo());
+            for (int i = 0; i < _vehs.Count; i++) { var v = _vehs[i]; var r = L[i]; r.Name = v.Name; r.Tipo = v.Heli ? "helicoptero" : v.Name.StartsWith("Drag") ? "dragon" : "vamtac"; r.Vivo = v.Go != null; }
+        }
         void VehiclesTick(NativeSnapshot z)
         {
+            if (_ng == null || _ng.Tick % 30 == 0) RegisterVehs();
             float dt = 1f / 30f;
             foreach (var v in _vehs)
             {
