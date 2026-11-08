@@ -3,7 +3,7 @@
   "reglas": {
     "vida_efectiva": "vida x 1000 / (1000 - armadura)",
     "si_Vehiculos_cs_no_tiene_armadura": "Hp = vida efectiva / 100 (VAMTAC 400, Dragón 4000, Pizarro 7143)",
-    "reloj_mapa": "D-N72: 1 s real = 28 s de juego; ETA real = km / km_h x 3600 / 28",
+    "reloj_mapa": "D-N161: 1 s real = 103 s de juego; ETA real = km / km_h x 3600 / reloj_x (el de noche_sagunto.json)",
     "rutas": "D-N96: solo por carretera habilitada o por la caja de la vía; nunca campo a través"
   },
   "vehiculos": {
