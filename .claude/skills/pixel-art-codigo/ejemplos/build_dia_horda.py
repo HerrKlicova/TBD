@@ -32,6 +32,7 @@ from PIL import Image, ImageDraw, ImageFont
 OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "out_dia_horda")
 OBJ = Path("/mnt/project-files/entregas/teo-horda-obj")
 MURO_CARA = __import__("os").environ.get("TBD_MURO", "#6c7874")
+CARGA = __import__("os").environ.get("TBD_CARGA", "#847c34")      # carga visible (Teo, mr-mak 84e1194): cajas de munición sobre el vagón v2
 TREN_LADO = __import__("os").environ.get("TBD_TREN", "#70784c")    # Teo, D-N157 (mr-mak d54dd0f): de #50541c a #70784c; TBD_TREN=#50541c da el de antes    # TBD_MURO=#94948c prueba el muro claro (propuesta para vía↔muro)
 PX = 0.144                       # m por píxel (ortho 26 a 1080p, mundo a 1/3)
 W, H = 400, 240                  # 57,6 m × 34,6 m de pantalla
@@ -150,6 +151,10 @@ def escena(seed=157):
         m.caja(x0, 3.6, zc - 1.45, x1, 3.62, zc + 1.45, L("#b8b8b8"), "techo")               # techo claro
         if loco:
             m.caja(x0 - 0.02, 1.6, zc - 1.45, x0, 2.0, zc + 1.45, L("#e08c30"), "tren_franja")
+    # carga visible sobre el vagón del centro (plataforma: cajas de 1,2 × 0,8 × 0,9 m en dos filas)
+    for cx in np.arange(-7.6, 8.0, 1.6):
+        for cz in (zc - 0.75, zc + 0.15):
+            m.caja(cx, 3.62, cz, cx + 1.2, 4.5, cz + 0.6, L(CARGA), "carga")
     # muro de obra a z = 0 (cara exterior en z = 0,5), 2,5 m
     m.caja(-40, 0, -0.5, 40, 2.5, 0.0, L(MURO_CARA), "muro_cara")                    # cara exterior a z = −0,5, hacia la cámara y la horda
     m.caja(-40, 2.5, -0.5, 40, 2.52, 0.0, L("#94948c"), "muro_corona")
@@ -296,7 +301,7 @@ def medir(img, tid, cls_all, ok, CLS):
     Ls = lstar_lin(img)
     cl = np.full(tid.shape, "", object); cl[ok] = CLS[tid[ok]]
     res = {}
-    for k in ("horda", "suelo_in", "suelo_out", "via", "carril", "tren", "techo", "muro_cara", "muro_corona", "propio"):
+    for k in ("horda", "suelo_in", "suelo_out", "via", "carril", "tren", "techo", "carga", "muro_cara", "muro_corona", "propio"):
         v = Ls[cl == k]
         if v.size: res[k] = dict(p5=float(np.percentile(v, 5)), med=float(np.median(v)), p95=float(np.percentile(v, 95)), n=int(v.size))
     return res
