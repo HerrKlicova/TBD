@@ -102,21 +102,34 @@ def marco(forma, H):
 
 def icono(d, nombre, caja, col):
     x0, y0, x1, y1 = caja
-    if nombre in ("infanteria", "mecanizado"):
+    # Cotejado con los SVG de Commons de Paula (referencias-reales/informe-inteligencia/app6, 8-nov):
+    #   coraza = «estadio» (rectángulo de extremos redondos, ~64 % de ancho y 50 % de alto del marco), no una elipse;
+    #   motorizado = X + trazo vertical; ruedas = dos círculos pequeños abajo; ala rotatoria = pajarita con mástil hacia abajo.
+    w, h = x1 - x0, y1 - y0
+    cx, cy = (x0 + x1) // 2, (y0 + y1) // 2
+    if nombre in ("infanteria", "mecanizado", "motorizado", "ruedas"):
         d.line([x0, y0, x1, y1], fill=col)
         d.line([x0, y1, x1, y0], fill=col)
+    if nombre == "motorizado":
+        d.line([cx, y0, cx, y1], fill=col)
     if nombre in ("acorazado", "mecanizado"):
-        w, h = x1 - x0, y1 - y0
-        d.ellipse([x0 + w // 5, y0 + h // 4, x1 - w // 5, y1 - h // 4], outline=col)
-    if nombre == "helicoptero":                              # rotor en pajarita
-        cx, cy = (x0 + x1) // 2, (y0 + y1) // 2
-        hw, hh = (x1 - x0) // 2, max(1, (y1 - y0) // 2)
-        d.polygon([(cx - hw, cy - hh), (cx, cy), (cx - hw, cy + hh)], fill=col)
-        d.polygon([(cx + hw, cy - hh), (cx, cy), (cx + hw, cy + hh)], fill=col)
+        ex0, ey0, ex1, ey1 = x0 + round(w * 0.18), y0 + round(h * 0.25), x1 - round(w * 0.18), y1 - round(h * 0.25)
+        d.rounded_rectangle([ex0, ey0, ex1, ey1], radius=(ey1 - ey0) // 2, outline=col)
+    if nombre == "ruedas":                                   # blindado de ruedas (Dragón): X + dos ruedas bajo el cruce
+        r = 1 if h < 14 else 2
+        for k in (-1, 1):
+            rx = cx + k * (r + 2)
+            d.ellipse([rx - r, y1 - 2 * r - 1, rx + r, y1 - 1], outline=col)
+    if nombre == "helicoptero":                              # rotor en pajarita + mástil (Commons: ala rotatoria)
+        hw, hh = w // 2, max(1, h // 3)
+        cyr = y0 + hh
+        d.polygon([(cx - hw, cyr - hh), (cx, cyr), (cx - hw, cyr + hh)], fill=col)
+        d.polygon([(cx + hw, cyr - hh), (cx, cyr), (cx + hw, cyr + hh)], fill=col)
+        d.line([cx, cyr, cx, y1], fill=col)
 
 
 def tamano(d, W, H, eche, col):
-    """Indicador de tamaño encima del marco: 1 = ● pelotón, 3 = ●●● sección, 'I' = compañía."""
+    """Indicador de tamaño encima del marco, con la equivalencia española de APP-6: 1 = ● escuadra, 2 = ●● pelotón, 3 = ●●● sección, 'I' = compañía."""
     if not eche:
         return
     y = max(0, H // 5 - 3)
@@ -163,8 +176,8 @@ def simbolo(afil, ico, H, azul=RECOMENDADA, ataque=False, eche="", tramado=False
 
 
 CATALOGO = [  # (afiliación, icono, tamaño de unidad)
-    ("amigo", "infanteria", "1"), ("amigo", "infanteria", "3"), ("amigo", "infanteria", "I"), ("amigo", "mecanizado", "1"),
-    ("amigo", "acorazado", "1"), ("aire", "helicoptero", ""), ("hostil", "infanteria", ""), ("horda", "", ""),
+    ("amigo", "infanteria", "2"), ("amigo", "infanteria", "3"), ("amigo", "infanteria", "I"), ("amigo", "mecanizado", "2"),
+    ("amigo", "acorazado", "2"), ("amigo", "motorizado", "2"), ("amigo", "ruedas", "2"), ("aire", "helicoptero", ""), ("hostil", "infanteria", ""), ("horda", "", ""),
     ("desconocido", "", ""),
 ]
 
@@ -173,7 +186,9 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     for H in (16, 24):
         for afil, ico, eche in CATALOGO:
-            nombre = f"app6_{afil}_{ico or 'vacio'}{'_' + eche if eche else ''}_{H}.png".replace("_I_", "_compania_").replace("_1_", "_peloton_").replace("_3_", "_seccion_")
+            if ico == "ruedas" and H < 20:                   # a 16 px las ruedas son 3 px y se comen la X: solo existe a 24
+                continue
+            nombre = f"app6_{afil}_{ico or 'vacio'}{'_' + eche if eche else ''}_{H}.png".replace("_I_", "_compania_").replace("_1_", "_escuadra_").replace("_2_", "_peloton_").replace("_3_", "_seccion_")
             simbolo(afil, ico, H, eche=eche).save(OUT / nombre)
         simbolo("horda", "", H, ataque=True).save(OUT / f"app6_horda_vacio_ataque_{H}.png")
         simbolo("horda", "", H, tramado=True).save(OUT / f"app6_horda_tramado_{H}.png")
@@ -185,7 +200,7 @@ def main():
     fila_w = sum(simbolo(a, i, H, eche=e).size[0] + 4 for a, i, e in CATALOGO) + 2 * (H + 4) + 8
     out = Image.new("RGB", (220 + fila_w * K, 30 + len(AZULES) * len(FONDOS) * (H + 4) * K + len(AZULES) * 16), (0, 0, 0))
     d = ImageDraw.Draw(out)
-    d.text((220, 6), "amigo (inf ●, inf ●●●, inf I, mec, acor, helo) · hostil · horda · desconocido · horda ataque · hostil ataque", fill=HUESO[:3], font=f)
+    d.text((220, 6), "amigo (inf ●●, inf ●●●, inf I, mec, acor, motor, ruedas, helo) · hostil · horda · desconocido · horda ataque · hostil ataque", fill=HUESO[:3], font=f)
     y = 30
     for v, (rel, lin, desc) in AZULES.items():
         d.text((6, y), f"{v}{' (recomendada)' if v == RECOMENDADA else ''}", fill=HUESO[:3], font=f)
