@@ -133,7 +133,9 @@ namespace TBD.View
         }
 
         /// <summary>Alcance en metros de algunos eventos que se oyen más lejos que el resto (MaxDist): el golpe del tren caído a las puertas, 300 m (Nuria, D-N177).</summary>
-        public static readonly System.Collections.Generic.Dictionary<string, float> Alcance = new System.Collections.Generic.Dictionary<string, float> { { "sfx_tren_caido_puertas", 300f } };
+        public static readonly System.Collections.Generic.Dictionary<string, float> Alcance = new System.Collections.Generic.Dictionary<string, float> { { "sfx_tren_caido_puertas", 300f }, { "sfx_tren_pitido_electrico", 400f }, { "sfx_tren_pitido_diesel", 400f } };
+        /// <summary>Eventos con caída logarítmica y distancia mínima propia (D-N170, Nuria y Lucía: el pitido del tren, 20 m a 400 m).</summary>
+        public static readonly System.Collections.Generic.Dictionary<string, float> MinDist = new System.Collections.Generic.Dictionary<string, float> { { "sfx_tren_pitido_electrico", 20f }, { "sfx_tren_pitido_diesel", 20f } };
         static string Base(string clip) { int i = clip.LastIndexOf('_'); return i > 0 && int.TryParse(clip.Substring(i + 1), out _) ? clip.Substring(0, i) : clip; }
 
         void Fire(AudioClip c, string group, Vector3? pos, float vol, float pitch)
@@ -144,6 +146,8 @@ namespace TBD.View
             v.A.Stop(); v.A.clip = c; v.A.pitch = pitch; v.A.volume = Mathf.Clamp01(vol * duck * MainMenu.SfxVolume * GlobalGain * (pos.HasValue ? CloseGain() : 1f));
             v.A.spatialBlend = pos.HasValue ? 1f : 0f; if (pos.HasValue) v.A.transform.position = pos.Value;
             v.A.maxDistance = c != null && Alcance.TryGetValue(Base(c.name), out var md) ? md : MaxDist;      // alcance propio por evento (Nuria; Iker)
+            if (c != null && MinDist.TryGetValue(Base(c.name), out var mn)) { v.A.rolloffMode = AudioRolloffMode.Logarithmic; v.A.minDistance = mn; }
+            else if (v.A.rolloffMode != AudioRolloffMode.Custom) { v.A.rolloffMode = AudioRolloffMode.Custom; v.A.minDistance = 1f; }
             v.Group = group; v.Started = Time.unscaledTime; v.A.Play();
         }
 
