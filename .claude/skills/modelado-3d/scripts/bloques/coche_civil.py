@@ -28,11 +28,14 @@ NOMBRES_T = ["Utilitario", "Berlina", "Furgoneta", "Todoterreno", "Camion"]
 PINTURAS = [("94948c", "605c48"), ("b4a080", "605c48"), ("b8b8b8", "88885c"), ("847c34", "605c48"),
             ("88885c", "70784c")]
 QUEMADO = V == 4
-_PINT = ("94948c", "605c48") if QUEMADO else PINTURAS[(TIPO * 2 + V) % 5]
+# reparto (Lucía, 8-nov 13:09): verde y ocre juntos ≤ 20 % de los no quemados (4 de 20); el resto gris, beige y blanco
+_SEQ = (0, 1, 2, 0, 1, 2, 3, 0, 1, 2, 0, 1, 4, 2, 0, 1, 2, 3, 1, 4)
+_PINT = ("94948c", "605c48") if QUEMADO else PINTURAS[_SEQ[TIPO * 4 + V]]
 PIEZAS = ["casco", "luna", "rueda", "faro", "puerta", "lona", "oxido", "chasis"]
 COLORES = {"casco": _PINT[1], "luna": "605c48" if QUEMADO else "6c7874", "rueda": "605c48", "faro": "88885c",
-           "puerta": _PINT[1], "lona": "605c48" if QUEMADO else "70784c", "oxido": "7c3c18", "chasis": "6c7874"}
-VALOR_PIEZAS = {"casco": _PINT, "puerta": _PINT}
+           "puerta": _PINT[1], "lona": "605c48", "oxido": "7c3c18", "chasis": "6c7874"}
+# lona del camión en beige o gris, nunca verde (se leía militar, Lucía 8-nov 13:09)
+VALOR_PIEZAS = {"casco": _PINT, "puerta": _PINT, "lona": ("b4a080", "605c48") if V % 2 == 0 else ("94948c", "605c48")}
 FACCION = "neutro"
 PRESUPUESTO = {0: (60, 1200), 1: (40, 600)}
 UMBRAL_CONTORNO = {0: 9.0, 1: 9.0}
@@ -106,8 +109,20 @@ def construir(nombre="SM_CocheCivil", lod=0):
         zc = (P[0][1] + corte) / 2 + 0.25
         t.caja((-s0 - math.sin(a) * lp / 2, yb + math.cos(a) * lp / 2, zc), (0.07, lp, 0.85), "puerta", rot_z=a)
     if QUEMADO:                                                           # óxido en el techo y huecos de lunas
+        # manchas irregulares de óxido por el techo y el capó (no un cuadrado: parecía una selección, Lucía 13:09)
         top = max(p[1] for p in P)
-        t.caja((0, (P[2][0] + P[-2][0]) / 2, top + 0.01), (s0 * 1.2, 1.2, 0.03), "oxido", rot_z=0.1)
+        yt0, yt1 = P[3][0] if TIPO != 4 else P[2][0], P[-2][0] if TIPO != 4 else P[3][0]
+        mn = 0.12 if fino else 0.36
+        for k, (fy, fx, a1, a2, rz) in enumerate(((0.2, -0.3, 0.7, 0.45, 0.4), (0.45, 0.25, 0.5, 0.8, -0.7),
+                                                  (0.7, -0.1, 0.9, 0.4, 1.1), (0.85, 0.35, 0.35, 0.5, 0.2))):
+            t.caja((fx * s0, yt0 + (yt1 - yt0) * fy, top + 0.012 + 0.004 * k), (max(a1, mn), max(a2, mn), 0.03), "oxido",
+                   rot_z=rz)
+        if TIPO != 4:                                    # capó
+            yc, zc = (P[1][0] + P[2][0]) / 2, (P[1][1] + P[2][1]) / 2
+            ang = math.atan2(P[2][1] - P[1][1], P[2][0] - P[1][0])
+            for k, (fx, a1, a2, rz) in enumerate(((-0.35, 0.5, 0.35, 0.5), (0.3, 0.4, 0.55, -0.4))):
+                t.caja((fx * s0, yc + 0.1 * k, zc + 0.03), (max(a1, mn), max(a2, mn), 0.03), "oxido",
+                       rot_x=ang, rot_z=rz)
     o = t.objeto(nombre, bisel=0)
     me = o.data
     if V == 3:                                                            # morro hundido
