@@ -52,6 +52,15 @@ namespace TBD.Sim.Tests
                 var sw = new SaveWriter(); sa.Night.SaveState(sw); var gl = new NightGame(sa.Night.P, 0); gl.LoadState(new SaveReader(sw.ToArray()));
                 check(gl.StartNetTick == sa.Night.StartNetTick && gl.Hash() == sa.Night.Hash(), $"guardar y cargar la noche conserva StartNetTick ({gl.StartNetTick}) y el hash");
             }
+            {   // ×1 automático en el primer contacto (Lucía, D-N186)
+                var w = NetScenario.Inicio(); int sag = TrenPreparar.Nodo(w, "Sagunto"); var s = Sagunto(true); w.NochesZona[sag] = s;
+                while (w.Tick < NetWorld.NightStartTick(1) - 5) w.Step();
+                w.Push(new NetCommand { Tick = w.Tick, Type = NetCmdType.SetSpeed, Arg = 4 });
+                int guard = 0; while (w.ContactAtTick < 0 && guard++ < 8400) w.Step();
+                check(w.ContactNode == sag && s.ContactTick > 0 && w.Speed == 1, $"primer contacto de la horda con Sagunto a las {NetConst.Clock(w.ContactAtTick)} (tick {s.ContactTick} de la noche): la red baja de ×4 a ×{w.Speed}");
+                w.Push(new NetCommand { Tick = w.Tick, Type = NetCmdType.SetSpeed, Arg = 4 }); for (int k = 0; k < 300; k++) w.Step();
+                check(w.Speed == 4, "solo el primer contacto de la noche baja a ×1: si el jugador vuelve a ×4, se queda");
+            }
             {   // plan del escenario: Nules solo el día 2; numeración de noches por el plan
                 var w = NetScenario.Inicio(); int sag = TrenPreparar.Nodo(w, "Sagunto"), nul = TrenPreparar.Nodo(w, "Nules");
                 check(w.HasNight(sag, 1) && w.HasNight(sag, 5) && !w.HasNight(nul, 1) && w.HasNight(nul, 2) && !w.HasNight(nul, 3), "plan de Inicio: Sagunto todas las noches; Nules solo la del día 2 (Defiende Nules)");

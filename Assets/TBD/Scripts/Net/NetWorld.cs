@@ -47,6 +47,8 @@ namespace TBD.Net
         void PasoNoche();
         /// <summary>Hash del estado de la noche, para la prueba de desincronización.</summary>
         ulong HashNoche();
+        /// <summary>true solo en el tick del primer contacto de la horda con la estación en esta noche.</summary>
+        bool PrimerContacto { get; }
     }
 
     public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, SpendMaterials = 22, TrainCargo = 23, LoseNode = 24, TrainLost = 25 }
@@ -1141,6 +1143,12 @@ namespace TBD.Net
         /// <summary>Número de la noche del nodo el día «day» (1 = su primera noche): los días con noche del plan hasta ese día. Sale del plan y del reloj, sin estado.</summary>
         public int NightNumber(int node, int day) { int n = 0; for (int d = 1; d <= day; d++) if (HasNight(node, d)) n++; return n; }
 
+        /// <summary>×1 automático (Lucía, D-N186): el primer contacto de una horda con una estación propia en cada noche baja la velocidad a ×1. Se puede desactivar en Opciones
+        /// (configuración de la sesión, igual en los dos jugadores; no se guarda).</summary>
+        public bool AutoSlowOnContact = true;
+        /// <summary>Último primer contacto: nodo y tick de red (−1 si ninguno). Para el aviso de la vista; no entra en el hash (la velocidad, que sí entra, ya lo recoge).</summary>
+        public int ContactNode = -1; public long ContactAtTick = -1;
+
         void StepNights()
         {
             if (NochesZona.Count == 0) return;
@@ -1151,7 +1159,13 @@ namespace TBD.Net
                     if (HasNight(kv.Key, day))
                         kv.Value.ComienzaNoche(NightNumber(kv.Key, day), Tick);
             }
-            foreach (var kv in NochesZona) kv.Value.PasoNoche();
+            foreach (var kv in NochesZona)
+            {
+                kv.Value.PasoNoche();
+                if (!kv.Value.PrimerContacto) continue;
+                ContactNode = kv.Key; ContactAtTick = Tick;                       // el aviso «Ataque en {estación}: velocidad ×1.» lo pinta la vista (Iker)
+                if (AutoSlowOnContact && Speed > 1) Speed = 1;
+            }
         }
 
         // ---------------------------------------------------------------- un tick

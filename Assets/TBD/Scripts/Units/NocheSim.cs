@@ -337,11 +337,15 @@ namespace TBD.Units
         /// Si la anterior sigue en marcha (D-N164: no se gana al amanecer, hay que acabar con la horda), sigue esa y no empieza otra.</summary>
         public void ComienzaNoche(int noche, long startNetTick)
         {
-            if (Night.StartNetTick < 0 && Night.Tick == 0) { Night.Begin(startNetTick); return; }
-            if (Night.State == NightState.Victoria) Night.BeginNextNight(NextNightParams ?? Night.P, startNetTick);
+            if (Night.StartNetTick < 0 && Night.Tick == 0) { if (Night.Begin(startNetTick)) ContactTick = -1; return; }
+            if (Night.State == NightState.Victoria && Night.BeginNextNight(NextNightParams ?? Night.P, startNetTick)) ContactTick = -1;
         }
         /// <summary>INocheZona: un paso por tick de red, solo con la noche empezada por la red.</summary>
         public void PasoNoche() { if (Night.StartNetTick >= 0) Step(); }
+        /// <summary>Tick de la noche del primer contacto de la horda con la estación (pila en el muro o un zombi dentro del recinto); −1 si aún no. Se pone a −1 al empezar cada noche.
+        /// Sale del estado de la simulación (determinista). No se guarda: tras cargar a mitad de noche puede volver a avisar una vez.</summary>
+        public int ContactTick = -1;
+        public bool PrimerContacto { get { return ContactTick >= 0 && ContactTick == Night.Tick && Night.StartNetTick >= 0; } }
         public ulong HashNoche() { return Hash(); }
 
         public void Step()
@@ -363,6 +367,7 @@ namespace TBD.Units
                 var z = _z[i]; if (!z.Alive) continue;
                 int tx = SP.StationX, ty = SP.StationY;
                 bool inside = InFort(z.X, z.Y);
+                if (inside && ContactTick < 0) ContactTick = Night.Tick;                  // primer contacto de la noche (×1 automático, Lucía D-N186)
                 if (inside)
                 {
                     // D-N148 (Lucía): dentro del recinto ataca lo vivo más cercano (infantería, después vehículos parados, después obreros) y solo va al tren si no queda nadie en 30 m
@@ -397,6 +402,7 @@ namespace TBD.Units
                 }      // los que cruzan el hueco no son pila
             }
             if (SP.ClimbPermilS > 0 && WallHp > 0 && pile > SP.ClimbPileZ) pile -= ClimbStep(pile - SP.ClimbPileZ);
+            if (pile > 0 && ContactTick < 0) ContactTick = Night.Tick;
             if (pile > PeakPile) PeakPile = pile;
             if (cur != null && pile > cur.PeakPile) cur.PeakPile = pile;
             LastPile = pile;
