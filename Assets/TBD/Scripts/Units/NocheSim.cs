@@ -145,7 +145,7 @@ namespace TBD.Units
         public static bool Rodeo(int x, int y, RectMm s, int m, ref int tx, ref int ty)
         {
             if (y <= s.Y1 || x < s.X0 - m || x > s.X1 + m || ty >= s.Y0) return false;
-            tx = (x - (s.X0 - m)) <= ((s.X1 + m) - x) ? s.X0 - m : s.X1 + m; ty = y;   // primero a lo largo de la franja de detrás (en la zona hay un pasillo de < 1 m entre el edificio y el muro norte: hacia la esquina delantera se quedaban empujando contra la fachada); fuera de la sombra por X vuelve a su objetivo
+            tx = (x - (s.X0 - m)) <= ((s.X1 + m) - x) ? s.X0 - m - 1 : s.X1 + m + 1; ty = y;   // primero a lo largo de la franja de detrás (en la zona hay un pasillo de < 1 m entre el edificio y el muro norte: hacia la esquina delantera se quedaban empujando contra la fachada); fuera de la sombra por X vuelve a su objetivo
             return true;
         }
         static bool Nearest(int x, int y, IList<Target> list, long r2, out int tx, out int ty)

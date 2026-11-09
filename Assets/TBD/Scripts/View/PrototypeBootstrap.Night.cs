@@ -250,7 +250,7 @@ namespace TBD.View
                     _diagN++; _diagT = Time.unscaledTime; var sbd = new System.Text.StringBuilder(); int k = 0;
                     for (int i = 0; i < _zomPos.Count && k < 8; i++) { var zq = _zomPos[i]; if (zq.x > 66f && zq.x < 160f && zq.y > 60f && zq.y < 69f || (zq - StationC).sqrMagnitude < 144f) { sbd.Append($"({zq.x:0.0};{zq.y:0.0}) "); k++; } }
                     Debug.Log($"[NOCHE-DIAG] tren={_nearTrain} estacion={_pileNearStation} hora={TimeStr()} muro_permil={_ng.WallPermil} zombis_cerca={sbd}");
-                    { var sr = _ng.P.StationRect; int rr = _ng.P.AttackReachMm; var se = new System.Text.StringBuilder(); int ke = 0; using (var qd = _worldA.EntityManager.CreateEntityQuery(typeof(Zombie))) { var zd = qd.ToComponentDataArray<Zombie>(Allocator.Temp); zd.Sort(new ZombieSimIdOrder()); for (int i = 0; i < zd.Length && ke < 10; i++) { var zz = zd[i]; int zx = (int)(zz.Pos.x * 1000f), zy = (int)(zz.Pos.z * 1000f); long dx = zx < sr.X0 ? sr.X0 - zx : zx > sr.X1 ? zx - sr.X1 : 0, dy = zy < sr.Y0 ? sr.Y0 - zy : zy > sr.Y1 ? zy - sr.Y1 : 0; if (dx * dx + dy * dy <= (long)rr * rr) { se.Append($"({zz.Pos.x:0.0};{zz.Pos.z:0.0}->{(zz.HasGoal != 0 ? zz.Goal.x.ToString("0.0") + ";" + zz.Goal.y.ToString("0.0") : "sin")}) "); ke++; } } zd.Dispose(); } Debug.Log($"[NOCHE-DIAG] atacan_estacion pos->objetivo: {se}"); }
+                    { var sr = _ng.P.StationRect; int rr = _ng.P.AttackReachMm; var se = new System.Text.StringBuilder(); int ke = 0; using (var qd = _worldA.EntityManager.CreateEntityQuery(typeof(Zombie))) { var zd = qd.ToComponentDataArray<Zombie>(Allocator.Temp); zd.Sort(new ZombieSimIdOrder()); for (int i = 0; i < zd.Length && ke < 10; i++) { var zz = zd[i]; int zx = (int)(zz.Pos.x * 1000f), zy = (int)(zz.Pos.z * 1000f); long dx = zx < sr.X0 ? sr.X0 - zx : zx > sr.X1 ? zx - sr.X1 : 0, dy = zy < sr.Y0 ? sr.Y0 - zy : zy > sr.Y1 ? zy - sr.Y1 : 0; if (dx * dx + dy * dy <= (long)rr * rr) { se.Append($"({zz.Pos.x:0.0};{zz.Pos.z:0.0}->{(zz.HasGoal != 0 ? zz.Goal.x.ToString("0.0") + ";" + zz.Goal.y.ToString("0.0") : "sin")} g{(_cgTipo.TryGetValue((int)zz.SimId, out var gt) ? gt : "-")}) "); ke++; } } zd.Dispose(); } Debug.Log($"[NOCHE-DIAG] atacan_estacion pos->objetivo: {se}"); }
                     if (_diagN == 1) { var sw = new System.Text.StringBuilder(); foreach (var sg in _wallSegs) sw.Append($"[{sg.a.x:0.0};{sg.a.y:0.0}->{sg.b.x:0.0};{sg.b.y:0.0}] "); Debug.Log("[NOCHE-DIAG] muros_obras " + sw); }
                 }
                 TramosTick();
@@ -335,6 +335,7 @@ namespace TBD.View
             _ng.DamageTrain(floor - _ng.LastDmgTrain);
         }
 
+        readonly Dictionary<int, string> _cgTipo = new Dictionary<int, string>();   // diagnóstico: tipo de objetivo del último ClimberGoals (1 soldado, 2 vehículo, 3 obrero, 4 tren)
         void ClimberGoals()
         {
             _cgMen.Clear(); _cgVeh.Clear();
@@ -384,6 +385,7 @@ namespace TBD.View
                         }
                         int tx, ty; int cg = ClimberTargets.Pick((int)(x * 1000f), (int)(y * 1000f), _cgMen, _cgVeh, _cgWork, NightSim.ClimberSeekMm, tr, out tx, out ty);
                         if (cg == 4 && !TrainReachableZona()) { var sr = _ng.P.StationRect; tx = System.Math.Max(sr.X0, System.Math.Min(sr.X1, (int)(x * 1000f))); ty = System.Math.Max(sr.Y0, System.Math.Min(sr.Y1, (int)(y * 1000f))); }   // D-N180 (2), como NightSim.RetargetClimber
+                        if (wld == _worldA) { string nm = ""; if (cg == 2) foreach (var cv in _cgVeh) if (cv.X == tx && cv.Y == ty) { nm = cv.Id >= 0 && cv.Id < _vehs.Count ? _vehs[cv.Id].Name : "?"; break; } _cgTipo[(int)z.SimId] = cg + (nm.Length > 0 ? ":" + nm : ""); }   // diagnóstico (solo log)
                         ClimberTargets.Rodeo((int)(x * 1000f), (int)(y * 1000f), _ng.P.StationRect, _ng.P.AttackReachMm + 500, ref tx, ref ty);   // rodeo del edificio (Nacho, 9-nov; m = alcance + 0,5 m, para que el que rodea no cuente como atacante)
                         z.Goal = new float2(tx / 1000f, ty / 1000f); z.HasGoal = 1; zs[i] = z; dirty = true;
                     }
