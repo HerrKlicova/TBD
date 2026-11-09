@@ -254,7 +254,12 @@ namespace TBD.Units
                 if (t < 0) continue;
                 int due = Cumulative(w, t) - Spawned[w];
                 bool front = t <= WaveDurationTicks(w) * P.FrontTimePct / 100;
-                for (int k = 0; k < due; k++) { var sp = Place(w, front); if (SpawnLeadTicks > 0) sp.AheadTicks = Math.Min(SpawnLeadTicks, t - DueTick(w, Spawned[w] + k + 1)); spawns.Add(sp); }
+                for (int k = 0; k < due; k++)
+                {
+                    if (SpawnLeadTicks <= 0) { spawns.Add(Place(w, front)); continue; }
+                    int tc = DueTick(w, Spawned[w] + k + 1);       // su hora de siempre: decide si es del frente (por el tercio central) como sin adelanto
+                    var sp = Place(w, tc <= WaveDurationTicks(w) * P.FrontTimePct / 100); sp.AheadTicks = Math.Min(SpawnLeadTicks, Math.Max(0, t - tc)); spawns.Add(sp);
+                }
                 if (due > 0) { Spawned[w] += due; _lastSpawnTick = Tick; }
             }
             // fin de partida: la derrota tiene prioridad sobre la victoria en el mismo tick
