@@ -736,6 +736,7 @@ namespace TBD.View
             if (_nightOn && !porTick) return;      // de noche las listas de zombis (_zomPos, _allT) se refrescan cada 15 ticks DENTRO del tick: el tiempo real (y el turbo) no cambia lo que ve la noche
             if (!porTick) { _statsTimer -= Time.unscaledDeltaTime; if (_statsTimer > 0f) return; _statsTimer = 0.5f; }
             UpdateRecintoPuertas();         // solo vista: las hojas de las puertas de Teo siguen a GateProg de Works
+            DayAudio();                     // ambiente de día de Nuria (D3); de noche se calla
             if (!_nightOn) SyncWorks();      // de noche, SyncWorks va dentro del tick (los comandos de obra salen siempre en el mismo tick, con o sin turbo)
             var zs = _zombieQuery.ToComponentDataArray<Zombie>(Allocator.Temp);
             _total = zs.Length;

@@ -411,6 +411,7 @@ namespace TBD.View
         {
             SonidosColmena();
             Update_NightReturn();
+            { var ns = NightRun.Session; bool noche = ns != null && ns.Sim != null && ns.Sim.Night.State == TBD.Units.NightState.Jugando; Sfx.Loop("sfx_amb_dia_sagunto_1", noche ? 0f : 0.3f, false); }   // D3 (Nuria): mapa de día en 2D a 0,3; Sfx.Duck lo baja 6 dB con los CO y avisos
             if (_a == null) return;                      // entrada directa a la zona (noche o prueba): el mapa no se ha construido
             HandleInput();
             { var kbv = UnityEngine.InputSystem.Keyboard.current; if (kbv != null && kbv.vKey.wasPressedThisFrame && !TrainCloseView.Active)
