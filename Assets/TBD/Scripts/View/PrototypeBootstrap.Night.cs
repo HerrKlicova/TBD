@@ -226,7 +226,7 @@ namespace TBD.View
                 { for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; bool inside = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; uint zid = _zomId[ci]; if (inside) { if (_insideIds.Add(zid)) { _climbSec++; _entTot++; float dW = zp.x - Level.FortX0, dE = Level.FortX1 - zp.x, dS = zp.y - Level.FortY0, dN = Level.FortY1 - zp.y; float mn = Mathf.Min(Mathf.Min(dW, dE), Mathf.Min(dS, dN)); _entSide[mn == dW ? 0 : mn == dS ? 1 : mn == dE ? 2 : 3]++; } } else _insideIds.Remove(zid); }
                   { var tr = _ng.P.TrainRect; float r = _ng.P.AttackReachMm / 1000f; float tx0 = tr.X0 / 1000f - r, tx1 = tr.X1 / 1000f + r, ty0 = tr.Y0 / 1000f - r, ty1 = tr.Y1 / 1000f + r; int tin = 0, tout = 0; for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; if (zp.x < tx0 || zp.x > tx1 || zp.y < ty0 || zp.y > ty1) continue; bool insideF = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; if (insideF) tin++; else tout++; } _trainIn = tin; _trainOut = tout; } }
                 _allT.Clear(); for (int i = 0; i < _zomPos.Count; i++) _allT.Add(new Target { Id = (int)_zomId[i], X = (int)(_zomPos[i].x * 1000f), Y = (int)(_zomPos[i].y * 1000f) });
-                _ng.CountAttackers(_allT, out _pileNearStation, out _nearTrain); if (_pileNearStation > _pilaMaxVista) _pilaMaxVista = _pileNearStation; TutorialHud.ComprobarC90(_uw, _allT, (cx, cy) => cx > (int)(Level.FortX0 * 1000f) + 1000 && cx < (int)(Level.FortX1 * 1000f) - 1000 && cy > (int)(Level.FortY0 * 1000f) + 1000 && cy < (int)(Level.FortY1 * 1000f) - 1000);
+                _ng.CountAttackers(_allT, AimsStationZona, out _pileNearStation, out _nearTrain); if (_pileNearStation > _pilaMaxVista) _pilaMaxVista = _pileNearStation; TutorialHud.ComprobarC90(_uw, _allT, (cx, cy) => cx > (int)(Level.FortX0 * 1000f) + 1000 && cx < (int)(Level.FortX1 * 1000f) - 1000 && cy > (int)(Level.FortY0 * 1000f) + 1000 && cy < (int)(Level.FortY1 * 1000f) - 1000);
                 if (_rutaCap3.Pendientes > 0)
                     foreach (var rid in _rutaCap3.Ids) { var rp = _uw.Find(rid); if (rp == null) continue; if (_rutaCap3.Seguir(rid, rp.AX, rp.AY, out var rtx, out var rty, out var rh, out var ra)) { if (ra) _uw.AttackMove(rid, rtx, rty, rh); else _uw.Move(rid, rtx, rty, rh); } }
                 if (TutorialHud.Activo)
@@ -322,6 +322,9 @@ namespace TBD.View
         /// lo vivo más cercano a menos de 30 m (infantería, vehículos parados, obreros) y, si no hay nadie, el tren. En los dos mundos, con las mismas listas.
         /// Los de fuera siguen el campo de flujo (HasGoal = 0).</summary>
         /// <summary>D-N180 (2), copia de NightSim.TrainReachableFromInside: el tren existe y está dentro del recinto.</summary>
+        /// <summary>D-N181 (Lucía; la misma regla que NightSim): fuera del recinto el zombi cuenta siempre para el edificio; dentro, solo si su objetivo es la estación (D-N180).</summary>
+        bool AimsStationZona(int i) { if (i < 0 || i >= _zomPos.Count) return true; var p = _zomPos[i]; bool dentro = p.x > Level.FortX0 && p.x < Level.FortX1 && p.y > Level.FortY0 && p.y < Level.FortY1; return !dentro || _aimStation.Contains((int)_zomId[i]); }
+
         bool TrainReachableZona() { var r = _ng.P.TrainRect; return _ng.TrainHp > 0 && r.X1 > (int)(Level.FortX0 * 1000f) && r.X0 < (int)(Level.FortX1 * 1000f) && r.Y1 > (int)(Level.FortY0 * 1000f) && r.Y0 < (int)(Level.FortY1 * 1000f); }
 
         /// <summary>D-N180 (1), copia de NightSim.SurroundedTrain: un tren rodeado sin tropa a 60 m pierde al menos TrainHp / (10 min de juego) por tick. Va dentro del tick (determinista).</summary>
@@ -336,9 +339,10 @@ namespace TBD.View
             _ng.DamageTrain(floor - _ng.LastDmgTrain);
         }
 
+        readonly HashSet<int> _aimStation = new HashSet<int>();   // D-N181: los de dentro que tienen la estación de objetivo (D-N180); solo ellos cuentan para el edificio
         void ClimberGoals()
         {
-            _cgMen.Clear(); _cgVeh.Clear();
+            _cgMen.Clear(); _cgVeh.Clear(); _aimStation.Clear();
             foreach (var p in _uw.Platoons) { if (p.Aboard != 0) continue; foreach (var m in p.Men) if (m.Alive) _cgMen.Add(new Target { Id = m.Id, X = m.X, Y = m.Y }); }
             for (int i = 0; i < _vehs.Count; i++) { var v = _vehs[i]; if (v.Heli ? v.State != 0 : v.Speed > 0.1f) continue; _cgVeh.Add(new Target { Id = i, X = (int)(v.Pos.x * 1000f), Y = (int)(v.Pos.y * 1000f) }); }
             var tr = _ng.P.TrainRect;
@@ -384,7 +388,8 @@ namespace TBD.View
                             continue;
                         }
                         int tx, ty; int cg = ClimberTargets.Pick((int)(x * 1000f), (int)(y * 1000f), _cgMen, _cgVeh, _cgWork, NightSim.ClimberSeekMm, tr, out tx, out ty);
-                        if (cg == 4 && !TrainReachableZona()) { var sr = _ng.P.StationRect; tx = System.Math.Max(sr.X0, System.Math.Min(sr.X1, (int)(x * 1000f))); ty = System.Math.Max(sr.Y0, System.Math.Min(sr.Y1, (int)(y * 1000f))); }   // D-N180 (2), como NightSim.RetargetClimber
+                        if (cg == 4 && !TrainReachableZona()) { if (wld == _worldA) _aimStation.Add((int)z.SimId); var sr = _ng.P.StationRect; tx = System.Math.Max(sr.X0, System.Math.Min(sr.X1, (int)(x * 1000f))); ty = System.Math.Max(sr.Y0, System.Math.Min(sr.Y1, (int)(y * 1000f))); }   // D-N180 (2), como NightSim.RetargetClimber
+                        ClimberTargets.Rodeo((int)(x * 1000f), (int)(y * 1000f), _ng.P.StationRect, _ng.P.AttackReachMm + 500, ref tx, ref ty);   // rodeo del edificio (Nacho, 9-nov): por la franja de detrás, 1 mm fuera
                         z.Goal = new float2(tx / 1000f, ty / 1000f); z.HasGoal = 1; zs[i] = z; dirty = true;
                     }
                     if (dirty) q.CopyFromComponentDataArray(zs);
