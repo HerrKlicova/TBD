@@ -176,7 +176,7 @@ namespace TBD.View
             }
             // memoria de atención (NetWorld.IntelAttention): solo con un nodo mirado hoy y alguno olvidado
             _a.IntelAttention(out int foc, out var olvidados);
-            if (d.Amenaza.Count < 3 && foc >= 0 && foc < g.Nodes.Count && olvidados != null && olvidados.Count > 0) d.Amenaza.Add(T.AmenazaAtencion(g.Nodes[foc].Name));
+            if (d.Amenaza.Count < 3 && foc >= 0 && foc < g.Nodes.Count && olvidados != null && olvidados.Count > 0) { int zona = olvidados[0]; if (zona >= 0 && zona < g.Nodes.Count) d.Amenaza.Add(T.AmenazaAtencion(g.Nodes[zona].Name)); }   // {zona} = el olvidado con más Colmena alrededor (Nacho, 507af16)
             var trebol = new List<int>();
             for (int k = 0; k < g.Nodes.Count; k++) if (Trebol(k)) trebol.Add(k);
             foreach (int k in trebol)
