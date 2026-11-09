@@ -1835,11 +1835,17 @@ namespace TBD.View
             var dirt = M("b4a080"); var gate = M("7c3c18"); var grass = M("88885c");
             // P4: puerta de vía este, cerrada y solo visual
             float gx = Level.FortX1;
-            Box("Puerta este jamba S", new Vector3(gx, 1.6f, ty - 3.0f), new Vector3(1.4f, 3.2f, 0.8f), concrete, root);
-            Box("Puerta este jamba N", new Vector3(gx, 1.6f, ty + 3.0f), new Vector3(1.4f, 3.2f, 0.8f), concrete, root);
-            Box("Puerta este dintel", new Vector3(gx, 3.5f, ty), new Vector3(1.4f, 0.6f, 6.8f), concrete, root);
-            Box("Puerta este hoja S", new Vector3(gx, 1.8f, ty - 1.4f), new Vector3(0.3f, 2.4f, 2.6f), gate, root);
-            Box("Puerta este hoja N", new Vector3(gx, 1.8f, ty + 1.4f), new Vector3(0.3f, 2.4f, 2.6f), gate, root);
+            // Bruno 09-11 (modelos en las zonas): la puerta de vía este, con el modelo de Teo (Defensas/puerta_via, sana y cerrada) en lugar de las cinco cajas
+            var puertaEste = ModeloPuertaVia(new Vector3(gx, 0f, ty - 3.4f), new Vector3(gx, 0f, ty + 3.4f), 0);
+            if (puertaEste != null) puertaEste.transform.SetParent(root, true);              // con la zona: se destruye al salir de ella
+            else
+            {
+                Box("Puerta este jamba S", new Vector3(gx, 1.6f, ty - 3.0f), new Vector3(1.4f, 3.2f, 0.8f), concrete, root);
+                Box("Puerta este jamba N", new Vector3(gx, 1.6f, ty + 3.0f), new Vector3(1.4f, 3.2f, 0.8f), concrete, root);
+                Box("Puerta este dintel", new Vector3(gx, 3.5f, ty), new Vector3(1.4f, 0.6f, 6.8f), concrete, root);
+                Box("Puerta este hoja S", new Vector3(gx, 1.8f, ty - 1.4f), new Vector3(0.3f, 2.4f, 2.6f), gate, root);
+                Box("Puerta este hoja N", new Vector3(gx, 1.8f, ty + 1.4f), new Vector3(0.3f, 2.4f, 2.6f), gate, root);
+            }
             // C3: paso superior de Teo en X = −20 (deck a 8,3 m) con terraplenes al 12 %: norte hasta Z ≈ 150 y sur hasta Z ≈ −22; la carretera vieja pasa por un hueco de 10 m con losa
             float px = -20f;
             if (PlaceModel("paso_superior", "SM_paso_superior_LOD1", new Vector3(px, 0f, ty), 0f, root) == null)
@@ -1931,7 +1937,9 @@ namespace TBD.View
             DecalQuad("Icons/decals/decal_pintada_flecha", new Vector3(112f, 1.5f, Level.FortY1 - 1.6f), new Vector2(4f, 1.8f), Vector3.zero, Vector2.one, root);
             // barricada civil rota a la entrada del pueblo y un autobús cruzado
             Box("Autobús cruzado", new Vector3(59f, 1.5f, 92f), new Vector3(11f, 3f, 2.6f), concrete, root).transform.rotation = Quaternion.Euler(0f, 74f, 0f);
-            for (int i = 0; i < 5; i++) Box("Mueble barricada", new Vector3(53f + i * 2.3f, 0.7f, 88.5f + (i % 2) * 1.6f), new Vector3(1.8f, 1.4f, 1.2f), i % 2 == 0 ? rust : dark, root).transform.rotation = Quaternion.Euler(0f, i * 31f, 0f);
+            // barricada civil de Teo (Castellon/barricada_civil, la de muebles, sana) en lugar de las cinco cajas; si falta, las cajas de siempre
+            if (ModeloSuelto("Castellon/barricada_civil", "SM_BarricadaCivil_v1_Muebles_e0_Sano_LOD1", new Vector3(57.6f, 0f, 89.3f), 9.5f, 4f, root) == null)
+                for (int i = 0; i < 5; i++) Box("Mueble barricada", new Vector3(53f + i * 2.3f, 0.7f, 88.5f + (i % 2) * 1.6f), new Vector3(1.8f, 1.4f, 1.2f), i % 2 == 0 ? rust : dark, root).transform.rotation = Quaternion.Euler(0f, i * 31f, 0f);
         }
 
         /// <summary>Terraplén: cuña de ancho w (en X) que baja de la altura h en el extremo a (borde con el puente) a hEnd en el extremo b, con la cara superior inclinada.</summary>
@@ -1975,6 +1983,27 @@ namespace TBD.View
             if (tex != null) { tex.wrapMode = tile.x > 1.01f || tile.y > 1.01f ? TextureWrapMode.Repeat : TextureWrapMode.Clamp; m.SetTexture("_BaseMap", tex); m.SetTextureScale("_BaseMap", tile); }
             m.SetFloat("_Surface", 0f); m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON");
             go.GetComponent<MeshRenderer>().sharedMaterial = m;
+            return go;
+        }
+
+        /// <summary>Modelo de Teo de cualquier carpeta de Resources/Models con su T_Paleta32, con el lado largo a lo largo de X (girado yawExtra) y centrado en c;
+        /// si el lado largo pasa de largoMax, se escala para que quepa. Solo vista. Devuelve null si falta el modelo.</summary>
+        GameObject ModeloSuelto(string carpeta, string file, Vector3 c, float largoMax, float yawExtra, Transform parent)
+        {
+            var prefab = Resources.Load<GameObject>("Models/" + carpeta + "/" + file); if (prefab == null) { Debug.LogWarning("[TBD] Falta el modelo " + carpeta + "/" + file); return null; }
+            var tex = Resources.Load<Texture2D>("Models/" + carpeta + "/T_Paleta32");
+            var go = Instantiate(prefab, parent); go.name = file;
+            var mat = Mat("ffffff"); if (tex != null) mat.SetTexture("_BaseMap", tex); mat.SetColor("_BaseColor", Color.white); mat.enableInstancing = true;
+            foreach (var r in go.GetComponentsInChildren<MeshRenderer>()) { r.sharedMaterial = mat; r.shadowCastingMode = ShadowCastingMode.On; }
+            go.transform.position = c; go.transform.rotation = Quaternion.identity;
+            Bounds bb = new Bounds(c, Vector3.zero); bool any = false;
+            foreach (var r in go.GetComponentsInChildren<MeshRenderer>()) { if (!any) { bb = r.bounds; any = true; } else bb.Encapsulate(r.bounds); }
+            bool largoX = bb.size.x >= bb.size.z; float largo = Mathf.Max(bb.size.x, bb.size.z);
+            if (largoMax > 0f && largo > largoMax) go.transform.localScale = Vector3.one * (largoMax / largo);
+            go.transform.rotation = Quaternion.Euler(0f, (largoX ? 0f : 90f) + yawExtra, 0f);
+            Bounds b2 = new Bounds(c, Vector3.zero); bool any2 = false;
+            foreach (var r in go.GetComponentsInChildren<MeshRenderer>()) { if (!any2) { b2 = r.bounds; any2 = true; } else b2.Encapsulate(r.bounds); }
+            if (any2) go.transform.position += new Vector3(c.x - b2.center.x, -b2.min.y, c.z - b2.center.z);
             return go;
         }
 
