@@ -44,6 +44,7 @@ namespace TBD.View
         GUIStyle _head, _txt, _btn, _line; Texture2D _panel, _white, _btnTex, _btnHot;
         float _flash; int _repVistas; string _pasoVisto; bool _pausaMapa; float _c90T;
         float _maqCompletaT = -1f; public const float LecturaS = 1.5f;      // tras escribirse entero, tiempo de lectura antes de que un cierre por tiempo la quite
+        float DesdeEscrito() { return _maq == null ? 999f : _maqCompletaT < 0f ? -1f : Time.unscaledTime - _maqCompletaT; }
         bool TextoListo() { return _maq == null || (_maq.Completa && _maqCompletaT >= 0f && Time.unscaledTime - _maqCompletaT >= LecturaS); }
         Maquina _maq, _maqS; Suelta _sueltaVista; readonly List<string> _snd = new List<string>();   // texto letra a letra con tecleo (Eugenio, 8-nov)
 
@@ -91,7 +92,8 @@ namespace TBD.View
             { Viaje.Empezar(); Debug.Log("[TUTORIAL] objetivo: " + ObjetivoViaje.Titulo); }
             if (Viaje.Paso == PasoViaje.Cumplido && _viajeCumplidoHasta < 0) { _viajeCumplidoHasta = Time.unscaledTime + 6f; Debug.Log("[TUTORIAL] objetivo cumplido: " + ObjetivoViaje.Titulo); }
         }
-        static bool ObjetivoVisible { get { return Viaje.Paso != PasoViaje.Inactivo && (Viaje.Paso != PasoViaje.Cumplido || Time.unscaledTime < _viajeCumplidoHasta); } }
+        // Eugenio (I-Noche110): el panel viejo «Objetivo · Lleva munición a Nules» se cortaba y repetía el objetivo v2 (recuadro «Defiende Nules», Lucía 13365b8): ya no se pinta
+        static bool ObjetivoVisible { get { return false && Viaje.Paso != PasoViaje.Inactivo && (Viaje.Paso != PasoViaje.Cumplido || Time.unscaledTime < _viajeCumplidoHasta); } }
         TutorialMotor _principal;                 // el tutorial de la primera partida (capítulos 0 a 3)
         bool _cap4Pendiente;
 
@@ -223,7 +225,7 @@ namespace TBD.View
                 if (_pendiente && NightRun.Active && !Arg("-sintutorial"))
                 {
                     _pendiente = false;
-                    _m = TutorialGuion.Nuevo(new Prefs()); _logVisto = 0; _m.EstadoActual = EstadoJuego; _m.TextoListo = TextoListo; _m.Relleno = t => t.Replace("{eta}", TrenPanel.EtaTexto()); _principal = _m;
+                    _m = TutorialGuion.Nuevo(new Prefs()); _logVisto = 0; _m.EstadoActual = EstadoJuego; _m.TextoListo = TextoListo; _m.DesdeEscrito = DesdeEscrito; _m.Relleno = t => t.Replace("{eta}", TrenPanel.EtaTexto()); _principal = _m;
                     bool ok = _m.Arrancar(NightRun.Difficulty, forzar: Arg("-tutorial") || Arg("-tutorial-auto"));
                     Debug.Log(ok ? $"[TUTORIAL] arranca (dificultad {NightRun.Difficulty})" : $"[TUTORIAL] no arranca (dificultad {NightRun.Difficulty})");
                     if (!ok) _m = null;
@@ -464,11 +466,11 @@ namespace TBD.View
                         var ev = Event.current; if (puede && ev.type == EventType.MouseDown && ev.button == 0) { _tarjetaObjCerrada = true; ev.Use(); Debug.Log("[TUTORIAL] tarjeta del objetivo cerrada"); }
                         if (puede && Auto) _tarjetaObjCerrada = true;
                     }
-                    if (dia2)
+                    if (dia2 && !TrenPanel.PanelAbierto)      // Eugenio (I-Noche110): con «Preparar tren» abierto no se pinta encima
                     {
                         bool ok = tropa && mun >= ObjetivoDefensa.MunicionMin;
                         string l1 = (tropa ? "☑" : "☐") + " Un pelotón en Nules", l2 = (mun >= ObjetivoDefensa.MunicionMin ? "☑" : "☐") + $" Munición en Nules: {System.Math.Min(mun, 999)}/{ObjetivoDefensa.MunicionMin} u";
-                        float bw = Mathf.Min(u * 17f, Screen.width * 0.3f), bh = u * (ok ? 7.4f : 5.8f); var br = new Rect(Screen.width - bw - 8f, u * 6f, bw, bh);
+                        float bw = Mathf.Min(u * 17f, Screen.width * 0.3f), bh = u * (ok ? 7.4f : 5.8f); var br = new Rect(Screen.width - bw - 8f, Screen.height * 0.52f, bw, bh);   // más abajo: ni la tarjeta del objetivo ni el informe
                         GUI.DrawTexture(br, _panel); Frame(br, 0.5f);
                         GUI.Label(new Rect(br.x + u * 0.7f, br.y + u * 0.4f, bw, u * 1.5f), "<color=#d4d0cc>Defiende Nules</color>", _head);
                         GUI.Label(new Rect(br.x + u * 0.7f, br.y + u * 2.0f, bw, u * 1.6f), "<color=#d4d0cc>" + l1 + "</color>", _line);

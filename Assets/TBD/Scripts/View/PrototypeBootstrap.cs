@@ -317,7 +317,7 @@ namespace TBD.View
             if (_zoneNode < 0 || _leaving) return;
             _leaving = true;
             int alive = _zombieQuery.CalculateEntityCount();
-            if (NightRun.Active && _nightInit && _ng != null && _ng.State != TBD.Units.NightState.Derrota) { SaveNightSession(); alive = 0; }      // S2: tras caer la estación no se guarda su noche      // noche persistente: los zombis pasan a NightSim, no a la mancha del mapa
+            if (NightRun.Active && _nightInit && _ng != null && _ng.State != TBD.Units.NightState.Derrota && !_seguirTrasNoche) { SaveNightSession(); alive = 0; }      // S2: tras caer la estación no se guarda su noche      // noche persistente: los zombis pasan a NightSim, no a la mancha del mapa
             var ammo = _worldA.EntityManager.GetComponentData<ZoneAmmo>(_rootA);
             int usedUnits = (int)((ammo.ShotsFired + _combat.ShotsPerUnit - 1) / _combat.ShotsPerUnit);   // redondeo hacia arriba: una caja empezada se gasta
             if (_ambush)
@@ -1786,8 +1786,8 @@ namespace TBD.View
             PlaceFlat("senales", "topera", new Vector3(50f, 0f, ty - 5f), 270f, root);        // fin de la via 2 (sale de X -250 a 50)
             // postes de catenaria cada 50 m a lo largo de toda la vía (dentro y fuera), a 3,6 m del eje; sin colisión
             for (float x = -240f; x <= 500f; x += 50f)                    // postes de X −240 a 500 (Álvaro C9); el modelo deja la vía hacia su -X: girado 90° la vía queda al norte (+Z)
-                if (PlaceModel("poste_catenaria", "SM_poste_catenaria_LOD1", new Vector3(x, 0f, ty - 3.6f), 90f, root) == null)
-                    Box("Poste", new Vector3(x, 4f, ty - 3.6f), new Vector3(0.25f, 8f, 0.25f), iron, root);
+                if (PlaceModel("poste_catenaria", "SM_poste_catenaria_LOD1", new Vector3(x, 0f, ty - 2.5f), 90f, root) == null)      // Eugenio (I-Noche110): a 3,6 m quedaban sobre el balasto de la vía 2; a 2,5 m van en la entrevía (el tren llega a 1,5 m del eje)
+                    Box("Poste", new Vector3(x, 4f, ty - 2.5f), new Vector3(0.25f, 8f, 0.25f), iron, root);
             // el pueblo fuera de los muros, al norte (lado contrario a la llegada de la horda por el oeste): dos manzanas de casas bajas encaladas (8 x 7 m, con colisión
             // de caja), un bloque de pisos al este y naranjos en hileras detrás (sin colisión). Casas con la fachada a +Z del modelo girada hacia el sur.
             // pueblo (Álvaro §7c): casa de pueblo de Teo 6 x 10 m (fachada a +Z), hilera delantera en Z 103 (giro 0°) y trasera en Z 120 (giro 180°), 12 casas cada 6 m entre X 75 y 141;
@@ -1912,8 +1912,9 @@ namespace TBD.View
             foreach (var hp in hops)
             {
                 var hpos = new Vector3(hp.Item1, 0f, 59.5f);
-                var hg = hp.Item3 == 0 ? PlaceModel("tolva_volcada", "SM_tolva_volcada_LOD1", hpos, hp.Item2, root)
-                                       : PlaceModel("tolva_volcada/v" + hp.Item3, "SM_tolva_volcada_v" + hp.Item3 + "_LOD1", hpos, hp.Item2, root);
+                float hyaw = hp.Item2 + 90f;      // Eugenio (I-Noche110): salían atravesadas; la malla de Teo va a lo largo de Z (14,5 m), así que +90° la pone a lo largo de la vía
+                var hg = hp.Item3 == 0 ? PlaceModel("tolva_volcada", "SM_tolva_volcada_LOD1", hpos, hyaw, root)
+                                       : PlaceModel("tolva_volcada/v" + hp.Item3, "SM_tolva_volcada_v" + hp.Item3 + "_LOD1", hpos, hyaw, root);
                 if (hg == null) Box("Tolva volcada", hpos + new Vector3(0f, 1.7f, 0f), new Vector3(14f, 2.6f, 3f), rust, root).transform.rotation = Quaternion.Euler(hp.Item3 == 0 ? 0f : 80f, hp.Item2, 0f);
             }
             // decals de Bruno (D-N61 / ambientacion-sagunto): hollín de la vía en el eje (mosaico de 9,6 m, 0,15 m/px), hollín junto a la puerta oeste (arrastres hacia +x: girado 180° dentro del muro),

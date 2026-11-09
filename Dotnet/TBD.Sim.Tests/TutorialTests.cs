@@ -42,7 +42,7 @@ namespace TBD.Sim.Tests
 
             // --- textos y cabeceras
             var caps = TutorialGuion.Todos();
-            check(caps.Length == 4 && caps[0].Pasos.Length == 1 && caps[1].Pasos.Length == 10 && caps[2].Pasos.Length == 7 && caps[3].Pasos.Length == 8, "capítulos 0 a 3 con 1, 10, 7 y 8 pasos, como en tutorial-textos.md");
+            check(caps.Length == 4 && caps[0].Pasos.Length == 1 && caps[1].Pasos.Length == 12 && caps[2].Pasos.Length == 7 && caps[3].Pasos.Length == 8, "capítulos 0 a 3 con 1, 12, 7 y 8 pasos (1.6b y 1.6c de Lucía, 2f7bd88)");
             bool sinCifra = true; foreach (var p in caps[3].Pasos) foreach (char c in p.Texto) if (char.IsDigit(c) && p.Id != "3.3") sinCifra = false;   // «3 estaciones» es la única cifra
             check(sinCifra, "el capítulo 3 no escribe ninguna cifra de ETA en el texto");
             var ids = new HashSet<string>(); bool unicos = true; foreach (var c in caps) foreach (var p in c.Pasos) if (!ids.Add(p.Id)) unicos = false;
@@ -56,7 +56,7 @@ namespace TBD.Sim.Tests
             check(Array.IndexOf(m.Actual.Botones, "Empezar") >= 0 && Array.IndexOf(m.Actual.Botones, TutorialMotor.BotonSaltar) >= 0, "la primera tarjeta tiene [Empezar] y [Saltar tutorial]");
             m.Senal(TutorialGuion.Senales.Empezar);
             check(m.Cap.Numero == 1 && m.Actual.Id == "1.1" && !m.PidePausa && m.PideHordaEnEspera, "Empezar pasa al 1.1, quita la pausa y la horda espera (capítulo con combate)");
-            check(m.Cabecera == "Capítulo 1 · Paso 1 de 10", "cabecera «Capítulo 1 · Paso 1 de 10»");
+            check(m.Cabecera == "Capítulo 1 · Paso 1 de 12", "cabecera «Capítulo 1 · Paso 1 de 12»");
 
             // 1.1 necesita las dos cosas (cámara y rueda)
             m.Senal(TutorialGuion.Senales.RuedaUsada);
@@ -65,7 +65,7 @@ namespace TBD.Sim.Tests
             check(m.Actual.Id == "1.2", "1.1 se cierra con cámara movida y rueda");
             // 1.3 añade la línea de los vehículos si hay vehículos fuera
             m.Senal(TutorialGuion.Senales.VehiculosFuera); Run1(m, 4);
-            check(m.Actual.Id == "1.3" && m.Texto.EndsWith("Selecciónalos igual que a la tropa."), "1.3 añade «Los vehículos también disparan…» con vehículos fuera");
+            check(m.Actual.Id == "1.3" && !m.Texto.Contains("Selecciónalos"), "1.3 sin la frase condicional de los vehículos (Lucía 2f7bd88)");
             // desvío: repetir sin castigo
             Run1(m, 4);
             for (int i = 0; i < 90; i++) m.Avanzar(0.1f);

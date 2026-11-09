@@ -270,7 +270,7 @@ namespace TBD.View
         /// <summary>Leyenda de una línea bajo el informe de inteligencia (solo con la capa encendida).</summary>
         void DrawApp6Leyenda(float x, float y, float w)
         {
-            if (!_app6On) return;
+            if (!_app6On || !DepuracionMapa) return;      // Eugenio (I-Noche110): texto de depuración; solo con -depuracion
             GUI.Label(new Rect(x, y, w, _small.fontSize * 2f),
                 "<color=#808080>Mapa (I): rectángulo propio · cúpula NH90 · rombo horda (discontinuo: anunciada; rojo: ataca; flecha: por dónde llega; galones: Enjambre) · trébol sin identificar · «?» sin ojos allí</color>", _small);
         }

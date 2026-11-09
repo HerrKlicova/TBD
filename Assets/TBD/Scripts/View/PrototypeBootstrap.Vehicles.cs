@@ -293,6 +293,7 @@ namespace TBD.View
             {
                 BuildNavIfNeeded();
                 v.Target = tgt; v.HasTarget = true;
+                TutorialHud.Senal(TutorialGuion.Senales.VehiculoMovido);   // 1.6b
                 if (_nav != null) { v.Nav.SetGoal(_nav, Mm(v.Pos.x), Mm(v.Pos.y), Mm(tgt.x), Mm(tgt.y), OthersOf(v)); v.HasTarget = v.Nav.HasGoal; }      // A* por la rejilla (Nacho): rodea el muro, entra y sale por E4
             }
             Sfx.Play("ui_orden", Vector3.zero, 0.6f, 0.05f);

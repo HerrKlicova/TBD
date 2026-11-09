@@ -206,6 +206,8 @@ namespace TBD.View
                 if (meta == Casa) TutorialHud.Senal(TutorialGuion.Senales.TrenEnSagunto);
                 if (meta == Nodo("Nules")) TutorialHud.Senal(TutorialGuion.Senales.TrenEnNules);
                 TutorialHud.Viaje.Llegado(Viaje, nombre);
+                var emb = W.LastAmbush; bool cercado = emb.Service == Viaje && emb.Surrounded && !emb.Repelled && emb.HoldUntil > W.Tick;
+                if (meta != Casa && !cercado) { DescargarFuera(); Debug.Log("[TREN] descarga automática al llegar a " + nombre); }   // Eugenio (I-Noche110): llevó tropa y munición y el objetivo seguía a 0: fuera de casa, el tren descarga solo al llegar
             }
         }
 
@@ -214,6 +216,7 @@ namespace TBD.View
 
         // ---------------------------------------------------------------- vista del mapa
         enum Vista { Nada, Menu, Preparar }
+        static TrenPanel _yo; public static bool PanelAbierto { get { return _yo != null && _yo._vista != Vista.Nada; } }      // el recuadro del objetivo no lo tapa (Eugenio)
         Vista _vista; int _nodoMenu = -1, _origenP = -1;
         readonly int[] _carga = new int[NetConst.ResCount];
         int _destinoP = -1; bool _sinApoyo, _sinCarga;
@@ -224,6 +227,7 @@ namespace TBD.View
 
         void Update()
         {
+            _yo = this;
             Vigilar();
             Seguir();
             if (Arg("-trenpanel-auto")) AutoIdaVuelta();
@@ -300,7 +304,7 @@ namespace TBD.View
         {
             if (Viaje < 0) return;
             var sv = W.Services[Viaje]; var delta = new int[NetConst.ResCount]; bool hay = false;
-            if (!Puertas.EnPuertas(W, Viaje, Destino)) for (int r = 0; r < NetConst.ResCount; r++) { delta[r] = -sv.Cargo[r]; hay |= sv.Cargo[r] > 0; }
+            for (int r = 0; r < NetConst.ResCount; r++) { delta[r] = -sv.Cargo[r]; hay |= sv.Cargo[r] > 0; }   // Lucía (decisiones 09-11, andén ocupado): a las puertas también baja la carga, como la tropa
             if (hay) { var c = NetWorld.CmdCargo(W.Tick, Viaje, Destino, delta); NetSession.A.Push(c); if (NetSession.B != null) NetSession.B.Push(c); }
             Embarque.BajarTodo(Viaje, Destino); _descargadoAqui = true; _vista = Vista.Nada;
             Debug.Log("[TREN] descarga en " + W.Graph.Nodes[Destino].Name + " (el tren se queda)");

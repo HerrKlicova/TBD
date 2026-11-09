@@ -753,6 +753,7 @@ namespace TBD.View
             }
             if (cerco && encima) { var tr = new Rect(c.x + px * 0.5f + 4f, c.y + _small.fontSize * 0.9f, 360, _small.fontSize * 2.2f); GUI.DrawTexture(tr, Texture2D.blackTexture); GUI.Label(tr, " Castellón · cercada. Aguanta, pero está aislada.", _small); }
         }
+        float _nombreTrenW;
         long _emSonado = -1; long _trenParadoAvisado = -1; long _recordatorioLog = -1;
         /// <summary>Lucía (13365b8): el día 2, de 15:00 a 22:00, si aún no ha salido ningún tren hacia Nules.</summary>
         bool RecordatorioNules(out int nul)
@@ -892,7 +893,7 @@ namespace TBD.View
             DrawCargo(pw);
             DrawIntel();
             GUI.Label(new Rect(16, Screen.height - _small.fontSize * 2.4f, Screen.width, 30),
-                "WASD mover · Q E girar · R F inclinar · rueda zoom (a menos de 2 km de una estación se entra en la zona) · J ir a la alerta · Tab informe · I símbolos APP-6 · Espacio pausa · 1/2/3 velocidad · F8 emboscada de prueba · Intro entrar en la emboscada · F9 captura", _small);
+                "WASD mover · Q E girar · R F inclinar · rueda zoom (a menos de 2 km de una estación se entra en la zona) · J ir a la alerta · Tab informe · I símbolos APP-6 · Espacio pausa · 1/2/3 velocidad · Intro entrar en la emboscada · F9 captura", _small);
             NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart);
         }
 
@@ -921,11 +922,12 @@ namespace TBD.View
             float x0 = 8, y0 = Screen.height * 0.12f + 6 * _small.fontSize;
             GUI.Box(new Rect(x0, y0, pw, h), GUIContent.none, _panel);
             float y = y0 + 4;
+            _nombreTrenW = 0f; foreach (var s0 in _a.Services) _nombreTrenW = Mathf.Max(_nombreTrenW, _small.CalcSize(new GUIContent("<b>" + s0.Train.Name + "</b>")).x);
             for (int i = 0; i < _a.Services.Count; i++)
             {
                 var sv = _a.Services[i];
                 GUI.Label(new Rect(x0 + 8, y, Mathf.Max(130f, _small.CalcSize(new GUIContent("<b>" + sv.Train.Name + "</b>")).x + 8f), p + 4), "<b>" + sv.Train.Name + "</b>", _small);   // S3: «2 Montaña» entero
-                float x = x0 + 136;
+                float x = x0 + Mathf.Max(136f, _nombreTrenW + 14f);      // Eugenio: «2 Monta» cortado: los iconos van detrás del nombre más largo
                 for (int r = 0; r < NetConst.ResCount && r < ic.Length; r++)
                 {
                     DrawIcon(new Rect(x, y, p, p), "cargas/vm_cargas_" + ic[r] + "_16");

@@ -20,6 +20,7 @@ namespace TBD.Tutorial
         public string[] Senales = new string[0];   // con Cierre.Senal: basta una de ellas, recibida DESPUÉS de que salga la tarjeta
         public bool Todas;                 // con Cierre.Senal: hacen falta todas (en cualquier orden), no una (1.1: cámara movida y rueda)
         public float Segundos;             // con Cierre.Segundos; con Cierre.Senal, si > 0, tope para cerrarse sola (red de seguridad)
+        public string SoloSi;              // si no es null y no se cumple (estado) al llegar al paso, el paso no sale (1.6b/1.6c: solo con vehículos)
         public string Espera;              // si no es null, la tarjeta no sale hasta que haya llegado esta señal en el capítulo, o hasta que se cumpla como estado
         public float EsperaMax;            // con Espera: si pasan estos segundos sin cumplirse, la tarjeta sale igual (2.1: 30 s, Lucía 9-nov)
         public string ExtraSi, Extra;      // si ha llegado la señal ExtraSi en el capítulo, se añade Extra al texto (1.3: vehículos fuera)
@@ -69,6 +70,8 @@ namespace TBD.Tutorial
         /// <summary>La vista dice si el texto de la tarjeta ya se ha escrito entero y ha dado tiempo a leerlo (Eugenio, 9-nov: el 1.3 pasaba al 1.4 a medio escribir).
         /// Los cierres por tiempo esperan a que sea true; los cierres por una acción del jugador, no. null = siempre listo (pruebas).</summary>
         public Func<bool> TextoListo;
+        /// <summary>Segundos desde que el texto de la tarjeta terminó de escribirse (−1 si aún se escribe). Lucía (2f7bd88): en los pasos por tiempo, el tiempo cuenta desde ahí. null = EnPaso (pruebas).</summary>
+        public Func<float> DesdeEscrito;
         bool _cierrePendiente; string _cierrePor;
         public const float RepetirCada = 25f;      // sin avanzar en una tarjeta de señal, se repite su texto (desvío sin castigo)
         public const int DificilDesde = 951;       // palanca de dificultad (D-N74): 725 fácil, 850 normal, 1000 difícil; la difícil no tiene tutorial
@@ -198,7 +201,7 @@ namespace TBD.Tutorial
             var p = Actual;
             EnPaso += dt; _sinAvance += dt;
             if (_cierrePendiente && EnPaso >= MinVisible) { Log($"{p.Id} cerrado por {_cierrePor} (a los {MinVisible:0} s)"); Siguiente(); return; }
-            if (p.Cierre == Cierre.Segundos) { if (EnPaso >= p.Segundos && (TextoListo == null || TextoListo())) { Log($"{p.Id} cerrado a los {p.Segundos:0} s"); Siguiente(); } return; }
+            if (p.Cierre == Cierre.Segundos) { if ((DesdeEscrito == null ? EnPaso >= p.Segundos : DesdeEscrito() >= Math.Max(p.Segundos, MinVisible)) && EnPaso >= MinVisible) { Log($"{p.Id} cerrado a los {p.Segundos:0} s"); Siguiente(); } return; }
             if (EstadoActual != null)
             {
                 bool todas = true, alguna = false; string cual = null;
@@ -212,7 +215,18 @@ namespace TBD.Tutorial
         void Siguiente()
         {
             var c = Cap; Repeticiones = 0; EnPaso = 0; _sinAvance = 0; _esperando = 0; _cierrePendiente = false; _enPaso.Clear(); _alt = false; _altDecidido = false;
-            if (PasoIndex + 1 < c.Pasos.Length) { PasoIndex++; Log($"paso {Actual.Id}"); return; }
+            if (PasoIndex + 1 < c.Pasos.Length)
+            {
+                PasoIndex++;
+                while (Actual != null && Actual.SoloSi != null && !(_hechos.Contains(Actual.SoloSi) || (EstadoActual != null && EstadoActual(Actual.SoloSi))))
+                {
+                    Log($"{Actual.Id} no sale (falta {Actual.SoloSi})");
+                    if (PasoIndex + 1 >= c.Pasos.Length) break;
+                    PasoIndex++;
+                }
+                if (Actual != null && Actual.SoloSi != null && !(_hechos.Contains(Actual.SoloSi) || (EstadoActual != null && EstadoActual(Actual.SoloSi)))) { if (CapIndex + 1 < _caps.Length) { EntrarCapitulo(CapIndex + 1); return; } Estado = EstadoTutorial.Terminado; _mem.Escribir(_clave); Log("terminado"); return; }
+                Log($"paso {Actual.Id}"); return;
+            }
             if (CapIndex + 1 < _caps.Length) { EntrarCapitulo(CapIndex + 1); return; }
             Estado = EstadoTutorial.Terminado; _mem.Escribir(_clave); Log("terminado");
         }

@@ -18,7 +18,7 @@ namespace TBD.Tutorial
             public const string CamaraMovida = "camara_movida", RuedaUsada = "rueda_usada", PelotonSeleccionado = "peloton_seleccionado", OrdenMover = "orden_mover",
                 FormacionDada = "formacion_dada", PausaCerrada = "pausa_cerrada", HordaAvanza = "horda_avanza", AtaqueRechazado = "ataque_rechazado", VehiculosFuera = "vehiculos_fuera";
             // capítulo 2 (zona, Marcos)
-            public const string ObrasAbierto = "obras_abierto", TramoSeleccionado = "tramo_seleccionado", ReparacionConfirmada = "reparacion_confirmada", ReparacionBloqueada = "reparacion_bloqueada", TramoDespejado = "tramo_despejado",
+            public const string ObrasAbierto = "obras_abierto", TramoSeleccionado = "tramo_seleccionado", ReparacionConfirmada = "reparacion_confirmada", HayVehiculos = "hay_vehiculos", VehiculoMovido = "vehiculo_movido", FuegoVehiculos = "fuego_vehiculos", ReparacionBloqueada = "reparacion_bloqueada", TramoDespejado = "tramo_despejado",
                 TramoSobre70 = "tramo_sobre_70", ObrasCerrado = "obras_cerrado";
             // capítulo 3 (mapa y panel del tren, Iker)
             public const string MapaAbierto = "mapa_abierto", PanelTrenAbierto = "panel_tren_abierto", CargaPuesta = "carga_puesta", PelotonABordo = "peloton_a_bordo",
@@ -40,6 +40,7 @@ namespace TBD.Tutorial
         /// <summary>Claves de lo que se resalta: quien dibuja ese elemento registra su rectángulo en pantalla con esa clave.</summary>
         public static class Resaltes
         {
+            public const string Vehiculos = "vehiculos", TarjetasVehiculos = "tarjetas_vehiculos", FuegoVehiculos = "fuego_vehiculos";
             public const string BarraAtajos = "barra_atajos", GrupoZombis = "grupo_zombis", Puertas = "puertas", TarjetasFuera = "tarjetas_peloton_fuera", TarjetasPeloton = "tarjetas_peloton",
                 TramoOeste = "tramo_oeste", TeclasFormacion = "teclas_f1_f4", BotonMenu = "boton_menu", BarraMuro = "barra_muro",
                 TramoDanado = "tramo_danado", BotonObras = "boton_obras", CosteObra = "coste_obra", Zapadores = "zapadores", IconoRuido = "icono_ruido",
@@ -80,7 +81,9 @@ namespace TBD.Tutorial
         public static Capitulo Cap1()
         {
             var p13 = T("1.3", "Tienes tropa dentro del muro y tropa fuera, junto a los vehículos. La de fuera es la primera que recibe.", 4, Resaltes.TarjetasFuera);
-            p13.ExtraSi = Senales.VehiculosFuera; p13.Extra = "Los vehículos también disparan. Selecciónalos igual que a la tropa.";
+            // Lucía (2f7bd88): se quita la frase condicional del 1.3; los vehículos tienen sus pasos 1.6b y 1.6c (solo si la estación tiene vehículos)
+            var p16b = S("1.6b", "Estos son tus vehículos: el Dragón y los VAMTAC. Selecciónalos igual que a la tropa, con clic en el vehículo o en su tarjeta, y muévelos con clic derecho.", R(Resaltes.Vehiculos, Resaltes.TarjetasVehiculos), Senales.VehiculoMovido); p16b.SoloSi = Senales.HayVehiculos;
+            var p16c = S("1.6c", "Disparan solos, como la tropa. Con G decides si tienen fuego libre o si esperan tu orden.", R(Resaltes.FuegoVehiculos), Senales.FuegoVehiculos); p16c.SoloSi = Senales.HayVehiculos;
             var p11 = S("1.1", "Mueve la cámara con W A S D. Acércate y aléjate con la rueda.", R(Resaltes.BarraAtajos), Senales.CamaraMovida, Senales.RuedaUsada);
             p11.Todas = true;
             var p19 = S("1.9", "Vigila la vida del muro arriba. Si un tramo cae, entran.", R(Resaltes.BarraMuro), Senales.AtaqueRechazado); p19.Linea = true; p19.Segundos = 90f;   // red de seguridad (Nacho)
@@ -102,6 +105,8 @@ namespace TBD.Tutorial
                     p14,
                     p15,
                     p16,
+                    p16b,
+                    p16c,
                     p17,
                     p18,
                     p19,

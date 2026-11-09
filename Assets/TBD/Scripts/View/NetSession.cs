@@ -28,7 +28,7 @@ namespace TBD.View
         float _acc;
 
         /// <summary>Descarta la sesion de red (nueva partida o repetir la noche).</summary>
-        public static void Reset() { PrototypeBootstrap.ClearNightSession(); if (_instance != null) Destroy(_instance.gameObject); _instance = null; A = null; B = null; Desync = false; _atardecerDia = -1; }
+        public static void Reset() { PrototypeBootstrap.ClearNightSession(); if (_instance != null) Destroy(_instance.gameObject); _instance = null; A = null; B = null; Desync = false; _atardecerDia = -1; AmanecerDia = -1; }
 
         public static string SavePath { get { return System.IO.Path.Combine(Application.persistentDataPath, "partida.tbd"); } }
         public static bool HasSave { get { return System.IO.File.Exists(SavePath); } }
@@ -49,6 +49,12 @@ namespace TBD.View
             if (dia == _atardecerDia || A.Tick % NetConst.DayTicks < NetConst.Hours(19) || A.Tick % NetConst.DayTicks >= NetConst.Hours(22)) return;
             try { System.IO.File.WriteAllBytes(SaveAtardecer, NetSave.Save(A)); _atardecerDia = dia; Debug.Log($"[TBD] guardado del atardecer (día {dia + 1}, {NetConst.Clock(A.Tick)})"); } catch (System.Exception e) { Debug.LogWarning("[TBD] guardado del atardecer: " + e.Message); }
         }
+        // Eugenio (I-Noche110): «Volver a empezar» tras perderlo todo vuelve al último amanecer (punto de control), no al principio de la campaña
+        public static string SaveAmanecer { get { return System.IO.Path.Combine(Application.persistentDataPath, "amanecer.tbd"); } }
+        public static long AmanecerDia = -1;
+        public static bool HayAmanecer { get { return AmanecerDia >= 0 && System.IO.File.Exists(SaveAmanecer); } }
+        static void GuardarAmanecer() { try { System.IO.File.WriteAllBytes(SaveAmanecer, NetSave.Save(A)); AmanecerDia = A.Tick / NetConst.DayTicks; Debug.Log($"[TBD] punto de control: amanecer del día {AmanecerDia + 1}"); } catch (System.Exception e) { Debug.LogWarning("[TBD] punto de control: " + e.Message); } }
+        public static void CargarAmanecer() { var data = System.IO.File.ReadAllBytes(SaveAmanecer); long dia = AmanecerDia; Reset(); var a = NetScenario.Inicio(false); NetSave.Load(data, a); var b = NetScenario.Inicio(false); NetSave.Load(data, b); Ensure(); A = a; B = b; AmanecerDia = dia; }
         /// <summary>«Repetir la noche»: la red del último atardecer en dos mundos nuevos.</summary>
         public static void CargarAtardecer()
         {
@@ -144,7 +150,7 @@ namespace TBD.View
                 int n = (int)System.Math.Min(SaltarHasta - A.Tick, 2500L);
                 for (int i = 0; i < n; i++) { A.Step(); if (Check) B.Step(); if (A.Paused) break; }
                 if (Check && !Desync && A.Hash() != B.Hash()) { Desync = true; DesyncTick = A.Tick; Debug.LogError($"[TBD] Red: desincronización en el tick {A.Tick}"); }
-                if (A.Tick >= SaltarHasta) { SaltarHasta = -1; _acc = 0f; Debug.Log($"[TBD] amanece: día {A.Tick / NetConst.DayTicks + 1}, {NetConst.Clock(A.Tick)}"); }
+                if (A.Tick >= SaltarHasta) { SaltarHasta = -1; _acc = 0f; Debug.Log($"[TBD] amanece: día {A.Tick / NetConst.DayTicks + 1}, {NetConst.Clock(A.Tick)}"); GuardarAmanecer(); }
                 return;
             }
             _acc += Mathf.Min(Time.unscaledDeltaTime, 0.25f);

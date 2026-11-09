@@ -37,7 +37,7 @@ namespace TBD.View
             V2Rect(R(-ox / k, 940, Screen.width / k, 140), V2Fondo); V2Rect(R(-ox / k, 940, Screen.width / k, 1), V2Borde);
             // barra de atajos
             V2Rect(R(316, 924, 1274, 16), new Color(V2Hueco.r, V2Hueco.g, V2Hueco.b, 0.67f));
-            V2Txt("1-5 pelotones · 6-8 vehículos · clic derecho mueve, arrastrar dibuja el frente · F1-F4 formación · G fuego vehículos · T recargar · Esc pausa", ox + 316 * k, 924 * k, 1274 * k, 11, FontStyle.Normal, V2Sec, TextAnchor.UpperCenter, k);
+            V2Txt("1-9 tarjetas (pelotones y vehículos) · clic derecho mueve, arrastrar dibuja el frente · F1-F4 formación · G fuego vehículos · T recargar · Esc pausa", ox + 316 * k, 924 * k, 1274 * k, 11, FontStyle.Normal, V2Sec, TextAnchor.UpperCenter, k);
             var ev = Event.current; int idxClick = -1;
             // tarjetas
             var cards = new List<(string name, string key, Platoon pl, Veh v)>();

@@ -75,7 +75,7 @@ namespace TBD.View
                 string dir = System.IO.Path.Combine(Application.streamingAssetsPath, "Noche");
                 var tu = new CsvTable(System.IO.File.ReadAllText(System.IO.Path.Combine(dir, "balance_unidades.csv"))); WeaponCatalog.Load(tu); PlatoonCatalog.Load(tu);
                 var tn = new CsvTable(System.IO.File.ReadAllText(System.IO.Path.Combine(dir, "balance_noche.csv")));
-                var jp = _ng.P; var np = NightParams.FromCsv(tn); np.Waves = jp.Waves; np.Entries = jp.Entries; np.ClockX = jp.ClockX; np.ScalePermil = jp.ScalePermil; np.TrainNotDefeat = jp.TrainNotDefeat; if (sim != null && sim.JsonForce != null) np.TrainRect = jp.TrainRect;   // Nules (Lucía da2d050; Hugo/Nacho 10:38): el JSON trae el tren fuera de la puerta este y que no es derrota; el CSV no lo tiene
+                var jp = _ng.P; var np = NightParams.FromCsv(tn); np.Waves = jp.Waves; np.Entries = jp.Entries; np.ClockX = jp.ClockX; np.ScalePermil = jp.ScalePermil; np.TrainNotDefeat = jp.TrainNotDefeat; if (sim != null && sim.JsonForce != null && TrenALasPuertas()) np.TrainRect = jp.TrainRect;   // Eugenio (I-Noche110): solo el tren que espera a las puertas va fuera de la puerta este; en el andén, dentro   // Nules (Lucía da2d050; Hugo/Nacho 10:38): el JSON trae el tren fuera de la puerta este y que no es derrota; el CSV no lo tiene
                 np.EndHour = (np.StartHour + 23) % 24;                                  // D-N164: sin victoria por tiempo; solo se gana acabando con la horda
                 _ng = new NightGame(np, 77u + SemillaQA);
             }
@@ -255,6 +255,7 @@ namespace TBD.View
                     int vf = 0; foreach (var v in _vehs) if (v.Go != null && v.Go.activeSelf) vf++;
                     _tramosPm.Clear(); foreach (var sg in _segs) if (!sg.IsGate && sg.Max > 0f) _tramosPm.Add(sg.Open ? 0 : (int)(sg.Hp * 1000f / sg.Max));
                     TutorialHud.Zona(_zomPos.Count, vf, _tramosPm);
+                    TutorialHud.Estado(TutorialGuion.Senales.HayVehiculos, vf > 0);      // 1.6b/1.6c solo con vehículos
                     {   // 2.1 (Lucía): el capítulo 2 no empieza con horda a menos de 15 m del tramo más dañado del muro oeste
                         Seg peor = null; foreach (var sg in _segs) if (!sg.IsGate && sg.Max > 0f && (peor == null || sg.Hp / sg.Max < peor.Hp / peor.Max)) peor = sg;
                         bool libre = true; if (peor != null) foreach (var zp in _zomPos) if (DistSeg(zp, peor.A, peor.B) <= 15f) { libre = false; break; }
@@ -489,7 +490,8 @@ namespace TBD.View
               if (!win && _enPie.Count > 0) _endReason = $"<color=#982420>{est} ha caído.</color>\n{Lista(_enPie)} {(_enPie.Count > 1 ? "siguen" : "sigue")} en pie.";   // S2 de la qa50 (Lucía, 7705049): no acaba la partida
               if (est == "Nules") _endReason += "\nFin de la partida de prueba. Puedes seguir en el mundo."; }   // D-N136/D-N146
         }
-        bool _endDismissed, _reportClosed;
+        bool _endDismissed, _reportClosed; bool _seguirTrasNoche;
+        bool TrenALasPuertas() { var w = NetSession.A; if (w == null || _zoneNode < 0) return true; foreach (var sv in w.Services) if (sv.AtStop && sv.Stops.Count > 0 && (sv.GateNode == _zoneNode || sv.Stops[sv.StopIndex].Node == _zoneNode)) return sv.GateNode == _zoneNode; return true; }   // sin tren: da igual (la noche empieza sin tren)
         void SeguirAuto() { if (_ng == null) return; if (_ng.State == NightState.Victoria) { Debug.Log("[NOCHE] auto: Seguir"); NextNight(); } else if (_enPie != null && _enPie.Count > 0) { Debug.Log("[NOCHE] auto: Seguir tras caer"); SeguirTrasCaer(); } }
         List<string> _enPie;
         readonly List<int> _escolta = new List<int>(); bool _nocheSinTren;      // S2 qa50: sin tren en la estación no hay aviso, frente ni barra de tren
@@ -512,7 +514,7 @@ namespace TBD.View
         /// <summary>«Seguir» (D-N91): abre la noche siguiente con las mismas oleadas a +10 % y reinicia los contadores del parte; el mundo no se detuvo.</summary>
         void NextNight()
         {
-            _reportClosed = true; NetSession.SaltarAlAmanecer(); LeaveToMap(); return;   // Lucía (3f1764c): «Seguir» lleva al mapa y la red salta a las 06:00 del día siguiente
+            _reportClosed = true; _seguirTrasNoche = true; NetSession.SaltarAlAmanecer(); LeaveToMap(); ClearNightSession(); return;   // Eugenio (I-Noche110): sin el cartel viejo arriba del mapa   // Lucía (3f1764c): «Seguir» lleva al mapa y la red salta a las 06:00 del día siguiente
             var np = _ng.P; np.ScalePermil = np.ScalePermil * 11 / 10;
             if (_ng.BeginNextNight(np)) { _reportClosed = false; _lastWave = -1; _nightKills = 0; _nightShotsSpent = 0; _nightLost = 0; _bannerText = $"{TimeStr()}. Noche {_ng.NightIndex + 1}.\nAguanta hasta el amanecer."; _bannerUntil = Time.unscaledTime + 4f; }
             else _reportClosed = true;
@@ -702,7 +704,7 @@ namespace TBD.View
             NightSelectKeys(kb);
             if (kb.cKey.wasPressedThisFrame && _sel.Count > 0 && _selVeh == null) { _c90Aim = true; _c90Msg = "C90: elige el punto en el suelo (clic); Esc cancela"; _c90MsgUntil = Time.unscaledTime + 4f; }
             if (_c90Aim && kb.escapeKey.wasPressedThisFrame) { _c90Aim = false; _c90MsgUntil = 0f; }
-            if (kb.gKey.wasPressedThisFrame) { _vehFire = !_vehFire; foreach (var vv in _vehs) vv.Fire = _vehFire; Debug.Log("[NOCHE] fuego de los vehiculos: " + (_vehFire ? "libre" : "alto el fuego")); }
+            if (kb.gKey.wasPressedThisFrame) { TutorialHud.Senal(TutorialGuion.Senales.FuegoVehiculos); _vehFire = !_vehFire; foreach (var vv in _vehs) vv.Fire = _vehFire; Debug.Log("[NOCHE] fuego de los vehiculos: " + (_vehFire ? "libre" : "alto el fuego")); }
             if (kb.tKey.wasPressedThisFrame) { if (_selVeh != null) StartVehicleResupply(_selVeh); else { NaResupAntes(); foreach (var id in _sel) _uw.Resupply(id); NaResupDespues(); } }
             if (kb.rKey.wasPressedThisFrame && kb.leftShiftKey.isPressed) { NaResupAntes(); foreach (var id in _sel) _uw.Resupply(id); NaResupDespues(); }
             if (kb.escapeKey.wasPressedThisFrame && !_c90Aim && _ng != null && (_ng.State == NightState.Jugando || TutorialHud.Activo)) { _paused = !_paused; if (!_paused) TutorialHud.Senal(TutorialGuion.Senales.PausaCerrada); }      // pausa (D-N137); 1.7: cerrarla con Esc también cuenta
@@ -863,7 +865,8 @@ namespace TBD.View
                 }
                 else
                 {
-                    if (GUI.Button(new Rect(r.x + 60 * k, r.yMax - 100 * k, 320 * k, 64 * k), "Volver a empezar")) { NetSession.Reset(); NightRun.Active = true; SceneManager.LoadScene("Union"); }
+                    if (NetSession.HayAmanecer) { if (GUI.Button(new Rect(r.x + 60 * k, r.yMax - 100 * k, 320 * k, 64 * k), $"Volver al día {NetSession.AmanecerDia + 1}")) { Sfx.Play("sfx_ui_clic"); long d = NetSession.AmanecerDia; NetSession.CargarAmanecer(); NightRun.Active = true; Debug.Log($"[NOCHE] vuelve al amanecer del día {d + 1}"); SceneManager.LoadScene("Union"); } }   // Eugenio: punto de control al amanecer
+                    else if (GUI.Button(new Rect(r.x + 60 * k, r.yMax - 100 * k, 320 * k, 64 * k), "Volver a empezar")) { NetSession.Reset(); NightRun.Active = true; SceneManager.LoadScene("Union"); }
                     if (GUI.Button(new Rect(r.xMax - 380 * k, r.yMax - 100 * k, 320 * k, 64 * k), "Menú principal")) { NetSession.Reset(); NightRun.Active = false; SceneManager.LoadScene("Menu"); }
                 }
             }
