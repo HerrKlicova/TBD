@@ -753,7 +753,7 @@ namespace TBD.View
         bool Propia(int n) { return !_a.NodeLost[n] && (_a.Stations.Founded[n] || n == _a.Embarque.HomeNode); }
         int PelotonesEn(RailNode nd) { int c = Plantel.De(nd.Name).Pelotones.Length + (nd.Name == "Sagunto" ? 2 : 0); return c + _a.Embarque.AtStation(nd.Id, PasajeroTipo.Peloton).Count; }
         bool Atacada(int n) { if (_a.Besieged(n)) return true; foreach (var p in _a.Director.Active) if (p.Kind == HiveDirector.PlanKind.Asedio && p.Started && p.Node == n) return true; return false; }
-        void MarcaEstacion(RailNode nd, Vector3 sp)
+        void MarcaEstacion(RailNode nd, Vector3 sp, bool todosNombres = false)
         {
             if (_disco == null) { _disco = Circulo(true); _anillo = Circulo(false); }
             int n = nd.Id; bool perdida = _a.NodeLost[n], propia = Propia(n), cerco = n == _a.Director.CerradaNodo;
@@ -768,7 +768,7 @@ namespace TBD.View
             var mp = Event.current.mousePosition; bool encima = (mp - c).magnitude < Mathf.Max(px, 14f);
             string nombre = cerco ? nd.Name + " · cercada" : propia ? nd.Name + " · " + PelotonesEn(nd) : nd.Name;
             if (Ui3.Activa) _rotulos.Add(R(px));      // D-N185: los rótulos tampoco pisan el disco de la estación
-            if (importante || encima)
+            if (importante || encima || (Ui3.Activa && (cerco || todosNombres)))      // D-N185 (-ui3): la cercada siempre con nombre y, de cerca, todas
             {
                 var lr = SinPisar(new Rect(c.x + px * 0.5f + 4f, c.y - _small.fontSize * 0.7f, _small.CalcSize(new GUIContent(nombre)).x + 4f, _small.fontSize * 1.4f));
                 if (Ui3.Activa) Dibuja(Texture2D.whiteTexture, new Rect(lr.x - 3f, lr.y, lr.width + 6f, lr.height), CFondoRotulo);   // D-N185: rótulo sobre fondo, que se lea encima del terreno
@@ -777,6 +777,83 @@ namespace TBD.View
             }
             if (cerco && encima) { var tr = new Rect(c.x + px * 0.5f + 4f, c.y + _small.fontSize * 0.9f, 360, _small.fontSize * 2.2f); GUI.DrawTexture(tr, Texture2D.blackTexture); GUI.Label(tr, " Castellón · cercada. Aguanta, pero está aislada.", _small); }
         }
+        // ---------------------------------------------------------------- D-N185: estaciones con -ui3
+        /// <summary>Zoom del mapa en tres niveles (D-N185). Cerca: todos los nombres. Medio: nombres de las propias, las perdidas y la cercada,
+        /// y el resto al pasar el ratón. Lejos: las estaciones que no son tuyas se ocultan (salvo al pasar el ratón).</summary>
+        public const float ZoomCercaKm = 40f, ZoomLejosKm = 300f;
+        public int NivelZoom => _dist < ZoomCercaKm ? 0 : _dist < ZoomLejosKm ? 1 : 2;
+        readonly List<int> _estNodo = new List<int>(); readonly List<Vector3> _estSp = new List<Vector3>(); readonly List<int> _estPrio = new List<int>();
+        readonly List<int> _grupo = new List<int>(); bool[] _enGrupo;
+        GUIStyle _cuenta;
+
+        /// <summary>Prioridad del rótulo: 0 atacada o cercada, 1 propia, 2 perdida, 3 el resto. Las de prioridad más alta reservan su sitio antes.</summary>
+        int PrioridadEst(int n) { if (n == _a.Director.CerradaNodo || (Propia(n) && Atacada(n))) return 0; if (Propia(n)) return 1; if (_a.NodeLost[n]) return 2; return 3; }
+
+        void EstacionesUi3()
+        {
+            var g = _a.Graph; int nivel = NivelZoom; var mp = Event.current.mousePosition;
+            _estNodo.Clear(); _estSp.Clear(); _estPrio.Clear();
+            for (int i = 0; i < g.Nodes.Count; i++)
+            {
+                var n = g.Nodes[i];
+                var sp = _cam.WorldToScreenPoint(MapToWorld(n.XMeters, n.YMeters, 0.8f * Mathf.Clamp(_dist / 230f, 0.0015f, 2f)));
+                if (sp.z <= 0) continue;
+                int pr = PrioridadEst(n.Id);
+                var c = new Vector2(sp.x, Screen.height - sp.y - IconPx(32) * 0.6f);
+                if (nivel == 2 && pr == 3 && (mp - c).magnitude > 18f) continue;          // lejos: solo lo tuyo
+                _estNodo.Add(i); _estSp.Add(sp); _estPrio.Add(pr);
+            }
+            // agrupación: propias tranquilas (ni atacadas ni cercadas) que en pantalla quedan a menos de 1,6 discos
+            if (_enGrupo == null || _enGrupo.Length < _estNodo.Count) _enGrupo = new bool[Mathf.Max(8, _estNodo.Count * 2)];
+            for (int k = 0; k < _estNodo.Count; k++) _enGrupo[k] = false;
+            float radio = IconPx(32) * 1.6f;
+            for (int k = 0; k < _estNodo.Count; k++)
+            {
+                if (_enGrupo[k] || _estPrio[k] != 1) continue;
+                _grupo.Clear(); _grupo.Add(k);
+                for (int j = k + 1; j < _estNodo.Count; j++)
+                    if (!_enGrupo[j] && _estPrio[j] == 1 && ((Vector2)_estSp[j] - (Vector2)_estSp[k]).magnitude < radio) _grupo.Add(j);
+                if (_grupo.Count < 2) continue;
+                foreach (var j in _grupo) _enGrupo[j] = true;
+                MarcaGrupo(_grupo);
+            }
+            // el resto, por prioridad (atacadas y cercada primero), para que sus rótulos reserven sitio antes
+            for (int pr = 0; pr <= 3; pr++)
+                for (int k = 0; k < _estNodo.Count; k++)
+                    if (!_enGrupo[k] && _estPrio[k] == pr) MarcaEstacion(g.Nodes[_estNodo[k]], _estSp[k], nivel == 0);
+        }
+
+        /// <summary>Varias estaciones propias juntas en pantalla: un disco hueso con el número y «Sagunto +2»; al pasar el ratón, la tarjeta con cada una.</summary>
+        void MarcaGrupo(List<int> grupo)
+        {
+            if (_disco == null) { _disco = Circulo(true); _anillo = Circulo(false); }
+            if (_cuenta == null) { _cuenta = new GUIStyle(_small) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, fontSize = Mathf.RoundToInt(_small.fontSize * 1.1f) }; _cuenta.normal.textColor = COscuro; _cuenta.padding = new RectOffset(0, 0, 0, 0); }
+            Vector2 c = Vector2.zero; int cabeza = grupo[0];
+            foreach (var k in grupo) { c += (Vector2)_estSp[k]; if (g_Nodo(k) == _a.Embarque.HomeNode) cabeza = k; }
+            c /= grupo.Count; c = new Vector2(c.x, Screen.height - c.y - IconPx(32) * 0.6f);
+            float px = IconPx(32) * 1.25f; var r = new Rect(c.x - px * 0.5f, c.y - px * 0.5f, px, px);
+            Dibuja(_disco, new Rect(r.x - 1f, r.y - 1f, r.width + 2f, r.height + 2f), COscuro); Dibuja(_disco, r, CHueso);
+            Dibuja(_anillo, new Rect(r.x - px * 0.18f, r.y - px * 0.18f, px * 1.36f, px * 1.36f), CHueso);      // anillo exterior: «son varias»
+            GUI.Label(r, grupo.Count.ToString(), _cuenta);
+            _rotulos.Add(r);
+            string nombre = _a.Graph.Nodes[g_Nodo(cabeza)].Name + " +" + (grupo.Count - 1);
+            var lr = SinPisar(new Rect(r.xMax + 4f, c.y - _small.fontSize * 0.7f, _small.CalcSize(new GUIContent(nombre)).x + 4f, _small.fontSize * 1.4f));
+            Dibuja(Texture2D.whiteTexture, new Rect(lr.x - 3f, lr.y, lr.width + 6f, lr.height), CFondoRotulo);
+            GUI.Label(lr, nombre, _small);
+            var mp = Event.current.mousePosition;
+            if ((mp - c).magnitude < px || lr.Contains(mp))
+            {
+                float lh = _small.fontSize * 1.45f, w = 0f;
+                foreach (var k in grupo) w = Mathf.Max(w, _small.CalcSize(new GUIContent(Linea(k))).x);
+                var tr = new Rect(lr.x - 3f, lr.yMax + 2f, w + 18f, lh * grupo.Count + 10f);
+                Dibuja(Texture2D.whiteTexture, tr, CFondoRotulo);
+                Dibuja(Texture2D.whiteTexture, new Rect(tr.x, tr.y, 2f, tr.height), CHueso);
+                for (int i = 0; i < grupo.Count; i++) GUI.Label(new Rect(tr.x + 10f, tr.y + 5f + lh * i, w + 6f, lh), Linea(grupo[i]), _small);
+            }
+        }
+        int g_Nodo(int k) { return _a.Graph.Nodes[_estNodo[k]].Id; }
+        string Linea(int k) { var nd = _a.Graph.Nodes[_estNodo[k]]; return nd.Name + " · " + PelotonesEn(nd); }
+
         float _nombreTrenW;
         long _emSonado = -1; long _trenParadoAvisado = -1; long _recordatorioLog = -1;
         /// <summary>Lucía (13365b8): el día 2, de 15:00 a 22:00, si aún no ha salido ningún tren hacia Nules.</summary>
@@ -817,7 +894,8 @@ namespace TBD.View
             _rotulos.Clear();
             EnsureStyles();
             var g = _a.Graph;
-            foreach (var n in g.Nodes)
+            if (Ui3.Activa) EstacionesUi3();                         // D-N185: tres niveles de zoom, propias agrupadas al alejarse y rótulos por prioridad
+            else foreach (var n in g.Nodes)
             {
                 var sp = _cam.WorldToScreenPoint(MapToWorld(n.XMeters, n.YMeters, 0.8f * Mathf.Clamp(_dist / 230f, 0.0015f, 2f)));
                 if (sp.z <= 0) continue;

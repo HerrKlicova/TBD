@@ -85,6 +85,8 @@
 .ley-sim { width: 34px; height: 20px; margin-right: 12px; align-items: center; justify-content: center; }
 .ley-txt { font-size: 15px; }
 .sim-disco { width: 18px; height: 18px; border-radius: 9px; background-color: var(--hueso); border-width: 2px; border-color: var(--ui-solido); }
+.sim-grupo { width: 20px; height: 20px; border-radius: 10px; background-color: var(--hueso); border-width: 2px; border-color: var(--ui-solido); align-items: center; justify-content: center; }
+.sim-grupo-n { -unity-text-align: middle-center; -unity-font-definition: url("Fuentes/BarlowCondensed-Bold.ttf"); font-size: 13px; color: var(--ui-solido); padding: 0; }
 .sim-aro-amb { width: 22px; height: 22px; border-radius: 11px; border-width: 3px; border-color: var(--ambar); }
 .sim-aro-rojo { width: 22px; height: 22px; border-radius: 11px; border-width: 3px; border-color: var(--rojo); }
 .sim-otra { width: 8px; height: 8px; background-color: rgb(138, 136, 128); }
