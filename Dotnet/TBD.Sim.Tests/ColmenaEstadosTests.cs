@@ -23,8 +23,8 @@ namespace TBD.Sim.Tests
         {
             Console.WriteLine("\n[38] Estados de la Colmena (D-N160): Dispersa, Al acecho y Enjambre");
             var w = NetScenario.Inicio(); var d = w.Director;
-            check(d.P.ColOn == 1 && d.P.ColUp1Mil == 4000 && d.P.ColUp2Mil == 7000 && d.P.ColWarnMil == 6000 && d.P.ColForgetDays == 3 && d.P.ColMult0 == 900 && d.P.ColMult2 == 1250 && d.P.ColExtraSieges == 1 && d.P.H0 == 1250,
-                "balance_colmena.csv: encendido, umbrales 4 y 7, aviso en 6, 3 días de olvido, ×0,9/1/1,25, +1 asedio y H0 1250");
+            check(d.P.ColOn == 1 && d.P.ColUp1Mil == 4000 && d.P.ColUp2Mil == 7000 && d.P.ColWarnMil == 6000 && d.P.ColForgetDays == 3 && d.P.ColMult0 == 900 && d.P.ColMult2 == 1250 && d.P.ColExtraSieges == 1 && d.P.H0 == 1400,
+                "balance_colmena.csv: encendido, umbrales 4 y 7, aviso en 6, 3 días de olvido, ×0,9/1/1,25, +1 asedio y H0 1400 (D-N183)");
             check(d.ColState == HiveDirector.ColDispersa && d.ColMultMil() == 900 && d.DayBudget(5, 0) == d.DayZombies(5, 0) * 900 / 1000, "empieza Dispersa: el presupuesto del día es el 90 % de la curva");
             int slots = 0; for (int n = 0; n < w.Graph.Nodes.Count; n++) if (!(w.Stations.IsSite(n) && !w.Stations.Founded[n])) slots++;
             check(slots >= 9, $"hay {slots} nodos que pueden tener gente");

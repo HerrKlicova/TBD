@@ -186,6 +186,16 @@ namespace TBD.Net
             MarkLeash();
         }
 
+        /// <summary>D-N183: quita la guarnición estática sembrada con SeedStatic en (x, y) (núcleo y las cuatro vecinas). Para una estación que pasa a ser del jugador.</summary>
+        public void ClearStaticAt(int x, int y)
+        {
+            S[y * W + x] = 0;
+            if (x > 0) S[y * W + x - 1] = 0;
+            if (x < W - 1) S[y * W + x + 1] = 0;
+            if (y > 0) S[(y - 1) * W + x] = 0;
+            if (y < H - 1) S[(y + 1) * W + x] = 0;
+        }
+
         public void BlobStatic(int cx, int cy, int r, int value)
         {
             Blob(cx, cy, r, value, S);
@@ -931,12 +941,14 @@ namespace TBD.Net
         public long StarvedTotal;
 
         /// <summary>Una vez al día, antes del mantenimiento: cada nodo con gente come; si no tiene para el día, se queda en 0 y pierde gente (pob ×= 1 − 0,05 × falta).</summary>
+        /// <summary>D-N183 (Hugo, existencias_red.json «no_consumen_en_mvp»): un nodo cuya gente no come en el MVP (Castellón). −1 = ninguno. Lo pone NetScenario.Inicio; no se guarda.</summary>
+        public int FoodExemptNode = -1;
         void ConsumeFood()
         {
             for (int n = 0; n < Graph.Nodes.Count; n++)
             {
                 int pob = Stock[n, (int)Res.Personas];
-                if (pob <= 0) continue;
+                if (pob <= 0 || n == FoodExemptNode) continue;
                 long acc = FoodRemMil[n] + (long)pob * FoodPerPersonMil;
                 int need = (int)(acc / 1000); FoodRemMil[n] = (int)(acc % 1000);
                 if (need <= 0) continue;
@@ -1238,7 +1250,40 @@ namespace TBD.Net
                 MakeNoise(node);
                 s.AtStop = true;
                 if (GatesEnabled && (Besieged(node) || FreeSlots(node, s) <= 0)) { s.GateNode = node; s.GateSinceTick = Tick; s.GateHorde = Besieged(node) ? SiegeZombies(node) : 0; }   // D-N152: sitiada o sin andén libre: a las puertas
+                TryAmbush(s, node);
             }
+        }
+
+        // ---------------------------------------------------------------- Partida de 30 min (Lucía, 9-nov 08:00): objetivo del día 2 y emboscada a la llegada a Nules
+        /// <summary>D-N179: nodo del objetivo del día 2 («Defiende Nules antes de la noche: manda tropa y munición (≥ 20 u)»). −1 = sin objetivo. Lo pone NetScenario.Inicio; no se guarda.</summary>
+        public int ObjNode = -1;
+        public const int ObjAmmoU = 20;
+        /// <summary>El objetivo se ve desde el amanecer del día 2 (06:00 tras la 1.ª noche) hasta que empieza la noche de ese día (22:00), si el nodo no se ha perdido.</summary>
+        public bool ObjActive { get { return ObjNode >= 0 && Tick >= NetConst.DayTicks + NetConst.Hours(6) && Tick < NetConst.DayTicks + NetConst.Hours(22) && !NodeLost[ObjNode]; } }
+        /// <summary>Tropa: al menos un pelotón bajado en el nodo (embarque, D-N166). La guarnición de partida no cuenta: el objetivo es mandar tropa.</summary>
+        public bool ObjTroops { get { return ObjNode >= 0 && Embarque.AtStation(ObjNode, PasajeroTipo.Peloton).Count > 0; } }
+        /// <summary>Munición: al menos ObjAmmoU u en el almacén del nodo.</summary>
+        public bool ObjAmmo { get { return ObjNode >= 0 && Stock[ObjNode, (int)Res.Municion] >= ObjAmmoU; } }
+        public bool ObjMet { get { return ObjTroops && ObjAmmo; } }
+
+        /// <summary>Emboscada (plan de 30 min, línea 6): el primer tren que llega a AmbushNode entre el amanecer del día 2 y las 22:00 de ese día recibe un sondeo de la
+        /// Colmena de AmbushZombies (unos 300) sobre la estación y el tren. Una sola vez por partida: queda la entrada EM-1 del informe (que va en el guardado), así que al
+        /// cargar no se repite. La red no mueve masa ni resuelve el combate: lo da en LastAmbush para que la zona cree los 300 (Iker/Marcos) y diga el aviso del apartado.
+        /// −1 = sin emboscada. Lo pone NetScenario.Inicio; no se guarda.</summary>
+        public int AmbushNode = -1, AmbushZombies = 300;
+        public struct AmbushEvent { public int Node, Service, Zombies; public long Tick; public bool OnScreen, InApartado; }
+        /// <summary>La última emboscada (Tick = −1: ninguna en esta sesión). InApartado: el tren entró al andén (no se quedó a las puertas); en Nules eso es el apartado
+        /// y toca el aviso «Saca el tren del apartado: con asedio, espera fuera de la puerta oeste.» Lo lee la vista; no entra en el hash.</summary>
+        public AmbushEvent LastAmbush = new AmbushEvent { Tick = -1, Node = -1, Service = -1 };
+        public bool AmbushDone { get { foreach (var e in Intel) if (e.Id == "EM-1") return true; return false; } }
+
+        void TryAmbush(TrainService s, int node)
+        {
+            if (AmbushNode < 0 || node != AmbushNode || AmbushZombies <= 0) return;
+            if (Tick < NetConst.DayTicks + NetConst.Hours(6) || Tick >= NetConst.DayTicks + NetConst.Hours(22) || NodeLost[node] || AmbushDone) return;
+            int si = Services.IndexOf(s);
+            LastAmbush = new AmbushEvent { Node = node, Service = si, Zombies = AmbushZombies, Tick = Tick, OnScreen = node == ActiveZoneNode, InApartado = s.GateNode != node };
+            Intel.Add(new IntelEntry { Tick = Tick, Id = "EM-1", Vars = new[] { "nodo", Graph.Nodes[node].Name, "tren", "Tren " + s.Train.Name, "n", AmbushZombies.ToString() } });
         }
 
         // ---------------------------------------------------------------- D-N152: el tren espera a las puertas
@@ -1887,10 +1932,14 @@ namespace TBD.Net
             Stock("Valencia", 0, 0, 0, 0, 0); Stock("Teruel", 0, 0, 0, 0, 0);
             Stock("Sagunto", 150, 140, 100, 80, 80);     // víveres: bloque «viveres_u» de existencias_red.json (Hugo, D-N176)
             Stock("Nules", 0, 0, 0, 0, 0);       // Hugo (existencias_red.json): 0 en todo; la guarnición lleva su dotación
-            Stock("Castellón", 0, 30, 0, 26, 0);   // D-N183 (Lucía, 9-nov): propia desde el inicio; Hugo (existencias_red.json): 0 de munición, 30 de combustible (tope de zona), 26 personas, sin víveres ni consumo en el MVP
-            w.Stations.P.Sites = new string[0];
-            w.Stations.Founded[Id("Nules")] = true; w.Stations.Founded[Id("Castellón")] = true;
-            w.Director.CercoNodo = Id("Castellón");    // D-N184: Castellón cercada (solo vista): ni asedios ni trenes
+            w.Stations.P.Sites = new[] { "Castellón" };
+            w.Stations.Founded[Id("Nules")] = true;
+            // D-N183 (Lucía, 9-nov, con Eugenio): Castellón es del jugador desde el principio, con su guarnición de 3 pelotones y 1 VAMTAC (26 personas; la colocación es de la zona:
+            // estacion_castellon.json). Sin la guarnición zombi pegada a la estación. Hugo (existencias_red.json): 0 u de munición, 30 de combustible, 26 personas y sin consumo de víveres.
+            // Recinto de 308,69 u (Álvaro, con el que Hugo calcula H0 = 1400). La Colmena la tiene en su historia desde el día 0 (no cuenta como recién ganada).
+            // En el MVP no sufre la gran horda («Castellón cerrada»): el director no la asedia (Director.CerradaNodo).
+            { int cas = Id("Castellón"); w.Stations.Founded[cas] = true; w.GarrisonMil[cas] = 26_000; w.ZoneWallE4[cas] = 3_086_900; Stock("Castellón", 0, 30, 0, 26, 0); w.FoodExemptNode = cas; w.Field.ClearStaticAt(58, 63); w.Director.CerradaNodo = cas; w.Director.ColSeedHistory(w); }
+            w.ObjNode = Id("Nules"); w.AmbushNode = Id("Nules");      // partida de 30 min (Lucía, 9-nov 08:00): objetivo del día 2 y emboscada de unos 300 al llegar el tren
             w.Director.SinAsedioNodo = Id("Nules"); w.Director.SinAsedioHasta = NetConst.DayTicks + NetConst.Hours(8);     // D-N156: Nules sin asedio la 1.ª noche (hasta las 08:00 del día siguiente)
             w.Director.ZoneHordes.Add(new HiveDirector.ZoneHorde { Node = Id("Nules"), FromDay = 1, Zombies = 2200 }); w.GarrisonMil[Id("Nules")] = 12_000; w.ZoneWallE4[Id("Nules")] = 1_322_400;   // guarnición de 12 y recinto de 132,24 u (Álvaro, nules-nivel.md §14: HESCO en los cruces de andén del oeste; antes 124,3)   // horda propia de Nules desde la 2.ª noche: 2200 en normal (Lucía, 9-nov 00:56, medida en NightSim con la D-N180; difícil 2440 cuando la red tenga dificultad); Castellón, sin noche en el MVP
             w.Services.Clear();

@@ -165,8 +165,8 @@ namespace TBD.Net
         public ulong Seed;                          // semilla de la partida (0 por defecto)
         /// <summary>D-N156 (Lucía): un nodo protegido de asedio hasta un tick (Nules, hasta pasada la 1.ª noche). −1 = ninguno. Lo pone NetScenario.Inicio; no se guarda.</summary>
         public int SinAsedioNodo = -1; public long SinAsedioHasta;
-        /// <summary>D-N184 (Lucía, 9-nov): nodo cercado (Castellón). El cerco es solo de vista: nunca se elige para un asedio y no puede caer. -1, ninguno (Mvp y goldens).</summary>
-        public int CercoNodo = -1;
+        /// <summary>D-N183: un nodo propio que en el MVP no recibe la gran horda (Castellón cerrada): no se asedia ni atrae la deriva. −1 = ninguno. Lo pone NetScenario.Inicio; no se guarda.</summary>
+        public int CerradaNodo = -1;
         /// <summary>Lucía (8-nov 23:20): cada zona tiene su propia horda. Una horda de zona ataca su nodo cada noche desde el día FromDay (0 = 1.ª noche), de 22:00 a 06:00,
         /// con aviso a las 19:00 (SiegeWarnH). Al acabar, si la zona no está en pantalla, la resuelve NetWorld.ResolveZoneSiege (regla abstracta). Lo pone el escenario; no se guarda.</summary>
         public struct ZoneHorde { public int Node, FromDay, Zombies; }
@@ -177,6 +177,7 @@ namespace TBD.Net
         public long SiegeWeight(NetWorld w, int n)
         {
             var nd = w.Graph.Nodes[n];
+            if (n == CerradaNodo) return 0;
             if (n == SinAsedioNodo && w.Tick + NetConst.Hours(P.SiegeWarnH) < SinAsedioHasta) return 0;   // el asedio empezaría (tras el aviso) antes de acabar la protección
             if (w.Stations.IsSite(n) && !w.Stations.Founded[n]) return 0;      // hito 5 (Mak, 6-nov): un emplazamiento sin fundar no cuenta (ni objetivo ni deriva)
             long wt = P.WeightBase + Math.Max(0, w.Stock[n, (int)Res.Personas]) / PersonsPerHugoUnit;   // el modelo de Hugo cuenta la población en unidades de 10 personas (Valencia 30 = 300)
@@ -201,7 +202,7 @@ namespace TBD.Net
             var sq = new long[w.Graph.Nodes.Count];
             for (int n = 0; n < sq.Length; n++)
             {
-                if (n == w.ActiveZoneNode || n == CercoNodo || Active.Exists(p => p.Kind == PlanKind.Asedio && p.Node == n)) continue;
+                if (n == w.ActiveZoneNode || Active.Exists(p => p.Kind == PlanKind.Asedio && p.Node == n)) continue;
                 long wt = SiegeTargetWeight(w, n);
                 sq[n] = wt * wt; total += sq[n];
             }
@@ -285,6 +286,9 @@ namespace TBD.Net
             w.Intel.Add(new IntelEntry { Tick = w.Tick, Id = "CO-0", Vars = new string[0] });
             return true;
         }
+
+        /// <summary>D-N183 (Hugo): rellena la historia de «nodos con gente» con lo que hay al empezar, para que las estaciones de partida no cuenten como ganadas en los primeros 7 días.</summary>
+        public void ColSeedHistory(NetWorld w) { int h = HeldNodes(w); for (int k = 0; k < ColHeld.Length; k++) ColHeld[k] = h; }
 
         static int HeldNodes(NetWorld w)
         {

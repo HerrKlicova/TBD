@@ -138,6 +138,16 @@ namespace TBD.Units
             tx = Math.Max(train.X0, Math.Min(train.X1, x)); ty = Math.Max(train.Y0, Math.Min(train.Y1, y));
             return 4;
         }
+        /// <summary>Rodeo del edificio (Nacho y Marcos, 9-nov): un trepador DETRÁS del edificio de viajeros (y &gt; S.Y1 y x en [S.X0 − m, S.X1 + m]) cuyo objetivo
+        /// queda al otro lado (ty &lt; S.Y0) no va en línea recta, porque se quedaría empujando contra la fachada trasera y contaría como atacante de la estación.
+        /// Va primero, por la franja de detrás y sin cambiar de y, a la vertical de la esquina más cercana (S.X0 − m − 1 o S.X1 + m + 1, y). Sin estado: en cuanto sale de la sombra del edificio (por X o por Y),
+        /// deja de aplicarse y vuelve a su objetivo. Enteros, sin azar. Devuelve true si ha cambiado (tx, ty).</summary>
+        public static bool Rodeo(int x, int y, RectMm s, int m, ref int tx, ref int ty)
+        {
+            if (y <= s.Y1 || x < s.X0 - m || x > s.X1 + m || ty >= s.Y0) return false;
+            tx = (x - (s.X0 - m)) <= ((s.X1 + m) - x) ? s.X0 - m - 1 : s.X1 + m + 1; ty = y;   // a lo largo de la franja de detrás (Marcos, 64ee102: en la zona hay un pasillo de < 1 m hasta el muro norte); 1 mm fuera de la franja para que, al llegar, ya no se aplique y no se quede parado en su propio punto
+            return true;
+        }
         static bool Nearest(int x, int y, IList<Target> list, long r2, out int tx, out int ty)
         {
             tx = ty = 0; long best = long.MaxValue; bool found = false;
@@ -412,7 +422,7 @@ namespace TBD.Units
                 SumSegments();
             }
             WallJobsStep();
-            { _targets.Clear(); for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); int aS, aT; Night.CountAttackers(_targets, out aS, out aT); Night.Attack(aS, aT); SurroundedTrain(aT);
+            { _targets.Clear(); for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); int aS, aT; Night.CountAttackers(_targets, AimsStation, out aS, out aT); Night.Attack(aS, aT); SurroundedTrain(aT);
               if (aT > TrainPeakAttackers) TrainPeakAttackers = aT;
               if (aT > 0) for (int i = 0; i < _z.Count; i++) if (_z[i].Alive && !_z[i].HitTrain && Night.TouchesTrain(_z[i].X, _z[i].Y)) { _z[i].HitTrain = true; TrainTouched++; } }
             // 4) los pelotones disparan; los impactos abaten
@@ -561,6 +571,8 @@ namespace TBD.Units
         /// en llegar (índice más alto) y caen 1,5 m dentro del recinto, en su lado del muro. Entero y determinista. Devuelve cuántos han saltado.</summary>
         /// <summary>D-N148: cada cuántos ticks vuelve a elegir objetivo un zombi que ha pasado el muro (repartido por índice para no hacerlo todo en el mismo tick).</summary>
         public const int ClimberRetargetTicks = 15;
+        /// <summary>Rodeo del edificio (9-nov): margen = AttackReachMm + RodeoExtraMm, para que el que rodea no pase a la distancia de ataque de la fachada. Regla, fuera del hash.</summary>
+        public bool RodeoOn = true; public int RodeoExtraMm = 500;
         /// <summary>D-N148: radio en el que un zombi dentro del recinto busca algo vivo antes de ir al tren.</summary>
         public const int ClimberSeekMm = 30000;
         readonly List<Target> _men = new List<Target>(), _vehT = new List<Target>(), _workers = new List<Target>();
@@ -581,6 +593,10 @@ namespace TBD.Units
             Night.DamageTrain(floor - Night.LastDmgTrain);
         }
 
+        /// <summary>D-N181: ¿va a por la estación el zombi de _targets[i]? Fuera del recinto, sí (en Nules el edificio es un tramo del muro norte: el que empuja desde
+        /// fuera ataca el edificio). Dentro, solo con Goal 5 (D-N180). D181On = false vuelve a contar a todos (solo pruebas y medidas).</summary>
+        bool AimsStation(int i) { if (!D181On) return true; var z = _z[_targets[i].Id]; return !InFort(z.X, z.Y) || z.Goal == 5; }
+        public bool D181On = true;
         /// <summary>D-N180 (2): si el tren ya no está (destruido) o está fuera del recinto, el que ha trepado y no tiene a nadie cerca va al edificio de viajeros
         /// (Goal 5) en lugar de quedarse empujando contra el muro hacia el tren de fuera: la noche siempre acaba.</summary>
         public bool TrainReachableFromInside() { var r = Night.P.TrainRect; return Night.TrainHp > 0 && r.X1 > SP.FortX0 && r.X0 < SP.FortX1 && r.Y1 > SP.FortY0 && r.Y0 < SP.FortY1; }
@@ -595,6 +611,7 @@ namespace TBD.Units
             }
             int tx, ty; z.Goal = ClimberTargets.Pick(z.X, z.Y, _men, _vehT, _workers, ClimberSeekMm, Night.P.TrainRect, out tx, out ty); z.TX = tx; z.TY = ty;
             if (z.Goal == 4 && !TrainReachableFromInside()) { var s = Night.P.StationRect; z.Goal = 5; z.TX = Math.Max(s.X0, Math.Min(s.X1, z.X)); z.TY = Math.Max(s.Y0, Math.Min(s.Y1, z.Y)); }
+            if (RodeoOn) ClimberTargets.Rodeo(z.X, z.Y, Night.P.StationRect, Night.P.AttackReachMm + RodeoExtraMm, ref z.TX, ref z.TY);   // rodeo del edificio (Marcos y Nacho, 9-nov), igual que la zona
         }
 
         /// <summary>D-N175 (Lucía, 8-nov, para medir; rescate de Nules D-N172): un zombi de FUERA con infantería de fuera a OutsideAggroMm o menos deja la puerta y va a por ella.

@@ -31,7 +31,7 @@ namespace TBD.View
         /// <summary>D-N184: mancha fija e08c30 sobre el nodo cercado (Castellón). Solo vista.</summary>
         void UpdateCerco()
         {
-            int c = _a.Director.CercoNodo;
+            int c = _a.Director.CerradaNodo;
             if (c < 0 || c >= _a.Graph.Nodes.Count) { if (_cerco != null) { Destroy(_cerco.gameObject); _cerco = null; } return; }
             if (_cerco != null) return;
             var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder); go.name = "Cerco " + _a.Graph.Nodes[c].Name; Destroy(go.GetComponent<Collider>());

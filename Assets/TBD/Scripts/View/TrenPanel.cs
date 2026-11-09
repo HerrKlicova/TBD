@@ -268,7 +268,7 @@ namespace TBD.View
         public const string AvisoCerco = "Castellón está cercada. Ningún tren puede llegar hasta que se rompa el cerco.";   // D-N184 (Lucía)
         void PonerDestino(int node)
         {
-            if (W != null && node >= 0 && node == W.Director.CercoNodo) { _aviso = AvisoCerco; _avisoHasta = Time.unscaledTime + 5f; _avisoAmbar = true; return; }
+            if (W != null && node >= 0 && node == W.Director.CerradaNodo) { _aviso = AvisoCerco; _avisoHasta = Time.unscaledTime + 5f; _avisoAmbar = true; return; }
             _destinoP = node;
             if (node == Nodo("Nules")) { TutorialHud.Senal(TutorialGuion.Senales.DestinoNules); if (_origenP == Casa) TutorialHud.Viaje.DestinoNules(); }
             if (node == Casa) TutorialHud.Senal(TutorialGuion.Senales.DestinoSagunto);
@@ -505,7 +505,7 @@ namespace TBD.View
             GUI.Label(new Rect(x0, yy, ww * 0.3f, lh), "<b>Destino</b>", _s);
             int otro = casa ? Nodo("Nules") : Casa, cas = Nodo("Castellón");
             if (Boton(new Rect(x0 + ww * 0.28f, yy, ww * 0.3f, lh * 0.9f), (_destinoP == otro ? "✓ " : "") + W.Graph.Nodes[otro].Name, true, otro == Casa ? TutorialGuion.Resaltes.NodoSagunto : TutorialGuion.Resaltes.NodoNules)) PonerDestino(otro);
-            bool casCerco = cas >= 0 && cas == W.Director.CercoNodo, casOk = cas >= 0 && W.Stations.Founded[cas];
+            bool casCerco = cas >= 0 && cas == W.Director.CerradaNodo, casOk = cas >= 0 && W.Stations.Founded[cas];
             if (Boton(new Rect(x0 + ww * 0.62f, yy, ww * 0.38f, lh * 0.9f), casCerco ? "Castellón (cercada)" : casOk ? (_destinoP == cas ? "✓ " : "") + "Castellón" : "Castellón (infestada)", casOk || casCerco))
             { if (casCerco) { _aviso = AvisoCerco; _avisoHasta = Time.unscaledTime + 5f; _avisoAmbar = true; Debug.Log("[TREN] " + _aviso); } else PonerDestino(cas); }   // D-N184
             yy += lh;

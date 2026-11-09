@@ -13,6 +13,38 @@ namespace TBD.Sim.Tests
         public static void Run(Action<bool, string> check)
         {
             Console.WriteLine("[27] Sagunto empieza con 120 u de muro construido (D-N63)");
+            {   // Partida de 30 min: objetivo del día 2 y emboscada de unos 300 al llegar a Nules
+                var wa = NetScenario.Inicio(); int sg = TrenPreparar.Nodo(wa, "Sagunto"), nl = TrenPreparar.Nodo(wa, "Nules");
+                int sv = -1; for (int g = 0; g < NetConst.DayTicks && sv < 0; g++) { sv = TrenPreparar.TrenEn(wa, sg); if (sv < 0) wa.Step(); }
+                bool before = wa.ObjActive;
+                // un tren el día 1 (como el del tutorial): no hay emboscada
+                wa.SetSchedule(sv, TrenPreparar.Envio(wa, sv, nl, null)); for (int g = 0; g < 4000 && !(wa.Services[sv].AtStop && wa.Services[sv].Stops[wa.Services[sv].StopIndex].Node == nl && wa.Services[sv].Train.State == RailTrainState.Llegado); g++) wa.Step();
+                bool day1 = wa.AmbushDone;
+                while (wa.Tick < NetConst.DayTicks + NetConst.Hours(7)) wa.Step();
+                bool act = wa.ObjActive, met0 = wa.ObjMet;
+                wa.SetSchedule(sv, TrenPreparar.Envio(wa, sv, sg, null)); for (int g = 0; g < 4000 && wa.LastAmbush.Tick < 0; g++) wa.Step();
+                bool notAtSag = wa.LastAmbush.Tick < 0;
+                wa.SetSchedule(sv, TrenPreparar.Envio(wa, sv, nl, null)); for (int g = 0; g < 6000 && wa.LastAmbush.Tick < 0; g++) wa.Step();
+                var am = wa.LastAmbush; int em = 0; foreach (var e in wa.Intel) if (e.Id == "EM-1") em++;
+                check(!before && !day1 && act && !met0 && notAtSag && am.Node == nl && am.Zombies == 300 && am.Service == sv && am.InApartado && em == 1,
+                      $"emboscada: nada el día 1 ni en Sagunto; el día 2 el tren que llega a Nules recibe un sondeo de {am.Zombies} (apartado: {am.InApartado}) y deja una sola EM-1 ({em}); el objetivo se ve desde las 06:00 del día 2 ({act}) y no está cumplido de salida");
+                wa.SetSchedule(sv, TrenPreparar.Envio(wa, sv, sg, null)); for (int g = 0; g < 3000; g++) wa.Step();
+                wa.SetSchedule(sv, TrenPreparar.Envio(wa, sv, nl, null)); for (int g = 0; g < 3000; g++) wa.Step();
+                em = 0; foreach (var e in wa.Intel) if (e.Id == "EM-1") em++;
+                check(em == 1 && wa.LastAmbush.Tick == am.Tick, $"emboscada: una sola vez por partida ({em})");
+                wa.Stock[nl, (int)Res.Municion] = NetWorld.ObjAmmoU; bool ammoOnly = wa.ObjAmmo && !wa.ObjMet;
+                wa.Embarque.Lista.Add(new Pasajero { Tipo = PasajeroTipo.Peloton, Id = 77, Service = sv, Node = nl, Estado = PasajeroEstado.EnEstacion });
+                check(ammoOnly && wa.ObjTroops && wa.ObjMet, "objetivo del día 2: con 20 u solo no basta; con un pelotón bajado en Nules y 20 u, cumplido");
+            }
+            {   // D-N183 (Lucía, 9-nov): Castellón es del jugador desde el inicio
+                var wi = NetScenario.Inicio(); int cas = Id(wi, "Castellón");
+                long statNear = 0; for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) statNear += wi.Field.S[(63 + dy) * HordeField.W + 58 + dx];
+                check(wi.Stations.Founded[cas] && wi.GarrisonMil[cas] == 26_000 && wi.ZoneWallE4[cas] == 3_086_900 && wi.Stock[cas, (int)Res.Municion] == 0 && wi.Stock[cas, (int)Res.Combustible] == 30 && wi.Stock[cas, (int)Res.Personas] == 26
+                      && statNear == 0 && wi.Director.SiegeWeight(wi, cas) == 0 && wi.Director.ColHeld[0] > 0 && wi.Director.ColHeld[0] == wi.Director.ColHeld[7],
+                      $"D-N183: Castellón propia (fundada, guarnición 26, recinto 308,69 u, 0/30 u y 26 personas), sin guarnición zombi ({statNear}), sin asedio en el MVP y en la historia de la Colmena desde el día 0 ({wi.Director.ColHeld[0]} nodos)");
+                int p0 = wi.Stock[cas, (int)Res.Personas]; for (int k = 0; k < 3 * NetConst.DayTicks; k++) wi.Step();
+                check(wi.Stock[cas, (int)Res.Personas] == p0, $"D-N183: en 3 días su gente no pasa hambre (sin consumo en el MVP): {wi.Stock[cas, (int)Res.Personas]} de {p0}");
+            }
             var w = NetScenario.Mvp();
             var bare = NetScenario.Mvp(false);
             int sag = Id(w, "Sagunto");
