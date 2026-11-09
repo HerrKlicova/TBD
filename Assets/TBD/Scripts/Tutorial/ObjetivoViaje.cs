@@ -18,9 +18,9 @@ namespace TBD.Tutorial
         {
             switch (Paso)
             {
-                case PasoViaje.Cargar: return "Carga munición en el tren de Sagunto: abre Preparar tren.";
-                case PasoViaje.Escolta: return "Sube tropa o un vehículo en plataforma: protegerán la carga.";
-                case PasoViaje.Destino: return "Destino: Nules. Mira el ETA y envíalo.";
+                case PasoViaje.Cargar: return "En el andén de Sagunto, selecciona el tren con clic izquierdo y carga munición.";
+                case PasoViaje.Escolta: return "Sube un pelotón o un vehículo en plataforma: protegerán la carga.";
+                case PasoViaje.Destino: return "Con el tren seleccionado, sal al mapa con la rueda y haz clic derecho en Nules.";
                 case PasoViaje.EnCamino: return "El tren va hacia Nules. Llega en {eta}.";
                 case PasoViaje.Descargar: return nulesSitiada ? "Nules está sitiada: la carga se queda a bordo hasta que se despeje." : "Tren en Nules. Descarga la munición.";
                 case PasoViaje.Volver: return "Devuelve el tren a Sagunto.";

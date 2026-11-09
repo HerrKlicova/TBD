@@ -89,7 +89,7 @@ namespace TBD.View
             // D-N173 (Iker): cada estación saca su propio plantel (Plantel.Pelotones); Sagunto, los cinco de siempre en los mismos sitios
             _estacionZona = NetSession.A != null && _zoneNode >= 0 && _zoneNode < NetSession.A.Graph.Nodes.Count ? NetSession.A.Graph.Nodes[_zoneNode].Name : "Sagunto";
             foreach (var pp in TBD.Net.Plantel.Pelotones(_estacionZona, TutorialHud.Activo)) { var pl = _uw.AddPlatoon(pp.Tipo, pp.X, pp.Y, pp.Rumbo, pp.Formacion); if (pp.CotaMm > 0) pl.EyeMm = UnitsWorld.EyeInfantryMm + pp.CotaMm; _pname[pl.Id] = pp.Nombre; }   // D-N183: puestos de cada estación (Álvaro v1.1); en alto (azotea, banqueta), la boca sube con el suelo
-            Debug.Log($"[NOCHE] plantel de {_estacionZona}: {_pname.Count} pelotones");
+            Debug.Log($"[NOCHE] plantel de {_estacionZona}: {_pname.Count} pelotones"); if (_estacionZona == "Nules") TutorialHud.Senal(TutorialGuion.Senales.ZonaNules);   // 3.3 (Lucía 7e4b903)
             _escolta.Clear();
             {   // tropa bajada del tren en esta estación (Embarque.AtStation): sale junto al tren y el bot no la manda al muro (Hugo/Nacho, 9-nov)
                 var wz = NetSession.A; var tr = _ng.P.TrainRect; int ex = (tr.X0 + tr.X1) / 2, ey = tr.Y0 - 2900;   // junto al tren por el sur: en Nules A (192; 60), la escolta de la emboscada de Hugo

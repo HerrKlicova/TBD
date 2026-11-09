@@ -354,10 +354,10 @@ namespace TBD.Sim.Tests
                 var ov = new ObjetivoViaje();
                 check(ov.Paso == PasoViaje.Inactivo && ov.Texto() == null && ObjetivoViaje.Titulo == "Lleva munición a Nules", "antes del amanecer no hay objetivo");
                 check(ObjetivoViaje.HayObjetivo(725) && ObjetivoViaje.HayObjetivo(850) && !ObjetivoViaje.HayObjetivo(1000), "sale en fácil y normal (aunque se saltara el tutorial) y en difícil no");
-                ov.Empezar(); check(ov.Paso == PasoViaje.Cargar && ov.Texto() == "Carga munición en el tren de Sagunto: abre Preparar tren.", "paso 1: cargar munición");
+                ov.Empezar(); check(ov.Paso == PasoViaje.Cargar && ov.Texto() == "En el andén de Sagunto, selecciona el tren con clic izquierdo y carga munición.", "paso 1: cargar munición");
                 ov.Enviado(1, "Sagunto", "Nules", 0); check(ov.Paso == PasoViaje.Cargar, "un tren a Nules sin munición no cuenta");
-                ov.MunicionPuesta(); check(ov.Paso == PasoViaje.Escolta && ov.Texto().StartsWith("Sube tropa o un vehículo"), "con munición puesta: paso 2, escolta (opcional)");
-                ov.DestinoNules(); check(ov.Paso == PasoViaje.Destino && ov.Texto() == "Destino: Nules. Mira el ETA y envíalo.", "poner destino sin escolta se salta el paso 2");
+                ov.MunicionPuesta(); check(ov.Paso == PasoViaje.Escolta && ov.Texto().StartsWith("Sube un pelotón o un vehículo"), "con munición puesta: paso 2, escolta (opcional)");
+                ov.DestinoNules(); check(ov.Paso == PasoViaje.Destino && ov.Texto() == "Con el tren seleccionado, sal al mapa con la rueda y haz clic derecho en Nules.", "poner destino sin escolta se salta el paso 2");
                 var ov2 = new ObjetivoViaje(); ov2.Empezar(); ov2.MunicionPuesta(); ov2.EscoltaPuesta(); check(ov2.Paso == PasoViaje.Destino, "con escolta también pasa al destino");
                 var ov3 = new ObjetivoViaje(); ov3.Empezar(); ov3.MunicionPuesta(); ov3.Enviado(4, "Sagunto", "Nules", 30); check(ov3.Paso == PasoViaje.EnCamino, "si sale sin escolta y sin pasar por el destino, el paso 2 se salta solo");
                 ov.Enviado(1, "Sagunto", "Nules", 30); check(ov.Paso == PasoViaje.EnCamino && ov.Texto().Contains("{eta}"), "en camino, con el ETA");

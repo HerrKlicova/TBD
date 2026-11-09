@@ -1786,8 +1786,11 @@ namespace TBD.View
             PlaceFlat("senales", "topera", new Vector3(50f, 0f, ty - 5f), 270f, root);        // fin de la via 2 (sale de X -250 a 50)
             // postes de catenaria cada 50 m a lo largo de toda la vía (dentro y fuera), a 3,6 m del eje; sin colisión
             for (float x = -240f; x <= 500f; x += 50f)                    // postes de X −240 a 500 (Álvaro C9); el modelo deja la vía hacia su -X: girado 90° la vía queda al norte (+Z)
-                if (PlaceModel("poste_catenaria", "SM_poste_catenaria_LOD1", new Vector3(x, 0f, ty - 2.5f), 90f, root) == null)      // Eugenio (I-Noche110): a 3,6 m quedaban sobre el balasto de la vía 2; a 2,5 m van en la entrevía (el tren llega a 1,5 m del eje)
+            {
+                if (Mathf.Abs(x - 60f) < 1f || Mathf.Abs(x - 110f) < 1f) continue;      // Álvaro (24d69f7): sin poste en X 60 (paso a nivel) ni X 110
+                if (PlaceModel("poste_catenaria", "SM_poste_catenaria_LOD1", new Vector3(x, 0f, ty - 1.125f), 90f, root) == null)      // mástil en Z 62,0 (Álvaro)      // Eugenio (I-Noche110): a 3,6 m quedaban sobre el balasto de la vía 2; a 2,5 m van en la entrevía (el tren llega a 1,5 m del eje)
                     Box("Poste", new Vector3(x, 4f, ty - 2.5f), new Vector3(0.25f, 8f, 0.25f), iron, root);
+            }
             // el pueblo fuera de los muros, al norte (lado contrario a la llegada de la horda por el oeste): dos manzanas de casas bajas encaladas (8 x 7 m, con colisión
             // de caja), un bloque de pisos al este y naranjos en hileras detrás (sin colisión). Casas con la fachada a +Z del modelo girada hacia el sur.
             // pueblo (Álvaro §7c): casa de pueblo de Teo 6 x 10 m (fachada a +Z), hilera delantera en Z 103 (giro 0°) y trasera en Z 120 (giro 180°), 12 casas cada 6 m entre X 75 y 141;
@@ -1908,10 +1911,10 @@ namespace TBD.View
             if (!via2Tex) for (int x = -250; x < 50; x += 2) Box("Vía 2 traviesa", new Vector3(x, 0.05f, ty - 5f), new Vector3(0.4f, 0.08f, 2f), _mTraviesa, root);
             // C2 (v1.4): tolvas volcadas de Teo (el vuelco y el origen en el suelo vienen en la malla: solo X y yaw) sobre la vía 2, Z 59,5, de 14 m cada una:
             // v0 de pie y descarrilada en X 35 (yaw 0), v2 recostada en X 20 (yaw +8°) y v3 sobre el costado, con grava, en X 5 (yaw −12°); cajas giradas si faltan los modelos
-            var hops = new[] { (35f, 0f, 0), (20f, 8f, 2), (5f, -12f, 3) };
+            var hops = new[] { (35f, 0f, 0, 59.5f), (20f, 6f, 2, 59.0f), (5f, -6f, 3, 57.5f) };   // Álvaro (mr-mak 24d69f7): yaw y Z por tolva
             foreach (var hp in hops)
             {
-                var hpos = new Vector3(hp.Item1, 0f, 59.5f);
+                var hpos = new Vector3(hp.Item1, 0f, hp.Item4);
                 float hyaw = hp.Item2 + 90f;      // Eugenio (I-Noche110): salían atravesadas; la malla de Teo va a lo largo de Z (14,5 m), así que +90° la pone a lo largo de la vía
                 var hg = hp.Item3 == 0 ? PlaceModel("tolva_volcada", "SM_tolva_volcada_LOD1", hpos, hyaw, root)
                                        : PlaceModel("tolva_volcada/v" + hp.Item3, "SM_tolva_volcada_v" + hp.Item3 + "_LOD1", hpos, hyaw, root);

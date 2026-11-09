@@ -18,7 +18,7 @@ namespace TBD.Tutorial
             public const string CamaraMovida = "camara_movida", RuedaUsada = "rueda_usada", PelotonSeleccionado = "peloton_seleccionado", OrdenMover = "orden_mover",
                 FormacionDada = "formacion_dada", PausaCerrada = "pausa_cerrada", HordaAvanza = "horda_avanza", AtaqueRechazado = "ataque_rechazado", VehiculosFuera = "vehiculos_fuera";
             // capítulo 2 (zona, Marcos)
-            public const string ObrasAbierto = "obras_abierto", TramoSeleccionado = "tramo_seleccionado", ReparacionConfirmada = "reparacion_confirmada", HayVehiculos = "hay_vehiculos", VehiculoMovido = "vehiculo_movido", FuegoVehiculos = "fuego_vehiculos", ReparacionBloqueada = "reparacion_bloqueada", TramoDespejado = "tramo_despejado",
+            public const string ObrasAbierto = "obras_abierto", TramoSeleccionado = "tramo_seleccionado", ReparacionConfirmada = "reparacion_confirmada", HayVehiculos = "hay_vehiculos", ZonaNules = "zona_nules", VehiculoMovido = "vehiculo_movido", FuegoVehiculos = "fuego_vehiculos", ReparacionBloqueada = "reparacion_bloqueada", TramoDespejado = "tramo_despejado",
                 TramoSobre70 = "tramo_sobre_70", ObrasCerrado = "obras_cerrado";
             // capítulo 3 (mapa y panel del tren, Iker)
             public const string MapaAbierto = "mapa_abierto", PanelTrenAbierto = "panel_tren_abierto", CargaPuesta = "carga_puesta", PelotonABordo = "peloton_a_bordo",
@@ -165,9 +165,9 @@ namespace TBD.Tutorial
                 {
                     p31,
                     S("3.2", "Sal al mapa: aleja la cámara del todo o pulsa M. El combate sigue mientras estás fuera.", R(Resaltes.BarraAtajos), Senales.MapaAbierto),
-                    S("3.3", "Haz clic en Nules. Castellón está infestada; de momento, ni te acerques.", R(Resaltes.NodoSagunto, Resaltes.NodoNules, Resaltes.NodoCastellon), Senales.PanelNulesAbierto),
-                    S("3.4", "Nules tiene un tren en el andén y un pelotón de fusileros. Abre Preparar tren y sube el pelotón.", R(Resaltes.TarjetasDestacamento, Resaltes.BotonPrepararTren, Resaltes.ListaUnidades), Senales.PelotonABordo),
-                    S("3.5", "Destino: Sagunto. Mira el ETA y envíalo.", R(Resaltes.NodoSagunto, Resaltes.Eta, Resaltes.BotonEnviar), Senales.TrenEnviado),
+                    S("3.3", "Doble clic en Nules para entrar. Castellón está cercada: de momento no puedes llegar.", R(Resaltes.NodoSagunto, Resaltes.NodoNules, Resaltes.NodoCastellon), Senales.ZonaNules, Senales.PanelNulesAbierto),   // Lucía 7e4b903 (D-N186): gesto nuevo
+                    S("3.4", "Nules tiene un tren en el andén y un pelotón de fusileros. Selecciona el tren con clic izquierdo y sube el pelotón.", R(Resaltes.TarjetasDestacamento, Resaltes.BotonPrepararTren, Resaltes.ListaUnidades), Senales.PelotonABordo),
+                    S("3.5", "Con el tren seleccionado, sal al mapa con la rueda y haz clic derecho en Sagunto.", R(Resaltes.NodoSagunto, Resaltes.Eta), Senales.TrenEnviado),
                     S("3.6", "Vuelve a Sagunto y aguanta: doble clic en Sagunto o acerca la cámara. La ayuda llega en {eta}.", R(Resaltes.NodoSagunto), Senales.VueltaZona),
                     p37,
                     P38()
