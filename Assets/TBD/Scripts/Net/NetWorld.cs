@@ -1277,8 +1277,8 @@ namespace TBD.Net
         public bool ObjMet { get { return ObjTroops && ObjAmmo; } }
 
         /// <summary>Emboscada del segundo tren (plan de 30 min; Lucía, 9-nov 08:10 y e5f2f1c): cuando llega a AmbushNode el SEGUNDO tren de la partida (cuenta desde el principio)
-        /// y es el día 2 (de 06:00 a 22:00), un sondeo de la Colmena de AmbushZombies (300) le cae encima EN LA VÍA, antes del recinto: el tren se queda esperando fuera de la
-        /// puerta oeste (GateNode, el sitio de la D-N152; en la zona de Nules, X 20–84 m, con la cola en la franja oscura del borde) y los 300 salen de la franja (X 0–20 m)
+        /// y es el día 2 (de 06:00 a 22:00), un sondeo de la Colmena de AmbushZombies (300) le cae encima EN LA VÍA, antes del recinto: el tren se queda esperando a las puertas
+        /// (GateNode, el sitio de la D-N152; en la Nules de la opción A, fuera de la puerta este, X 160–224 m) y los 300 salen de la franja oscura del borde este (X 236–256 m)
         /// a por él. La guarnición queda lejos y no cuenta. Una sola vez por partida: queda la entrada EM-1 del informe (va en el guardado), así que al cargar no se repite.
         /// La red no mueve masa. En pantalla manda la zona (LastAmbush le dice que cree los 300; al acabar llama a AmbushEnd). Fuera de pantalla, ResolveAmbushOffscreen.
         /// −1 = sin emboscada. Lo pone NetScenario.Inicio; no se guarda (tampoco AmbushArrivals: al cargar a media partida se vuelve a contar desde 0).</summary>
@@ -1290,9 +1290,10 @@ namespace TBD.Net
         public bool AmbushDone { get { foreach (var e in Intel) if (e.Id == "EM-1") return true; return false; } }
         /// <summary>D-N180 en la red: un tren rodeado sin escolta se pierde con su carga en 10 minutos de juego como mucho.</summary>
         public static readonly long SurroundLossTicks = NetConst.HourTicks / 6;
-        /// <summary>Punto de la emboscada en la zona de Nules (mm de la zona; medida de Nacho en NightSim, 9-nov 08:50): tren con la cola en X 20 m y el morro en X 84 m, en la vía
-        /// (Z 47,4–50,6), y los 300 saliendo de la franja X 0–20 m, Z 30–70 m, en 30 s.</summary>
-        public const int AmbushTrainX0Mm = 20_000, AmbushTrainX1Mm = 84_000, AmbushSpawnX0Mm = 0, AmbushSpawnX1Mm = 20_000, AmbushSpawnZ0Mm = 30_000, AmbushSpawnZ1Mm = 70_000, AmbushArrivalS = 30;
+        /// <summary>Punto de la emboscada en la zona de Nules de la opción A, que es el terreno de Sagunto (Lucía, 5b8406d; medida de Nacho en NightSim, 9-nov 10:35): el tren espera
+        /// fuera de la PUERTA ESTE, de X 160 a 224 m sobre la vía (Z 62,9–66,1), y los 300 salen de la franja oscura del borde este (X 236–256 m, Z 44–85 m) en 30 s. La escolta, en
+        /// (192; 60). Sin escolta el tren se pierde siempre (D-N180: la guarnición está en el lado oeste); con un pelotón se salva siempre.</summary>
+        public const int AmbushTrainX0Mm = 160_000, AmbushTrainX1Mm = 224_000, AmbushTrainZ0Mm = 62_900, AmbushTrainZ1Mm = 66_100, AmbushSpawnX0Mm = 236_000, AmbushSpawnX1Mm = 256_000, AmbushSpawnZ0Mm = 44_000, AmbushSpawnZ1Mm = 85_000, AmbushArrivalS = 30, AmbushEscortXMm = 192_000, AmbushEscortZMm = 60_000;
 
         void TryAmbush(TrainService s, int node)
         {
@@ -1300,7 +1301,7 @@ namespace TBD.Net
             AmbushArrivals++;
             if (AmbushArrivals < 2 || Tick < NetConst.DayTicks + NetConst.Hours(6) || Tick >= NetConst.DayTicks + NetConst.Hours(22) || NodeLost[node] || AmbushDone) return;
             int si = Services.IndexOf(s);
-            s.GateNode = node; s.GateSinceTick = Tick;                    // se queda en la vía, fuera de la puerta oeste
+            s.GateNode = node; s.GateSinceTick = Tick;                    // se queda en la vía, fuera de la puerta este (opción A)
             LastAmbush = new AmbushEvent { Node = node, Service = si, Zombies = AmbushZombies, Tick = Tick, LossTick = -1, HoldUntil = Tick + SurroundLossTicks, OnScreen = node == ActiveZoneNode };
             int n100 = Math.Max(100, (AmbushZombies + 50) / 100 * 100);
             Intel.Add(new IntelEntry { Tick = Tick, Id = "EM-1", Vars = new[] { "nodo", Graph.Nodes[node].Name, "tren", "Tren " + s.Train.Name, "n", n100.ToString() } });   // «Emboscada en {nodo}: unos {n} zombis atacan el {tren}.»
