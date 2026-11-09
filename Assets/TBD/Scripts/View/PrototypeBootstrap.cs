@@ -1120,6 +1120,7 @@ namespace TBD.View
                         // La suma va en LINEAL (I-Noche79: sumada en gamma, la parte de la luna llegaba a la sonda 10 veces más débil y la sombra seguía en L* 3).
                         var amb = (new Color(0.03f, 0.045f, 0.10f).linear + lunaCol.linear * (lunaI * k)).gamma;
                         SetLight(lunaCol, lunaI * (1f - k), amb, 50f);
+                        _ambNocheLin = amb.linear;
                         if (_sun != null) _sun.shadowStrength = 1f;
                         DiagnosticoLuces();
                         DiagnosticoSombra();
@@ -1127,6 +1128,48 @@ namespace TBD.View
                     SetFloodlights(90f);
                     break;
             }
+            AmbienteSuelo(index == 2);
+        }
+
+        /// <summary>
+        /// Ambiente extra SOLO en el suelo de noche (Lucía 09-11 06:24, opción b; Sara qa49: la sombra del tren en el balasto salía en p50 L* 8,7 y la ventana válida
+        /// es 14–18, objetivo 15–16). -sombranoche se queda en 0,75 para el tren, la carga y las fachadas. Se hace con la emisión del material: mapa de emisión = el mismo
+        /// albedo y color = ambiente × AmbienteSueloK, así que suma albedo × ΔA igual que un ambiente plano (en la sombra y en lo iluminado), sin tocar nada más.
+        /// K por defecto 1,1 (ESTIMACIÓN de Bruno: la sombra es ~albedo × ambiente y hay que multiplicarla por ~2,1). -ambientesuelo K la cambia sin compilar; 0 la apaga.
+        /// Piezas: trozos de suelo, suelo de muestra, Suelo/Calle, vía, balasto, decals, grietas y rodadas (por nombre). De día la emisión queda en negro.
+        /// </summary>
+        void AmbienteSuelo(bool noche)
+        {
+            var hechos = new System.Collections.Generic.HashSet<Material>();
+            foreach (var r in FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None))
+            {
+                string n = r.name;
+                if (!(n.StartsWith("Trozo de suelo") || n.StartsWith("Suelo") || n.StartsWith("Calle") || n.StartsWith("Vía") || n.StartsWith("Balasto") || n.StartsWith("Decal") || n.StartsWith("Grieta") || n.StartsWith("Rodada") || n.StartsWith("Paso a nivel"))) continue;
+                if (n.StartsWith("Decal") && r.bounds.max.y > 0.2f) continue;            // solo los decals del suelo (no la placa, el reloj, las pintadas ni la línea del andén)
+                foreach (var m in r.sharedMaterials) if (m != null && hechos.Add(m)) EmisionSuelo(m, noche);
+            }
+        }
+
+        static readonly float AmbienteSueloK = LeerFloat("-ambientesuelo", 1.1f);
+        Color _ambNocheLin = new Color(0.061f, 0.071f, 0.123f);
+
+        void EmisionSuelo(Material m, bool noche)
+        {
+            if (!m.HasProperty("_EmissionColor") || !m.HasProperty("_BaseMap")) return;
+            m.EnableKeyword("_EMISSION");
+            m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+            var bm = m.GetTexture("_BaseMap");
+            m.SetTexture("_EmissionMap", bm);
+            var bc = m.HasProperty("_BaseColor") ? m.GetColor("_BaseColor").linear : Color.white;
+            var e = noche && AmbienteSueloK > 0f ? new Color(_ambNocheLin.r * bc.r, _ambNocheLin.g * bc.g, _ambNocheLin.b * bc.b) * AmbienteSueloK : Color.black;
+            m.SetColor("_EmissionColor", e);                                   // el color de emisión de URP va en lineal
+        }
+
+        static float LeerFloat(string bandera, float porDefecto)
+        {
+            var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, bandera);
+            if (i >= 0 && i + 1 < a.Length && float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)) return v;
+            return porDefecto;
         }
 
         /// <summary>Sol (o luna) y luz ambiente de cada gradación: el tono de la hora va en la luz, no en un tinte de la imagen.</summary>
@@ -2124,6 +2167,7 @@ namespace TBD.View
             go.transform.position = new Vector3(X0 + w * 0.5f, 0.1f, Z0 + h * 0.5f); go.transform.rotation = Quaternion.Euler(90f, 0f, 0f); go.transform.localScale = new Vector3(w, h, 1f);
             var m = Mat("ffffff"); m.SetColor("_BaseColor", Color.white); m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON");
             m.SetTexture("_BaseMap", _gradeIndex == 2 ? night : day);
+            EmisionSuelo(m, _gradeIndex == 2);                                  // ambiente extra del suelo de noche (opción b de Lucía) también en los trozos que llegan después
             var mr = go.GetComponent<MeshRenderer>(); mr.sharedMaterial = m; mr.shadowCastingMode = ShadowCastingMode.Off;
             _chunks[ChunkKey(r.I, r.J)] = new GroundChunk { I = r.I, J = r.J, Day = day, Night = night, Mat = m, Go = holder, Cx = X0 + w * 0.5f, Cz = Z0 + h * 0.5f };
             // vegetacion y grietas del trozo (mapa recortado: fila 0 = Z0, convencion de GetPixels32)
