@@ -228,7 +228,7 @@ namespace TBD.View
             Seguir();
             if (Arg("-trenpanel-auto")) AutoIdaVuelta();
             if (Arg("-refuerzos-auto")) AutoRefuerzos();
-            if (Arg("-dia2-auto") || Arg("-dia2-auto-sinescolta")) AutoDia2();
+            if (Arg("-dia2-auto") || Arg("-dia2-auto-sinescolta") || Arg("-dia2-auto-tren-aparcado")) AutoDia2();
         }
 
         /// <summary>Cámara pegada al tren seguido (D-N170). Se suelta si el jugador toca la cámara o si el tren para.</summary>
@@ -576,7 +576,14 @@ namespace TBD.View
                         else if (W.Tick >= dia2 + NetConst.Hours(20)) { Debug.LogWarning("[DIA2] sin emboscada a las 20:00"); NetSession.Turbo = 20; _autoPaso++; } break;
                 case 7: if (Viaje >= 0 && W.Services[Viaje].AtStop && W.Services[Viaje].Stops[W.Services[Viaje].StopIndex].Node == nul && !Puertas.EnPuertas(W, Viaje, nul)) { NetSession.Turbo = 1; DescargarFuera(); Debug.Log($"[DIA2] el tren entra en Nules y descarga ({NetConst.Clock(W.Tick)})"); NetSession.Turbo = 20; _autoPaso++; }
                         else if (W.Tick >= dia2 + NetConst.Hours(20.5)) { Debug.Log("[DIA2] el tren no ha entrado en Nules (sigue a las puertas o perdido)"); _autoPaso++; } break;
-                case 8: if (W.Tick >= dia2 + NetConst.Hours(21)) { NetSession.Turbo = 1; Debug.Log($"[DIA2] {NetConst.Clock(W.Tick)}: objetivo del día 2 {(W.ObjMet ? "cumplido" : "no cumplido")} (tropa {W.ObjTroops}, munición {W.Stock[nul, (int)Res.Municion]} u); entro en Nules para la noche 2"); var mapa = FindObjectOfType<OperationsMap3D>(); if (mapa != null) mapa.EnterZone(nul); else Debug.LogError("[DIA2] no hay mapa"); _autoPaso++; } break;
+                case 8: if (W.Tick >= dia2 + NetConst.Hours(19.5))      // como un jugador que hace caso del aviso de las 19:00: el tren vuelve a Sagunto (salvo -dia2-auto-tren-aparcado)
+                    {
+                        if (Arg("-dia2-auto-tren-aparcado")) Debug.Log("[DIA2] el tren se queda aparcado en Nules (-dia2-auto-tren-aparcado)");
+                        else if (TrenPreparar.TrenEn(W, nul) >= 0 && !Embarque.Ocupado) { NetSession.Turbo = 1; AbrirPreparar(nul); PonerDestino(sag); Enviar(); Debug.Log($"[DIA2] {NetConst.Clock(W.Tick)}: el tren sale de Nules hacia Sagunto antes de la noche"); NetSession.Turbo = 20; }
+                        else Debug.Log("[DIA2] no hay tren en Nules que sacar");
+                        _autoPaso++;
+                    } break;
+                case 9: if (W.Tick >= dia2 + NetConst.Hours(21)) { NetSession.Turbo = 1; Debug.Log($"[DIA2] {NetConst.Clock(W.Tick)}: objetivo del día 2 {(W.ObjMet ? "cumplido" : "no cumplido")} (tropa {W.ObjTroops}, munición {W.Stock[nul, (int)Res.Municion]} u); entro en Nules para la noche 2"); var mapa = FindObjectOfType<OperationsMap3D>(); if (mapa != null) mapa.EnterZone(nul); else Debug.LogError("[DIA2] no hay mapa"); _autoPaso++; } break;
             }
         }
 
