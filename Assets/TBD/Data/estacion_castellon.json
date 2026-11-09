@@ -688,7 +688,7 @@
       "nota": "modelo de Teo con 5 variantes (v0-v4), aprobado el 7-nov 04:05; v2 HESCO por defecto"
     },
     {
-      "pieza": "puerta_vehiculos/SM_PuertaVehiculos",
+      "pieza": "puerta_vehiculos/SM_PuertaVehiculos_Castellon",
       "pos": [
         64,
         0,

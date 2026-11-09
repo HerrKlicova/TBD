@@ -220,6 +220,7 @@ namespace TBD.View
             _groupA = SimWorldSetup.CreateSystems(_worldA);
             var kind = _cutting ? ZoneKind.Cutting : ZoneKind.Station;
             float trainX = NightRun.Active && _netZone && !_cutting ? Level.TrainNightX : float.NaN;   // QA-35 (Nacho): de noche el tren espera en el centro del recinto, a 11 m de los muros oeste y este
+            _dbgSeed = seed;
             _rootA = SimWorldSetup.Populate(_worldA.EntityManager, zombies, siege, seed, _combat, shots, hasTrain, kind, !_netZone, trainX);
             sw.Stop();
             LastMaterializeMs = sw.Elapsed.TotalMilliseconds;
@@ -428,7 +429,7 @@ namespace TBD.View
             if (NightRun.Active && !_nightInit && _zoneNode >= 0 && _worldA != null && _worldA.IsCreated && !_cutting) InitNight();
             if (_nightOn) NightUpdate();
 
-            if (!_paused && !TutorialHud.PidePausa)
+            if (!_paused && !TutorialHud.PidePausa && !(NightRun.Active && !_nightInit))      // la noche no corre ticks hasta que InitNight los pueda contar (el turbo y la velocidad del equipo no cambian el tick de arranque)
             {
                 _acc += Time.unscaledDeltaTime * TurboN;
                 int steps = 0;
@@ -461,10 +462,12 @@ namespace TBD.View
         // QA (Sara): -turbo N multiplica el tiempo de la simulacion (solo para corridas por lotes); -hashlog <ruta> escribe una linea por tick: tick;SimHash;NightGame;UnitsWorld
         static readonly int TurboN = TurboArg();
         static int TurboArg() { var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-turbo"); int n; return i >= 0 && i + 1 < a.Length && int.TryParse(a[i + 1], out n) && n >= 1 && n <= 64 && System.Array.IndexOf(a, "-batchmode") >= 0 ? n : 1; }
-        System.IO.StreamWriter _hashLog; bool _hashLogInit;
+        System.IO.StreamWriter _hashLog; bool _hashLogInit; uint _dbgSeed;
+        void HashLogCmd(string s) { HashLogEnsure(); if (_hashLog != null) _hashLog.WriteLine("#CMD;" + s); }
+        void HashLogEnsure() { if (_hashLogInit) return; _hashLogInit = true; var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-hashlog"); if (i >= 0 && i + 1 < a.Length) { try { _hashLog = new System.IO.StreamWriter(a[i + 1], false); _hashLog.WriteLine("#SEED;" + _dbgSeed + ";nodo;" + _zoneNode + ";desde_tick_red;" + (NetSession.A != null ? NetSession.A.ActiveZoneSinceTick : -1)); } catch (System.Exception e) { Debug.LogWarning("[TBD] -hashlog: " + e.Message); } } }
         void HashLogLine()
         {
-            if (!_hashLogInit) { _hashLogInit = true; var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-hashlog"); if (i >= 0 && i + 1 < a.Length) { try { _hashLog = new System.IO.StreamWriter(a[i + 1], false); } catch (System.Exception e) { Debug.LogWarning("[TBD] -hashlog: " + e.Message); } } }
+            HashLogEnsure();
             if (_hashLog == null) return;
             var h = _worldA.EntityManager.GetComponentData<SimHash>(_rootA);
             _hashLog.WriteLine(h.Tick + ";" + h.Value.ToString("X16") + ";" + (_ng != null ? _ng.Hash().ToString("X16") : "0") + ";" + (_uw != null ? _uw.Hash().ToString("X16") : "0")); if ((h.Tick & 255) == 0) _hashLog.Flush();
@@ -474,7 +477,7 @@ namespace TBD.View
         {
             ZonaPausada = _paused || TutorialHud.PidePausa;      // de día y de noche (Nuria, 9-nov)
             FpsLog();
-            if (_nightOn) NightTick();
+            if (_nightOn) { if ((_ng.Tick % 15) == 0) UpdateStats(true); NightTick(); if ((_ng.Tick & 15) == 0) SyncWorks(); }
             _groupA.Update();
             HashLogLine();
             if (_checkEnabled)
@@ -504,7 +507,7 @@ namespace TBD.View
 
         void Push(CmdType type, int arg = 0, Unity.Mathematics.float2 p0 = default, Unity.Mathematics.float2 p1 = default)
         {
-            _cmdLog.Add($"tick {_worldA.EntityManager.GetComponentData<SimClock>(_rootA).Tick} {type} arg={arg}");
+            _cmdLog.Add($"tick {_worldA.EntityManager.GetComponentData<SimClock>(_rootA).Tick} {type} arg={arg}"); HashLogCmd(_worldA.EntityManager.GetComponentData<SimClock>(_rootA).Tick + ";" + type + ";" + arg);
             if (_cmdLog.Count > 40) _cmdLog.RemoveAt(0);
             PushTo(_worldA.EntityManager, _rootA, type, arg, p0, p1);
             PushTo(_worldB.EntityManager, _rootB, type, arg, p0, p1);
@@ -672,12 +675,11 @@ namespace TBD.View
         }
 
         // ================================================================ estadísticas para la pantalla
-        void UpdateStats()
+        void UpdateStats(bool porTick = false)
         {
-            _statsTimer -= Time.unscaledDeltaTime;
-            if (_statsTimer > 0f) return;
-            _statsTimer = 0.5f;
-            SyncWorks();
+            if (_nightOn && !porTick) return;      // de noche las listas de zombis (_zomPos, _allT) se refrescan cada 15 ticks DENTRO del tick: el tiempo real (y el turbo) no cambia lo que ve la noche
+            if (!porTick) { _statsTimer -= Time.unscaledDeltaTime; if (_statsTimer > 0f) return; _statsTimer = 0.5f; }
+            if (!_nightOn) SyncWorks();      // de noche, SyncWorks va dentro del tick (los comandos de obra salen siempre en el mismo tick, con o sin turbo)
             var zs = _zombieQuery.ToComponentDataArray<Zombie>(Allocator.Temp);
             _total = zs.Length;
             _walking = _falling = _settled = 0;

@@ -52,7 +52,7 @@ namespace TBD.View
         // ---------------------------------------------------------------- inicio
         void InitNight()
         {
-            _nightInit = true; _nightOn = true; _debugHud = false; _nightT0 = Time.realtimeSinceStartup;
+            _nightInit = true; _nightOn = true; _acc = 0f; { long tkI = _worldA.EntityManager.GetComponentData<SimClock>(_rootA).Tick; HashLogCmd("InitNight;tick_ecs;" + tkI); Debug.Log("[NOCHE] InitNight en el tick ECS " + tkI + " (frame " + Time.frameCount + ", Active=" + NightRun.Active + ")"); } _debugHud = false; _nightT0 = Time.realtimeSinceStartup;
             // oleadas, reloj, recursos y fuerza: noche_sagunto.json de Hugo (StreamingAssets/Noche), D-N74/D-N102. Sin el archivo, valores por defecto de Nacho.
             BalanceSource.Reader = f => { var pth = System.IO.Path.Combine(Application.streamingAssetsPath, "Noche", f); return System.IO.File.Exists(pth) ? System.IO.File.ReadAllText(pth) : null; };
             NightSim sim = null; int stock = 50 * WeaponCatalog.ShotsPerU;
@@ -203,6 +203,7 @@ namespace TBD.View
             using (var q = emA.CreateEntityQuery(typeof(Zombie)))
             {
                 var zs = q.ToComponentDataArray<Zombie>(Allocator.Temp);
+                zs.Sort(new ZombieSimIdOrder());      // el orden de los chunks cambia con los cambios estructurales por fotograma: la noche siempre ve a los zombis por SimId (turbo determinista)
                 int nearStation = 0, nearTrain = 0; _zomPos.Clear(); _zomId.Clear(); int wallPile = 0;
                 for (int i = 0; i < zs.Length; i++)
                 {
@@ -252,7 +253,7 @@ namespace TBD.View
                     if (_diagN == 1) { var sw = new System.Text.StringBuilder(); foreach (var sg in _wallSegs) sw.Append($"[{sg.a.x:0.0};{sg.a.y:0.0}->{sg.b.x:0.0};{sg.b.y:0.0}] "); Debug.Log("[NOCHE-DIAG] muros_obras " + sw); }
                 }
                 TramosTick();
-                _pileWall = wallPile;
+                _pileWall = wallPile; if (wallPile > _pilaMuroMax) _pilaMuroMax = wallPile;
                 if (_wallMax <= 0f) _wallMax = _wallHp = Mathf.Max(1200000, NightSimParams.Default().WallHp);
                 _wallHp = Mathf.Max(0f, _wallHp - wallPile * (NightSimParams.Default().WallDmgPerZombieS / 30f)); _ng.WallPermil = Mathf.RoundToInt(1000f * _wallHp / _wallMax);
             }
@@ -311,6 +312,7 @@ namespace TBD.View
             }
             return false;
         }
+        struct ZombieSimIdOrder : IComparer<Zombie> { public int Compare(Zombie a, Zombie b) { return a.SimId.CompareTo(b.SimId); } }
         NightSim _aggroSh; readonly Dictionary<int, Vector2Int> _aggroGoal = new Dictionary<int, Vector2Int>();
         bool _zomCounted;
         readonly List<Target> _cgMen = new List<Target>(), _cgVeh = new List<Target>(), _cgWork = new List<Target>();

@@ -77,6 +77,7 @@ namespace TBD.View
         {
             if (_ng == null || _ng.Tick % 30 == 0) RegisterVehs();
             float dt = 1f / 30f;
+            if (_nightOn && _ng != null && (_ng.Tick & 1) == 0) foreach (var vr in _vehs) if (vr.Go != null && !vr.Heli) RunOver(vr);
             foreach (var v in _vehs)
             {
                 if (v.Go == null) continue;
@@ -268,7 +269,7 @@ namespace TBD.View
             }
         }
 
-        void RunOverCheck(Veh v) { if (Time.frameCount % 2 == 0) RunOver(v); }
+        void RunOverCheck(Veh v) { if (!_nightOn && Time.frameCount % 2 == 0) RunOver(v); }      // de noche el atropello se decide en el tick (VehiclesTick), no por fotograma: con turbo la partida es la misma
 
         // ---------------------------------------------------------------- selección y órdenes de vehículos (se llama desde la entrada de noche)
         Veh VehAt(Vector2 mp)
