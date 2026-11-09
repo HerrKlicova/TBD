@@ -1969,6 +1969,8 @@ namespace TBD.View
 
         void AddTruck(Transform root, Vector3 pos)
         {
+            // camión civil de Teo (entregas/teo-modelado/coches-civiles, v3 accidentado; hay que importarlo desde el PC a Models/Urbano/coches_civiles con su T_Paleta32)
+            if (ModeloSuelto("Urbano/coches_civiles", "SM_CocheCivil_Camion_v3_LOD1", pos, 0f, 78f, root) != null) return;
             var body = Box("Camión caja", pos + new Vector3(0f, 1.9f, 0f), new Vector3(8f, 2.4f, 2.5f), Mat("94948c"), root); body.transform.rotation = Quaternion.Euler(0f, 78f, 0f);
             var cab = Box("Camión cabina", pos + body.transform.rotation * new Vector3(5.2f, -0.3f, 0f), new Vector3(2.2f, 2.0f, 2.4f), Mat("283440"), root); cab.transform.rotation = body.transform.rotation;
         }
