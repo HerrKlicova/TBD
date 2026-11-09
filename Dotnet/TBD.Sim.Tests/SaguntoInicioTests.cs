@@ -53,6 +53,14 @@ namespace TBD.Sim.Tests
                 int cs = TrenPreparar.Nodo(wa, "Castellón"); var sched = TrenPreparar.Envio(wa, sv, cs, null);
                 check(wa.Cercada(cs) && !wa.Cercada(nl) && (sched == null || wa.SetSchedule(sv, sched) == ScheduleResult.Cercada), "D-N184: Castellón cercada: no se le puede poner horario");
             }
+            {   // qa50 S2: estación perdida en pantalla y «Seguir» → orden LoseNode, igual en A y B
+                var a = NetScenario.Inicio(); var b = NetScenario.Inicio(); int nn = Id(a, "Nules");
+                foreach (var wq in new[] { a, b }) { wq.Stock[nn, (int)Res.Municion] = 20; wq.Embarque.Lista.Add(new Pasajero { Tipo = PasajeroTipo.Peloton, Id = 5, Service = 0, Node = nn, Estado = PasajeroEstado.EnEstacion }); }
+                ulong h0 = a.Hash(); a.Push(NetWorld.CmdLoseNode(a.Tick, nn)); b.Push(NetWorld.CmdLoseNode(b.Tick, nn)); a.Step(); b.Step();
+                long stk = 0; for (int r = 0; r < NetConst.ResCount; r++) stk += a.Stock[nn, r];
+                check(a.NodeLost[nn] && a.GarrisonMil[nn] == 0 && stk == 0 && a.ZoneWallE4[nn] == 0 && a.Embarque.AtStation(nn, PasajeroTipo.Peloton).Count == 0 && a.Hash() == b.Hash() && a.Hash() != h0 && !a.LoseNode(nn),
+                      "LoseNode: Nules perdida por orden (existencias, guarnición, muro y tropa bajada a 0), A y B iguales, y una segunda vez no hace nada");
+            }
             {   // D-N183 (Lucía, 9-nov): Castellón es del jugador desde el inicio
                 var wi = NetScenario.Inicio(); int cas = Id(wi, "Castellón");
                 long statNear = 0; for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) statNear += wi.Field.S[(63 + dy) * HordeField.W + 58 + dx];

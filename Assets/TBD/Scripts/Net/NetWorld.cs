@@ -34,7 +34,7 @@ namespace TBD.Net
     }
 
     // ================================================================== órdenes
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, SpendMaterials = 22, TrainCargo = 23 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, SpendMaterials = 22, TrainCargo = 23, LoseNode = 24 }
 
     public struct NetCommand
     {
@@ -568,6 +568,7 @@ namespace TBD.Net
                     case NetCmdType.TrainCargo: MoveCargo(c.Arg, c.Payload); break;      // Arg = tren, Payload = [nodo, 4 cantidades] (Iker: descargar sin salir)
                     case NetCmdType.TrainLoad: if (c.Payload != null && c.Payload.Length == 2) LoadPassenger(c.Arg, (PasajeroTipo)(c.Arg2 & 1), c.Payload[0], c.Payload[1]); break;   // D-N166: Arg = tren, Arg2 = tipo, Payload = [id, nodo]
                     case NetCmdType.TrainUnload: UnloadPassengers(c.Arg, c.Arg2); break;                    // D-N166: Arg = tren, Arg2 = nodo       // Arg = tren, Payload = [nodo, hora de salida (ticks), 4 cargas] por parada
+                    case NetCmdType.LoseNode: LoseNode(c.Arg); break;                                   // qa50 S2 (Lucía 7705049): estación perdida en pantalla y «Seguir»
                     case NetCmdType.OrderTrain: OrderTrain((TallerKind)c.Arg); break;
                     case NetCmdType.CancelTrainOrder: CancelTrainOrder(c.Arg); break;
                     case NetCmdType.SetChispas: MoveChispas(c.Arg); break;       // Arg = 0 al taller, k > 0 al tren de índice k − 1
@@ -1474,6 +1475,20 @@ namespace TBD.Net
         public int[] ZoneZombiesPerUNode;          // por nodo: combate_z_por_u_<id> si existe, si no la general (null = la general en todos)
         public int ZoneFireCapPerDefender;          // combate_tope_fuego_por_defensor (Hugo, 9-nov): 0 = sin tope; no se aplica a casa (Sagunto)
         public int ZoneZombiesPerU = 400, ZoneWallBonusMil = 0, ZoneWallStepU = 30, ZoneWallMaxSteps = 5, ZoneWallLossMilPerZombie = 10, ZoneGarrisonLossMilPerZombie = 4, ZoneNoWallMult = 3, ZoneFallAlivePermil = 500;
+        /// <summary>qa50 S2 (Lucía, 7705049): la estación se ha perdido en pantalla y el jugador pulsa «Seguir». Lo mismo que la caída fuera de pantalla (ResolveZoneSiege, res.Lost):
+        /// NodeLost, existencias y guarnición a 0, el muro destruido; además se pierden la tropa y los vehículos bajados en esa estación (embarque). La horda se queda encima
+        /// (el campo no se toca). Va por orden (CmdLoseNode) para que A y B lo apliquen en el mismo tick. Devuelve false si el nodo no vale o ya estaba perdido.</summary>
+        public bool LoseNode(int node)
+        {
+            if (node < 0 || node >= Graph.Nodes.Count || NodeLost[node]) return false;
+            NodeLost[node] = true; GarrisonMil[node] = 0;
+            for (int r = 0; r < NetConst.ResCount; r++) Stock[node, r] = 0;
+            ZoneWallE4[node] = 0; var left = Works.Snapshot(node); for (int i = left.Count - 1; i >= 0; i--) if (left[i].Built && (left[i].IsWall || left[i].IsGate)) Works.Damage(node, i, 1000);
+            for (int i = Embarque.Lista.Count - 1; i >= 0; i--) if (Embarque.Lista[i].Estado == PasajeroEstado.EnEstacion && Embarque.Lista[i].Node == node) Embarque.Lista.RemoveAt(i);
+            return true;
+        }
+        public static NetCommand CmdLoseNode(long tick, int node) { return new NetCommand { Tick = tick, Type = NetCmdType.LoseNode, Arg = node }; }
+
         public struct ZoneSiegeResult { public int Node; public long Zombies, Killed, SpentU, DamageU, Casualties; public bool Lost, OnScreen; public long Tick; }
         public ZoneSiegeResult LastZoneSiege;
 
