@@ -656,7 +656,7 @@ namespace TBD.View
             if ((wasd && kb.sKey.isPressed) || kb.downArrowKey.isPressed) pan -= fwd;
             if ((wasd && kb.aKey.isPressed) || kb.leftArrowKey.isPressed) pan -= right;
             if ((wasd && kb.dKey.isPressed) || kb.rightArrowKey.isPressed) pan += right;
-            if (_nightOn && Mouse.current != null && Application.isFocused)
+            if (_nightOn && Mouse.current != null && Application.isFocused && BarridoV <= 0f)      // con -barrido no hay desplazamiento por el borde en toda la partida (Marcos no controla el ratón en las corridas de QA)
             {
                 var mpe = Mouse.current.position.ReadValue(); float edge = 6f;
                 if (mpe.y >= Screen.height - edge) pan += fwd; if (mpe.y <= edge) pan -= fwd; if (mpe.x <= edge) pan -= right; if (mpe.x >= Screen.width - edge) pan += right;
