@@ -38,6 +38,12 @@ namespace TBD.Sim.Tests
 
             var d = Make(false); int zd = d.ImportZombie(d.SP.FortX0 + 3000, d.SP.FortY0 + 3000);
             check(d.TrainReachableFromInside(), "con el tren dentro y entero, sigue yendo al tren (D-N148, sin cambios)");
+            var S = new RectMm(98000, 75000, 114000, 83000); int m = 2000;
+            int tx = 110000, ty = 64000; bool r1 = ClimberTargets.Rodeo(104000, 86000, S, m, ref tx, ref ty);
+            check(r1 && tx == 96000 && ty == 73000, $"rodeo: detrás del edificio, con el tren al otro lado, va a la esquina más cercana ({tx / 1000}; {ty / 1000})");
+            tx = 110000; ty = 64000; bool r2 = ClimberTargets.Rodeo(95000, 86000, S, m, ref tx, ref ty);
+            bool r3 = ClimberTargets.Rodeo(104000, 74000, S, m, ref tx, ref ty);
+            check(!r2 && !r3 && tx == 110000 && ty == 64000, "rodeo: fuera de la sombra del edificio (por X o por Y) vuelve a su objetivo; sin estado, no se queda en bucle");
         }
     }
 }
