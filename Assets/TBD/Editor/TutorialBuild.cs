@@ -32,7 +32,8 @@ namespace TBD.EditorTools
             var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-noche");
             string n = i >= 0 && i + 1 < a.Length ? a[i + 1] : "X";
             var scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
-            var opts = new BuildPlayerOptions { scenes = scenes, locationPathName = "Builds/I-Noche" + n + "/TBD.exe", target = BuildTarget.StandaloneWindows64, options = BuildOptions.None };
+            bool dev = System.Array.IndexOf(a, "-dev") >= 0; if (dev) n += "dev";   // -dev: build de desarrollo (contadores de draw calls con el Profiler)
+            var opts = new BuildPlayerOptions { scenes = scenes, locationPathName = "Builds/I-Noche" + n + "/TBD.exe", target = BuildTarget.StandaloneWindows64, options = dev ? BuildOptions.Development : BuildOptions.None };
             var r = BuildPipeline.BuildPlayer(opts);
             Debug.Log($"[BUILD] I-Noche{n}: {r.summary.result}, {r.summary.totalErrors} errores, {r.summary.totalTime.TotalSeconds:0} s, {r.summary.totalSize / 1048576} MB");
             if (r.summary.result != BuildResult.Succeeded) EditorApplication.Exit(1);
