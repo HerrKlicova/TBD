@@ -274,8 +274,11 @@ namespace TBD.View
             if (node == Nodo("Nules")) { TutorialHud.Senal(TutorialGuion.Senales.DestinoNules); if (_origenP == Casa) TutorialHud.Viaje.DestinoNules(); }
             if (node == Casa) TutorialHud.Senal(TutorialGuion.Senales.DestinoSagunto);
         }
+        /// <summary>Ya ha salido un tren hacia Nules el día 2 (para el recordatorio de las 15:00 de Lucía).</summary>
+        public static bool TrenHaciaNulesDia2;
         void Enviar()
         {
+            if (W != null && _destinoP >= 0 && _destinoP == Nodo("Nules") && W.Tick / NetConst.DayTicks == 1) TrenHaciaNulesDia2 = true;
             int sv = TrenPreparar.TrenEn(W, _origenP); if (sv < 0 || _destinoP < 0 || Embarque.Ocupado) return;
             var p = TrenPreparar.Envio(W, sv, _destinoP, _carga); if (p == null) return;
             NetSession.PushPayload(NetCmdType.SetSchedule, sv, p);

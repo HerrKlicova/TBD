@@ -57,7 +57,7 @@ namespace TBD.View
         static bool Arg(string a) { return Array.IndexOf(Environment.GetCommandLineArgs(), a) >= 0; }
 
         /// <summary>Lo llama «Nueva partida» (a través de IntroVista.Antes): el tutorial arranca al cargar la zona de Sagunto.</summary>
-        public static void NuevaPartida() { Ensure(); _pendiente = true; _pila150 = false; _contactoT = -1f; _zona.Reiniciar(); _zonaEstado.Clear(); AerodromoVista.Reiniciar(); if (_i._m != null && _i._m.Estado == EstadoTutorial.Activo) _i._m.Saltar(); _i._m = null; }
+        public static void NuevaPartida() { Ensure(); _pendiente = true; _tarjetaObjT = -1f; _tarjetaObjCerrada = false; TrenPanel.TrenHaciaNulesDia2 = false; _pila150 = false; _contactoT = -1f; _zona.Reiniciar(); _zonaEstado.Clear(); AerodromoVista.Reiniciar(); if (_i._m != null && _i._m.Estado == EstadoTutorial.Activo) _i._m.Saltar(); _i._m = null; }
 
         /// <summary>D-N172: ¿hay destacamento en Nules? Solo con el tutorial en marcha (fácil y normal, la primera vez). La zona lo mira al crear sus unidades.</summary>
         public static bool DestacamentoNules { get { return Activo; } }
@@ -125,6 +125,7 @@ namespace TBD.View
         static float _contactoT = -1f;
         public const float Cap3TrasContacto = 60f;      // Lucía: 60 s reales después del primer contacto con el muro
         static bool PorTiempo { get { return _contactoT >= 0 && Time.unscaledTime - _contactoT >= Cap3TrasContacto; } }
+        static float _tarjetaObjT = -1f; static bool _tarjetaObjCerrada;      // objetivo del día 2, v2
         static bool _pila150;      // la pila ya pasó de 150 alguna vez en esta partida (abre el capítulo 3 aunque pasara antes de acabar el 2)
         public static void Saltar() { if (_i != null && _i._m != null) _i._m.Saltar(); }
         public static void Objetivo(string clave, Rect pantalla) { if (_i != null) _i._obj[clave] = (pantalla, Time.frameCount); }
@@ -444,12 +445,32 @@ namespace TBD.View
                     int mun = wn.Stock[nul, (int)Res.Municion]; bool tropa = wn.ObjTroops; var antes = Defensa.Estado;   // tropa: Nacho (e136e545), un pelotón bajado en Nules por el embarque; la guarnición de la D-N183 no cuenta
                     Defensa.Actualizar(wn.Tick, mun, tropa, wn.NodeLost[nul]);
                     if (antes != Defensa.Estado) { Debug.Log("[TUTORIAL] objetivo " + ObjetivoDefensa.Titulo + ": " + Defensa.Estado); if (Defensa.Estado != EstadoDefensa.Activo) _defensaHasta = Time.unscaledTime + 6f; }
-                    if (Defensa.Estado == EstadoDefensa.Activo || Time.unscaledTime < _defensaHasta)
+                    // Objetivo del día 2, v2 (Lucía 13365b8, informe-textos.md): tarjeta al amanecer (≥ 6 s, se cierra con clic) y recuadro fijo a la derecha
+                    bool dia2 = wn.Tick >= ObjetivoDefensa.Desde && wn.Tick < ObjetivoDefensa.Hasta && !wn.NodeLost[nul];
+                    if (dia2 && _tarjetaObjT < 0f) { _tarjetaObjT = Time.unscaledTime; Debug.Log("[TUTORIAL] tarjeta del objetivo del día 2"); }
+                    if (_tarjetaObjT >= 0f && !_tarjetaObjCerrada)
                     {
-                        string fin = Defensa.Estado == EstadoDefensa.Cumplido ? "cumplido" : Defensa.Estado == EstadoDefensa.Fallido ? "Nules se ha perdido" : Defensa.Estado == EstadoDefensa.Caducado ? "llega la noche" : ObjetivoDefensa.Texto(mun, tropa);
-                        var r = new Rect(8, Ancla() + (ObjetivoVisible ? u * 2.7f : 0f), Mathf.Min(640f, Screen.width * 0.42f), u * 2.4f);
-                        GUI.DrawTexture(r, _panel); Frame(r, 0.5f);
-                        GUI.Label(new Rect(r.x + u * 0.7f, r.y + u * 0.4f, r.width, r.height), "Objetivo · " + ObjetivoDefensa.Titulo + ": " + fin, _line);
+                        float tw = Mathf.Min(u * 36f, Screen.width - 32f), th = u * 10.5f; var tr = new Rect((Screen.width - tw) * 0.5f, Screen.height * 0.22f, tw, th);
+                        GUI.DrawTexture(tr, _panel); Frame(tr, 0.8f);
+                        var lineas = new[] { "<color=#d4d0cc>Objetivo · Día 2</color>", "<color=#e08c30>Nules no tiene munición.</color>", "<color=#d4d0cc>Esta noche la atacarán y, sin ayuda, caerá.</color>",
+                            "<color=#d4d0cc>Manda desde Sagunto un tren con un pelotón y 20 u de munición antes de la noche.</color>", "<color=#d4d0cc>Ve con escolta: la vía no es segura.</color>" };
+                        float ly = tr.y + u * 0.7f;
+                        for (int i = 0; i < lineas.Length; i++) { var st = i == 0 ? _head : _txt; float lh = st.CalcHeight(new GUIContent(lineas[i]), tw - u * 1.6f); GUI.Label(new Rect(tr.x + u * 0.8f, ly, tw - u * 1.6f, lh), lineas[i], st); ly += lh + u * 0.15f; }
+                        bool puede = Time.unscaledTime - _tarjetaObjT >= 6f;
+                        if (puede) GUI.Label(new Rect(tr.x, tr.yMax - u * 1.6f, tw - u * 0.8f, u * 1.4f), "<color=#b4a080>clic para cerrar</color>", new GUIStyle(_line) { alignment = TextAnchor.MiddleRight, fontSize = Mathf.RoundToInt(u * 0.75f) });
+                        var ev = Event.current; if (puede && ev.type == EventType.MouseDown && ev.button == 0) { _tarjetaObjCerrada = true; ev.Use(); Debug.Log("[TUTORIAL] tarjeta del objetivo cerrada"); }
+                        if (puede && Auto) _tarjetaObjCerrada = true;
+                    }
+                    if (dia2)
+                    {
+                        bool ok = tropa && mun >= ObjetivoDefensa.MunicionMin;
+                        string l1 = (tropa ? "☑" : "☐") + " Un pelotón en Nules", l2 = (mun >= ObjetivoDefensa.MunicionMin ? "☑" : "☐") + $" Munición en Nules: {System.Math.Min(mun, 999)}/{ObjetivoDefensa.MunicionMin} u";
+                        float bw = Mathf.Min(u * 17f, Screen.width * 0.3f), bh = u * (ok ? 7.4f : 5.8f); var br = new Rect(Screen.width - bw - 8f, u * 6f, bw, bh);
+                        GUI.DrawTexture(br, _panel); Frame(br, 0.5f);
+                        GUI.Label(new Rect(br.x + u * 0.7f, br.y + u * 0.4f, bw, u * 1.5f), "<color=#d4d0cc>Defiende Nules</color>", _head);
+                        GUI.Label(new Rect(br.x + u * 0.7f, br.y + u * 2.0f, bw, u * 1.6f), "<color=#d4d0cc>" + l1 + "</color>", _line);
+                        GUI.Label(new Rect(br.x + u * 0.7f, br.y + u * 3.6f, bw, u * 1.6f), "<color=#d4d0cc>" + l2 + "</color>", _line);
+                        if (ok) GUI.Label(new Rect(br.x + u * 0.7f, br.y + u * 5.4f, bw, u * 1.6f), "<color=#d4d0cc>Nules está lista para la noche.</color>", _line);
                     }
                 }
             }

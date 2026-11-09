@@ -722,7 +722,14 @@ namespace TBD.View
             foreach (var st in new[] { _label, _small, _title }) { st.clipping = TextClipping.Overflow; st.wordWrap = false; st.padding = new RectOffset(2, 2, 2, 6); st.overflow = new RectOffset(0, 0, 0, 8); }   // la altura del rectángulo no recorta el texto (nombres cortados por abajo)
         }
 
-        long _emSonado = -1; long _trenParadoAvisado = -1;
+        long _emSonado = -1; long _trenParadoAvisado = -1; long _recordatorioLog = -1;
+        /// <summary>Lucía (13365b8): el día 2, de 15:00 a 22:00, si aún no ha salido ningún tren hacia Nules.</summary>
+        bool RecordatorioNules(out int nul)
+        {
+            nul = -1; for (int i = 0; i < _a.Graph.Nodes.Count; i++) if (_a.Graph.Nodes[i].Name == "Nules") nul = i;
+            long hd = _a.Tick % NetConst.DayTicks;
+            return nul >= 0 && _a.Tick / NetConst.DayTicks == 1 && hd >= NetConst.Hours(15) && hd < NetConst.Hours(22) && !TrenPanel.TrenHaciaNulesDia2 && !_a.NodeLost[nul] && !_a.ObjMet;
+        }
         /// <summary>Sonido y línea de log de los avisos del mapa en Update (OnGUI no corre con -nographics; Sara los comprueba en lote).</summary>
         void AvisosEnLog()
         {
@@ -733,6 +740,7 @@ namespace TBD.View
                 Sfx.Play("aviso_horda", Vector3.zero, 0.7f, 0.05f); Sfx.Duck(1.5f);   // Nuria (mvp-em1-caida-repetir.md)
                 Debug.Log($"[MAPA] EM-1 Emboscada en {_a.Graph.Nodes[em.Node].Name}: unos {em.Zombies} zombis atacan el {tren} fuera de la puerta este.");
             }
+            if (RecordatorioNules(out int nulR)) { if (_recordatorioLog != _a.Tick / NetConst.DayTicks) { _recordatorioLog = _a.Tick / NetConst.DayTicks; Debug.Log("[MAPA] Nules sigue sin munición. Si no mandas el tren, caerá esta noche."); } }
             long hd = _a.Tick % NetConst.DayTicks; if (hd < NetConst.Hours(19) || hd >= NetConst.Hours(22)) return;
             foreach (var sv in _a.Services)
             {
@@ -799,6 +807,13 @@ namespace TBD.View
                 int zp = IconPx(16); shown++;
                 DrawIcon(new Rect(20, y - 2, zp, zp), "alertas/vm_alertas_" + AlertIcon(AlertKind.NodoAsediado) + "_16");
                 GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>" + Puertas.TextoApartado + "</color>", _small); y += Mathf.Max(_small.fontSize * 1.5f, zp + 4);
+            }
+            if (RecordatorioNules(out _))      // Lucía (13365b8): recordatorio de las 15:00, doble clic va a Sagunto
+            {
+                int zp = IconPx(16); shown++; var rr = new Rect(20, y - 2, pw - 20, Mathf.Max(_small.fontSize * 1.5f, zp + 4));
+                DrawIcon(new Rect(20, y - 2, zp, zp), "alertas/vm_alertas_" + AlertIcon(AlertKind.NodoAsediado) + "_16");
+                GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>Nules sigue sin munición. Si no mandas el tren, caerá esta noche.</color>", _small); y += rr.height;
+                var ev = Event.current; if (ev.type == EventType.MouseDown && ev.button == 0 && ev.clickCount == 2 && rr.Contains(ev.mousePosition)) { ev.Use(); EnterZone(_a.Embarque.HomeNode); }
             }
             {   // Lucía (3b2ee1d): de 19:00 a 22:00, aviso en e08c30 por cada tren parado fuera de casa; doble clic va a esa zona
                 long hd = _a.Tick % NetConst.DayTicks;
