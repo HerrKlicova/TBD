@@ -61,6 +61,17 @@ namespace TBD.View
                 if (c.Tipo == "dragon") MakeVeh(c.Nombre, "dragon", "SM_VCR_Dragon_Animable_LOD1", new Vector2(c.X, c.Z), c.Yaw, false, w8, new[] { "Rueda_1L", "Rueda_1R", "Rueda_2L", "Rueda_2R" }, "Torre", "Canon");
                 else MakeVeh(c.Nombre, "vamtac", "SM_Vamtac_Animable_LOD1", new Vector2(c.X, c.Z), c.Yaw, false, w4, new[] { "Rueda_1L", "Rueda_1R" }, "Aro", "Ametralladora");
             }
+            {   // Eugenio (I-Noche110): los vehículos bajados del tren en esta estación (Embarque.AtStation) salen en la zona, junto a la puerta sur
+                var wz = NetSession.A; int k = 0;
+                if (wz != null && _zoneNode >= 0 && _zoneNode != wz.Embarque.HomeNode)
+                    foreach (var id in wz.Embarque.AtStation(_zoneNode, PasajeroTipo.Vehiculo))
+                    {
+                        if (id < 0 || id >= NightRun.Vehs.Count || NightRun.Vehs[id] == null) continue; var info = NightRun.Vehs[id]; var pos = new Vector2(106f + 7f * k++, 52f);
+                        if (info.Tipo == "dragon") MakeVeh(info.Name, "dragon", "SM_VCR_Dragon_Animable_LOD1", pos, 180f, false, w8, new[] { "Rueda_1L", "Rueda_1R", "Rueda_2L", "Rueda_2R" }, "Torre", "Canon");
+                        else if (info.Tipo == "vamtac") MakeVeh(info.Name, "vamtac", "SM_Vamtac_Animable_LOD1", pos, 180f, false, w4, new[] { "Rueda_1L", "Rueda_1R" }, "Aro", "Ametralladora");
+                        Debug.Log($"[NOCHE] {info.Name} bajado en {_estacionZona}: sale en la zona");
+                    }
+            }
             // D-N173: Sagunto ya no tiene helipuerto ni NH90 de salida; el aire sale del aerodromo de Betera (AerodromoZona)
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-nh90sagunto") >= 0) MakeVeh("NH90", "nh90", "SM_NH90_LOD1", new Vector2(180f, 44f), 270f, true, new string[0], new string[0], null, null);
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-vehfuego") >= 0) foreach (var vf in _vehs) vf.Fire = true;   // prueba de techo (Sara): fuego libre desde el principio
@@ -70,6 +81,7 @@ namespace TBD.View
         /// <summary>Refresca NightRun.Vehs (nombre, tipo, vivo) una vez por segundo.</summary>
         void RegisterVehs()
         {
+            if (NetSession.A != null && _zoneNode >= 0 && _zoneNode != NetSession.A.Embarque.HomeNode) return;   // el registro (id de embarque = índice) es el de los vehículos de casa; fuera de casa no se toca
             var L = NightRun.Vehs; while (L.Count < _vehs.Count) L.Add(new NightRun.VehInfo());
             for (int i = 0; i < _vehs.Count; i++) { var v = _vehs[i]; var r = L[i]; r.Name = v.Name; r.Tipo = v.Heli ? "helicoptero" : v.Name.StartsWith("Drag") ? "dragon" : "vamtac"; r.Vivo = v.Go != null; if (v.Go != null && v.Go.activeSelf == r.Embarcado) v.Go.SetActive(!r.Embarcado); }   // embarcado en el tren: oculto en la zona sin quitarlo de la lista (Iker)
         }
@@ -77,10 +89,10 @@ namespace TBD.View
         {
             if (_ng == null || _ng.Tick % 30 == 0) RegisterVehs();
             float dt = 1f / 30f;
-            if (_nightOn && _ng != null && (_ng.Tick & 1) == 0) foreach (var vr in _vehs) if (vr.Go != null && !vr.Heli) RunOver(vr);
+            if (_nightOn && _ng != null && (_ng.Tick & 1) == 0) foreach (var vr in _vehs) if (vr.Go != null && vr.Go.activeSelf && !vr.Heli) RunOver(vr);
             foreach (var v in _vehs)
             {
-                if (v.Go == null) continue;
+                if (v.Go == null || !v.Go.activeSelf) continue;      // Eugenio (I-Noche110): el embarcado (en el tren o en otra estación) no se mueve ni dispara aquí: era el «VAMTAC invisible»
                 if (v.Heli)                                                                  // D-N167 (Lucia): el NH90 sale solo con horda, vuelve solo a rearmar por debajo del 30 % de municion, aterriza, rearma y se queda posado hasta una orden del jugador
                 {
                     if (v.State == 2 && v.Ammo < 0.30f && !v.ReturnToRearm) { v.ReturnToRearm = true; v.Target = v.Home; v.HasTarget = true; v.State = 3; HintMsg("NH90 · vuelve a rearmar", true); }

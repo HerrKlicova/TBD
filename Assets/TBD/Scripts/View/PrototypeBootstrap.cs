@@ -1759,7 +1759,7 @@ namespace TBD.View
             // edificio de viajeros nuevo (Teo, e7bc5d5; Alvaro 10.15): 32 x 9 m, centro (99; 0; 76,3), yaw 180 (fachada del anden al sur, Z 71,8); alas a 4,75 m (O: X 83-92, E: X 106-115), cuerpo central de 10 m
             Vector3 bc = new Vector3(99f, 0f, 76.3f);
             bool zonaNules = NetSession.A != null && _zoneNode >= 0 && _zoneNode < NetSession.A.Graph.Nodes.Count && NetSession.A.Graph.Nodes[_zoneNode].Name == "Nules";   // Lucía (d508444, opción A): Nules usa el terreno de Sagunto, con su cartel y sin el pueblo de Sagunto
-            if (!zonaNules) DecalQuad("Icons/decals/placa_sagunto_x2", new Vector3(99f - 0.8f, 7.15f, 71.75f), new Vector2(3.6f, 1.1f), Vector3.zero, Vector2.one, root);
+            if (!zonaNules) DecalQuad("Icons/decals/placa_sagunto_x2", new Vector3(99f, 8.6f, 71.6f), new Vector2(3.6f, 1.1f), Vector3.zero, Vector2.one, root);
             else PlacaTexto("NULES", new Vector3(99f - 0.8f, 7.15f, 71.72f), new Vector2(3.6f, 1.1f), root);
             DecalQuad("Icons/decals/reloj_fachada_24", new Vector3(99f + 1.95f, 7.15f, 71.75f), new Vector2(1.1f, 1.1f), Vector3.zero, Vector2.one, root);
             if (PlaceModel("edificio_viajeros_sagunto", "SM_EdificioViajerosSagunto_v1_Segura_LOD1", bc, 180f, root) == null)
@@ -3109,7 +3109,7 @@ namespace TBD.View
                     var a = new Vector3(WorkOrigin.x + w.X0 / 1000f, 0f, WorkOrigin.y + w.Y0 / 1000f);
                     var b = new Vector3(WorkOrigin.x + w.X1 / 1000f, 0f, WorkOrigin.y + w.Y1 / 1000f);
                     Push(CmdType.BuildWall, Obras.HeightMm(w.Kind), new Unity.Mathematics.float2(a.x, a.z), new Unity.Mathematics.float2(b.x, b.z));
-                    _workVisuals[i] = WallVisual(a, b, Level.WallHalf * 0.5f, Obras.HeightMm(w.Kind) / 1000f, w.Kind == PieceKind.Sacos ? _mWall : _mRoof);
+                    _workVisuals[i] = MuroConModelo(a, b, w.Kind) ?? WallVisual(a, b, Level.WallHalf * 0.5f, Obras.HeightMm(w.Kind) / 1000f, w.Kind == PieceKind.Sacos ? _mWall : _mRoof);   // Eugenio: los modelos de Teo, no la caja
                     _workBuilt[i] = true;
                 }
                 else if (!w.Built && _workVisuals[i] == null)
