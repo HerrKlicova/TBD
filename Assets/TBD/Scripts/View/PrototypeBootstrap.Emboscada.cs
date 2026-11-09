@@ -18,6 +18,7 @@ namespace TBD.View
 
         void EmboscadaEnZona(List<SpawnPoint> spawns)
         {
+            if (TrenPanel.Dia2Volver && _nightInit && Time.timeSinceLevelLoad > 4f) { TrenPanel.Dia2Volver = false; Debug.Log("[DIA2] sesión de zona creada; vuelvo al mapa"); LeaveToMap(); return; }   // -dia2-auto
             var w = NetSession.A; if (w == null || _ng == null) return;
             var e = w.LastAmbush;
             if (e.Tick >= 0 && e.Tick != _emboscadaVista && e.OnScreen && e.Node == _zoneNode)

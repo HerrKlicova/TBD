@@ -58,7 +58,7 @@ namespace TBD.View
             return nv;
         }
 
-        static bool Auto { get { var a = System.Environment.GetCommandLineArgs(); return System.Array.IndexOf(a, "-menu-auto") >= 0 || System.Array.IndexOf(a, "-tutorial-auto") >= 0 || System.Array.IndexOf(a, "-dia2-auto") >= 0; } }
+        static bool Auto { get { var a = System.Environment.GetCommandLineArgs(); return System.Array.IndexOf(a, "-menu-auto") >= 0 || System.Array.IndexOf(a, "-tutorial-auto") >= 0 || System.Array.IndexOf(a, "-dia2-auto") >= 0 || System.Array.IndexOf(a, "-dia2-auto-sinescolta") >= 0; } }
         void StartGame() { Sfx.Play("sfx_ui_clic"); Sfx.StopLoop("mus_menu"); NetSession.Reset(); NightRun.Active = true; if (Auto) SceneManager.LoadScene("Union"); else IntroVista.Antes(() => SceneManager.LoadScene("Union")); }
         void ContinueGame()
         {
