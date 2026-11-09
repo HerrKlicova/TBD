@@ -19,6 +19,7 @@ from montaje import Montaje
 BISAGRA = 2.49
 PV.BISAGRA = BISAGRA                       # _hoja y _hoja_danada leen la bisagra de sus módulos
 PE.BISAGRA = BISAGRA
+PE.CUELGA_Y = -0.15                        # como antes de la puerta de vehículos hacia dentro: aquí se refleja después
 VAR = PE.VAR
 VARIANTE, ESTADO = PE.VARIANTE, PE.ESTADO
 NOMBRES_V, NOMBRES_E = PE.NOMBRES_V, PE.NOMBRES_E

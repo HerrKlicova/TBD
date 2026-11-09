@@ -4,7 +4,8 @@ Teo, 8-nov.
 La puerta aprobada de la D-N111 (puerta_vehiculos.py: 8 m, dos hojas de 4 m, 2,1 m, jambas por fuera de los 8 m), con
 los colores de la D-N163: chapa 94948c, malla b8b8b8, tablones a86c50, sacos de las jambas 605c48 (como el muro nuevo),
 y el boquete, el escombro y la sombra en 48403c. Misma jerarquía y pivotes que la D-N111 (Hoja_O y Hoja_E con el origen
-en su bisagra; ver puerta_vehiculos.py), así que el código de apertura no cambia.
+en su bisagra; ver puerta_vehiculos.py). ABRE HACIA DENTRO (+Y): O +90°, E −90° (Lucía, 9-nov 26:05: hacia fuera chocaba
+con la horda y con la pila cuando salen los vehículos), y lo caído (hoja que cuelga y trozos) va hacia dentro.
 Estados: sano; dañado (boquete en la hoja oeste y la hoja este descolgada: más baja por el centro); muy dañado (de la
 hoja oeste queda la mitad de abajo y la este cuelga en diagonal de su bisagra de arriba); brecha (las hojas por el
 suelo: solo quedan las bisagras en Hoja_O/Hoja_E, para que el código las siga encontrando).
@@ -29,10 +30,12 @@ UMBRAL_CONTORNO = PV.UMBRAL_CONTORNO
 NORMALES_ARRIBA = True
 NORMALES_INCLINACION = 0.5
 BISAGRA, ALTO = PV.BISAGRA, PV.ALTO
+CUELGA_Y = 0.15                      # la hoja que cuelga (e2) cae hacia dentro (+Y): la de vehículos abre hacia dentro
+                                     # desde el 9-nov (Lucía, 26:05); puerta_via.py pone −0,15 y luego la refleja
 ROTO_FASE = 0.0                      # fase del borde roto de la hoja (la puerta doble la mueve para no pisar tablones)
 PARTES = PV.PARTES
 PIV = PV.PIV
-GIRO_PRUEBA = PV.GIRO_PRUEBA
+GIRO_PRUEBA = {"Hoja_O": ("Z", 60), "Hoja_E": ("Z", -60)}   # abre hacia DENTRO (+Y), como las de vía (Lucía, 26:05)
 MATERIAL = {0: "chapa", 1: "chapa", 2: "tablon", 3: "malla", 4: "chapa"}
 
 
@@ -60,7 +63,7 @@ def _hoja_danada(m, s, a, fino):
             z -= piv_z
             c, sn = math.cos(ang), math.sin(ang)
             w.co.x, w.co.z = piv_x + x * c - z * sn * s, piv_z + x * sn * s + z * c
-            w.co.y -= 0.15
+            w.co.y += CUELGA_Y
 
 
 def construir(nombre="SM_PuertaVehiculos", lod=0):
@@ -85,12 +88,12 @@ def construir(nombre="SM_PuertaVehiculos", lod=0):
     if ESTADO == 3:                      # brecha: trozos de las hojas por el suelo (en la parte fija)
         for k in range(7 if fino else 4):
             x = -3.4 + 1.1 * k + 0.3 * math.sin(k * 2.3)
-            m.caja((x, -0.7 - 0.5 * math.cos(k * 1.7), 0.04 + 0.03 * (k % 2)), (1.0, 0.5 + 0.2 * (k % 3), 0.06),
+            m.caja((x, 0.7 + 0.5 * math.cos(k * 1.7), 0.04 + 0.03 * (k % 2)), (1.0, 0.5 + 0.2 * (k % 3), 0.06),
                    mat if k % 3 else "marco", rot_z=k * 0.8)
-        m.caja((0.4, -1.3, 0.03), (1.6, 0.9, 0.05), "boquete", rot_z=0.3)
+        m.caja((0.4, 1.3, 0.03), (1.6, 0.9, 0.05), "boquete", rot_z=0.3)   # los trozos caen hacia dentro
     elif ESTADO == 2:                    # trozos caídos al pie
         for k in range(3):
-            m.caja((-2.6 + 1.2 * k, -0.8, 0.04), (0.8, 0.45, 0.06), mat, rot_z=k * 1.1)
+            m.caja((-2.6 + 1.2 * k, 0.8, 0.04), (0.8, 0.45, 0.06), mat, rot_z=k * 1.1)
     for nombre_p, s in (("Hoja_O", -1), ("Hoja_E", 1)):
         m.parte(nombre_p)
         if ESTADO == 3:                  # solo las bisagras, arrancadas
