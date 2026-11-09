@@ -63,7 +63,7 @@ namespace TBD.Sim.Tests
             check(!li.Director.ColmenaIntro(li) && CountIntel(li, "CO-0") == 1 && li.Hash() == i0.Hash(), "CO-0 no se repite al cargar una partida en la que ya salió (y no cambia el hash)");
             var i2 = NetScenario.Inicio(); i2.Director.ColState = HiveDirector.ColAcecho;
             check(!i2.Director.ColmenaIntro(i2) && CountIntel(i2, "CO-0") == 0, "CO-0 no sale si la Colmena ya no está Dispersa");
-            check(NetSave.NetVersion == 6, "la versión de la red sube a 6");
+            check(NetSave.NetVersion >= 6, "la versión de la red es 6 o más (6: estados de la Colmena)");
         }
     }
 }

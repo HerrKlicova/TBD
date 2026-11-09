@@ -102,7 +102,10 @@ namespace TBD.Sim.Tests
             var wl = NetScenario.Mvp(); wl.Services.Clear(); NetSave.Load(bytes, wl);
             check(wl.Hash() == w1.Hash() && wl.Production.Rem[k] == 23_520 && wl.Production.WastedU[k] == 59, "guardar y cargar conserva el remanente y las pérdidas (mismo hash)");
             var fresh = NetScenario.Mvp(false);
-            var sw = new SaveWriter(); fresh.SaveState(sw); var v4 = sw.ToArray();
+            var sw = new SaveWriter(); fresh.SaveState(sw); var vNow = sw.ToArray();
+            var st7 = new SaveWriter(); fresh.Traffic.SaveStreaks(st7); var v4 = new byte[vNow.Length - st7.ToArray().Length]; Array.Copy(vNow, v4, v4.Length);   // v4 = la sección v6 (sin las rachas de la v7)
+            { var m67 = NetSave.NetMigrations[6](v4); var l7 = NetScenario.Mvp(false); l7.LoadState(new SaveReader(m67));
+              check(l7.Hash() == fresh.Hash() && l7.IntelTraffic().Count == 0, "la migración 6 → 7 añade las rachas de tráfico vacías y carga igual que una partida nueva"); }
             var fw = new SaveWriter(); fw.Ints(new int[fresh.Graph.Nodes.Count]); fw.Ints(new int[fresh.Graph.Nodes.Count]); fw.Long(0); fw.Int(0); fw.Ints(new int[11]); fw.Long(0); fw.Ints(new int[fresh.Graph.Nodes.Count]); fw.Ints(new int[fresh.Graph.Nodes.Count]); fw.Ints(new int[fresh.Graph.Nodes.Count]); fw.Ints(new int[3]); for (int q = 0; q < 6; q++) fw.Long(0); fw.Ints(new int[3]); fw.Long(0); fw.Ints(new int[8]); var v3 = new byte[v4.Length - fw.ToArray().Length]; Array.Copy(v4, v3, v3.Length);     // D-N176: los víveres van al final, NetVersion 4
             var ew = new SaveWriter(); EmbarqueState.WriteEmpty(ew); int etail = ew.ToArray().Length;      // D-N166: los pasajeros (vacío) van al final, NetVersion 3
             var v2 = new byte[v3.Length - etail]; Array.Copy(v3, v2, v2.Length);
@@ -112,12 +115,12 @@ namespace TBD.Sim.Tests
             check(BytesEqual(mig, v2), "la migración 1 → 2 añade la producción a 0 y deja la sección igual que una partida v2 nueva");
             check(BytesEqual(NetSave.NetMigrations[2](v2), v3), "D-N166: la migración 2 → 3 añade los pasajeros (ninguno) y deja la sección igual que una partida v3");
             SaveError e34 = SaveError.None; try { NetSave.NetMigrations[3](v3); } catch (SaveException ex) { e34 = ex.Error; }
-            check(NetSave.NetVersion == 6 && e34 == SaveError.TooOld, "una partida v3 no se carga (TooOld): el reloj ×103 y los víveres cambian el sentido de los ticks y de las existencias (D-N161, D-N176)");
+            check(NetSave.NetVersion == 7 && e34 == SaveError.TooOld, "una partida v3 no se carga (TooOld): el reloj ×103 y los víveres cambian el sentido de los ticks y de las existencias (D-N161, D-N176)");
             { var zt = new SaveWriter(); zt.Ints(new int[fresh.Graph.Nodes.Count]); zt.Ints(new int[fresh.Graph.Nodes.Count]); zt.Ints(new int[fresh.Graph.Nodes.Count]); zt.Ints(new int[3]); for (int q = 0; q < 6; q++) zt.Long(0); zt.Ints(new int[3]); zt.Long(0); zt.Ints(new int[8]); var v4o = new byte[v4.Length - zt.ToArray().Length]; Array.Copy(v4, v4o, v4o.Length);
-              var m45 = NetSave.NetMigrations[5](NetSave.NetMigrations[4](v4o)); var lw = NetScenario.Mvp(); lw.LoadState(new SaveReader(m45));
+              var m45 = NetSave.NetMigrations[5](NetSave.NetMigrations[4](v4o)); var lw = NetScenario.Mvp(); lw.LoadState(new SaveReader(NetSave.NetMigrations[6](m45)));
               check(lw.Hash() == fresh.Hash() && !Array.Exists(lw.NodeLost, x => x), "la migración 4 → 5 añade los nodos perdidos (ninguno) y carga igual que una partida nueva");
               var ct = new SaveWriter(); ct.Ints(new int[3]); ct.Long(0); ct.Ints(new int[8]); var v5o = new byte[v4.Length - ct.ToArray().Length]; Array.Copy(v4, v5o, v5o.Length);
-              var m56 = NetSave.NetMigrations[5](v5o); var lm = NetScenario.Mvp(); lm.LoadState(new SaveReader(m56));
+              var m56 = NetSave.NetMigrations[5](v5o); var lm = NetScenario.Mvp(); lm.LoadState(new SaveReader(NetSave.NetMigrations[6](m56)));
               check(m56.Length == v4.Length && lm.Hash() == fresh.Hash() && lm.Director.ColState == 0 && lm.Director.ColIntroDone, "D-N160: la migración 5 → 6 añade la Colmena Dispersa, sin señal ni historia y con el CO-0 dado, y carga igual que una partida nueva"); }
             check(fresh.Production.Hash() == 0, "sin producir nada el hash de la producción es 0");
         }

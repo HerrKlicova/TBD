@@ -13,8 +13,7 @@ namespace TBD.View
     /// A la derecha, el parte de arriba abajo: 3 amenaza · 4 fuerzas propias · 5 sin novedad · 6 valoración · 7 necesidades · 8 firma.
     /// Los textos son los de Lucía (docs/informe-textos.md, 08-11) y están TODOS en InformeTextos, abajo: cambiarlos solo ahí.
     /// Una línea que se queda vacía no se muestra (regla de Lucía). Lo que la red todavía no da se deja fuera (no se inventa):
-    ///   - memoria de tráfico (sección 3): la red da tramo y franja, no el tren ni los días seguidos; esas partes no salen.
-    ///   - tipo de vehículo: sale de Plantel.Vehiculos de casa, por el índice de Pasajero.Id.
+    ///   - memoria de tráfico, de atención y fuerzas propias: NetWorld.IntelTraffic, IntelAttention e IntelForcesAt (Nacho, 28ba0fd).
     ///   - pelotones en casa: la guarnición de Sagunto no está en Embarque.Lista; sale «guarnición» (Lucía, añadidos 08-11).
     /// </summary>
     public sealed partial class OperationsMap3D
@@ -42,39 +41,6 @@ namespace TBD.View
             ColmenaEstadoFuente = () => { var w = NetSession.A; return w == null || w.Director.P.ColOn == 0 ? -1 : w.Director.ColState; };
             ColmenaSenalFuente = () => { var w = NetSession.A; return w == null || w.Director.P.ColOn == 0 ? -1 : (int)System.Math.Min(int.MaxValue, w.Director.ColSignalMil); };
             ColmenaAvisoFuente = () => { var w = NetSession.A; return w != null && w.Director.ColWarning; };
-        }
-
-        /// <summary>Tipo de vehículo (Lucía: «Dragón», «VAMTAC»). Los vehículos son los de la zona de casa (Plantel.Vehiculos); Pasajero.Id es su índice.</summary>
-        List<Plantel.Coche> _infCoches;
-        string TipoVehiculo(int id)
-        {
-            if (_infCoches == null)
-            {
-                int home = _a.Embarque.HomeNode;
-                try { _infCoches = home >= 0 ? Plantel.Vehiculos(_a.Graph.Nodes[home].Name) : new List<Plantel.Coche>(); } catch { _infCoches = new List<Plantel.Coche>(); }
-            }
-            return id >= 0 && id < _infCoches.Count ? _infCoches[id].Tipo : null;
-        }
-
-        /// <summary>Dragones y VAMTAC de una estación: los bajados allí; en casa, los del plantel que no están en Embarque.Lista.</summary>
-        void VehiculosEn(int node, out int dragon, out int vamtac)
-        {
-            dragon = vamtac = 0;
-            if (node == _a.Embarque.HomeNode)
-            {
-                TipoVehiculo(-1);
-                for (int i = 0; i < _infCoches.Count; i++)
-                {
-                    bool fuera = false;
-                    foreach (var p in _a.Embarque.Lista) if (p.Tipo == PasajeroTipo.Vehiculo && p.Id == i) { fuera = true; break; }
-                    if (fuera) continue;
-                    if (_infCoches[i].Tipo == "dragon") dragon++; else if (_infCoches[i].Tipo == "vamtac") vamtac++;
-                }
-                return;
-            }
-            foreach (var p in _a.Embarque.Lista)
-                if (p.Estado == PasajeroEstado.EnEstacion && p.Node == node && p.Tipo == PasajeroTipo.Vehiculo)
-                { var t = TipoVehiculo(p.Id); if (t == "dragon") dragon++; else if (t == "vamtac") vamtac++; }
         }
 
         void AbrirInforme(bool on)
@@ -201,22 +167,16 @@ namespace TBD.View
                 string cifra = Estimacion(_a.SiegeZombies(p.Node), OjosEn(p.Node, out _, out _), est);
                 d.Amenaza.Add(p.Started ? InformeTextos.ConBarra(T.AmenazaAtaca(nd.Name, dir, cifra), InformeTextos.ColorAtaque) : T.AmenazaMasa(nd.Name, dir, cifra, rumbo, Dtg(p.StartTick)));
             }
-            // memoria de tráfico (Nacho, 3db0a0b): el tramo y la franja más aprendidos, si pasan del umbral de aviso
-            var tm = _a.Traffic;
-            if (d.Amenaza.Count < 3 && tm != null)
+            // memoria de tráfico (Nacho, nacho/informe-huecos 28ba0fd: NetWorld.IntelTraffic, la franja de más memoria primero)
+            var trafico = _a.IntelTraffic();
+            if (d.Amenaza.Count < 3 && trafico.Count > 0)
             {
-                int be = -1, bs = 0, bm = 0;
-                for (int e = 0; e < g.Edges.Count && e < tm.M.GetLength(0); e++)
-                    for (int fr = 0; fr < tm.M.GetLength(1); fr++) if (tm.M[e, fr] >= tm.P.Warn && tm.M[e, fr] > bm) { bm = tm.M[e, fr]; be = e; bs = fr; }
-                if (be >= 0)
-                {
-                    var ed = g.Edges[be];
-                    d.Amenaza.Add(T.AmenazaTrafico(g.Nodes[ed.A].Name + "–" + g.Nodes[ed.B].Name, NetConst.Clock((long)bs * tm.SlotTicks + tm.SlotTicks / 2)));
-                }
+                var l = trafico[0];
+                d.Amenaza.Add(l.Tren != null && l.Dias > 0 && l.Sigue ?   /* «días seguidos» solo con la racha viva (pasó hoy o ayer) */ T.AmenazaTraficoTren(l.Tramo, l.Tren, l.Dias, l.Hora) : T.AmenazaTrafico(l.Tramo, l.Hora));
             }
-            // memoria de atención (Nacho, 3db0a0b): el nodo con más de 6 h de zona en detalle hoy
-            int foc = _a.Director.AttentionNode(_a);
-            if (d.Amenaza.Count < 3 && foc >= 0 && foc < g.Nodes.Count) d.Amenaza.Add(T.AmenazaAtencion(g.Nodes[foc].Name));
+            // memoria de atención (NetWorld.IntelAttention): solo con un nodo mirado hoy y alguno olvidado
+            _a.IntelAttention(out int foc, out var olvidados);
+            if (d.Amenaza.Count < 3 && foc >= 0 && foc < g.Nodes.Count && olvidados != null && olvidados.Count > 0) { int zona = olvidados[0]; if (zona >= 0 && zona < g.Nodes.Count) d.Amenaza.Add(T.AmenazaAtencion(g.Nodes[zona].Name)); }   // {zona} = el olvidado con más Colmena alrededor (Nacho, 507af16)
             var trebol = new List<int>();
             for (int k = 0; k < g.Nodes.Count; k++) if (Trebol(k)) trebol.Add(k);
             foreach (int k in trebol)
@@ -232,9 +192,8 @@ namespace TBD.View
             foreach (var p in _a.Embarque.Lista) if (p.Estado == PasajeroEstado.EnEstacion && p.Node >= 0 && !conAlgo.Contains(p.Node)) conAlgo.Add(p.Node);
             foreach (int k in conAlgo)
             {
-                OjosEn(k, out int pel, out _);
-                VehiculosEn(k, out int dragon, out int vamtac);
-                d.Propias.Add(T.Propias(g.Nodes[k].Name, pel, dragon, vamtac, k == home, _a.Stock[k, (int)Res.Municion], _a.Stock[k, (int)Res.Viveres]));
+                var fz = _a.IntelForcesAt(k);                                          // NetWorld.IntelForcesAt (Nacho, 28ba0fd): en casa, el plantel menos lo que está fuera
+                d.Propias.Add(T.Propias(g.Nodes[k].Name, fz.Pelotones, fz.Dragon ? 1 : 0, fz.Vamtac, k == home, _a.Stock[k, (int)Res.Municion], _a.Stock[k, (int)Res.Viveres]));
             }
             foreach (var p in ased) if (!conAlgo.Contains(p.Node) && !_a.ZoneDefended(p.Node)) d.Propias.Add(T.SinTropa(g.Nodes[p.Node].Name));
             var aero = AerodromoVista.Estado;
@@ -517,6 +476,12 @@ namespace TBD.View
         /// <summary>Lucía: «{tramo}: el tren {n} pasa a la misma hora {k} días seguidos. Lo ha aprendido.» La red da el tramo y la franja, pero no el tren
         /// ni los días seguidos (M es una memoria con olvido, no un contador): versión corta de Lucía (09-11). Con tren y días, vuelve la plantilla completa.</summary>
         public string AmenazaTrafico(string tramo, string hora) { return tramo + ": el tren pasa siempre hacia las " + hora + ". Lo ha aprendido."; }   // Lucía, 09-11: corta hasta que la red dé tren y días
+        /// <summary>La plantilla completa de Lucía, cuando la red sabe el tren y la racha: «{tramo}: el tren {n} pasa a la misma hora {k} días seguidos. Lo ha aprendido.»</summary>
+        public string AmenazaTraficoTren(string tramo, string tren, int dias, string hora)
+        {
+            string n = tren.StartsWith("Tren ") ? tren.Substring(5) : tren;            // la red da «Tren 2 Montaña»; la frase lleva «el tren 2 Montaña»
+            return tramo + ": el tren " + n + " pasa a la misma hora " + dias + (dias == 1 ? " día seguido" : " días seguidos") + ". Lo ha aprendido.";
+        }
         public string AmenazaAtencion(string zona) { return zona + ": la Colmena se aparta de donde miramos y crece donde no."; }
         public string AmenazaTrebol(string est, string dir) { return est + ": movimiento sin identificar" + (dir != null ? " " + dir + " de la estación" : " cerca de la estación") + "."; }
 
