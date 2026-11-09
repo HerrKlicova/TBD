@@ -1328,7 +1328,7 @@ namespace TBD.Sim.Tests
                 var sim = NightSim.FromJson(json, null, 7);
                 check(sim.Night.P.Waves.Length == 1 && sim.Night.WaveTotal(0) == 5250 && sim.Units.StockShots == 47 * 2000 && sim.MaterialsU == 40 && sim.FuelU == 30, "crear la noche desde noche_sagunto.json (normal): una horda de 5.250 zombis (sin aire, la misma que la build), 47 u de munición (94.000 disparos; D-N128), 40 de materiales y 30 de combustible");
                 var easy = NightSim.FromJson(json, "facil", 7); var hard = NightSim.FromJson(json, "dificil", 7);
-                check(easy.Night.WaveTotal(0) == 4480 && hard.Night.WaveTotal(0) == 6470, "dificultad fácil (4.480) y difícil (6.470, Hugo con el reparto de granadas) desde el mismo JSON (sin aire, como la build)");
+                check(easy.Night.WaveTotal(0) == 4480 && hard.Night.WaveTotal(0) == 6470, "dificultad fácil (4.480) y difícil (6.470) desde el mismo JSON (sin aire, como la build)");
                 bool bad = false; try { Mini.Parse("{\"a\": [1, 2"); } catch (FormatException) { bad = true; }
                 check(bad && (long)((System.Collections.Generic.Dictionary<string, object>)Mini.Parse("{\"a\": -12}"))["a"] == -12, "el lector de JSON mínimo rechaza un texto truncado y lee enteros con signo");
 
@@ -1343,7 +1343,7 @@ namespace TBD.Sim.Tests
                 }
                 swc.Stop();
                 var snap = sim.Snapshot(); int spent = 0; foreach (var p in sim.Units.Platoons) spent += p.AmmoSpent;
-                check((snap.State == NightState.Victoria ? snap.ZombiesSpawned == 7310 : snap.ZombiesSpawned > 0 && snap.ZombiesSpawned <= 7310) && snap.Kills <= snap.ZombiesSpawned && snap.Kills + snap.ZombiesAlive <= snap.ZombiesSpawned, $"balance de zombis (la noche acabó en {snap.State}): entraron {snap.ZombiesSpawned} de 7.310, abatidos {snap.Kills}, vivos {snap.ZombiesAlive}");
+                check((snap.State == NightState.Victoria ? snap.ZombiesSpawned == 5250 : snap.ZombiesSpawned > 0 && snap.ZombiesSpawned <= 5250) && snap.Kills <= snap.ZombiesSpawned && snap.Kills + snap.ZombiesAlive <= snap.ZombiesSpawned, $"balance de zombis (la noche acabó en {snap.State}): entraron {snap.ZombiesSpawned} de 5.250, abatidos {snap.Kills}, vivos {snap.ZombiesAlive}");
                 check(snap.PlatoonAmmoShots + snap.StockShots + spent == ammo0, $"la munición se conserva: inicial {ammo0} = restante {snap.PlatoonAmmoShots + snap.StockShots} + gastada {spent} disparos");
                 int rs = 0, ks = 0, ds = 0; foreach (var w in sim.Waves) { rs += w.Resupplies; ks += w.Kills; ds += w.SoldierDeaths; }
                 check(rs == snap.Resupplies && rs == resup && ks == snap.Kills && ds == snap.SoldierDeaths, $"las estadísticas por oleada suman los totales (recargas {rs}, bajas enemigas {ks}, bajas propias {ds})");
