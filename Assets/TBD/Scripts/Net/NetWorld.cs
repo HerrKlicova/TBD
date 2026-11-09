@@ -34,7 +34,7 @@ namespace TBD.Net
     }
 
     // ================================================================== órdenes
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, SpendMaterials = 22, TrainCargo = 23, LoseNode = 24 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, SpendMaterials = 22, TrainCargo = 23, LoseNode = 24, TrainLost = 25 }
 
     public struct NetCommand
     {
@@ -568,7 +568,8 @@ namespace TBD.Net
                     case NetCmdType.TrainCargo: MoveCargo(c.Arg, c.Payload); break;      // Arg = tren, Payload = [nodo, 4 cantidades] (Iker: descargar sin salir)
                     case NetCmdType.TrainLoad: if (c.Payload != null && c.Payload.Length == 2) LoadPassenger(c.Arg, (PasajeroTipo)(c.Arg2 & 1), c.Payload[0], c.Payload[1]); break;   // D-N166: Arg = tren, Arg2 = tipo, Payload = [id, nodo]
                     case NetCmdType.TrainUnload: UnloadPassengers(c.Arg, c.Arg2); break;                    // D-N166: Arg = tren, Arg2 = nodo       // Arg = tren, Payload = [nodo, hora de salida (ticks), 4 cargas] por parada
-                    case NetCmdType.LoseNode: LoseNode(c.Arg); break;                                   // qa50 S2 (Lucía 7705049): estación perdida en pantalla y «Seguir»
+                    case NetCmdType.LoseNode: LoseNode(c.Arg); break;
+                    case NetCmdType.TrainLost: LoseTrain(c.Arg); break;                                 // Iker (I-Noche99): el tren se ha perdido en la zona                                   // qa50 S2 (Lucía 7705049): estación perdida en pantalla y «Seguir»
                     case NetCmdType.OrderTrain: OrderTrain((TallerKind)c.Arg); break;
                     case NetCmdType.CancelTrainOrder: CancelTrainOrder(c.Arg); break;
                     case NetCmdType.SetChispas: MoveChispas(c.Arg); break;       // Arg = 0 al taller, k > 0 al tren de índice k − 1
@@ -1284,7 +1285,7 @@ namespace TBD.Net
         public int AmbushNode = -1, AmbushZombies = 300, AmbushArrivals;
         public struct AmbushEvent { public int Node, Service, Zombies, AmmoU; public long Tick, LossTick, HoldUntil; public bool OnScreen, InApartado, Repelled, Surrounded, TrainLost; }
         /// <summary>La última emboscada (Tick = −1: ninguna en esta sesión). El tren queda a las puertas hasta HoldUntil (o hasta AmbushEnd). Fuera de pantalla: Repelled (con escolta:
-        /// se gastan AmmoU u de la carga) o Surrounded (sin escolta: D-N180, se pierde en LossTick). InApartado queda siempre en false (la emboscada es en la vía). No entra en el hash.</summary>
+        /// la escolta gasta AmmoU u de su dotación; la carga no se toca) o Surrounded (sin escolta: D-N180, se pierde en LossTick). InApartado queda siempre en false (la emboscada es en la vía). No entra en el hash.</summary>
         public AmbushEvent LastAmbush = new AmbushEvent { Tick = -1, Node = -1, Service = -1, LossTick = -1, HoldUntil = -1 };
         public bool AmbushDone { get { foreach (var e in Intel) if (e.Id == "EM-1") return true; return false; } }
         /// <summary>D-N180 en la red: un tren rodeado sin escolta se pierde con su carga en 10 minutos de juego como mucho.</summary>
@@ -1317,20 +1318,29 @@ namespace TBD.Net
             if (trainLost && LastAmbush.Service >= 0 && LastAmbush.Service < Services.Count) LoseAmbushedTrain(LastAmbush.Service);
         }
 
-        /// <summary>Fuera de pantalla, sin reglas nuevas (Lucía, 08:10). Con escolta (un pelotón o un vehículo a bordo) se rechaza: se gasta techo(zombis ÷ eficacia de la zona) u de
-        /// munición de la carga del tren, nadie tiene bajas y el tren entra. Sin escolta, el tren queda rodeado (la guarnición está lejos) y se pierde con su carga en 10 min de juego
+        /// <summary>Fuera de pantalla, sin reglas nuevas (Lucía, 08:10 y 3b2ee1d). Con escolta (un pelotón o un vehículo a bordo) se rechaza: la escolta gasta techo(zombis ÷ eficacia
+        /// de la zona) u de su propia dotación (AmmoU, informativo), la carga llega entera, nadie tiene bajas y el tren entra. Sin escolta, el tren queda rodeado (la guarnición está lejos) y se pierde con su carga en 10 min de juego
         /// (D-N180) salvo que el jugador entre en la zona (entonces manda la zona). En NightSim, con 300: sin escolta se pierde el 87 %, con un pelotón el 0 %.</summary>
         void ResolveAmbushOffscreen(TrainService s, int si, int node)
         {
             if (EscortSoldiers(si) > 0)
             {
                 int zpu = ZoneZombiesPerUNode != null && node < ZoneZombiesPerUNode.Length && ZoneZombiesPerUNode[node] > 0 ? ZoneZombiesPerUNode[node] : ZoneZombiesPerU;
-                int need = (int)((AmbushZombies + zpu - 1) / Math.Max(1, zpu)), m = (int)Res.Municion;
-                int got = Math.Min(need, Math.Max(0, s.Cargo[m])); s.Cargo[m] -= got;
-                LastAmbush.Repelled = true; LastAmbush.AmmoU = got; LastAmbush.HoldUntil = Tick;
+                int need = (int)((AmbushZombies + zpu - 1) / Math.Max(1, zpu));
+                LastAmbush.Repelled = true; LastAmbush.AmmoU = need; LastAmbush.HoldUntil = Tick;      // Lucía (3b2ee1d): la escolta dispara con su propia dotación; la carga llega entera
             }
             else { LastAmbush.Surrounded = true; LastAmbush.LossTick = Tick + SurroundLossTicks; LastAmbush.HoldUntil = LastAmbush.LossTick + 1; }      // retenido hasta que AmbushStep lo resuelva
         }
+
+        /// <summary>Iker (I-Noche99): el tren se ha perdido en la zona (NightSim o la zona en pantalla). Se pierden el tren, su carga y lo que va a bordo, como en la caída a las
+        /// puertas (D-N177). Por orden (CmdTrainLost) para que A y B lo apliquen en el mismo tick. false si no existe o ya estaba perdido.</summary>
+        public bool LoseTrain(int si)
+        {
+            if (si < 0 || si >= Services.Count || Services[si].Destroyed) return false;
+            LoseAmbushedTrain(si);
+            return true;
+        }
+        public static NetCommand CmdTrainLost(long tick, int service) { return new NetCommand { Tick = tick, Type = NetCmdType.TrainLost, Arg = service }; }
 
         void LoseAmbushedTrain(int si)
         {
@@ -1338,7 +1348,7 @@ namespace TBD.Net
             s.Destroyed = true; s.Hp = 0; s.Held = true; s.GateNode = -1; s.GateSinceTick = -1;
             Array.Clear(s.Cargo, 0, s.Cargo.Length); s.Train.CargoTonnes = 0;
             for (int i = Embarque.Lista.Count - 1; i >= 0; i--) if (Embarque.Lista[i].Service == si && Embarque.Lista[i].Estado == PasajeroEstado.ABordo) Embarque.Lista.RemoveAt(i);
-            LastAmbush.TrainLost = true;
+            if (LastAmbush.Service == si && LastAmbush.Tick >= 0) LastAmbush.TrainLost = true;
         }
 
         void AmbushStep()
@@ -1361,7 +1371,7 @@ namespace TBD.Net
         /// <summary>Plazas de tren (andenes) del MVP (Lucía, 8-nov): Sagunto 2 y Nules 1. Bétera no es nodo de la red. Las demás estaciones no tienen zona en el MVP
         /// y no limitan (0 = sin límite): un tren a Castellón o a Valencia entra siempre que no estén sitiadas.</summary>
         public static readonly string[] SlotNames = { "Sagunto", "Nules" };
-        public static readonly int[] SlotCounts = { 2, 1 };
+        public static readonly int[] SlotCounts = { 2, 2 };      // Nules 2 (Lucía 3b2ee1d): la vía principal y el apartado
 
         /// <summary>Plazas de tren de la estación (0 = sin límite). Sale de la topología, no del estado.</summary>
         public int TrainSlots(int node)

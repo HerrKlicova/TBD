@@ -30,7 +30,7 @@ namespace TBD.Sim.Tests
                 var am = wa.LastAmbush; int em = 0; foreach (var e in wa.Intel) if (e.Id == "EM-1") em++; int cargoAfter = wa.Services[sv].Cargo[(int)Res.Municion];
                 string emN = null; foreach (var e in wa.Intel) if (e.Id == "EM-1") emN = e.Vars[5];
                 for (int g = 0; g < 30; g++) wa.Step(); bool entered = wa.Services[sv].GateNode < 0 && !wa.Services[sv].Destroyed;
-                check(!am.OnScreen && am.Repelled && !am.Surrounded && !am.InApartado && am.AmmoU == 1 && cargoAfter == 19 && entered && emN == "300", $"emboscada en la vía, fuera de pantalla y con escolta: se rechaza con {am.AmmoU} u de la carga (quedan {cargoAfter}), el tren entra ({entered}) y EM-1 dice unos {emN}");
+                check(!am.OnScreen && am.Repelled && !am.Surrounded && !am.InApartado && am.AmmoU == 1 && cargoAfter == 20 && entered && emN == "300", $"emboscada en la vía, fuera de pantalla y con escolta: se rechaza con {am.AmmoU} u de la dotación de la escolta (la carga llega entera: {cargoAfter}), el tren entra ({entered}) y EM-1 dice unos {emN}");
                 check(!before && !day1 && act && !met0 && notAtSag && am.Node == nl && am.Zombies == 300 && am.Service == sv && em == 1,
                       $"emboscada: nada con el primer tren (día 1) ni en Sagunto; el segundo tren que llega a Nules el día 2 recibe un sondeo de {am.Zombies} y deja una sola EM-1 ({em}); el objetivo se ve desde las 06:00 del día 2 ({act}) y no está cumplido de salida");
                 wa.SetSchedule(sv, TrenPreparar.Envio(wa, sv, sg, null)); for (int g = 0; g < 3000; g++) wa.Step();
@@ -60,6 +60,13 @@ namespace TBD.Sim.Tests
                 long stk = 0; for (int r = 0; r < NetConst.ResCount; r++) stk += a.Stock[nn, r];
                 check(a.NodeLost[nn] && a.GarrisonMil[nn] == 0 && stk == 0 && a.ZoneWallE4[nn] == 0 && a.Embarque.AtStation(nn, PasajeroTipo.Peloton).Count == 0 && a.Hash() == b.Hash() && a.Hash() != h0 && !a.LoseNode(nn),
                       "LoseNode: Nules perdida por orden (existencias, guarnición, muro y tropa bajada a 0), A y B iguales, y una segunda vez no hace nada");
+            }
+            {   // Iker (I-Noche99): orden TrainLost
+                var a = NetScenario.Inicio(); var b = NetScenario.Inicio();
+                foreach (var wq in new[] { a, b }) { wq.Services[0].Cargo[(int)Res.Municion] = 20; wq.Embarque.Lista.Add(new Pasajero { Tipo = PasajeroTipo.Peloton, Id = 9, Service = 0, Node = -1, Estado = PasajeroEstado.ABordo }); }
+                a.Push(NetWorld.CmdTrainLost(a.Tick, 0)); b.Push(NetWorld.CmdTrainLost(b.Tick, 0)); a.Step(); b.Step();
+                check(a.Services[0].Destroyed && a.Services[0].Cargo[(int)Res.Municion] == 0 && a.EscortSoldiers(0) == 0 && a.Hash() == b.Hash() && !a.LoseTrain(0) && !a.Services[1].Destroyed,
+                      "TrainLost: el tren se pierde con su carga y su tropa, igual en A y B; una segunda vez no hace nada y el otro tren sigue");
             }
             {   // D-N183 (Lucía, 9-nov): Castellón es del jugador desde el inicio
                 var wi = NetScenario.Inicio(); int cas = Id(wi, "Castellón");
