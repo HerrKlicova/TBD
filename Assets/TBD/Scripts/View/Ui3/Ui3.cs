@@ -163,7 +163,7 @@ namespace TBD.View
 
             var kb = Keyboard.current;
             if (kb != null && kb.lKey.wasPressedThisFrame) _leyendaVisible = !_leyendaVisible;
-            Ver(_leyenda, _leyendaVisible);
+            Ver(_leyenda, _leyendaVisible && !TrenPanel.PanelAbierto);      // con «Preparar tren» abierto la leyenda se aparta
 
             _donde.text = "RED · DÍA " + (w.Tick / NetConst.DayTicks + 1);
             _reloj.text = NetConst.Clock(w.Tick);
