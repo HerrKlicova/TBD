@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using TBD.Net;
+using TBD.Sim;
 using TBD.Units;
 using UnityEngine;
 
@@ -13,13 +14,30 @@ namespace TBD.View
     /// </summary>
     public partial class PrototypeBootstrap
     {
-        long _emboscadaVista = -1; bool _trenPerdidoAvisado;
+        long _emboscadaVista = -1; bool _trenPerdidoAvisado; float _trenSolidoX = float.NaN; static readonly int _rectTrenSagunto = NightParams.Default().TrainRect.X1;
+        /// <summary>El sólido ECS del tren (muro mientras está parado) va donde lo pone la noche: en Nules A, fuera de la puerta este (TrainRect de nules.json), no en el andén
+        /// de Sagunto. Sin tren (perdido), el sólido sale del mapa. Los dos mundos igual (A y B).</summary>
+        void SolidoDelTren()
+        {
+            if (_ng == null) return; if (_ng.P.TrainRect.X1 == _rectTrenSagunto) return;   // Sagunto: el sólido de siempre (no coincide con el rectángulo por defecto y no se toca)
+            float x = _ng.TrainHp > 0 ? _ng.P.TrainRect.X1 / 1000f - Level.TrainFront : 900f;
+            if (x == _trenSolidoX) return;
+            foreach (var wld in new[] { _worldA, _worldB })
+            {
+                if (wld == null || !wld.IsCreated) continue; var em = wld.EntityManager; var root = wld == _worldA ? _rootA : _rootB;
+                var t = em.GetComponentData<TrainState>(root); if (t.Speed > 0f) return;      // en marcha no se toca
+                if (Mathf.Abs(t.X - x) < 0.5f) continue; t.X = x; em.SetComponentData(root, t); var zi = em.GetComponentData<ZoneInfo>(root); zi.TrainWallDirty = true; em.SetComponentData(root, zi);
+            }
+            if (!float.IsNaN(_trenSolidoX) || Mathf.Abs(x - 136f) > 1f) Debug.Log($"[NOCHE] sólido del tren en X {x - Level.TrainRear:0.0}–{x + Level.TrainFront:0.0}");
+            _trenSolidoX = x;
+        }
         int _embPendientes, _embTicks, _embBase = -1, _embIdx; bool _embEnCurso;
 
         void EmboscadaEnZona(List<SpawnPoint> spawns)
         {
             if (TrenPanel.Dia2Volver && _nightInit && Time.timeSinceLevelLoad > 4f) { TrenPanel.Dia2Volver = false; Debug.Log("[DIA2] sesión de zona creada; vuelvo al mapa"); LeaveToMap(); return; }   // -dia2-auto
             var w = NetSession.A; if (w == null || _ng == null) return;
+            SolidoDelTren();
             if (_ng.P.TrainNotDefeat && _ng.TrainHp <= 0 && !_trenPerdidoAvisado)      // Lucía (da2d050): en Nules perder el tren no es derrota; aviso y se sigue
             {
                 _trenPerdidoAvisado = true; string tn = "tren"; int si = -1; for (int k = 0; k < w.Services.Count; k++) { var sv = w.Services[k]; if (sv.AtStop && sv.Stops.Count > 0 && sv.Stops[sv.StopIndex].Node == _zoneNode) { tn = sv.Train.Name; si = k; break; } }
