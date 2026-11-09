@@ -431,6 +431,7 @@ namespace TBD.Net
             var lost = new int[NodeLost.Length]; for (int q = 0; q < lost.Length; q++) lost[q] = NodeLost[q] ? 1 : 0; w.Ints(lost); w.Ints(GarrisonMil); w.Ints(ZoneWallE4);    // NetVersion 5: hordas de zona
             var zs = LastZoneSiege; w.Ints(new[] { zs.Node, zs.Lost ? 1 : 0, zs.OnScreen ? 1 : 0 }); w.Long(zs.Zombies); w.Long(zs.Killed); w.Long(zs.SpentU); w.Long(zs.DamageU); w.Long(zs.Casualties); w.Long(zs.Tick);
             w.Ints(new[] { Director.ColState, Director.ColDaysBelow, Director.ColIntroDone ? 1 : 0 }); w.Long(Director.ColSignalMil); w.Ints(Director.ColHeld);      // NetVersion 6: estados de la Colmena (D-N160)
+            if (Traffic != null) Traffic.SaveStreaks(w); else for (int q = 0; q < 4; q++) w.Ints(new int[0]);      // NetVersion 7: rachas de la memoria de tráfico (informe)
         }
 
         public void LoadState(SaveReader r)
@@ -485,6 +486,7 @@ namespace TBD.Net
             Director.ColState = cv[0]; Director.ColDaysBelow = cv[1]; Director.ColIntroDone = cv[2] != 0; Director.ColSignalMil = r.Long();
             var ch = r.Ints(); if (ch == null || ch.Length != Director.ColHeld.Length) throw new SaveException(SaveError.Corrupt, "historia de la Colmena no válida");
             Array.Copy(ch, Director.ColHeld, ch.Length);
+            if (Traffic != null) Traffic.LoadStreaks(r); else for (int q = 0; q < 4; q++) { var e7 = r.Ints(); if (e7 == null || e7.Length != 0) throw new SaveException(SaveError.TopologyMismatch, "rachas sin memoria de tráfico"); }
             Injections.Clear(); Retirements.Clear(); LostThisTick = 0; RetiredThisTick = 0;      // datos de QA del tick: empiezan limpios
         }
 
@@ -510,7 +512,9 @@ namespace TBD.Net
             Director.Curve = BalanceSource.Curve();
             Director.Season = BalanceSource.Table("colmena_estacion.csv");
             Director.Noise = BalanceSource.Table("colmena_ruido.csv");
-            { var ec = BalanceSource.Read("balance_economia.csv"); if (ec != null) { var t = new CsvTable(ec); ZoneZombiesPerU = (int)t.TryValue("combate_z_por_u", ZoneZombiesPerU); ZoneWallBonusMil = (int)t.TryValue("fort_bonus_por_nivel", ZoneWallBonusMil); } }   // opción A (Hugo y Lucía, 9-nov): 400 por u, sin bonus del muro
+            { var ec = BalanceSource.Read("balance_economia.csv"); if (ec != null) { var t = new CsvTable(ec); ZoneZombiesPerU = (int)t.TryValue("combate_z_por_u", ZoneZombiesPerU); ZoneWallBonusMil = (int)t.TryValue("fort_bonus_por_nivel", ZoneWallBonusMil);
+                ZoneFireCapPerDefender = (int)t.TryValue("combate_tope_fuego_por_defensor", 0);
+                ZoneZombiesPerUNode = new int[g.Nodes.Count]; for (int q = 0; q < g.Nodes.Count; q++) ZoneZombiesPerUNode[q] = (int)t.TryValue("combate_z_por_u_" + TrenPreparar.IdDe(g.Nodes[q].Name), ZoneZombiesPerU); } }   // Hugo, 9-nov: fila por estación (Nules 300) y tope de fuego   // opción A (Hugo y Lucía, 9-nov): 400 por u, sin bonus del muro
         }
 
         public static ulong Mix(ulong h)
@@ -1358,6 +1362,8 @@ namespace TBD.Net
         /// <summary>Recinto abstracto, en 1/10.000 de u, para un nodo sin piezas de obra (Nules en Inicio: 124,3 u). Si el nodo tiene piezas, mandan ellas. Guardado v5.</summary>
         public int[] ZoneWallE4 = new int[0];
         /// <summary>Regla del modelo económico (Hugo, sim_economia.py 549-561), la misma con la que está medida la economía.</summary>
+        public int[] ZoneZombiesPerUNode;          // por nodo: combate_z_por_u_<id> si existe, si no la general (null = la general en todos)
+        public int ZoneFireCapPerDefender;          // combate_tope_fuego_por_defensor (Hugo, 9-nov): 0 = sin tope; no se aplica a casa (Sagunto)
         public int ZoneZombiesPerU = 400, ZoneWallBonusMil = 0, ZoneWallStepU = 30, ZoneWallMaxSteps = 5, ZoneWallLossMilPerZombie = 10, ZoneGarrisonLossMilPerZombie = 4, ZoneNoWallMult = 3, ZoneFallAlivePermil = 500;
         public struct ZoneSiegeResult { public int Node; public long Zombies, Killed, SpentU, DamageU, Casualties; public bool Lost, OnScreen; public long Tick; }
         public ZoneSiegeResult LastZoneSiege;
@@ -1378,9 +1384,14 @@ namespace TBD.Net
             foreach (var p in pieces) if (p.Built && (p.IsWall || p.IsGate)) wallE4 += (long)p.CostE4 * p.LifeMil / 1000;
             bool abstractWall = wallE4 == 0; if (abstractWall) wallE4 = ZoneWallE4[node];
             long stepsMil = Math.Min((long)ZoneWallMaxSteps * 1000, wallE4 * 1000 / ((long)ZoneWallStepU * 10_000));
-            long eff = (long)ZoneZombiesPerU * (1000 + ZoneWallBonusMil * stepsMil / 1000) / 1000;        // opción A: 400 zombis por u con o sin muro (antes, con fort_bonus_por_nivel 200, 731 en Nules)
+            int zpu = ZoneZombiesPerUNode != null && node < ZoneZombiesPerUNode.Length ? ZoneZombiesPerUNode[node] : ZoneZombiesPerU;
+            long eff = Math.Max(1, (long)zpu * (1000 + ZoneWallBonusMil * stepsMil / 1000) / 1000);      // opción A: 400 zombis por u con o sin muro (Nules 300, fila propia)
             long ammo = Math.Max(0, Stock[node, (int)Res.Municion]);
-            long alive = Math.Max(0, zombies - ammo * eff);
+            // Tope de fuego (Hugo, 9-nov, como los trepadores de NightSim): con más horda que defensores × tope, la estación cae aunque sobre munición; abaten como mucho ese tope.
+            bool capOn = ZoneFireCapPerDefender > 0 && node != Embarque.HomeNode;
+            long fireCap = capOn ? (long)ZoneDefenders(node) * ZoneFireCapPerDefender : long.MaxValue;
+            bool overrun = capOn && zombies > fireCap;
+            long alive = Math.Max(0, zombies - Math.Min(ammo * eff, fireCap));
             res.Killed = zombies - alive;
             res.SpentU = Math.Min(ammo, (res.Killed + eff - 1) / eff); Stock[node, (int)Res.Municion] -= (int)res.SpentU;      // en u enteras, por arriba (Hugo: 3,3 u con 20)
             long lossE4 = alive * ZoneWallLossMilPerZombie * 10;                                            // 0,010 u por vivo
@@ -1396,7 +1407,7 @@ namespace TBD.Net
             long gl = alive * ZoneGarrisonLossMilPerZombie * (wallGone ? ZoneNoWallMult : 1);
             GarrisonMil[node] = (int)Math.Max(0, g0 - gl);
             res.Casualties = (g0 - GarrisonMil[node]) / 1000;
-            res.Lost = (g0 > 0 && GarrisonMil[node] * 2 < g0) || (g0 <= 0 && alive > 0) || (wallGone && alive * 1000 > zombies * ZoneFallAlivePermil);
+            res.Lost = overrun || (g0 > 0 && GarrisonMil[node] * 2 < g0) || (g0 <= 0 && alive > 0) || (wallGone && alive * 1000 > zombies * ZoneFallAlivePermil);
             if (res.Lost)
             {
                 NodeLost[node] = true; res.Casualties = g0 / 1000 + Math.Max(0, Stock[node, (int)Res.Personas]); GarrisonMil[node] = 0;
@@ -1405,6 +1416,14 @@ namespace TBD.Net
             }
             LastZoneSiege = res;
             Intel.Add(new IntelEntry { Tick = Tick, Id = res.Lost ? "ZS-2" : "ZS-1", Vars = new[] { "nodo", Graph.Nodes[node].Name, "n", zombies.ToString(), "abatidos", res.Killed.ToString(), "u", res.SpentU.ToString(), "bajas", res.Casualties.ToString() } });
+        }
+
+        /// <summary>Defensores para el tope de fuego: la guarnición abstracta más 8 por pelotón o vehículo bajado allí (GateSoldiersPerPlatoon, GateVehicleSoldiers).</summary>
+        public int ZoneDefenders(int node)
+        {
+            int d = GarrisonMil[node] / 1000;
+            foreach (var p in Embarque.Lista) if (p.Estado == PasajeroEstado.EnEstacion && p.Node == node) d += p.Tipo == PasajeroTipo.Peloton ? GateSoldiersPerPlatoon : GateVehicleSoldiers;
+            return d;
         }
 
         public struct ZoneWarning { public int Node; public long EtaTicks; public bool Started; public string Text; }
@@ -1480,6 +1499,63 @@ namespace TBD.Net
         }
 
         string EdgeName(RailEdge e) { return Graph.Nodes[e.A].Name + "–" + Graph.Nodes[e.B].Name; }
+
+        /// <summary>Una línea de memoria de tráfico para el informe (§3): «{tramo}: el tren {n} pasa a la misma hora {k} días seguidos. Lo ha aprendido.»</summary>
+        public struct IntelTrafficLine
+        {
+            public int Edge, Slot, Mem;     // tramo, franja de la memoria y su valor (la de más memoria va primero)
+            public string Tramo;            // «Sagunto–Nules», como en TR-1
+            public string Tren;             // «Tren 2 Montaña», como en TR-1; null si no se sabe (partida migrada o el tren ya no existe)
+            public string Hora;             // la hora en punto del primer paso de la racha, «08:00»; sin racha, el principio de la franja
+            public int Dias;                // días seguidos que ese tren ha pasado en esa franja (0 si no se sabe)
+            public bool Sigue;              // pasó hoy o ayer: la racha sigue viva
+        }
+
+        /// <summary>Franjas que la Colmena ha aprendido (por encima del aviso y sin olvidar), la de más memoria primero. Solo lectura: no toca el hash.</summary>
+        public List<IntelTrafficLine> IntelTraffic()
+        {
+            var r = new List<IntelTrafficLine>(); if (Traffic == null) return r;
+            foreach (var l in Traffic.Learned(Tick))
+            {
+                string tren = null;
+                if (l.TrainId >= 0) foreach (var s in Services) if (s.Train != null && s.Train.Id == l.TrainId) { tren = "Tren " + s.Train.Name; break; }
+                var e = Graph.Edges[l.Edge];
+                r.Add(new IntelTrafficLine { Edge = l.Edge, Slot = l.Slot, Mem = l.Mem, Tramo = EdgeName(e), Tren = tren, Hora = NetConst.Clock((l.Hour >= 0 ? l.Hour : l.Slot * 24 / Traffic.P.Slots) * (long)NetConst.HourTicks), Dias = tren != null ? l.Days : 0, Sigue = l.Alive });
+            }
+            return r;
+        }
+
+        /// <summary>
+        /// Memoria de atención para el informe (§3): el nodo que el jugador mira hoy (Director.AttentionNode, −1 si ninguno) y los nodos suyos que lleva más de 6 h sin mirar
+        /// (Director.Neglected). La línea «{zona}: la Colmena se aparta de donde miramos y crece donde no» tiene sentido con Foco ≥ 0 y alguno olvidado. Solo lectura.
+        /// </summary>
+        public void IntelAttention(out int foco, out List<int> olvidados) { foco = Director.AttentionNode(this); olvidados = Director.Neglected(this); }
+
+        /// <summary>Fuerzas propias de una estación para el informe (§4): pelotones, Dragón y VAMTAC que hay allí según la red.</summary>
+        public struct IntelForces { public int Pelotones, Vamtac; public bool Dragon; }
+
+        /// <summary>
+        /// Lo que la red sabe que hay en la estación (§4). En casa (Embarque.HomeNode): el plantel de la D-N173 (Plantel.De) menos lo que está fuera (a bordo o bajado en otra
+        /// estación). En las demás: lo bajado allí (EnEstacion). La red no sabe de bajas en la zona: un pelotón muerto en la noche sigue contando hasta que la zona lo diga.
+        /// Solo lectura.
+        /// </summary>
+        public IntelForces IntelForcesAt(int node)
+        {
+            var f = new IntelForces();
+            if (node < 0 || node >= Graph.Nodes.Count) return f;
+            var coches = Plantel.Vehiculos(Embarque.HomeNode >= 0 ? Graph.Nodes[Embarque.HomeNode].Name : "");
+            var here = new List<int>();
+            if (node == Embarque.HomeNode)
+            {
+                f.Pelotones = Plantel.De(Graph.Nodes[node].Name).Pelotones.Length;
+                foreach (var p in Embarque.Lista) if (p.Tipo == PasajeroTipo.Peloton) f.Pelotones--;
+                for (int i = 0; i < coches.Count; i++) if (Embarque.Find(PasajeroTipo.Vehiculo, i) < 0) here.Add(i);
+                if (f.Pelotones < 0) f.Pelotones = 0;
+            }
+            else { f.Pelotones = Embarque.AtStation(node, PasajeroTipo.Peloton).Count; here = Embarque.AtStation(node, PasajeroTipo.Vehiculo); }
+            foreach (int i in here) { if (i < 0 || i >= coches.Count) continue; if (coches[i].Tipo == "dragon") f.Dragon = true; else f.Vamtac++; }
+            return f;
+        }
 
         /// <summary>Un tren entra en un tramo: suma a la memoria de tráfico; si la franja cruza el aviso, entrada TR-1 en el informe.</summary>
         void PassEdge(TrainService s, RailEdge e)
@@ -1804,7 +1880,7 @@ namespace TBD.Net
             w.Stations.P.Sites = new[] { "Castellón" };
             w.Stations.Founded[Id("Nules")] = true;
             w.Director.SinAsedioNodo = Id("Nules"); w.Director.SinAsedioHasta = NetConst.DayTicks + NetConst.Hours(8);     // D-N156: Nules sin asedio la 1.ª noche (hasta las 08:00 del día siguiente)
-            w.Director.ZoneHordes.Add(new HiveDirector.ZoneHorde { Node = Id("Nules"), FromDay = 1, Zombies = 2400 }); w.GarrisonMil[Id("Nules")] = 12_000; w.ZoneWallE4[Id("Nules")] = 1_243_000;   // guarnición de 12 y recinto de 124,3 u (Hugo; Lucía 23:30)   // Lucía (8-nov 23:20): horda propia de Nules desde la 2.ª noche, 2400 (Hugo, PROVISIONAL hasta medirla); Castellón, sin noche en el MVP
+            w.Director.ZoneHordes.Add(new HiveDirector.ZoneHorde { Node = Id("Nules"), FromDay = 1, Zombies = 2200 }); w.GarrisonMil[Id("Nules")] = 12_000; w.ZoneWallE4[Id("Nules")] = 1_243_000;   // guarnición de 12 y recinto de 124,3 u (Hugo; Lucía 23:30)   // horda propia de Nules desde la 2.ª noche: 2200 en normal (Lucía, 9-nov 00:56, medida en NightSim con la D-N180; difícil 2440 cuando la red tenga dificultad); Castellón, sin noche en el MVP
             w.Services.Clear();
             var cero = new int[NetConst.ResCount];
             Add(w, 1, "1 Costa", new ScheduleStop { Node = Id("Sagunto"), DepartAt = NetConst.Hours(9), Transfer = (int[])cero.Clone() });

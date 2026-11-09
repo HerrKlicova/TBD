@@ -287,8 +287,23 @@ namespace TBD.Net
         static int HeldNodes(NetWorld w)
         {
             int held = 0;
-            for (int n = 0; n < w.Graph.Nodes.Count; n++) { if (w.Stations.IsSite(n) && !w.Stations.Founded[n]) continue; if (w.Stock[n, (int)Res.Personas] > 0) held++; }
+            for (int n = 0; n < w.Graph.Nodes.Count; n++) if (Held(w, n)) held++;
             return held;
+        }
+
+        /// <summary>¿Es del jugador? (Fundada, si es un emplazamiento, y con gente.)</summary>
+        internal static bool Held(NetWorld w, int n) { return !(w.Stations.IsSite(n) && !w.Stations.Founded[n]) && w.Stock[n, (int)Res.Personas] > 0; }
+
+        /// <summary>
+        /// Informe (memoria de atención, informe-textos.md §3): los nodos del jugador que llevan más de AttentionHours sin mirar (los que la Colmena prefiere, ×AttentionMil),
+        /// por orden de nodo. Vacía si el peso de atención está apagado. Solo lectura.
+        /// </summary>
+        public List<int> Neglected(NetWorld w)
+        {
+            var l = new List<int>(); if (IgnoreAttention || P.AttentionMil == 1000) return l;
+            long lim = NetConst.Hours(P.AttentionHours);
+            for (int n = 0; n < w.Graph.Nodes.Count && n < LastSeenTick.Length; n++) if (Held(w, n) && w.Tick - LastSeenTick[n] > lim) l.Add(n);
+            return l;
         }
 
         /// <summary>Una vez al día (sim_economia.py, colmena_estados): sube al instante, baja de uno en uno tras ColForgetDays días seguidos por debajo.
