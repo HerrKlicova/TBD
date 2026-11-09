@@ -22,7 +22,8 @@ namespace TBD.View
             var w = NetSession.A; if (w == null || _ng == null) return;
             if (_ng.P.TrainNotDefeat && _ng.TrainHp <= 0 && !_trenPerdidoAvisado)      // Lucía (da2d050): en Nules perder el tren no es derrota; aviso y se sigue
             {
-                _trenPerdidoAvisado = true; string tn = "tren"; foreach (var sv in w.Services) if (sv.AtStop && sv.Stops.Count > 0 && sv.Stops[sv.StopIndex].Node == _zoneNode) { tn = sv.Train.Name; break; }
+                _trenPerdidoAvisado = true; string tn = "tren"; int si = -1; for (int k = 0; k < w.Services.Count; k++) { var sv = w.Services[k]; if (sv.AtStop && sv.Stops.Count > 0 && sv.Stops[sv.StopIndex].Node == _zoneNode) { tn = sv.Train.Name; si = k; break; } }
+                if (si >= 0) NetSession.Push(NetCmdType.TrainLost, si, 0);   // Nacho (49e7ddf1): la red quita el tren, su carga y su tropa
                 HintMsg($"Se ha perdido el {tn} con su carga.", false); Debug.Log($"[NOCHE] se ha perdido el {tn} con su carga (la noche sigue)");
             }
             var e = w.LastAmbush;
