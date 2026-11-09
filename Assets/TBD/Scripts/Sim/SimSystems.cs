@@ -133,6 +133,17 @@ namespace TBD.Sim
                     SetTrainWall(em, root, t.Speed <= 0f ? t.X : float.NaN);
                     break;
                 }
+                case CmdType.BuildBox:
+                {
+                    // D-N181: una sola caja que cierra la huella (Kind 1: A = esquina mínima, B = máxima), sin huecos por donde colarse entre muros paralelos
+                    var solids = em.GetBuffer<Solid>(root);
+                    var s = new Solid { A = math.min(cmd.P0, cmd.P1), B = math.max(cmd.P0, cmd.P1), HalfThick = 0f, Height = cmd.Arg > 0 ? Det.Mm(cmd.Arg) : Level.WallH, Kind = 1, Open = 0, Id = 0 };
+                    solids.Add(s);
+                    var ground = em.GetBuffer<CellGround>(root);
+                    Level.RasterSolid(solids, ground, s);
+                    SolidIndex.Rebuild(solids, em.GetBuffer<SolidBucketStart>(root), em.GetBuffer<SolidBucketRef>(root));
+                    break;
+                }
                 case CmdType.BuildWall:
                 {
                     // Construcción libre: muro con posición y orientación libres; en la rejilla solo se rasteriza la región afectada

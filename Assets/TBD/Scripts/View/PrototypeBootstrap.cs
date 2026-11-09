@@ -287,6 +287,7 @@ namespace TBD.View
             _groupB = SimWorldSetup.CreateSystems(_worldB);
             _rootB = SimWorldSetup.Populate(_worldB.EntityManager, zombies, siege, seed, _combat, shots, hasTrain, kind, !_netZone, trainX);
             if (_netZone) BuildSaguntoAmbience();
+            if (_netZone) BuildBrumaBorde();   // D-N182: la horda sale de la oscuridad del borde, no aparece a la vista
         }
 
         void OnDestroy()
@@ -644,7 +645,7 @@ namespace TBD.View
             float dt = Time.unscaledDeltaTime;
             if (!_nightOn && kb.qKey.isPressed) _yaw -= 70f * dt;
             if (!_nightOn && kb.eKey.isPressed) _yaw += 70f * dt;
-            if (_nightOn) { if (kb.zKey.isPressed) _targetOrtho = Mathf.Max(6f, _targetOrtho * (1f - 1.2f * dt)); if (kb.xKey.isPressed) _targetOrtho = Mathf.Min(70f, _targetOrtho * (1f + 1.2f * dt)); }
+            if (_nightOn) { if (kb.zKey.isPressed) _targetOrtho = Mathf.Max(6f, _targetOrtho * (1f - 1.2f * dt)); if (kb.xKey.isPressed) _targetOrtho = Mathf.Min(OrthoMax, _targetOrtho * (1f + 1.2f * dt)); }
             if (kb.rKey.isPressed) _pitch = Mathf.Min(80f, _pitch + 40f * dt);
             if (kb.fKey.isPressed) _pitch = Mathf.Max(20f, _pitch - 40f * dt);
 
@@ -679,7 +680,7 @@ namespace TBD.View
                         if (Time.unscaledTime - _outNotchAt < 0.6f && _outNotchAt > 0f) { _outNotchAt = 0f; _outHintUntil = 0f; LeaveToMap(); }
                         else { _outNotchAt = Time.unscaledTime; _outHintUntil = Time.unscaledTime + 1.4f; _outHintPos = mouse.position.ReadValue(); }
                     }
-                    _targetOrtho = Mathf.Clamp(_targetOrtho * Mathf.Pow(0.85f, notches), 6f, 70f);
+                    _targetOrtho = Mathf.Clamp(_targetOrtho * Mathf.Pow(0.85f, notches), 6f, OrthoMax);
                     _zoomAtCursor = true; TutorialHud.Senal(TutorialGuion.Senales.RuedaUsada);
                 }
                 if (((mouse.rightButton.isPressed && !(NightRun.Active && (_sel.Count > 0 || _selVeh != null))) || (NightRun.Active && mouse.middleButton.isPressed)) && !_buildMode)   // de noche con unidades elegidas, el boton derecho dibuja el frente y la camara gira con el central
@@ -1805,8 +1806,7 @@ namespace TBD.View
                 for (int i = 0; i < 14; i++)
                     PlaceVariant("naranjo", new Vector3(80f + i * 5f + (row == 1 ? 2.5f : 0f), 0f, 131f + row * 4f), (i * 53 + row * 17) % 360, root);
             // colisión: solo edificio y almacén (cuatro segmentos de 2 m de grosor cada uno cubren el solar completo)
-            foreach (float z in new[] { 75.5f, 77.5f, 79.5f, 81.5f, 83.3f })                    // huella de 20 x 9 m del edificio de Teo
-                Push(CmdType.BuildWall, 11000, new Unity.Mathematics.float2(96.5f, z), new Unity.Mathematics.float2(115.5f, z));
+            Push(CmdType.BuildBox, 11000, new Unity.Mathematics.float2(96.5f, 75.2f), new Unity.Mathematics.float2(115.5f, 83.6f));   // D-N181: la huella del edificio de Teo, una sola caja (antes 5 BuildWall paralelos con huecos de ~1,4 m por los que se colaban)
             foreach (float z in new[] { 50.8f, 52.8f, 54.8f, 56.8f })
                 Push(CmdType.BuildWall, 5000, new Unity.Mathematics.float2(127.5f, z), new Unity.Mathematics.float2(142.5f, z));
         }
