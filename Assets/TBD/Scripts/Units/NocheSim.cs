@@ -394,7 +394,7 @@ namespace TBD.Units
                 SumSegments();
             }
             WallJobsStep();
-            { _targets.Clear(); for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); int aS, aT; Night.CountAttackers(_targets, out aS, out aT); Night.Attack(aS, aT); SurroundedTrain(aT);
+            { _targets.Clear(); for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); int aS, aT; Night.CountAttackers(_targets, AimsStation, out aS, out aT); Night.Attack(aS, aT); SurroundedTrain(aT);
               if (aT > TrainPeakAttackers) TrainPeakAttackers = aT;
               if (aT > 0) for (int i = 0; i < _z.Count; i++) if (_z[i].Alive && !_z[i].HitTrain && Night.TouchesTrain(_z[i].X, _z[i].Y)) { _z[i].HitTrain = true; TrainTouched++; } }
             // 4) los pelotones disparan; los impactos abaten
@@ -563,6 +563,10 @@ namespace TBD.Units
             Night.DamageTrain(floor - Night.LastDmgTrain);
         }
 
+        /// <summary>D-N181: ¿va a por la estación el zombi de _targets[i]? Fuera del recinto, sí (en Nules el edificio es un tramo del muro norte: el que empuja desde
+        /// fuera ataca el edificio). Dentro, solo con Goal 5 (D-N180). D181On = false vuelve a contar a todos (solo pruebas y medidas).</summary>
+        bool AimsStation(int i) { if (!D181On) return true; var z = _z[_targets[i].Id]; return !InFort(z.X, z.Y) || z.Goal == 5; }
+        public bool D181On = true;
         /// <summary>D-N180 (2): si el tren ya no está (destruido) o está fuera del recinto, el que ha trepado y no tiene a nadie cerca va al edificio de viajeros
         /// (Goal 5) en lugar de quedarse empujando contra el muro hacia el tren de fuera: la noche siempre acaba.</summary>
         public bool TrainReachableFromInside() { var r = Night.P.TrainRect; return Night.TrainHp > 0 && r.X1 > SP.FortX0 && r.X0 < SP.FortX1 && r.Y1 > SP.FortY0 && r.Y0 < SP.FortY1; }

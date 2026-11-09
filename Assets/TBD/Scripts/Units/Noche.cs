@@ -170,6 +170,19 @@ namespace TBD.Units
                 if (Dist2(z.X, z.Y, b) <= r2) atTrain++;
             }
         }
+        /// <summary>D-N181 (Lucía, 9-nov): como el de arriba, pero al edificio solo le cuenta quien lo tiene de objetivo: aimsStation(i) dice si el zombi i (índice en la lista)
+        /// va a por la estación. El que ataca a un soldado pegado a la fachada daña al soldado, no al edificio. El tren cuenta igual que siempre.</summary>
+        public void CountAttackers(IList<Target> zombies, Func<int, bool> aimsStation, out int atStation, out int atTrain)
+        {
+            atStation = atTrain = 0; if (zombies == null) return;
+            long r2 = (long)P.AttackReachMm * P.AttackReachMm; var a = P.StationRect; var b = P.TrainRect;
+            for (int i = 0; i < zombies.Count; i++)
+            {
+                var z = zombies[i];
+                if (Dist2(z.X, z.Y, a) <= r2 && (aimsStation == null || aimsStation(i))) atStation++;
+                if (Dist2(z.X, z.Y, b) <= r2) atTrain++;
+            }
+        }
         static long Dist2(int x, int y, RectMm r)
         {
             long dx = x < r.X0 ? r.X0 - x : x > r.X1 ? x - r.X1 : 0, dy = y < r.Y0 ? r.Y0 - y : y > r.Y1 ? y - r.Y1 : 0;
