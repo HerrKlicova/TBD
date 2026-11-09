@@ -16,6 +16,9 @@ namespace TBD.View
         bool _recintoModelos;                                     // true cuando el recinto de Teo está puesto: SyncWorks no dibuja cajas ni sprites de puerta
         readonly Dictionary<string, Material> _recintoMats = new Dictionary<string, Material>();
         readonly List<Transform> _recintoPuertas = new List<Transform>();
+        sealed class PiezaVista { public GameObject Go; public string Base; public int Estado; }
+        readonly List<PiezaVista> _recintoPiezas = new List<PiezaVista>(); float _recintoEstT;
+        static readonly string[] EstadoSufijo = { "_e0_Sano", "_e1_Danado", "_e2_MuyDanado", "_e3_Brecha" };
 
         void BuildRecintoSagunto(Transform parent)
         {
@@ -34,6 +37,7 @@ namespace TBD.View
                     var inst = RecintoModelo(ruta + "_LOD1", go.transform);
                     if (inst == null) { faltan++; Debug.LogWarning("[RECINTO] falta " + ruta); continue; }
                     inst.transform.position = new Vector3(Num(p, "x"), 0f, Num(p, "z"));
+                    if (ruta.EndsWith("_e0_Sano")) _recintoPiezas.Add(new PiezaVista { Go = inst, Base = ruta.Substring(0, ruta.Length - "_e0_Sano".Length), Estado = 0 });
                     inst.transform.rotation = Quaternion.Euler(0f, Num(p, "yaw"), 0f) * inst.transform.rotation;
                     float ex = Num(p, "escala_x");
                     if (ex != 0f && ex != 1f) { var sc = inst.transform.localScale; inst.transform.localScale = new Vector3(sc.x * ex, sc.y, sc.z); }
@@ -60,10 +64,36 @@ namespace TBD.View
             Debug.Log($"[RECINTO] Sagunto: {piezas} piezas y {puertas} puertas de Teo{(faltan > 0 ? $"; faltan {faltan}: se quedan las cajas" : "")}");
         }
 
+        /// <summary>Estados de daño del recinto de Teo (solo vista, cada 0,5 s): cada pieza toma el estado del tramo de muro de la vista (Tramos.cs) que la cubre
+        /// (Sano ≥ 70 %, Dañado ≥ 30 %, Muy dañado > 0, Brecha = abierto), con RecintoPlan.Estado. Las piezas sin tramo (lados sin vida propia) siguen sanas.</summary>
+        void UpdateRecintoEstados()
+        {
+            if (!_recintoModelos || _recintoPiezas.Count == 0 || _segs.Count == 0 || Time.unscaledTime - _recintoEstT < 0.5f) return;
+            _recintoEstT = Time.unscaledTime;
+            foreach (var pv in _recintoPiezas)
+            {
+                if (pv.Go == null) continue;
+                var pos = new Vector2(pv.Go.transform.position.x, pv.Go.transform.position.z); int est = -1;
+                foreach (var sg in _segs)
+                {
+                    if (sg.IsGate) continue;
+                    var ab = sg.B - sg.A; float l2 = ab.sqrMagnitude; float t = l2 < 1e-6f ? 0f : Mathf.Clamp01(Vector2.Dot(pos - sg.A, ab) / l2);
+                    if ((sg.A + ab * t - pos).sqrMagnitude > 1.5f * 1.5f) continue;
+                    est = sg.Open ? 3 : TBD.Net.RecintoPlan.Estado(sg.Max > 0f ? sg.Hp / sg.Max : 1f); break;
+                }
+                if (est < 0 || est == pv.Estado) continue;
+                var nuevo = RecintoModelo(pv.Base + EstadoSufijo[est] + "_LOD1", pv.Go.transform.parent);
+                if (nuevo == null) continue;
+                nuevo.transform.SetPositionAndRotation(pv.Go.transform.position, pv.Go.transform.rotation); nuevo.transform.localScale = pv.Go.transform.localScale;
+                Destroy(pv.Go); pv.Go = nuevo; pv.Estado = est;
+            }
+        }
+
         /// <summary>Cada fotograma (solo vista, no toca la simulación): cada puerta de Teo busca su pieza de puerta en Works por posición (a menos de 3 m)
         /// y gira las hojas según GateProg / GateSwapTicks. Rota (Broken) = brecha: las hojas se apagan (Teo, e3).</summary>
         void UpdateRecintoPuertas()
         {
+            UpdateRecintoEstados();
             if (!_recintoModelos || _recintoPuertas.Count == 0 || _zoneNode < 0 || NetSession.A == null) return;
             var pieces = NetSession.A.Works.At(_zoneNode); var p = NetSession.A.Works.P;
             if (pieces == null) return;
