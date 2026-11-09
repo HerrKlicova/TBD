@@ -61,7 +61,8 @@ namespace TBD.View
             {
                 long am = d * NetConst.DayTicks + NetConst.Hours(6), no = d * NetConst.DayTicks + NetConst.Hours(22);
                 if (_ultimoTickReloj < am && t >= am && d > 0) GuardarAmanecer();
-                if (_ultimoTickReloj < no && t >= no) { if (A.Speed > 1) Push(NetCmdType.SetSpeed, 1, 0); AvisoNoche = "22:00 · Cae la noche: la partida vuelve a velocidad ×1"; AvisoNocheHasta = Time.unscaledTime + 5f; Debug.Log("[TBD] " + AvisoNoche); }
+                if (false && _ultimoTickReloj < no && t >= no) { if (A.Speed > 1) Push(NetCmdType.SetSpeed, 1, 0);   // Nacho/Lucía: el ×1 va con el primer contacto de la horda, no a las 22:00 (pendiente de su señal)
+                    AvisoNoche = "22:00 · Cae la noche: la partida vuelve a velocidad ×1"; AvisoNocheHasta = Time.unscaledTime + 5f; Debug.Log("[TBD] " + AvisoNoche); }
             }
             _ultimoTickReloj = t;
         }
