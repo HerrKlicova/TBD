@@ -293,6 +293,7 @@ namespace TBD.View
             if (_netZone) BuildSaguntoAmbience();
             if (_netZone) BuildBrumaBorde();   // D-N182: la horda sale de la oscuridad del borde, no aparece a la vista
             if (TieneArg("-verbetera")) VerBetera();
+            if (ZonaBetera.Activa || TieneArg("-zonabetera")) MontarBetera();   // F0 (Marcos): Bétera como zona de juego, con los NH90 seleccionables
             if (TieneArg("-vernules")) { var rn = new GameObject("Zona de Nules propia (prueba de vista)").transform; rn.position = new Vector3(2000f, 0f, 600f); NulesZona.Montar(rn); _focus = rn.position + new Vector3(NulesZona.ZonaW * 0.5f, 0f, NulesZona.ZonaD * 0.5f); _targetOrtho = 60f; }   // Bruno 09-11: Nules con sus piezas (detrás de la F0)   // Bruno 09-11 (F0): prueba de vista de la zona de Bétera, sin sim, a 2 km al este de Sagunto
         }
 
@@ -500,6 +501,7 @@ namespace TBD.View
             UpdateGroundStreaming();
             UpdateVegLod();
             HandleInput();
+            UpdateBetera(); UpdateSeleccionTren();
             if (_betera != null) AerodromoZona.CubiertaPorCamara(_betera, _orthoSize);
             if (NightRun.Active && !_nightInit && _zoneNode >= 0 && _worldA != null && _worldA.IsCreated && !_cutting) InitNight();
             if (_nightOn) NightUpdate();
@@ -692,7 +694,7 @@ namespace TBD.View
                     // D-N70: el delta de la rueda en el Input System son pixeles (+-120 por muesca en Windows, +-1 en el Editor y otros). Antes se dividia siempre entre 120:
                     // en el Editor cada muesca valia 0,1 % y «no funcionaba». Ahora se normaliza a muescas (>=10 -> /120) y cada una da un salto del 15 %, suavizado por el lerp (~0,15 s).
                     float notches = Mathf.Clamp(s / (Mathf.Abs(s) >= 10f ? 120f : 1f), -3f, 3f);
-                    if (notches < 0f && _targetOrtho >= 69.5f && _zoneNode >= 0)   // de noche no se sale al mapa con la rueda: reiniciaba la partida (Eugenio, 7-nov)
+                    if (notches < 0f && _targetOrtho >= OrthoMax - 0.5f && _zoneNode >= 0)   // F0: también de noche (tope 35 con la bruma); la noche se guarda y sigue (D-N91)   // de noche no se sale al mapa con la rueda: reiniciaba la partida (Eugenio, 7-nov)
                     {
                         // en el tope de 70: la primera muesca de mas avisa junto al cursor; la segunda, en menos de 0,6 s, sale al mapa (con el fundido que ya hay)
                         if (Time.unscaledTime - _outNotchAt < 0.6f && _outNotchAt > 0f) { _outNotchAt = 0f; _outHintUntil = 0f; LeaveToMap(); }
@@ -1313,6 +1315,7 @@ namespace TBD.View
 
         void OnGUI()
         {
+            GuiBetera();
             BuildOverlay();
             if (_nightOn) NightGUI();
             if (_nightOn && !_debugHud) { NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart); return; }
