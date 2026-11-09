@@ -746,6 +746,7 @@ namespace TBD.View
         static readonly bool DepuracionMapa = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-depuracion") >= 0;
         // ---------------------------------------------------------------- Lucía (ed7f0ae): estaciones en el mapa (se quita el verde)
         static Texture2D _disco, _anillo;
+        static readonly Color CFondoRotulo = new Color(0.059f, 0.071f, 0.047f, 0.88f);   // D-N185: fondo de los rótulos con -ui3 (0f120c al 88 %)
         static Texture2D Circulo(bool lleno) { const int n = 64; var t = new Texture2D(n, n, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear }; float c = (n - 1) * 0.5f, r = n * 0.5f - 1f; for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) { float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)); float a = lleno ? Mathf.Clamp01(r - d + 0.5f) : Mathf.Clamp01(1f - Mathf.Abs(d - (r - 3f)) / 2.5f); t.SetPixel(x, y, new Color(1, 1, 1, a)); } t.Apply(); return t; }
         static readonly Color CHueso = new Color32(0xd4, 0xd0, 0xcc, 0xff), COscuro = new Color32(0x1c, 0x20, 0x0c, 0xff), CAmbar = new Color32(0xe0, 0x8c, 0x30, 0xff), CRojo = new Color32(0x98, 0x24, 0x20, 0xff), CGris = new Color32(0xb8, 0xb8, 0xb8, 0x80);
         static void Dibuja(Texture2D t, Rect r, Color c) { var o = GUI.color; GUI.color = c; GUI.DrawTexture(r, t); GUI.color = o; }
@@ -766,9 +767,11 @@ namespace TBD.View
             if (propia && Atacada(n) && Mathf.Repeat(Time.unscaledTime, 1f) < 0.6f) Dibuja(_anillo, R(px * 2.1f), CRojo);   // atacada: anillo rojo que parpadea
             var mp = Event.current.mousePosition; bool encima = (mp - c).magnitude < Mathf.Max(px, 14f);
             string nombre = cerco ? nd.Name + " · cercada" : propia ? nd.Name + " · " + PelotonesEn(nd) : nd.Name;
+            if (Ui3.Activa) _rotulos.Add(R(px));      // D-N185: los rótulos tampoco pisan el disco de la estación
             if (importante || encima)
             {
                 var lr = SinPisar(new Rect(c.x + px * 0.5f + 4f, c.y - _small.fontSize * 0.7f, _small.CalcSize(new GUIContent(nombre)).x + 4f, _small.fontSize * 1.4f));
+                if (Ui3.Activa) Dibuja(Texture2D.whiteTexture, new Rect(lr.x - 3f, lr.y, lr.width + 6f, lr.height), CFondoRotulo);   // D-N185: rótulo sobre fondo, que se lea encima del terreno
                 GUI.Label(lr, nombre, _small);
                 if (perdida) Dibuja(Texture2D.whiteTexture, new Rect(lr.x, lr.y + lr.height * 0.5f, lr.width - 4f, 1.5f), CRojo);   // tachado
             }
@@ -806,6 +809,7 @@ namespace TBD.View
         }
         readonly List<Rect> _rotulos = new List<Rect>();
         /// <summary>Baja el rótulo hasta que no pisa a otro de este fotograma (S3 de Eugenio: «12Costaña», Caminreal y Calamocha).</summary>
+        float _altoAvisos;      // D-N185: alto del panel de avisos del fotograma anterior (con -ui3)
         Rect SinPisar(Rect r) { for (int k = 0; k < 6; k++) { bool pisa = false; foreach (var o in _rotulos) if (o.Overlaps(r)) { pisa = true; break; } if (!pisa) break; r.y += r.height; } _rotulos.Add(r); return r; }
         void OnGUI()
         {
@@ -819,7 +823,7 @@ namespace TBD.View
                 if (sp.z <= 0) continue;
                 MarcaEstacion(n, sp);      // Lucía (ed7f0ae): propias, cercada, atacada, perdida y el resto
             }
-            DrawApp6();                                              // D-N160: símbolos APP-6 de cada estación (OperationsMap3D.InformeApp6.cs)
+            if (!Ui3.Activa) DrawApp6();                             // D-N160: símbolos APP-6 de cada estación; D-N185: con -ui3 el APP-6 solo va en el informe (Tab)
             for (int i = 0; i < _trains.Count; i++)
             {
                 var sp = _cam.WorldToScreenPoint(_trains[i].position + Vector3.up * 0.8f * Mathf.Clamp(_dist / 230f, 0.0015f, 2f));
@@ -830,7 +834,15 @@ namespace TBD.View
                 if (Ui3.Activa && tn != "bajo_ataque")      // D-N185: siluetas de Bruno (IconosMapa); el tren bajo ataque sigue con su icono rojo
                     GUI.DrawTexture(new Rect(sp.x - tp * 0.5f, Screen.height - sp.y - tp * 1.6f, tp, tp), IconosMapa.Textura(tn == "en_marcha" ? IconosMapa.Icono.TrenMarcha : IconosMapa.Icono.TrenParado, tp >= 24 ? 32 : 16));
                 else DrawIcon(new Rect(sp.x - tp * 0.5f, Screen.height - sp.y - tp * 1.6f, tp, tp), "trenes/vm_tren_" + tn + "_32");
-                { string tl = "<b><color=#FFF0A0>" + _a.Services[i].Train.Name + "</color></b>"; GUI.Label(SinPisar(new Rect(sp.x - 30, Screen.height - sp.y - 26 - _small.fontSize * 0.8f, _small.CalcSize(new GUIContent(tl)).x + 4f, _small.fontSize * 1.4f)), tl, _small); }
+                if (Ui3.Activa)      // D-N185: nombre del tren a la derecha del icono, sobre fondo y en hueso; si choca con otro rótulo, baja (1 Costa y 2 Montaña en Sagunto)
+                {
+                    string tl = "<b>" + _a.Services[i].Train.Name + "</b>";
+                    var ic = new Rect(sp.x - tp * 0.5f, Screen.height - sp.y - tp * 1.6f, tp, tp);
+                    var trr = SinPisar(new Rect(ic.xMax + 4f, ic.center.y - _small.fontSize * 0.7f, _small.CalcSize(new GUIContent(tl)).x + 10f, _small.fontSize * 1.4f));
+                    Dibuja(Texture2D.whiteTexture, trr, CFondoRotulo);
+                    GUI.Label(new Rect(trr.x + 5f, trr.y, trr.width, trr.height), tl, _small);
+                }
+                else { string tl = "<b><color=#FFF0A0>" + _a.Services[i].Train.Name + "</color></b>"; GUI.Label(SinPisar(new Rect(sp.x - 30, Screen.height - sp.y - 26 - _small.fontSize * 0.8f, _small.CalcSize(new GUIContent(tl)).x + 4f, _small.fontSize * 1.4f)), tl, _small); }
                 string se = tn == "bajo_ataque" ? null : Puertas.SinEscolta(_a, i);       // D-N177: ámbar en el icono; el rojo es solo el de bajo ataque
                 if (se != null) GUI.Label(new Rect(sp.x - 30, Screen.height - sp.y - 26 + _small.fontSize * 1.2f, 260, _small.fontSize * 2.2f), "<color=#E08C30>" + se + "</color>", _small);
             }
@@ -843,9 +855,9 @@ namespace TBD.View
                 return;
             }
             float pw = Mathf.Min(460, Screen.width * 0.38f);
-            float h = _small.fontSize * 14f;
+            float h = Ui3.Activa ? _altoAvisos : _small.fontSize * 14f;   // D-N185: con -ui3 el panel mide lo que lleva dentro (alto del fotograma anterior) y sin avisos no sale
             float top = Ui3.Activa ? 64f : 8f;                       // D-N185: con -ui3 el día, la hora y la velocidad van en la franja de arriba (Ui3.cs)
-            GUI.Box(new Rect(8, top, pw, h), GUIContent.none, _panel);
+            if (!Ui3.Activa || h > 1f) GUI.Box(new Rect(8, top, pw, h), GUIContent.none, _panel);
             float y = top + 6;
             string speed = _a.Paused ? "<color=#E8C040>PAUSA</color>" : "x" + _a.Speed;
             if (!Ui3.Activa) { GUI.Label(new Rect(16, y, pw, 40), $"Día {_a.Tick / NetConst.DayTicks + 1} · {NetConst.Clock(_a.Tick)} · {speed}", _title); y += _title.fontSize * 1.6f; }
@@ -916,7 +928,8 @@ namespace TBD.View
                 DrawIcon(new Rect(20, y - 2, ap, ap), "alertas/vm_alertas_" + AlertIcon(al.Kind) + "_16");
                 GUI.Label(new Rect(20 + ap + 6, y, pw - 20 - ap, 30), $"<color={col}>{al.Text}</color>", _small); y += Mathf.Max(_small.fontSize * 1.5f, ap + 4);
             }
-            if (_a.Alerts.Count == 0) { GUI.Label(new Rect(20, y, pw, 30), "<color=#808080>sin alertas</color>", _small); }
+            if (Ui3.Activa) _altoAvisos = y > top + 7f ? y - top + 6f : 0f;
+            else if (_a.Alerts.Count == 0) { GUI.Label(new Rect(20, y, pw, 30), "<color=#808080>sin alertas</color>", _small); }
             DrawCargo(pw);
             if (!Ui3.Activa) DrawIntel();                             // D-N185: con -ui3 el informe se abre con Tab (franja de arriba)
             if (!Ui3.Activa) GUI.Label(new Rect(16, Screen.height - _small.fontSize * 2.4f, Screen.width, 30),

@@ -226,6 +226,7 @@ namespace TBD.View
         int _destinoP = -1; bool _sinApoyo, _sinCarga;
         readonly DobleClic _dobleClic = new DobleClic(); readonly SeguirTren _seguir = new SeguirTren();
         GUIStyle _t, _s, _b, _bOff; Texture2D _panel, _btn, _btnHot, _btnOff; int _sh;
+        GUIStyle _bSel, _h; string _motivo;      // D-N185 (-ui3): elegido con marco hueso, cabeceras condensadas y el motivo de lo que no se puede
         static readonly Color Bone = new Color32(0xd4, 0xd0, 0xcc, 255), Ink = new Color32(0x1c, 0x20, 0x0c, 255);
         static readonly string[] ResNombre = { "Munición", "Combustible", "Materiales", "Personas", "Víveres" };   // D-N176: los víveres son el 5.º recurso de la red (Res.Viveres = 4, nacho/sombra-reloj)
 
@@ -362,7 +363,46 @@ namespace TBD.View
             _b.normal.background = _btn; _b.hover.background = _btnHot; _b.active.background = _btnHot; _b.focused.background = _btn;
             _b.normal.textColor = Bone; _b.hover.textColor = Ink; _b.active.textColor = Ink; _b.focused.textColor = Bone;
             _bOff = new GUIStyle(_b); _bOff.normal.background = _btnOff; _bOff.hover.background = _btnOff; _bOff.active.background = _btnOff; _bOff.normal.textColor = _bOff.hover.textColor = _bOff.active.textColor = new Color(0.5f, 0.5f, 0.46f);
+            _bSel = _b; _h = _s;
+            if (Ui3.Activa) EstiloUi3(u);
         }
+
+        // ---------------------------------------------------------------- D-N185: estilo de la interfaz v3 (solo con -ui3)
+        static Texture2D TexBorde(Color fondo, Color borde, int bw)
+        {
+            const int n = 8; var t = new Texture2D(n, n) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) t.SetPixel(x, y, x < bw || y < bw || x >= n - bw || y >= n - bw ? borde : fondo);
+            t.Apply(); return t;
+        }
+
+        void EstiloUi3(int u)
+        {
+            var fTxt = Resources.Load<Font>("UI3/Fuentes/Barlow-Regular"); var fTit = Resources.Load<Font>("UI3/Fuentes/BarlowCondensed-Bold"); var fBtn = Resources.Load<Font>("UI3/Fuentes/BarlowCondensed-SemiBold");
+            Color elev = new Color32(24, 29, 18, 255), linea = new Color32(56, 64, 48, 255), linea2 = new Color32(86, 96, 74, 255), apagado = new Color32(109, 107, 98, 255);
+            _panel = Tex(new Color(0.059f, 0.071f, 0.047f, 0.95f));
+            if (fTit != null) _t.font = fTit; _t.fontStyle = FontStyle.Normal; _t.fontSize = Mathf.RoundToInt(u * 1.7f);
+            if (fTxt != null) _s.font = fTxt;
+            if (fBtn != null) _b.font = fBtn; _b.fontStyle = FontStyle.Normal; _b.fontSize = Mathf.RoundToInt(u * 1.3f);
+            _b.border = new RectOffset(1, 1, 1, 1);
+            _b.normal.background = _b.focused.background = TexBorde(elev, linea2, 1);
+            _b.hover.background = TexBorde(elev, Bone, 1); _b.active.background = TexBorde(new Color(0.04f, 0.05f, 0.03f, 1f), Bone, 1);
+            _b.normal.textColor = _b.focused.textColor = _b.hover.textColor = _b.active.textColor = Bone;
+            _bSel = new GUIStyle(_b) { border = new RectOffset(2, 2, 2, 2) };
+            _bSel.normal.background = _bSel.hover.background = _bSel.focused.background = _bSel.active.background = TexBorde(new Color32(43, 47, 37, 255), Bone, 2);
+            _bOff = new GUIStyle(_b);
+            _bOff.normal.background = _bOff.hover.background = _bOff.active.background = _bOff.focused.background = TexBorde(new Color(0f, 0f, 0f, 0f), linea, 1);
+            _bOff.normal.textColor = _bOff.hover.textColor = _bOff.active.textColor = _bOff.focused.textColor = apagado;
+            _h = new GUIStyle(_s) { fontStyle = FontStyle.Normal, fontSize = Mathf.RoundToInt(u * 1.3f) }; if (fBtn != null) _h.font = fBtn;
+        }
+
+        /// <summary>Cabecera de sección: con -ui3, «CARGA   25 de 400 u libres» (condensada, el dato en tenue); sin ella, como antes.</summary>
+        static string Cab(string titulo, string dato) { return Ui3.Activa ? titulo.ToUpperInvariant() + "   <color=#a19e92>" + dato + "</color>" : "<b>" + titulo + "</b>  (" + dato + ")"; }
+
+        /// <summary>Texto del botón de una unidad: con -ui3 el estado va en palabras («· a bordo», «· subiendo…»); sin ella, con ✓ y … delante.</summary>
+        static string TxtUnidad(string nombre, bool abordo, bool enCola, string cola) { return Ui3.Activa ? nombre + (abordo ? " · a bordo" : enCola ? " · " + cola : "") : (abordo ? "✓ " : enCola ? "… " : "") + nombre; }
+
+        /// <summary>Con -ui3, si el ratón está sobre un botón apagado, guarda por qué no se puede (se pinta debajo de la rejilla).</summary>
+        void Motivo(Rect r, bool apagado, string porQue) { if (Ui3.Activa && apagado && porQue != null && r.Contains(Event.current.mousePosition)) _motivo = porQue; }
 
         static Rect NodoRect(int id)
         {
@@ -375,10 +415,10 @@ namespace TBD.View
             return r.xMax < 0 || r.yMax < 0 || r.x > Screen.width || r.y > Screen.height ? Rect.zero : r;     // fuera de pantalla: como si no estuviera
         }
 
-        bool Boton(Rect r, string txt, bool on = true, string resalte = null)
+        bool Boton(Rect r, string txt, bool on = true, string resalte = null, bool elegido = false)
         {
             if (resalte != null) TutorialHud.Objetivo(resalte, r);
-            return GUI.Button(r, txt, on ? _b : _bOff) && on;
+            return GUI.Button(r, txt, !on ? _bOff : elegido ? _bSel : _b) && on;
         }
 
         string NombrePeloton(int id)
@@ -484,7 +524,7 @@ namespace TBD.View
             if (casa) { for (int k = 0; k < NightRun.Vehs.Count; k++) { var vi = NightRun.Vehs[k]; if (vi != null && vi.Vivo && vi.Tipo != "helicoptero" && (!vi.Embarcado || aBordoV.Contains(k) || Embarque.EnCola(PasajeroTipo.Vehiculo, k))) vehs.Add(k); } }
             else { vehs.AddRange(W.Embarque.AtStation(org, PasajeroTipo.Vehiculo)); foreach (var id in aBordoV) if (!vehs.Contains(id)) vehs.Add(id); }
             int filasP = Mathf.Max(1, (pels.Count + 1) / 2), filasV = (vehs.Count + 2) / 2;
-            float h = u * 3.4f + lh * (NetConst.ResCount + 2.4f) + lh * (filasP + 1.2f) + lh * (filasV + 1.2f) + lh * 2.1f + lh * 1.5f;
+            float h = u * 3.4f + lh * (NetConst.ResCount + 2.4f) + lh * (filasP + 1.2f) + lh * (filasV + 1.2f) + lh * 2.1f + lh * 1.5f + (Ui3.Activa ? lh * 1.8f : 0f);   // -ui3: una línea por rejilla para el motivo
             var r = new Rect(x, y, w, h); GUI.DrawTexture(r, _panel);
             float yy = y + u * 0.6f, x0 = x + u * 0.8f, ww = w - u * 1.6f;
             GUI.Label(new Rect(x0, yy, ww, u * 2.4f), $"Preparar tren · {W.Services[sv].Train.Name} · {W.Graph.Nodes[org].Name}", _t);
@@ -492,7 +532,7 @@ namespace TBD.View
             yy += u * 2.8f;
             // carga
             int total = 0; foreach (var c in _carga) total += c;
-            GUI.Label(new Rect(x0, yy, ww, lh), $"<b>Carga</b>  ({total} de {TrenPreparar.Hueco(W, sv)} u libres)", _s); yy += lh;
+            GUI.Label(new Rect(x0, yy, ww, lh), Cab("Carga", $"{total} de {TrenPreparar.Hueco(W, sv)} u libres"), _h); yy += lh;
             var cargaR = new Rect(x0, yy, ww, lh * (NetConst.ResCount + 1)); TutorialHud.Objetivo(TutorialGuion.Resaltes.Cargas, cargaR);
             for (int res = 0; res < NetConst.ResCount; res++)
             {
@@ -504,10 +544,11 @@ namespace TBD.View
                 if (Boton(new Rect(x0 + ww * 0.56f + lh * 2.9f, yy, lh * 1.3f, lh * 0.9f), "+10")) Cargar(res, 10);
                 yy += lh;
             }
-            if (Boton(new Rect(x0, yy, ww * 0.5f, lh * 0.9f), (_sinCarga ? "✓ " : "") + "Sin carga", total == 0)) { _sinCarga = true; TutorialHud.Senal(TutorialGuion.Senales.SinCarga); }
+            if (Boton(new Rect(x0, yy, ww * 0.5f, lh * 0.9f), Ui3.Activa ? "Sin carga" : (_sinCarga ? "✓ " : "") + "Sin carga", total == 0, null, _sinCarga && total == 0)) { _sinCarga = true; TutorialHud.Senal(TutorialGuion.Senales.SinCarga); }
             yy += lh * 1.4f;
             // tropa
-            GUI.Label(new Rect(x0, yy, ww, lh), $"<b>Tropa</b>  (vagones de tropa: {EmbarqueState.PelotonesPorTren}; 10 s por pelotón)" + (Embarque.Ocupado ? "  <color=#a8a49c>· subiendo…</color>" : ""), _s); yy += lh;
+            _motivo = null;
+            GUI.Label(new Rect(x0, yy, ww, lh), Cab("Tropa", $"vagones de tropa: {EmbarqueState.PelotonesPorTren}; 10 s por pelotón") + (Embarque.Ocupado ? "  <color=#a8a49c>· subiendo…</color>" : ""), _h); yy += lh;
             var tropaR = new Rect(x0, yy, ww, lh * filasP); TutorialHud.Objetivo(TutorialGuion.Resaltes.ListaUnidades, tropaR);
             if (pels.Count == 0) GUI.Label(new Rect(x0, yy + u * 0.3f, ww, lh), $"<color=#a8a49c>Sin pelotones disponibles en {W.Graph.Nodes[org].Name}</color>", _s);
             for (int i = 0; i < pels.Count; i++)
@@ -515,20 +556,23 @@ namespace TBD.View
                 int id = pels[i];
                 bool abordo = aBordoP.Contains(id), subiendo = Embarque.EnCola(PasajeroTipo.Peloton, id); bool puede = Embarque.PorQueNo(sv, PasajeroTipo.Peloton, id, org) == null;
                 var br = new Rect(x0 + (i % 2) * (ww * 0.5f + 2), yy + (i / 2) * lh, ww * 0.5f - 2, lh * 0.9f);
-                if (Boton(br, (abordo ? "✓ " : subiendo ? "… " : "") + NombrePeloton(id), abordo || subiendo || puede))
+                Motivo(br, !(abordo || subiendo || puede), Embarque.PorQueNo(sv, PasajeroTipo.Peloton, id, org));
+                if (Boton(br, TxtUnidad(NombrePeloton(id), abordo, subiendo, "subiendo…"), abordo || subiendo || puede, null, abordo || subiendo))
                 { if (!abordo && !subiendo) { Embarque.Subir(sv, PasajeroTipo.Peloton, id, org); TutorialHud.Senal(TutorialGuion.Senales.PelotonABordo); TutorialHud.Viaje.EscoltaPuesta(); } }
             }
             yy += lh * filasP + lh * 0.2f;
+            if (Ui3.Activa) { if (_motivo != null) GUI.Label(new Rect(x0, yy - lh * 0.1f, ww, lh), "<color=#e08c30>No se puede: " + _motivo + "</color>", _s); _motivo = null; yy += lh * 0.9f; }
             // apoyo terrestre
-            GUI.Label(new Rect(x0, yy, ww, lh), $"<b>Apoyo terrestre</b>  (plataformas: {EmbarqueState.VehiculosPorTren}; 20 s)", _s); yy += lh;
+            GUI.Label(new Rect(x0, yy, ww, lh), Cab(Ui3.Activa ? "Escolta" : "Apoyo terrestre", $"plataformas: {EmbarqueState.VehiculosPorTren}; 20 s"), _h); yy += lh;
             var vehR = new Rect(x0, yy, ww, lh * filasV); TutorialHud.Objetivo(TutorialGuion.Resaltes.ListaVehiculos, vehR);
             for (int i = 0; i <= vehs.Count; i++)
             {
                 var br = new Rect(x0 + (i % 2) * (ww * 0.5f + 2), yy + (i / 2) * lh, ww * 0.5f - 2, lh * 0.9f);
-                if (i == vehs.Count) { if (Boton(br, (_sinApoyo ? "✓ " : "") + "Sin apoyo", aBordoV.Count == 0 && !Embarque.Ocupado)) { _sinApoyo = true; TutorialHud.Senal(TutorialGuion.Senales.SinApoyo); } break; }
+                if (i == vehs.Count) { if (Boton(br, Ui3.Activa ? "Sin escolta" : (_sinApoyo ? "✓ " : "") + "Sin apoyo", aBordoV.Count == 0 && !Embarque.Ocupado, null, _sinApoyo && aBordoV.Count == 0)) { _sinApoyo = true; TutorialHud.Senal(TutorialGuion.Senales.SinApoyo); } break; }
                 int vi = vehs[i];
                 bool abordo = aBordoV.Contains(vi), cargando = Embarque.EnCola(PasajeroTipo.Vehiculo, vi); bool puede = Embarque.PorQueNo(sv, PasajeroTipo.Vehiculo, vi, org) == null;
-                if (Boton(br, (abordo ? "✓ " : cargando ? "… " : "") + NombreVeh(vi), abordo || cargando || puede))
+                Motivo(br, !(abordo || cargando || puede), Embarque.PorQueNo(sv, PasajeroTipo.Vehiculo, vi, org));
+                if (Boton(br, TxtUnidad(NombreVeh(vi), abordo, cargando, "cargando…"), abordo || cargando || puede, null, abordo || cargando))
                 {
                     if (!abordo && !cargando)
                     {
@@ -538,6 +582,7 @@ namespace TBD.View
                 }
             }
             yy += lh * filasV + lh * 0.2f;
+            if (Ui3.Activa) { if (_motivo != null) GUI.Label(new Rect(x0, yy - lh * 0.1f, ww, lh), "<color=#e08c30>No se puede: " + _motivo + "</color>", _s); _motivo = null; yy += lh * 0.9f; }
             // F0 del núcleo: el destino ya no se elige aquí; el tren queda seleccionado y se manda con clic derecho en la estación de destino (OrdenesMapa).
             // El tutorial (capítulos 3 y 4) aún usa el panel entero hasta que Lucía reescriba sus pasos.
             if (!TutorialHud.Activo) { if (OrdenesMapa.Tipo != OrdenesMapa.Sel.Tren || OrdenesMapa.Id != sv) OrdenesMapa.Seleccionar(OrdenesMapa.Sel.Tren, sv, "Preparar tren"); GUI.Label(new Rect(x0, yy, ww, lh * 2f), "<b>Tren seleccionado.</b> Carga lo que quieras y haz <b>clic derecho</b> en la estación de destino del mapa.", _s); return; }
