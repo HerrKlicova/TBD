@@ -4,7 +4,9 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Rendering;
+using Unity.Transforms;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace TBD.View
 {
@@ -18,6 +20,11 @@ namespace TBD.View
     /// y cambia de altura como mucho una vez por segundo. Semilla = índice de celda % 3. Remates en los dos extremos de cada tramo seguido.
     /// Los zombis de una celda con pila se dejan de dibujar (DisableRendering) y vuelven a verse cuando la celda se vacía.
     /// Mallas en Resources/Models/PilaZombis/ (celda/, remate/, colision/). Si faltan, el sistema no hace nada.
+    /// DIBUJO INSTANCIADO (Lucía, 09-11: el riesgo son las llamadas de dibujo): cada pieza es una entidad de Entities Graphics, como los zombis,
+    /// con un solo RenderMeshArray (material TBD/Horda y las 45 mallas) y el tono por celda en ZombiePaleta (_HordaPack, DOTS instancing del shader).
+    /// Así se agrupan por malla en lotes de BRG con SRP Batcher: como mucho una llamada por malla visible (15 de celda + 30 de remate) y por pasada,
+    /// en vez de una por pieza (antes, GameObject con MeshRenderer y MaterialPropertyBlock, que saca al renderer del SRP Batcher).
+    /// La colisión sigue en un GameObject sin renderer (MeshCollider), que es además la clave de la pieza.
     /// </summary>
     [UpdateInGroup(typeof(PresentationSystemGroup))]
     public partial class PilaZombisSystem : SystemBase
@@ -35,6 +42,9 @@ namespace TBD.View
         bool _cargado, _falta;
         float _t;
         Transform _raiz;
+        RenderMeshArray _rma;
+        readonly Dictionary<Mesh, int> _indice = new Dictionary<Mesh, int>();
+        readonly Dictionary<GameObject, Entity> _ent = new Dictionary<GameObject, Entity>();
 
         public static bool Activa = true;       // -sinpila la apaga (para comparar en captura)
         public static float EscalaAlto = 1f;    // alto y fondo de la pieza; las piezas vienen a escala real
@@ -72,6 +82,10 @@ namespace TBD.View
                 _cIzq[h, 0] = Cargar($"colision/SM_PilaZombi_RemateIzq_Altura{h}_COL");
                 _cDer[h, 0] = Cargar($"colision/SM_PilaZombi_RemateDer_Altura{h}_COL");
             }
+            var mallas = new List<Mesh>();
+            foreach (var arr in new[] { _mCelda, _mIzq, _mDer })
+                foreach (var m in arr) if (m != null && !_indice.ContainsKey(m)) { _indice[m] = mallas.Count; mallas.Add(m); }
+            _rma = new RenderMeshArray(new[] { RenderAssets.Materials[0] }, mallas.ToArray());
             _raiz = new GameObject("Pila de zombis").transform;
             Debug.Log("[Pila] mallas de la pila cargadas (5 alturas x 3 semillas, con remates)");
             return true;
@@ -152,7 +166,7 @@ namespace TBD.View
                 if (objetivo == 0 && st.Altura > 0 && n >= 2) objetivo = st.Altura;    // no se deshace hasta bajar de 2
                 if (objetivo == st.Altura) continue;
                 if (st.Pieza != null && ahora - st.Ultimo < CambioMin) continue;      // como mucho un cambio por segundo
-                if (st.Pieza != null) Object.Destroy(st.Pieza);
+                if (st.Pieza != null) Quitar(st.Pieza);
                 st.Pieza = null;
                 st.Altura = objetivo; st.Ultimo = ahora;
                 if (objetivo > 0)
@@ -167,7 +181,7 @@ namespace TBD.View
             // 3) Remates en los extremos de cada tramo seguido de celdas con pila (se rehacen solo si algo ha cambiado).
             if (cambio)
             {
-                foreach (var g in _remates) if (g != null) Object.Destroy(g);
+                foreach (var g in _remates) if (g != null) Quitar(g);
                 _remates.Clear();
                 foreach (var kv in _celdas)
                 {
@@ -198,23 +212,38 @@ namespace TBD.View
             go.transform.SetParent(_raiz, false);
             go.transform.position = new Vector3(p.x, 0f, p.y);
             // Teo: el muro corre por +X local y FUERA es −Z local. Con yaw θ de Unity, +X local = (cos θ, 0, −sin θ).
-            go.transform.rotation = Quaternion.Euler(0f, math.degrees(math.atan2(-tr.U.y, tr.U.x)), 0f);
+            float yaw = math.atan2(-tr.U.y, tr.U.x);
+            go.transform.rotation = Quaternion.Euler(0f, math.degrees(yaw), 0f);
             go.transform.localScale = new Vector3(1f, EscalaAlto, EscalaAlto);   // a lo largo siempre 0,5 m (la celda); -pilaalto 1.3 la iguala a los sueltos a x1,3
-            go.AddComponent<MeshFilter>().sharedMesh = m;
-            var r = go.AddComponent<MeshRenderer>();
-            r.sharedMaterial = RenderAssets.Materials[0];
-            var mpb = new MaterialPropertyBlock();
-            mpb.SetVector("_HordaPack", HordaPaleta.Pack((uint)(ci * 7919 + (int)(tr.A.x * 13f) + (int)(tr.A.y * 31f))));
-            r.SetPropertyBlock(mpb);
-            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
             if (col != null && col[h, 0] != null) { var mc = go.AddComponent<MeshCollider>(); mc.sharedMesh = col[h, 0]; mc.convex = true; }
+
+            // dibujo: entidad instanciada (ver el resumen de la clase)
+            var em = EntityManager;
+            var e = em.CreateEntity();
+            var desc = new RenderMeshDescription(ShadowCastingMode.On, true);
+            RenderMeshUtility.AddComponents(e, em, desc, _rma, MaterialMeshInfo.FromRenderMeshArrayIndices(0, _indice[m]));
+            var lt = LocalTransform.FromPositionRotation(new float3(p.x, 0f, p.y), quaternion.RotateY(yaw));
+            var post = float4x4.Scale(1f, EscalaAlto, EscalaAlto);
+            em.AddComponentData(e, lt);
+            em.AddComponentData(e, new PostTransformMatrix { Value = post });
+            if (!em.HasComponent<LocalToWorld>(e)) em.AddComponentData(e, new LocalToWorld { Value = math.mul(lt.ToMatrix(), post) });
+            else em.SetComponentData(e, new LocalToWorld { Value = math.mul(lt.ToMatrix(), post) });
+            em.AddComponentData(e, new ZombiePaleta { Value = HordaPaleta.Pack((uint)(ci * 7919 + (int)(tr.A.x * 13f) + (int)(tr.A.y * 31f))) });
+            _ent[go] = e;
             return go;
+        }
+
+        /// <summary>Quita una pieza: su entidad de dibujo y su GameObject de colisión.</summary>
+        void Quitar(GameObject go)
+        {
+            if (_ent.TryGetValue(go, out var e)) { if (EntityManager.Exists(e)) EntityManager.DestroyEntity(e); _ent.Remove(go); }
+            Object.Destroy(go);
         }
 
         void Vaciar()
         {
-            foreach (var kv in _celdas) if (kv.Value.Pieza != null) Object.Destroy(kv.Value.Pieza);
-            foreach (var g in _remates) if (g != null) Object.Destroy(g);
+            foreach (var kv in _celdas) if (kv.Value.Pieza != null) Quitar(kv.Value.Pieza);
+            foreach (var g in _remates) if (g != null) Quitar(g);
             _celdas.Clear(); _remates.Clear();
             foreach (var e in _ocultos) if (EntityManager.Exists(e)) EntityManager.RemoveComponent<DisableRendering>(e);
             _ocultos.Clear();
@@ -222,6 +251,8 @@ namespace TBD.View
 
         protected override void OnDestroy()
         {
+            foreach (var kv in _ent) if (EntityManager.Exists(kv.Value)) EntityManager.DestroyEntity(kv.Value);
+            _ent.Clear();
             if (_raiz != null) Object.Destroy(_raiz.gameObject);
         }
     }
