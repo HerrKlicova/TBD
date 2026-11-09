@@ -383,6 +383,7 @@ namespace TBD.View
                         }
                         int tx, ty; int cg = ClimberTargets.Pick((int)(x * 1000f), (int)(y * 1000f), _cgMen, _cgVeh, _cgWork, NightSim.ClimberSeekMm, tr, out tx, out ty);
                         if (cg == 4 && !TrainReachableZona()) { var sr = _ng.P.StationRect; tx = System.Math.Max(sr.X0, System.Math.Min(sr.X1, (int)(x * 1000f))); ty = System.Math.Max(sr.Y0, System.Math.Min(sr.Y1, (int)(y * 1000f))); }   // D-N180 (2), como NightSim.RetargetClimber
+                        ClimberTargets.Rodeo((int)(x * 1000f), (int)(y * 1000f), _ng.P.StationRect, _ng.P.AttackReachMm, ref tx, ref ty);   // rodeo del edificio (Nacho, 9-nov; marcos/rodeo-edificio)
                         z.Goal = new float2(tx / 1000f, ty / 1000f); z.HasGoal = 1; zs[i] = z; dirty = true;
                     }
                     if (dirty) q.CopyFromComponentDataArray(zs);
