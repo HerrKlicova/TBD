@@ -287,6 +287,7 @@ namespace TBD.View
             _groupB = SimWorldSetup.CreateSystems(_worldB);
             _rootB = SimWorldSetup.Populate(_worldB.EntityManager, zombies, siege, seed, _combat, shots, hasTrain, kind, !_netZone, trainX);
             if (_netZone) BuildSaguntoAmbience();
+            if (_netZone) BuildBrumaBorde();   // D-N182: la horda sale de la oscuridad del borde, no aparece a la vista
         }
 
         void OnDestroy()
@@ -644,7 +645,7 @@ namespace TBD.View
             float dt = Time.unscaledDeltaTime;
             if (!_nightOn && kb.qKey.isPressed) _yaw -= 70f * dt;
             if (!_nightOn && kb.eKey.isPressed) _yaw += 70f * dt;
-            if (_nightOn) { if (kb.zKey.isPressed) _targetOrtho = Mathf.Max(6f, _targetOrtho * (1f - 1.2f * dt)); if (kb.xKey.isPressed) _targetOrtho = Mathf.Min(70f, _targetOrtho * (1f + 1.2f * dt)); }
+            if (_nightOn) { if (kb.zKey.isPressed) _targetOrtho = Mathf.Max(6f, _targetOrtho * (1f - 1.2f * dt)); if (kb.xKey.isPressed) _targetOrtho = Mathf.Min(OrthoMax, _targetOrtho * (1f + 1.2f * dt)); }
             if (kb.rKey.isPressed) _pitch = Mathf.Min(80f, _pitch + 40f * dt);
             if (kb.fKey.isPressed) _pitch = Mathf.Max(20f, _pitch - 40f * dt);
 
@@ -679,7 +680,7 @@ namespace TBD.View
                         if (Time.unscaledTime - _outNotchAt < 0.6f && _outNotchAt > 0f) { _outNotchAt = 0f; _outHintUntil = 0f; LeaveToMap(); }
                         else { _outNotchAt = Time.unscaledTime; _outHintUntil = Time.unscaledTime + 1.4f; _outHintPos = mouse.position.ReadValue(); }
                     }
-                    _targetOrtho = Mathf.Clamp(_targetOrtho * Mathf.Pow(0.85f, notches), 6f, 70f);
+                    _targetOrtho = Mathf.Clamp(_targetOrtho * Mathf.Pow(0.85f, notches), 6f, OrthoMax);
                     _zoomAtCursor = true; TutorialHud.Senal(TutorialGuion.Senales.RuedaUsada);
                 }
                 if (((mouse.rightButton.isPressed && !(NightRun.Active && (_sel.Count > 0 || _selVeh != null))) || (NightRun.Active && mouse.middleButton.isPressed)) && !_buildMode)   // de noche con unidades elegidas, el boton derecho dibuja el frente y la camara gira con el central
