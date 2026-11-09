@@ -22,7 +22,7 @@ namespace TBD.View
         static Ui3 _yo;
         UIDocument _doc;
         VisualElement _raiz, _franja, _ayuda, _leyenda, _objBloque;
-        Label _donde, _reloj, _objTitulo;
+        Label _donde, _reloj, _objTitulo, _objLbl;
         Label[] _vel;
         VisualElement _chkTropa, _chkMun;
         Label _txtTropa, _txtMun;
@@ -93,7 +93,7 @@ namespace TBD.View
             foreach (var v in _vel) seg.Add(v);
 
             _objBloque = E("blk", "blk-centro"); _franja.Add(_objBloque);
-            _objBloque.Add(L("OBJETIVO · DÍA 2", "lbl", "lbl-amb"));
+            _objLbl = L("OBJETIVO · DÍA 2", "lbl", "lbl-amb"); _objBloque.Add(_objLbl);
             _objTitulo = L("Defiende Nules", "titulo"); _objBloque.Add(_objTitulo);
             _chkTropa = Casilla("Un pelotón en Nules", out _txtTropa); _objBloque.Add(_chkTropa);
             _chkMun = Casilla("Munición en Nules: 0/20 u", out _txtMun); _objBloque.Add(_chkMun);
@@ -112,6 +112,7 @@ namespace TBD.View
             var cab = E("ley-cab"); _leyenda.Add(cab);
             cab.Add(L("LEYENDA", "lbl")); cab.Add(L("L", "tecla"));
             FilaLey("sim-disco", "Tu estación");
+            FilaLey("sim-grupo", "Varias tuyas juntas (pasa el ratón o acércate)"); _leyenda[_leyenda.childCount - 1][0][0].Add(L("3", "sim-grupo-n"));
             FilaLey("sim-aro-amb", "Cercada");
             FilaLey("sim-aro-rojo", "Bajo ataque (parpadea)");
             FilaLey("sim-otra", "Otra estación (no es tuya)");
@@ -173,9 +174,14 @@ namespace TBD.View
             // objetivo del día 2 v2 (mismos datos que el recuadro viejo de TutorialHud)
             int nul = TrenPreparar.Nodo(w, "Nules");
             bool dia2 = nul >= 0 && w.Tick >= ObjetivoDefensa.Desde && w.Tick < ObjetivoDefensa.Hasta && !w.NodeLost[nul];
-            Ver(_objBloque, dia2);
+            // D-N186: desde que empieza la 1.ª noche hasta el amanecer, la franja anuncia el objetivo que viene
+            bool antes = nul >= 0 && !dia2 && w.Tick >= ObjetivoDefensa.Hasta - NetConst.DayTicks && w.Tick < ObjetivoDefensa.Desde && !w.NodeLost[nul];
+            Ver(_objBloque, dia2 || antes);
+            Ver(_chkTropa, dia2); Ver(_chkMun, dia2);
+            if (antes) { _objLbl.text = "SIGUIENTE"; _objTitulo.text = "Defiende Nules (empieza al amanecer)"; }
             if (dia2)
             {
+                _objLbl.text = "OBJETIVO · DÍA 2";
                 int mun = w.Stock[nul, (int)Res.Municion]; bool tropa = w.ObjTroops;
                 _chkTropa.EnableInClassList("chk--ok", tropa);
                 _chkMun.EnableInClassList("chk--ok", mun >= ObjetivoDefensa.MunicionMin);
