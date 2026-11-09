@@ -124,7 +124,7 @@ namespace TBD.Sim.Tests
                 m4.Senal(TutorialGuion.Senales.VueltaZona);
                 check(m4.Actual.Id == "3.7" && !m4.Visible, "3.7 espera al tren");
                 m4.Senal(TutorialGuion.Senales.TrenEnSagunto);
-                check(m4.Visible && m4.Texto == "Sagunto está sitiada: el tren espera fuera de la puerta oeste. Baja la tropa.", "con el tren a las puertas sale el 3.7 (D-N175)");
+                check(m4.Visible && m4.Texto == "Sagunto está sitiada: el tren espera en la puerta este. Baja la tropa.", "con el tren a las puertas sale el 3.7 (D-N175)");
                 m4.Senal(TutorialGuion.Senales.TropaEnTierra); check(m4.Actual.Id == "3.8", "tropa en tierra: 3.8");
                 m4.Senal(TutorialGuion.Senales.OrdenAtacar); check(m4.Actual.Id == "3.8" && m4.TextoSinRelleno == "Llévalos al flanco sur y limpia el muro desde ahí.", "3.8 nuevo (Lucía): la orden sola no lo cierra");
                 m4.Senal(TutorialGuion.Senales.HordaCercaPeloton); check(m4.Actual.Id == "3.8b" && Array.IndexOf(m4.Resalta, TutorialGuion.Resaltes.Retirada) >= 0 && m4.TextoSinRelleno.StartsWith("La horda va a por ellos"), "zombi a 25 m del pelotón: la tarjeta cambia a la 3.8b con la flecha de retirada");

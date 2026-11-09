@@ -151,7 +151,7 @@ namespace TBD.Tutorial
             var p31b = T("3.1b", "La horda está en el muro. Sagunto sola no aguantará mucho. Nules, la estación de al lado, puede mandarte ayuda.", 4, Resaltes.Pila, Resaltes.AvisoPila);
             p31.Espera = p31b.Espera = Senales.Cap3Dispara;     // pila > 150 o 60 s desde el primer contacto, lo que ocurra antes (Lucía)
             p31.AltSi = Senales.Cap3PorTiempo; p31.Alt = p31b;  // si salta por tiempo, el 3.1b
-            var p37 = S("3.7", "Sagunto está sitiada: el tren espera fuera de la puerta oeste. Baja la tropa.", R(Resaltes.TrenAnden, Resaltes.BotonDescargar), Senales.TropaEnTierra, Senales.RefuerzosEnTierra);
+            var p37 = S("3.7", "Sagunto está sitiada: el tren espera en la puerta este. Baja la tropa.", R(Resaltes.TrenAnden, Resaltes.BotonDescargar), Senales.TropaEnTierra, Senales.RefuerzosEnTierra);
             p37.Espera = Senales.TrenEnSagunto;     // «Al llegar el tren»
             return new Capitulo
             {
