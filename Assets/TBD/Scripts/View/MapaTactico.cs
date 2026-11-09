@@ -165,7 +165,7 @@ namespace TBD.View
             return o;
         }
 
-        static readonly Color32 Horda = Hex(0x1c200c);
+        // D-N185: la horda oscura (1c200c) ya no se usa en el mapa; ahora va en Rojo (ver Mancha).
 
         /// <summary>
         /// La mancha de horda encima (sustituye al Lerp hacia 150,22,26). Lucía (8-nov), como el minimapa de la D-N147: la mancha va
@@ -176,8 +176,10 @@ namespace TBD.View
         {
             float a = Mathf.Clamp01((dens - 0.08f) * 1.6f) * 0.85f;
             if (a <= 0f) return baseC;
-            if (punto) return ataque ? Rojo : Horda;
-            return a * 16f > Bayer[y & 3, x & 3] ? (ataque ? Rojo : Horda) : baseC;
+            // D-N185 (Eugenio, 9-nov: «las hordas se representan en negro en vez de rojo en el mapa»; Lucía c550381): la horda va SIEMPRE
+            // en rojo 982420 tramado. Donde ataca, la mancha va llena (sin tramar) y la estación lleva su anillo rojo que parpadea.
+            if (punto || ataque) return Rojo;
+            return a * 16f > Bayer[y & 3, x & 3] ? Rojo : baseC;
         }
 
         /// <summary>

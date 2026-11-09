@@ -466,7 +466,7 @@ namespace TBD.View
                         var ev = Event.current; if (puede && ev.type == EventType.MouseDown && ev.button == 0) { _tarjetaObjCerrada = true; ev.Use(); Debug.Log("[TUTORIAL] tarjeta del objetivo cerrada"); }
                         if (puede && Auto) _tarjetaObjCerrada = true;
                     }
-                    if (dia2 && !TrenPanel.PanelAbierto)      // Eugenio (I-Noche110): con «Preparar tren» abierto no se pinta encima
+                    if (dia2 && !TrenPanel.PanelAbierto && !Ui3.Activa)      // Eugenio (I-Noche110): con «Preparar tren» abierto no se pinta encima; D-N185: con -ui3 va en la franja de arriba (Ui3.cs)
                     {
                         bool ok = tropa && mun >= ObjetivoDefensa.MunicionMin;
                         string l1 = (tropa ? "☑" : "☐") + " Un pelotón en Nules", l2 = (mun >= ObjetivoDefensa.MunicionMin ? "☑" : "☐") + $" Munición en Nules: {System.Math.Min(mun, 999)}/{ObjetivoDefensa.MunicionMin} u";

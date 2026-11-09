@@ -820,10 +820,11 @@ namespace TBD.View
             }
             float pw = Mathf.Min(460, Screen.width * 0.38f);
             float h = _small.fontSize * 14f;
-            GUI.Box(new Rect(8, 8, pw, h), GUIContent.none, _panel);
-            float y = 14;
+            float top = Ui3.Activa ? 64f : 8f;                       // D-N185: con -ui3 el día, la hora y la velocidad van en la franja de arriba (Ui3.cs)
+            GUI.Box(new Rect(8, top, pw, h), GUIContent.none, _panel);
+            float y = top + 6;
             string speed = _a.Paused ? "<color=#E8C040>PAUSA</color>" : "x" + _a.Speed;
-            GUI.Label(new Rect(16, y, pw, 40), $"Día {_a.Tick / NetConst.DayTicks + 1} · {NetConst.Clock(_a.Tick)} · {speed}", _title); y += _title.fontSize * 1.6f;
+            if (!Ui3.Activa) { GUI.Label(new Rect(16, y, pw, 40), $"Día {_a.Tick / NetConst.DayTicks + 1} · {NetConst.Clock(_a.Tick)} · {speed}", _title); y += _title.fontSize * 1.6f; }
             string sync = NetSession.Check ? (NetSession.Desync ? "<color=#E04030>DESINCRONIZACIÓN</color>" : "<color=#70C070>Desincronización: correcta</color>") : "<color=#999999>prueba apagada</color>";
             if (DepuracionMapa || NetSession.Desync) { GUI.Label(new Rect(16, y, pw, 30), sync + "  ·  <color=#B0A890>relieve de sustitución (no son datos reales)</color>", _small); y += _small.fontSize * 1.7f; }   // S3 (Eugenio): solo con -depuracion o si hay desincronización
             string scaleTxt = _dist >= 10 ? $"{_dist:0} km" : $"{_dist * 1000:0} m";
@@ -891,8 +892,8 @@ namespace TBD.View
             }
             if (_a.Alerts.Count == 0) { GUI.Label(new Rect(20, y, pw, 30), "<color=#808080>sin alertas</color>", _small); }
             DrawCargo(pw);
-            DrawIntel();
-            GUI.Label(new Rect(16, Screen.height - _small.fontSize * 2.4f, Screen.width, 30),
+            if (!Ui3.Activa) DrawIntel();                             // D-N185: con -ui3 el informe se abre con Tab (franja de arriba)
+            if (!Ui3.Activa) GUI.Label(new Rect(16, Screen.height - _small.fontSize * 2.4f, Screen.width, 30),
                 "WASD mover · Q E girar · R F inclinar · rueda zoom (a menos de 2 km de una estación se entra en la zona) · J ir a la alerta · Tab informe · I símbolos APP-6 · Espacio pausa · 1/2/3 velocidad · Intro entrar en la emboscada · F9 captura", _small);
             NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart);
         }
