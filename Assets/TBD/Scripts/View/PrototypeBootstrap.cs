@@ -999,6 +999,7 @@ namespace TBD.View
                     string n1 = r.name, n2 = r.transform.parent != null ? r.transform.parent.name : "";
                     foreach (var pr in pref) if (pr.Length > 0 && (n1.StartsWith(pr) || n2.StartsWith(pr))) { r.enabled = false; apagados++; break; }
                 }
+                if (System.Array.IndexOf(pref, "Trozo") >= 0 && _chunkRoot != null) _chunkRoot.gameObject.SetActive(false);   // los trozos de suelo se cargan después: se apaga la raíz
                 Debug.Log("[SOMBRA] -ocultar " + args[io + 1] + ": " + apagados + " renderers apagados");
             }
             var lp = LightmapSettings.lightProbes;
