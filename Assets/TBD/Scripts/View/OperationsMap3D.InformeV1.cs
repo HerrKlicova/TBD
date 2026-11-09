@@ -263,7 +263,7 @@ namespace TBD.View
             }
             foreach (var p in ased)                                                      // munición mínima ante el asedio (regla de Hugo, 08-11); en ámbar si falta (Lucía, 09-11)
             {
-                int min = InformeTextos.MunicionMinima(_a.SiegeZombies(p.Node));
+                int min = InformeTextos.MunicionMinima(_a.SiegeZombies(p.Node), g.Nodes[p.Node].Name);
                 long mun = _a.Stock[p.Node, (int)Res.Municion];
                 bool tropa = _a.ZoneDefended(p.Node);
                 if (tropa && mun >= min) continue;
@@ -463,10 +463,15 @@ namespace TBD.View
         public static readonly string[] Rumbos = { "al este", "al noreste", "al norte", "al noroeste", "al oeste", "al suroeste", "al sur", "al sureste" };
         public static string SinAl(string r) { return r != null && r.StartsWith("al ") ? r.Substring(3) : r; }
 
-        /// <summary>Munición mínima de una estación ante un asedio (regla de Hugo, 08-11): redondear hacia arriba (horda ÷ 400) + 2 u, con la horda del asedio
-        /// anunciado (SiegeZombies ya lleva la dificultad de la partida). Nules 2.400: 8 u; Sagunto normal 5.250: 16 u; difícil 5.700: 17 u.
-        /// Los 20 u de Nules de la D-N179 son el objetivo de diseño del día 2, no esta regla.</summary>
-        public static int MunicionMinima(int horda) { return horda <= 0 ? 2 : (horda + 399) / 400 + 2; }
+        /// <summary>Munición mínima de una estación ante un asedio (regla de Hugo, corregida el 09-11): redondear hacia arriba (horda ÷ eficacia) + 2 u,
+        /// con la horda del asedio anunciado (SiegeZombies ya lleva la dificultad). Eficacia en zombis por u: Sagunto 390, Nules 300, 300 en las estaciones sin medir.
+        /// Normal: Nules 2.400 → 10 u; Sagunto 5.250 → 16 u. Los 20 u de Nules de la D-N179 son el objetivo del día 2, no esta regla.</summary>
+        public static int MunicionMinima(int horda, string estacion)
+        {
+            int ef = Eficacia(estacion);
+            return horda <= 0 ? 2 : (horda + ef - 1) / ef + 2;
+        }
+        public static int Eficacia(string estacion) { return estacion == "Sagunto" ? 390 : 300; }
         /// <summary>Color de la necesidad cuando la estación tiene menos munición que el mínimo: el ámbar de aviso (Lucía, 09-11, decisiones-noche.md).</summary>
         public const string ColorFalta = "e08c30";
         /// <summary>Las líneas de ataque en curso (amenaza y valoración) van en el rojo de ataque (Lucía, 09-11). El glifo de la Colmena sigue en hueso d4d0cc.</summary>
