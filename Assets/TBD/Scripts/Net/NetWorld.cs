@@ -430,6 +430,7 @@ namespace TBD.Net
             var gf = LastGateFight; w.Int(GateFights); w.Ints(new[] { gf.Service, gf.Node, gf.Horde, gf.Attackers, gf.Soldiers, gf.Killed, gf.Contact, gf.HpLost, gf.EscortLostMil, gf.AmmoU, gf.Destroyed ? 1 : 0 }); w.Long(gf.Tick);   // D-N177
             var lost = new int[NodeLost.Length]; for (int q = 0; q < lost.Length; q++) lost[q] = NodeLost[q] ? 1 : 0; w.Ints(lost); w.Ints(GarrisonMil); w.Ints(ZoneWallE4);    // NetVersion 5: hordas de zona
             var zs = LastZoneSiege; w.Ints(new[] { zs.Node, zs.Lost ? 1 : 0, zs.OnScreen ? 1 : 0 }); w.Long(zs.Zombies); w.Long(zs.Killed); w.Long(zs.SpentU); w.Long(zs.DamageU); w.Long(zs.Casualties); w.Long(zs.Tick);
+            w.Ints(new[] { Director.ColState, Director.ColDaysBelow }); w.Long(Director.ColSignalMil); w.Ints(Director.ColHeld);      // NetVersion 6: estados de la Colmena (D-N160)
         }
 
         public void LoadState(SaveReader r)
@@ -480,6 +481,10 @@ namespace TBD.Net
             for (int q = 0; q < ZoneWallE4.Length; q++) ZoneWallE4[q] = wv5.Length != 0 ? wv5[q] : 0;
             var zv = r.Ints(); if (zv == null || zv.Length != 3) throw new SaveException(SaveError.Corrupt, "horda de zona no válida");
             LastZoneSiege = new ZoneSiegeResult { Node = zv[0], Lost = zv[1] != 0, OnScreen = zv[2] != 0, Zombies = r.Long(), Killed = r.Long(), SpentU = r.Long(), DamageU = r.Long(), Casualties = r.Long(), Tick = r.Long() };
+            var cv = r.Ints(); if (cv == null || cv.Length != 2) throw new SaveException(SaveError.Corrupt, "estado de la Colmena no válido");
+            Director.ColState = cv[0]; Director.ColDaysBelow = cv[1]; Director.ColSignalMil = r.Long();
+            var ch = r.Ints(); if (ch == null || ch.Length != Director.ColHeld.Length) throw new SaveException(SaveError.Corrupt, "historia de la Colmena no válida");
+            Array.Copy(ch, Director.ColHeld, ch.Length);
             Injections.Clear(); Retirements.Clear(); LostThisTick = 0; RetiredThisTick = 0;      // datos de QA del tick: empiezan limpios
         }
 
@@ -505,6 +510,7 @@ namespace TBD.Net
             Director.Curve = BalanceSource.Curve();
             Director.Season = BalanceSource.Table("colmena_estacion.csv");
             Director.Noise = BalanceSource.Table("colmena_ruido.csv");
+            { var ec = BalanceSource.Read("balance_economia.csv"); if (ec != null) { var t = new CsvTable(ec); ZoneZombiesPerU = (int)t.TryValue("combate_z_por_u", ZoneZombiesPerU); ZoneWallBonusMil = (int)t.TryValue("fort_bonus_por_nivel", ZoneWallBonusMil); } }   // opción A (Hugo y Lucía, 9-nov): 400 por u, sin bonus del muro
         }
 
         public static ulong Mix(ulong h)
@@ -1362,7 +1368,7 @@ namespace TBD.Net
         /// <summary>Recinto abstracto, en 1/10.000 de u, para un nodo sin piezas de obra (Nules en Inicio: 124,3 u). Si el nodo tiene piezas, mandan ellas. Guardado v5.</summary>
         public int[] ZoneWallE4 = new int[0];
         /// <summary>Regla del modelo económico (Hugo, sim_economia.py 549-561), la misma con la que está medida la economía.</summary>
-        public int ZoneZombiesPerU = 400, ZoneWallBonusMil = 200, ZoneWallStepU = 30, ZoneWallMaxSteps = 5, ZoneWallLossMilPerZombie = 10, ZoneGarrisonLossMilPerZombie = 4, ZoneNoWallMult = 3, ZoneFallAlivePermil = 500;
+        public int ZoneZombiesPerU = 400, ZoneWallBonusMil = 0, ZoneWallStepU = 30, ZoneWallMaxSteps = 5, ZoneWallLossMilPerZombie = 10, ZoneGarrisonLossMilPerZombie = 4, ZoneNoWallMult = 3, ZoneFallAlivePermil = 500;
         public struct ZoneSiegeResult { public int Node; public long Zombies, Killed, SpentU, DamageU, Casualties; public bool Lost, OnScreen; public long Tick; }
         public ZoneSiegeResult LastZoneSiege;
 
@@ -1382,7 +1388,7 @@ namespace TBD.Net
             foreach (var p in pieces) if (p.Built && (p.IsWall || p.IsGate)) wallE4 += (long)p.CostE4 * p.LifeMil / 1000;
             bool abstractWall = wallE4 == 0; if (abstractWall) wallE4 = ZoneWallE4[node];
             long stepsMil = Math.Min((long)ZoneWallMaxSteps * 1000, wallE4 * 1000 / ((long)ZoneWallStepU * 10_000));
-            long eff = (long)ZoneZombiesPerU * (1000 + ZoneWallBonusMil * stepsMil / 1000) / 1000;        // Nules, 124,3 u: 731 zombis por u
+            long eff = (long)ZoneZombiesPerU * (1000 + ZoneWallBonusMil * stepsMil / 1000) / 1000;        // opción A: 400 zombis por u con o sin muro (antes, con fort_bonus_por_nivel 200, 731 en Nules)
             long ammo = Math.Max(0, Stock[node, (int)Res.Municion]);
             long alive = Math.Max(0, zombies - ammo * eff);
             res.Killed = zombies - alive;

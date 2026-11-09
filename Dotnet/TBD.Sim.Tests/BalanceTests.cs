@@ -67,10 +67,10 @@ namespace TBD.Sim.Tests
             // ---- P1: combate S0
             long bonus = eco.Value("fort_bonus_por_nivel");
             var a = BalanceMath.Combat(2400, 4000, 2000, true, fortBonusMil: bonus);
-            check(a.Eff == 560 && a.SpentMil == 4000 && a.Alive == 160 && a.FortDamageMil == 1600 && a.CasualtiesMil == 640,
-                $"P1a: eff {a.Eff}, gasto {a.SpentMil}, vivos {a.Alive}, daño {a.FortDamageMil}, bajas {a.CasualtiesMil} (esperado 560 · 4000 · 160 · 1600 · 640)");
+            check(a.Eff == 400 && a.SpentMil == 4000 && a.Alive == 800 && a.FortDamageMil == 8000 && a.CasualtiesMil == 3200,
+                $"P1a: eff {a.Eff}, gasto {a.SpentMil}, vivos {a.Alive}, daño {a.FortDamageMil}, bajas {a.CasualtiesMil} (esperado 400 · 4000 · 800 · 8000 · 3200; opción A, 9-nov: sin bonus del muro)");
             var b = BalanceMath.Combat(2400, 9000, 2000, true, fortBonusMil: bonus);
-            check(b.Eff == 560 && b.SpentMil == 4285 && b.Alive == 0, $"P1b: eff {b.Eff}, gasto {b.SpentMil}, vivos {b.Alive} (esperado 560 · 4285 · 0)");
+            check(b.Eff == 400 && b.SpentMil == 6000 && b.Alive == 0, $"P1b: eff {b.Eff}, gasto {b.SpentMil}, vivos {b.Alive} (esperado 400 · 6000 · 0; opción A)");
             var c1 = BalanceMath.Combat(2400, 4000, 0, false, fortBonusMil: bonus);
             check(c1.Eff == 400 && c1.SpentMil == 4000 && c1.Alive == 800 && c1.CasualtiesMil == 9600, $"P1c: eff {c1.Eff}, vivos {c1.Alive}, bajas {c1.CasualtiesMil} (esperado 400 · 800 · 9600)");
 
