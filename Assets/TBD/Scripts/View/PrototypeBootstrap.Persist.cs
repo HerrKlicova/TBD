@@ -23,15 +23,17 @@ namespace TBD.View
         public float WallHp, WallMax; public int Kills, Lost, ShotsSpent, SpawnedTotal, Resupplies, LastWave, WaveTotal;
         public NightBot Bot; public NightTraceRecorder Rec; public StringBuilder FullTrace;
         public bool Away, Reported; public NightClock Clock;
+        public int Node = -1;      // zona (nodo de la red) de esta noche: cada estación tiene la suya (Iker, 9-nov: Nules reanudaba la noche de Sagunto)
     }
 
     /// <summary>Reloj de la noche mientras la zona no esta en pantalla: 30 Hz fijos, mismo ritmo que la zona.</summary>
     public sealed class NightClock : MonoBehaviour
     {
         float _acc; GUIStyle _st; Texture2D _px;
+        public NightSession S;      // la noche que lleva este reloj (la de su zona, aunque el jugador esté en otra)
         void Update()
         {
-            var s = NightRun.Session; if (s == null || !s.Away || s.Sim == null) return;
+            var s = S ?? NightRun.Session; if (s == null || !s.Away || s.Sim == null) return;
             if (SceneManager.GetActiveScene().name != "SampleScene") Sfx.Loop("sfx_batalla_mapa_1", s.Sim.Night.State == NightState.Jugando ? 0.15f : 0f, false);
             if (s.Sim.Night.State != NightState.Jugando) return;
             _acc += Mathf.Min(Time.unscaledDeltaTime, 0.25f);
@@ -40,7 +42,8 @@ namespace TBD.View
         }
         void OnGUI()
         {
-            var s = NightRun.Session; if (s == null || !s.Away || s.Sim == null) return;
+            var s = S ?? NightRun.Session; if (s == null || !s.Away || s.Sim == null) return;
+            if (NightRun.Session != null && s != NightRun.Session) return;      // un solo cartel: el de la última zona
             if (SceneManager.GetActiveScene().name == "SampleScene") return;
             if (_st == null) { _st = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, richText = true }; _px = new Texture2D(1, 1); _px.SetPixel(0, 0, Color.white); _px.Apply(); }
             var ng = s.Sim.Night; string txt;
@@ -87,7 +90,7 @@ namespace TBD.View
             }
             if (_bot != null) sim.Bot = _bot;                                  // con -nightbot, el bot sigue fuera de pantalla (Nacho): misma prueba A/B comparable
             s.Sim = sim; s.Away = true;
-            if (s.Clock == null) { var go = new GameObject("NightClock"); DontDestroyOnLoad(go); s.Clock = go.AddComponent<NightClock>(); }
+            if (s.Clock == null) { var go = new GameObject("NightClock"); DontDestroyOnLoad(go); s.Clock = go.AddComponent<NightClock>(); } s.Clock.S = s; s.Node = _zoneNode;
             Debug.Log($"[NOCHE] salgo al mapa con la noche en marcha: {sim.ZombiesAlive} zombis pasan a NightSim, hora {_ng.Hour:00}:{_ng.Minute:00}");
         }
 
@@ -115,6 +118,8 @@ namespace TBD.View
         {
             var s = NightRun.Session; if (s != null && s.Clock != null) Object.Destroy(s.Clock.gameObject);
             NightRun.Session = null;
+            foreach (var ps in NightRun.Aparcadas.Values) if (ps != null && ps.Clock != null) Object.Destroy(ps.Clock.gameObject);
+            NightRun.Aparcadas.Clear();
         }
     }
 }

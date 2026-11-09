@@ -37,6 +37,8 @@ namespace TBD.Sim.Tests
                 check(sigue && mv.Actual.Id == "1.2", "cada tarjeta se ve al menos 3 s: la 1.1 cumplida antes se cierra a los 3 s");
             }
             TutorialMotor.MinVisible = 0f;      // el resto de las pruebas manda señales al instante
+            { var nj = System.IO.File.ReadAllText(System.IO.Path.Combine(BalanceTests.DataDirPublic(), "..", "..", "StreamingAssets", "Noche", "nules.json")); var ns = NightSim.FromJson(nj, "normal", 1);
+              check(ns.Night.P.TrainNotDefeat, "Nules (Lucía da2d050): perder el tren no es derrota (nules.json, geometria_nightsim.tren_no_es_derrota)"); }
 
             // --- textos y cabeceras
             var caps = TutorialGuion.Todos();

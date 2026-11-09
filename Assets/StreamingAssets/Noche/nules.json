@@ -5,6 +5,7 @@
   "hora_fin": "06:00",
   "duracion_s_reales": 279,
   "victoria": "acabar con la horda con el edificio de viajeros en pie (D-N164: el amanecer no da la victoria)",
+  "geometria_nightsim": { "_nota": "Iker, 9-nov (Lucía da2d050, D-N177): perder el tren no es derrota en Nules. SOLO esta clave; la geometría de Nules (recinto, edificio, tren) está pendiente de Nacho/Hugo", "tren_no_es_derrota": true },
   "derrota": "la horda destruye el edificio de viajeros. Si hay un tren en el apartado y lo destruyen, se pierden el tren, su carga y la tropa a bordo, pero no es derrota (como la D-N177; aprobado por Lucía, 8-nov 23:25)",
   "entradas": {
     "O1": {

@@ -13,13 +13,18 @@ namespace TBD.View
     /// </summary>
     public partial class PrototypeBootstrap
     {
-        long _emboscadaVista = -1;
+        long _emboscadaVista = -1; bool _trenPerdidoAvisado;
         int _embPendientes, _embTicks, _embBase = -1, _embIdx; bool _embEnCurso;
 
         void EmboscadaEnZona(List<SpawnPoint> spawns)
         {
             if (TrenPanel.Dia2Volver && _nightInit && Time.timeSinceLevelLoad > 4f) { TrenPanel.Dia2Volver = false; Debug.Log("[DIA2] sesión de zona creada; vuelvo al mapa"); LeaveToMap(); return; }   // -dia2-auto
             var w = NetSession.A; if (w == null || _ng == null) return;
+            if (_ng.P.TrainNotDefeat && _ng.TrainHp <= 0 && !_trenPerdidoAvisado)      // Lucía (da2d050): en Nules perder el tren no es derrota; aviso y se sigue
+            {
+                _trenPerdidoAvisado = true; string tn = "tren"; foreach (var sv in w.Services) if (sv.AtStop && sv.Stops.Count > 0 && sv.Stops[sv.StopIndex].Node == _zoneNode) { tn = sv.Train.Name; break; }
+                HintMsg($"Se ha perdido el {tn} con su carga.", false); Debug.Log($"[NOCHE] se ha perdido el {tn} con su carga (la noche sigue)");
+            }
             var e = w.LastAmbush;
             if (e.Tick >= 0 && e.Tick != _emboscadaVista && e.OnScreen && e.Node == _zoneNode)
             {

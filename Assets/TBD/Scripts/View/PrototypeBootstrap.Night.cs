@@ -25,7 +25,8 @@ namespace TBD.View
         public sealed class VehInfo { public string Name; public string Tipo; public bool Vivo; public bool Embarcado; }
         /// <summary>Registro estatico de los vehiculos de la noche (nombre, tipo, vivo), en orden de creacion: el id de vehiculo del embarque es el indice (Nacho). Lo lee el mapa siempre, tambien de dia.</summary>
         public static readonly System.Collections.Generic.List<VehInfo> Vehs = new System.Collections.Generic.List<VehInfo>();
-        public static NightSession Session;       // la noche persistente: sobrevive a la escena de la zona (D-N91)
+        public static NightSession Session;       // la noche persistente: sobrevive a la escena de la zona (D-N91); la de la última zona
+        public static readonly System.Collections.Generic.Dictionary<int, NightSession> Aparcadas = new System.Collections.Generic.Dictionary<int, NightSession>();   // las de las otras zonas (siguen con su reloj)
         public static int Difficulty = 850;      // palanca única (D-N74): 725 fácil, 850 normal, 1000 difícil
     }
 
@@ -65,7 +66,7 @@ namespace TBD.View
                 Debug.Log("[NOCHE] noche de " + estN + ": " + fN);
                 string key = NightRun.Difficulty < 800 ? "facil" : NightRun.Difficulty <= 950 ? "normal" : "dificil";
                 { var cd = System.Environment.GetCommandLineArgs(); for (int i = 0; i + 1 < cd.Length; i++) if (cd[i] == "-dificultad" && (cd[i + 1] == "facil" || cd[i + 1] == "normal" || cd[i + 1] == "dificil")) key = cd[i + 1]; }   // QA: -dificultad facil|normal|dificil
-                sim = NightSim.FromJson(System.IO.File.ReadAllText(path), key, 77u); _ng = sim.Night; stock = sim.Units.StockShots;
+                sim = NightSim.FromJson(System.IO.File.ReadAllText(path), key, 77u); _ng = sim.Night; stock = sim.Units.StockShots; Debug.Log($"[NOCHE] {fN} ({key}): el tren {(_ng.P.TrainNotDefeat ? "no es" : "es")} derrota");
             }
             catch (System.Exception e) { Debug.LogWarning("[TBD] noche_sagunto.json no se pudo leer (" + e.Message + "): valores por defecto"); _ng = new NightGame(NightParams.Default(), 77u); var pd = _ng.P; pd.ScalePermil = NightRun.Difficulty; _ng.P = pd; }
             { var p = _ng.P; var ca = System.Environment.GetCommandLineArgs(); for (int i = 0; i + 1 < ca.Length; i++) if (ca[i] == "-nightclock" && int.TryParse(ca[i + 1], out var ck) && ck > 0) p.ClockX = ck; _ng.P = p; }   // pruebas: reloj mas rapido
@@ -74,7 +75,7 @@ namespace TBD.View
                 string dir = System.IO.Path.Combine(Application.streamingAssetsPath, "Noche");
                 var tu = new CsvTable(System.IO.File.ReadAllText(System.IO.Path.Combine(dir, "balance_unidades.csv"))); WeaponCatalog.Load(tu); PlatoonCatalog.Load(tu);
                 var tn = new CsvTable(System.IO.File.ReadAllText(System.IO.Path.Combine(dir, "balance_noche.csv")));
-                var jp = _ng.P; var np = NightParams.FromCsv(tn); np.Waves = jp.Waves; np.Entries = jp.Entries; np.ClockX = jp.ClockX; np.ScalePermil = jp.ScalePermil;
+                var jp = _ng.P; var np = NightParams.FromCsv(tn); np.Waves = jp.Waves; np.Entries = jp.Entries; np.ClockX = jp.ClockX; np.ScalePermil = jp.ScalePermil; np.TrainNotDefeat = jp.TrainNotDefeat;   // Nules (Lucía da2d050): lo trae el JSON de la noche; el CSV no lo tiene
                 np.EndHour = (np.StartHour + 23) % 24;                                  // D-N164: sin victoria por tiempo; solo se gana acabando con la horda
                 _ng = new NightGame(np, 77u + SemillaQA);
             }
@@ -86,8 +87,21 @@ namespace TBD.View
             _estacionZona = NetSession.A != null && _zoneNode >= 0 && _zoneNode < NetSession.A.Graph.Nodes.Count ? NetSession.A.Graph.Nodes[_zoneNode].Name : "Sagunto";
             foreach (var pp in TBD.Net.Plantel.Pelotones(_estacionZona, TutorialHud.Activo)) { var pl = _uw.AddPlatoon(pp.Tipo, pp.X, pp.Y, pp.Rumbo, pp.Formacion); if (pp.CotaMm > 0) pl.EyeMm = UnitsWorld.EyeInfantryMm + pp.CotaMm; _pname[pl.Id] = pp.Nombre; }   // D-N183: puestos de cada estación (Álvaro v1.1); en alto (azotea, banqueta), la boca sube con el suelo
             Debug.Log($"[NOCHE] plantel de {_estacionZona}: {_pname.Count} pelotones");
+            _escolta.Clear();
+            {   // tropa bajada del tren en esta estación (Embarque.AtStation): sale junto al tren y el bot no la manda al muro (Hugo/Nacho, 9-nov)
+                var wz = NetSession.A; var tr = _ng.P.TrainRect; int ex = (tr.X0 + tr.X1) / 2, ey = tr.Y1 + 3000;
+                if (wz != null && _zoneNode >= 0) foreach (var pid in wz.Embarque.AtStation(_zoneNode, PasajeroTipo.Peloton)) { var pe = _uw.AddPlatoon(PlatoonKind.Fusileros, ex + 6000 * _escolta.Count, ey, west, Formation.Linea); _pname[pe.Id] = "Escolta " + (_escolta.Count + 1); _escolta.Add(pe.Id); }
+                string trenAqui = "ninguno"; if (wz != null) foreach (var sv in wz.Services) if (sv.AtStop && sv.Stops.Count > 0 && sv.Stops[sv.StopIndex].Node == _zoneNode) trenAqui = sv.Train.Name + (sv.GateNode == _zoneNode ? " (a las puertas)" : " (en el andén)");
+                Debug.Log($"[NOCHE] tren en {_estacionZona}: {trenAqui}; rectángulo del tren en la zona X {tr.X0 / 1000f:0.0}–{tr.X1 / 1000f:0.0}, Z {tr.Y0 / 1000f:0.0}–{tr.Y1 / 1000f:0.0} m; edificio X {_ng.P.StationRect.X0 / 1000f:0.0}–{_ng.P.StationRect.X1 / 1000f:0.0}, Z {_ng.P.StationRect.Y0 / 1000f:0.0}–{_ng.P.StationRect.Y1 / 1000f:0.0}; escolta {_escolta.Count} pelotón(es) en ({ex / 1000f:0.0}; {ey / 1000f:0.0}); el tren {(_ng.P.TrainNotDefeat ? "no es" : "es")} derrota");
+            }
             if (_estacionZona == "Sagunto" && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinazotea") < 0)      // D-N174 (Lucia, Alvaro 10.15): 2 pelotones de tiradores libres en el ala oeste del edificio de viajeros, boca a 6,35 m
                 for (int az = 0; az < 2; az++) { var pa = _uw.AddPlatoon(PlatoonKind.Tiradores, 84500, 74300 + 4000 * az, west, Formation.Cuna); pa.EyeMm = 6350; _pname[pa.Id] = "Tiradores " + (az == 0 ? "azotea 1" : "azotea 2"); }
+            if (NightRun.Session != null && NightRun.Session.Node >= 0 && NightRun.Session.Node != _zoneNode)       // otra zona: su noche se aparca (sigue fuera de pantalla) y se toma la de esta, si la hay
+            {
+                NightRun.Aparcadas[NightRun.Session.Node] = NightRun.Session; NightRun.Session = null;
+                if (NightRun.Aparcadas.TryGetValue(_zoneNode, out var esta)) { NightRun.Session = esta; NightRun.Aparcadas.Remove(_zoneNode); }
+                Debug.Log($"[NOCHE] noche de {_estacionZona}: {(NightRun.Session != null ? "la suya, reanudada" : "nueva")} ({NightRun.Aparcadas.Count} aparcada(s))");
+            }
             bool resume = NightRun.Session != null && NightRun.Session.Away && NightRun.Session.Ng != null;
             if (resume)                                                              // la noche ya existia: se reanuda con su NightGame y su UnitsWorld
             {
@@ -114,9 +128,10 @@ namespace TBD.View
             _rec = resume && NightRun.Session.Rec != null ? NightRun.Session.Rec : new NightTraceRecorder("zona", 1285, 9000, 30);
             if (resume && NightRun.Session.Bot != null) _bot = NightRun.Session.Bot;
             LosInit();   // D-N174: linea de vision (sagunto_obstaculos_v1.csv de Alvaro); -sinlos la apaga
-            if (!resume && NightRun.Session == null) NightRun.Session = new NightSession { Ng = _ng, Uw = _uw };
+            if (!resume && NightRun.Session == null) NightRun.Session = new NightSession { Ng = _ng, Uw = _uw, Node = _zoneNode };
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-nightbot") >= 0) { try { _bot = NightBot.FromParams(NightSimParams.FromJson(BalanceSource.Read("nightsim_params.json"))); Debug.Log("[NOCHE] prueba: -nightbot (NightBot de Nacho)"); } catch (System.Exception e) { Debug.LogWarning("[TBD] NightBot: " + e.Message); } }
-            if (_bot != null) foreach (var kvb in _pname) if (kvb.Value.StartsWith("Tiradores azotea")) _bot.Busy.Add(kvb.Key);      // el bot no mueve a los de la azotea (libres: solo el jugador)
+            if (_bot != null) foreach (var kvb in _pname) if (kvb.Value.StartsWith("Tiradores azotea")) _bot.Busy.Add(kvb.Key);
+            if (_bot != null) foreach (var eid in _escolta) _bot.Busy.Add(eid);      // la escolta se queda junto al tren (Hugo/Nacho)      // el bot no mueve a los de la azotea (libres: solo el jugador)
             if (resume) ResumeNightSession();
         }
 
@@ -469,6 +484,7 @@ namespace TBD.View
         }
         bool _endDismissed, _reportClosed;
         List<string> _enPie;
+        readonly List<int> _escolta = new List<int>();
         /// <summary>Estaciones propias que siguen en pie, sin la de esta zona (Sagunto, las fundadas y la cercada; las perdidas no).</summary>
         List<string> EstacionesEnPie()
         {
