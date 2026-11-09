@@ -1751,7 +1751,9 @@ namespace TBD.View
             // edificio de viajeros: dos plantas, pegado al muro norte por dentro (x 98-114, z 75-83), zócalo y tejado a cuatro aguas (aprox. con dos losas)
             // edificio de viajeros nuevo (Teo, e7bc5d5; Alvaro 10.15): 32 x 9 m, centro (99; 0; 76,3), yaw 180 (fachada del anden al sur, Z 71,8); alas a 4,75 m (O: X 83-92, E: X 106-115), cuerpo central de 10 m
             Vector3 bc = new Vector3(99f, 0f, 76.3f);
-            DecalQuad("Icons/decals/placa_sagunto_x2", new Vector3(99f - 0.8f, 7.15f, 71.75f), new Vector2(3.6f, 1.1f), Vector3.zero, Vector2.one, root);
+            bool zonaNules = NetSession.A != null && _zoneNode >= 0 && _zoneNode < NetSession.A.Graph.Nodes.Count && NetSession.A.Graph.Nodes[_zoneNode].Name == "Nules";   // Lucía (d508444, opción A): Nules usa el terreno de Sagunto, con su cartel y sin el pueblo de Sagunto
+            if (!zonaNules) DecalQuad("Icons/decals/placa_sagunto_x2", new Vector3(99f - 0.8f, 7.15f, 71.75f), new Vector2(3.6f, 1.1f), Vector3.zero, Vector2.one, root);
+            else PlacaTexto("NULES", new Vector3(99f - 0.8f, 7.15f, 71.72f), new Vector2(3.6f, 1.1f), root);
             DecalQuad("Icons/decals/reloj_fachada_24", new Vector3(99f + 1.95f, 7.15f, 71.75f), new Vector2(1.1f, 1.1f), Vector3.zero, Vector2.one, root);
             if (PlaceModel("edificio_viajeros_sagunto", "SM_EdificioViajerosSagunto_v1_Segura_LOD1", bc, 180f, root) == null)
             {
@@ -1784,6 +1786,7 @@ namespace TBD.View
             // pueblo (Álvaro §7c): casa de pueblo de Teo 6 x 10 m (fachada a +Z), hilera delantera en Z 103 (giro 0°) y trasera en Z 120 (giro 180°), 12 casas cada 6 m entre X 75 y 141;
             // huecos en la 5.ª y 9.ª de la delantera (solares) y la 4.ª de la trasera (callejón); calle de Z 108 a 115; variante por hash de posición, alero ±0,3-0,8 m, una caja 6x10 de colisión por casa
             var houses = new System.Collections.Generic.List<Vector3>(); var houseYaw = new System.Collections.Generic.List<float>();
+            if (!zonaNules) {   // Nules (opción A): sin el pueblo de Sagunto (casas, solares y naranjos de detrás), ni su vista ni su colisión
             for (int i = 0; i < 12; i++) if (i != 4 && i != 8) { houses.Add(new Vector3(75f + i * 6f, 0f, 103f)); houseYaw.Add(0f); }
             for (int i = 0; i < 12; i++) if (i != 3) { houses.Add(new Vector3(75f + i * 6f, 0f, 120f)); houseYaw.Add(180f); }
             foreach (int gi in new[] { 4, 8 })                                                                      // solares con escombros junto al muro
@@ -1805,6 +1808,7 @@ namespace TBD.View
             for (int row = 0; row < 2; row++)
                 for (int i = 0; i < 14; i++)
                     PlaceVariant("naranjo", new Vector3(80f + i * 5f + (row == 1 ? 2.5f : 0f), 0f, 131f + row * 4f), (i * 53 + row * 17) % 360, root);
+            }
             // colisión: solo edificio y almacén (cuatro segmentos de 2 m de grosor cada uno cubren el solar completo)
             Push(CmdType.BuildBox, 11000, new Unity.Mathematics.float2(96.5f, 75.2f), new Unity.Mathematics.float2(115.5f, 83.6f));   // D-N181: la huella del edificio de Teo, una sola caja (antes 5 BuildWall paralelos con huecos de ~1,4 m por los que se colaban)
             foreach (float z in new[] { 50.8f, 52.8f, 54.8f, 56.8f })
