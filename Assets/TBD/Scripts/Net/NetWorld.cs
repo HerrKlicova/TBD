@@ -34,7 +34,7 @@ namespace TBD.Net
     }
 
     // ================================================================== órdenes
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, SpendMaterials = 22, TrainCargo = 23, LoseNode = 24 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, SpendMaterials = 22, TrainCargo = 23, LoseNode = 24, TrainLost = 25 }
 
     public struct NetCommand
     {
@@ -568,7 +568,8 @@ namespace TBD.Net
                     case NetCmdType.TrainCargo: MoveCargo(c.Arg, c.Payload); break;      // Arg = tren, Payload = [nodo, 4 cantidades] (Iker: descargar sin salir)
                     case NetCmdType.TrainLoad: if (c.Payload != null && c.Payload.Length == 2) LoadPassenger(c.Arg, (PasajeroTipo)(c.Arg2 & 1), c.Payload[0], c.Payload[1]); break;   // D-N166: Arg = tren, Arg2 = tipo, Payload = [id, nodo]
                     case NetCmdType.TrainUnload: UnloadPassengers(c.Arg, c.Arg2); break;                    // D-N166: Arg = tren, Arg2 = nodo       // Arg = tren, Payload = [nodo, hora de salida (ticks), 4 cargas] por parada
-                    case NetCmdType.LoseNode: LoseNode(c.Arg); break;                                   // qa50 S2 (Lucía 7705049): estación perdida en pantalla y «Seguir»
+                    case NetCmdType.LoseNode: LoseNode(c.Arg); break;
+                    case NetCmdType.TrainLost: LoseTrain(c.Arg); break;                                 // Iker (I-Noche99): el tren se ha perdido en la zona                                   // qa50 S2 (Lucía 7705049): estación perdida en pantalla y «Seguir»
                     case NetCmdType.OrderTrain: OrderTrain((TallerKind)c.Arg); break;
                     case NetCmdType.CancelTrainOrder: CancelTrainOrder(c.Arg); break;
                     case NetCmdType.SetChispas: MoveChispas(c.Arg); break;       // Arg = 0 al taller, k > 0 al tren de índice k − 1
@@ -1331,13 +1332,23 @@ namespace TBD.Net
             else { LastAmbush.Surrounded = true; LastAmbush.LossTick = Tick + SurroundLossTicks; LastAmbush.HoldUntil = LastAmbush.LossTick + 1; }      // retenido hasta que AmbushStep lo resuelva
         }
 
+        /// <summary>Iker (I-Noche99): el tren se ha perdido en la zona (NightSim o la zona en pantalla). Se pierden el tren, su carga y lo que va a bordo, como en la caída a las
+        /// puertas (D-N177). Por orden (CmdTrainLost) para que A y B lo apliquen en el mismo tick. false si no existe o ya estaba perdido.</summary>
+        public bool LoseTrain(int si)
+        {
+            if (si < 0 || si >= Services.Count || Services[si].Destroyed) return false;
+            LoseAmbushedTrain(si);
+            return true;
+        }
+        public static NetCommand CmdTrainLost(long tick, int service) { return new NetCommand { Tick = tick, Type = NetCmdType.TrainLost, Arg = service }; }
+
         void LoseAmbushedTrain(int si)
         {
             var s = Services[si]; if (s.Destroyed) return;
             s.Destroyed = true; s.Hp = 0; s.Held = true; s.GateNode = -1; s.GateSinceTick = -1;
             Array.Clear(s.Cargo, 0, s.Cargo.Length); s.Train.CargoTonnes = 0;
             for (int i = Embarque.Lista.Count - 1; i >= 0; i--) if (Embarque.Lista[i].Service == si && Embarque.Lista[i].Estado == PasajeroEstado.ABordo) Embarque.Lista.RemoveAt(i);
-            LastAmbush.TrainLost = true;
+            if (LastAmbush.Service == si && LastAmbush.Tick >= 0) LastAmbush.TrainLost = true;
         }
 
         void AmbushStep()

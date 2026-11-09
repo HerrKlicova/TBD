@@ -61,6 +61,13 @@ namespace TBD.Sim.Tests
                 check(a.NodeLost[nn] && a.GarrisonMil[nn] == 0 && stk == 0 && a.ZoneWallE4[nn] == 0 && a.Embarque.AtStation(nn, PasajeroTipo.Peloton).Count == 0 && a.Hash() == b.Hash() && a.Hash() != h0 && !a.LoseNode(nn),
                       "LoseNode: Nules perdida por orden (existencias, guarnición, muro y tropa bajada a 0), A y B iguales, y una segunda vez no hace nada");
             }
+            {   // Iker (I-Noche99): orden TrainLost
+                var a = NetScenario.Inicio(); var b = NetScenario.Inicio();
+                foreach (var wq in new[] { a, b }) { wq.Services[0].Cargo[(int)Res.Municion] = 20; wq.Embarque.Lista.Add(new Pasajero { Tipo = PasajeroTipo.Peloton, Id = 9, Service = 0, Node = -1, Estado = PasajeroEstado.ABordo }); }
+                a.Push(NetWorld.CmdTrainLost(a.Tick, 0)); b.Push(NetWorld.CmdTrainLost(b.Tick, 0)); a.Step(); b.Step();
+                check(a.Services[0].Destroyed && a.Services[0].Cargo[(int)Res.Municion] == 0 && a.EscortSoldiers(0) == 0 && a.Hash() == b.Hash() && !a.LoseTrain(0) && !a.Services[1].Destroyed,
+                      "TrainLost: el tren se pierde con su carga y su tropa, igual en A y B; una segunda vez no hace nada y el otro tren sigue");
+            }
             {   // D-N183 (Lucía, 9-nov): Castellón es del jugador desde el inicio
                 var wi = NetScenario.Inicio(); int cas = Id(wi, "Castellón");
                 long statNear = 0; for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) statNear += wi.Field.S[(63 + dy) * HordeField.W + 58 + dx];
