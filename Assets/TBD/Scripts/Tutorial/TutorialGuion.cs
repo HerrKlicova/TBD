@@ -90,7 +90,7 @@ namespace TBD.Tutorial
             var p16 = S("1.6", "Arrastra con el clic derecho para dibujar un frente. Prueba una formación con F1 a F4.", R(Resaltes.TeclasFormacion), Senales.FormacionDada); p16.Segundos = TopeS;
             var p17 = S("1.7", "Esc abre el menú de pausa y congela la partida. Desde ahí también se salta el tutorial.", R(Resaltes.BotonMenu), Senales.PausaCerrada); p17.Segundos = TopeS;
             p11.Segundos = TopeS;
-            var p18 = S("1.8", "Ahí vienen. Disparan solos cuando los tienen a tiro.", null, Senales.HordaAvanza); p18.Segundos = 3f; p18.SueltaHorda = true;   // aquí se suelta la horda; se cierra al avanzar o a los 3 s
+            var p18 = T("1.8", "Ahí vienen. Disparan solos cuando los tienen a tiro.", 4f); p18.SueltaHorda = true;   // S3 qa50: con la señal se cerraba al instante (la horda ya avanza); ahora 4 s fijos para leerlo   // aquí se suelta la horda; se cierra al avanzar o a los 3 s
             return new Capitulo
             {
                 Numero = 1, Titulo = "Defender Sagunto de día", Combate = true,
@@ -151,7 +151,7 @@ namespace TBD.Tutorial
             var p31b = T("3.1b", "La horda está en el muro. Sagunto sola no aguantará mucho. Nules, la estación de al lado, puede mandarte ayuda.", 4, Resaltes.Pila, Resaltes.AvisoPila);
             p31.Espera = p31b.Espera = Senales.Cap3Dispara;     // pila > 150 o 60 s desde el primer contacto, lo que ocurra antes (Lucía)
             p31.AltSi = Senales.Cap3PorTiempo; p31.Alt = p31b;  // si salta por tiempo, el 3.1b
-            var p37 = S("3.7", "Sagunto está sitiada: el tren espera en la puerta este. Baja la tropa.", R(Resaltes.TrenAnden, Resaltes.BotonDescargar), Senales.TropaEnTierra, Senales.RefuerzosEnTierra);
+            var p37 = S("3.7", "Sagunto está sitiada: el tren espera fuera de la puerta oeste. Baja la tropa.", R(Resaltes.TrenAnden, Resaltes.BotonDescargar), Senales.TropaEnTierra, Senales.RefuerzosEnTierra);
             p37.Espera = Senales.TrenEnSagunto;     // «Al llegar el tren»
             return new Capitulo
             {

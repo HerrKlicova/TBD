@@ -89,14 +89,14 @@ namespace TBD.Sim.Tests
                 bool esperaAntes = true;
                 while (mh.Actual.Id != "1.8") { esperaAntes &= mh.PideHordaEnEspera; var p = mh.Actual; if (p.Cierre == Cierre.Segundos) Run1(mh, p.Segundos); else foreach (var s in p.Senales) mh.Senal(s); }
                 check(esperaAntes && !mh.PideHordaEnEspera, "la horda espera del 1.1 al 1.7 y se suelta en el 1.8");
-                mh.Senal(TutorialGuion.Senales.HordaAvanza);
-                check(mh.Actual.Id == "1.9" && !mh.PideHordaEnEspera, "1.8 se cierra cuando la horda avanza; en el 1.9 la horda ya no espera");
+                mh.Senal(TutorialGuion.Senales.HordaAvanza); check(mh.Actual.Id == "1.8", "S3 qa50: la señal de la horda ya no cierra el 1.8 al instante");
+                Run1(mh, 4.2f); check(mh.Actual.Id == "1.9" && !mh.PideHordaEnEspera, "1.8 se cierra a los 4 s; en el 1.9 la horda ya no espera");
                 Run1(mh, 89f); check(mh.Actual.Id == "1.9", "el 1.9 sigue mientras dura el ataque");
                 Run1(mh, 1.5f); check(mh.Actual.Id == "1.10", "si nunca llega «ataque rechazado», el 1.9 se cierra a los 90 s");
                 Run1(mh, 4.2f); check(mh.Cap.Numero == 2, "y el capítulo 1 acaba y pasa al 2");
                 var m18 = TutorialGuion.Nuevo(new MemoriaEnRam()); m18.Arrancar(850); m18.Senal(TutorialGuion.Senales.Empezar);
                 while (m18.Actual.Id != "1.8") { var p = m18.Actual; if (p.Cierre == Cierre.Segundos) Run1(m18, p.Segundos); else foreach (var s in p.Senales) m18.Senal(s); }
-                Run1(m18, 3.2f); check(m18.Actual.Id == "1.9", "sin señal, el 1.8 se cierra a los 3 s");
+                Run1(m18, 4.2f); check(m18.Actual.Id == "1.9", "el 1.8 se cierra a los 4 s");
             }
 
             // --- estado que ya se cumple (revisión de Nacho): mapa ya abierto al salir la 3.2
