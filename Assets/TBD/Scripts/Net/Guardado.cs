@@ -233,8 +233,8 @@ namespace TBD.Net
         /// <summary>3 → 4: no se migra. Con el reloj ×103 (D-N161) los ticks guardados cambian de significado y las existencias pasan a 5 recursos (D-N176): una partida vieja no se puede cargar.</summary>
         static byte[] MigrateNet3To4(byte[] v3) { throw new SaveException(SaveError.TooOld, "partida anterior al reloj ×103 y a los víveres (D-N161, D-N176)"); }
         /// <summary>4 → 5: ningún nodo perdido, sin guarniciones (listas vacías) y sin asedio de zona resuelto.</summary>
-        /// <summary>5 → 6: la Colmena empieza Dispersa, sin señal ni historia (D-N160).</summary>
-        static byte[] MigrateNet5To6(byte[] v5) { var w = new SaveWriter(); w.Raw(v5); w.Ints(new[] { 0, 0 }); w.Long(0); w.Ints(new int[8]); return w.ToArray(); }
+        /// <summary>5 → 6: la Colmena empieza Dispersa, sin señal ni historia (D-N160), y con el CO-0 ya dado (la partida ya había empezado).</summary>
+        static byte[] MigrateNet5To6(byte[] v5) { var w = new SaveWriter(); w.Raw(v5); w.Ints(new[] { 0, 0, 1 }); w.Long(0); w.Ints(new int[8]); return w.ToArray(); }
         static byte[] MigrateNet4To5(byte[] v4) { var w = new SaveWriter(); w.Raw(v4); w.Ints(new int[0]); w.Ints(new int[0]); w.Ints(new int[0]); w.Ints(new[] { 0, 0, 0 }); for (int i = 0; i < 6; i++) w.Long(0); return w.ToArray(); }
 
         /// <summary>Recorre la cabecera de la sección NET v1 (el orden de NetWorld.SaveState) hasta la atracción por nodo y devuelve su longitud.</summary>

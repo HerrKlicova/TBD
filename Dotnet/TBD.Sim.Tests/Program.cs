@@ -145,6 +145,13 @@ namespace TBD.Sim.Tests
                 return _fail == 0 ? 0 : 1;
             }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_LOS") == "1") { LosTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
+            if (Environment.GetEnvironmentVariable("TBD_REGEN_TRAZA") == "1")      // la referencia de la traza (traza_nightsim_o1.csv) con la noche_sagunto.json actual; una línea en decisiones-noche.md al regenerarla
+            {
+                var json = TBD.Net.BalanceSource.Read("noche_sagunto.json"); var tr = TBD.Units.NightTraceTools.Reference(json, null, 1, TBD.Units.NightTraceTools.FirstWaveTick(json, null, 1), 9000, 30); var csv = tr.ToCsv();
+                string data = BalanceTests.DataDirPublic(); System.IO.File.WriteAllText(System.IO.Path.Combine(data, TBD.Units.NightTraceTools.ReferenceFile), csv);
+                System.IO.File.WriteAllText(System.IO.Path.Combine(data, "..", "..", "StreamingAssets", "Noche", TBD.Units.NightTraceTools.ReferenceFile), csv);
+                Console.WriteLine($"traza de referencia regenerada: {tr.Rows.Count} filas, entran {tr.Rows[tr.Rows.Count - 1].Spawned}"); return 0;
+            }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_COLMENA") == "1") { ColmenaEstadosTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_ZONA") == "1") { ZonaHordaTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_PUERTAS") == "1") { TrenPuertasTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }

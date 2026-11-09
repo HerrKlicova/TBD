@@ -430,7 +430,7 @@ namespace TBD.Net
             var gf = LastGateFight; w.Int(GateFights); w.Ints(new[] { gf.Service, gf.Node, gf.Horde, gf.Attackers, gf.Soldiers, gf.Killed, gf.Contact, gf.HpLost, gf.EscortLostMil, gf.AmmoU, gf.Destroyed ? 1 : 0 }); w.Long(gf.Tick);   // D-N177
             var lost = new int[NodeLost.Length]; for (int q = 0; q < lost.Length; q++) lost[q] = NodeLost[q] ? 1 : 0; w.Ints(lost); w.Ints(GarrisonMil); w.Ints(ZoneWallE4);    // NetVersion 5: hordas de zona
             var zs = LastZoneSiege; w.Ints(new[] { zs.Node, zs.Lost ? 1 : 0, zs.OnScreen ? 1 : 0 }); w.Long(zs.Zombies); w.Long(zs.Killed); w.Long(zs.SpentU); w.Long(zs.DamageU); w.Long(zs.Casualties); w.Long(zs.Tick);
-            w.Ints(new[] { Director.ColState, Director.ColDaysBelow }); w.Long(Director.ColSignalMil); w.Ints(Director.ColHeld);      // NetVersion 6: estados de la Colmena (D-N160)
+            w.Ints(new[] { Director.ColState, Director.ColDaysBelow, Director.ColIntroDone ? 1 : 0 }); w.Long(Director.ColSignalMil); w.Ints(Director.ColHeld);      // NetVersion 6: estados de la Colmena (D-N160)
         }
 
         public void LoadState(SaveReader r)
@@ -481,8 +481,8 @@ namespace TBD.Net
             for (int q = 0; q < ZoneWallE4.Length; q++) ZoneWallE4[q] = wv5.Length != 0 ? wv5[q] : 0;
             var zv = r.Ints(); if (zv == null || zv.Length != 3) throw new SaveException(SaveError.Corrupt, "horda de zona no válida");
             LastZoneSiege = new ZoneSiegeResult { Node = zv[0], Lost = zv[1] != 0, OnScreen = zv[2] != 0, Zombies = r.Long(), Killed = r.Long(), SpentU = r.Long(), DamageU = r.Long(), Casualties = r.Long(), Tick = r.Long() };
-            var cv = r.Ints(); if (cv == null || cv.Length != 2) throw new SaveException(SaveError.Corrupt, "estado de la Colmena no válido");
-            Director.ColState = cv[0]; Director.ColDaysBelow = cv[1]; Director.ColSignalMil = r.Long();
+            var cv = r.Ints(); if (cv == null || cv.Length != 3) throw new SaveException(SaveError.Corrupt, "estado de la Colmena no válido");
+            Director.ColState = cv[0]; Director.ColDaysBelow = cv[1]; Director.ColIntroDone = cv[2] != 0; Director.ColSignalMil = r.Long();
             var ch = r.Ints(); if (ch == null || ch.Length != Director.ColHeld.Length) throw new SaveException(SaveError.Corrupt, "historia de la Colmena no válida");
             Array.Copy(ch, Director.ColHeld, ch.Length);
             Injections.Clear(); Retirements.Clear(); LostThisTick = 0; RetiredThisTick = 0;      // datos de QA del tick: empiezan limpios
