@@ -935,9 +935,23 @@ namespace TBD.View
         /// en el balasto sale en L* 3,4 y los zombis pegados (L* 0–2) desaparecen en ella. Objetivo: sombra en pantalla con L* ≥ 10 (la entrada 181c30 de la paleta,
         /// L* 10,8) y siempre más oscura que el balasto iluminado (L* 20–26), para que se siga leyendo como sombra. La horda NO cambia (D-N80).
         /// 0,65 es una ESTIMACIÓN (Bruno, desde la nube: con la medida de Sara, la sombra deja pasar ~10 % de la luna y hace falta ~33 %); SIN MEDIR en la build.
+        /// Desde el 09-11 02:45 se aplica pasando 1 − SombraNoche de la luna al ambiente (ver ApplyGrade), porque la fuerza de la sombra sola no hacía nada.
         /// Es global: aclara igual todas las sombras de la luna (muro, casas, tren), así que un zombi a la sombra del muro también se separa.
         /// -sombranoche 0.55 (o el valor que sea) la cambia sin compilar, para que Marcos barra 0,55 / 0,65 / 0,75 y Sara mida.
         /// </summary>
+        /// <summary>Una línea [LUZ] por luz activa al pasar a la noche: para saber qué luz dibuja la sombra si la medida no cuadra (qa47).</summary>
+        void DiagnosticoLuces()
+        {
+            var ls = FindObjectsByType<Light>(FindObjectsSortMode.None);
+            var sb = new System.Text.StringBuilder("[LUZ] noche: sun=" + (RenderSettings.sun != null ? RenderSettings.sun.name : "null") + " _sun=" + (_sun != null ? _sun.name : "null")
+                + " ambiente=" + RenderSettings.ambientLight + " sombranoche=" + SombraNoche.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            foreach (var l in ls) if (l.isActiveAndEnabled && l.type == LightType.Directional)
+                sb.Append($" | {l.name} {l.type} i={l.intensity:0.###} sombras={l.shadows} fuerza={l.shadowStrength:0.##}");
+            var urp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline as UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset;
+            if (urp != null) sb.Append($" | URP sombraDist={urp.shadowDistance} luzPrincipalSombras={urp.supportsMainLightShadows}");
+            Debug.Log(sb.ToString());
+        }
+
         static readonly float SombraNoche = LeerSombraNoche();
         static float LeerSombraNoche()
         {
@@ -978,8 +992,18 @@ namespace TBD.View
                     _grade.colorFilter.Override(Color.white);
                     _grade.postExposure.Override(-0.45f);
                     _grade.saturation.Override(-30f);
-                    SetLight(new Color(0.75f, 0.80f, 1.0f), 0.45f, new Color(0.03f, 0.045f, 0.10f), 50f);
-                    if (_sun != null) _sun.shadowStrength = SombraNoche;   // sombra más clara de noche (Lucía 09-11 02:01): ver SombraNoche
+                    {
+                        // Sombra más clara de noche (Lucía 09-11 02:01). En la I-Noche77 la fuerza de la sombra NO cambiaba nada (Sara: 0b0c11 con 0,55-0,85):
+                        // la sombra salía solo con el ambiente. Así que ahora la sombra se aclara pasando una parte k de la luna al ambiente (plano, sin sombra):
+                        // en el suelo iluminado la suma no cambia (A + M) y en la sombra queda A + k·M, lo mismo que una fuerza de sombra de 1 − k.
+                        // Funciona tanto si la fuerza de la sombra llega al shader como si no. k = 1 − SombraNoche (0,65 → k 0,35).
+                        float k = 1f - SombraNoche;
+                        var lunaCol = new Color(0.75f, 0.80f, 1.0f); const float lunaI = 0.45f;
+                        var amb = new Color(0.03f, 0.045f, 0.10f) + lunaCol * (lunaI * k);
+                        SetLight(lunaCol, lunaI * (1f - k), amb, 50f);
+                        if (_sun != null) _sun.shadowStrength = 1f;
+                        DiagnosticoLuces();
+                    }
                     SetFloodlights(90f);
                     break;
             }
