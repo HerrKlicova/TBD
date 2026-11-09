@@ -343,7 +343,8 @@ namespace TBD.Sim
             if (!info.ForceFlow && (clock.Tick % SimConst.FlowEveryTicks) != 0) return;
 
             var train = SystemAPI.GetSingleton<TrainState>();
-            int2 gc = Level.CellOf(new float2(train.X, Level.TrackY));
+            float gx = train.X >= SimConst.WorldW ? Level.TrainNightX : train.X;   // tren perdido (sólido sacado del mapa, Nules A): la horda va al andén del fuerte, no al borde este (qa50 I-Noche103)
+            int2 gc = Level.CellOf(new float2(gx, Level.TrackY));
             int goal = gc.y * SimConst.GridW + gc.x;
             info.GoalCell = goal;
             info.ForceFlow = false;
