@@ -112,6 +112,61 @@ namespace TBD.View
         static readonly bool _fpsOn = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-fps") >= 0;
         readonly System.Collections.Generic.List<float> _fpsDt = new System.Collections.Generic.List<float>(); float _fpsT0 = -1f;
         Unity.Profiling.ProfilerRecorder _trisRec; bool _fpsIni;
+        float _trisT = -100f;
+        static readonly string[] TrisCat = { "terreno", "edificios", "vegetacion", "muro", "pila", "horda", "tropa", "vehiculos", "tren", "otros" };
+        static int CatDe(Transform tr)
+        {
+            for (var x = tr; x != null; x = x.parent)
+            {
+                string n = x.name.ToLowerInvariant();
+                if (n.Contains("suelo") || n.Contains("terreno") || n.Contains("balasto") || n.StartsWith("via") || n.Contains("vía") || n.Contains("carril")) return 0;
+                if (n.Contains("naranjo") || n.Contains("pino") || n.Contains("palmera") || n.Contains("huerta") || n.Contains("arbol")) return 2;
+                if (n.Contains("muro") || n.Contains("hesco") || n.Contains("sacos") || n.Contains("tramo") || n.Contains("puerta")) return 3;
+                if (n.Contains("pila")) return 4;
+                if (n.Contains("soldado") || n.Contains("peloton") || n.Contains("pelotón") || n.Contains("infanteria")) return 6;
+                if (n.Contains("dragon") || n.Contains("dragón") || n.Contains("vamtac") || n.Contains("nh90")) return 7;
+                if (n.Contains("tren") || n.Contains("vagon") || n.Contains("vagón") || n.Contains("locomotora")) return 8;
+                if (n.Contains("casa") || n.Contains("bloque") || n.Contains("almacen") || n.Contains("estacion") || n.Contains("estación") || n.Contains("edificio") || n.Contains("muelle") || n.Contains("nave") || n.Contains("viajeros") || n.Contains("campanario")) return 1;
+            }
+            return 9;
+        }
+
+        /// <summary>
+        /// [TRIS] (Sara, para que Lucía vea dónde recortar): con -fps, cada 5 s, triángulos por categoría de lo que se dibuja: renderers visibles (LOD activo) y
+        /// entidades de Entities Graphics (horda y pila: instancias × triángulos de su malla, sin culling por cámara, así que es un techo). La categoría sale del nombre
+        /// del objeto o de sus padres; lo que no encaja va a «otros». Si el total se aleja más de un 10 % del ProfilerRecorder, lo dice.
+        /// </summary>
+        void TrisLog(long medido)
+        {
+            var cat = new long[TrisCat.Length]; int visibles = 0;
+            foreach (var r in FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None))
+            {
+                if (!r.isVisible || !r.enabled) continue;
+                var mf = r.GetComponent<MeshFilter>(); if (mf == null || mf.sharedMesh == null) continue;
+                long tris = 0; var m = mf.sharedMesh; for (int s = 0; s < m.subMeshCount; s++) tris += m.GetIndexCount(s) / 3;
+                cat[CatDe(r.transform)] += tris; visibles++;
+            }
+            foreach (var r in FindObjectsByType<SkinnedMeshRenderer>(FindObjectsSortMode.None))
+            {
+                if (!r.isVisible || !r.enabled || r.sharedMesh == null) continue;
+                long tris = 0; var m = r.sharedMesh; for (int s = 0; s < m.subMeshCount; s++) tris += m.GetIndexCount(s) / 3;
+                cat[CatDe(r.transform)] += tris; visibles++;
+            }
+            // horda (ECS): zombis vivos × triángulos medios de las siluetas
+            if (_worldA != null && _worldA.IsCreated && RenderAssets.Array != null && RenderAssets.Array.MeshReferences != null && RenderAssets.Array.MeshReferences.Length > 0)
+            {
+                long suma = 0; int nm = 0; foreach (var mr in RenderAssets.Array.MeshReferences) { var m = mr.Value; if (m == null) continue; nm++; for (int s = 0; s < m.subMeshCount; s++) suma += m.GetIndexCount(s) / 3; }
+                int vivos = _zombieQuery.CalculateEntityCount();
+                if (nm > 0) cat[5] += vivos * (suma / nm);
+            }
+            cat[4] += PilaZombisSystem.TrisPila;     // pila (ECS)
+            long total = 0; foreach (var c in cat) total += c;
+            var sb = new System.Text.StringBuilder("[TRIS] total=" + total);
+            for (int i = 0; i < TrisCat.Length; i++) sb.Append(" " + TrisCat[i] + "=" + cat[i]);
+            sb.Append(" visibles_mallas=" + visibles + " profiler=" + medido);
+            if (medido > 0 && System.Math.Abs(total - medido) > medido / 10) sb.Append(" AVISO: se aleja más de un 10 % del ProfilerRecorder (la horda y la pila cuentan sin culling y las sombras duplican en el profiler)");
+            Debug.Log(sb.ToString());
+        }
         void FpsLog()
         {
             if (!_fpsOn) return;
@@ -127,6 +182,7 @@ namespace TBD.View
             long tris = _trisRec.Valid ? _trisRec.LastValue : -1;
             Debug.Log($"[FPS] media={media:0.0} bajo1%={bajo1:0.0} p99_ms={p99:0.00} triangulos={tris} fotogramas={a.Length}");
             _fpsDt.Clear(); _fpsT0 = now;
+            if (now - _trisT >= 5f) { _trisT = now; TrisLog(_trisRec.Valid ? _trisRec.LastValue : -1); }
         }
 
         /// <summary>Pausa de la zona (de día y de noche, con P o con la pausa del tutorial): la lee NetSession para AudioListener.pause.</summary>
