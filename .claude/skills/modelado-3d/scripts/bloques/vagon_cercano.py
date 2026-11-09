@@ -1,3 +1,4 @@
+# Entregar con: --costado 88885c --claro b8b8b8 (D-N157: lateral 88885c, techo b8b8b8). Sin esos dos, el lateral sale en 50541c (S3, 9-nov).
 """Vagones para la VISTA CERCANA del tren (coordinador, 6-nov 23:38: al menos 5 variantes de pasaje y de mercancías, con
 las ventanillas aparte para iluminarlas). Teo, 6-nov-2026. TBD_VARIANTE % 6:
   0 coche de viajeros            caja de bogies con fila de ventanillas, puertas en los extremos y fuelles de paso

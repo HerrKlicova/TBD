@@ -1,3 +1,4 @@
+# Entregar con: --costado 88885c --claro b8b8b8 (D-N157: lateral 88885c, techo b8b8b8). Sin esos dos, el lateral sale en 50541c (S3, 9-nov).
 """R2 · Vagón de tropa: plataforma de bogies con parapeto de chapa y aspilleras, donde viaja el pelotón (Lucía, 6-nov).
 
 Base: vagón plataforma de cuatro ejes de tipo UIC (Rgs).
