@@ -1350,7 +1350,7 @@ namespace TBD.Net
         public AmbushEvent LastAmbush = new AmbushEvent { Tick = -1, Node = -1, Service = -1, LossTick = -1, HoldUntil = -1 };
         public bool AmbushDone { get { foreach (var e in Intel) if (e.Id == "EM-1") return true; return false; } }
         /// <summary>D-N180 en la red: un tren rodeado sin escolta se pierde con su carga en 10 minutos de juego como mucho.</summary>
-        public static readonly long SurroundLossTicks = NetConst.HourTicks / 6;
+        public static readonly long SurroundLossTicks = NetConst.HourTicks * 100 / 60;      // D-N180 con 100 min de juego (Lucía, 9-nov 22:28; ~58 s reales); antes 10 min
         /// <summary>Punto de la emboscada en la zona de Nules de la opción A, que es el terreno de Sagunto (Lucía, 5b8406d; medida de Nacho en NightSim, 9-nov 10:35): el tren espera
         /// fuera de la PUERTA ESTE, de X 160 a 224 m sobre la vía (Z 62,9–66,1), y los 300 salen de la franja oscura del borde este (X 236–256 m, Z 44–85 m) en 30 s. La escolta, en
         /// (192; 60). Sin escolta el tren se pierde siempre (D-N180: la guarnición está en el lado oeste); con un pelotón se salva siempre.</summary>

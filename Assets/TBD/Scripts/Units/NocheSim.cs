@@ -569,8 +569,8 @@ namespace TBD.Units
         int _menTick = -1;
 
         /// <summary>D-N180 (Lucía, 9-nov): un tren sin escolta rodeado (horda en contacto y ningún soldado propio a SurroundReachMm o menos del tren) se pierde
-        /// en SurroundLossGameMin minutos de juego como mucho: pierde al menos TrainHp / ese tiempo por tick (10 min de juego son 175 ticks a ×103). 0 = apagado.</summary>
-        public int SurroundLossGameMin = 10, SurroundReachMm = 60000;
+        /// en SurroundLossGameMin minutos de juego como mucho: pierde al menos TrainHp / ese tiempo por tick (100 min de juego son 1.750 ticks con el reloj de la red). 0 = apagado.</summary>
+        public int SurroundLossGameMin = 100, SurroundReachMm = 60000;      // Lucía (9-nov 22:28): 100 min de juego (~1 min real) para poder reaccionar; antes 10
         public int SurroundedTicks;
         void SurroundedTrain(int atTrain)
         {

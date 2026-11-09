@@ -22,7 +22,7 @@ namespace TBD.Sim.Tests
             {
                 var s = Sagunto(true); var g = s.Night;
                 check(g.TotalTicks == 8 * NetConst.HourTicks, $"con el reloj de la red, de 22:00 a 06:00 son {g.TotalTicks} ticks (8 × {NetConst.HourTicks})");
-                check(g.TicksForGameSeconds(10 * 60) == 175, $"10 min de juego son {g.TicksForGameSeconds(600)} ticks (D-N180: 175)");
+                check(g.TicksForGameSeconds(10 * 60) == 175, $"10 min de juego son {g.TicksForGameSeconds(600)} ticks (conversión exacta: 175)");
                 var o = Sagunto(false).Night;
                 check(o.TotalTicks == 8L * 3600 * IMath.TickRate / o.P.ClockX, $"sin el reloj de la red no cambia nada: {o.TotalTicks} ticks con reloj_x {o.P.ClockX}");
             }
@@ -60,6 +60,20 @@ namespace TBD.Sim.Tests
                 check(w.ContactNode == sag && s.ContactTick > 0 && w.Speed == 1, $"primer contacto de la horda con Sagunto a las {NetConst.Clock(w.ContactAtTick)} (tick {s.ContactTick} de la noche): la red baja de ×4 a ×{w.Speed}");
                 w.Push(new NetCommand { Tick = w.Tick, Type = NetCmdType.SetSpeed, Arg = 4 }); for (int k = 0; k < 300; k++) w.Step();
                 check(w.Speed == 4, "solo el primer contacto de la noche baja a ×1: si el jugador vuelve a ×4, se queda");
+            }
+            {   // caso de Marcos (I-112): entrar en Nules a las 09:00 del día 2 no arranca la noche; es de día hasta las 22:00 y el tren y su carga no cambian
+                var w = NetScenario.Inicio(); var r = NetScenario.Inicio(); int nul = TrenPreparar.Nodo(w, "Nules");
+                long nine = NetConst.DayTicks + 9L * NetConst.HourTicks;
+                while (w.Tick < nine) { w.Step(); r.Step(); }
+                var ns = Sagunto(true); w.NochesZona[nul] = ns;          // la zona de Nules se registra al entrar (de día)
+                long before22 = NetWorld.NightStartTick(2) - 1; bool day = true;
+                while (w.Tick < before22) { w.Step(); r.Step(); if (ns.Night.StartNetTick >= 0 || ns.Night.Tick != 0 || ns.Spawned != 0 || ns.ZombiesAlive != 0) day = false; }
+                bool cargo = w.Services.Count == r.Services.Count; for (int i = 0; cargo && i < w.Services.Count; i++) for (int k = 0; k < NetConst.ResCount; k++) if (w.Services[i].Cargo[k] != r.Services[i].Cargo[k]) cargo = false;
+                bool trains = true; for (int i = 0; trains && i < w.Services.Count; i++) if (w.Services[i].Train.OffsetMm != r.Services[i].Train.OffsetMm || w.Services[i].Destroyed != r.Services[i].Destroyed) trains = false;
+                check(day, $"entrar en Nules a las 09:00 del día 2: hasta las 21:59 la noche no empieza (StartNetTick {ns.Night.StartNetTick}, Tick {ns.Night.Tick}, {ns.Spawned} zombis nacidos)");
+                check(cargo && trains, "y los trenes y su carga quedan igual que en una partida sin la zona registrada");
+                w.Step(); w.Step();
+                check(ns.Night.StartNetTick == NetWorld.NightStartTick(2), $"a las 22:00 del día 2 empieza la noche de Nules (Defiende Nules), tick {ns.Night.StartNetTick}");
             }
             {   // plan del escenario: Nules solo el día 2; numeración de noches por el plan
                 var w = NetScenario.Inicio(); int sag = TrenPreparar.Nodo(w, "Sagunto"), nul = TrenPreparar.Nodo(w, "Nules");

@@ -19,7 +19,7 @@ namespace TBD.Sim.Tests
             Console.WriteLine("\n[39] D-N180: tren rodeado sin tropa y horda sin objetivo");
             var a = Make(true); var r = a.Night.P.TrainRect;
             for (int k = 0; k < 4; k++) a.ImportZombie(r.X0 + 5000 + k * 10000, r.Y1 + 500);
-            long lossTicks = (long)a.SurroundLossGameMin * 60 * IMath.TickRate / a.Night.P.ClockX;
+            long lossTicks = a.Night.TicksForGameSeconds((long)a.SurroundLossGameMin * 60);
             int t0 = a.Night.Tick; while (a.Night.TrainHp > 0 && a.Night.Tick < t0 + 4 * lossTicks) a.Step();
             int took = a.Night.Tick - t0;
             check(a.Night.TrainHp == 0 && took <= lossTicks + 2 && a.SurroundedTicks > 0, $"4 zombis en un tren sin tropa: se pierde en {took} ticks ({took * a.Night.P.ClockX / (double)IMath.TickRate / 60:0.0} min de juego; tope {a.SurroundLossGameMin} min = {lossTicks} ticks)");
@@ -33,7 +33,7 @@ namespace TBD.Sim.Tests
             var b = Make(true); var rb = b.Night.P.TrainRect;
             for (int k = 0; k < 4; k++) b.ImportZombie(rb.X0 + 5000 + k * 10000, rb.Y1 + 500);
             var esc = b.Units.AddPlatoon(PlatoonKind.Fusileros, rb.X0 + 30000, rb.Y1 + 40000, 0); esc.HoldFire = true;      // a 40 m, sin disparar: solo cuenta que está a su alcance
-            int tb = b.Night.Tick; while (b.Night.Tick < tb + lossTicks + 30) b.Step();
+            int tb = b.Night.Tick; while (b.Night.Tick < tb + 205 && b.Night.State == NightState.Jugando) b.Step();      // 205 ticks: antes de que lleguen las oleadas (con 100 min, el tope entero las dejaría entrar)
             check(b.Night.TrainHp > 0 && b.SurroundedTicks == 0, $"con un pelotón propio a 40 m no cuenta como rodeado: el tren sigue con {b.Night.TrainHp * 100 / b.Night.P.TrainHp} % de vida");
 
             var c = Make(true); var st = c.Night.P.StationRect;

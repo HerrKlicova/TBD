@@ -40,7 +40,7 @@ namespace TBD.Sim.Tests
                 wa.Stock[nl, (int)Res.Municion] = NetWorld.ObjAmmoU; bool ammoOnly = wa.ObjAmmo && !wa.ObjMet;
                 wa.Embarque.Lista.Add(new Pasajero { Tipo = PasajeroTipo.Peloton, Id = 77, Service = sv, Node = nl, Estado = PasajeroEstado.EnEstacion });
                 check(ammoOnly && wa.ObjTroops && wa.ObjMet, "objetivo del día 2: con 20 u solo no basta; con un pelotón bajado en Nules y 20 u, cumplido");
-                {   // sin escolta (la guarnición está lejos y no cuenta): D-N180, el tren rodeado se pierde con su carga en 10 min de juego
+                {   // sin escolta (la guarnición está lejos y no cuenta): D-N180, el tren rodeado se pierde con su carga en 100 min de juego (Lucía, 9-nov 22:28)
                     var wb = NetScenario.Inicio(); int sb = TrenPreparar.Nodo(wb, "Sagunto"), nb = TrenPreparar.Nodo(wb, "Nules"); wb.AmbushArrivals = 1;
                     int tv = -1; for (int g = 0; g < NetConst.DayTicks && tv < 0; g++) { tv = TrenPreparar.TrenEn(wb, sb); if (tv < 0) wb.Step(); }
                     while (wb.Tick < NetConst.DayTicks + NetConst.Hours(7)) wb.Step();
