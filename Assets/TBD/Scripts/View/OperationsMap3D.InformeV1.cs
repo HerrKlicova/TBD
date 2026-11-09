@@ -155,7 +155,7 @@ namespace TBD.View
                 string dir = null, rumbo = null;
                 if (LadoHorda(nd, out var ux, out var uy)) { dir = Rumbo(ux, uy); rumbo = InformeTextos.SinAl(Rumbo(-ux, -uy)); }
                 string cifra = Estimacion(_a.SiegeZombies(p.Node), OjosEn(p.Node, out _, out _), est);
-                d.Amenaza.Add(p.Started ? InformeTextos.EnColor(T.AmenazaAtaca(nd.Name, dir, cifra), InformeTextos.ColorAtaque) : T.AmenazaMasa(nd.Name, dir, cifra, rumbo, Dtg(p.StartTick)));
+                d.Amenaza.Add(p.Started ? InformeTextos.ConBarra(T.AmenazaAtaca(nd.Name, dir, cifra), InformeTextos.ColorAtaque) : T.AmenazaMasa(nd.Name, dir, cifra, rumbo, Dtg(p.StartTick)));
             }
             var trebol = new List<int>();
             for (int k = 0; k < g.Nodes.Count; k++) if (Trebol(k)) trebol.Add(k);
@@ -198,7 +198,7 @@ namespace TBD.View
             foreach (var zw in _a.UndefendedWarnings())
             {
                 string nm = g.Nodes[zw.Node].Name;
-                if (d.Valoracion.Count < 2) { string v = T.ValSinDefensa(nm, zw.Started ? null : Dtg(now + zw.EtaTicks), zw.Started); d.Valoracion.Add(zw.Started ? InformeTextos.EnColor(v, InformeTextos.ColorAtaque) : v); }
+                if (d.Valoracion.Count < 2) { string v = T.ValSinDefensa(nm, zw.Started ? null : Dtg(now + zw.EtaTicks), zw.Started); d.Valoracion.Add(zw.Started ? InformeTextos.ConBarra(v, InformeTextos.ColorAtaque) : v); }
             }
             foreach (var p in ased)                                                      // munición mínima ante el asedio (regla de Hugo, 08-11); en ámbar si falta (Lucía, 09-11)
             {
@@ -297,9 +297,12 @@ namespace TBD.View
             foreach (var l in lineas)
             {
                 if (string.IsNullOrEmpty(l)) continue;
-                var gc = new GUIContent(l);
+                string txt = l; Color32 barra = default; bool conBarra = false;
+                if (l[0] == InformeTextos.MarcaBarra && l.Length > 7 && ColorUtility.TryParseHtmlString("#" + l.Substring(1, 6), out var cb)) { barra = cb; conBarra = true; txt = l.Substring(7); }
+                var gc = new GUIContent(txt);
                 float h = Mathf.Max(lh, _infTxt.CalcHeight(gc, w - sangria));
-                Caja(new Rect(x + 2, y + _infTxt.fontSize * 0.5f, U + 1, U + 1), C_GRIS);  // viñeta cuadrada
+                if (conBarra) Caja(new Rect(x, y + U * 0.5f, 2 * U, h - U), barra);                 // barra de color a la izquierda, todo el alto de la línea
+                else Caja(new Rect(x + 2, y + _infTxt.fontSize * 0.5f, U + 1, U + 1), C_GRIS);  // viñeta cuadrada
                 GUI.Label(new Rect(x + sangria, y, w - sangria, h), gc, _infTxt);
                 y += h + U;
             }
@@ -410,6 +413,10 @@ namespace TBD.View
         /// <summary>Las líneas de ataque en curso (amenaza y valoración) van en el rojo de ataque (Lucía, 09-11). El glifo de la Colmena sigue en hueso d4d0cc.</summary>
         public const string ColorAtaque = "982420";
         public static string EnColor(string l, string hex) { return "<color=#" + hex + ">" + l + "</color>"; }
+        /// <summary>Línea con el texto en hueso y una barra de color a la izquierda en vez de la viñeta (Lucía, 09-11: las de ataque, barra roja;
+        /// las necesidades, si cuesta leerlas en ámbar, pasarán a barra ámbar). Marca: '\u0007' + 6 cifras hex + texto; la lee Seccion.</summary>
+        public const char MarcaBarra = '\u0007';
+        public static string ConBarra(string l, string hex) { return MarcaBarra + hex + l; }
 
         /// <summary>Saca la estación de «Sin escolta: {estación} está sitiada» (Puertas.SinEscolta).</summary>
         public static string SitiadaDe(string aviso)
