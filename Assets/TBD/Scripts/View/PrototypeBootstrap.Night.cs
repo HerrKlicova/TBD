@@ -155,6 +155,7 @@ namespace TBD.View
             else if (mode == "ambiente") { SetLight(Color.black, 0f, new Color(0.1f, 0.1f, 0.1f), 50f); SetFloodlights(0f); }
             else if (mode == "focos") { SetLight(Color.black, 0f, Color.black, 50f); SetFloodlights(90f); }
             else if (mode == "actual") { }
+            else if (mode == "dia") { ApplyGrade(0); _paletteMix = 0.65f; }   // 09-11 (Lucía, recorte por alfa): la misma noche con la luz y la gradación de día, para capturas de día (la simulación sigue siendo la de noche)
             Debug.Log("[NOCHE] pasada de luz: " + mode);
         }
 
