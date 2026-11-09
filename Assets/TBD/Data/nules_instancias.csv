@@ -293,3 +293,6 @@ pueblo;SM_BajoComercial;-1;189.0;0;116.0;180;1;si;"manzana del norte (§15): fac
 pueblo;SM_CasaPatio;-1;195.0;0;116.0;180;1;si;"manzana del norte (§15): fachada al sur, a la explanada; hilera seguida para que el norte entre por la plaza"
 pueblo;SM_BajoComercial;-1;201.0;0;116.0;180;1;si;"manzana del norte (§15): fachada al sur, a la explanada; hilera seguida para que el norte entre por la plaza"
 pueblo;SM_Esquina;-1;207.0;0;116.0;180;1;si;"manzana del norte (§15): fachada al sur, a la explanada; hilera seguida para que el norte entre por la plaza"
+acopios;SM_AcopioMunicion;0;140;0;88;0;1;si;"dentro del recinto, entre los coches aparcados (Z 80–82) y el muro norte (cara interior Z 95,5); la variante la manda el estado del acopio (0 lleno … 4 quemado)"
+acopios;SM_AcopioCombustible;0;152;0;88;0;1;si;"dentro del recinto; 2 m entre acopios; pasillo de 3 m a los coches y de 4,5 m al muro norte"
+acopios;SM_AcopioMateriales;0;164;0;88;0;1;si;"dentro del recinto; deja libre X 170–173 para llegar al tramo HESCO del muro norte"

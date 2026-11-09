@@ -95,6 +95,7 @@ namespace TBD.View
         float _targetOrtho = 26f;
         /// <summary>Acopios de carga del patio (Municion, Combustible, Materiales); Actualizar con las unidades de la estación.</summary>
         public static AcopioVista[] AcopiosCarga;
+        static readonly float[] SitioAcopioX = { 102f, 121f, 148f };
         AerodromoZona.Result _betera;      // -verbetera: la cubierta de los hangares abiertos se apaga al acercar la cámara
         float _yaw = 45f;                               // cámara libre: rotación, inclinación y zoom continuos
         float _pitch = 55f;                           // inclinación por defecto 55° (Lucía, D-N61); la cámara es ortográfica: el FOV no aplica
@@ -1795,14 +1796,15 @@ namespace TBD.View
                 Box("Almacén cuerpo", wc + new Vector3(0f, 2.6f, 0f), new Vector3(16f, 5f, 8f), M("94948c"), root);
                 Box("Almacén tejado", wc + new Vector3(0f, 5.4f, 0f), new Vector3(16.8f, 0.5f, 8.8f), wood, root);
             }
-            // Bruno 09-11 (núcleo): acopios de carga de Teo (nucleo-zonas a2144e5) en el patio al sur de la vía, al oeste del muelle de mercancías (X 95–128, Z 46,5–52,5:
-            // entre el muro sur, Z 45, y el muelle, Z 53). PROVISIONAL hasta que Álvaro fije el sitio. Solo vista, sin colisión. Empiezan llenos: la sim de la red
+            // Bruno 09-11 (núcleo): acopios de carga de Teo (nucleo-zonas a2144e5). Sitios de Álvaro (mr-mak b3ed762, sagunto-nivel.md §10.24): yaw 0 y Z 57,5,
+            // munición en X 102, combustible en X 121 y materiales en X 148 (1 m hasta los postes de catenaria; el paso de la tropa, X 107–116, libre). Valen para
+            // Nules A. Solo vista, sin colisión. Empiezan llenos: la sim de la red
             // los mueve con AcopiosCarga[i].Actualizar(unidades de la estación, caída, quemada) (orden: Municion, Combustible, Materiales).
             {
                 string[] recursos = { "Municion", "Combustible", "Materiales" };
                 AcopiosCarga = new AcopioVista[recursos.Length];
                 for (int i = 0; i < recursos.Length; i++)
-                    AcopiosCarga[i] = AcopioVista.MontarCarga(root, recursos[i], new[] { new[] { 100.5f + 11f * i, 0f, 49.5f, 0f } }, AcopioViveres.CapacidadRefU);
+                    AcopiosCarga[i] = AcopioVista.MontarCarga(root, recursos[i], new[] { new[] { SitioAcopioX[i], 0f, 57.5f, 0f } }, AcopioViveres.CapacidadRefU);
             }
             // pieza 8 de Teo: senal de via (origen al pie del mastil, mira a +Z, la via queda a 2,2 m en +X), topera en el eje y poste kilometrico.
             // La via corre a lo largo de X: giro 270 -> +X local pasa a +Z mundo (la via al norte) y la senal mira a -X, hacia el tren que llega del oeste.
