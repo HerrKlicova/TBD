@@ -722,7 +722,7 @@ namespace TBD.View
             foreach (var st in new[] { _label, _small, _title }) { st.clipping = TextClipping.Overflow; st.wordWrap = false; st.padding = new RectOffset(2, 2, 2, 6); st.overflow = new RectOffset(0, 0, 0, 8); }   // la altura del rectángulo no recorta el texto (nombres cortados por abajo)
         }
 
-        long _emSonado = -1;
+        long _emSonado = -1; long _trenParadoAvisado = -1;
         void OnGUI()
         {
             if (_a == null) return;
@@ -780,6 +780,22 @@ namespace TBD.View
                 int zp = IconPx(16); shown++;
                 DrawIcon(new Rect(20, y - 2, zp, zp), "alertas/vm_alertas_" + AlertIcon(AlertKind.NodoAsediado) + "_16");
                 GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>" + Puertas.TextoApartado + "</color>", _small); y += Mathf.Max(_small.fontSize * 1.5f, zp + 4);
+            }
+            {   // Lucía (3b2ee1d): de 19:00 a 22:00, aviso en e08c30 por cada tren parado fuera de casa; doble clic va a esa zona
+                long hd = _a.Tick % NetConst.DayTicks;
+                if (hd >= NetConst.Hours(19) && hd < NetConst.Hours(22))
+                    foreach (var sv in _a.Services)
+                    {
+                        if (!sv.AtStop || sv.Stops.Count == 0) continue; int nn = sv.GateNode >= 0 ? sv.GateNode : sv.Stops[sv.StopIndex].Node;
+                        if (nn < 0 || nn == _a.Embarque.HomeNode || _a.NodeLost[nn]) continue;
+                        int zp = IconPx(16); shown++;
+                        string txt = $"Hay un tren parado en {_a.Graph.Nodes[nn].Name}. Sácalo antes de la noche o puede perderse.";
+                        var rr = new Rect(20, y - 2, pw - 20, Mathf.Max(_small.fontSize * 1.5f, zp + 4));
+                        DrawIcon(new Rect(20, y - 2, zp, zp), "alertas/vm_alertas_" + AlertIcon(AlertKind.NodoAsediado) + "_16");
+                        GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>" + txt + "</color>", _small); y += rr.height;
+                        var ev = Event.current; if (ev.type == EventType.MouseDown && ev.button == 0 && ev.clickCount == 2 && rr.Contains(ev.mousePosition)) { ev.Use(); EnterZone(nn); }
+                        if (_trenParadoAvisado != _a.Tick / NetConst.DayTicks * 1000 + nn) { _trenParadoAvisado = _a.Tick / NetConst.DayTicks * 1000 + nn; Debug.Log("[MAPA] " + txt); }
+                    }
             }
             {   // EM-1 (Lucía, a8b49fd): emboscada de la red en 982420; doble clic lleva a la zona del nodo. Visible 2 h de juego
                 var em = _a.LastAmbush;
