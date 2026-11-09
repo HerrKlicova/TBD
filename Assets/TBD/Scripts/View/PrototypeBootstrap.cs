@@ -288,6 +288,18 @@ namespace TBD.View
             _rootB = SimWorldSetup.Populate(_worldB.EntityManager, zombies, siege, seed, _combat, shots, hasTrain, kind, !_netZone, trainX);
             if (_netZone) BuildSaguntoAmbience();
             if (_netZone) BuildBrumaBorde();   // D-N182: la horda sale de la oscuridad del borde, no aparece a la vista
+            if (TieneArg("-verbetera")) VerBetera();
+            if (TieneArg("-vernules")) { var rn = new GameObject("Zona de Nules propia (prueba de vista)").transform; rn.position = new Vector3(2000f, 0f, 600f); NulesZona.Montar(rn); _focus = rn.position + new Vector3(NulesZona.ZonaW * 0.5f, 0f, NulesZona.ZonaD * 0.5f); _targetOrtho = 60f; }   // Bruno 09-11: Nules con sus piezas (detrás de la F0)   // Bruno 09-11 (F0): prueba de vista de la zona de Bétera, sin sim, a 2 km al este de Sagunto
+        }
+
+        /// <summary>-verbetera: monta Bétera (AerodromoZona.Montar) a 2 km al este de la zona, con la cámara encima, para ver las piezas de Teo en la build
+        /// antes de que Marcos le ponga la sim. La zona de Sagunto sigue debajo (sim, hordas y muros siguen allí). Solo vista.</summary>
+        void VerBetera()
+        {
+            var r = new GameObject("Zona de Bétera (prueba de vista)").transform; r.position = new Vector3(2000f, 0f, 0f);
+            var res = AerodromoZona.Montar(r);
+            if (res == null) return;
+            _focus = r.position + AerodromoZona.Centro; _targetOrtho = 60f;
         }
 
         void OnDestroy()
@@ -1799,8 +1811,12 @@ namespace TBD.View
             if (!zonaNules) {   // Nules (opción A): sin el pueblo de Sagunto (casas, solares y naranjos de detrás), ni su vista ni su colisión
             for (int i = 0; i < 12; i++) if (i != 4 && i != 8) { houses.Add(new Vector3(75f + i * 6f, 0f, 103f)); houseYaw.Add(0f); }
             for (int i = 0; i < 12; i++) if (i != 3) { houses.Add(new Vector3(75f + i * 6f, 0f, 120f)); houseYaw.Add(180f); }
-            foreach (int gi in new[] { 4, 8 })                                                                      // solares con escombros junto al muro
+            foreach (int gi in new[] { 4, 8 })                                                                      // solares con escombros junto al muro: un montón de Teo por solar (Urbano/escombro), o las 4 cajas
+            {
+                var ep = new Vector3(75f + gi * 6f, 0f, 102f); int ek = (int)(math_hash((int)(ep.x * 10f), (int)(ep.z * 10f)) % 5u);
+                if (ModeloEn("Urbano/escombro", "SM_MontonEscombro_v" + ek + "_" + EscombroVar[ek] + "_LOD1", ep, (ek * 67) % 360, root) != null) continue;
                 for (int k = 0; k < 4; k++) Box("Escombro", new Vector3(75f + gi * 6f + (k % 2) * 2.4f - 1.2f, 0.4f, 100f + (k / 2) * 4f), new Vector3(2.2f, 0.8f + 0.2f * k, 1.8f), M("605c48"), root);
+            }
             for (int hi = 0; hi < houses.Count; hi++)
             {
                 var hp = houses[hi];
@@ -1838,11 +1854,17 @@ namespace TBD.View
             var dirt = M("b4a080"); var gate = M("7c3c18"); var grass = M("88885c");
             // P4: puerta de vía este, cerrada y solo visual
             float gx = Level.FortX1;
-            Box("Puerta este jamba S", new Vector3(gx, 1.6f, ty - 3.0f), new Vector3(1.4f, 3.2f, 0.8f), concrete, root);
-            Box("Puerta este jamba N", new Vector3(gx, 1.6f, ty + 3.0f), new Vector3(1.4f, 3.2f, 0.8f), concrete, root);
-            Box("Puerta este dintel", new Vector3(gx, 3.5f, ty), new Vector3(1.4f, 0.6f, 6.8f), concrete, root);
-            Box("Puerta este hoja S", new Vector3(gx, 1.8f, ty - 1.4f), new Vector3(0.3f, 2.4f, 2.6f), gate, root);
-            Box("Puerta este hoja N", new Vector3(gx, 1.8f, ty + 1.4f), new Vector3(0.3f, 2.4f, 2.6f), gate, root);
+            // Bruno 09-11 (modelos en las zonas): la puerta de vía este, con el modelo de Teo (Defensas/puerta_via, sana y cerrada) en lugar de las cinco cajas
+            var puertaEste = ModeloPuertaVia(new Vector3(gx, 0f, ty - 3.4f), new Vector3(gx, 0f, ty + 3.4f), 0);
+            if (puertaEste != null) puertaEste.transform.SetParent(root, true);              // con la zona: se destruye al salir de ella
+            else
+            {
+                Box("Puerta este jamba S", new Vector3(gx, 1.6f, ty - 3.0f), new Vector3(1.4f, 3.2f, 0.8f), concrete, root);
+                Box("Puerta este jamba N", new Vector3(gx, 1.6f, ty + 3.0f), new Vector3(1.4f, 3.2f, 0.8f), concrete, root);
+                Box("Puerta este dintel", new Vector3(gx, 3.5f, ty), new Vector3(1.4f, 0.6f, 6.8f), concrete, root);
+                Box("Puerta este hoja S", new Vector3(gx, 1.8f, ty - 1.4f), new Vector3(0.3f, 2.4f, 2.6f), gate, root);
+                Box("Puerta este hoja N", new Vector3(gx, 1.8f, ty + 1.4f), new Vector3(0.3f, 2.4f, 2.6f), gate, root);
+            }
             // C3: paso superior de Teo en X = −20 (deck a 8,3 m) con terraplenes al 12 %: norte hasta Z ≈ 150 y sur hasta Z ≈ −22; la carretera vieja pasa por un hueco de 10 m con losa
             float px = -20f;
             if (PlaceModel("paso_superior", "SM_paso_superior_LOD1", new Vector3(px, 0f, ty), 0f, root) == null)
@@ -1933,8 +1955,12 @@ namespace TBD.View
             DecalQuad("Icons/decals/decal_pintada_aqui_hay_vivos", new Vector3(100f, 1.5f, Level.FortY1 - 1.6f), new Vector2(13f, 2f), Vector3.zero, Vector2.one, root);
             DecalQuad("Icons/decals/decal_pintada_flecha", new Vector3(112f, 1.5f, Level.FortY1 - 1.6f), new Vector2(4f, 1.8f), Vector3.zero, Vector2.one, root);
             // barricada civil rota a la entrada del pueblo y un autobús cruzado
-            Box("Autobús cruzado", new Vector3(59f, 1.5f, 92f), new Vector3(11f, 3f, 2.6f), concrete, root).transform.rotation = Quaternion.Euler(0f, 74f, 0f);
-            for (int i = 0; i < 5; i++) Box("Mueble barricada", new Vector3(53f + i * 2.3f, 0.7f, 88.5f + (i % 2) * 1.6f), new Vector3(1.8f, 1.4f, 1.2f), i % 2 == 0 ? rust : dark, root).transform.rotation = Quaternion.Euler(0f, i * 31f, 0f);
+            // autobús de Teo (zonas-cajas, Urbano/autobus): largo en Z, así que yaw 74 + 90 = 164
+            if (ModeloEn("Urbano/autobus", "SM_Autobus_v3_" + AutobusVar[3] + "_LOD1", new Vector3(59f, 0f, 92f), 164f, root) == null)
+                Box("Autobús cruzado", new Vector3(59f, 1.5f, 92f), new Vector3(11f, 3f, 2.6f), concrete, root).transform.rotation = Quaternion.Euler(0f, 74f, 0f);
+            // barricada civil de Teo (Castellon/barricada_civil, la de muebles, sana) en lugar de las cinco cajas; si falta, las cajas de siempre
+            if (ModeloSuelto("Castellon/barricada_civil", "SM_BarricadaCivil_v1_Muebles_e0_Sano_LOD1", new Vector3(57.6f, 0f, 89.3f), 9.5f, 4f, root) == null)
+                for (int i = 0; i < 5; i++) Box("Mueble barricada", new Vector3(53f + i * 2.3f, 0.7f, 88.5f + (i % 2) * 1.6f), new Vector3(1.8f, 1.4f, 1.2f), i % 2 == 0 ? rust : dark, root).transform.rotation = Quaternion.Euler(0f, i * 31f, 0f);
         }
 
         /// <summary>Terraplén: cuña de ancho w (en X) que baja de la altura h en el extremo a (borde con el puente) a hEnd en el extremo b, con la cara superior inclinada.</summary>
@@ -1964,6 +1990,8 @@ namespace TBD.View
 
         void AddTruck(Transform root, Vector3 pos)
         {
+            // camión civil de Teo (entregas/teo-modelado/coches-civiles, v3 accidentado; hay que importarlo desde el PC a Models/Urbano/coches_civiles con su T_Paleta32)
+            if (ModeloSuelto("Urbano/coches_civiles", "SM_CocheCivil_Camion_v3_LOD1", pos, 0f, 78f, root) != null) return;
             var body = Box("Camión caja", pos + new Vector3(0f, 1.9f, 0f), new Vector3(8f, 2.4f, 2.5f), Mat("94948c"), root); body.transform.rotation = Quaternion.Euler(0f, 78f, 0f);
             var cab = Box("Camión cabina", pos + body.transform.rotation * new Vector3(5.2f, -0.3f, 0f), new Vector3(2.2f, 2.0f, 2.4f), Mat("283440"), root); cab.transform.rotation = body.transform.rotation;
         }
@@ -1978,6 +2006,46 @@ namespace TBD.View
             if (tex != null) { tex.wrapMode = tile.x > 1.01f || tile.y > 1.01f ? TextureWrapMode.Repeat : TextureWrapMode.Clamp; m.SetTexture("_BaseMap", tex); m.SetTextureScale("_BaseMap", tile); }
             m.SetFloat("_Surface", 0f); m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON");
             go.GetComponent<MeshRenderer>().sharedMaterial = m;
+            return go;
+        }
+
+        /// <summary>Modelo de Teo de Resources/Models/carpeta tal cual (origen en el suelo, giro yaw), con su T_Paleta32; null si falta (entonces, la caja de siempre).</summary>
+        GameObject ModeloEn(string carpeta, string file, Vector3 pos, float yaw, Transform parent)
+        {
+            var prefab = Resources.Load<GameObject>("Models/" + carpeta + "/" + file); if (prefab == null) return null;
+            if (!_modeloEnMats.TryGetValue(carpeta, out var mat) || mat == null)
+            {
+                var tex = Resources.Load<Texture2D>("Models/" + carpeta + "/T_Paleta32");
+                mat = Mat("ffffff"); if (tex != null) mat.SetTexture("_BaseMap", tex); mat.SetColor("_BaseColor", Color.white); mat.enableInstancing = true; _modeloEnMats[carpeta] = mat;
+            }
+            var go = parent != null ? Instantiate(prefab, parent) : Instantiate(prefab); go.name = file;
+            foreach (var r in go.GetComponentsInChildren<MeshRenderer>()) { r.sharedMaterial = mat; r.shadowCastingMode = ShadowCastingMode.On; }
+            go.transform.position = pos; go.transform.rotation = Quaternion.Euler(0f, yaw, 0f) * go.transform.rotation;
+            return go;
+        }
+        readonly System.Collections.Generic.Dictionary<string, Material> _modeloEnMats = new System.Collections.Generic.Dictionary<string, Material>();
+        static readonly string[] AutobusVar = { "Abandonado", "PuertasAbiertas", "Pinchado", "Accidentado", "Quemado" };
+        static readonly string[] EscombroVar = { "Cascotes", "Ladrillo", "Ferralla", "Tablones", "Sacas" };
+        static readonly string[] PosteFocoVar = { "Hormigon", "Madera", "Tripode", "Bidon", "Vientos" };
+
+        /// <summary>Modelo de Teo de cualquier carpeta de Resources/Models con su T_Paleta32, con el lado largo a lo largo de X (girado yawExtra) y centrado en c;
+        /// si el lado largo pasa de largoMax, se escala para que quepa. Solo vista. Devuelve null si falta el modelo.</summary>
+        GameObject ModeloSuelto(string carpeta, string file, Vector3 c, float largoMax, float yawExtra, Transform parent)
+        {
+            var prefab = Resources.Load<GameObject>("Models/" + carpeta + "/" + file); if (prefab == null) { Debug.LogWarning("[TBD] Falta el modelo " + carpeta + "/" + file); return null; }
+            var tex = Resources.Load<Texture2D>("Models/" + carpeta + "/T_Paleta32");
+            var go = Instantiate(prefab, parent); go.name = file;
+            var mat = Mat("ffffff"); if (tex != null) mat.SetTexture("_BaseMap", tex); mat.SetColor("_BaseColor", Color.white); mat.enableInstancing = true;
+            foreach (var r in go.GetComponentsInChildren<MeshRenderer>()) { r.sharedMaterial = mat; r.shadowCastingMode = ShadowCastingMode.On; }
+            go.transform.position = c; go.transform.rotation = Quaternion.identity;
+            Bounds bb = new Bounds(c, Vector3.zero); bool any = false;
+            foreach (var r in go.GetComponentsInChildren<MeshRenderer>()) { if (!any) { bb = r.bounds; any = true; } else bb.Encapsulate(r.bounds); }
+            bool largoX = bb.size.x >= bb.size.z; float largo = Mathf.Max(bb.size.x, bb.size.z);
+            if (largoMax > 0f && largo > largoMax) go.transform.localScale = Vector3.one * (largoMax / largo);
+            go.transform.rotation = Quaternion.Euler(0f, (largoX ? 0f : 90f) + yawExtra, 0f);
+            Bounds b2 = new Bounds(c, Vector3.zero); bool any2 = false;
+            foreach (var r in go.GetComponentsInChildren<MeshRenderer>()) { if (!any2) { b2 = r.bounds; any2 = true; } else b2.Encapsulate(r.bounds); }
+            if (any2) go.transform.position += new Vector3(c.x - b2.center.x, -b2.min.y, c.z - b2.center.z);
             return go;
         }
 
@@ -2654,7 +2722,9 @@ namespace TBD.View
                 l.intensity = 0f;
                 l.shadows = LightShadows.None;                  // sin sombras: un foco con sombras cuesta un pase más por luz
                 _floodLights.Add(l);
-                Box("Poste del foco", pos + new Vector3(0.3f, -0.8f, 0f), new Vector3(0.25f, 1.6f, 0.25f), _mRail);
+                { int pk = (int)(math_hash((int)(pos.x * 10f), (int)(pos.z * 10f)) % 5u);              // poste de Teo (Urbano/poste_foco): soporte a 1,6 m y 0,3 m hacia −X, origen en el suelo
+                  if (ModeloEn("Urbano/poste_foco", "SM_PosteFoco_v" + pk + "_" + PosteFocoVar[pk] + "_LOD1", pos + new Vector3(0.3f, -1.6f, 0f), 0f, null) == null)
+                      Box("Poste del foco", pos + new Vector3(0.3f, -0.8f, 0f), new Vector3(0.25f, 1.6f, 0.25f), _mRail); }
 
                 var h = new GameObject("Halo del foco");
                 h.layer = LayerFx;

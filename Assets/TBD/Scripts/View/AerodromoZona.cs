@@ -18,6 +18,30 @@ namespace TBD.View
         static readonly Dictionary<string, Material> Mats = new Dictionary<string, Material>();
         static Material _ground, _concrete, _apron, _mark, _missing;
 
+        /// <summary>
+        /// Montaje completo desde los datos de Álvaro (Bruno 09-11, para Marcos: F0 del núcleo). Lee estacion_betera.json y betera_instancias.csv con
+        /// BalanceSource, monta la zona con las piezas de Teo bajo root y escribe [BETERA] con lo colocado y lo que falta. Si el CSV no está, usa las piezas
+        /// del JSON. Devuelve null si no hay JSON. Solo vista: la sim de la zona (Level, muros, entradas) la pone Marcos.
+        /// </summary>
+        public static Result Montar(Transform root)
+        {
+            var json = BalanceSource.Read("estacion_betera.json");
+            if (json == null) { Debug.LogWarning("[BETERA] falta estacion_betera.json"); return null; }
+            AerodromoNivel n;
+            try { n = AerodromoNivel.FromJson(json); } catch (System.Exception e) { Debug.LogWarning("[BETERA] estacion_betera.json: " + e.Message); return null; }
+            var csv = BalanceSource.Read("betera_instancias.csv");
+            if (csv != null) { try { n.UsarInstancias(csv); } catch (System.Exception e) { Debug.LogWarning("[BETERA] betera_instancias.csv: " + e.Message + " (uso las piezas del JSON)"); n = AerodromoNivel.FromJson(json); } }
+            var res = Build(root, n);
+            Debug.Log("[BETERA] zona montada: " + res.Placed + " piezas (" + res.Faldon + " de faldón), " + res.Missing.Count + " sin modelo" + (csv != null ? " · instancias del CSV" : " · piezas del JSON")
+                + " · zona X " + n.ZonaX0 + "…" + n.ZonaX1 + ", Z " + n.ZonaZ0 + "…" + n.ZonaZ1);
+            foreach (var m in res.Missing) Debug.Log("[BETERA] sin modelo: " + m);
+            Centro = new Vector3((n.ZonaX0 + n.ZonaX1) * 0.5f, 0f, (n.ZonaZ0 + n.ZonaZ1) * 0.5f);
+            return res;
+        }
+
+        /// <summary>Centro de la zona del último Montar (coordenadas locales de root), para encuadrar la cámara.</summary>
+        public static Vector3 Centro;
+
         public static Result Build(Transform root, AerodromoNivel n)
         {
             var res = new Result { Root = root };
