@@ -3414,6 +3414,7 @@ namespace TBD.View
             }, 1);
         }
 
+        Quaternion[] _trainRot0;
         void UpdateTrainVisual()
         {
             var em = _worldA.EntityManager;
@@ -3424,9 +3425,13 @@ namespace TBD.View
             // el tren avanza hacia +x; la locomotora va delante
             float x = train.X;                                                    // el sólido va de X − 61,5 a X + 2,5
             if (_nightOn && _ng != null) { float fr = _ng.P.TrainRect.X1 / 1000f; if (Mathf.Abs(fr - (x + 2.5f)) > 15f) { x = fr - 2.5f; bool vivo = _ng.TrainHp > 0; foreach (var part in _trainParts) part.gameObject.SetActive(vivo); } }   // Nules (Iker, I-Noche101): la noche pone el tren fuera de la puerta este (TrainRect); el modelo va donde lo ve la simulación de la noche, no en el andén de Sagunto
-            _trainParts[0].position = new Vector3(x + 2.5f - 12.015f, 0f, ty);    // locomotora: 24,03 m con el frente en X + 2,5
-            _trainParts[1].position = new Vector3(x + 2.5f - 24.03f - 9.95f, 0f, ty);
-            _trainParts[2].position = new Vector3(x + 2.5f - 24.03f - 19.9f - 9.95f, 0f, ty);
+            if (_trainRot0 == null) { _trainRot0 = new Quaternion[_trainParts.Length]; for (int k = 0; k < _trainParts.Length; k++) _trainRot0[k] = _trainParts[k].rotation; }
+            bool espejo = train.Speed <= 0f && x - Level.TrainRear > Level.FortX1;   // Nules A: el tren espera fuera de la puerta este; llega del este, con la locomotora mirando a la puerta (Eugenio, I-Noche110: «llega mirando hacia fuera»)
+            float frente = espejo ? x + 2.5f - 64f : x + 2.5f, sg = espejo ? -1f : 1f;  // espejo: el frente en el extremo oeste del rectángulo (X − 61,5)
+            _trainParts[0].position = new Vector3(frente - sg * 12.015f, 0f, ty);    // locomotora: 24,03 m con el frente en X + 2,5
+            _trainParts[1].position = new Vector3(frente - sg * (24.03f + 9.95f), 0f, ty);
+            _trainParts[2].position = new Vector3(frente - sg * (24.03f + 19.9f + 9.95f), 0f, ty);
+            for (int k = 0; k < _trainParts.Length && k < _trainRot0.Length; k++) _trainParts[k].rotation = espejo ? Quaternion.Euler(0f, 180f, 0f) * _trainRot0[k] : _trainRot0[k];
             if (_gate != null) _gate.SetActive(!info.GateOpen);
         }
     }
