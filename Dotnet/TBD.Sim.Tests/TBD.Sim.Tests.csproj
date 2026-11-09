@@ -16,6 +16,7 @@
   <ItemGroup>
     <Compile Include="Shims\UnityShims.cs" />
     <Compile Include="Program.cs" />
+    <Compile Include="RelojUnicoTests.cs" />
     <Compile Include="RailTests.cs" />
     <Compile Include="NetWorldTests.cs" />
     <Compile Include="BalanceTests.cs" />
