@@ -39,6 +39,8 @@ namespace TBD.Sim.Tests
             Hold(t, 8); c.ColmenaDay(t, 10);
             check(c.ColState == HiveDirector.ColEnjambre && CountIntel(t, "CO-2") == 1 && c.ColMultMil() == 1250 && c.MaxSieges() == c.P.MaxSiegesStage1 + 1 && !c.ColWarning,
                 $"7 en 7 días (señal {c.ColSignalMil} ‰): Enjambre, CO-2, presupuesto ×1,25 y un asedio simultáneo más ({c.MaxSieges()})");
+            { var texts = new IntelTexts(BalanceSource.Read("textos_informe.csv")); var e2 = t.Intel.FindLast(e => e.Id == "CO-2"); string src; string tx = texts.Format(e2, "es", out src);
+              check(tx.StartsWith("ENJAMBRE.") && tx.Contains("7 nodos en 7 días") && tx.Contains("huella ") && !tx.Contains("{"), $"CO-2 sale completo: «{tx}»"); }
             ulong hE = t.Hash(); var b = NetSave.Save(t); var l = NetScenario.Inicio(); NetSave.Load(b, l);
             check(l.Hash() == hE && l.Director.ColState == 2 && l.Director.ColSignalMil == c.ColSignalMil && l.Director.ColHeld[10 % 8] == 8, "se guarda y se carga en Enjambre, con la historia de 8 días (NetVersion 6)");
             int toAcecho = -1, toDisp = -1;
@@ -57,8 +59,8 @@ namespace TBD.Sim.Tests
             check(off.Director.ColState == 0 && off.Director.ColMultMil() == 1000 && off.Director.MaxSieges() == off.Director.P.MaxSiegesStage1, "apagado (colmena_estados = 0) no hace nada: ×1 y los asedios de la etapa");
             var i0 = NetScenario.Inicio(); bool co0 = i0.Director.ColmenaIntro(i0), co0b = i0.Director.ColmenaIntro(i0);
             check(co0 && !co0b && CountIntel(i0, "CO-0") == 1, "CO-0: la primera vez que se abre el mapa, con la Colmena Dispersa, sale una sola vez");
-            var i1 = NetScenario.Inicio(); var bi = NetSave.Save(i1); var li = NetScenario.Inicio(); NetSave.Load(bi, li);
-            check(!li.Director.ColmenaIntro(li) && CountIntel(li, "CO-0") == 0 && li.Hash() == i1.Hash(), "CO-0 no sale en una partida cargada (y no cambia el hash)");
+            var bi = NetSave.Save(i0); var li = NetScenario.Inicio(); NetSave.Load(bi, li);
+            check(!li.Director.ColmenaIntro(li) && CountIntel(li, "CO-0") == 1 && li.Hash() == i0.Hash(), "CO-0 no se repite al cargar una partida en la que ya salió (y no cambia el hash)");
             var i2 = NetScenario.Inicio(); i2.Director.ColState = HiveDirector.ColAcecho;
             check(!i2.Director.ColmenaIntro(i2) && CountIntel(i2, "CO-0") == 0, "CO-0 no sale si la Colmena ya no está Dispersa");
             check(NetSave.NetVersion == 6, "la versión de la red sube a 6");

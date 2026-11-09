@@ -28,7 +28,7 @@ TL-3;Chispas;Paramos el {tren}. Recuperamos {u} u de materiales.;Work on the {tr
 ZS-1;Ibarra;{nodo} aguanta la noche: {abatidos} de {n} abatidos, {u} u de munición, {bajas} bajas.;{node} holds the night: {abatidos} of {n} down, {u} u of ammunition, {bajas} casualties.
 ZS-2;Ibarra;Hemos perdido {nodo}. Eran {n} y solo cayeron {abatidos}.;We have lost {node}. They were {n} and only {abatidos} went down.
 CO-0;Ibarra;La Colmena está dispersa. Si creces despacio, no se fija en ti.;The Hive is scattered. If you grow slowly, it will not notice you.
-CO-1;Ibarra;Se mueve distinto. Ya no vaga: escucha.;It moves differently. It no longer wanders: it listens.
-CO-2;Ibarra;Se está juntando. Has crecido demasiado deprisa y lo ha notado.;It is gathering. You have grown too fast and it has noticed.
-CO-3;Ibarra;Se dispersa otra vez. Por ahora.;It is scattering again. For now.
-CO-4;Ibarra;Ha perdido el interés. Vaga sin rumbo.;It has lost interest. It wanders aimlessly.
+CO-1;Ibarra;La Colmena ha dejado de vagar. Se junta y escucha.;The Hive has stopped wandering. It gathers and listens.
+CO-2;Ibarra;ENJAMBRE. Has crecido demasiado deprisa: {n} nodos en 7 días y huella {h}. Atacará más de una estación a la vez.;SWARM. You have grown too fast: {n} nodes in 7 days and footprint {h}. It will attack more than one station at once.
+CO-3;Ibarra;El enjambre se deshace. La Colmena sigue atenta.;The swarm breaks up. The Hive is still watching.
+CO-4;Ibarra;La Colmena se dispersa. Ventana para crecer.;The Hive scatters. A window to grow.
