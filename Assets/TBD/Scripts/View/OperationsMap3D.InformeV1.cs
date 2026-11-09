@@ -155,7 +155,7 @@ namespace TBD.View
                 string dir = null, rumbo = null;
                 if (LadoHorda(nd, out var ux, out var uy)) { dir = Rumbo(ux, uy); rumbo = InformeTextos.SinAl(Rumbo(-ux, -uy)); }
                 string cifra = Estimacion(_a.SiegeZombies(p.Node), OjosEn(p.Node, out _, out _), est);
-                d.Amenaza.Add(p.Started ? T.AmenazaAtaca(nd.Name, dir, cifra) : T.AmenazaMasa(nd.Name, dir, cifra, rumbo, Dtg(p.StartTick)));
+                d.Amenaza.Add(p.Started ? InformeTextos.EnColor(T.AmenazaAtaca(nd.Name, dir, cifra), InformeTextos.ColorAtaque) : T.AmenazaMasa(nd.Name, dir, cifra, rumbo, Dtg(p.StartTick)));
             }
             var trebol = new List<int>();
             for (int k = 0; k < g.Nodes.Count; k++) if (Trebol(k)) trebol.Add(k);
@@ -198,16 +198,16 @@ namespace TBD.View
             foreach (var zw in _a.UndefendedWarnings())
             {
                 string nm = g.Nodes[zw.Node].Name;
-                if (d.Valoracion.Count < 2) d.Valoracion.Add(T.ValSinDefensa(nm, zw.Started ? null : Dtg(now + zw.EtaTicks), zw.Started));
+                if (d.Valoracion.Count < 2) { string v = T.ValSinDefensa(nm, zw.Started ? null : Dtg(now + zw.EtaTicks), zw.Started); d.Valoracion.Add(zw.Started ? InformeTextos.EnColor(v, InformeTextos.ColorAtaque) : v); }
             }
-            foreach (var p in ased)                                                      // munición mínima ante el asedio (regla de Hugo, 08-11)
+            foreach (var p in ased)                                                      // munición mínima ante el asedio (regla de Hugo, 08-11); en ámbar si falta (Lucía, 09-11)
             {
                 int min = InformeTextos.MunicionMinima(_a.SiegeZombies(p.Node));
                 long mun = _a.Stock[p.Node, (int)Res.Municion];
                 bool tropa = _a.ZoneDefended(p.Node);
                 if (tropa && mun >= min) continue;
                 string l = tropa ? T.NecMunicion(min, g.Nodes[p.Node].Name) : T.NecTropa(min, g.Nodes[p.Node].Name);
-                d.Necesidades.Add(mun < min ? "<color=#" + InformeTextos.ColorFalta + ">" + l + "</color>" : l);
+                d.Necesidades.Add(mun < min ? InformeTextos.EnColor(l, InformeTextos.ColorFalta) : l);
             }
             for (int i = 0; i < _a.Services.Count; i++)
             {
@@ -405,9 +405,11 @@ namespace TBD.View
         /// anunciado (SiegeZombies ya lleva la dificultad de la partida). Nules 2.400: 8 u; Sagunto normal 5.250: 16 u; difícil 5.700: 17 u.
         /// Los 20 u de Nules de la D-N179 son el objetivo de diseño del día 2, no esta regla.</summary>
         public static int MunicionMinima(int horda) { return horda <= 0 ? 2 : (horda + 399) / 400 + 2; }
-        /// <summary>Color de la necesidad cuando la estación tiene menos munición que el mínimo (Hugo: «en rojo»). Es el rojo de ataque 982420;
-        /// Lucía decide si se queda (el rojo era solo para ataques).</summary>
-        public const string ColorFalta = "982420";
+        /// <summary>Color de la necesidad cuando la estación tiene menos munición que el mínimo: el ámbar de aviso (Lucía, 09-11, decisiones-noche.md).</summary>
+        public const string ColorFalta = "e08c30";
+        /// <summary>Las líneas de ataque en curso (amenaza y valoración) van en el rojo de ataque (Lucía, 09-11). El glifo de la Colmena sigue en hueso d4d0cc.</summary>
+        public const string ColorAtaque = "982420";
+        public static string EnColor(string l, string hex) { return "<color=#" + hex + ">" + l + "</color>"; }
 
         /// <summary>Saca la estación de «Sin escolta: {estación} está sitiada» (Puertas.SinEscolta).</summary>
         public static string SitiadaDe(string aviso)
