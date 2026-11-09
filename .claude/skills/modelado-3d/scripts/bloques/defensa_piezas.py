@@ -1,0 +1,142 @@
+"""Piezas de ESQUINA y REMATE para los muros por estados (HESCO y sacos), a partir de sus tramos aprobados
+(muro_hesco_estados y muro_sacos_estados: mismas variantes, estados, colores y daños). Teo (3), 8-nov.
+
+Se construyen tramos cortos del módulo del muro y se juntan en L:
+- ESQUINA (esquina exterior): un bloque de esquina en el origen y dos brazos, uno hacia +X (fuera = −Y) y otro hacia
+  +Y (fuera = −X). El recinto queda en el cuadrante +X +Y; la esquina de fuera apunta a (−, −).
+- REMATE (fin de muro): el bloque de esquina, el brazo hacia +X y una vuelta corta de un solo bloque hacia +Y (hacia
+  dentro), que cierra el extremo del muro como en las defensas de campaña.
+Los restos del daño que caerían lejos de un tramo corto se quitan (islas a más de 1,2 m del brazo).
+"""
+import math, os
+import bpy, bmesh
+from mathutils import Matrix, Vector
+
+
+def _tramo(mod, largo, n=None, nombre="tmp", lod=0, dx=0.0, giro=0.0):
+    viejo = (mod.LARGO, getattr(mod, "N", None), getattr(mod, "PASO", None))
+    mod.LARGO = largo
+    if n is not None:
+        mod.N = n
+        mod.PASO = largo / n
+    try:
+        o = mod.construir(nombre, lod=lod)
+    finally:
+        mod.LARGO = viejo[0]
+        if n is not None:
+            mod.N, mod.PASO = viejo[1], viejo[2]
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    # quita las islas (cajas sueltas de escombro) que caen lejos del tramo corto
+    vistos = set()
+    fuera = []
+    for f in bm.faces:
+        if f in vistos:
+            continue
+        isla, pila = set(), [f]
+        while pila:
+            g = pila.pop()
+            if g in isla:
+                continue
+            isla.add(g)
+            for e in g.edges:
+                for h in e.link_faces:
+                    if h not in isla:
+                        pila.append(h)
+        vistos |= isla
+        vs = {v for g in isla for v in g.verts}
+        c = sum((v.co for v in vs), Vector()) / len(vs)
+        if abs(c.x) > largo / 2 + 1.2:
+            fuera.extend(isla)
+    if fuera:
+        bmesh.ops.delete(bm, geom=list(set(fuera)), context="FACES")
+    M = Matrix.Rotation(math.radians(giro), 4, "Z") @ Matrix.Translation((dx, 0, 0))
+    bm.transform(M)
+    me = o.data
+    bm.to_mesh(me)
+    bm.free()
+    return o
+
+
+def juntar(nombre, partes):
+    bm = bmesh.new()
+    mats = None
+    for o in partes:
+        if mats is None:
+            mats = list(o.data.materials)
+        bm.from_mesh(o.data)
+    me = bpy.data.meshes.new(nombre)
+    bm.to_mesh(me)
+    bm.free()
+    for mt in mats:
+        me.materials.append(mt)
+    obj = bpy.data.objects.new(nombre, me)
+    bpy.context.scene.collection.objects.link(obj)
+    for o in partes:
+        d = o.data
+        bpy.data.objects.remove(o, do_unlink=True)
+        bpy.data.meshes.remove(d)
+    return obj
+
+
+def quitar_fuera(o, limite=-0.6, en_x=True):
+    """Quita las islas cuyo centro cae fuera (x < limite o y < limite): en una azotea, lo que cae fuera no se queda en
+    el aire."""
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    vistos, fuera = set(), []
+    for f in bm.faces:
+        if f in vistos:
+            continue
+        isla, pila = set(), [f]
+        while pila:
+            g = pila.pop()
+            if g in isla:
+                continue
+            isla.add(g)
+            for e in g.edges:
+                pila.extend(h for h in e.link_faces if h not in isla)
+        vistos |= isla
+        vs = {v for g in isla for v in g.verts}
+        c = sum((v.co for v in vs), Vector()) / len(vs)
+        if (en_x and c.x < limite) or c.y < limite:
+            fuera.extend(isla)
+    if fuera:
+        bmesh.ops.delete(bm, geom=list(set(fuera)), context="FACES")
+    bm.to_mesh(o.data)
+    bm.free()
+    return o
+
+
+def pieza(mod, tipo, nombre, lod, bloque, brazo, n_bloque=None, n_brazo=None, solape=0.0, brazo_b=None):
+    """tipo 0 esquina, 1 remate. bloque: lado del bloque de esquina; brazo: largo de cada brazo."""
+    c = bloque / 2 + brazo / 2 - solape
+    partes = [_tramo(mod, bloque, n_bloque, "tmp_c", lod),
+              _tramo(mod, brazo, n_brazo, "tmp_a", lod, dx=c)]
+    if tipo == 0:
+        # brazo hacia −X (fuera −Y) girado −90°: queda hacia +Y con fuera −X
+        bb = brazo if brazo_b is None else brazo_b
+        partes.append(_tramo(mod, bb, n_brazo, "tmp_b", lod, dx=-(bloque / 2 + bb / 2 - solape), giro=-90.0))
+    else:
+        cv = bloque - solape                          # vuelta de un bloque hacia dentro (+Y)
+        partes.append(_tramo(mod, bloque, n_bloque, "tmp_b", lod, dx=-cv, giro=-90.0))
+    return juntar(nombre, partes)
+
+
+def separar(o, lod):
+    from mathutils import Vector, Matrix
+    base = Vector(o.get("tbd_base", (0.0, 0.0, 0.0)))
+    o.data.transform(Matrix.Translation(base))
+    if "tbd_base" in o:
+        del o["tbd_base"]
+    if os.environ.get("TBD_ESPEJO") == "1":
+        # versión espejo (Álvaro, 8-nov 17:55: el remate de la derecha de cada hueco). Se espeja en X y se dan la vuelta
+        # las caras, para no depender de la escala −1 en Unity (Entities Graphics y el cálculo de la sombra).
+        o.data.transform(Matrix.Scale(-1.0, 4, (1.0, 0.0, 0.0)))
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        bmesh.ops.reverse_faces(bm, faces=bm.faces[:])
+        bm.to_mesh(o.data)
+        bm.free()
+        o.data.update()
+    return [o]
