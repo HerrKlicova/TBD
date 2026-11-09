@@ -438,7 +438,7 @@ namespace TBD.Units
                 SumSegments();
             }
             WallJobsStep();
-            { _targets.Clear(); for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); int aS, aT; Night.CountAttackers(_targets, out aS, out aT); Night.Attack(aS, aT);
+            { _targets.Clear(); for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); int aS, aT; Night.CountAttackers(_targets, out aS, out aT); Night.Attack(aS, aT); SurroundedTrain(aT);
               if (aT > TrainPeakAttackers) TrainPeakAttackers = aT;
               if (aT > 0) for (int i = 0; i < _z.Count; i++) if (_z[i].Alive && !_z[i].HitTrain && Night.TouchesTrain(_z[i].X, _z[i].Y)) { _z[i].HitTrain = true; TrainTouched++; } }
             // 4) los pelotones disparan; los impactos abaten
@@ -592,6 +592,25 @@ namespace TBD.Units
         readonly List<Target> _men = new List<Target>(), _vehT = new List<Target>(), _workers = new List<Target>();
         int _menTick = -1;
 
+        /// <summary>D-N180 (Lucía, 9-nov): un tren sin escolta rodeado (horda en contacto y ningún soldado propio a SurroundReachMm o menos) se pierde
+        /// en SurroundLossGameMin minutos de juego como mucho: pierde al menos TrainHp / ese tiempo por tick. 0 = apagado.</summary>
+        public int SurroundLossGameMin = 10, SurroundReachMm = 60000;
+        public int SurroundedTicks;
+        void SurroundedTrain(int atTrain)
+        {
+            if (SurroundLossGameMin <= 0 || atTrain <= 0 || Night.TrainHp <= 0) return;
+            var r = Night.P.TrainRect; long reach2 = (long)SurroundReachMm * SurroundReachMm;
+            foreach (var p in Units.Platoons) { if (p.Aboard != 0) continue; foreach (var m in p.Men) { if (!m.Alive) continue; long dx = Math.Max(0, Math.Max(r.X0 - m.X, m.X - r.X1)), dy = Math.Max(0, Math.Max(r.Y0 - m.Y, m.Y - r.Y1)); if (dx * dx + dy * dy <= reach2) return; } }
+            long lossTicks = Math.Max(1L, (long)SurroundLossGameMin * 60 * IMath.TickRate / Math.Max(1, Night.P.ClockX));
+            int floor = (int)((Night.P.TrainHp + lossTicks - 1) / lossTicks);
+            SurroundedTicks++;
+            Night.DamageTrain(floor - Night.LastDmgTrain);
+        }
+
+        /// <summary>D-N180 (2): si el tren ya no está (destruido) o está fuera del recinto, el que ha trepado y no tiene a nadie cerca va al edificio de viajeros
+        /// (Goal 5) en lugar de quedarse empujando contra el muro hacia el tren de fuera.</summary>
+        bool TrainReachableFromInside() { var r = Night.P.TrainRect; return Night.TrainHp > 0 && r.X1 > SP.FortX0 && r.X0 < SP.FortX1 && r.Y1 > SP.FortY0 && r.Y0 < SP.FortY1; }
+
         void RetargetClimber(Zomb z)
         {
             if (_menTick != Night.Tick)
@@ -601,6 +620,7 @@ namespace TBD.Units
                 for (int v = 0; v < Vehicles.Count; v++) if (!Vehicles[v].Airborne) _vehT.Add(new Target { Id = v, X = Vehicles[v].X, Y = Vehicles[v].Y });
             }
             int tx, ty; z.Goal = ClimberTargets.Pick(z.X, z.Y, _men, _vehT, _workers, ClimberSeekMm, Night.P.TrainRect, out tx, out ty); z.TX = tx; z.TY = ty;
+            if (z.Goal == 4 && !TrainReachableFromInside()) { var s = Night.P.StationRect; z.Goal = 5; z.TX = Math.Max(s.X0, Math.Min(s.X1, z.X)); z.TY = Math.Max(s.Y0, Math.Min(s.Y1, z.Y)); }
         }
 
         /// <summary>D-N175 (Lucía, 8-nov, para medir; rescate de Nules D-N172): un zombi de FUERA con infantería de fuera a OutsideAggroMm o menos deja la puerta y va a por ella.

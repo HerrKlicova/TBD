@@ -156,6 +156,8 @@ namespace TBD.Units
             if (atTrain > 0 && TrainHp > 0) { long acc = _trainRem + (long)atTrain * P.TrainDmgPerZombieS; int d = (int)Math.Min(acc / IMath.TickRate, TrainHp); _trainRem = (int)(acc % IMath.TickRate); TrainHp -= d; LastDmgTrain = d; }
         }
         public int LastDmgStation, LastDmgTrain;
+        /// <summary>D-N180: daño extra al tren (tren rodeado sin tropa). No baja de 0; cuenta en LastDmgTrain.</summary>
+        public void DamageTrain(int d) { if (d <= 0 || TrainHp <= 0 || State == NightState.Derrota) return; d = Math.Min(d, TrainHp); TrainHp -= d; LastDmgTrain += d; }
 
         /// <summary>Cuenta los zombis pegados al edificio y al tren con la regla de NightParams (alcance al rectángulo). Un zombi que toca ambos cuenta en los dos.
         /// Úsalo con la lista de zombis vivos y pasa el resultado a Attack. O(zombis), sin orden ni azar.</summary>

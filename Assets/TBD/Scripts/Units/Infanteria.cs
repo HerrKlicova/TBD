@@ -214,6 +214,9 @@ namespace TBD.Units
             }
         }
 
+        /// <summary>Propuesta de reparto de objetivos (Lucía, 9-nov, para medir): un lanzagranadas no dispara a un punto que ya tiene una granada en vuelo a menos de su radio. Fuera del hash (parámetro).</summary>
+        public bool GrenadeDeconflict;
+        bool GrenadeInbound(int x, int y, int r) { long r2 = (long)r * r; foreach (var q in _pending) { long dx = q.X - x, dy = q.Y - y; if (dx * dx + dy * dy < r2) return true; } return false; }
         public long DxResupShots, DxResupN;      // medida: lo que sale del almacén en recargas de pelotón (fuera del hash)
         public Platoon Find(int id) { for (int i = 0; i < Platoons.Count; i++) if (Platoons[i].Id == id) return Platoons[i]; return null; }
 
@@ -577,6 +580,7 @@ namespace TBD.Units
                     if (bi < 0) continue;
                     var tg = targets[bi];
                     if (w.MinCluster > 1 && CountNear(targets, tg.X, tg.Y, w.RadiusMm, w.MinCluster) < w.MinCluster) continue;   // el granadero usa el fusil
+                    if (GrenadeDeconflict && w.Explosive && w.FlightTicks > 0 && GrenadeInbound(tg.X, tg.Y, w.RadiusMm)) continue;   // propuesta (Lucía, 9-nov): ese grupo ya tiene una granada en vuelo; usa el fusil
                     Fire(p, m, slot, (WeaponId)wid, w, tg, targets, res);
                     break;
                 }
