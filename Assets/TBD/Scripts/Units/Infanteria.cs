@@ -81,6 +81,7 @@ namespace TBD.Units
         public int EyeMm = UnitsWorld.EyeInfantryMm;   // D-N174: altura de la boca (atalaya 5,6 m; azotea 12,6 m)
         public int C90Left, C90Cap;           // D-N137: tiros de C90 que quedan y dotación (se reponen del almacén en Resupply, a arma_c90_coste_disparos cada uno)
         public bool C90Order; public int C90X, C90Y;   // orden de disparar el C90 a ese punto: se cumple en el siguiente Step
+        internal List<PointMm> Route; internal int RouteI, RouteTX = int.MinValue, RouteTY, StuckTick, StuckX, StuckY;   // camino por la rejilla (S1 de Eugenio, I-Noche110): no se guarda; se rehace igual en los dos mundos
         public int Aboard;                   // 0 = a pie; si no, id del transporte (vehículo = su Id, helicóptero = 1000 + su Id): ni se mueve, ni dispara, ni lo tocan los zombis
         public int AliveCount() { int n = 0; for (int i = 0; i < Men.Count; i++) if (Men[i].Alive) n++; return n; }
     }
@@ -487,7 +488,9 @@ namespace TBD.Units
                 if (p.FinalHeading >= 0) { int d = IMath.Diff(p.FinalHeading, p.Heading); p.Heading = (p.Heading + IMath.Clamp(d, -PlatoonTurnPerTick, PlatoonTurnPerTick)) & 0xFFFF; if (d == 0 && !p.Moving) p.FinalHeading = -1; }
                 return;
             }
-            int dx = p.TX - p.AX, dy = p.TY - p.AY, dist = IMath.Dist(dx, dy);
+            int gx = p.TX, gy = p.TY; bool last = true;
+            if (Obstacles.Count > 0) NextWaypoint(p, out gx, out gy, out last);      // rodea los muros por las aberturas (sin obstáculos, el camino recto de siempre)
+            int dx = gx - p.AX, dy = gy - p.AY, dist = IMath.Dist(dx, dy);
             int speed = p.SpeedMmS;
             int lag = 0;
             for (int i = 0; i < p.Men.Count; i++) { var m = p.Men[i]; if (m.Alive) lag = Math.Max(lag, IMath.Dist(m.SlotX - m.X, m.SlotY - m.Y)); }
@@ -498,8 +501,56 @@ namespace TBD.Units
                 int want = IMath.Atan2(dy, dx), d = IMath.Diff(want, p.Heading);
                 p.Heading = (p.Heading + IMath.Clamp(d, -PlatoonTurnPerTick, PlatoonTurnPerTick)) & 0xFFFF;
             }
-            if (dist <= step) { p.AX = p.TX; p.AY = p.TY; p.Moving = false; p.AttackMove = false; }
+            if (dist <= step && !last) { p.AX = gx; p.AY = gy; p.RouteI++; }
+            else if (dist <= step) { p.AX = p.TX; p.AY = p.TY; p.Moving = false; p.AttackMove = false; p.Route = null; }
             else { int nax = p.AX + IMath.DivR((long)dx * step, dist), nay = p.AY + IMath.DivR((long)dy * step, dist); Slide(p.AX, p.AY, ref nax, ref nay); p.AX = nax; p.AY = nay; }
+        }
+
+        NavGrid _nav; readonly List<RectMm> _navObs = new List<RectMm>(); const int NavCellMm = 1000, NavInflateMm = ManRadiusMm + 350, NavPadMm = 40000;
+
+        /// <summary>Si el camino recto a la orden corta un obstáculo, A* por una rejilla de 1 m sobre los obstáculos inflados (la NavGrid de los vehículos, entera y con desempates fijos):
+        /// el pelotón va de punto de paso en punto de paso. Se calcula al cambiar la orden y si lleva 2 s sin avanzar. Determinista: mismo estado, mismo camino en A y B.</summary>
+        void NextWaypoint(Platoon p, out int gx, out int gy, out bool last)
+        {
+            bool nueva = p.Route == null || p.RouteTX != p.TX || p.RouteTY != p.TY;
+            if (!nueva && Tick - p.StuckTick >= 2 * IMath.TickRate)
+            {
+                if (IMath.Dist(p.AX - p.StuckX, p.AY - p.StuckY) < 500) nueva = true;     // atascado: rehace el camino con los obstáculos de ahora
+                p.StuckTick = Tick; p.StuckX = p.AX; p.StuckY = p.AY;
+            }
+            if (nueva)
+            {
+                p.RouteTX = p.TX; p.RouteTY = p.TY; p.RouteI = 0; p.StuckTick = Tick; p.StuckX = p.AX; p.StuckY = p.AY;
+                if (p.Route == null) p.Route = new List<PointMm>(); p.Route.Clear();
+                if (!SegmentBlocked(p.AX, p.AY, p.TX, p.TY) || !NavFor(p.AX, p.AY, p.TX, p.TY).FindPath(p.AX, p.AY, p.TX, p.TY, p.Route) || p.Route.Count == 0)
+                { p.Route.Clear(); p.Route.Add(new PointMm(p.TX, p.TY)); }
+                else p.Route[p.Route.Count - 1] = new PointMm(p.TX, p.TY);            // el destino exacto de la orden (los soldados lo ajustan con Slide)
+            }
+            while (p.RouteI < p.Route.Count - 1 && IMath.Dist(p.Route[p.RouteI].X - p.AX, p.Route[p.RouteI].Y - p.AY) <= 1200) p.RouteI++;   // punto de paso alcanzado: al siguiente sin frenar
+            int i = Math.Min(p.RouteI, p.Route.Count - 1);
+            gx = p.Route[i].X; gy = p.Route[i].Y; last = i >= p.Route.Count - 1;
+        }
+
+        /// <summary>¿El segmento corta algún obstáculo inflado con el radio del soldado? Muestras cada 250 mm (enteros).</summary>
+        bool SegmentBlocked(int ax, int ay, int bx, int by)
+        {
+            int d = IMath.Dist(bx - ax, by - ay), n = Math.Max(1, d / 250);
+            for (int k = 1; k <= n; k++) { int x = ax + (int)((long)(bx - ax) * k / n), y = ay + (int)((long)(by - ay) * k / n); if (Blocked(x, y)) return true; }
+            return false;
+        }
+
+        NavGrid NavFor(int ax, int ay, int bx, int by)
+        {
+            bool igual = _nav != null && _navObs.Count == Obstacles.Count;
+            if (igual) for (int i = 0; i < Obstacles.Count; i++) { var a = _navObs[i]; var b = Obstacles[i]; if (a.X0 != b.X0 || a.Y0 != b.Y0 || a.X1 != b.X1 || a.Y1 != b.Y1) { igual = false; break; } }
+            if (igual && Math.Min(ax, bx) >= _nav.X0 && Math.Min(ay, by) >= _nav.Y0 && Math.Max(ax, bx) < _nav.X0 + _nav.W * _nav.Cell && Math.Max(ay, by) < _nav.Y0 + _nav.H * _nav.Cell) return _nav;
+            int x0 = Math.Min(ax, bx), y0 = Math.Min(ay, by), x1 = Math.Max(ax, bx), y1 = Math.Max(ay, by);
+            for (int i = 0; i < Obstacles.Count; i++) { var r = Obstacles[i]; x0 = Math.Min(x0, r.X0); y0 = Math.Min(y0, r.Y0); x1 = Math.Max(x1, r.X1); y1 = Math.Max(y1, r.Y1); }
+            x0 -= NavPadMm; y0 -= NavPadMm; x1 += NavPadMm; y1 += NavPadMm;
+            if ((long)(x1 - x0) * (y1 - y0) > 600L * 400 * 1000000) { x0 = Math.Min(ax, bx) - 150000; x1 = Math.Max(ax, bx) + 150000; y0 = Math.Min(ay, by) - 100000; y1 = Math.Max(ay, by) + 100000; }   // tope de memoria (mapas grandes)
+            _nav = new NavGrid(x0, y0, x1, y1, NavCellMm); _nav.Build(Obstacles, NavInflateMm);
+            _navObs.Clear(); _navObs.AddRange(Obstacles);
+            return _nav;
         }
 
         void MoveMen(Platoon p)

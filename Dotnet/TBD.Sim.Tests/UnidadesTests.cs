@@ -1158,6 +1158,11 @@ namespace TBD.Sim.Tests
                     var w0 = new UnitsWorld(6); var p0 = w0.AddPlatoon(PlatoonKind.Tiradores, 0, 0, 0); var w1 = new UnitsWorld(6); var p1x = w1.AddPlatoon(PlatoonKind.Tiradores, 0, 0, 0);
                     w0.Move(p0.Id, 30000, 0); w1.Move(p1x.Id, 30000, 0); for (int t = 0; t < 300; t++) { w0.Step(new List<Target>(), new StepResult()); w1.Step(new List<Target>(), new StepResult()); }
                     check(w0.Hash() == w1.Hash(), "D-N139: sin obstáculos todo sigue igual (mismo hash)");
+                    // S1 de Eugenio (I-Noche110): muro largo entre el pelotón y el destino, con la abertura a la izquierda: tiene que rodear por ella y llegar, en A y en B igual
+                    UnitsWorld Muro(out Platoon pm) { var wm = new UnitsWorld(11); pm = wm.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0); wm.Obstacles.Add(new RectMm(8000, -40000, 8600, 30000)); wm.Obstacles.Add(new RectMm(8000, 34000, 8600, 60000)); wm.Move(pm.Id, 20000, 0); return wm; }
+                    var wa = Muro(out var pa); var wb = Muro(out var pb); bool cruza = false; int tl = -1;
+                    for (int t = 0; t < 4800 && tl < 0; t++) { wa.Step(new List<Target>(), new StepResult()); wb.Step(new List<Target>(), new StepResult()); foreach (var m in pa.Men) if (m.Alive && m.X > 8000 - 250 && m.X < 8600 + 250 && (m.Y < 30000 - 250 || m.Y > 34000 + 250)) cruza = true; if (!pa.Moving) tl = t; }
+                    check(!cruza && tl > 0 && IMath.Dist(pa.AX - 20000, pa.AY) < 600 && wa.Hash() == wb.Hash(), $"S1 I-Noche110: el pelotón rodea el muro por la abertura de 4 m (a 32 m) y llega al otro lado en {tl / 30} s sin atravesarlo; mismo hash en A y B");
                 }
                 // D-N137 (Lucía): C90 de los fusileros, 2 por pelotón, solo por orden del jugador, de un solo uso y se repone del almacén
                 {
