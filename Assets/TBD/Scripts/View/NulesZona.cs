@@ -53,6 +53,15 @@ namespace TBD.View
             { "SM_Semaforo", new[] { "Urbano/SM_Semaforo_v0_Simple_LOD1", "Urbano/SM_Semaforo_v1_Brazo_LOD1", "Urbano/SM_Semaforo_v2_Peatonal_LOD1", "Urbano/SM_Semaforo_v3_Doblado_LOD1", "Urbano/SM_Semaforo_v4_Caido_LOD1" } },
             { "SM_Senal", new[] { "Urbano/SM_Senal_v0_Direccion_LOD1", "Urbano/SM_Senal_v1_Redonda_LOD1", "Urbano/SM_Senal_v2_Triangular_LOD1", "Urbano/SM_Senal_v3_Doble_LOD1", "Urbano/SM_Senal_v4_Doblada_LOD1" } },
             { "SM_poste_catenaria", new[] { "Sagunto/poste_catenaria/SM_poste_catenaria_LOD1" } },
+            { "SM_BajoComercial", new[] { "Nules/pueblo/BajoComercial/SM_BajoComercial_v0_Bar_LOD1", "Nules/pueblo/BajoComercial/SM_BajoComercial_v1_Ultramarinos_LOD1", "Nules/pueblo/BajoComercial/SM_BajoComercial_v2_Farmacia_LOD1", "Nules/pueblo/BajoComercial/SM_BajoComercial_v3_Saqueada_LOD1", "Nules/pueblo/BajoComercial/SM_BajoComercial_v4_Tapiada_LOD1" } },
+            { "SM_CasaPatio", new[] { "Nules/pueblo/CasaPatio/SM_CasaPatio_v0_Porton_LOD1", "Nules/pueblo/CasaPatio/SM_CasaPatio_v1_Abierto_LOD1", "Nules/pueblo/CasaPatio/SM_CasaPatio_v2_Parra_LOD1", "Nules/pueblo/CasaPatio/SM_CasaPatio_v3_Naranjo_LOD1", "Nules/pueblo/CasaPatio/SM_CasaPatio_v4_Derruida_LOD1" } },
+            { "SM_Esquina", new[] { "Nules/pueblo/Esquina/SM_Esquina_v0_DosPlantas_LOD1", "Nules/pueblo/Esquina/SM_Esquina_v1_TresPlantas_LOD1", "Nules/pueblo/Esquina/SM_Esquina_v2_BajoChaflan_LOD1", "Nules/pueblo/Esquina/SM_Esquina_v3_CalAmarilla_LOD1", "Nules/pueblo/Esquina/SM_Esquina_v4_Tapiada_LOD1" } },
+            { "SM_TresAlturas", new[] { "Nules/pueblo/TresAlturas/SM_TresAlturas_v0_Cal_LOD1", "Nules/pueblo/TresAlturas/SM_TresAlturas_v1_Ocre_LOD1", "Nules/pueblo/TresAlturas/SM_TresAlturas_v2_Gris_LOD1", "Nules/pueblo/TresAlturas/SM_TresAlturas_v3_Ropa_LOD1", "Nules/pueblo/TresAlturas/SM_TresAlturas_v4_Ruina_LOD1" } },
+            { "SM_Balsa", new[] { "Nules/viveres/Balsa/SM_Balsa_v0_Llena_LOD1", "Nules/viveres/Balsa/SM_Balsa_v1_Media_LOD1", "Nules/viveres/Balsa/SM_Balsa_v2_Vacia_LOD1", "Nules/viveres/Balsa/SM_Balsa_v3_Vallada_LOD1", "Nules/viveres/Balsa/SM_Balsa_v4_Rota_LOD1" } },
+            { "SM_CasaLabor", new[] { "Nules/viveres/CasaLabor/SM_CasaLabor_v0_Encalada_LOD1", "Nules/viveres/CasaLabor/SM_CasaLabor_v1_Ocre_LOD1", "Nules/viveres/CasaLabor/SM_CasaLabor_v2_Porche_LOD1", "Nules/viveres/CasaLabor/SM_CasaLabor_v3_Abandonada_LOD1", "Nules/viveres/CasaLabor/SM_CasaLabor_v4_Cipreses_LOD1" } },
+            { "SM_Naranjos", new[] { "Nules/viveres/Naranjos/SM_Naranjos_v0_Plantones_LOD1", "Nules/viveres/Naranjos/SM_Naranjos_v1_Jovenes_LOD1", "Nules/viveres/Naranjos/SM_Naranjos_v2_HileraJoven_LOD1", "Nules/viveres/Naranjos/SM_Naranjos_v3_HileraAdulta_LOD1", "Nules/viveres/Naranjos/SM_Naranjos_v4_Calva_LOD1" } },
+            { "SM_Palots", new[] { "Nules/viveres/Palots/SM_Palots_v0_Pila2_LOD1", "Nules/viveres/Palots/SM_Palots_v1_Bloque_LOD1", "Nules/viveres/Palots/SM_Palots_v2_Fila_LOD1", "Nules/viveres/Palots/SM_Palots_v3_Volcados_LOD1", "Nules/viveres/Palots/SM_Palots_v4_ConFruta_LOD1" } },
+            { "SM_Tapia", new[] { "Nules/viveres/Tapia/SM_Tapia_v0_Recto_LOD1", "Nules/viveres/Tapia/SM_Tapia_v1_Esquina_LOD1", "Nules/viveres/Tapia/SM_Tapia_v2_Porton_LOD1", "Nules/viveres/Tapia/SM_Tapia_v3_Roto_LOD1", "Nules/viveres/Tapia/SM_Tapia_v4_Contrafuertes_LOD1" } },
             { "aerodromo/pino", new[] { "Betera/pino/SM_Pino_v0_LOD1", "Betera/pino/SM_Pino_v1_LOD1", "Betera/pino/SM_Pino_v2_LOD1", "Betera/pino/SM_Pino_v3_LOD1", "Betera/pino/SM_Pino_v4_LOD1" } },
             { "via/topera", new[] { "Sagunto/senales/SM_topera_v0_LOD1", "Sagunto/senales/SM_topera_v1_LOD1", "Sagunto/senales/SM_topera_v2_LOD1", "Sagunto/senales/SM_topera_v3_LOD1", "Sagunto/senales/SM_topera_v4_LOD1", "Sagunto/senales/SM_topera_v5_LOD1" } },
         };
@@ -61,14 +70,12 @@ namespace TBD.View
         static Material _ground, _missing;
         public const float ZonaW = 256f, ZonaD = 128f;
 
-        public static Result Montar(Transform root, bool soloZonaMvp = true)
+        public static Result Montar(Transform root, bool soloZonaMvp = false)   // Álvaro: «no» en en_zona_mvp solo es que cae en el faldón, que se ve: se monta todo
         {
             var res = new Result { Root = root };
             var csv = BalanceSource.Read("nules_instancias.csv");
             if (csv == null) { Debug.LogWarning("[NULES] falta nules_instancias.csv"); return res; }
-            var suelo = GameObject.CreatePrimitive(PrimitiveType.Quad); suelo.name = "Suelo de Nules (plano; terreno de Álvaro pendiente)"; Kill(suelo.GetComponent<Collider>());
-            suelo.transform.SetParent(root, false); suelo.transform.localPosition = new Vector3(ZonaW * 0.5f, 0f, ZonaD * 0.5f); suelo.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            suelo.transform.localScale = new Vector3(ZonaW + 160f, ZonaD + 160f, 1f); suelo.GetComponent<MeshRenderer>().sharedMaterial = _ground ??= Flat("8a7a5c");
+            Suelo(root);
             var lineas = csv.Replace("\r", "").Split('\n');
             for (int i = 1; i < lineas.Length; i++)
             {
@@ -94,6 +101,49 @@ namespace TBD.View
             var cuenta = new Dictionary<string, int>(); foreach (var m in res.Missing) { var p = m.Substring(0, m.IndexOf(' ')); cuenta[p] = cuenta.TryGetValue(p, out var n) ? n + 1 : 1; }
             foreach (var kv in cuenta) Debug.Log("[NULES] sin modelo: " + kv.Key + " ×" + kv.Value);
             return res;
+        }
+
+
+        // Terreno de Álvaro (mr-mak docs/niveles/nules_zonas_1m.png, d7d2b89): una zona por píxel a 1 m, 416 × 288, X −80..336 y Z −80..208, fila 0 arriba (Z 208);
+        // ids como sagunto_zonas.json. Se importa desde el PC a Resources/Suelo/nules_zonas_1m (Read/Write, sin compresión, Point). Se compone a 5 px/m con las
+        // mismas texturas de suelo que Sagunto (Resources/Suelo/suelo_*_64, a 0,1 m por texel). Si falta el mapa, un plano color tierra.
+        public const float SueloX0 = -80f, SueloZ0 = -80f; public const int SueloW = 416, SueloH = 288; const int PxM = 5;
+        static void Suelo(Transform root)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad); go.name = "Suelo de Nules"; Kill(go.GetComponent<Collider>());
+            go.transform.SetParent(root, false); go.transform.localPosition = new Vector3(SueloX0 + SueloW * 0.5f, 0f, SueloZ0 + SueloH * 0.5f);
+            go.transform.localRotation = Quaternion.Euler(90f, 0f, 0f); go.transform.localScale = new Vector3(SueloW, SueloH, 1f);
+            var mr = go.GetComponent<MeshRenderer>(); mr.shadowCastingMode = ShadowCastingMode.Off; mr.receiveShadows = true;
+            var mapa = Resources.Load<Texture2D>("Suelo/nules_zonas_1m");
+            Color32[] map = null; try { if (mapa != null && mapa.width == SueloW && mapa.height == SueloH) map = mapa.GetPixels32(); } catch (System.Exception e) { Debug.LogWarning("[NULES] nules_zonas_1m sin Read/Write: " + e.Message); }
+            if (map == null) { mr.sharedMaterial = _ground ??= Flat("8a7a5c"); Debug.Log("[NULES] suelo: plano (falta Suelo/nules_zonas_1m de Álvaro)"); return; }
+            Color32[] Px(string n) { var t = Resources.Load<Texture2D>("Suelo/" + n); try { return t != null ? t.GetPixels32() : null; } catch { return null; } }
+            var apis = Px("suelo_apisonada_64"); var labr = Px("suelo_labrada_64") ?? apis; var asf = Px("suelo_asfalto_64") ?? apis; var rod = Px("suelo_rodadas_64") ?? apis; var seca = Px("suelo_seca_64") ?? apis;
+            Color32 Hex(string h) { ColorUtility.TryParseHtmlString("#" + h, out var c); return c; }
+            Color32 balasto = Hex("605c48"), agua = Hex("6c7874"), aguaBorde = Hex("94948c"), plano = Hex("8a7a5c");
+            int W = SueloW * PxM, H = SueloH * PxM; var px = new Color32[W * H];
+            int Zona(int mx, int mz) { mx = Mathf.Clamp(mx, 0, SueloW - 1); mz = Mathf.Clamp(mz, 0, SueloH - 1); return map[mz * SueloW + mx].r; }   // GetPixels32 va de abajo arriba: mz = Z − Z0
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    int mx = x / PxM, mz = y / PxM; int zona = Zona(mx, mz);
+                    int u = (x * 2) & 63, v = (y * 2) & 63; Color32 c;                       // 0,2 m por píxel: cada píxel salta 2 texels de la textura de 0,1 m
+                    switch (zona)
+                    {
+                        case 3: c = balasto; break;
+                        case 2: c = rod != null ? rod[v * 64 + u] : plano; break;
+                        case 4: c = asf != null ? asf[v * 64 + u] : plano; break;
+                        case 0: c = seca != null ? seca[v * 64 + u] : plano; break;
+                        case 5: c = labr != null ? labr[v * 64 + u] : plano; break;
+                        case 9: c = (Zona(mx + 1, mz) != 9 || Zona(mx - 1, mz) != 9 || Zona(mx, mz + 1) != 9 || Zona(mx, mz - 1) != 9) && (x % PxM == 0 || y % PxM == 0) ? aguaBorde : agua; break;
+                        default: c = apis != null ? apis[v * 64 + u] : plano; break;
+                    }
+                    c.a = 255; px[y * W + x] = c;
+                }
+            var tex = new Texture2D(W, H, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp, name = "Suelo de Nules compuesto" };
+            tex.SetPixelData(px, 0); tex.Apply(false, true);
+            var m = Flat("ffffff"); m.SetTexture("_BaseMap", tex); mr.sharedMaterial = m;
+            Debug.Log("[NULES] suelo: mapa de zonas de Álvaro compuesto a " + PxM + " px/m (" + W + " × " + H + ")");
         }
 
         static float F(string s) { return float.Parse(s, System.Globalization.CultureInfo.InvariantCulture); }
