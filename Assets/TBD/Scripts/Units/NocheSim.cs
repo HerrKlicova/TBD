@@ -569,8 +569,6 @@ namespace TBD.Units
         /// fuera ataca el edificio). Dentro, solo con Goal 5 (D-N180). D181On = false vuelve a contar a todos (solo pruebas y medidas).</summary>
         bool AimsStation(int i) { if (!D181On) return true; var z = _z[_targets[i].Id]; return !InFort(z.X, z.Y) || z.Goal == 5; }
         public bool D181On = true;
-        /// <summary>D-N180 (2): si el tren ya no está (destruido) o está fuera del recinto, el que ha trepado y no tiene a nadie cerca va al edificio de viajeros
-        /// (Goal 5) en lugar de quedarse empujando contra el muro hacia el tren de fuera: la noche siempre acaba.</summary>
         /// <summary>D-N182: distancia extra (mm) a la que nace la horda, fuera de la vista. Nace antes lo que tarda en andarla, así que llega al muro a la misma hora.
         /// La aleja del edificio en línea recta (la misma por la que luego camina hacia él), con enteros. 0 = como siempre.</summary>
         public int SpawnLeadMm;
@@ -580,6 +578,8 @@ namespace TBD.Units
             int dx = x - (gate ? SP.FortX0 - 1000 : SP.StationX), dy = y - SP.StationY, r = IMath.Dist(dx, dy);
             if (d <= 0 || r < 1) return; x += IMath.DivR((long)dx * d, r); y += IMath.DivR((long)dy * d, r);
         }
+        /// <summary>D-N180 (2): si el tren ya no está (destruido) o está fuera del recinto, el que ha trepado y no tiene a nadie cerca va al edificio de viajeros
+        /// (Goal 5) en lugar de quedarse empujando contra el muro hacia el tren de fuera: la noche siempre acaba.</summary>
         public bool TrainReachableFromInside() { var r = Night.P.TrainRect; return Night.TrainHp > 0 && r.X1 > SP.FortX0 && r.X0 < SP.FortX1 && r.Y1 > SP.FortY0 && r.Y0 < SP.FortY1; }
 
         void RetargetClimber(Zomb z)
