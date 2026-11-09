@@ -29,6 +29,14 @@ namespace TBD.Sim.Tests
         public static void Run(Action<bool, string> check)
         {
             Console.WriteLine("[30] Tutorial (motor, capítulos 0 a 3, C90) e intro C");
+            {   // mínimo de 3 s por tarjeta (Lucía, 9-nov): una señal temprana cierra al cumplirse
+                TutorialMotor.MinVisible = 3f; var mv = TutorialGuion.Nuevo(new MemoriaEnRam()); mv.Arrancar(850); mv.Senal(TutorialGuion.Senales.Empezar);
+                for (int i = 0; i < 31; i++) mv.Avanzar(0.1f);
+                mv.Senal(TutorialGuion.Senales.CamaraMovida); mv.Senal(TutorialGuion.Senales.RuedaUsada); bool sigue = mv.Actual.Id == "1.1";
+                for (int i = 0; i < 31; i++) mv.Avanzar(0.1f);
+                check(sigue && mv.Actual.Id == "1.2", "cada tarjeta se ve al menos 3 s: la 1.1 cumplida antes se cierra a los 3 s");
+            }
+            TutorialMotor.MinVisible = 0f;      // el resto de las pruebas manda señales al instante
 
             // --- textos y cabeceras
             var caps = TutorialGuion.Todos();

@@ -64,6 +64,9 @@ namespace TBD.Tutorial
         public const string ClaveVisto = "tutorial.visto";
         public const string ClaveSaltado = ".saltado";     // se añade a la clave al saltarlo: el capítulo 4 no sale si se saltó el principal (Lucía)
         public const string BotonSaltar = "Saltar tutorial";
+        /// <summary>Lucía (mvp-lo-que-falta, 9-nov): cada tarjeta se ve al menos estos segundos; una señal que llega antes la cierra al cumplirlos. Las pruebas lo ponen a 0.</summary>
+        public static float MinVisible = 3f;
+        bool _cierrePendiente; string _cierrePor;
         public const float RepetirCada = 25f;      // sin avanzar en una tarjeta de señal, se repite su texto (desvío sin castigo)
         public const int DificilDesde = 951;       // palanca de dificultad (D-N74): 725 fácil, 850 normal, 1000 difícil; la difícil no tiene tutorial
 
@@ -161,13 +164,14 @@ namespace TBD.Tutorial
             _hechos.Add(s);
             DecidirAlt();
             var bp = Base;
-            if (eraVisible && !_alt && bp != null && bp.CambiaEnMarcha && bp.Alt != null && bp.AltSi == s) { _alt = true; EnPaso = 0; _sinAvance = 0; _enPaso.Clear(); Log($"{bp.Id}: cambia a {bp.Alt.Id} ({s})"); return; }
+            if (eraVisible && !_alt && bp != null && bp.CambiaEnMarcha && bp.Alt != null && bp.AltSi == s) { _alt = true; EnPaso = 0; _sinAvance = 0; _enPaso.Clear(); _cierrePendiente = false; Log($"{bp.Id}: cambia a {bp.Alt.Id} ({s})"); return; }
             var p = Actual;
             if (p == null) return;
             if (!eraVisible && Visible) { EnPaso = 0; _sinAvance = 0; _enPaso.Clear(); Log($"sale {p.Id} (esperaba {p.Espera})"); return; }   // la señal que esperaba no cierra la misma tarjeta
             if (!eraVisible || p.Cierre != Cierre.Senal || Array.IndexOf(p.Senales, s) < 0) return;
             _enPaso.Add(s);
             if (p.Todas) foreach (var x in p.Senales) if (!_enPaso.Contains(x)) return;
+            if (EnPaso < MinVisible) { _cierrePendiente = true; _cierrePor = s; return; }      // se cierra al cumplir MinVisible (Avanzar)
             Log($"{p.Id} cerrado por {s}"); Siguiente();
         }
 
@@ -190,20 +194,21 @@ namespace TBD.Tutorial
             if (!Visible) { if (Actual != null && Actual.EsperaMax > 0) { _esperando += dt; if (_esperando >= Actual.EsperaMax) Log($"sale {Actual.Id} por tiempo ({Actual.EsperaMax:0} s esperando {Actual.Espera})"); } return; }
             var p = Actual;
             EnPaso += dt; _sinAvance += dt;
+            if (_cierrePendiente && EnPaso >= MinVisible) { Log($"{p.Id} cerrado por {_cierrePor} (a los {MinVisible:0} s)"); Siguiente(); return; }
             if (p.Cierre == Cierre.Segundos) { if (EnPaso >= p.Segundos) { Log($"{p.Id} cerrado a los {p.Segundos:0} s"); Siguiente(); } return; }
             if (EstadoActual != null)
             {
                 bool todas = true, alguna = false; string cual = null;
                 foreach (var x in p.Senales) { bool ya = _enPaso.Contains(x) || EstadoActual(x); todas &= ya; if (ya && !alguna) { alguna = true; cual = x; } }
-                if (p.Todas ? todas : alguna) { Log($"{p.Id} cerrado: ya se cumple {cual}"); Siguiente(); return; }
+                if ((p.Todas ? todas : alguna) && EnPaso >= MinVisible) { Log($"{p.Id} cerrado: ya se cumple {cual}"); Siguiente(); return; }
             }
-            if (p.Segundos > 0 && EnPaso >= p.Segundos) { Log($"{p.Id} cerrado por tiempo"); Siguiente(); return; }
+            if (p.Segundos > 0 && EnPaso >= Math.Max(p.Segundos, MinVisible)) { Log($"{p.Id} cerrado por tiempo"); Siguiente(); return; }
             if (_sinAvance >= RepetirCada && !p.Pausa && !p.Linea) Repetir();
         }
 
         void Siguiente()
         {
-            var c = Cap; Repeticiones = 0; EnPaso = 0; _sinAvance = 0; _esperando = 0; _enPaso.Clear(); _alt = false; _altDecidido = false;
+            var c = Cap; Repeticiones = 0; EnPaso = 0; _sinAvance = 0; _esperando = 0; _cierrePendiente = false; _enPaso.Clear(); _alt = false; _altDecidido = false;
             if (PasoIndex + 1 < c.Pasos.Length) { PasoIndex++; Log($"paso {Actual.Id}"); return; }
             if (CapIndex + 1 < _caps.Length) { EntrarCapitulo(CapIndex + 1); return; }
             Estado = EstadoTutorial.Terminado; _mem.Escribir(_clave); Log("terminado");
@@ -211,7 +216,7 @@ namespace TBD.Tutorial
 
         void EntrarCapitulo(int i)
         {
-            CapIndex = i; PasoIndex = 0; _hechos.Clear(); _enPaso.Clear(); _alt = false; _altDecidido = false; EnPaso = 0; _sinAvance = 0; _esperando = 0; Repeticiones = 0;
+            CapIndex = i; PasoIndex = 0; _hechos.Clear(); _enPaso.Clear(); _alt = false; _altDecidido = false; EnPaso = 0; _sinAvance = 0; _esperando = 0; _cierrePendiente = false; Repeticiones = 0;
             Log($"capítulo {Cap.Numero}: {Cap.Titulo}; paso {Actual.Id}");
         }
 

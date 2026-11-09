@@ -832,7 +832,7 @@ namespace TBD.View
                     float bw = 240 * k, gap = 20 * k, n = NetSession.HayAtardecer ? 3 : 2, bx = r.center.x - (n * bw + (n - 1) * gap) * 0.5f, by = r.yMax - 100 * k;
                     if (GUI.Button(new Rect(bx, by, bw, 64 * k), "<b>Seguir</b>") || (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Return)) SeguirTrasCaer();
                     bx += bw + gap;
-                    if (NetSession.HayAtardecer) { if (GUI.Button(new Rect(bx, by, bw, 64 * k), "Repetir la noche")) { NetSession.CargarAtardecer(); NightRun.Active = true; SceneManager.LoadScene("Union"); } bx += bw + gap; }
+                    if (NetSession.HayAtardecer) { if (GUI.Button(new Rect(bx, by, bw, 64 * k), "Repetir la noche")) { Sfx.Play("sfx_ui_clic"); NetSession.CargarAtardecer(); NightRun.Active = true; SceneManager.LoadScene("Union"); } bx += bw + gap; }
                     if (GUI.Button(new Rect(bx, by, bw, 64 * k), "Menú principal")) { NetSession.Reset(); NightRun.Active = false; SceneManager.LoadScene("Menu"); }
                 }
                 else

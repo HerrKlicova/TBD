@@ -252,8 +252,9 @@ namespace TBD.Net
                 new PuestoDato("tiradores", 84500, 74300, Oeste, Formation.Linea, 4750),  // v1.1 (Lucía 07:41): azotea del ala oeste, a 4,75 m
                 new PuestoDato("zapadores", 71500, 50000, Oeste, Formation.Linea, 400) } },    // ala sur
             { "Nules", new[] {
-                new PuestoDato("fusileros", 87000, 56200, Oeste, Formation.Linea, 680),        // HESCO del muro oeste entre las dos puertas
-                new PuestoDato("ametralladores", 115000, 81000, Sur, Formation.Linea) } }, // junto al edificio, cubriendo el apartado
+                new PuestoDato("fusileros", 71500, 58500, Oeste, Formation.Linea, 400),        // v1.2 (Nules opción A): banqueta oeste
+                new PuestoDato("ametralladores", 84500, 76300, Oeste, Formation.Linea, 4750),  // v1.2: azotea del ala oeste
+                new PuestoDato("fusileros", 71500, 72000, Oeste, Formation.Linea, 400) } }, // v1.2 tutorial_extra: el pelotón del capítulo 3
             { "Castellón", new[] {
                 new PuestoDato("fusileros", 72500, 60000, Oeste, Formation.Linea),        // borde oeste de la losa sobre la boca (mitad sur)
                 new PuestoDato("ametralladores", 72500, 69000, Oeste, Formation.Linea),   // v1.1: ametralladores en la mitad norte de la boca
