@@ -46,7 +46,8 @@ namespace TBD.View
         readonly Dictionary<Mesh, int> _indice = new Dictionary<Mesh, int>();
         readonly Dictionary<GameObject, Entity> _ent = new Dictionary<GameObject, Entity>();
 
-        public static bool Activa = true;       // -sinpila la apaga (para comparar en captura)
+        public static bool Activa = true;
+        public static bool Forzar4;            // -pila4: todas las celdas a la altura 4, haya o no zombis (Sara, medir-fps-peor-caso.md)       // -sinpila la apaga (para comparar en captura)
         public static float EscalaAlto = 1f;    // alto y fondo de la pieza; las piezas vienen a escala real
         int _firma;
 
@@ -54,6 +55,7 @@ namespace TBD.View
         {
             var a = System.Environment.GetCommandLineArgs();
             if (System.Array.IndexOf(a, "-sinpila") >= 0) Activa = false;
+            if (System.Array.IndexOf(a, "-pila4") >= 0) Forzar4 = true;      // QA (Sara, fps del peor caso): Altura4 en todo el perímetro
             int i = System.Array.IndexOf(a, "-pilaalto");
             if (i >= 0 && i + 1 < a.Length && float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)) EscalaAlto = v;
         }
@@ -162,7 +164,7 @@ namespace TBD.View
             {
                 _cuenta.TryGetValue(k, out int n);
                 _celdas.TryGetValue(k, out var st);
-                int objetivo = AlturaPorCuenta(n);
+                int objetivo = Forzar4 ? 4 : AlturaPorCuenta(n);
                 if (objetivo == 0 && st.Altura > 0 && n >= 2) objetivo = st.Altura;    // no se deshace hasta bajar de 2
                 if (objetivo == st.Altura) continue;
                 if (st.Pieza != null && ahora - st.Ultimo < CambioMin) continue;      // como mucho un cambio por segundo

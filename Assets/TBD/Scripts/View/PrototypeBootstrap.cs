@@ -108,6 +108,28 @@ namespace TBD.View
         Texture2D _panelTex;
 
         // ---- hito 3: zona materializada desde el mapa de operaciones
+        // ---------------------------------------------------------------- [FPS] (Sara, docs/qa/medir-fps-peor-caso.md): con -fps, una línea por segundo
+        static readonly bool _fpsOn = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-fps") >= 0;
+        readonly System.Collections.Generic.List<float> _fpsDt = new System.Collections.Generic.List<float>(); float _fpsT0 = -1f;
+        Unity.Profiling.ProfilerRecorder _trisRec;
+        void FpsLog()
+        {
+            if (!_fpsOn) return;
+            if (!_trisRec.Valid) _trisRec = Unity.Profiling.ProfilerRecorder.StartNew(Unity.Profiling.ProfilerCategory.Render, "Triangles Count");
+            float now = Time.realtimeSinceStartup; if (_fpsT0 < 0f) _fpsT0 = now;
+            _fpsDt.Add(Time.unscaledDeltaTime * 1000f);
+            if (now - _fpsT0 < 1f) return;
+            var a = _fpsDt.ToArray(); System.Array.Sort(a); float sum = 0f; foreach (var x in a) sum += x;
+            float media = a.Length / Mathf.Max(0.001f, now - _fpsT0), p99 = a[Mathf.Min(a.Length - 1, (int)(a.Length * 0.99f))];
+            int nBajo = Mathf.Max(1, a.Length / 100); float sb = 0f; for (int i = a.Length - nBajo; i < a.Length; i++) sb += a[i];
+            float bajo1 = 1000f / Mathf.Max(0.001f, sb / nBajo);
+            long tris = _trisRec.Valid ? _trisRec.LastValue : -1;
+            Debug.Log($"[FPS] media={media:0.0} bajo1%={bajo1:0.0} p99_ms={p99:0.00} triangulos={tris} fotogramas={a.Length}");
+            _fpsDt.Clear(); _fpsT0 = now;
+        }
+
+        /// <summary>Pausa de la zona (de día y de noche, con P o con la pausa del tutorial): la lee NetSession para AudioListener.pause.</summary>
+        public static bool ZonaPausada;
         string _estacionZona;               // D-N173: nombre de la estación de esta zona, para su plantel (Plantel.Pelotones / Vehiculos)
         int _zoneNode = -1;                 // nodo de la red del que viene esta zona (-1 = prototipo suelto, 10.000 zombis)
         float _fadeStart;
@@ -449,6 +471,8 @@ namespace TBD.View
 
         void StepSimulation()
         {
+            ZonaPausada = _paused || TutorialHud.PidePausa;      // de día y de noche (Nuria, 9-nov)
+            FpsLog();
             if (_nightOn) NightTick();
             _groupA.Update();
             HashLogLine();

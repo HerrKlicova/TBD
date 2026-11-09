@@ -548,7 +548,7 @@ namespace TBD.View
         // ---------------------------------------------------------------- entrada y órdenes
         void NightUpdate()
         {
-            AudioListener.pause = _paused && _nightOn;                                // al pausar se silencia todo (Eugenio)
+            ZonaPausada = _paused;                                                     // la regla única del silencio está en NetSession.Update (Nuria, 9-nov)
             ColorCases();
             TramosUpdate();
             OrdersUpdate();
