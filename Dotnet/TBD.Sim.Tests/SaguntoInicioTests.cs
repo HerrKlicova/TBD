@@ -13,6 +13,15 @@ namespace TBD.Sim.Tests
         public static void Run(Action<bool, string> check)
         {
             Console.WriteLine("[27] Sagunto empieza con 120 u de muro construido (D-N63)");
+            {   // D-N183 (Lucía, 9-nov): Castellón es del jugador desde el inicio
+                var wi = NetScenario.Inicio(); int cas = Id(wi, "Castellón");
+                long statNear = 0; for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) statNear += wi.Field.S[(63 + dy) * HordeField.W + 58 + dx];
+                check(wi.Stations.Founded[cas] && wi.GarrisonMil[cas] == 26_000 && wi.ZoneWallE4[cas] == 3_086_900 && wi.Stock[cas, (int)Res.Municion] == 0 && wi.Stock[cas, (int)Res.Combustible] == 30 && wi.Stock[cas, (int)Res.Personas] == 26
+                      && statNear == 0 && wi.Director.SiegeWeight(wi, cas) == 0 && wi.Director.ColHeld[0] > 0 && wi.Director.ColHeld[0] == wi.Director.ColHeld[7],
+                      $"D-N183: Castellón propia (fundada, guarnición 26, recinto 308,69 u, 0/30 u y 26 personas), sin guarnición zombi ({statNear}), sin asedio en el MVP y en la historia de la Colmena desde el día 0 ({wi.Director.ColHeld[0]} nodos)");
+                int p0 = wi.Stock[cas, (int)Res.Personas]; for (int k = 0; k < 3 * NetConst.DayTicks; k++) wi.Step();
+                check(wi.Stock[cas, (int)Res.Personas] == p0, $"D-N183: en 3 días su gente no pasa hambre (sin consumo en el MVP): {wi.Stock[cas, (int)Res.Personas]} de {p0}");
+            }
             var w = NetScenario.Mvp();
             var bare = NetScenario.Mvp(false);
             int sag = Id(w, "Sagunto");
