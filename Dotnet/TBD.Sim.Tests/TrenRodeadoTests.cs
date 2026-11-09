@@ -40,7 +40,9 @@ namespace TBD.Sim.Tests
             check(d.TrainReachableFromInside(), "con el tren dentro y entero, sigue yendo al tren (D-N148, sin cambios)");
             var S = new RectMm(98000, 75000, 114000, 83000); int m = 2000;
             int tx = 110000, ty = 64000; bool r1 = ClimberTargets.Rodeo(104000, 86000, S, m, ref tx, ref ty);
-            check(r1 && tx == 96000 && ty == 73000, $"rodeo: detrás del edificio, con el tren al otro lado, va a la esquina más cercana ({tx / 1000}; {ty / 1000})");
+            check(r1 && tx == 95999 && ty == 86000, $"rodeo: detrás del edificio, con el tren al otro lado, sale por la franja de detrás hacia la esquina más cercana ({tx}; {ty})");
+            int ax = tx, ay = ty; int t2x = 110000, t2y = 64000; bool r4 = ClimberTargets.Rodeo(ax, ay, S, m, ref t2x, ref t2y);
+            check(!r4 && t2x == 110000, "rodeo: al llegar a su punto de paso ya no se aplica y sigue hacia el tren (no se queda parado)");
             tx = 110000; ty = 64000; bool r2 = ClimberTargets.Rodeo(95000, 86000, S, m, ref tx, ref ty);
             bool r3 = ClimberTargets.Rodeo(104000, 74000, S, m, ref tx, ref ty);
             check(!r2 && !r3 && tx == 110000 && ty == 64000, "rodeo: fuera de la sombra del edificio (por X o por Y) vuelve a su objetivo; sin estado, no se queda en bucle");

@@ -140,12 +140,12 @@ namespace TBD.Units
         }
         /// <summary>Rodeo del edificio (Nacho y Marcos, 9-nov): un trepador DETRÁS del edificio de viajeros (y &gt; S.Y1 y x en [S.X0 − m, S.X1 + m]) cuyo objetivo
         /// queda al otro lado (ty &lt; S.Y0) no va en línea recta, porque se quedaría empujando contra la fachada trasera y contaría como atacante de la estación.
-        /// Va primero a la esquina delantera más cercana (S.X0 − m o S.X1 + m, S.Y0 − m). Sin estado: en cuanto sale de la sombra del edificio (por X o por Y),
+        /// Va primero, por la franja de detrás y sin cambiar de y, a la vertical de la esquina más cercana (S.X0 − m − 1 o S.X1 + m + 1, y). Sin estado: en cuanto sale de la sombra del edificio (por X o por Y),
         /// deja de aplicarse y vuelve a su objetivo. Enteros, sin azar. Devuelve true si ha cambiado (tx, ty).</summary>
         public static bool Rodeo(int x, int y, RectMm s, int m, ref int tx, ref int ty)
         {
             if (y <= s.Y1 || x < s.X0 - m || x > s.X1 + m || ty >= s.Y0) return false;
-            tx = (x - (s.X0 - m)) <= ((s.X1 + m) - x) ? s.X0 - m : s.X1 + m; ty = s.Y0 - m;
+            tx = (x - (s.X0 - m)) <= ((s.X1 + m) - x) ? s.X0 - m - 1 : s.X1 + m + 1; ty = y;   // a lo largo de la franja de detrás (Marcos, 64ee102: en la zona hay un pasillo de < 1 m hasta el muro norte); 1 mm fuera de la franja para que, al llegar, ya no se aplique y no se quede parado en su propio punto
             return true;
         }
         static bool Nearest(int x, int y, IList<Target> list, long r2, out int tx, out int ty)
