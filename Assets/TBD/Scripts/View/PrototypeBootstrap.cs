@@ -988,6 +988,19 @@ namespace TBD.View
             // -viasinsondas: las piezas de la vía usan la sonda del ambiente directamente (lightProbeUsage Off). -viasintextura: la vía sin textura (blanco × 605c48).
             var args = System.Environment.GetCommandLineArgs();
             bool sinSondas = System.Array.IndexOf(args, "-viasinsondas") >= 0, sinTex = System.Array.IndexOf(args, "-viasintextura") >= 0;
+            // I-Noche83: ni -viasinsondas ni -viasintextura cambian la franja (090d14), así que no es la vía. -ocultar A,B,C apaga los renderers cuyo nombre
+            // (o el de su padre) empieza por A, B o C, para ver qué objeto es la franja. Nombres útiles: Trozo, Vía, Balasto, Sombra, SM_R, Andén, Suelo.
+            int io = System.Array.IndexOf(args, "-ocultar");
+            if (io >= 0 && io + 1 < args.Length)
+            {
+                var pref = args[io + 1].Split(','); int apagados = 0;
+                foreach (var r in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+                {
+                    string n1 = r.name, n2 = r.transform.parent != null ? r.transform.parent.name : "";
+                    foreach (var pr in pref) if (pr.Length > 0 && (n1.StartsWith(pr) || n2.StartsWith(pr))) { r.enabled = false; apagados++; break; }
+                }
+                Debug.Log("[SOMBRA] -ocultar " + args[io + 1] + ": " + apagados + " renderers apagados");
+            }
             var lp = LightmapSettings.lightProbes;
             Debug.Log("[SOMBRA] sondas de luz en la escena: " + (lp != null ? lp.count.ToString() : "ninguna") + " · mapas de luz: " + LightmapSettings.lightmaps.Length + " · modo ambiente: " + RenderSettings.ambientMode + " · reflejo: " + RenderSettings.defaultReflectionMode);
             bool trozo = false; var ic = System.Globalization.CultureInfo.InvariantCulture;
