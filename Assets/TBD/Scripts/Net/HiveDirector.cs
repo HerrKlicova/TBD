@@ -271,11 +271,39 @@ namespace TBD.Net
         /// <summary>Presupuesto del día con el multiplicador del estado (DayZombies sigue siendo la curva pura).</summary>
         public long DayBudget(long day, long huellaMil) { return DayZombies(day, huellaMil) * ColMultMil() / 1000; }
 
+        /// <summary>CO-0 ya dado (o ya no toca). Va en el guardado (NetVersion 6), fuera del hash: al cargar una partida en la que ya salió, no se repite; una partida migrada de la v5 lo trae dado.</summary>
+        public bool ColIntroDone;
+        /// <summary>CO-0 (Lucía, 9-nov): la vista lo llama la primera vez que se abre el mapa de la red después del tutorial. Sale una sola vez por partida
+        /// y solo si la Colmena está Dispersa (si no, ya salió el CO que tocaba). Devuelve true si ha añadido la entrada (para el sonido de Dispersa).</summary>
+        public bool ColmenaIntro(NetWorld w)
+        {
+            if (ColIntroDone) return false;
+            ColIntroDone = true;
+            if (P.ColOn == 0 || ColState != ColDispersa) return false;
+            w.Intel.Add(new IntelEntry { Tick = w.Tick, Id = "CO-0", Vars = new string[0] });
+            return true;
+        }
+
         static int HeldNodes(NetWorld w)
         {
             int held = 0;
-            for (int n = 0; n < w.Graph.Nodes.Count; n++) { if (w.Stations.IsSite(n) && !w.Stations.Founded[n]) continue; if (w.Stock[n, (int)Res.Personas] > 0) held++; }
+            for (int n = 0; n < w.Graph.Nodes.Count; n++) if (Held(w, n)) held++;
             return held;
+        }
+
+        /// <summary>¿Es del jugador? (Fundada, si es un emplazamiento, y con gente.)</summary>
+        internal static bool Held(NetWorld w, int n) { return !(w.Stations.IsSite(n) && !w.Stations.Founded[n]) && w.Stock[n, (int)Res.Personas] > 0; }
+
+        /// <summary>
+        /// Informe (memoria de atención, informe-textos.md §3): los nodos del jugador que llevan más de AttentionHours sin mirar (los que la Colmena prefiere, ×AttentionMil),
+        /// por orden de nodo. Vacía si el peso de atención está apagado. Solo lectura.
+        /// </summary>
+        public List<int> Neglected(NetWorld w)
+        {
+            var l = new List<int>(); if (IgnoreAttention || P.AttentionMil == 1000) return l;
+            long lim = NetConst.Hours(P.AttentionHours);
+            for (int n = 0; n < w.Graph.Nodes.Count && n < LastSeenTick.Length; n++) if (Held(w, n) && w.Tick - LastSeenTick[n] > lim) l.Add(n);
+            return l;
         }
 
         /// <summary>Una vez al día (sim_economia.py, colmena_estados): sube al instante, baja de uno en uno tras ColForgetDays días seguidos por debajo.
@@ -297,7 +325,8 @@ namespace TBD.Net
             if (ColState != old)
             {
                 string id = ColState > old ? (ColState == ColEnjambre ? "CO-2" : "CO-1") : (ColState == ColAcecho ? "CO-3" : "CO-4");
-                w.Intel.Add(new IntelEntry { Tick = w.Tick, Id = id, Vars = new string[0] });
+                var vars = id == "CO-2" ? new[] { "n", gained.ToString(), "h", (hu / 1000).ToString() + "," + (hu % 1000 / 100).ToString() } : new string[0];   // CO-2 (Lucía): «{n} nodos en 7 días y huella {h}»
+                w.Intel.Add(new IntelEntry { Tick = w.Tick, Id = id, Vars = vars });
             }
         }
 

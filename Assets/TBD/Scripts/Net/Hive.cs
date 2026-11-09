@@ -48,6 +48,53 @@ namespace TBD.Net
             P = p;
             M = new int[edges, p.Slots];
             _known = new bool[edges, p.Slots];
+            StreakTrain = new int[edges * p.Slots]; StreakDays = new int[edges * p.Slots]; StreakLastDay = new int[edges * p.Slots]; StreakHour = new int[edges * p.Slots];
+        }
+
+        // Para el informe (informe-textos.md §3, Lucía 9-nov): por tramo y franja, el último tren que pasó (Id + 1; 0 = ninguno), cuántos días seguidos lo ha hecho
+        // el último día (día + 1) y la hora en punto del primer paso de la racha (hora + 1). Solo los lee la vista; van en el guardado (cola de la NetVersion 7) y en el hash.
+        public readonly int[] StreakTrain, StreakDays, StreakLastDay, StreakHour;
+
+        void Streak(int edge, int slot, int trainId, long tick)
+        {
+            long day = tick / NetConst.DayTicks;
+            int i = edge * P.Slots + slot, t = trainId + 1, d = (int)day + 1;
+            if (StreakLastDay[i] == d) return;                                   // ya contó hoy (otro tren el mismo día no cambia la racha)
+            if (StreakTrain[i] == t && StreakLastDay[i] == d - 1) StreakDays[i]++;
+            else { StreakTrain[i] = t; StreakDays[i] = 1; StreakHour[i] = (int)(tick % NetConst.DayTicks / NetConst.HourTicks) + 1; }
+            StreakLastDay[i] = d;
+        }
+
+        /// <summary>Una línea de memoria de tráfico para el informe: franja aprendida (por encima del aviso), su tren y sus días seguidos.</summary>
+        public struct Line { public int Edge, Slot, Mem, TrainId, Days, Hour; public bool Alive; }
+
+        /// <summary>
+        /// Franjas aprendidas (las que ya dieron TR-1 y no se han olvidado), la de más memoria primero (empate: tramo y franja). TrainId = −1 y Days = 0 si no hay racha
+        /// (partida migrada). Days cuenta los días seguidos hasta el último paso; Alive dice si ese paso fue hoy o ayer (la racha sigue).
+        /// </summary>
+        public List<Line> Learned(long tick)
+        {
+            var l = new List<Line>(); int today = (int)(tick / NetConst.DayTicks) + 1;
+            for (int e = 0; e < M.GetLength(0); e++)
+                for (int s = 0; s < P.Slots; s++)
+                    if (_known[e, s])
+                    {
+                        int i = e * P.Slots + s;
+                        l.Add(new Line { Edge = e, Slot = s, Mem = M[e, s], TrainId = StreakTrain[i] - 1, Days = StreakDays[i], Hour = StreakHour[i] - 1, Alive = StreakLastDay[i] > 0 && StreakLastDay[i] >= today - 1 });
+                    }
+            l.Sort((x, y) => x.Mem != y.Mem ? y.Mem.CompareTo(x.Mem) : x.Edge != y.Edge ? x.Edge.CompareTo(y.Edge) : x.Slot.CompareTo(y.Slot));
+            return l;
+        }
+
+        public void SaveStreaks(SaveWriter w) { w.Ints(StreakTrain); w.Ints(StreakDays); w.Ints(StreakLastDay); w.Ints(StreakHour); }
+
+        public void LoadStreaks(SaveReader r)
+        {
+            foreach (var dst in new[] { StreakTrain, StreakDays, StreakLastDay, StreakHour })
+            {
+                var a = r.Ints(); if (a == null || (a.Length != 0 && a.Length != dst.Length)) throw new SaveException(SaveError.TopologyMismatch, "rachas de la memoria de tráfico");
+                Array.Clear(dst, 0, dst.Length); if (a.Length != 0) Array.Copy(a, dst, a.Length);   // vacío = partida migrada: sin rachas
+            }
         }
 
         public void SaveState(SaveWriter w)
@@ -80,6 +127,7 @@ namespace TBD.Net
             long day = tick / NetConst.DayTicks;
             if (day != _passDay) { _passDay = day; _passedToday.Clear(); }
             if (trainId >= 0 && !_passedToday.Add(((long)(trainId & 0xFFFF) << 32) | ((long)(edge & 0xFFFF) << 8) | (long)s)) return false;
+            if (trainId >= 0) Streak(edge, s, trainId, tick);
             Add(edge, s, P.Inc);
             int spill = P.Inc * P.SpillMil / 1000;
             Add(edge, (s + 1) % P.Slots, spill);
@@ -109,6 +157,8 @@ namespace TBD.Net
             for (int e = 0; e < M.GetLength(0); e++)
                 for (int s = 0; s < P.Slots; s++)
                     if (M[e, s] != 0 || _known[e, s]) h += NetWorld.Mix(((ulong)(uint)e << 40) ^ ((ulong)(uint)s << 32) ^ (ulong)(uint)M[e, s] ^ (_known[e, s] ? 1UL << 20 : 0UL));
+            for (int i = 0; i < StreakTrain.Length; i++)
+                if (StreakTrain[i] != 0) h += NetWorld.Mix(0x57EA4UL ^ ((ulong)(uint)i << 40) ^ ((ulong)(uint)StreakTrain[i] << 24) ^ ((ulong)(uint)StreakDays[i] << 12) ^ (ulong)(uint)StreakLastDay[i] ^ ((ulong)(uint)StreakHour[i] << 56));
             return h;
         }
     }
