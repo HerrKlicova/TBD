@@ -28,7 +28,7 @@ TL-3;Chispas;Paramos el {tren}. Recuperamos {u} u de materiales.;Work on the {tr
 ZS-1;Ibarra;{nodo} aguanta la noche: {abatidos} de {n} abatidos, {u} u de munición, {bajas} bajas.;{node} holds the night: {abatidos} of {n} down, {u} u of ammunition, {bajas} casualties.
 ZS-2;Ibarra;Hemos perdido {nodo}. Eran {n} y solo cayeron {abatidos}.;We have lost {node}. They were {n} and only {abatidos} went down.
 CO-0;Mora;La Colmena se agita: si abres más nodos, irá a por ti.;The Hive is stirring: if you open more nodes, it will come for you.
-CO-1;Mora;Se mueve distinto. Ya no vaga: escucha.;It moves differently. It no longer wanders: it listens.
-CO-2;Mora;Se está juntando. Has crecido demasiado deprisa y lo ha notado.;It is gathering. You grew too fast and it noticed.
-CO-3;Mora;Se dispersa otra vez. Por ahora.;It is scattering again. For now.
-CO-4;Mora;Ha perdido el interés. Vaga sin rumbo.;It has lost interest. It wanders aimlessly.
+CO-1;Ibarra;Se mueve distinto. Ya no vaga: escucha.;It moves differently. It no longer wanders: it listens.
+CO-2;Ibarra;Se está juntando. Has crecido demasiado deprisa y lo ha notado.;It is gathering. You have grown too fast and it has noticed.
+CO-3;Ibarra;Se dispersa otra vez. Por ahora.;It is scattering again. For now.
+CO-4;Ibarra;Ha perdido el interés. Vaga sin rumbo.;It has lost interest. It wanders aimlessly.

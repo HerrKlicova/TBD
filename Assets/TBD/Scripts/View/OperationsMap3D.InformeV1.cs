@@ -13,8 +13,8 @@ namespace TBD.View
     /// A la derecha, el parte de arriba abajo: 3 amenaza · 4 fuerzas propias · 5 sin novedad · 6 valoración · 7 necesidades · 8 firma.
     /// Los textos son los de Lucía (docs/informe-textos.md, 08-11) y están TODOS en InformeTextos, abajo: cambiarlos solo ahí.
     /// Una línea que se queda vacía no se muestra (regla de Lucía). Lo que la red todavía no da se deja fuera (no se inventa):
-    ///   - memoria de tráfico y de atención (sección 3): falta que la red las exponga; ver Pendiente en InformeTextos.
-    ///   - tipo de vehículo (Dragón, VAMTAC): Pasajero solo dice Vehiculo; la parte opcional no sale (Lucía, 09-11).
+    ///   - memoria de tráfico (sección 3): la red da tramo y franja, no el tren ni los días seguidos; esas partes no salen.
+    ///   - tipo de vehículo: sale de Plantel.Vehiculos de casa, por el índice de Pasajero.Id.
     ///   - pelotones en casa: la guarnición de Sagunto no está en Embarque.Lista; sale «guarnición» (Lucía, añadidos 08-11).
     /// </summary>
     public sealed partial class OperationsMap3D
@@ -28,9 +28,53 @@ namespace TBD.View
         /// <summary>Se llama al principio de HandleInput.</summary>
         void HandleInputInforme(Keyboard kb)
         {
+            EngancharColmena();
             if (kb == null) return;
             if (kb.tabKey.wasPressedThisFrame) AbrirInforme(!_informeOn);
             else if (_informeOn && kb.escapeKey.wasPressedThisFrame) AbrirInforme(false);
+        }
+
+        /// <summary>Engancha la vista a los estados de la Colmena de la red (Nacho, nacho/colmena-estados 3db0a0b): Director.ColState, ColSignalMil y ColWarning.
+        /// Con colmena_estados = 0 en balance_colmena.csv (P.ColOn = 0) la red no los calcula y la vista se comporta como antes (−1, sin aviso).</summary>
+        static void EngancharColmena()
+        {
+            if (ColmenaEstadoFuente != null) return;
+            ColmenaEstadoFuente = () => { var w = NetSession.A; return w == null || w.Director.P.ColOn == 0 ? -1 : w.Director.ColState; };
+            ColmenaSenalFuente = () => { var w = NetSession.A; return w == null || w.Director.P.ColOn == 0 ? -1 : (int)System.Math.Min(int.MaxValue, w.Director.ColSignalMil); };
+            ColmenaAvisoFuente = () => { var w = NetSession.A; return w != null && w.Director.ColWarning; };
+        }
+
+        /// <summary>Tipo de vehículo (Lucía: «Dragón», «VAMTAC»). Los vehículos son los de la zona de casa (Plantel.Vehiculos); Pasajero.Id es su índice.</summary>
+        List<Plantel.Coche> _infCoches;
+        string TipoVehiculo(int id)
+        {
+            if (_infCoches == null)
+            {
+                int home = _a.Embarque.HomeNode;
+                try { _infCoches = home >= 0 ? Plantel.Vehiculos(_a.Graph.Nodes[home].Name) : new List<Plantel.Coche>(); } catch { _infCoches = new List<Plantel.Coche>(); }
+            }
+            return id >= 0 && id < _infCoches.Count ? _infCoches[id].Tipo : null;
+        }
+
+        /// <summary>Dragones y VAMTAC de una estación: los bajados allí; en casa, los del plantel que no están en Embarque.Lista.</summary>
+        void VehiculosEn(int node, out int dragon, out int vamtac)
+        {
+            dragon = vamtac = 0;
+            if (node == _a.Embarque.HomeNode)
+            {
+                TipoVehiculo(-1);
+                for (int i = 0; i < _infCoches.Count; i++)
+                {
+                    bool fuera = false;
+                    foreach (var p in _a.Embarque.Lista) if (p.Tipo == PasajeroTipo.Vehiculo && p.Id == i) { fuera = true; break; }
+                    if (fuera) continue;
+                    if (_infCoches[i].Tipo == "dragon") dragon++; else if (_infCoches[i].Tipo == "vamtac") vamtac++;
+                }
+                return;
+            }
+            foreach (var p in _a.Embarque.Lista)
+                if (p.Estado == PasajeroEstado.EnEstacion && p.Node == node && p.Tipo == PasajeroTipo.Vehiculo)
+                { var t = TipoVehiculo(p.Id); if (t == "dragon") dragon++; else if (t == "vamtac") vamtac++; }
         }
 
         void AbrirInforme(bool on)
@@ -157,6 +201,22 @@ namespace TBD.View
                 string cifra = Estimacion(_a.SiegeZombies(p.Node), OjosEn(p.Node, out _, out _), est);
                 d.Amenaza.Add(p.Started ? InformeTextos.ConBarra(T.AmenazaAtaca(nd.Name, dir, cifra), InformeTextos.ColorAtaque) : T.AmenazaMasa(nd.Name, dir, cifra, rumbo, Dtg(p.StartTick)));
             }
+            // memoria de tráfico (Nacho, 3db0a0b): el tramo y la franja más aprendidos, si pasan del umbral de aviso
+            var tm = _a.Traffic;
+            if (d.Amenaza.Count < 3 && tm != null)
+            {
+                int be = -1, bs = 0, bm = 0;
+                for (int e = 0; e < g.Edges.Count && e < tm.M.GetLength(0); e++)
+                    for (int fr = 0; fr < tm.M.GetLength(1); fr++) if (tm.M[e, fr] >= tm.P.Warn && tm.M[e, fr] > bm) { bm = tm.M[e, fr]; be = e; bs = fr; }
+                if (be >= 0)
+                {
+                    var ed = g.Edges[be];
+                    d.Amenaza.Add(T.AmenazaTrafico(g.Nodes[ed.A].Name + "–" + g.Nodes[ed.B].Name, NetConst.Clock((long)bs * tm.SlotTicks + tm.SlotTicks / 2)));
+                }
+            }
+            // memoria de atención (Nacho, 3db0a0b): el nodo con más de 6 h de zona en detalle hoy
+            int foc = _a.Director.AttentionNode(_a);
+            if (d.Amenaza.Count < 3 && foc >= 0 && foc < g.Nodes.Count) d.Amenaza.Add(T.AmenazaAtencion(g.Nodes[foc].Name));
             var trebol = new List<int>();
             for (int k = 0; k < g.Nodes.Count; k++) if (Trebol(k)) trebol.Add(k);
             foreach (int k in trebol)
@@ -172,8 +232,9 @@ namespace TBD.View
             foreach (var p in _a.Embarque.Lista) if (p.Estado == PasajeroEstado.EnEstacion && p.Node >= 0 && !conAlgo.Contains(p.Node)) conAlgo.Add(p.Node);
             foreach (int k in conAlgo)
             {
-                OjosEn(k, out int pel, out int veh);
-                d.Propias.Add(T.Propias(g.Nodes[k].Name, pel, veh, k == home, _a.Stock[k, (int)Res.Municion], _a.Stock[k, (int)Res.Viveres]));
+                OjosEn(k, out int pel, out _);
+                VehiculosEn(k, out int dragon, out int vamtac);
+                d.Propias.Add(T.Propias(g.Nodes[k].Name, pel, dragon, vamtac, k == home, _a.Stock[k, (int)Res.Municion], _a.Stock[k, (int)Res.Viveres]));
             }
             foreach (var p in ased) if (!conAlgo.Contains(p.Node) && !_a.ZoneDefended(p.Node)) d.Propias.Add(T.SinTropa(g.Nodes[p.Node].Name));
             var aero = AerodromoVista.Estado;
@@ -216,7 +277,7 @@ namespace TBD.View
                 if (d.Valoracion.Count < 2) d.Valoracion.Add(T.ValTrenSinEscolta(nombre, sitiada));
                 d.Necesidades.Add(T.NecEscolta(nombre));
             }
-            if (d.Valoracion.Count < 2 && sen >= ColAvisoMil() && est != 2) d.Valoracion.Add(T.ValSeAgita);
+            if (d.Valoracion.Count < 2 && ColAviso()) d.Valoracion.Add(T.ValSeAgita);
             if (d.Valoracion.Count == 0) d.Valoracion.Add(T.ValNada);
             foreach (int k in trebol) d.Necesidades.Add(T.NecNh90(g.Nodes[k].Name));
 
@@ -394,8 +455,6 @@ namespace TBD.View
     /// <summary>
     /// TODOS los textos de la pantalla del informe (Lucía, docs/informe-textos.md, 08-11). Para cambiarlos, solo aquí.
     /// Los marcados «Lucía, añadidos 08-11» son los casos que añadió después (asedio y ataque en curso, guarnición de casa).
-    /// Pendiente: memoria de tráfico («{tramo}: el tren {n} pasa a la misma hora {k} días seguidos. Lo ha aprendido.») y de atención
-    /// («{zona}: la Colmena se aparta de donde miramos y crece donde no.»): la red todavía no las expone a la vista (Nacho).
     /// </summary>
     public sealed class InformeTextos
     {
@@ -450,17 +509,25 @@ namespace TBD.View
         { return est + ": masa" + (dir != null ? " " + dir : "") + (cifra != null ? ", " + cifra : "") + (rumbo != null ? ", rumbo " + rumbo : "") + ". Llegaría hacia " + dtg + "."; }
         public string AmenazaAtaca(string est, string dir, string cifra)                 // Lucía, añadidos 08-11
         { return est + ": la Colmena ataca" + (dir != null ? " por el " + SinAl(dir) : "") + "." + (cifra != null ? " " + cifra + "." : ""); }
+        /// <summary>Lucía: «{tramo}: el tren {n} pasa a la misma hora {k} días seguidos. Lo ha aprendido.» La red da el tramo y la franja, pero no el tren
+        /// ni los días seguidos (M es una memoria con olvido, no un contador), así que esas partes quedan vacías. Falta que Lucía dé por buena la hora.</summary>
+        public string AmenazaTrafico(string tramo, string hora) { return tramo + ": el tren pasa a la misma hora, hacia las " + hora + ". Lo ha aprendido."; }
+        public string AmenazaAtencion(string zona) { return zona + ": la Colmena se aparta de donde miramos y crece donde no."; }
         public string AmenazaTrebol(string est, string dir) { return est + ": movimiento sin identificar" + (dir != null ? " " + dir + " de la estación" : " cerca de la estación") + "."; }
 
         // 4. fuerzas propias
         public string SecPropias = "Fuerzas propias";
-        public string Propias(string est, int pel, int veh, bool casa, long mun, long viv)
+        public string Propias(string est, int pel, int dragon, int vamtac, bool casa, long mun, long viv)
         {
+            // «{estación}: {n} pelotones{, Dragón}{, n VAMTAC}. Munición {u} u{. Víveres {v} u}.» En casa, «guarnición» (Lucía, añadidos 08-11).
+            var partes = new List<string>();
+            if (pel > 0) partes.Add(pel + (pel == 1 ? " pelotón" : " pelotones"));
+            else if (casa) partes.Add("guarnición");
+            if (dragon == 1) partes.Add("Dragón"); else if (dragon > 1) partes.Add(dragon + " Dragón");
+            if (vamtac > 0) partes.Add(vamtac + " VAMTAC");
             var sb = new System.Text.StringBuilder(est).Append(": ");
-            if (pel > 0) sb.Append(pel).Append(pel == 1 ? " pelotón" : " pelotones");
-            else if (casa) sb.Append("guarnición");                                       // Lucía, añadidos 08-11: hasta que la red exponga los pelotones de casa
-            // {, Dragón}{, n VAMTAC}: la red no da el tipo de vehículo (Pasajero solo dice Vehiculo), así que esa parte queda vacía y no sale (Lucía, 09-11). veh queda para cuando Nacho lo exponga.
-            sb.Append(pel > 0 || casa ? ". " : "").Append("Munición ").Append(mun).Append(" u");
+            if (partes.Count > 0) sb.Append(string.Join(", ", partes)).Append(". ");
+            sb.Append("Munición ").Append(mun).Append(" u");
             if (viv > 0) sb.Append(". Víveres ").Append(viv).Append(" u");
             return sb.Append('.').ToString();
         }

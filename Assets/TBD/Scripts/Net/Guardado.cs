@@ -201,7 +201,7 @@ namespace TBD.Net
     {
         public const uint Magic = 0x53444254;           // «TBDS»
         public const ushort FormatVersion = 1;          // contenedor: cabecera, secciones y suma de comprobación
-        public const ushort NetVersion = 5;             // sección NET: el estado de NetWorld. 2 = producción de las estaciones (remanentes y pérdidas al final); 3 = pasajeros de los trenes (D-N166); 4 = reloj ×103 y víveres (D-N161, D-N176); 5 = nodos perdidos y último asedio de zona (hordas de zona, Lucía 8-nov)
+        public const ushort NetVersion = 6;             // sección NET: el estado de NetWorld. 2 = producción de las estaciones (remanentes y pérdidas al final); 3 = pasajeros de los trenes (D-N166); 4 = reloj ×103 y víveres (D-N161, D-N176); 5 = nodos perdidos y último asedio de zona (hordas de zona, Lucía 8-nov); 6 = estados de la Colmena (D-N160)
         public const ushort MinNetVersion = 1;          // la más antigua que sabe leer (con las migraciones registradas)
         public static readonly uint NetTag = SaveSection.Tag("NET\0");
 
@@ -215,6 +215,7 @@ namespace TBD.Net
             { 2, MigrateNet2To3 },
             { 3, MigrateNet3To4 },
             { 4, MigrateNet4To5 },
+            { 5, MigrateNet5To6 },
         };
 
         /// <summary>1 → 2: la producción (Produccion.cs) añade remanentes y pérdidas al final; en una partida vieja valen 0. El número de nodos sale de
@@ -231,8 +232,10 @@ namespace TBD.Net
 
         /// <summary>3 → 4: no se migra. Con el reloj ×103 (D-N161) los ticks guardados cambian de significado y las existencias pasan a 5 recursos (D-N176): una partida vieja no se puede cargar.</summary>
         static byte[] MigrateNet3To4(byte[] v3) { throw new SaveException(SaveError.TooOld, "partida anterior al reloj ×103 y a los víveres (D-N161, D-N176)"); }
-        /// <summary>4 → 5: ningún nodo perdido (lista vacía) y sin asedio de zona resuelto.</summary>
-        static byte[] MigrateNet4To5(byte[] v4) { var w = new SaveWriter(); w.Raw(v4); w.Ints(new int[0]); w.Ints(new[] { 0, 0, 0 }); for (int i = 0; i < 6; i++) w.Long(0); return w.ToArray(); }
+        /// <summary>4 → 5: ningún nodo perdido, sin guarniciones (listas vacías) y sin asedio de zona resuelto.</summary>
+        /// <summary>5 → 6: la Colmena empieza Dispersa, sin señal ni historia (D-N160).</summary>
+        static byte[] MigrateNet5To6(byte[] v5) { var w = new SaveWriter(); w.Raw(v5); w.Ints(new[] { 0, 0 }); w.Long(0); w.Ints(new int[8]); return w.ToArray(); }
+        static byte[] MigrateNet4To5(byte[] v4) { var w = new SaveWriter(); w.Raw(v4); w.Ints(new int[0]); w.Ints(new int[0]); w.Ints(new int[0]); w.Ints(new[] { 0, 0, 0 }); for (int i = 0; i < 6; i++) w.Long(0); return w.ToArray(); }
 
         /// <summary>Recorre la cabecera de la sección NET v1 (el orden de NetWorld.SaveState) hasta la atracción por nodo y devuelve su longitud.</summary>
         static int NodesOfV1(byte[] v1)

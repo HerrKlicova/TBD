@@ -38,7 +38,7 @@ fabrica_municion_u_dia;8;1;
 fabrica_consumo_materiales_dia;2;1;
 fort_materiales_por_nivel;30;1;
 fort_nivel_max;5;1;
-fort_bonus_por_nivel;200;1000;+20 % de eficacia por nivel
+fort_bonus_por_nivel;0;1000;9-nov (Hugo (3), opción A): 0. El muro ya no multiplica la eficacia de la munición (antes +20 % por nivel), 1 u = 400 zombis con o sin muro
 fort_desgaste_dia;10;1000;sobre el valor fortificado
 focos_combustible_por_nivel_dia;400;1000;
 municion_reposo_nodo_dia;500;1000;

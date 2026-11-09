@@ -19,6 +19,8 @@ namespace TBD.Net
         public int HuellaPersonMil, HuellaTrainMil, HuellaNodeMil, BigEveryDays, BigMultMil;
         public int H0, KHuellaMil, FirstSiegeDay, RetireDays;   // D-N36 (Hugo): presupuesto del día 0, huella, índice del primer asedio, días sin combatir antes de retirarse
         public int WorkProbeMil, WorkProbeBudgetMil, WorkWeightMil, WorkHuellaMil;   // hito 5 (D-N44, balance_construccion.csv): sondeo de obra por hora (‰), su tamaño (‰ del presupuesto del día), peso del nodo como objetivo (‰) y huella de una obra de muros (‰)
+        // D-N160 (Hugo, aprobado por Lucía, 9-nov): tres estados de la Colmena (balance_colmena.csv, colmena_*). ColOn = 0: apagado
+        public int ColOn, ColUp1Mil, ColUp2Mil, ColWarnMil, ColForgetDays, ColHuellaWeightMil, ColHuellaBaseMil, ColMult0, ColMult1, ColMult2, ColExtraSieges;
         public int Ramp0Mil, Ramp1Mil, Ramp2Mil, Ramp3Mil;   // huella (Hugo) y gran ataque anunciado (autoguardado, §14)   // D-N34 (Lucía, medido por Hugo)
 
         public static DirectorParams Default => new DirectorParams
@@ -30,6 +32,7 @@ namespace TBD.Net
             PointUniqueMil = 1500, AttentionMil = 1500, RespiteMinH = 6, RespiteMaxH = 12,
             HuellaPersonMil = 10, HuellaTrainMil = 500, HuellaNodeMil = 400, BigEveryDays = 7, BigMultMil = 2000,
             H0 = 1550, KHuellaMil = 160, FirstSiegeDay = 1, RetireDays = 6, WorkProbeMil = 83, WorkProbeBudgetMil = 50, WorkWeightMil = 1500, WorkHuellaMil = 500, Ramp0Mil = 150, Ramp1Mil = 350, Ramp2Mil = 650, Ramp3Mil = 850,
+            ColOn = 0, ColUp1Mil = 4000, ColUp2Mil = 7000, ColWarnMil = 6000, ColForgetDays = 3, ColHuellaWeightMil = 500, ColHuellaBaseMil = 8000, ColMult0 = 900, ColMult1 = 1000, ColMult2 = 1250, ColExtraSieges = 1,
         };
 
         /// <summary>Añade los valores de D-N33 que Hugo puso en balance_colmena.csv.</summary>
@@ -49,6 +52,12 @@ namespace TBD.Net
             p.H0 = (int)c.PositiveValue("H0_zombis_dia"); p.KHuellaMil = (int)c.Value("k_huella"); p.FirstSiegeDay = (int)c.Value("dia_primer_asedio");
             p.Ramp0Mil = (int)c.Value("rampa_dia0"); p.Ramp1Mil = (int)c.Value("rampa_dia1"); p.Ramp2Mil = (int)c.Value("rampa_dia2"); p.Ramp3Mil = (int)c.Value("rampa_dia3");
             p.RetireDays = (int)c.TryValue("zombis_retirada_dias", 6);   // opcional: Hugo aún no lo puso en el CSV
+            p.ColOn = (int)c.TryValue("colmena_estados", 0);           // D-N160: sin la fila, apagado
+            p.ColUp1Mil = (int)c.TryValue("colmena_umbral_acecho_x1000", p.ColUp1Mil); p.ColUp2Mil = (int)c.TryValue("colmena_umbral_enjambre_x1000", p.ColUp2Mil);
+            p.ColWarnMil = (int)c.TryValue("colmena_aviso_x1000", p.ColWarnMil); p.ColForgetDays = (int)c.TryValue("colmena_dias_olvido", p.ColForgetDays);
+            p.ColHuellaWeightMil = (int)c.TryValue("colmena_peso_huella_x1000", p.ColHuellaWeightMil); p.ColHuellaBaseMil = (int)c.TryValue("colmena_huella_base_x1000", p.ColHuellaBaseMil);
+            p.ColMult0 = (int)c.TryValue("colmena_mult_H_dispersa_permil", p.ColMult0); p.ColMult1 = (int)c.TryValue("colmena_mult_H_acecho_permil", p.ColMult1);
+            p.ColMult2 = (int)c.TryValue("colmena_mult_H_enjambre_permil", p.ColMult2); p.ColExtraSieges = (int)c.TryValue("colmena_asedio_extra_enjambre", p.ColExtraSieges);
             return p;
         }
 
@@ -244,12 +253,60 @@ namespace TBD.Net
             return h;
         }
 
+        // ------------------------------------------------ D-N160: los tres estados de la Colmena (Hugo, colmena-estados.md §5)
+        public const int ColDispersa = 0, ColAcecho = 1, ColEnjambre = 2;
+        /// <summary>Estado de la Colmena entera: 0 Dispersa, 1 Al acecho, 2 Enjambre. Se calcula una vez al día, al cambiar de día.</summary>
+        public int ColState;
+        /// <summary>Días seguidos con la señal por debajo del umbral del estado actual (baja uno tras ColForgetDays).</summary>
+        public int ColDaysBelow;
+        /// <summary>Señal del día en ‰: nodos ganados en 7 días × 1000 + 0,5 × (huella − 8). La vista la lee para el aviso ámbar (≥ ColWarnMil).</summary>
+        public long ColSignalMil;
+        /// <summary>Nodos con gente al empezar cada uno de los últimos 8 días (por día mod 8).</summary>
+        public readonly int[] ColHeld = new int[8];
+        /// <summary>¿Hay que dar el aviso ámbar «La Colmena se agita»? (señal ≥ colmena_aviso y aún no en Enjambre)</summary>
+        public bool ColWarning { get { return P.ColOn != 0 && ColState < ColEnjambre && ColSignalMil >= P.ColWarnMil; } }
+        /// <summary>Asedios simultáneos que permite la etapa; en Enjambre, ColExtraSieges más (D-N160).</summary>
+        public int MaxSieges() { return P.MaxSiegesStage1 + (P.ColOn != 0 && ColState == ColEnjambre ? P.ColExtraSieges : 0); }
+        public int ColMultMil() { return P.ColOn == 0 ? 1000 : ColState == ColEnjambre ? P.ColMult2 : ColState == ColAcecho ? P.ColMult1 : P.ColMult0; }
+        /// <summary>Presupuesto del día con el multiplicador del estado (DayZombies sigue siendo la curva pura).</summary>
+        public long DayBudget(long day, long huellaMil) { return DayZombies(day, huellaMil) * ColMultMil() / 1000; }
+
+        static int HeldNodes(NetWorld w)
+        {
+            int held = 0;
+            for (int n = 0; n < w.Graph.Nodes.Count; n++) { if (w.Stations.IsSite(n) && !w.Stations.Founded[n]) continue; if (w.Stock[n, (int)Res.Personas] > 0) held++; }
+            return held;
+        }
+
+        /// <summary>Una vez al día (sim_economia.py, colmena_estados): sube al instante, baja de uno en uno tras ColForgetDays días seguidos por debajo.
+        /// Cada cambio deja su entrada en el informe (CO-1 a CO-4).</summary>
+        internal void ColmenaDay(NetWorld w, long day)
+        {
+            if (P.ColOn == 0) return;
+            int held = HeldNodes(w);
+            ColHeld[(int)(day % ColHeld.Length)] = held;
+            long refDay = Math.Max(0, day - 7);
+            int gained = held - ColHeld[(int)(refDay % ColHeld.Length)];
+            long hu = HuellaMil(w);
+            ColSignalMil = gained * 1000L + (long)P.ColHuellaWeightMil * Math.Max(0, hu - P.ColHuellaBaseMil) / 1000;
+            int up = ColSignalMil >= P.ColUp2Mil ? ColEnjambre : ColSignalMil >= P.ColUp1Mil ? ColAcecho : ColDispersa;
+            int old = ColState;
+            if (up > ColState) { ColState = up; ColDaysBelow = 0; }
+            else if (up < ColState) { ColDaysBelow++; if (ColDaysBelow >= P.ColForgetDays) { ColState--; ColDaysBelow = 0; } }
+            else ColDaysBelow = 0;
+            if (ColState != old)
+            {
+                string id = ColState > old ? (ColState == ColEnjambre ? "CO-2" : "CO-1") : (ColState == ColAcecho ? "CO-3" : "CO-4");
+                w.Intel.Add(new IntelEntry { Tick = w.Tick, Id = id, Vars = new string[0] });
+            }
+        }
+
         long _carryZombies;                           // resto de zombis que no llegó a un «por mil» entero (se arrastra hora a hora)
 
         /// <summary>Presupuesto de esta hora en «por mil» de densidad: DayZombies / 24 / 10, arrastrando el resto.</summary>
         long HourBudgetPermil(long day, long huellaMil)
         {
-            long z = DayZombies(day, huellaMil) / 24 + _carryZombies;
+            long z = DayBudget(day, huellaMil) / 24 + _carryZombies;
             long permil = z / NetWorld.ZombiesPerPermil;
             _carryZombies = z - permil * NetWorld.ZombiesPerPermil;
             return permil;
@@ -374,7 +431,7 @@ namespace TBD.Net
         /// </summary>
         long WorkProbes(NetWorld w, long day, ref long drift, ref long bank)
         {
-            long ask = DayZombies(day, HuellaMil(w)) * P.WorkProbeBudgetMil / 1000 / NetWorld.ZombiesPerPermil;
+            long ask = DayBudget(day, HuellaMil(w)) * P.WorkProbeBudgetMil / 1000 / NetWorld.ZombiesPerPermil;
             if (ask <= 0) return 0;
             long moved = 0;
             for (int n = 0; n < w.Graph.Nodes.Count; n++)
@@ -411,6 +468,7 @@ namespace TBD.Net
             if (day != _budgetDay)
             {
                 _budgetDay = day; BudgetUsedToday = 0; Array.Clear(AttentionTicks, 0, AttentionTicks.Length);
+                ColmenaDay(w, day);
                 long old = day - P.RetireDays;
                 if (old >= 0 && P.RetireDays < _injectedByDay.Length)
                 {
@@ -449,7 +507,7 @@ namespace TBD.Net
                 pl.UntilTick = w.Tick + (long)P.SiegeDays * NetConst.DayTicks;
                 Active[i] = pl;
                 var nd = w.Graph.Nodes[pl.Node];
-                w.Intel.Add(new IntelEntry { Tick = w.Tick, Id = "ES-2", Vars = new[] { "nodo", nd.Name, "n", (DayZombies(w.Tick / NetConst.DayTicks, HuellaMil(w)) * P.SiegeShareMil / 1000 * P.SiegeDays).ToString() } });   // «hasta n»: lo que el presupuesto le deja reclutar en sus días
+                w.Intel.Add(new IntelEntry { Tick = w.Tick, Id = "ES-2", Vars = new[] { "nodo", nd.Name, "n", (DayBudget(w.Tick / NetConst.DayTicks, HuellaMil(w)) * P.SiegeShareMil / 1000 * P.SiegeDays).ToString() } });   // «hasta n»: lo que el presupuesto le deja reclutar en sus días
                 int focus = AttentionNode(w);
                 if (focus >= 0 && focus != pl.Node)
                     w.Intel.Add(new IntelEntry { Tick = w.Tick, Id = "AT-1", Vars = new[] { "nodo_b", nd.Name, "nodo_a", w.Graph.Nodes[focus].Name } });
@@ -495,7 +553,7 @@ namespace TBD.Net
                 var znd = w.Graph.Nodes[zh.Node];
                 Active.Add(new Plan { Kind = PlanKind.Asedio, Edge = ZoneSiegeEdge, Node = zh.Node, Cell = znd.YMeters * HordeField.W + znd.XMeters, StartTick = zst, UntilTick = zst + NetConst.Hours(8), Moved = (zh.Zombies + NetWorld.ZombiesPerPermil - 1) / NetWorld.ZombiesPerPermil });
             }
-            if (day >= P.FirstSiegeDay && (_anySiege || inFirstWindow) && sieges < P.MaxSiegesStage1 && w.Tick >= _respiteUntil)
+            if (day >= P.FirstSiegeDay && (_anySiege || inFirstWindow) && sieges < MaxSieges() && w.Tick >= _respiteUntil)
             {
                 int n = DrawSiegeTarget(w);
                 if (n >= 0)
@@ -665,6 +723,8 @@ namespace TBD.Net
                 h += NetWorld.Mix(((ulong)p.Kind << 56) ^ ((ulong)(uint)(p.Edge + 1) << 40) ^ ((ulong)(uint)(p.Node + 1) << 28) ^ ((ulong)(uint)(p.Cell + 1) << 8) ^ (ulong)p.UntilTick ^ ((ulong)(uint)p.Moved << 20) ^ ((ulong)(uint)(p.Train + 1) << 50)) + NetWorld.Mix((ulong)p.StartTick ^ (p.Started ? 1UL << 63 : 0)) + NetWorld.Mix((ulong)(uint)p.Lost ^ 0x10557UL);
             for (int k = 0; k < _injectedByDay.Length; k++) if (_injectedByDay[k] != 0) h += NetWorld.Mix(((ulong)(uint)k << 56) ^ (ulong)_injectedByDay[k] ^ 0x1A7ECUL);
             h += NetWorld.Mix((ulong)_carryZombies ^ 0xCA77UL);
+            if (ColState != 0 || ColDaysBelow != 0 || ColSignalMil != 0) h += NetWorld.Mix(0xC01EUL ^ (ulong)(uint)ColState ^ ((ulong)(uint)ColDaysBelow << 8) ^ ((ulong)ColSignalMil << 20));   // D-N160: solo si no es el de partida
+            for (int k = 0; k < ColHeld.Length; k++) if (ColHeld[k] != 0) h += NetWorld.Mix(((ulong)(uint)k << 56) ^ (ulong)(uint)ColHeld[k] ^ 0xC0E1DUL);
             for (int n = 0; n < LastSeenTick.Length; n++) if (LastSeenTick[n] != 0) h += NetWorld.Mix(((ulong)(uint)n << 52) ^ (ulong)LastSeenTick[n] ^ 0x5EE7UL);
             for (int n = 0; n < AttentionTicks.Length; n++) if (AttentionTicks[n] != 0) h += NetWorld.Mix(((ulong)(uint)n << 48) ^ (ulong)AttentionTicks[n]);
             return h;
