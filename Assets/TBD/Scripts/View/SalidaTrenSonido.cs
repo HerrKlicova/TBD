@@ -18,7 +18,7 @@ namespace TBD.View
             foreach (var x in sonidos)
             {
                 Vector3 p = x.Cabeza ? cabeza : x.Puerta >= 0 && puerta != null ? puerta(x.Puerta) : anden;
-                Sfx.PlayAt(x.Clip, p, x.Clip.Contains("pitido") ? 0.3f : 1f, 0f);      // D-N170 (Lucía): el pitido a 0,3, sin bajar ningún otro sonido
+                Sfx.PlayAt(x.Clip, p, x.Clip.Contains("pitido") ? 0.72f : 1f, 0f);      // D-N170 (Lucía, Nuria v2 a −22,5 LUFS): el pitido a 0,72, sin bajar ningún otro sonido
             }
             sonidos.Clear();
         }
