@@ -76,6 +76,12 @@ namespace TBD.View
             res.Rearmando = rearmando;
             foreach (var g in res.P1Reposo) if (g != null) g.SetActive(!rearmando);
             foreach (var g in res.P1Rearme) if (g != null) g.SetActive(rearmando);
+            // sonidos del FARP (Nuria, aprobados por Lucía): variante por semilla del sitio; todo se calla al pausar (AudioListener.pause)
+            if (res.P1Rearme.Count < 2 || res.P1Rearme[0] == null) return;
+            var cam = res.P1Rearme[0].transform.position; var rem = res.P1Rearme[1] != null ? res.P1Rearme[1].transform.position : cam;
+            int v = 1 + (int)(((uint)(cam.x * 73856093f) ^ (uint)(cam.z * 19349663f)) % 5u);
+            if (rearmando) { Sfx.LoopAt("farp_bomba", "sfx_farp_bomba_" + v, cam, 1f, 50f); Sfx.PlayAt("farp_manguera", cam, 1f); Sfx.PlayAt("farp_caja_municion", rem, 1f); }
+            else Sfx.StopLoop("farp_bomba");
         }
 
         public static int VidaValla = 5000;      // HP de cada tramo de valla (5.000 = sana); sin asedios en el MVP, siempre sana

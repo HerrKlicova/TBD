@@ -55,7 +55,6 @@ namespace TBD.View
         readonly List<Light> _vxLightLive = new List<Light>(); readonly List<float> _vxLightUntil = new List<float>(); readonly List<float> _vxLightI0 = new List<float>(); readonly Stack<Light> _vxLightFree = new Stack<Light>();
         struct VxPending { public float At; public Vector3 P; public WeaponId W; public bool Zombie; }
         readonly List<VxPending> _vxPending = new List<VxPending>();
-        readonly Dictionary<GameObject, Transform> _vxBoca = new Dictionary<GameObject, Transform>();
         int _vxShotCount; bool _vxReady; bool _vxDebugBoca;
 
         // ---------------------------------------------------------------- texturas en píxel, hechas por código (punto, sin mips)
@@ -149,7 +148,7 @@ namespace TBD.View
                 var right = Vector3.Cross(Vector3.up, dir).normalized;
                 VxEmit(_vxShell, boca - dir * 0.7f, right * Random.Range(1.8f, 2.8f) + Vector3.up * Random.Range(1.5f, 2.5f), s.Shell, 0.7f, VxLaton);
             }
-            if (_vxDebugBoca) VxEmit(_vxMark, boca, Vector3.zero, 0.25f, 2f, VxCrema);                            // -vfxboca: marca la boca 2 s para ajustar los desplazamientos
+            if (_vxDebugBoca) { VxEmit(_vxMark, boca, Vector3.zero, 0.25f, 2f, VxCrema); Debug.DrawRay(boca, dir * 3f, Color.yellow, 1f); }   // -vfxboca: marca la boca 2 s y, en amarillo, la dirección real del disparo (hacia el blanco)
             if (tracer)
             {
                 SpawnTracer(boca, blanco, s.TracerSpeed, s.TracerW, s.TracerTail);
@@ -208,9 +207,21 @@ namespace TBD.View
         /// </summary>
         Vector3 VxMuzzle(Veh v, Vector3 blanco)
         {
-            if (!_vxBoca.TryGetValue(v.Go, out var boca)) { boca = Find(v.Go.transform, "Boca"); _vxBoca[v.Go] = boca; }
-            if (boca != null) return boca.position;
             var flat = new Vector3(blanco.x - v.Pos.x, 0f, blanco.z - v.Pos.y); if (flat.sqrMagnitude < 1e-4f) flat = Vector3.forward; flat.Normalize();
+            // Teo (8-nov, mr-mak 1e8c0d5): puntos Muzzle_0 / Muzzle_1 en los modelos (Dragón bajo Canon, VAMTAC bajo Ametralladora, NH90 en la raíz:
+            // Muzzle_0 puerta derecha, Muzzle_1 izquierda). Se usa la POSICIÓN; la dirección del disparo sigue siendo hacia el blanco.
+            var bocas = VxBocas(v.Go);
+            if (bocas[0] != null)
+            {
+                var m = bocas[0];
+                if (v.Heli && bocas[1] != null)                                                                     // NH90: la MAG del costado que mira al blanco
+                {
+                    var right = Vector3.Cross(Vector3.up, Quaternion.Euler(0f, v.Heading, 0f) * Vector3.forward);
+                    if (Vector3.Dot(right, flat) < 0f) m = bocas[1];
+                }
+                VxDebugBoca(m);
+                return m.position;
+            }
             if (v.Heli)                                                                                                 // MAG de puerta: en el costado que mira al blanco
             {
                 var fwd = Quaternion.Euler(0f, v.Heading, 0f) * Vector3.forward; var right = Vector3.Cross(Vector3.up, fwd);
@@ -220,6 +231,35 @@ namespace TBD.View
             bool dragon = v.Name.StartsWith("Drag");
             var pivot = v.Gun != null ? v.Gun.position : v.Turret != null ? v.Turret.position + Vector3.up * 0.3f : new Vector3(v.Pos.x, dragon ? 2.6f : 2.4f, v.Pos.y);
             return pivot + flat * (dragon ? 2.8f : 1.1f);
+        }
+
+        /// <summary>Muzzle_0 y Muzzle_1 de un modelo (o el vacío «Boca» de antes), buscados por nombre en profundidad una sola vez por objeto.</summary>
+        readonly Dictionary<GameObject, Transform[]> _vxBocas = new Dictionary<GameObject, Transform[]>();
+        Transform[] VxBocas(GameObject go)
+        {
+            if (go == null) return new Transform[2];
+            if (!_vxBocas.TryGetValue(go, out var b))
+            {
+                b = new[] { Find(go.transform, "Muzzle_0") ?? Find(go.transform, "Boca"), Find(go.transform, "Muzzle_1") };
+                _vxBocas[go] = b;
+            }
+            return b;
+        }
+
+        /// <summary>-vfxboca: además de la marca crema, el +Z del punto (cian, lo modelado) se ve en la vista de escena del Editor durante 1 s.</summary>
+        void VxDebugBoca(Transform m)
+        {
+            if (!_vxDebugBoca || m == null) return;
+            Debug.DrawRay(m.position, m.forward * 1.5f, Color.cyan, 1f);
+        }
+
+        /// <summary>Boca de un soldado: Muzzle_1 (AG36) para la granada si lo hay; si no, Muzzle_0. null si su modelo no lo trae.</summary>
+        Transform VxBocaSoldado(GameObject go, bool granada)
+        {
+            var b = VxBocas(go);
+            var m = granada && b[1] != null ? b[1] : b[0];
+            VxDebugBoca(m);
+            return m;
         }
 
         /// <summary>Disparo de un vehículo (llamar desde VehicleFire en lugar de SpawnTracer y SpawnFlash).</summary>

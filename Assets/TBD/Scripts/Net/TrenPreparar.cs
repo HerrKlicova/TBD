@@ -206,45 +206,40 @@ namespace TBD.Net
     }
 
     /// <summary>
-    /// D-N152 (Eugenio; Lucía): un tren que llega a una estación sitiada se queda a las puertas y no entra hasta que acaba el asedio; tampoco entra si no le queda
-    /// plaza (una en las estaciones pequeñas y dos en las principales, propuesta de Lucía; ampliar la estación da más, D-N153). A las puertas solo baja la tropa
-    /// (D-N166): ni carga ni vehículos, porque hace falta el andén. Estado derivado, de solo lectura (no se guarda ni toca la simulación): lo usan el panel, la
-    /// zona y el tutorial. Las reglas que cambian la simulación (no mover carga a las puertas y que se le pueda atacar, D-N148) son de Nacho.
+    /// D-N152: la regla es la de la red de Nacho (nacho/tren-puertas: TrainService.GateNode, guardado en la v4; plazas en NetWorld.TrainSlots). Esto solo la
+    /// lee para el panel, la zona y el tutorial, para que no haya dos reglas. D-N177 (Lucía, provisional): aviso en ámbar «Sin escolta: X está sitiada» al dar la
+    /// orden de salida y en el icono del tren; el rojo, solo si el tren cae.
     /// </summary>
     public static class Puertas
     {
-        static readonly string[] Principales = { "Sagunto", "Castellón", "Valencia" };
-        public static int Ampliacion;        // plazas extra por ampliar la estación (D-N153), cuando exista el modo construcción
+        public static int Plazas(NetWorld w, int node) { return w == null ? 0 : w.TrainSlots(node); }
 
-        public static int Plazas(NetWorld w, int node)
-        {
-            if (w == null || node < 0 || node >= w.Graph.Nodes.Count) return 0;
-            return (Array.IndexOf(Principales, w.Graph.Nodes[node].Name) >= 0 ? 2 : 1) + Ampliacion;
-        }
+        public static bool EnPuertas(NetWorld w, int service, int node) { return w != null && service >= 0 && service < w.Services.Count && w.AtGate(w.Services[service], node); }
 
-        /// <summary>Servicios parados en ese nodo, por orden de llegada aproximado (el índice del servicio): los primeros Plazas ocupan el andén.</summary>
-        public static List<int> Parados(NetWorld w, int node)
+        /// <summary>Texto para el panel y el aviso, o null si no espera.</summary>
+        public static string Motivo(NetWorld w, int service) { return w == null ? null : w.GateReason(service); }
+
+        /// <summary>D-N177: lo decide la red de Nacho (sin tropa ni vehículos a bordo y una estación sitiada en el camino hasta la próxima parada).</summary>
+        public static string SinEscolta(NetWorld w, int service) { return w == null ? null : w.EscortWarning(service); }
+
+        public const string TextoApartado = "Saca el tren del apartado: con asedio, espera fuera de la puerta oeste.";
+
+        /// <summary>
+        /// D-N177 (Hugo y Lucía): con el asedio de Nules anunciado (o empezado), un tren parado dentro de Nules (en el apartado, Z 49, no a las puertas) cae siempre con un
+        /// pelotón de escolta según NightSim; fuera de la puerta oeste aguanta (tren-a-las-puertas.md). Devuelve los servicios a avisar.
+        /// </summary>
+        public static List<int> EnApartadoConAsedio(NetWorld w)
         {
-            var l = new List<int>();
-            if (w == null) return l;
-            for (int i = 0; i < w.Services.Count; i++) if (w.TrainAtNode(w.Services[i], node)) l.Add(i);
+            var l = new List<int>(); if (w == null) return l;
+            int nu = TrenPreparar.Nodo(w, "Nules"); if (nu < 0) return l;
+            bool asedio = w.Besieged(nu);
+            if (!asedio) foreach (var pl in w.Director.Active) if (pl.Kind == HiveDirector.PlanKind.Asedio && pl.Node == nu) asedio = true;
+            if (!asedio) foreach (var zw in w.UndefendedWarnings()) if (zw.Node == nu) asedio = true;
+            if (!asedio) return l;
+            for (int i = 0; i < w.Services.Count; i++) { var sv = w.Services[i]; if (!sv.Destroyed && sv.GateNode < 0 && w.TrainAtNode(sv, nu)) l.Add(i); }
             return l;
         }
 
-        /// <summary>¿El tren está a las puertas de ese nodo (parado allí, pero fuera: estación sitiada o sin plaza)?</summary>
-        public static bool EnPuertas(NetWorld w, int service, int node)
-        {
-            if (w == null || service < 0 || service >= w.Services.Count || !w.TrainAtNode(w.Services[service], node)) return false;
-            if (w.Besieged(node)) return true;
-            var l = Parados(w, node); int k = l.IndexOf(service);
-            return k >= Plazas(w, node);
-        }
-
-        /// <summary>Texto para el panel y el aviso, o null si ha entrado.</summary>
-        public static string Motivo(NetWorld w, int service, int node)
-        {
-            if (!EnPuertas(w, service, node)) return null;
-            return w.Besieged(node) ? "Estación sitiada: espera a las puertas y solo baja la tropa" : "Sin plaza en la estación: espera a las puertas";
-        }
+        public static string AvisoSitiada(NetWorld w, int node) { return "Sin escolta: " + w.Graph.Nodes[node].Name + " está sitiada"; }
     }
 }

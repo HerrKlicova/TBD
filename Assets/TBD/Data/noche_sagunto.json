@@ -1,10 +1,10 @@
 {
   "_nota": "D-N74 (Hugo): la noche de Sagunto. Generado por docs/economia/unidades/unidades.py; no editar a mano. Las cifras de unidades están en csv/balance_unidades.csv.",
-  "reloj_x": 28,
+  "reloj_x": 103,
   "hora_inicio": "22:00",
   "hora_fin": "06:00",
-  "duracion_s_reales": 1028,
-  "victoria": "al amanecer siguen en pie el edificio de viajeros y el tren",
+  "duracion_s_reales": 279,
+  "victoria": "acabar con la horda con el edificio de viajeros y el tren en pie (D-N164: el amanecer ya no da la victoria)",
   "derrota": "la horda destruye el edificio de viajeros o la locomotora",
   "entradas": {
     "O1": "vía",
@@ -14,15 +14,15 @@
   },
   "dificultad_por_defecto": "normal",
   "escala_oleadas_permil": {
-    "facil": 725,
-    "normal": 850,
-    "dificil": 1115
+    "facil": 853,
+    "normal": 1000,
+    "dificil": 1086
   },
   "recursos_iniciales": {
     "municion_u": 47,
     "materiales_u": 40,
     "combustible_u": 30,
-    "nota": "en el almacén de Sagunto; aparte, cada pelotón, el Dragón y el NH90 llevan su dotación (unas 10 u en total); el muro de partida (D-N63) ya está construido"
+    "nota": "TOPES del almacén de zona de Sagunto; se llenan con min(tope, reserva) al empezar la partida y cada ataque (ver existencias_red.json). Aparte, los pelotones y vehículos llevan su dotación (unas 10 u en total). El muro de partida (D-N63) y el pretil de la azotea ya están construidos"
   },
   "fuerza": {
     "pelotones": [
@@ -35,9 +35,8 @@
     "vehiculos": [
       "dragon"
     ],
-    "helicopteros": [
-      "nh90"
-    ]
+    "helicopteros": [],
+    "_nota": "plantel de partida: 5 pelotones, 1 Dragón y 2 VAMTAC (los VAMTAC los pone AddDefaultVehicles en (88;53) y (80;53); están en vehiculos_tierra.json)"
   },
   "oleadas": {
     "facil": [
@@ -46,11 +45,11 @@
         "hora": "22:00",
         "minuto_juego": 0,
         "llegada_s_reales": 180,
-        "total": 6240,
+        "total": 4480,
         "por_entrada": {
-          "O1": 3120,
-          "O2": 1872,
-          "O3": 1248,
+          "O1": 2240,
+          "O2": 1344,
+          "O3": 896,
           "O4": 0
         }
       }
@@ -61,11 +60,11 @@
         "hora": "22:00",
         "minuto_juego": 0,
         "llegada_s_reales": 180,
-        "total": 7310,
+        "total": 5250,
         "por_entrada": {
-          "O1": 3655,
-          "O2": 2193,
-          "O3": 1462,
+          "O1": 2625,
+          "O2": 1575,
+          "O3": 1050,
           "O4": 0
         }
       }
@@ -76,11 +75,11 @@
         "hora": "22:00",
         "minuto_juego": 0,
         "llegada_s_reales": 180,
-        "total": 9590,
+        "total": 5700,
         "por_entrada": {
-          "O1": 4795,
-          "O2": 2877,
-          "O3": 1918,
+          "O1": 2850,
+          "O2": 1710,
+          "O3": 1140,
           "O4": 0
         }
       }
@@ -184,7 +183,7 @@
   "combustible": {
     "_nota": "D-N76 (Hugo). Consumo en E4 de u (1 u = 10.000) por segundo REAL; se cobra cada 30 ticks. Los 30 u de la noche incluyen los depósitos llenos.",
     "total_noche_u": 30,
-    "almacen_inicial_u": 16,
+    "almacen_inicial_u": 22,
     "dragon": {
       "deposito_u": 8,
       "marcha_e4_s": 200,
@@ -208,8 +207,8 @@
       "aviso_permil": 200
     },
     "comprobacion": {
-      "siempre_en_marcha_u": 48.3,
-      "racionado_u": 27.4,
+      "siempre_en_marcha_u": 13.1,
+      "racionado_u": 20.0,
       "racionado_es": "el Dragón en marcha el 40 % de la noche y al ralentí el 30 %; el NH90, 10 min de vuelo en 4 salidas y 2 min posado con los rotores girando"
     }
   },

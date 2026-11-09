@@ -1,5 +1,6 @@
 using TBD.Net;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace TBD.View
 {
@@ -110,6 +111,7 @@ namespace TBD.View
 
         void Update()
         {
+            AudioListener.pause = (PrototypeBootstrap.ZonaPausada && SceneManager.GetActiveScene().name == "SampleScene") || (A != null && A.Paused && SceneManager.GetActiveScene().name == "Union");   // al pausar, silencio (Nuria, revisión del 9-nov): pausa de la zona o del mapa
             AvisoLog();
             var kb5 = UnityEngine.InputSystem.Keyboard.current;
             if (kb5 != null && kb5.f5Key.wasPressedThisFrame) { bool ok = SaveGame(); Debug.Log(ok ? "[TBD] Partida guardada en " + SavePath : "[TBD] No hay partida que guardar"); }   // F5: guardado rapido

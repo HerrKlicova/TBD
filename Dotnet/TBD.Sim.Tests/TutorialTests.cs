@@ -125,7 +125,9 @@ namespace TBD.Sim.Tests
                 m4.Senal(TutorialGuion.Senales.TrenEnSagunto);
                 check(m4.Visible && m4.Texto == "Sagunto está sitiada: el tren espera en la puerta este. Baja la tropa.", "con el tren a las puertas sale el 3.7 (D-N175)");
                 m4.Senal(TutorialGuion.Senales.TropaEnTierra); check(m4.Actual.Id == "3.8", "tropa en tierra: 3.8");
-                m4.Senal(TutorialGuion.Senales.OrdenAtacar); check(m4.Estado == EstadoTutorial.Terminado, "3.8 acaba el tutorial con la orden de atacar (o de mover)");
+                m4.Senal(TutorialGuion.Senales.OrdenAtacar); check(m4.Actual.Id == "3.8" && m4.TextoSinRelleno == "Llévalos al flanco sur y limpia el muro desde ahí.", "3.8 nuevo (Lucía): la orden sola no lo cierra");
+                m4.Senal(TutorialGuion.Senales.HordaCercaPeloton); check(m4.Actual.Id == "3.8b" && Array.IndexOf(m4.Resalta, TutorialGuion.Resaltes.Retirada) >= 0 && m4.TextoSinRelleno.StartsWith("La horda va a por ellos"), "zombi a 25 m del pelotón: la tarjeta cambia a la 3.8b con la flecha de retirada");
+                m4.Senal(TutorialGuion.Senales.EnR2); check(m4.Estado == EstadoTutorial.Terminado, "al llegar a R2 acaba el tutorial");
                 // si salta por los 60 s (sin tromba), sale el 3.1b
                 var mt = TutorialGuion.Nuevo(new MemoriaEnRam()); mt.Arrancar(725); bool tiempo = false;
                 mt.EstadoActual = x => (x == TutorialGuion.Senales.Cap3Dispara || x == TutorialGuion.Senales.Cap3PorTiempo) && tiempo;
@@ -270,7 +272,7 @@ namespace TBD.Sim.Tests
                 check(ae.Aeronaves[0].Estado == AeronaveEstado.EnBase && ae.Aeronaves[0].MunicionPm == 1000 && ae.MunicionMilliU == 50_000 - 1440, $"rearmado en la base: gasta 1,44 u de munición (80 % de 1,8 u) ({ta:0} s)");
                 check(!ae.PelotonEnBase[0], "el pelotón que bajó en Sagunto ya no está en la base");
                 ae.CombustibleMilliU = 2000; check(ae.PorQueNo(1, "Nules") == "No queda combustible", "sin combustible no despega (existencias propias, sin logística)");
-                check(Plantel.De("Sagunto").NH90 == 0 && Plantel.De("betera").NH90 == 2 && Plantel.De("Castellón").Pelotones.Length == 0 && Plantel.De("Nules").Pelotones.Length == 0 && Plantel.De("Nules", true).Pelotones.Length == 1, "plantel por estación: Sagunto sin NH90, Bétera con 2, Nules solo con el tutorial");
+                check(Plantel.De("Sagunto").NH90 == 0 && Plantel.De("betera").NH90 == 2 && Plantel.De("Castellón").Pelotones.Length == 0 && Plantel.De("Nules").Pelotones.Length == 2 && Plantel.De("Nules", true).Pelotones.Length == 3, "plantel por estación: Sagunto sin NH90, Bétera con 2, Nules con su guarnición (y el pelotón del tutorial)");
                 var ed = EstacionDato.FromJson(bj); check(ed.Tamano == EstacionTamano.Aerodromo, "EstacionDato lee Bétera como aeródromo");
             }
 
@@ -559,26 +561,74 @@ namespace TBD.Sim.Tests
                 var ps = Plantel.Pelotones("Sagunto"); var vs = Plantel.Vehiculos("Sagunto");
                 check(ps.Count == 5 && ps[0].Tipo == PlatoonKind.Fusileros && ps[0].X == 88000 && ps[0].Y == 54000 && ps[4].Tipo == PlatoonKind.Zapadores && ps[4].Nombre == "Zapadores", "Sagunto: los cinco pelotones de siempre, en sus sitios");
                 check(vs.Count == 3 && vs[0].Nombre == "Dragón" && vs[0].X == 99f && vs[1].Nombre == "VAMTAC 1" && vs[2].Nombre == "VAMTAC 2" && vs[2].X == 80f && !vs.Exists(v => v.Tipo == "nh90"), "Sagunto: Dragón y dos VAMTAC, sin NH90 (el aire sale de Bétera)");
-                check(Plantel.Pelotones("Nules").Count == 0 && Plantel.Vehiculos("Nules").Count == 0, "Nules fuera del tutorial: sin plantel propio (la guarnición es de la red)");
-                var pn = Plantel.Pelotones("Nules", tutorial: true); check(pn.Count == 1 && pn[0].Tipo == PlatoonKind.Fusileros && Plantel.Vehiculos("Nules", true).Count == 0, "Nules en el tutorial: el pelotón de fusileros del capítulo 3, sin vehículos");
+                check(Plantel.Pelotones("Nules").Count == 2 && Plantel.Pelotones("Nules")[1].Tipo == PlatoonKind.Ametralladores && Plantel.Vehiculos("Nules").Count == 0, "Nules: la guarnición de 12, fusileros y ametralladores (Hugo, nules.json)");
+                var pn = Plantel.Pelotones("Nules", tutorial: true); check(pn.Count == 3 && pn[2].Tipo == PlatoonKind.Fusileros && Plantel.Vehiculos("Nules", true).Count == 0, "Nules en el tutorial: la guarnición más el pelotón del capítulo 3, sin vehículos");
                 check(Plantel.Pelotones("Castellón").Count == 0 && Plantel.Vehiculos("Castellón").Count == 0, "Castellón (infestada): sin unidades propias");
                 var pb = Plantel.Pelotones("Bétera"); check(pb.Count == 3 && pb[0].Nombre == "Fusileros 1" && pb[2].Nombre == "Fusileros 3" && Plantel.De("Bétera").NH90 == 2 && Plantel.Vehiculos("Bétera").Count == 0, "Bétera: tres pelotones de fusileros (numerados) y los dos NH90, sin vehículos de tierra");
                 check(Plantel.Pelotones("Valencia").Count == 0 && Plantel.Pelotones("Teruel").Count == 0, "Valencia y Teruel (caídas): sin unidades");
             }
 
-            // --- D-N152: el tren espera a las puertas de una estación sitiada o sin plaza
+            // --- D-N152 (regla de Nacho en la red) y D-N177 (aviso en ámbar): Puertas solo la lee
             {
                 var w = NetScenario.Inicio(); int sg = TrenPreparar.Nodo(w, "Sagunto"), nu = TrenPreparar.Nodo(w, "Nules");
-                check(Puertas.Plazas(w, sg) == 2 && Puertas.Plazas(w, nu) == 1, "plazas: 2 en Sagunto (principal) y 1 en Nules (pequeña)");
-                check(Puertas.Parados(w, sg).Count == 2 && !Puertas.EnPuertas(w, 0, sg) && !Puertas.EnPuertas(w, 1, sg), "los dos trenes de partida caben en Sagunto: ninguno a las puertas");
-                w.Graph.Nodes[sg].State = NodeState.Asediada;
-                check(Puertas.EnPuertas(w, 0, sg) && Puertas.EnPuertas(w, 1, sg) && Puertas.Motivo(w, 0, sg).StartsWith("Estación sitiada"), "con Sagunto sitiada, los dos esperan a las puertas (solo baja la tropa)");
-                w.Graph.Nodes[sg].State = NodeState.Segura;
-                check(!Puertas.EnPuertas(w, 0, sg) && Puertas.Motivo(w, 0, sg) == null, "acabado el asedio, el tren entra");
-                Puertas.Ampliacion = 0;
-                foreach (var sv in w.Services) { sv.Stops.Clear(); sv.Stops.Add(new ScheduleStop { Node = nu, DepartAt = 0, Transfer = new int[NetConst.ResCount] }); sv.StopIndex = 0; sv.AtStop = true; }
-                check(!Puertas.EnPuertas(w, 0, nu) && Puertas.EnPuertas(w, 1, nu) && Puertas.Motivo(w, 1, nu).StartsWith("Sin plaza"), "dos trenes en Nules (1 plaza): el segundo espera a las puertas");
-                Puertas.Ampliacion = 1; check(!Puertas.EnPuertas(w, 1, nu), "ampliando la estación (D-N153) entra el segundo"); Puertas.Ampliacion = 0;
+                check(Puertas.Plazas(w, sg) == w.TrainSlots(sg) && Puertas.Plazas(w, nu) == w.TrainSlots(nu), "las plazas son las de la red (NetWorld.TrainSlots)");
+                check(!Puertas.EnPuertas(w, 0, sg) && Puertas.Motivo(w, 0) == null && Puertas.SinEscolta(w, 0) == null, "al empezar, ningún tren a las puertas ni aviso");
+                w.Services[1].GateNode = nu; w.Graph.Nodes[nu].State = NodeState.Asediada;
+                check(Puertas.EnPuertas(w, 1, nu) && Puertas.Motivo(w, 1) == w.GateReason(1) && Puertas.Motivo(w, 1).Contains("sitiada"), "a las puertas según GateNode de la red, con su motivo");
+                check(Puertas.SinEscolta(w, 1) == w.EscortWarning(1), "D-N177: el aviso de escolta es el de la red (EscortWarning)");
+                w.Graph.Nodes[nu].State = NodeState.Segura; check(Puertas.SinEscolta(w, 1) == null, "sin asedio, sin aviso");
+                check(w.UndefendedWarnings().Count == 0, "Inicio: al empezar no hay ninguna horda en camino a una zona sin tropa");
+                { var rc = new RutaCap3(); int tx = 100_000, ty = 34_000; check(RutaCap3.Rodea(192_000, 60_000, tx, ty) && rc.Ajustar(7, 192_000, 60_000, ref tx, ref ty, -1, true) && tx == 160_000 && ty == 40_000, "capítulo 3: de la puerta este (192; 60) al flanco sur (100; 34) pasa antes por (160; 40)");
+                  check(!rc.Seguir(7, 175_000, 50_000, out _, out _, out _, out _) && rc.Seguir(7, 161_000, 41_000, out var fx, out var fy, out _, out var fa) && fx == 100_000 && fy == 34_000 && fa && rc.Pendientes == 0, "al llegar al paso sigue sola al flanco sur, con la misma orden de atacar");
+                  int ux = 120_000, uy = 60_000; check(!rc.Ajustar(8, 100_000, 60_000, ref ux, ref uy, -1, false) && ux == 120_000, "dentro del fuerte, sin rodeo"); }
+            }
+
+            // --- tren a las puertas fuera de pantalla: fracción por estación (Hugo; Lucía: Nules espera fuera de la puerta oeste)
+            {
+                var wg = NetScenario.Inicio(); int sg = TrenPreparar.Nodo(wg, "Sagunto"), nu = TrenPreparar.Nodo(wg, "Nules");
+                check(wg.GateAttackPermilAt(sg) == 0 && wg.GateAttackPermilAt(nu) == 100, "fracción que va a por el tren: Sagunto (puerta este) 0 %, Nules (fuera de la puerta oeste) 10 %");
+                var f1 = wg.GateFightFor(2400, 8, NetConst.TrainHpMax, nu); check(f1.Attackers == 240 && f1.Contact == 0 && !f1.Destroyed, "Nules, fuera de la puerta oeste con un pelotón (8): 240 van a por el tren y no llega ninguno (tabla de Hugo)");
+                var f2 = wg.GateFightFor(5250, 0, NetConst.TrainHpMax, sg); check(f2.Attackers == 0 && !f2.Destroyed, "Sagunto, puerta este sin escolta: intacto");
+            }
+
+            // --- D-N177: aviso del apartado de Nules con asedio
+            {
+                var wa = NetScenario.Inicio(); int nu = TrenPreparar.Nodo(wa, "Nules");
+                check(Puertas.EnApartadoConAsedio(wa).Count == 0, "sin asedio en Nules, sin aviso");
+                var sv = wa.Services[0]; sv.Stops.Clear(); sv.Stops.Add(new ScheduleStop { Node = nu, Transfer = new int[NetConst.ResCount] }); sv.StopIndex = 0; sv.AtStop = true;
+                check(Puertas.EnApartadoConAsedio(wa).Count == 0, "tren en Nules sin asedio: sin aviso");
+                wa.Graph.Nodes[nu].State = NodeState.Asediada;
+                var la = Puertas.EnApartadoConAsedio(wa); check(la.Count == 1 && la[0] == 0 && Puertas.TextoApartado.StartsWith("Saca el tren del apartado"), "con asedio y el tren dentro de Nules: «Saca el tren del apartado…»");
+                sv.GateNode = nu; check(Puertas.EnApartadoConAsedio(wa).Count == 0, "si ya espera a las puertas, no se avisa");
+            }
+
+            // --- D-N179: «Defiende Nules antes de la noche»
+            {
+                var od = new ObjetivoDefensa(); od.Actualizar(NetConst.Hours(12), 0, false, false); check(od.Estado == EstadoDefensa.Inactivo, "día 1: aún no sale");
+                od.Actualizar(ObjetivoDefensa.Desde, 5, false, false); check(od.Estado == EstadoDefensa.Activo && ObjetivoDefensa.Texto(5, false).Contains("5/20"), "amanecer del día 2: sale, con la munición de Nules a la vista");
+                od.Actualizar(ObjetivoDefensa.Desde + 100, 20, false, false); check(od.Estado == EstadoDefensa.Activo, "con 20 u pero sin tropa, aún no");
+                od.Actualizar(ObjetivoDefensa.Desde + 200, 20, true, false); check(od.Estado == EstadoDefensa.Cumplido, "con 20 u y tropa bajada en Nules: cumplido");
+                var o2 = new ObjetivoDefensa(); o2.Actualizar(ObjetivoDefensa.Desde, 0, false, false); o2.Actualizar(ObjetivoDefensa.Hasta, 0, false, false); check(o2.Estado == EstadoDefensa.Caducado, "a las 22:00 sin cumplir: caduca (empieza el asedio)");
+                var o3 = new ObjetivoDefensa(); o3.Actualizar(ObjetivoDefensa.Desde, 0, false, false); o3.Actualizar(ObjetivoDefensa.Desde + 5, 0, false, true); check(o3.Estado == EstadoDefensa.Fallido, "si Nules se pierde: fallido");
+            }
+
+            // --- D-N156: Nules sin asedio la 1.ª noche
+            {
+                var wi = NetScenario.Inicio(); int nu = TrenPreparar.Nodo(wi, "Nules");
+                check(wi.Director.SinAsedioNodo == nu && wi.Director.SiegeWeight(wi, nu) == 0, "Inicio: Nules protegida de asedio al empezar");
+                wi.Tick = wi.Director.SinAsedioHasta; check(wi.Director.SiegeWeight(wi, nu) > 0, "pasada la 1.ª noche, Nules ya puede ser objetivo");
+                var wm = NetScenario.Mvp(); check(wm.Director.SinAsedioNodo == -1, "Mvp() sin protección (pruebas y goldens intactos)");
+            }
+
+            // --- las 4 señales de la zona (capítulos 1 y 2)
+            {
+                var sz = new SenalesZona(); var tr = new List<int> { 1000, 450, 1000 };
+                var sq0 = sz.Mirar(true, 300, 0, tr); check(sq0.Count == 0, "con la horda en espera y sin vehículos, ninguna señal (el tramo al 45 % solo queda apuntado)");
+                var sq1 = sz.Mirar(false, 300, 3, tr); check(sq1.Contains(TutorialGuion.Senales.HordaAvanza) && sq1.Contains(TutorialGuion.Senales.VehiculosFuera) && !sq1.Contains(TutorialGuion.Senales.AtaqueRechazado), "suelta la horda: horda_avanza; con vehículos fuera del tren: vehiculos_fuera");
+                tr[1] = 690; check(!sz.Mirar(false, 120, 0, tr).Contains(TutorialGuion.Senales.TramoSobre70), "el tramo al 69 % aún no cuenta");
+                tr[1] = 700; check(sz.Mirar(false, 40, 0, tr).Contains(TutorialGuion.Senales.TramoSobre70), "reparado al 70 %: tramo_sobre_70 (los tramos que siempre estuvieron sanos no cuentan)");
+                var sq4 = sz.Mirar(false, 0, 0, tr); check(sq4.Contains(TutorialGuion.Senales.AtaqueRechazado) && !sq4.Contains(TutorialGuion.Senales.HordaAvanza), "sin zombis vivos tras la horda: ataque_rechazado");
+                var sz2 = new SenalesZona(); check(!sz2.Mirar(false, 0, 0, new List<int> { 1000, 1000 }).Contains(TutorialGuion.Senales.AtaqueRechazado) && !sz2.Mirar(false, 0, 0, new List<int> { 1000 }).Contains(TutorialGuion.Senales.TramoSobre70), "sin horda vista no hay «rechazado», y un muro sano no da tramo_sobre_70");
             }
 
             // --- intro C

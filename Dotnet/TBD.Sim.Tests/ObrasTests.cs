@@ -349,7 +349,7 @@ namespace TBD.Sim.Tests
             var ps = WithWork(0); ps.Director.P.WorkProbeMil = 1000;
             ps.Tick = 9 * NetConst.DayTicks + NetConst.Hours(9); ps.Director.Hourly(ps);     // a las 09:00: en horario de obra
             long askZ = ps.Director.WorkProbes_Asked * NetWorld.ZombiesPerPermil;
-            long expectZ = ps.Director.DayZombies(9, ps.Director.HuellaMil(ps)) * 50 / 1000 / NetWorld.ZombiesPerPermil * NetWorld.ZombiesPerPermil;
+            long expectZ = ps.Director.DayBudget(9, ps.Director.HuellaMil(ps)) * 50 / 1000 / NetWorld.ZombiesPerPermil * NetWorld.ZombiesPerPermil;
             check(ps.Director.WorkProbes_Count == 1 && askZ == expectZ && askZ >= 150 && askZ <= 450, $"un sondeo del día 9 pide el 5 % del presupuesto del día: {askZ} zombis (Hugo: 214–281 según la huella, con el ruido y la estación del día)");
             check(ps.Director.WorkProbes_Paid > 0 && ps.Director.WorkProbes_Paid <= ps.Director.WorkProbes_Asked, $"se paga con lo que hay del 400 ‰ de esa hora (deriva y ahorro de emboscada): {ps.Director.WorkProbes_Paid} de {ps.Director.WorkProbes_Asked} ‰");
             ps.Director.Season = null; ps.Director.Noise = null;

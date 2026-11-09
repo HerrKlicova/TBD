@@ -1,8 +1,19 @@
 clave;valor;escala;nota
-H0_zombis_dia;1500;1;presupuesto diario del director el día 0
+H0_zombis_dia;1250;1;presupuesto diario del director el día 0
 tau_dias;20;1;curva H = H0·(1+d/τ)^α·raiz(1+k·huella)
 alfa;1550;1000;usar la tabla colmena_curva.csv
 k_huella;240;1000;raíz con isqrt sobre milésimas
+colmena_estados;1;1;D-N160 (Hugo (3), 9-nov): 0 Dispersa, 1 Al acecho, 2 Enjambre, señal = nodos abiertos en 7 días + 0,5 x (huella - 8), una vez al día
+colmena_umbral_acecho_x1000;4000;1000;sube al instante
+colmena_umbral_enjambre_x1000;7000;1000;sube al instante
+colmena_aviso_x1000;6000;1000;aviso ámbar «La Colmena se agita…» antes del Enjambre (Lucía)
+colmena_dias_olvido;3;1;baja un estado tras N días seguidos por debajo
+colmena_peso_huella_x1000;500;1000;
+colmena_huella_base_x1000;8000;1000;
+colmena_mult_H_dispersa_permil;900;1000;presupuesto diario del director
+colmena_mult_H_acecho_permil;1000;1000;
+colmena_mult_H_enjambre_permil;1250;1000;
+colmena_asedio_extra_enjambre;1;1;asedios simultáneos de más sobre el máximo de la etapa
 huella_por_persona;10;1000;
 huella_por_tren;500;1000;
 huella_por_nodo;400;1000;

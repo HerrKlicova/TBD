@@ -279,7 +279,7 @@ namespace TBD.Net
             switch (estacion)
             {
                 case "Sagunto": return new Lista { Pelotones = new[] { "fusileros", "ametralladores", "granaderos", "tiradores", "zapadores" }, Vehiculos = new[] { "dragon", "vamtac", "vamtac" }, NH90 = 0 };
-                case "Nules": return tutorial ? new Lista { Pelotones = new[] { "fusileros" } } : new Lista();
+                case "Nules": return tutorial ? new Lista { Pelotones = new[] { "fusileros", "ametralladores", "fusileros" } } : new Lista { Pelotones = new[] { "fusileros", "ametralladores" } };   // Hugo (nules.json, 9-nov): la guarnición de 12 (fusileros + ametralladores); con el tutorial, más el pelotón del capítulo 3
                 case "betera": case "Bétera": return new Lista { Pelotones = new[] { "fusileros", "fusileros", "fusileros" }, NH90 = 2 };   // 2 de embarque y 1 de guarnición
                 default: return new Lista();      // Castellón (infestada) y el resto: sin plantel propio
             }

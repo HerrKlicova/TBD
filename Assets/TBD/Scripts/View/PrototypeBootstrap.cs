@@ -108,6 +108,29 @@ namespace TBD.View
         Texture2D _panelTex;
 
         // ---- hito 3: zona materializada desde el mapa de operaciones
+        // ---------------------------------------------------------------- [FPS] (Sara, docs/qa/medir-fps-peor-caso.md): con -fps, una línea por segundo
+        static readonly bool _fpsOn = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-fps") >= 0;
+        readonly System.Collections.Generic.List<float> _fpsDt = new System.Collections.Generic.List<float>(); float _fpsT0 = -1f;
+        Unity.Profiling.ProfilerRecorder _trisRec; bool _fpsIni;
+        void FpsLog()
+        {
+            if (!_fpsOn) return;
+            if (!_fpsIni) { _fpsIni = true; QualitySettings.vSyncCount = 0; Application.targetFrameRate = -1; Debug.Log($"[FPS] vSyncCount={QualitySettings.vSyncCount} targetFrameRate={Application.targetFrameRate}"); }   // Sara: sin tope de 30
+            if (!_trisRec.Valid) _trisRec = Unity.Profiling.ProfilerRecorder.StartNew(Unity.Profiling.ProfilerCategory.Render, "Triangles Count");
+            float now = Time.realtimeSinceStartup; if (_fpsT0 < 0f) _fpsT0 = now;
+            _fpsDt.Add(Time.unscaledDeltaTime * 1000f);
+            if (now - _fpsT0 < 1f) return;
+            var a = _fpsDt.ToArray(); System.Array.Sort(a); float sum = 0f; foreach (var x in a) sum += x;
+            float media = a.Length / Mathf.Max(0.001f, now - _fpsT0), p99 = a[Mathf.Min(a.Length - 1, (int)(a.Length * 0.99f))];
+            int nBajo = Mathf.Max(1, a.Length / 100); float sb = 0f; for (int i = a.Length - nBajo; i < a.Length; i++) sb += a[i];
+            float bajo1 = 1000f / Mathf.Max(0.001f, sb / nBajo);
+            long tris = _trisRec.Valid ? _trisRec.LastValue : -1;
+            Debug.Log($"[FPS] media={media:0.0} bajo1%={bajo1:0.0} p99_ms={p99:0.00} triangulos={tris} fotogramas={a.Length}");
+            _fpsDt.Clear(); _fpsT0 = now;
+        }
+
+        /// <summary>Pausa de la zona (de día y de noche, con P o con la pausa del tutorial): la lee NetSession para AudioListener.pause.</summary>
+        public static bool ZonaPausada;
         string _estacionZona;               // D-N173: nombre de la estación de esta zona, para su plantel (Plantel.Pelotones / Vehiculos)
         int _zoneNode = -1;                 // nodo de la red del que viene esta zona (-1 = prototipo suelto, 10.000 zombis)
         float _fadeStart;
@@ -452,6 +475,8 @@ namespace TBD.View
 
         void StepSimulation()
         {
+            ZonaPausada = _paused || TutorialHud.PidePausa;      // de día y de noche (Nuria, 9-nov)
+            FpsLog();
             if (_nightOn) { if ((_ng.Tick % 15) == 0) UpdateStats(true); NightTick(); if ((_ng.Tick & 15) == 0) SyncWorks(); }
             _groupA.Update();
             HashLogLine();
@@ -939,6 +964,7 @@ namespace TBD.View
             if (point)
             {
                 var c = ToGui(cur); float h = 14f;
+                FillRectContorno(new Rect(c.x - h - 2, c.y - h - 2, h * 2 + 4, h * 2 + 4));   // contorno 283440 de 1 px del arte (Lucía, 9-nov)
                 FillRect(new Rect(c.x - h, c.y - h, h * 2, h * 2), new Color(tint.r, tint.g, tint.b, 1f));
                 FillRect(new Rect(c.x - h - 2, c.y - h - 2, h * 2 + 4, 2), line); FillRect(new Rect(c.x - h - 2, c.y + h, h * 2 + 4, 2), line);
                 FillRect(new Rect(c.x - h - 2, c.y - h, 2, h * 2), line); FillRect(new Rect(c.x + h, c.y - h, 2, h * 2), line);
@@ -953,6 +979,7 @@ namespace TBD.View
                     if (!first)
                     {
                         Vector2 a = ToGui(prev), b2 = ToGui(wpt); var n = (b2 - a).normalized; var perp = new Vector2(-n.y, n.x) * 5f;
+                        if (ContornoOn) { float k = PxArte(); DrawLine2(a - n * k, b2 + n * k, 12f + 2f * k, Contorno); }   // contorno 283440 por fuera de los bordes (Lucía, 9-nov)
                         DrawLine2(a, b2, 8f, tint);
                         DrawLine2(a + perp, b2 + perp, 2f, line); DrawLine2(a - perp, b2 - perp, 2f, line);
                     }
@@ -1204,11 +1231,30 @@ namespace TBD.View
             if (_recIndex >= 450) ToggleRecording();      // tope de 30 s a 15 fps
         }
 
+        /// <summary>
+        /// Captura sin ventana (norma de Eugenio: nunca ventanas en su PC). Pinta en una RenderTexture las cámaras que van a pantalla (sin targetTexture), por orden de
+        /// profundidad: la de presentación (el mundo ya pixelado) y la de VFX_HD encima. Hace falta -batchmode SIN -nographics (con -nographics no hay GPU y sale negro).
+        /// La interfaz de OnGUI no sale.
+        /// </summary>
+        static Texture2D CapturaLotes(int w, int h)
+        {
+            var rt = RenderTexture.GetTemporary(w, h, 24, RenderTextureFormat.ARGB32);
+            var cams = new System.Collections.Generic.List<Camera>();
+            foreach (var c in Camera.allCameras) if (c.targetTexture == null && c.enabled && c.GetUniversalAdditionalCameraData().renderType != CameraRenderType.Overlay) cams.Add(c);   // las superpuestas (VFX_HD) van en la pila de su base
+            cams.Sort((a, b) => a.depth.CompareTo(b.depth));
+            foreach (var c in cams) { c.targetTexture = rt; c.Render(); c.targetTexture = null; }
+            var prev = RenderTexture.active; RenderTexture.active = rt;
+            var tex = new Texture2D(w, h, TextureFormat.RGB24, false); tex.ReadPixels(new Rect(0, 0, w, h), 0, 0); tex.Apply();
+            RenderTexture.active = prev; RenderTexture.ReleaseTemporary(rt);
+            Debug.Log($"[CAPTURA] en batch: {cams.Count} cámaras en una RenderTexture de {w}×{h}");
+            return tex;
+        }
+
         IEnumerator CaptureRoutine(string path)
         {
             _capturing = true;
             yield return new WaitForEndOfFrame();
-            var full = ScreenCapture.CaptureScreenshotAsTexture();
+            var full = Application.isBatchMode ? CapturaLotes(1920, 1080) : ScreenCapture.CaptureScreenshotAsTexture();   // en batch no hay pantalla: se pintan las cámaras en una RenderTexture (Iker)
             { var pxs = full.GetPixels32(); long sm = 0; int nn = 0; for (int q = 0; q < pxs.Length; q += 11) { sm += pxs[q].r + pxs[q].g + pxs[q].b; nn++; }
               Debug.Log($"[CAPTURA] frame={Time.frameCount} t={Time.realtimeSinceStartup:0.000} dt={Time.unscaledDeltaTime * 1000f:0.0} ms media={(nn > 0 ? sm / (3f * nn) : 0f):0.0} {System.IO.Path.GetFileName(path)}"); }   // QA (Bruno): capturas negras al aparecer los 10.000 zombis
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-capdirecta") >= 0) File.WriteAllBytes(path.Replace(".png", "_full.png"), full.EncodeToPNG());   // QA (Bruno): el mismo fotograma sin Blit
@@ -1230,7 +1276,78 @@ namespace TBD.View
         }
 
         // ================================================================ decorado con primitivas
-        Material _mGround, _mWall, _mRoof, _mRail, _mSleeper, _mTrain, _mWagon, _mGate;
+        /// <summary>D-N80 (Lucía, aprobada el 8-nov): las 5 siluetas de Teo (civil, huerta, uniformado, gordo y rápido) con el shader
+        /// TBD/Horda de Bruno: un material para todas, tono por instancia desde horda_paleta_lut con la máscara de color de vértice.
+        /// Las mallas se buscan en Resources/Models/ZombiDN80/SM_Zombi_*_LOD1. Devuelve false (y no toca nada) si falta alguna pieza.</summary>
+        static bool HordaDN80()
+        {
+            var sh = Shader.Find("TBD/Horda");
+            var lut = Resources.Load<Texture2D>("Icons/noche/horda_paleta_lut");
+            if (sh == null || lut == null) return false;
+            var meshes = new System.Collections.Generic.List<Mesh>();
+            foreach (var n in new[] { "v3_Civil", "v18_Huerta", "v19_Uniformado", "v17_Gordo", "v16_Rapido" })
+            {
+                var go = Resources.Load<GameObject>("Models/ZombiDN80/SM_Zombi_" + n + "_LOD1");
+                var mf = go != null ? go.GetComponentInChildren<MeshFilter>() : null;
+                if (mf == null) { Debug.LogWarning("[D-N80] falta Models/ZombiDN80/SM_Zombi_" + n + "_LOD1; sigo con los zombis de antes"); return false; }
+                meshes.Add(mf.sharedMesh);
+            }
+            var mat = new Material(sh) { name = "Horda", enableInstancing = true };
+            mat.SetTexture("_HordaLut", lut);
+            var sangre = Resources.Load<Texture2D>("Icons/noche/sangre_rampa");
+            if (sangre != null) mat.SetTexture("_SangreRampa", sangre);
+            RenderAssets.SetVariants(meshes.ToArray(), new[] { mat });
+            RenderAssets.Horda = true;
+            Debug.Log("[D-N80] horda con TBD/Horda: " + meshes.Count + " siluetas, 1 material");
+            return true;
+        }
+
+        Material _mGround, _mWall, _mRoof, _mRail, _mSleeper, _mTrain, _mWagon, _mGate, _mTraviesa, _mVia, _mFantasmaOk, _mFantasmaMal;
+
+        /// <summary>Fantasma de obra (Lucía, 8-nov): válido en hueso d4d0cc y no válido en ámbar e08c30, los dos tramados en pantalla
+        /// (shader TBD/Fantasma). Nunca rojo ni 442c0c. Si el 50 % se confunde con la selección: -fantasma25 abre el tramado al 25 %.
+        /// Sin el shader, cae a un Lit plano del mismo color.</summary>
+        Material Fantasma(bool valido)
+        {
+            var cache = valido ? _mFantasmaOk : _mFantasmaMal;
+            if (cache != null) return cache;
+            var sh = Shader.Find("TBD/Fantasma");
+            string hex = valido ? "d4d0cc" : "e08c30";
+            Material m;
+            if (sh == null) m = Mat(hex);
+            else
+            {
+                m = new Material(sh) { name = valido ? "Fantasma válido" : "Fantasma no válido" };
+                m.SetColor("_BaseColor", HexColor(hex));
+                m.SetFloat("_Paso", System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-fantasma25") >= 0 ? 1f : 0f);
+            }
+            if (valido) _mFantasmaOk = m; else _mFantasmaMal = m;
+            return m;
+        }
+
+        /// <summary>Vía en una sola textura que se repite (Resources/Vias/T_via_D, Bruno 8-nov, elegida por Lucía): 24 px = 3,6 m de ancho,
+        /// 8 px = 1,2 m por repetición, a lo largo de X. Devuelve null si no está la textura (y entonces se dibujan las cajas de antes).</summary>
+        GameObject ViaTexturada(string name, Vector3 center, float len, Transform parent)
+        {
+            if (_mVia == null)
+            {
+                var t = Resources.Load<Texture2D>("Vias/T_via_D");
+                if (t == null) return null;
+                t.wrapMode = TextureWrapMode.Repeat; t.filterMode = FilterMode.Point;
+                _mVia = Mat("ffffff"); _mVia.SetTexture("_BaseMap", t);
+            }
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            go.name = name; Destroy(go.GetComponent<Collider>());
+            if (parent != null) go.transform.SetParent(parent, false);
+            go.transform.position = center;
+            go.transform.rotation = Quaternion.Euler(90f, 90f, 0f);          // u del quad → −Z (ancho), v → +X (a lo largo de la vía); cara hacia arriba
+            go.transform.localScale = new Vector3(3.6f, len, 1f);
+            var r = go.GetComponent<MeshRenderer>();
+            r.sharedMaterial = _mVia;
+            var mpb = new MaterialPropertyBlock(); mpb.SetVector("_BaseMap_ST", new Vector4(1f, len / 1.2f, 0f, 0f)); r.SetPropertyBlock(mpb);
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            return go;
+        }
 
         static Color HexColor(string hex)
         {
@@ -1487,14 +1604,15 @@ namespace TBD.View
                 AddCar(root, new Vector3(ax, 0f, lane), yaw, col, amb, (hh & 1u) == 0);
             }
             // C1: vía 2 de X −250 a 50 y desvío en diagonal entre X 50 y 64, antes de la puerta, para unirse a la vía 1
+            bool via2Tex = ViaTexturada("Vía 2", new Vector3(-100f, 0.06f, ty - 5f), 300f, root) != null;   // Lucía 8-nov: vía D, carriles y traviesas en la textura
             foreach (float dz in new[] { -0.7f, 0.7f })
             {
-                Box("Vía 2 raíl", new Vector3(-100f, 0.12f, ty - 5f + dz), new Vector3(300f, 0.1f, 0.12f), _mRail, root);
+                if (!via2Tex) Box("Vía 2 raíl", new Vector3(-100f, 0.12f, ty - 5f + dz), new Vector3(300f, 0.1f, 0.12f), _mRail, root);
                 var diag = Box("Vía 2 desvío raíl", new Vector3(57f, 0.12f, ty - 2.5f + dz * 0.9f), new Vector3(14.9f, 0.1f, 0.12f), _mRail, root);
                 diag.transform.rotation = Quaternion.Euler(0f, -19.65f, 0f);
             }
             Box("Vía 2 balasto", new Vector3(-100f, 0.03f, ty - 5f), new Vector3(300f, 0.04f, 3.4f), crack, root);
-            for (int x = -250; x < 50; x += 2) Box("Vía 2 traviesa", new Vector3(x, 0.05f, ty - 5f), new Vector3(0.4f, 0.08f, 2f), _mSleeper, root);
+            if (!via2Tex) for (int x = -250; x < 50; x += 2) Box("Vía 2 traviesa", new Vector3(x, 0.05f, ty - 5f), new Vector3(0.4f, 0.08f, 2f), _mTraviesa, root);
             // C2 (v1.4): tolvas volcadas de Teo (el vuelco y el origen en el suelo vienen en la malla: solo X y yaw) sobre la vía 2, Z 59,5, de 14 m cada una:
             // v0 de pie y descarrilada en X 35 (yaw 0), v2 recostada en X 20 (yaw +8°) y v3 sobre el costado, con grava, en X 5 (yaw −12°); cajas giradas si faltan los modelos
             var hops = new[] { (35f, 0f, 0), (20f, 8f, 2), (5f, -12f, 3) };
@@ -2122,7 +2240,8 @@ namespace TBD.View
         {
             // Revisión de arte de Lucía (5-nov): suelo claro y cálido, tejado de terracota (antes era del color del suelo)
             _mGround = Mat("b0a060"); _mWall = Mat("88885c"); _mRoof = Mat("a86c50"); _mRail = Mat("94948c");
-            _mSleeper = Mat("442c0c"); _mTrain = Mat("303424"); _mWagon = Mat("605c48"); _mGate = Mat("7c3c18");
+            _mSleeper = Mat("442c0c"); _mTraviesa = Mat("6c7874");   // _mSleeper ya no se usa (442c0c es de la horda): traviesas en hormigón y fantasma de obra en TBD/Fantasma
+            _mTrain = Mat("303424"); _mWagon = Mat("605c48"); _mGate = Mat("7c3c18");
 
             // Zombi: cápsula de Unity (escalada a 0,5 x 1,8 m en RenderAttachSystem)
             // Zombi: cuadrado de 1 m (primitiva Quad) con el atlas de andar de Bruno (6 variantes de ropa x 4 fotogramas); el recorte va por instancia
@@ -2155,7 +2274,9 @@ namespace TBD.View
                     if (mf != null) teoMeshes.Add(mf.sharedMesh);
                 }
                 if (teoMeshes.Count == 0) { var g0 = Resources.Load<GameObject>("Models/Zombi/camisa_303424/SM_zombi_fino_LOD1"); if (g0 != null) teoMeshes.Add(g0.GetComponentInChildren<MeshFilter>().sharedMesh); }
-                if (teoMats.Count == 3 && teoMeshes.Count > 0) RenderAssets.SetVariants(teoMeshes.ToArray(), teoMats.ToArray());
+                var horda = HordaDN80();                                                                                 // D-N80: 5 siluetas de Teo con un solo material (TBD/Horda); si falta algo, lo de antes
+                if (horda) { }
+                else if (teoMats.Count == 3 && teoMeshes.Count > 0) RenderAssets.SetVariants(teoMeshes.ToArray(), teoMats.ToArray());
                 else { capsule = BuildZombieFigure(); zm = Mat("ffffff"); zl = zm; RenderAssets.Set(capsule, zm, zl); }
             }
             else RenderAssets.Set(capsule, zm, zl);              // el color por instancia es blanco (ZombieBaseColor); la máscara lo pone magenta
@@ -2495,11 +2616,16 @@ namespace TBD.View
             // Vía: dos raíles y traviesas, de oeste a este por el centro del fuerte
             float ty = Level.TrackY;
             float railX = _cutting ? SimConst.WorldW * 0.5f : 128f, railLen = _cutting ? SimConst.WorldW : 756f;     // Sagunto: la vía sobre todo el faldón (X −250..506), Álvaro P1/P3
-            if (!_cutting) Box("Balasto de la zona", new Vector3(128f, 0.03f, ty), new Vector3(756f, 0.04f, 4f), Mat("48403c"));
-            Box("Raíl A", new Vector3(railX, 0.12f, ty - 0.7f), new Vector3(railLen, 0.1f, 0.12f), _mRail);
-            Box("Raíl B", new Vector3(railX, 0.12f, ty + 0.7f), new Vector3(railLen, 0.1f, 0.12f), _mRail);
-            for (int x = _cutting ? 2 : -250; x < (_cutting ? (int)SimConst.WorldW : 506); x += 2)
-                Box("Traviesa", new Vector3(x, 0.05f, ty), new Vector3(0.4f, 0.08f, 2f), _mSleeper);
+            // Lucía 8-nov (vía D): balasto claro olive_grey #605c48 y una sola textura con carriles y traviesas de hormigón cada 0,6 m.
+            // Antes: cajas de traviesa en #442c0c (color de la horda: de noche se leían como zombis tumbados) y balasto #48403c (ΔL* 6,9 con el tren).
+            if (!_cutting) Box("Balasto de la zona", new Vector3(128f, 0.03f, ty), new Vector3(756f, 0.04f, 4f), Mat("605c48"));
+            if (ViaTexturada("Vía", new Vector3(railX, 0.06f, ty), railLen, null) == null)
+            {
+                Box("Raíl A", new Vector3(railX, 0.12f, ty - 0.7f), new Vector3(railLen, 0.1f, 0.12f), _mRail);
+                Box("Raíl B", new Vector3(railX, 0.12f, ty + 0.7f), new Vector3(railLen, 0.1f, 0.12f), _mRail);
+                for (int x = _cutting ? 2 : -250; x < (_cutting ? (int)SimConst.WorldW : 506); x += 2)
+                    Box("Traviesa", new Vector3(x, 0.05f, ty), new Vector3(0.4f, 0.08f, 2f), _mTraviesa);
+            }
 
             // Tren: locomotora y tres vagones. Deuda de arte (Lucía): techos claros (#b8b8b8) sobre laterales verde oliva (#50541c) y contorno
             // oscuro de 1 px; la locomotora lleva una franja ámbar (#e08c30) en el frontal. El techo claro se lee sobre el fondo oscuro.
@@ -2674,7 +2800,9 @@ namespace TBD.View
                 {
                     var a = new Vector3(WorkOrigin.x + w.X0 / 1000f, 0.15f, WorkOrigin.y + w.Y0 / 1000f);
                     var b = new Vector3(WorkOrigin.x + w.X1 / 1000f, 0.15f, WorkOrigin.y + w.Y1 / 1000f);
-                    var g = WallVisual(a, b, Level.WallHalf * 0.5f, 0.3f, _mSleeper);   // fantasma: obra en marcha
+                    var g = WallVisual(a, b, Level.WallHalf * 0.5f, 0.3f, Fantasma(true));   // fantasma: obra en marcha (Lucía 8-nov: hueso tramado al 50 %)
+                    g.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    ContornoFantasma(g.GetComponent<MeshRenderer>());                 // contorno 283440 de 1 px en la RT del mundo (Lucía, 9-nov)
                     _workVisuals[i] = g;
                 }
             }

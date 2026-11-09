@@ -132,6 +132,12 @@ namespace TBD.View
             return worst != null && Prio[worst.Group] >= Prio[group] ? worst : null;   // sin huecos: se roba la menos importante
         }
 
+        /// <summary>Alcance en metros de algunos eventos que se oyen más lejos que el resto (MaxDist): el golpe del tren caído a las puertas, 300 m (Nuria, D-N177).</summary>
+        public static readonly System.Collections.Generic.Dictionary<string, float> Alcance = new System.Collections.Generic.Dictionary<string, float> { { "sfx_tren_caido_puertas", 300f }, { "sfx_tren_pitido_electrico", 400f }, { "sfx_tren_pitido_diesel", 400f } };
+        /// <summary>Eventos con caída logarítmica y distancia mínima propia (D-N170, Nuria y Lucía: el pitido del tren, 20 m a 400 m).</summary>
+        public static readonly System.Collections.Generic.Dictionary<string, float> MinDist = new System.Collections.Generic.Dictionary<string, float> { { "sfx_tren_pitido_electrico", 20f }, { "sfx_tren_pitido_diesel", 20f } };
+        static string Base(string clip) { int i = clip.LastIndexOf('_'); return i > 0 && int.TryParse(clip.Substring(i + 1), out _) ? clip.Substring(0, i) : clip; }
+
         void Fire(AudioClip c, string group, Vector3? pos, float vol, float pitch)
         {
             if (c == null) return; var v = Grab(group); if (v == null) return;
@@ -139,6 +145,9 @@ namespace TBD.View
             float duck = group != "alerta" && group != "ui" && Time.unscaledTime < _duckUntil ? 0.55f : 1f;
             v.A.Stop(); v.A.clip = c; v.A.pitch = pitch; v.A.volume = Mathf.Clamp01(vol * duck * MainMenu.SfxVolume * GlobalGain * (pos.HasValue ? CloseGain() : 1f));
             v.A.spatialBlend = pos.HasValue ? 1f : 0f; if (pos.HasValue) v.A.transform.position = pos.Value;
+            v.A.maxDistance = c != null && Alcance.TryGetValue(Base(c.name), out var md) ? md : MaxDist;      // alcance propio por evento (Nuria; Iker)
+            if (c != null && MinDist.TryGetValue(Base(c.name), out var mn)) { v.A.rolloffMode = AudioRolloffMode.Logarithmic; v.A.minDistance = mn; }
+            else if (v.A.rolloffMode != AudioRolloffMode.Custom) { v.A.rolloffMode = AudioRolloffMode.Custom; v.A.minDistance = 1f; }
             v.Group = group; v.Started = Time.unscaledTime; v.A.Play();
         }
 
@@ -160,6 +169,12 @@ namespace TBD.View
 
         /// <summary>Efecto por evento SIEMPRE en 3D en «pos» (impactos, zombis, muros...).</summary>
         public static void PlayAt(string evento, Vector3 pos, float vol = 1f, float minGap = 0.05f) => I.PlayEv(evento, pos, vol, minGap);
+        /// <summary>Un clip concreto (nombre completo, con «sfx_» y la variante) en 3D. D1 de Nuria: SalidaTren ya elige la variante y PlayAt le añadía otro «sfx_».</summary>
+        public static void PlayClipAt(string clip, Vector3 pos, float vol = 1f) { var s = I; if (!s.Gate(clip, 0.02f)) return; s.Fire(s.Clip(clip), GroupOf(clip.Replace("sfx_", "")), pos, vol, 1f); }
+
+        /// <summary>D4 (Lucía): baja −6 dB (×0,5) con fundido de 0,3 s los bucles 2D del mapa (ambiente y batalla del mapa) durante «segundos». Lo llaman los CO, la señal 6 y el aviso ámbar.</summary>
+        public static void Duck(float segundos) { var s = I; s._duckMapaHasta = Mathf.Max(s._duckMapaHasta, Time.unscaledTime + segundos); }
+        float _duckMapaHasta, _duckMapaCur = 1f;
 
         void PlayEv(string evento, Vector3? pos, float vol, float minGap)
         {
@@ -206,11 +221,12 @@ namespace TBD.View
         void Update()
         {
             float dt = Time.unscaledDeltaTime, now = Time.unscaledTime; _duckCur = Mathf.MoveTowards(_duckCur, now < _duckUntil ? 0.55f : 1f, dt / 0.25f); float duck = _duckCur;
+            _duckMapaCur = Mathf.MoveTowards(_duckMapaCur, now < _duckMapaHasta ? 0.5f : 1f, dt / 0.3f);
             foreach (var l in _loops.Values)
             {
                 float rate = l.Target > l.Cur ? dt / FadeIn : dt / FadeOut; l.Cur = Mathf.MoveTowards(l.Cur, l.Target, rate);
                 float master = l.Music ? MainMenu.MusicVolume : MainMenu.SfxVolume;
-                l.A.volume = l.Cur * master * GlobalGain * (l.Spatial ? CloseGain() : 1f) * (l.Music || l.Spatial ? 1f : duck);
+                l.A.volume = l.Cur * master * GlobalGain * (l.Spatial ? CloseGain() : 1f) * (l.Music || l.Spatial ? 1f : duck * _duckMapaCur);   // D4: los bucles 2D bajan con Duck
                 if (l.Cur > 0.001f)
                 {
                     l.SilentSince = -1f;

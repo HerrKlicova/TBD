@@ -26,6 +26,7 @@ namespace TBD.Tutorial
         public bool Linea;                 // una sola línea, sin cabecera (1.9, mientras dura el ataque)
         public bool SueltaHorda;           // desde este paso la horda ya no espera (1.8, «Ahí vienen»): HordaEnEspera vale solo hasta aquí (Nacho)
         public string[] Botones = new string[0];   // botones de la tarjeta; cada uno manda la señal «boton:<texto>»
+        public bool CambiaEnMarcha;        // con la tarjeta ya fuera, si llega AltSi, cambia a Alt (3.8 → 3.8b: la horda va a por el pelotón)
         public string AltSi; public Paso Alt;      // si al salir la tarjeta se cumple AltSi (señal del capítulo o estado), sale Alt en su lugar (3.12b: Sagunto sitiada)
     }
 
@@ -157,6 +158,8 @@ namespace TBD.Tutorial
             bool eraVisible = Visible;
             _hechos.Add(s);
             DecidirAlt();
+            var bp = Base;
+            if (eraVisible && !_alt && bp != null && bp.CambiaEnMarcha && bp.Alt != null && bp.AltSi == s) { _alt = true; EnPaso = 0; _sinAvance = 0; _enPaso.Clear(); Log($"{bp.Id}: cambia a {bp.Alt.Id} ({s})"); return; }
             var p = Actual;
             if (p == null) return;
             if (!eraVisible && Visible) { EnPaso = 0; _sinAvance = 0; _enPaso.Clear(); Log($"sale {p.Id} (esperaba {p.Espera})"); return; }   // la señal que esperaba no cierra la misma tarjeta

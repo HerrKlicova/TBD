@@ -38,7 +38,7 @@ fabrica_municion_u_dia;8;1;
 fabrica_consumo_materiales_dia;2;1;
 fort_materiales_por_nivel;30;1;
 fort_nivel_max;5;1;
-fort_bonus_por_nivel;200;1000;+20 % de eficacia por nivel
+fort_bonus_por_nivel;0;1000;9-nov (Hugo (3), opción A): 0. El muro ya no multiplica la eficacia de la munición (antes +20 % por nivel), 1 u = 400 zombis con o sin muro
 fort_desgaste_dia;10;1000;sobre el valor fortificado
 focos_combustible_por_nivel_dia;400;1000;
 municion_reposo_nodo_dia;500;1000;
@@ -56,7 +56,9 @@ municion_disparos_por_u;2000;1;disparos de fusil equivalentes (D-N08)
 disparo_fusil_equiv;1;1;
 disparo_ametralladora_equiv_s;8;1;
 disparo_obus_equiv;100;1;
-combate_z_por_u;400;1;zombis comunes por u sin muros, CALIBRAR en zona (prueba P6)
+combate_z_por_u;400;1;9-nov: zombis por u, con o sin muro (Sagunto: build ~390, NightSim 388). Vale para las estaciones sin fila propia
+combate_z_por_u_nules;300;1;9-nov (Hugo, D-N180): Nules medido en NightSim, 2200 zombis con 7,3 u de media (calles cortas, sin línea de visión). Fila por estación: combate_z_por_u_<id de NodoPorId>
+combate_tope_fuego_por_defensor;110;1;9-nov (Hugo): SOLO asedio fuera de pantalla del director (MVP). Si la horda del asedio pasa de defensores x 110, la estación cae (como en NightSim, donde caen por los trepadores aunque sobre munición, el paso es brusco: 96 % con 2200 y 20 % con 2600). Si no pasa, manda la munición como hasta ahora. No se aplica a Sagunto: allí los vehículos y la azotea suben mucho la cifra (40 de tropa ganan con 5250) y su noche se mide aparte. Medido en Nules: 20 defensores ganan el 96 % con 2200, 12 pierden siempre desde 1800. 0 = sin tope. NO está en el modelo de campaña (riesgo post-MVP, decisiones-noche 9-nov 01:05)
 combate_danio_fort_por_z;10;1000;materiales por zombi no abatido
 combate_bajas_por_z;4;1000;personas por zombi no abatido, x3 sin muros
 combate_abatidos_tirador_contacto;54;1;D-N27: tope de abatidos por tirador y asalto SIN muros (cadencia, P7)

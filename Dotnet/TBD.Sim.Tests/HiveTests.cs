@@ -234,6 +234,7 @@ namespace TBD.Sim.Tests
                 var wb = NetScenario.Mvp(false);
                 wb.Director.Noise = null;
                 long[] hugo = { 232, 821, 1685, 2421, 3108, 3366, 3617, 6171, 4081, 4285 };    // día 7 con el gran ataque ×2 (solo de asedio, 0,6 de la parte)
+                for (int q = 0; q < hugo.Length; q++) hugo[q] = hugo[q] * wb.Director.P.H0 / 1500;      // la tabla de Hugo es con H0 = 1500; con otro H0 (opción A, 9-nov: 1250) escala igual
                 bool okB = true; string txt = "";
                 for (int day = 0; day < 10; day++)
                 {

@@ -95,7 +95,9 @@ namespace TBD.View
             {
                 var p = _uw.Find(ids[i]); if (p == null) continue; float t = (i + 0.5f) / n; var c = g0 + (g1 - g0) * t; int men = Mathf.Max(1, p.AliveCount());
                 p.SpacingMm = Mathf.Clamp((int)(L / n * 1000f / men), 1200, 4000); _uw.SetFormation(ids[i], _curForm);
-                if (attack) _uw.AttackMove(ids[i], (int)(c.x * 1000f), (int)(c.z * 1000f), heading); else _uw.Move(ids[i], (int)(c.x * 1000f), (int)(c.z * 1000f), heading);
+                int otx = (int)(c.x * 1000f), oty = (int)(c.z * 1000f);
+                { var opl = _uw.Find(ids[i]); if (opl != null && _estacionZona == "Sagunto" && _rutaCap3.Ajustar(ids[i], opl.AX, opl.AY, ref otx, ref oty, heading, attack)) Debug.Log($"[NOCHE] pelotón {ids[i]}: rodea la esquina SE por (160; 40)"); }   // recorrido del capítulo 3 (Iker)
+                if (attack) _uw.AttackMove(ids[i], otx, oty, heading); else _uw.Move(ids[i], otx, oty, heading);
             }
             _moveMark = (g0 + g1) * 0.5f; _moveMarkUntil = Time.unscaledTime + 1.2f; TutorialHud.Senal(TutorialGuion.Senales.FormacionDada);
             Sfx.Play("ui_orden", Vector3.zero, 0.7f, 0.05f);
@@ -113,8 +115,8 @@ namespace TBD.View
                 if (sel)
                 {
                     float r = 3.5f; foreach (var m in pl.Men) if (m.Alive) r = Mathf.Max(r, Vector2.Distance(new Vector2(m.X / 1000f, m.Y / 1000f), new Vector2(cx, cy)) + 1.6f);
-                    OvRing(cen, r, 2f, OvHueso, 0.85f);
-                    foreach (var m in pl.Men) if (m.Alive) OvDot(ToGui(new Vector3(m.X / 1000f, 0.05f, m.Y / 1000f)), 3f, OvHueso, 0.9f);
+                    OvRingC(cen, r, 2f, OvHueso, 0.85f);                               // contorno 283440 de 1 px del arte (Lucía, 9-nov; PrototypeBootstrap.Contorno.cs)
+                    foreach (var m in pl.Men) if (m.Alive) OvDotC(ToGui(new Vector3(m.X / 1000f, 0.05f, m.Y / 1000f)), 3f, OvHueso, 0.9f);
                 }
                 if (pl.Moving)                                                       // destino y ruta hasta que lleguen
                 {
@@ -126,8 +128,8 @@ namespace TBD.View
             if (_selVeh != null)                                                     // vehiculo: doble anillo con muesca de proa
             {
                 var v = _selVeh; var c = new Vector3(v.Pos.x, 0f, v.Pos.y);
-                OvRing(c, 3.6f, 2f, OvHueso, 0.9f); OvRing(c, 3.0f, 2f, OvHueso, 0.6f);
-                float hd = v.Heading * Mathf.Deg2Rad; var fw = new Vector3(Mathf.Sin(hd), 0f, Mathf.Cos(hd)); OvLine(ToGui(c + fw * 3.0f), ToGui(c + fw * 4.4f), 3f, OvHueso, 0.95f);
+                OvRingC(c, 3.6f, 2f, OvHueso, 0.9f); OvRingC(c, 3.0f, 2f, OvHueso, 0.6f);
+                float hd = v.Heading * Mathf.Deg2Rad; var fw = new Vector3(Mathf.Sin(hd), 0f, Mathf.Cos(hd)); OvLineC(ToGui(c + fw * 3.0f), ToGui(c + fw * 4.4f), 3f, OvHueso, 0.95f);
                 if (v.HasTarget) { var dst = new Vector3(v.Target.x, 0.06f, v.Target.y); OvRing(dst, 1.3f, 2f, OvHueso, 0.9f); }
             }
             if (Time.unscaledTime < _moveMarkUntil) { float k = (_moveMarkUntil - Time.unscaledTime) / 1.2f; OvRing(_moveMark, 0.8f + (1f - k) * 1.6f, 2f, OvHueso, k); }

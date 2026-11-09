@@ -13,7 +13,7 @@ namespace TBD.View
     /// a unos cientos de metros). Va a resolución completa, sin pixelar (GDD §7). Escena: Assets/Scenes/Union.unity.
     /// Unidades de Unity del mapa: 1 = 1 km. Relieve con exageración vertical.
     /// </summary>
-    public sealed class OperationsMap3D : MonoBehaviour
+    public sealed partial class OperationsMap3D : MonoBehaviour
     {
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
@@ -97,12 +97,14 @@ namespace TBD.View
         void Start()
         {
             _mapT0 = Time.realtimeSinceStartup;
-            if (NightRun.Active && NightRun.Session == null) { EnterZone(ZonaArg()); return; }                            // «Jugar»: directo a la noche de Sagunto (D-N71); QA: -zona <nombre> entra en otra (D-N173, Sara)
+            if (NightRun.Active && NightRun.Session == null && !PruebaDeMapa) { EnterZone(ZonaArg()); return; }                            // «Jugar»: directo a la noche de Sagunto (D-N71); QA: -zona <nombre> entra en otra (D-N173, Sara)
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k-sagunto") >= 0) { EnterZone(0); return; }       // prueba de rendimiento en la zona de Sagunto (con la muestra del suelo)
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-stress10k") >= 0 && NetSession.DebugForceAmbush()) { NetSession.PendingAmbush = true; UnityEngine.SceneManagement.SceneManager.LoadScene("SampleScene"); return; }   // prueba de rendimiento (D-N61)
             Application.targetFrameRate = 60;
             NetSession.Ensure();                       // la red vive en la sesión y sigue corriendo dentro de las zonas (hito 3)
             _a = NetSession.A;
+            ColmenaEstadoFuente = () => NetSession.A.Director.ColState; ColmenaSenalFuente = () => (int)NetSession.A.Director.ColSignalMil;   // D-N160: la Colmena de la red (Nacho) en la capa APP-6 y el informe (Bruno)
+            if (!TutorialHud.Activo && _a.Director.ColmenaIntro(_a)) { Sfx.Play("sfx_colmena_dispersa_2", 1f); Sfx.Duck(3f); _intelVisto = _a.Intel.Count; }   // CO-0 (Nacho; Lucía: una vez por partida, también tras cargar)
             _b = NetSession.B;
             _relief = new PlaceholderRelief(_a.Graph);
             SetupCamera();
@@ -121,6 +123,9 @@ namespace TBD.View
                 NetSession.ReturnFromNode = -1;
             }
         }
+
+        /// <summary>QA: -trenpanel-auto y -refuerzos-auto se juegan en el mapa (TrenPanel solo vive en Union); con ellas no se entra directo en la noche.</summary>
+        static bool PruebaDeMapa { get { var a = System.Environment.GetCommandLineArgs(); return System.Array.IndexOf(a, "-trenpanel-auto") >= 0 || System.Array.IndexOf(a, "-refuerzos-auto") >= 0; } }
 
         /// <summary>QA (Sara, D-N173): -zona &lt;nombre&gt; (Nules, Castellón...) elige la zona de la noche; sin ella o si no existe, Sagunto (nodo 0).</summary>
         static int ZonaArg()
@@ -232,6 +237,46 @@ namespace TBD.View
         }
 
         /// <summary>Trenes emboscados o en encuentro, en unidades de mapa (para el rojo de la mancha solo donde ataca; Bruno, D-N113).</summary>
+        // sfx_ui_aviso_ambar (Nuria): en 2D a 0,6, al aparecer el aviso de una estación, y como mucho una vez cada 10 s por estación
+        readonly Dictionary<int, float> _avisoSonado = new Dictionary<int, float>(); readonly HashSet<int> _avisoVisto = new HashSet<int>();
+        void SonarAvisos(List<NetWorld.ZoneWarning> l)
+        {
+            if (Event.current == null || Event.current.type != EventType.Repaint) return;
+            var ahora = new HashSet<int>();
+            foreach (var zw in l)
+            {
+                ahora.Add(zw.Node);
+                if (_avisoVisto.Contains(zw.Node)) continue;
+                if (_avisoSonado.TryGetValue(zw.Node, out var t0) && Time.unscaledTime - t0 < 10f) continue;
+                _avisoSonado[zw.Node] = Time.unscaledTime; Sfx.Play("ui_aviso_ambar", Vector3.zero, 0.6f, 0.05f); Sfx.Duck(1.5f);
+            }
+            _avisoVisto.Clear(); foreach (var n in ahora) _avisoVisto.Add(n);
+        }
+
+        // sonidos de la Colmena y del informe (Nuria, elegidos por Lucía): una variante fija, en 2D a 1,0
+        int _intelVisto = -1; bool _avisoColAntes, _informeAntes;
+        void SonidosColmena()
+        {
+            if (_a == null) return;
+            if (_intelVisto < 0) _intelVisto = _a.Intel.Count;
+            for (int i = _intelVisto; i < _a.Intel.Count; i++)
+            {
+                switch (_a.Intel[i].Id)
+                {
+                    case "CO-1": Sfx.Play("sfx_colmena_acecho_1", 1f); Sfx.Duck(3f); break;
+                    case "CO-2": Sfx.Play("sfx_colmena_enjambre_2", 1f); Sfx.Duck(3f); break;
+                    case "CO-3": Sfx.Play("sfx_colmena_vuelta_acecho_1", 1f); Sfx.Duck(3f); break;
+                    case "CO-4": Sfx.Play("sfx_colmena_dispersa_2", 1f); Sfx.Duck(3f); break;      // el CO-0 suena en ColmenaIntro (al abrir el mapa)
+                }
+            }
+            _intelVisto = _a.Intel.Count;
+            bool aviso = _a.Director.ColWarning;
+            if (aviso && !_avisoColAntes) { Sfx.Play("sfx_ui_aviso_senal6_1", 1f); Sfx.Duck(2f); }      // la señal llega a 6: «La Colmena se agita…»
+            _avisoColAntes = aviso;
+            if (_informeOn && !_informeAntes) Sfx.Play("sfx_ui_informe_abrir_1", 1f);
+            _informeAntes = _informeOn;
+        }
+
         List<Vector2> TrenesAtacados()
         {
             var l = new List<Vector2>(); var g = _a.Graph;
@@ -364,6 +409,7 @@ namespace TBD.View
 
         void Update()
         {
+            SonidosColmena();
             Update_NightReturn();
             if (_a == null) return;                      // entrada directa a la zona (noche o prueba): el mapa no se ha construido
             HandleInput();
@@ -591,6 +637,8 @@ namespace TBD.View
             var kb = Keyboard.current;
             var mouse = Mouse.current;
             if (kb == null) return;
+            HandleInputInforme(kb);                                  // D-N160: pantalla del informe V1 (Tab abre y cierra, Esc cierra)
+            HandleInputApp6(kb);                                     // D-N160: capa APP-6 del informe (tecla I)
             if (kb.spaceKey.wasPressedThisFrame) Push(_a.Paused ? NetCmdType.Resume : NetCmdType.Pause, 0, 0);
             if (kb.digit1Key.wasPressedThisFrame) Push(NetCmdType.SetSpeed, 1, 0);
             if (kb.digit2Key.wasPressedThisFrame) Push(NetCmdType.SetSpeed, 2, 0);
@@ -686,6 +734,7 @@ namespace TBD.View
                 DrawIcon(new Rect(sp.x - px * 0.5f, Screen.height - sp.y - px * 1.1f, px, px), "estaciones/vm_estacion_" + StateName(n.State) + "_32");
                 GUI.Label(new Rect(sp.x + px * 0.5f + 4, Screen.height - sp.y - 10, 220, _small.fontSize * 2.2f), n.Name, _small);
             }
+            DrawApp6();                                              // D-N160: símbolos APP-6 de cada estación (OperationsMap3D.InformeApp6.cs)
             for (int i = 0; i < _trains.Count; i++)
             {
                 var sp = _cam.WorldToScreenPoint(_trains[i].position + Vector3.up * 0.8f * Mathf.Clamp(_dist / 230f, 0.0015f, 2f));
@@ -695,8 +744,17 @@ namespace TBD.View
                 string tn = _a.Encounter.Active && _a.Encounter.Service == i ? "bajo_ataque" : sv.Ambushed ? "bajo_ataque" : sv.Train.State == RailTrainState.EnMarcha ? "en_marcha" : sv.Train.State == RailTrainState.Detenido ? "detenido" : "detenido";
                 DrawIcon(new Rect(sp.x - tp * 0.5f, Screen.height - sp.y - tp * 1.6f, tp, tp), "trenes/vm_tren_" + tn + "_32");
                 GUI.Label(new Rect(sp.x - 30, Screen.height - sp.y - 26 - _small.fontSize * 0.8f, 160, _small.fontSize * 2.2f), "<b><color=#FFF0A0>" + _a.Services[i].Train.Name + "</color></b>", _small);
+                string se = tn == "bajo_ataque" ? null : Puertas.SinEscolta(_a, i);       // D-N177: ámbar en el icono; el rojo es solo el de bajo ataque
+                if (se != null) GUI.Label(new Rect(sp.x - 30, Screen.height - sp.y - 26 + _small.fontSize * 1.2f, 260, _small.fontSize * 2.2f), "<color=#E08C30>" + se + "</color>", _small);
             }
 
+            if (_informeOn)                                          // D-N160: pantalla del informe V1 (OperationsMap3D.InformeV1.cs); tapa el panel de avisos, la carga y el informe pequeño
+            {
+                SonarAvisos(_a.UndefendedWarnings());                // los avisos siguen sonando con el informe abierto
+                DrawInformeV1();
+                NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart);
+                return;
+            }
             float pw = Mathf.Min(460, Screen.width * 0.38f);
             float h = _small.fontSize * 14f;
             GUI.Box(new Rect(8, 8, pw, h), GUIContent.none, _panel);
@@ -708,6 +766,22 @@ namespace TBD.View
             string scaleTxt = _dist >= 10 ? $"{_dist:0} km" : $"{_dist * 1000:0} m";
             GUI.Label(new Rect(16, y, pw, 30), $"Distancia de cámara: {scaleTxt}", _small); y += _small.fontSize * 1.7f;
             int shown = 0;
+            var zws = _a.UndefendedWarnings();
+            SonarAvisos(zws);
+            if (Puertas.EnApartadoConAsedio(_a).Count > 0)      // D-N177: el tren en el apartado de Nules con asedio anunciado
+            {
+                int zp = IconPx(16); shown++;
+                DrawIcon(new Rect(20, y - 2, zp, zp), "alertas/vm_alertas_" + AlertIcon(AlertKind.NodoAsediado) + "_16");
+                GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>" + Puertas.TextoApartado + "</color>", _small); y += Mathf.Max(_small.fontSize * 1.5f, zp + 4);
+            }
+            y = DrawColmenaAviso(pw, y, ref shown);                  // D-N160: «La Colmena se agita» (ámbar), antes del Enjambre
+            foreach (var zw in zws)       // aviso ámbar: la horda va a una zona sin tropa (Lucía, 8-nov; regla de Nacho)
+            {
+                if (shown++ >= 4) break;
+                int zp = IconPx(16);
+                DrawIcon(new Rect(20, y - 2, zp, zp), "alertas/vm_alertas_" + AlertIcon(AlertKind.NodoAsediado) + "_16");
+                GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>" + zw.Text + "</color>", _small); y += Mathf.Max(_small.fontSize * 1.5f, zp + 4);
+            }
             foreach (var al in _a.Alerts)
             {
                 if (shown++ >= 4) break;
@@ -720,7 +794,7 @@ namespace TBD.View
             DrawCargo(pw);
             DrawIntel();
             GUI.Label(new Rect(16, Screen.height - _small.fontSize * 2.4f, Screen.width, 30),
-                "WASD mover · Q E girar · R F inclinar · rueda zoom (a menos de 2 km de una estación se entra en la zona) · J ir a la alerta · Espacio pausa · 1/2/3 velocidad · F8 emboscada de prueba · Intro entrar en la emboscada · F9 captura", _small);
+                "WASD mover · Q E girar · R F inclinar · rueda zoom (a menos de 2 km de una estación se entra en la zona) · J ir a la alerta · Tab informe · I símbolos APP-6 · Espacio pausa · 1/2/3 velocidad · F8 emboscada de prueba · Intro entrar en la emboscada · F9 captura", _small);
             NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart);
         }
 
@@ -777,10 +851,11 @@ namespace TBD.View
             }
             int n = Mathf.Min(4, _a.Intel.Count);
             float w = Mathf.Min(560, Screen.width * 0.45f);
-            float h = _small.fontSize * (2.2f + n * 1.6f);
+            float h = _small.fontSize * (2.2f + n * 1.6f + (_app6On ? 1.6f : 0f));
             float x = Screen.width - w - 8, y = 8;
             GUI.Box(new Rect(x, y, w, h), GUIContent.none, _panel);
-            GUI.Label(new Rect(x + 10, y + 4, w, 30), "<b>INFORME DE INTELIGENCIA</b>" + (n == 0 ? "  <color=#808080>sin novedades</color>" : ""), _small);
+            if (GUI.Button(new Rect(x, y, w, h), GUIContent.none, GUIStyle.none)) AbrirInforme(true);     // un clic abre el informe completo (V1)
+            GUI.Label(new Rect(x + 10, y + 4, w, 30), "<b>INFORME DE INTELIGENCIA</b> <color=#808080>(Tab)</color>" + (n == 0 ? "  <color=#808080>sin novedades</color>" : ""), _small);
             y += _small.fontSize * 1.8f;
             for (int i = _a.Intel.Count - n; i < _a.Intel.Count; i++)
             {
@@ -789,6 +864,7 @@ namespace TBD.View
                 GUI.Label(new Rect(x + 12, y, w - 20, 40), $"<color=#C8B890>{NetConst.Clock(e.Tick)} · {src}</color> · {text}", _small);
                 y += _small.fontSize * 1.6f;
             }
+            DrawApp6Leyenda(x + 12, y, w - 20);
         }
 
         void Capture()

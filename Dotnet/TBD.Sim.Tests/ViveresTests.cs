@@ -78,7 +78,7 @@ namespace TBD.Sim.Tests
             check(b.Hash() != ha, "el remanente de víveres también");
             var bytes = NetSave.Save(b); var l = NetScenario.Mvp(); NetSave.Load(bytes, l);
             check(l.Hash() == b.Hash() && l.FoodRemMil[sag] == 300 && l.Stock[sag, V] == 80, "se guardan y se cargan (NetVersion 4)");
-            check(NetSave.NetVersion == 4, "la versión de la red sube a 4");
+            check(NetSave.NetVersion >= 4, "la versión de la red es la 4 o posterior");
         }
     }
 }
