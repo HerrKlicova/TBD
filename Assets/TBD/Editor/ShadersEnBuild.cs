@@ -58,8 +58,8 @@ namespace TBD.EditorTools
             if (!AssetDatabase.IsValidFolder(dir)) AssetDatabase.CreateFolder("Assets/TBD/Resources", "Variantes");
             int n = 0;
             n += Variante(dir + "/V_Lit_Recorte.mat", "Universal Render Pipeline/Lit", m => { m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON"); });
-            n += Variante(dir + "/V_Lit_Emision.mat", "Universal Render Pipeline/Lit", m => { m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", new Color(0.02f, 0.02f, 0.02f)); });
-            n += Variante(dir + "/V_Lit_Recorte_Emision.mat", "Universal Render Pipeline/Lit", m => { m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON"); m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", new Color(0.02f, 0.02f, 0.02f)); });
+            n += Variante(dir + "/V_Lit_Emision.mat", "Universal Render Pipeline/Lit", m => { m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive; m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", new Color(0.02f, 0.02f, 0.02f)); });
+            n += Variante(dir + "/V_Lit_Recorte_Emision.mat", "Universal Render Pipeline/Lit", m => { m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON"); m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive; m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", new Color(0.02f, 0.02f, 0.02f)); });
             n += Variante(dir + "/V_Unlit_Recorte.mat", "Universal Render Pipeline/Unlit", m => { m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON"); });
             if (n > 0) { AssetDatabase.SaveAssets(); Debug.Log("[TBD] " + n + " materiales de variantes creados en " + dir + " (recorte por alfa y emisión en la build)"); }
         }
