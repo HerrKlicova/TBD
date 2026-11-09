@@ -982,6 +982,31 @@ namespace TBD.View
                 }
             }
             foreach (var kv in vistos) Debug.Log("[SOMBRA] " + kv.Value + "× " + kv.Key + " · p. ej. " + ejemplo[kv.Key]);
+
+            // I-Noche82 (-luz ambiente, sin luna): la franja de la vía sigue en un azul plano (090d14) mientras el suelo sale gris: la vía no recibe el ambiente
+            // (solo refleja el cielo). Para saber por qué: la sonda que recibe cada pieza de la vía (GetInterpolatedProbe), su textura y si hay sondas de luz en la escena.
+            // -viasinsondas: las piezas de la vía usan la sonda del ambiente directamente (lightProbeUsage Off). -viasintextura: la vía sin textura (blanco × 605c48).
+            var args = System.Environment.GetCommandLineArgs();
+            bool sinSondas = System.Array.IndexOf(args, "-viasinsondas") >= 0, sinTex = System.Array.IndexOf(args, "-viasintextura") >= 0;
+            var lp = LightmapSettings.lightProbes;
+            Debug.Log("[SOMBRA] sondas de luz en la escena: " + (lp != null ? lp.count.ToString() : "ninguna") + " · mapas de luz: " + LightmapSettings.lightmaps.Length + " · modo ambiente: " + RenderSettings.ambientMode + " · reflejo: " + RenderSettings.defaultReflectionMode);
+            bool trozo = false; var ic = System.Globalization.CultureInfo.InvariantCulture;
+            foreach (var r in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+            {
+                if (!r.enabled || !r.gameObject.activeInHierarchy) continue;
+                string n = r.name; bool esVia = n.StartsWith("Vía") || n.StartsWith("Balasto"), esTrozo = !trozo && n.StartsWith("Trozo de suelo");
+                if (!esVia && !esTrozo) continue;
+                if (esTrozo) trozo = true;
+                if (esVia && sinSondas) r.lightProbeUsage = LightProbeUsage.Off;
+                var m = r.sharedMaterial; var t = m != null && m.HasProperty("_BaseMap") ? m.GetTexture("_BaseMap") : null;
+                if (esVia && sinTex && m != null && t != null) { m.SetTexture("_BaseMap", null); m.SetColor("_BaseColor", HexColor("605c48")); }
+                LightProbes.GetInterpolatedProbe(r.bounds.center, r, out var sh);
+                Debug.Log("[SOMBRA] pieza " + n + " centro=" + r.bounds.center.ToString("0.0") + " tam=" + r.bounds.size.ToString("0.0") + " sondas=" + r.lightProbeUsage + " reflejo=" + r.reflectionProbeUsage
+                    + " shDC=(" + sh[0, 0].ToString("0.###", ic) + "; " + sh[1, 0].ToString("0.###", ic) + "; " + sh[2, 0].ToString("0.###", ic) + ")"
+                    + " bloque=" + r.HasPropertyBlock() + " tex=" + (t != null ? t.name + " " + t.width + "x" + t.height + " " + t.graphicsFormat : "-")
+                    + " col=" + (m != null && m.HasProperty("_BaseColor") ? ColorUtility.ToHtmlStringRGBA(m.GetColor("_BaseColor")) : "-") + " shader=" + (m != null ? m.shader.name : "-")
+                    + (esVia && sinSondas ? " [-viasinsondas]" : "") + (esVia && sinTex ? " [-viasintextura]" : ""));
+            }
         }
 
         static readonly float SombraNoche = LeerSombraNoche();
