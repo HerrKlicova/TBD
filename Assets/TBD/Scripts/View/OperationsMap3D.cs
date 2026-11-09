@@ -723,6 +723,36 @@ namespace TBD.View
         }
 
         static readonly bool DepuracionMapa = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-depuracion") >= 0;
+        // ---------------------------------------------------------------- Lucía (ed7f0ae): estaciones en el mapa (se quita el verde)
+        static Texture2D _disco, _anillo;
+        static Texture2D Circulo(bool lleno) { const int n = 64; var t = new Texture2D(n, n, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear }; float c = (n - 1) * 0.5f, r = n * 0.5f - 1f; for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) { float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)); float a = lleno ? Mathf.Clamp01(r - d + 0.5f) : Mathf.Clamp01(1f - Mathf.Abs(d - (r - 3f)) / 2.5f); t.SetPixel(x, y, new Color(1, 1, 1, a)); } t.Apply(); return t; }
+        static readonly Color CHueso = new Color32(0xd4, 0xd0, 0xcc, 0xff), COscuro = new Color32(0x1c, 0x20, 0x0c, 0xff), CAmbar = new Color32(0xe0, 0x8c, 0x30, 0xff), CRojo = new Color32(0x98, 0x24, 0x20, 0xff), CGris = new Color32(0xb8, 0xb8, 0xb8, 0x80);
+        static void Dibuja(Texture2D t, Rect r, Color c) { var o = GUI.color; GUI.color = c; GUI.DrawTexture(r, t); GUI.color = o; }
+        bool Propia(int n) { return !_a.NodeLost[n] && (_a.Stations.Founded[n] || n == _a.Embarque.HomeNode); }
+        int PelotonesEn(RailNode nd) { int c = Plantel.De(nd.Name).Pelotones.Length + (nd.Name == "Sagunto" ? 2 : 0); return c + _a.Embarque.AtStation(nd.Id, PasajeroTipo.Peloton).Count; }
+        bool Atacada(int n) { if (_a.Besieged(n)) return true; foreach (var p in _a.Director.Active) if (p.Kind == HiveDirector.PlanKind.Asedio && p.Started && p.Node == n) return true; return false; }
+        void MarcaEstacion(RailNode nd, Vector3 sp)
+        {
+            if (_disco == null) { _disco = Circulo(true); _anillo = Circulo(false); }
+            int n = nd.Id; bool perdida = _a.NodeLost[n], propia = Propia(n), cerco = n == _a.Director.CerradaNodo;
+            bool importante = propia || perdida;
+            float px = IconPx(32) * (importante ? 1f : 0.5f); var c = new Vector2(sp.x, Screen.height - sp.y - IconPx(32) * 0.6f);
+            Rect R(float s) { return new Rect(c.x - s * 0.5f, c.y - s * 0.5f, s, s); }
+            if (propia) { Dibuja(_disco, R(px + 2f), COscuro); Dibuja(_disco, R(px), CHueso); }          // relleno en hueso con contorno oscuro de 1 px
+            else if (perdida) { Dibuja(_disco, R(px + 2f), COscuro); Dibuja(_disco, R(px), new Color(CRojo.r, CRojo.g, CRojo.b, 0.55f)); }   // perdida: rojo apagado
+            else Dibuja(_anillo, R(px), CGris);                                                            // el resto: hueco, gris al 50 %, más pequeño
+            if (cerco) Dibuja(_anillo, R(px * 1.7f), CAmbar);
+            if (propia && Atacada(n) && Mathf.Repeat(Time.unscaledTime, 1f) < 0.6f) Dibuja(_anillo, R(px * 2.1f), CRojo);   // atacada: anillo rojo que parpadea
+            var mp = Event.current.mousePosition; bool encima = (mp - c).magnitude < Mathf.Max(px, 14f);
+            string nombre = cerco ? nd.Name + " · cercada" : propia ? nd.Name + " · " + PelotonesEn(nd) : nd.Name;
+            if (importante || encima)
+            {
+                var lr = SinPisar(new Rect(c.x + px * 0.5f + 4f, c.y - _small.fontSize * 0.7f, _small.CalcSize(new GUIContent(nombre)).x + 4f, _small.fontSize * 1.4f));
+                GUI.Label(lr, nombre, _small);
+                if (perdida) Dibuja(Texture2D.whiteTexture, new Rect(lr.x, lr.y + lr.height * 0.5f, lr.width - 4f, 1.5f), CRojo);   // tachado
+            }
+            if (cerco && encima) { var tr = new Rect(c.x + px * 0.5f + 4f, c.y + _small.fontSize * 0.9f, 360, _small.fontSize * 2.2f); GUI.DrawTexture(tr, Texture2D.blackTexture); GUI.Label(tr, " Castellón · cercada. Aguanta, pero está aislada.", _small); }
+        }
         long _emSonado = -1; long _trenParadoAvisado = -1; long _recordatorioLog = -1;
         /// <summary>Lucía (13365b8): el día 2, de 15:00 a 22:00, si aún no ha salido ningún tren hacia Nules.</summary>
         bool RecordatorioNules(out int nul)
@@ -764,14 +794,7 @@ namespace TBD.View
             {
                 var sp = _cam.WorldToScreenPoint(MapToWorld(n.XMeters, n.YMeters, 0.8f * Mathf.Clamp(_dist / 230f, 0.0015f, 2f)));
                 if (sp.z <= 0) continue;
-                int px = IconPx(32);
-                DrawIcon(new Rect(sp.x - px * 0.5f, Screen.height - sp.y - px * 1.1f, px, px), "estaciones/vm_estacion_" + StateName(n.State) + "_32");
-                GUI.Label(SinPisar(new Rect(sp.x + px * 0.5f + 4, Screen.height - sp.y - 10, _small.CalcSize(new GUIContent(n.Name)).x + 4f, _small.fontSize * 1.4f)), n.Name, _small);   // S3: los nombres no se pisan
-                if (n.Id == _a.Director.CerradaNodo)       // D-N184: al pasar el ratón por Castellón
-                {
-                    var mp = Event.current.mousePosition; if ((mp - new Vector2(sp.x, Screen.height - sp.y - px * 0.6f)).magnitude < px * 1.2f)
-                    { var tr = new Rect(sp.x + px * 0.5f + 4, Screen.height - sp.y + _small.fontSize * 1.2f, 360, _small.fontSize * 2.2f); GUI.DrawTexture(tr, Texture2D.blackTexture); GUI.Label(tr, " Castellón · cercada. Aguanta, pero está aislada.", _small); }
-                }
+                MarcaEstacion(n, sp);      // Lucía (ed7f0ae): propias, cercada, atacada, perdida y el resto
             }
             DrawApp6();                                              // D-N160: símbolos APP-6 de cada estación (OperationsMap3D.InformeApp6.cs)
             for (int i = 0; i < _trains.Count; i++)
