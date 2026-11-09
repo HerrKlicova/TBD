@@ -25,7 +25,7 @@ COLORES = {
     "chapa": "605c48",     # remiendos soldados sobre el parapeto
     "metal": "1c200c",     # teleros, topes y asideros
     "sacos": "847c34",
-    "carga": "845c28",     # cajas de munición (D-N157: 88885c y 847c34 se juntaban con el lateral; Bruno midió 11,4 con 845c28; Lucía 23:47)
+    "carga": "b4a080",     # cajas de munición (Lucía 9-nov 01:15: de noche 845c28 daba ΔL* 1,7 con el lateral en la build; b4a080 da ~12 de día y de noche; plan B f0dc9c)
 }
 L = 19.9
 Y0 = L / 2
