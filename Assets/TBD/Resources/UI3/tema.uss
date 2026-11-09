@@ -1,0 +1,92 @@
+/* Interfaz v3 (D-N185) · tema común. Las mismas fichas que la página de la propuesta.
+   Estados: solo hueso (#d4d0cc), ámbar (#e08c30) y rojo (#982420). El oliva es marco y títulos, nunca un estado. */
+
+
+.raiz {
+    --ui-fondo: rgba(15, 18, 12, 0.9);
+    --ui-solido: rgb(15, 18, 12);
+    --ui-elev: rgb(24, 29, 18);
+    --ui-linea: rgb(56, 64, 48);
+    --ui-linea2: rgb(86, 96, 74);
+    --hueso: rgb(212, 208, 204);
+    --tenue: rgb(161, 158, 146);
+    --apagado: rgb(109, 107, 98);
+    --oliva: rgb(142, 163, 90);
+    --ambar: rgb(224, 140, 48);
+    --rojo: rgb(152, 36, 32);
+    --rojo-texto: rgb(214, 90, 72);
+    position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+    -unity-font-definition: url("Fuentes/Barlow-Regular.ttf");
+    color: var(--hueso);
+    font-size: 16px;
+}
+
+/* ---- franja superior (56 px) ---- */
+.franja {
+    position: absolute; left: 0; right: 0; top: 0; height: 56px;
+    flex-direction: row; align-items: stretch;
+    background-color: var(--ui-fondo);
+    border-bottom-width: 1px; border-bottom-color: var(--ui-linea);
+}
+.blk { flex-direction: row; align-items: center; padding-left: 20px; padding-right: 20px; border-right-width: 1px; border-right-color: var(--ui-linea); }
+.blk-dcha { border-right-width: 0; border-left-width: 1px; border-left-color: var(--ui-linea); }
+.blk-centro { flex-grow: 1; justify-content: center; }
+.col { flex-direction: column; }
+
+.lbl {
+    -unity-font-definition: url("Fuentes/BarlowCondensed-SemiBold.ttf");
+    font-size: 13px; letter-spacing: 1.5px; color: var(--tenue);
+    margin-right: 12px;
+}
+.lbl-amb { color: var(--ambar); }
+.reloj { -unity-font-definition: url("Fuentes/IBMPlexMono-SemiBold.ttf"); font-size: 26px; margin-top: -2px; }
+.titulo { -unity-font-definition: url("Fuentes/BarlowCondensed-Bold.ttf"); font-size: 21px; margin-right: 18px; }
+
+.seg { flex-direction: row; border-width: 1px; border-color: var(--ui-linea2); margin-left: 14px; }
+.seg-op { -unity-font-definition: url("Fuentes/IBMPlexMono-SemiBold.ttf"); font-size: 14px; color: var(--tenue); padding: 2px 9px; border-right-width: 1px; border-right-color: var(--ui-linea2); }
+.seg-op--on { color: var(--hueso); background-color: rgb(43, 47, 37); }
+
+/* casillas del objetivo */
+.chk { flex-direction: row; align-items: center; margin-right: 18px; }
+.chk-caja { width: 18px; height: 18px; border-width: 2px; border-color: var(--ambar); margin-right: 8px; }
+.chk--ok .chk-caja { border-color: var(--hueso); background-color: var(--hueso); }
+.chk--ok .chk-txt { color: var(--tenue); }
+.chk-txt { font-size: 16px; }
+
+.tecla {
+    -unity-font-definition: url("Fuentes/IBMPlexMono-SemiBold.ttf");
+    font-size: 12px; color: var(--hueso);
+    min-width: 22px; height: 22px; padding-left: 6px; padding-right: 6px;
+    -unity-text-align: middle-center;
+    border-width: 1px; border-bottom-width: 2px; border-color: var(--ui-linea2);
+    background-color: var(--ui-solido);
+    margin-right: 7px;
+}
+
+/* ---- barra de ayuda (34 px) ---- */
+.ayuda {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 34px;
+    flex-direction: row; align-items: center; justify-content: center;
+    background-color: rgba(10, 12, 8, 0.92);
+    border-top-width: 1px; border-top-color: var(--ui-linea);
+}
+.ayuda-it { flex-direction: row; align-items: center; margin-left: 13px; margin-right: 13px; }
+.ayuda-txt { font-size: 14.5px; color: var(--tenue); }
+
+/* ---- leyenda del mapa (L) ---- */
+.leyenda {
+    position: absolute; right: 24px; bottom: 50px; width: 360px;
+    background-color: var(--ui-solido);
+    border-width: 1px; border-color: var(--ui-linea2);
+    padding: 10px 14px 12px 14px;
+}
+.ley-cab { flex-direction: row; justify-content: space-between; align-items: center; padding-bottom: 6px; margin-bottom: 4px; border-bottom-width: 1px; border-bottom-color: var(--ui-linea); }
+.ley-fila { flex-direction: row; align-items: center; margin-top: 5px; }
+.ley-sim { width: 34px; height: 20px; margin-right: 12px; align-items: center; justify-content: center; }
+.ley-txt { font-size: 15px; }
+.sim-disco { width: 18px; height: 18px; border-radius: 9px; background-color: var(--hueso); border-width: 2px; border-color: var(--ui-solido); }
+.sim-aro-amb { width: 22px; height: 22px; border-radius: 11px; border-width: 3px; border-color: var(--ambar); }
+.sim-aro-rojo { width: 22px; height: 22px; border-radius: 11px; border-width: 3px; border-color: var(--rojo); }
+.sim-otra { width: 8px; height: 8px; background-color: rgb(138, 136, 128); }
+.sim-horda { width: 30px; height: 14px; background-color: var(--rojo); opacity: 0.85; }
+.sim-tren { width: 28px; height: 10px; background-color: var(--hueso); }
