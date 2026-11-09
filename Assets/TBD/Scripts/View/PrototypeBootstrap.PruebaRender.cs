@@ -103,30 +103,42 @@ namespace TBD.View
             StartCoroutine(Barrido());
         }
 
+        float _msSubidaSuelo, _msSubidaSueloMax;                                 // ms de UpdateGroundStreaming subiendo trozos (los suma el streaming, los vacía el barrido)
+        static readonly float BarridoCap = LeerFloat("-barridocap", 0f);       // -barridocap S: una captura cada S s durante el barrido (Captures/barrido_v<V>_t<t>.png)
+
         System.Collections.IEnumerator Barrido()
         {
             float t0 = Time.realtimeSinceStartup;
             while ((_chunkPrecarga || _chunkRoot == null) && Time.realtimeSinceStartup - t0 < 60f) yield return null;
             yield return new WaitForSecondsRealtime(3f);
-            float xMin = MapX0 + 60f, xMax = MapX0 + MapW - 60f, dir = 1f, t = 0f, tLog = 0f;
-            int maxHuecos = 0, segConHuecos = 0, huecosSeg = 0;
-            Debug.Log("[BARRIDO] empieza: " + BarridoV.ToString("0.#") + " m/s durante " + BarridoT.ToString("0.#") + " s desde " + _focus.ToString("0") + " (X " + xMin.ToString("0") + "…" + xMax.ToString("0") + ")");
+            // Limitado al mapa (Marcos, I-Noche92: a 80 m/s el foco acabó en Z −244): X de ida y vuelta y Z fija dentro del mapa en cada fotograma,
+            // para que ni el desplazamiento por el borde de la pantalla ni el teclado lo saquen.
+            float xMin = MapX0 + 60f, xMax = MapX0 + MapW - 60f, z = Mathf.Clamp(_focus.z, MapZ0 + 60f, MapZ0 + MapH - 60f), dir = 1f, t = 0f, tLog = 0f, tCap = 0f;
+            int maxHuecos = 0, segConHuecos = 0, huecosSeg = 0; float peorMs = 0f, peorMsTotal = 0f, subidaMaxTotal = 0f;
+            string capDir = null; if (BarridoCap > 0f) { capDir = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(capDir); }
+            _msSubidaSuelo = 0f; _msSubidaSueloMax = 0f;
+            Debug.Log("[BARRIDO] empieza: " + BarridoV.ToString("0.#") + " m/s durante " + BarridoT.ToString("0.#") + " s desde " + _focus.ToString("0") + " (X " + xMin.ToString("0") + "…" + xMax.ToString("0") + ", Z fija " + z.ToString("0") + ")" + (capDir != null ? " · captura cada " + BarridoCap + " s (cuesta tiempo: no medir fps con capturas)" : ""));
             while (t < BarridoT)
             {
-                float dt = Time.unscaledDeltaTime; t += dt; tLog += dt;
-                float x = _focus.x + dir * BarridoV * dt;
+                float dt = Time.unscaledDeltaTime; t += dt; tLog += dt; tCap += dt;
+                if (!_capturing && dt * 1000f > peorMs) peorMs = dt * 1000f;           // los fotogramas de captura no cuentan
+                float x = Mathf.Clamp(_focus.x, xMin, xMax) + dir * BarridoV * dt;
                 if (x > xMax) { x = xMax; dir = -1f; } else if (x < xMin) { x = xMin; dir = 1f; }
-                _focus = new Vector3(x, 0f, _focus.z);
+                _focus = new Vector3(x, 0f, z);
                 int h = HuecosSuelo(); if (h > huecosSeg) huecosSeg = h;
+                if (capDir != null && tCap >= BarridoCap && !_capturing) { tCap = 0f; StartCoroutine(CaptureRoutine(System.IO.Path.Combine(capDir, "barrido_v" + BarridoV.ToString("0") + "_t" + t.ToString("00.0", System.Globalization.CultureInfo.InvariantCulture) + ".png"))); }
                 if (tLog >= 1f)
                 {
-                    Debug.Log("[BARRIDO] t=" + t.ToString("0.0") + " foco=" + _focus.ToString("0") + " trozos=" + _chunks.Count + " pendientes=" + _chunkPending.Count + " huecos=" + huecosSeg + " fps=" + _fps.ToString("0"));
+                    Debug.Log("[BARRIDO] t=" + t.ToString("0.0") + " foco=" + _focus.ToString("0") + " trozos=" + _chunks.Count + " pendientes=" + _chunkPending.Count + " huecos=" + huecosSeg + " fps=" + _fps.ToString("0")
+                        + " peor=" + peorMs.ToString("0") + " ms subida=" + _msSubidaSuelo.ToString("0") + " ms (máx " + _msSubidaSueloMax.ToString("0.0") + " ms en un fotograma)");
                     if (huecosSeg > maxHuecos) maxHuecos = huecosSeg; if (huecosSeg > 0) segConHuecos++;
-                    huecosSeg = 0; tLog = 0f;
+                    if (peorMs > peorMsTotal) peorMsTotal = peorMs; if (_msSubidaSueloMax > subidaMaxTotal) subidaMaxTotal = _msSubidaSueloMax;
+                    huecosSeg = 0; tLog = 0f; peorMs = 0f; _msSubidaSuelo = 0f; _msSubidaSueloMax = 0f;
                 }
                 yield return null;
             }
-            Debug.Log("[BARRIDO] fin: máximo de huecos a la vista " + maxHuecos + ", segundos con algún hueco " + segConHuecos + " de " + Mathf.RoundToInt(BarridoT) + ", trozos cargados " + _chunks.Count);
+            Debug.Log("[BARRIDO] fin: máximo de huecos a la vista " + maxHuecos + ", segundos con algún hueco " + segConHuecos + " de " + Mathf.RoundToInt(BarridoT) + ", trozos cargados " + _chunks.Count
+                + ", peor fotograma " + peorMsTotal.ToString("0") + " ms, peor subida de trozos en un fotograma " + subidaMaxTotal.ToString("0.0") + " ms");
         }
     }
 }

@@ -2148,6 +2148,7 @@ namespace TBD.View
                 if (res.Error != null) Debug.LogWarning("[TBD] Trozo de suelo " + res.I + "," + res.J + ": " + res.Error);
                 else FinishChunk(res);
             }
+            if (didChunk) { float msUp = (float)swUp.Elapsed.TotalMilliseconds; _msSubidaSuelo += msUp; if (msUp > _msSubidaSueloMax) _msSubidaSueloMax = msUp; }   // para el log [BARRIDO]
             if (!didChunk && _vegQueue.Count > 0) _vegQueue.Dequeue()();
             // 2) cargar los cercanos al foco (más cercanos primero, varios hilos a la vez) y descargar los lejanos
             float fx = _focus.x, fz = _focus.z;
@@ -2189,9 +2190,9 @@ namespace TBD.View
             var swc = System.Diagnostics.Stopwatch.StartNew();
             float X0 = MapX0 + r.I * ChunkM, Z0 = MapZ0 + r.J * ChunkM;
             var day = new Texture2D(r.W, r.H, TextureFormat.RGBA32, false, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp, name = "Suelo " + r.I + "," + r.J };
-            day.SetPixels32(r.Day); day.Apply(false, true);
+            day.SetPixelData(r.Day, 0); day.Apply(false, true);      // SetPixelData: copia directa (RGBA32 = Color32), sin la conversión de SetPixels32
             var night = new Texture2D(r.W, r.H, TextureFormat.RGBA32, false, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp, name = "Suelo noche " + r.I + "," + r.J };
-            night.SetPixels32(r.Night); night.Apply(false, true);
+            night.SetPixelData(r.Night, 0); night.Apply(false, true);      // SetPixelData: copia directa (RGBA32 = Color32), sin la conversión de SetPixels32
             float w = r.W * 0.1f, h = r.H * 0.1f;
             var go = GameObject.CreatePrimitive(PrimitiveType.Quad); go.name = "Trozo de suelo " + r.I + "," + r.J; Destroy(go.GetComponent<Collider>());
             var holder = new GameObject("Trozo " + r.I + "," + r.J); holder.transform.SetParent(_chunkRoot, false); go.transform.SetParent(holder.transform, false);
