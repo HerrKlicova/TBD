@@ -1,0 +1,169 @@
+using System.Collections.Generic;
+using TBD.Net;
+using TBD.Units;
+using UnityEngine;
+
+namespace TBD.View
+{
+    /// <summary>
+    /// Reloj único de la noche (D-N186, opción 1 de Sara; diseño de Nacho en nacho/reloj-unico). Las noches de las zonas viven en la red: NetWorld.NochesZona
+    /// tiene una NightSim por nodo en el mundo A y otra, idéntica, en el B (si no, la prueba de desincronización salta). Solo NetWorld.Step las avanza
+    /// (PasoNoche, y nada antes de las 22:00: ComienzaNoche). Ya no hay NightClock.
+    ///  - Al empezar la partida se registran las noches de Sagunto y de Nules (con su plantel de la D-N183), así que entrar a las 23:00 encuentra la noche empezada.
+    ///  - Al entrar en la zona, su NightSim sale de NochesZona en A y en B y la zona se monta desde ella (ResumeNightSession).
+    ///  - Al salir, el estado de la zona se vuelca en dos NightSim nuevas e idénticas (copias por SaveState/LoadState) y vuelven a NochesZona.
+    /// Pendiente (Nacho, condición 1): con la zona en pantalla, un paso de zona por tick de red; hoy la zona va a su ritmo (de día está parada, ver DiaEnLaRed).
+    /// </summary>
+    public partial class PrototypeBootstrap
+    {
+        public static readonly string[] EstacionesConNoche = { "Sagunto", "Nules" };
+
+        /// <summary>¿Van las noches con el reloj de la red? En partida (NightRun.Active con red), no en el tutorial (su noche empieza al momento) ni con -reloj-propio (pruebas viejas).</summary>
+        public static bool RelojUnicoActivo { get { return NightRun.Active && NetSession.A != null && !TutorialHud.Activo && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-reloj-propio") < 0; } }
+        static NetWorld _registradoEn;
+        /// <summary>Una vez por mundo de red (partida nueva o cargada): registra las noches iniciales. Si ya hay una noche con reloj propio en marcha (tutorial que sigue), no toca nada.</summary>
+        public static void AsegurarNochesRed()
+        {
+            var a = NetSession.A; if (a == null || a == _registradoEn || !RelojUnicoActivo) return;
+            _registradoEn = a;
+            bool vieja = (NightRun.Session != null && NightRun.Session.Ng != null && !NightRun.Session.Ng.P.NetClock); foreach (var ps in NightRun.Aparcadas.Values) vieja |= ps != null && ps.Ng != null && !ps.Ng.P.NetClock;
+            if (vieja) { Debug.Log("[RELOJ] hay una noche con reloj propio en marcha (tutorial): no se registran noches en la red"); return; }
+            ClearNightSession(true);
+            RegistrarNochesIniciales();
+        }
+
+        // ---------------------------------------------------------------- la zona en pantalla
+        long _tickRedZona = -1; bool _pausaRedPuesta;
+        /// <summary>¿Va la zona al ritmo de la red? (noche con reloj de la red y red presente).</summary>
+        bool ZonaConRelojRed { get { return NightRun.Active && _nightInit && _ng != null && _ng.P.NetClock && NetSession.A != null; } }
+        /// <summary>Condición 1 de Nacho: un paso de zona por tick de red, siempre después de net.Step() (NetSession.Update corre antes; aquí se reproducen los ticks que ha dado).
+        /// Devuelve los pasos dados. Con mucho retraso (zona muy lenta) se salta lo que sobra y se avisa: la noche de la zona queda detrás de la red.</summary>
+        int PasosZonaRed()
+        {
+            var w = NetSession.A; if (_tickRedZona < 0 || _tickRedZona > w.Tick) _tickRedZona = w.Tick;
+            int tope = 8 * System.Math.Max(1, TurboN) * System.Math.Max(1, NetSession.Turbo);
+            long debe = w.Tick - _tickRedZona;
+            if (debe > 20 * tope) { Debug.LogWarning($"[RELOJ] la zona va {debe} ticks detrás de la red: salta {debe - tope}"); _tickRedZona = w.Tick - tope; }
+            int n = 0;
+            while (_tickRedZona < w.Tick && n < tope) { _tickRedZona++; StepSimulation(); n++; }
+            return n;
+        }
+        /// <summary>La pausa de la zona (Esc) pausa la red, para que la red no siga sin la zona.</summary>
+        void PausaZonaEnRed()
+        {
+            var w = NetSession.A; if (w == null) return;
+            if (_paused && !_pausaRedPuesta) { if (!w.Paused) NetSession.Push(NetCmdType.Pause, 0, 0); _pausaRedPuesta = true; }
+            else if (!_paused && _pausaRedPuesta) { if (w.Paused) NetSession.Push(NetCmdType.Resume, 0, 0); _pausaRedPuesta = false; }
+        }
+        void SoltarPausaRed() { if (_pausaRedPuesta && NetSession.A != null && NetSession.A.Paused) NetSession.Push(NetCmdType.Resume, 0, 0); _pausaRedPuesta = false; }
+        /// <summary>Con la zona en pantalla, la zona pone el arranque de las 22:00 (Begin con el tick de red de las 22:00) si el plan de la red tiene noche ese día;
+        /// tras una victoria, la noche siguiente (BeginNextNight). Lo mismo que hace NightSim.ComienzaNoche fuera de pantalla.</summary>
+        void ArranqueRedZona()
+        {
+            var w = NetSession.A; if (w == null || _zoneNode < 0) return;
+            long t = _tickRedZona >= 0 ? _tickRedZona : w.Tick; int day = NetWorld.DayOf(t); long st = NetWorld.NightStartTick(day);
+            if (t < st || !w.HasNight(_zoneNode, day)) return;
+            var ses = NightRun.Session;
+            if (_ng.StartNetTick < 0 && _ng.Tick == 0)
+            {
+                if (!_ng.Begin(st)) return;
+                Debug.Log($"[RELOJ] 22:00 del día {day} en la zona: empieza la noche {w.NightNumber(_zoneNode, day)} de {_estacionZona} (tick de red {st})");
+                IniciaNocheZona();
+            }
+            else if (_ng.State == NightState.Victoria && _ng.StartNetTick < st)
+            {
+                var np = ses != null && ses.Next.HasValue ? ses.Next.Value : _ng.P;
+                if (!_ng.BeginNextNight(np, st)) return;
+                _reportClosed = false; _endDismissed = false; _lastWave = -1; _nightKills = 0; _nightShotsSpent = 0; _nightLost = 0; if (ses != null) ses.Reported = false;
+                _bannerText = $"22:00. Noche {w.NightNumber(_zoneNode, day)} en {_estacionZona}."; _bannerUntil = Time.unscaledTime + 4f;
+                Debug.Log($"[RELOJ] 22:00 del día {day} en la zona: noche siguiente de {_estacionZona} ({np.Waves.Length} oleada(s))");
+                IniciaNocheZona();
+            }
+        }
+
+        /// <summary>Copia exacta de una noche (NightGame y UnitsWorld por SaveState/LoadState, zombis, vehículos y bot nuevos). Dos copias del mismo origen son iguales bit a bit.</summary>
+        public static NightSim CopiaNoche(NightSim s)
+        {
+            var w1 = new SaveWriter(); s.Night.SaveState(w1); var ng = new NightGame(s.Night.P, 0); ng.LoadState(new SaveReader(w1.ToArray()));
+            var w2 = new SaveWriter(); s.Units.SaveState(w2); var uw = new UnitsWorld(0); uw.LoadState(new SaveReader(w2.ToArray()));
+            foreach (var o in s.Units.Obstacles) uw.Obstacles.Add(o);
+            var c = new NightSim(ng, uw, s.SP, s.WallHp) { NextNightParams = s.NextNightParams };
+            var z = new List<Target>(); s.ExportZombies(z); foreach (var t in z) c.ImportZombie(t.X, t.Y);
+            foreach (var v in s.Vehicles) { var nv = NightVehicle.Make(v.Name, v.Kind, v.X, v.Y); foreach (var f in typeof(NightVehicle).GetFields()) if (!f.IsInitOnly && !f.IsLiteral) f.SetValue(nv, f.GetValue(v)); c.Vehicles.Add(nv); }      // todos los campos públicos (munición, recarga, NH90…)
+            c.VehicleParamsJson = s.VehicleParamsJson; c.Kills = s.Kills; c.SoldierDeaths = s.SoldierDeaths; c.Resupplies = s.Resupplies; c.PeakPile = s.PeakPile; c.Spawned = s.Spawned; c.Climbed = s.Climbed; c.MaterialsU = s.MaterialsU; c.FuelU = s.FuelU;
+            if (s.Bot != null) { c.Bot = NightBot.FromParams(c.SP); foreach (var id in s.Bot.Busy) c.Bot.Busy.Add(id); }
+            return c;
+        }
+
+        /// <summary>Registra la noche de «nodo» en A (simA) y una copia en B. Para que A y B sean iguales, simA debe ser también una copia del mismo origen.</summary>
+        public static void RegistrarNoche(int nodo, NightSim origen, NightSession s)
+        {
+            var a = NetSession.A; if (a == null || nodo < 0 || origen == null) return;
+            var simA = CopiaNoche(origen); a.NochesZona[nodo] = simA;
+            if (NetSession.B != null && NetSession.B != a) NetSession.B.NochesZona[nodo] = CopiaNoche(origen);
+            if (s != null) { s.Sim = simA; s.Ng = simA.Night; s.Uw = simA.Units; s.Away = true; s.Node = nodo; }
+        }
+        /// <summary>La noche de «nodo» registrada en la red del mundo B (null si no está o si no hay B). La vista que cambie la noche fuera de pantalla (embarque) cambia también esta.</summary>
+        public static NightSim NocheEnB(int nodo) { var b = NetSession.B; if (b == null || b == NetSession.A || nodo < 0) return null; return b.NochesZona.TryGetValue(nodo, out var z) ? z as NightSim : null; }
+        /// <summary>La sesión de la noche de «nodo»: la de la zona abierta o la aparcada (fuera de pantalla).</summary>
+        public static NightSession SesionDe(int nodo)
+        {
+            if (NightRun.Session != null && NightRun.Session.Node == nodo) return NightRun.Session;
+            return NightRun.Aparcadas.TryGetValue(nodo, out var s) ? s : (NightRun.Session != null && NightRun.Session.Node < 0 ? NightRun.Session : null);
+        }
+        public static void QuitarNoche(int nodo)
+        {
+            if (NetSession.A != null) NetSession.A.NochesZona.Remove(nodo);
+            if (NetSession.B != null) NetSession.B.NochesZona.Remove(nodo);
+        }
+
+        /// <summary>Partida nueva: las noches de Sagunto y Nules, montadas igual que InitNight (JSON de la estación + balance_noche.csv, plantel de la D-N183, vehículos),
+        /// registradas en la red (A y B) y apuntadas como sesiones aparcadas. Empiezan a las 22:00 de su plan (Sagunto desde el día 1, Nules el día 2).</summary>
+        public static void RegistrarNochesIniciales()
+        {
+            var a = NetSession.A; if (a == null || !NightRun.Active) return;
+            NightRun.Session = null; NightRun.Aparcadas.Clear();
+            BalanceSource.Reader = f => { var pth = System.IO.Path.Combine(Application.streamingAssetsPath, "Noche", f); return System.IO.File.Exists(pth) ? System.IO.File.ReadAllText(pth) : null; };
+            string dir = System.IO.Path.Combine(Application.streamingAssetsPath, "Noche");
+            CsvTable tn = null;
+            try { var tu = new CsvTable(System.IO.File.ReadAllText(System.IO.Path.Combine(dir, "balance_unidades.csv"))); WeaponCatalog.Load(tu); PlatoonCatalog.Load(tu); tn = new CsvTable(System.IO.File.ReadAllText(System.IO.Path.Combine(dir, "balance_noche.csv"))); }
+            catch (System.Exception e) { Debug.LogWarning("[RELOJ] balance_*.csv: " + e.Message); }
+            string key = NightRun.Difficulty < 800 ? "facil" : NightRun.Difficulty <= 950 ? "normal" : "dificil";
+            { var cd = System.Environment.GetCommandLineArgs(); for (int i = 0; i + 1 < cd.Length; i++) if (cd[i] == "-dificultad" && (cd[i + 1] == "facil" || cd[i + 1] == "normal" || cd[i + 1] == "dificil")) key = cd[i + 1]; }
+            bool bot = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-nightbot") >= 0;
+            string vjson = BalanceSource.Read("nightsim_params.json");
+            foreach (var est in EstacionesConNoche)
+            {
+                int nodo = TrenPreparar.Nodo(a, est); if (nodo < 0) continue;
+                string fich = est == "Nules" && System.IO.File.Exists(System.IO.Path.Combine(dir, "nules.json")) ? "nules.json" : "noche_sagunto.json";
+                NightSim sj;
+                try { sj = NightSim.FromJson(System.IO.File.ReadAllText(System.IO.Path.Combine(dir, fich)), key, 77u); }
+                catch (System.Exception e) { Debug.LogWarning($"[RELOJ] {fich}: {e.Message}"); continue; }
+                var jp = sj.Night.P; var np = jp;
+                if (tn != null) { np = NightParams.FromCsv(tn); np.Waves = jp.Waves; np.Entries = jp.Entries; np.ClockX = jp.ClockX; np.ScalePermil = jp.ScalePermil; np.TrainNotDefeat = jp.TrainNotDefeat; if (sj.JsonForce != null) np.TrainRect = jp.TrainRect; }   // como InitNight (sin tren al empezar: el rectángulo del JSON)
+                np.EndHour = (np.StartHour + 23) % 24; np.NetClock = true;                // D-N164; reloj de la red
+                var ng = new NightGame(np, 77u + SemillaQA);
+                int reservaU = a.Stock[nodo, (int)Res.Municion];
+                var uw = new UnitsWorld(1234u + SemillaQA) { StockShots = System.Math.Min(47, System.Math.Max(0, reservaU)) * WeaponCatalog.ShotsPerU };   // Hugo: min(tope 47, reserva); a las 22:00 se vuelve a mirar
+                var s = new NightSession { Node = nodo };
+                foreach (var pp in Plantel.Pelotones(est, false)) { var pl = uw.AddPlatoon(pp.Tipo, pp.X, pp.Y, pp.Rumbo, pp.Formacion); if (pp.CotaMm > 0) pl.EyeMm = UnitsWorld.EyeInfantryMm + pp.CotaMm; s.PName[pl.Id] = pp.Nombre; }
+                if (est == "Sagunto" && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinazotea") < 0)
+                    for (int az = 0; az < 2; az++) { var pa = uw.AddPlatoon(PlatoonKind.Tiradores, 84500, 74300 + 4000 * az, 32768, Formation.Cuna); pa.EyeMm = 6350; s.PName[pa.Id] = "Tiradores " + (az == 0 ? "azotea 1" : "azotea 2"); }
+                var sp = sj.SP;
+                var origen = new NightSim(ng, uw, sp, sp.WallHp) { VehicleParamsJson = vjson };      // modo enganchado, como al salir de la zona
+                foreach (var c in Plantel.Vehiculos(est, false))
+                {
+                    var nv = NightVehicle.Make(c.Nombre, c.Tipo == "dragon" ? NightVehKind.Dragon : NightVehKind.Vamtac, (int)(c.X * 1000f), (int)(c.Z * 1000f));
+                    try { NightVehicle.ApplyParams(nv, vjson); } catch (System.Exception) { }
+                    nv.Shots = nv.MaxShots; origen.Vehicles.Add(nv);
+                }
+                if (bot) { origen.Bot = NightBot.FromParams(sp); foreach (var kv in s.PName) if (kv.Value.StartsWith("Tiradores azotea")) origen.Bot.Busy.Add(kv.Key); }
+                s.WallMax = Mathf.Max(1200000, NightSimParams.Default().WallHp); s.WallHp = s.WallMax;      // la vida del muro de la zona (NightTick); fuera, la de NightSim
+                RegistrarNoche(nodo, origen, s); s.Bot = s.Sim.Bot;
+                NightRun.Aparcadas[nodo] = s;
+                Debug.Log($"[RELOJ] noche de {est} registrada en la red (A y B): {uw.Platoons.Count} pelotones, {origen.Vehicles.Count} vehículos, {uw.StockShots / WeaponCatalog.ShotsPerU} u, {fich} ({key}); noches del plan: día 1 {(a.HasNight(nodo, 1) ? "sí" : "no")}, día 2 {(a.HasNight(nodo, 2) ? "sí" : "no")}");
+            }
+        }
+
+    }
+}

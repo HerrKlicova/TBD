@@ -428,6 +428,7 @@ namespace TBD.View
 
         void Update()
         {
+            PrototypeBootstrap.AsegurarNochesRed();          // reloj único: las noches de Sagunto y Nules en la red (A y B), una vez por partida
             SonidosColmena();
             SonidosRed();                                 // Nuria (sonido-vivo.md): estación atacada y tren perdido fuera de pantalla
             Update_NightReturn();

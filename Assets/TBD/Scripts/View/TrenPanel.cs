@@ -35,11 +35,15 @@ namespace TBD.View
     public sealed class EmbarqueRed : IEmbarque
     {
         readonly EmbarqueZona _z = new EmbarqueZona();
+        readonly EmbarqueZona _zB = new EmbarqueZona();      // reloj único: la misma cola sobre la copia de la noche del mundo B (si no, A y B se separan)
         readonly Dictionary<EmbarqueZona.Trabajo, (int service, int node)> _dest = new Dictionary<EmbarqueZona.Trabajo, (int, int)>();
         int _bajadaService = -1, _bajadaNode = -1, _bajadaQuedan; bool _bajadaSolo; Action _bajadaFin;
         float _acc;
         static NetWorld W { get { return NetSession.A; } }
-        static UnitsWorld Uw { get { return NightRun.Session != null ? NightRun.Session.Uw : null; } }
+        static NightSession SesCasa { get { return (W != null ? PrototypeBootstrap.SesionDe(W.Embarque.HomeNode) : null) ?? NightRun.Session; } }
+        static UnitsWorld Uw { get { var s = SesCasa; return s != null ? s.Uw : null; } }
+        /// <summary>Reloj único: con la noche de casa fuera de pantalla, su copia en el mundo B (null con la zona abierta). Todo lo que la vista cambie en Uw se cambia también aquí.</summary>
+        static UnitsWorld UwB { get { var n = W != null ? PrototypeBootstrap.NocheEnB(W.Embarque.HomeNode) : null; return n != null ? n.Units : null; } }
 
         static void PushBoth(NetCommand c) { NetSession.A.Push(c); if (NetSession.B != null) NetSession.B.Push(c); }
         static void Embarcado(int v, bool on) { if (v >= 0 && v < NightRun.Vehs.Count && NightRun.Vehs[v] != null) NightRun.Vehs[v].Embarcado = on; }
@@ -52,7 +56,7 @@ namespace TBD.View
             int cap = t == PasajeroTipo.Peloton ? EmbarqueState.PelotonesPorTren : EmbarqueState.VehiculosPorTren, enCola = 0;      // cupo contando lo que ya está subiendo
             foreach (var kv in _dest) if (kv.Key.Vehiculo == (t == PasajeroTipo.Vehiculo) && !kv.Key.Bajar && kv.Value.service == service) enCola++;
             if (W.Embarque.CountAboard(service, t) + enCola >= cap) return t == PasajeroTipo.Peloton ? "No queda vagón de tropa libre" : "No queda plataforma libre";
-            var ses = NightRun.Session; bool noche = ses != null && ses.Sim != null;
+            var ses = SesCasa; bool noche = ses != null && ses.Sim != null && ses.Sim.Night.StartNetTick >= 0 && ses.Sim.Night.State == NightState.Jugando;      // reloj único: la noche registrada existe todo el día; es noche desde las 22:00
             bool dentro = node == W.Embarque.HomeNode || !W.Besieged(node), cerca = false;
             if (noche && t == PasajeroTipo.Peloton)
             {
@@ -69,8 +73,10 @@ namespace TBD.View
             if (PorQueNo(service, t, id, node) != null) return;
             int carrier = TrenPreparar.ATren(W.Services[service].Train.Id);
             var uw = Uw;
-            if (t == PasajeroTipo.Peloton && uw != null) { var p = uw.Platoons.Find(q => q.Id == id); if (p != null && p.Aboard >= TrenPreparar.EstacionBase) p.Aboard = 0; }   // el destacamento de otra estación sale del andén
+            var uwB = UwB; if (uwB == null) _zB.Cola.Clear();
+            foreach (var w2 in new[] { uw, uwB }) if (t == PasajeroTipo.Peloton && w2 != null) { var p = w2.Platoons.Find(q => q.Id == id); if (p != null && p.Aboard >= TrenPreparar.EstacionBase) p.Aboard = 0; }   // el destacamento de otra estación sale del andén
             bool ok = t == PasajeroTipo.Peloton ? _z.SubirPeloton(uw, id, carrier) : _z.Vehiculo(id, carrier, false);
+            if (ok && uwB != null) { if (t == PasajeroTipo.Peloton) _zB.SubirPeloton(uwB, id, carrier); else _zB.Vehiculo(id, carrier, false); }
             if (ok) _dest[_z.Cola[_z.Cola.Count - 1]] = (service, node);
         }
 
@@ -79,8 +85,8 @@ namespace TBD.View
             if (W == null) return;
             var tropa = W.Embarque.Aboard(service, PasajeroTipo.Peloton);
             PushBoth(NetWorld.CmdUnload(W.Tick, service, node));
-            if (Uw != null && node != W.Embarque.HomeNode)
-                foreach (var id in tropa) { var p = Uw.Platoons.Find(q => q.Id == id); if (p != null) p.Aboard = TrenPreparar.EnEstacion(node); }
+            if (node != W.Embarque.HomeNode)
+                foreach (var w2 in new[] { Uw, UwB }) if (w2 != null) foreach (var id in tropa) { var p = w2.Platoons.Find(q => q.Id == id); if (p != null) p.Aboard = TrenPreparar.EnEstacion(node); }
         }
 
         /// <summary>
@@ -92,8 +98,9 @@ namespace TBD.View
             if (W == null || _bajadaService >= 0) return;
             int carrier = TrenPreparar.ATren(W.Services[service].Train.Id), n = 0;
             var uw = Uw;
-            if (uw != null) foreach (var id in W.Embarque.Aboard(service, PasajeroTipo.Peloton)) if (_z.BajarPeloton(uw, id, x + n * 1500, y)) { _dest[_z.Cola[_z.Cola.Count - 1]] = (service, node); n++; }
-            if (!soloTropa) foreach (var v in W.Embarque.Aboard(service, PasajeroTipo.Vehiculo)) if (_z.Vehiculo(v, carrier, true)) { _dest[_z.Cola[_z.Cola.Count - 1]] = (service, node); n++; }
+            var uwB = UwB; if (uwB == null) _zB.Cola.Clear();
+            if (uw != null) foreach (var id in W.Embarque.Aboard(service, PasajeroTipo.Peloton)) if (_z.BajarPeloton(uw, id, x + n * 1500, y)) { _dest[_z.Cola[_z.Cola.Count - 1]] = (service, node); if (uwB != null) _zB.BajarPeloton(uwB, id, x + n * 1500, y); n++; }
+            if (!soloTropa) foreach (var v in W.Embarque.Aboard(service, PasajeroTipo.Vehiculo)) if (_z.Vehiculo(v, carrier, true)) { _dest[_z.Cola[_z.Cola.Count - 1]] = (service, node); if (uwB != null) _zB.Vehiculo(v, carrier, true); n++; }
             _bajadaService = service; _bajadaNode = node; _bajadaQuedan = n; _bajadaSolo = soloTropa; _bajadaFin = alAcabar;
             if (n == 0) TerminarBajada();
         }
@@ -118,12 +125,13 @@ namespace TBD.View
         public void Step()
         {
             if (_z.Cola.Count == 0 || W == null) { _acc = 0; return; }
-            var uw = Uw ?? new UnitsWorld(1);
+            var uw = Uw ?? new UnitsWorld(1); var uwB = UwB; if (uwB == null) _zB.Cola.Clear();
             _acc += Mathf.Min(Time.unscaledDeltaTime, 0.25f);
             float step = 1f / IMath.TickRate;
             while (_acc >= step)
             {
                 _acc -= step;
+                if (uwB != null && _zB.Cola.Count > 0) _zB.Step(uwB);      // misma cola, mismo momento (entre dos ticks de red): A y B iguales
                 foreach (var t in _z.Step(uw))
                 {
                     if (!_dest.TryGetValue(t, out var d)) continue; _dest.Remove(t);
@@ -423,7 +431,7 @@ namespace TBD.View
 
         string NombrePeloton(int id)
         {
-            var ses = NightRun.Session; var p = ses != null && ses.Uw != null ? ses.Uw.Platoons.Find(q => q.Id == id) : null;
+            var ses = (W != null ? PrototypeBootstrap.SesionDe(W.Embarque.HomeNode) : null) ?? NightRun.Session; var p = ses != null && ses.Uw != null ? ses.Uw.Platoons.Find(q => q.Id == id) : null;
             string n = ses != null && ses.PName != null && ses.PName.TryGetValue(id, out var nm) ? nm : p != null ? p.Kind.ToString() : "Pelotón " + id;
             return p != null ? n + " · " + p.AliveCount() : n;
         }
@@ -512,7 +520,7 @@ namespace TBD.View
             int org = _origenP, sv = TrenPreparar.TrenEn(W, org);
             if (sv < 0) { _vista = Vista.Nada; return; }
             float w = Mathf.Min(u * 36, Screen.width * 0.44f), x = Screen.width - w - 12, y = Screen.height * 0.08f, lh = u * 1.95f;
-            var ses = NightRun.Session; var uw = ses != null ? ses.Uw : null; bool casa = org == Casa;
+            var ses = (W != null ? PrototypeBootstrap.SesionDe(W.Embarque.HomeNode) : null) ?? NightRun.Session; var uw = ses != null ? ses.Uw : null; bool casa = org == Casa;
             // tropa: en casa, los pelotones de Sagunto que están en tierra (o subiendo/a bordo de este tren); fuera, el destacamento de esa estación
             var pels = new List<int>();
             var aBordoP = W.Embarque.Aboard(sv, PasajeroTipo.Peloton);
@@ -614,7 +622,7 @@ namespace TBD.View
             {
                 case 0: if (t > 4f && TrenPreparar.TrenEn(W, sag) >= 0) { AbrirMenu(sag); _autoPaso++; } else if (t > 4f && W.Speed != 4) NetSession.Push(NetCmdType.SetSpeed, 4, 0); break;
                 case 1: if (t > 6f) { Cap("1_menu_sagunto"); _autoPaso++; } break;
-                case 2: if (t > 7f) { AbrirPreparar(sag); Cargar(0, 40); Cargar(2, 60); var ses = NightRun.Session; int sv = TrenPreparar.TrenEn(W, sag); if (ses != null && ses.Uw != null && ses.Uw.Platoons.Count > 0) Embarque.Subir(sv, PasajeroTipo.Peloton, ses.Uw.Platoons[0].Id, sag);
+                case 2: if (t > 7f) { AbrirPreparar(sag); Cargar(0, 40); Cargar(2, 60); var ses = (W != null ? PrototypeBootstrap.SesionDe(W.Embarque.HomeNode) : null) ?? NightRun.Session; int sv = TrenPreparar.TrenEn(W, sag); if (ses != null && ses.Uw != null && ses.Uw.Platoons.Count > 0) Embarque.Subir(sv, PasajeroTipo.Peloton, ses.Uw.Platoons[0].Id, sag);
                         int vk = NightRun.Vehs.FindIndex(v => v != null && v.Vivo && v.Tipo == "vamtac"); if (vk >= 0) Embarque.Subir(sv, PasajeroTipo.Vehiculo, vk, sag); else _sinApoyo = true;
                         PonerDestino(nul); _autoPaso++; } break;
                 case 3: if (t > 9f) { Cap("2_preparar_tren"); _autoPaso++; } break;
@@ -648,7 +656,7 @@ namespace TBD.View
                         else if (t > 60f) { Debug.LogWarning("[DIA2] el primer tren no ha llegado a Nules"); _autoT0 = Time.unscaledTime; _autoPaso++; } break;
                 case 4: if (t > 4f && TrenPreparar.TrenEn(W, sag) >= 0 && !Embarque.Ocupado)
                     {
-                        AbrirPreparar(sag); Cargar((int)Res.Municion, 25); int sv = TrenPreparar.TrenEn(W, sag); var ses = NightRun.Session;   // 25: la emboscada rechazada gasta ~1 u de la carga y el objetivo pide 20 en el almacén
+                        AbrirPreparar(sag); Cargar((int)Res.Municion, 25); int sv = TrenPreparar.TrenEn(W, sag); var ses = (W != null ? PrototypeBootstrap.SesionDe(W.Embarque.HomeNode) : null) ?? NightRun.Session;   // 25: la emboscada rechazada gasta ~1 u de la carga y el objetivo pide 20 en el almacén
                         if (!escolta) Debug.Log("[DIA2] sin escolta (-dia2-auto-sinescolta)");
                         else if (ses != null && ses.Uw != null && ses.Uw.Platoons.Count > 0) { Embarque.Subir(sv, PasajeroTipo.Peloton, ses.Uw.Platoons[0].Id, sag); Debug.Log("[DIA2] sube el pelotón " + ses.Uw.Platoons[0].Kind); }
                         else Debug.LogWarning("[DIA2] sin pelotón que subir (no hay sesión de zona)");
@@ -681,7 +689,7 @@ namespace TBD.View
                 case 0: if (t > 3f)
                     {
                         // PRUEBA: si la zona aún no ha creado el destacamento (enganche de Marcos), lo crea la corrida para poder recorrer el capítulo
-                        var ses = NightRun.Session;
+                        var ses = (W != null ? PrototypeBootstrap.SesionDe(W.Embarque.HomeNode) : null) ?? NightRun.Session;
                         if (W.Embarque.AtStation(nul, PasajeroTipo.Peloton).Count == 0 && ses != null && ses.Uw != null)
                         {
                             var p = ses.Uw.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0);
@@ -798,7 +806,7 @@ namespace TBD.View
 
         static Vector2Int Defecto()
         {
-            var uw = NightRun.Session != null ? NightRun.Session.Uw : null;
+            var ses0 = (W != null ? PrototypeBootstrap.SesionDe(W.Embarque.HomeNode) : null) ?? NightRun.Session; var uw = ses0 != null ? ses0.Uw : null;
             if (uw != null) foreach (var p in uw.Platoons) if (p.Aboard == 0 && p.AliveCount() > 0) return new Vector2Int(p.AX - 6000, p.AY);
             return Vector2Int.zero;
         }

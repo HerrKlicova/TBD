@@ -23,6 +23,8 @@ namespace TBD.View
         public float WallHp, WallMax; public int Kills, Lost, ShotsSpent, SpawnedTotal, Resupplies, LastWave, WaveTotal;
         public NightBot Bot; public NightTraceRecorder Rec; public StringBuilder FullTrace;
         public bool Away, Reported; public NightClock Clock;
+        public readonly HashSet<int> Emb = new HashSet<int>();      // reloj único: pelotones bajados del tren que ya están en esta noche (no se duplican al volver a entrar)
+        public NightParams? Next;                                    // parámetros de la noche siguiente (D-N191); null = los de ahora
         public int Node = -1;      // zona (nodo de la red) de esta noche: cada estación tiene la suya (Iker, 9-nov: Nules reanudaba la noche de Sagunto)
     }
 
@@ -89,9 +91,18 @@ namespace TBD.View
                 sim.Vehicles.Add(nv);
             }
             if (_bot != null) sim.Bot = _bot;                                  // con -nightbot, el bot sigue fuera de pantalla (Nacho): misma prueba A/B comparable
-            s.Sim = sim; s.Away = true;
-            if (s.Clock == null) { var go = new GameObject("NightClock"); DontDestroyOnLoad(go); s.Clock = go.AddComponent<NightClock>(); } s.Clock.S = s; s.Node = _zoneNode;
-            Debug.Log($"[NOCHE] salgo al mapa con la noche en marcha: {sim.ZombiesAlive} zombis pasan a NightSim, hora {_ng.Hour:00}:{_ng.Minute:00}");
+            sim.NextNightParams = s.Next;
+            if (_ng.P.NetClock && NetSession.A != null && _zoneNode >= 0)      // reloj único (D-N186): la noche vuelve a la red, una copia en A y otra igual en B; solo NetWorld.Step la avanza
+            {
+                RegistrarNoche(_zoneNode, sim, s); if (s.Sim.Bot != null) s.Bot = s.Sim.Bot;
+                if (s.Clock != null) { Destroy(s.Clock.gameObject); s.Clock = null; }
+            }
+            else
+            {
+                s.Sim = sim; s.Away = true; s.Node = _zoneNode;
+                if (s.Clock == null) { var go = new GameObject("NightClock"); DontDestroyOnLoad(go); s.Clock = go.AddComponent<NightClock>(); } s.Clock.S = s;      // noche con reloj propio (sin red: pruebas)
+            }
+            Debug.Log($"[NOCHE] salgo al mapa con la noche {(s.Clock == null ? "en la red" : "con reloj propio")}: {sim.ZombiesAlive} zombis pasan a NightSim, hora {_ng.Hour:00}:{_ng.Minute:00}, empezada {(_ng.StartNetTick >= 0 ? "en el tick " + _ng.StartNetTick : "no (espera a las 22:00)")}");
         }
 
         /// <summary>Al volver a la zona: recrea los zombis en ECS desde NightSim, devuelve el muro, los vehiculos y los contadores, y quita el reloj de fondo.</summary>
@@ -114,10 +125,15 @@ namespace TBD.View
         }
 
         /// <summary>La noche acaba o se reinicia: se borra la sesion y el reloj de fondo.</summary>
-        public static void ClearNightSession()
+        public static void ClearNightSession() { ClearNightSession(true); }
+        /// <summary>todas = false: solo la noche de la zona abierta (derrota de esa estación); las otras siguen en la red.</summary>
+        public static void ClearNightSession(bool todas)
         {
             var s = NightRun.Session; if (s != null && s.Clock != null) Object.Destroy(s.Clock.gameObject);
+            if (s != null && s.Node >= 0) QuitarNoche(s.Node);
             NightRun.Session = null;
+            if (!todas) return;
+            foreach (var ps in NightRun.Aparcadas.Values) if (ps != null && ps.Node >= 0) QuitarNoche(ps.Node);
             foreach (var ps in NightRun.Aparcadas.Values) if (ps != null && ps.Clock != null) Object.Destroy(ps.Clock.gameObject);
             NightRun.Aparcadas.Clear();
         }

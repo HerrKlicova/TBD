@@ -334,7 +334,8 @@ namespace TBD.View
             _leaving = true;
             Sfx.Play("zoom_salir_mapa", Vector3.zero, 0.8f, 0.5f);                      // Nuria: barrido de zoom hacia el mapa (sonido-vivo.md)
             int alive = _zombieQuery.CalculateEntityCount();
-            if (NightRun.Active && _nightInit && _ng != null && _ng.State != TBD.Units.NightState.Derrota && !_seguirTrasNoche) { SaveNightSession(); alive = 0; }      // S2: tras caer la estación no se guarda su noche      // noche persistente: los zombis pasan a NightSim, no a la mancha del mapa
+            SoltarPausaRed();
+            if (NightRun.Active && _nightInit && _ng != null && _ng.State != TBD.Units.NightState.Derrota && (!_seguirTrasNoche || (_ng.P.NetClock && _ng.State == TBD.Units.NightState.Victoria))) { SaveNightSession(); alive = 0; }   // reloj único: la noche ganada también vuelve a la red      // S2: tras caer la estación no se guarda su noche      // noche persistente: los zombis pasan a NightSim, no a la mancha del mapa
             var ammo = _worldA.EntityManager.GetComponentData<ZoneAmmo>(_rootA);
             int usedUnits = (int)((ammo.ShotsFired + _combat.ShotsPerUnit - 1) / _combat.ShotsPerUnit);   // redondeo hacia arriba: una caja empezada se gasta
             if (_ambush)
@@ -504,7 +505,8 @@ namespace TBD.View
             if (NightRun.Active && !_nightInit && _zoneNode >= 0 && _worldA != null && _worldA.IsCreated && !_cutting) InitNight();
             if (_nightOn) NightUpdate();
 
-            if (!_paused && !TutorialHud.PidePausa && !(NightRun.Active && !_nightInit))      // la noche no corre ticks hasta que InitNight los pueda contar (el turbo y la velocidad del equipo no cambian el tick de arranque)
+            if (ZonaConRelojRed) { PausaZonaEnRed(); if (!TutorialHud.PidePausa) PasosZonaRed(); else _tickRedZona = NetSession.A.Tick; }      // reloj único (D-N186): un paso de zona por tick de red
+            else if (!_paused && !TutorialHud.PidePausa && !(NightRun.Active && !_nightInit))      // la noche no corre ticks hasta que InitNight los pueda contar (el turbo y la velocidad del equipo no cambian el tick de arranque)
             {
                 _acc += Time.unscaledDeltaTime * TurboN;
                 int steps = 0;

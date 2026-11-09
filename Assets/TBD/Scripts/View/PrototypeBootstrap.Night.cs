@@ -57,6 +57,7 @@ namespace TBD.View
             _nightInit = true; _nightOn = true; _acc = 0f; { long tkI = _worldA.EntityManager.GetComponentData<SimClock>(_rootA).Tick; HashLogCmd("InitNight;tick_ecs;" + tkI); Debug.Log("[NOCHE] InitNight en el tick ECS " + tkI + " (frame " + Time.frameCount + ", Active=" + NightRun.Active + ")"); } _debugHud = false; _nightT0 = Time.realtimeSinceStartup;
             // oleadas, reloj, recursos y fuerza: noche_sagunto.json de Hugo (StreamingAssets/Noche), D-N74/D-N102. Sin el archivo, valores por defecto de Nacho.
             BalanceSource.Reader = f => { var pth = System.IO.Path.Combine(Application.streamingAssetsPath, "Noche", f); return System.IO.File.Exists(pth) ? System.IO.File.ReadAllText(pth) : null; };
+            AsegurarNochesRed();                                                         // reloj único: las noches de Sagunto y Nules ya están en la red (si se entra antes de pasar por el mapa)
             NightSim sim = null; int stock = 50 * WeaponCatalog.ShotsPerU;
             try
             {
@@ -78,6 +79,7 @@ namespace TBD.View
                 var tn = new CsvTable(System.IO.File.ReadAllText(System.IO.Path.Combine(dir, "balance_noche.csv")));
                 var jp = _ng.P; var np = NightParams.FromCsv(tn); np.Waves = jp.Waves; np.Entries = jp.Entries; np.ClockX = jp.ClockX; np.ScalePermil = jp.ScalePermil; np.TrainNotDefeat = jp.TrainNotDefeat; if (sim != null && sim.JsonForce != null && TrenALasPuertas()) np.TrainRect = jp.TrainRect;   // Eugenio (I-Noche110): solo el tren que espera a las puertas va fuera de la puerta este; en el andén, dentro   // Nules (Lucía da2d050; Hugo/Nacho 10:38): el JSON trae el tren fuera de la puerta este y que no es derrota; el CSV no lo tiene
                 np.EndHour = (np.StartHour + 23) % 24;                                  // D-N164: sin victoria por tiempo; solo se gana acabando con la horda
+                np.NetClock = RelojUnicoActivo;                                          // reloj único (D-N186): en partida, la noche espera a las 22:00 de la red y va a su ritmo
                 _ng = new NightGame(np, 77u + SemillaQA);
             }
             catch (System.Exception e) { Debug.LogWarning("[TBD] balance_*.csv no se pudo leer (" + e.Message + "): valores por defecto de Nacho"); }
@@ -85,36 +87,39 @@ namespace TBD.View
             { int reservaU = NetSession.A.Stock[_zoneNode, (int)Res.Municion]; int topeU = 47; stock = System.Math.Min(topeU, System.Math.Max(0, reservaU)) * WeaponCatalog.ShotsPerU; Debug.Log($"[NOCHE] almacén de munición de la zona: min(tope {topeU}, reserva {reservaU}) = {stock / WeaponCatalog.ShotsPerU} u"); }
             _uw = new UnitsWorld(1234u + SemillaQA) { StockShots = stock };
             int west = 32768;                                                        // rumbo −X (hacia la puerta oeste)
-            _pname.Clear();
-            // D-N173 (Iker): cada estación saca su propio plantel (Plantel.Pelotones); Sagunto, los cinco de siempre en los mismos sitios
             _estacionZona = NetSession.A != null && _zoneNode >= 0 && _zoneNode < NetSession.A.Graph.Nodes.Count ? NetSession.A.Graph.Nodes[_zoneNode].Name : "Sagunto";
-            foreach (var pp in TBD.Net.Plantel.Pelotones(_estacionZona, TutorialHud.Activo)) { var pl = _uw.AddPlatoon(pp.Tipo, pp.X, pp.Y, pp.Rumbo, pp.Formacion); if (pp.CotaMm > 0) pl.EyeMm = UnitsWorld.EyeInfantryMm + pp.CotaMm; _pname[pl.Id] = pp.Nombre; }   // D-N183: puestos de cada estación (Álvaro v1.1); en alto (azotea, banqueta), la boca sube con el suelo
+            // reloj único (D-N186): la noche de esta zona ya existe en la red (registrada al empezar la partida o al salir); sale de NochesZona (A y B) y la lleva la zona
+            if (NightRun.Session != null && NightRun.Session.Node >= 0 && NightRun.Session.Node != _zoneNode)       // otra zona: su noche se aparca (sigue fuera de pantalla) y se toma la de esta, si la hay
+            {
+                NightRun.Aparcadas[NightRun.Session.Node] = NightRun.Session; NightRun.Session = null;
+                Debug.Log($"[NOCHE] la noche de la zona anterior se aparca ({NightRun.Aparcadas.Count} aparcada(s))");
+            }
+            if (NightRun.Session == null && _zoneNode >= 0 && NightRun.Aparcadas.TryGetValue(_zoneNode, out var esta)) { NightRun.Session = esta; NightRun.Aparcadas.Remove(_zoneNode); }
+            if (NightRun.Session != null && NightRun.Session.Node == _zoneNode && _zoneNode >= 0) QuitarNoche(_zoneNode);
+            Debug.Log($"[NOCHE] noche de {_estacionZona}: {(NightRun.Session != null ? "la suya, reanudada" : "nueva")}");
+            bool resume = NightRun.Session != null && NightRun.Session.Away && NightRun.Session.Ng != null;
+            if (resume)                                                              // la noche ya existia: se reanuda con su NightGame y su UnitsWorld (sin sacar otra vez el plantel)
+            {
+                var S = NightRun.Session; _ng = S.Ng; _uw = S.Uw; _pname.Clear(); foreach (var kv in S.PName) _pname[kv.Key] = kv.Value;
+                _wallMax = S.WallMax; _wallHp = S.WallHp; _lastWave = S.LastWave; _nightWaveTotal = S.WaveTotal; _fullTrace.Clear(); if (S.FullTrace != null) _fullTrace.Append(S.FullTrace.ToString());
+            }
+            else _pname.Clear();
+            // D-N173 (Iker): cada estación saca su propio plantel (Plantel.Pelotones); Sagunto, los cinco de siempre en los mismos sitios
+            if (!resume) foreach (var pp in TBD.Net.Plantel.Pelotones(_estacionZona, TutorialHud.Activo)) { var pl = _uw.AddPlatoon(pp.Tipo, pp.X, pp.Y, pp.Rumbo, pp.Formacion); if (pp.CotaMm > 0) pl.EyeMm = UnitsWorld.EyeInfantryMm + pp.CotaMm; _pname[pl.Id] = pp.Nombre; }   // D-N183: puestos de cada estación (Álvaro v1.1); en alto (azotea, banqueta), la boca sube con el suelo
             Debug.Log($"[NOCHE] plantel de {_estacionZona}: {_pname.Count} pelotones"); if (_estacionZona == "Nules") TutorialHud.Senal(TutorialGuion.Senales.ZonaNules);   // 3.3 (Lucía 7e4b903)
             _escolta.Clear();
             {   // tropa bajada del tren en esta estación (Embarque.AtStation): sale junto al tren y el bot no la manda al muro (Hugo/Nacho, 9-nov)
                 var wz = NetSession.A; var tr = _ng.P.TrainRect; int ex = (tr.X0 + tr.X1) / 2, ey = tr.Y0 - 2900;   // junto al tren por el sur: en Nules A (192; 60), la escolta de la emboscada de Hugo
                 if (sim != null && sim.JsonForce != null && sim.JsonForce.Count > 1 && (wz == null || wz.LastAmbush.Tick < 0 || wz.LastAmbush.HoldUntil <= wz.Tick)) { ex = sim.JsonForce[1].Value[0]; ey = sim.JsonForce[1].Value[1]; }
                 if (sim != null && sim.JsonForce != null && sim.JsonForce.Count > 1) _puestoEnviado = new Vector2Int(sim.JsonForce[1].Value[0], sim.JsonForce[1].Value[1]);   // de noche, el pelotón enviado va donde lo midió NightSim (71,5; 70,5)
-                if (wz != null && _zoneNode >= 0) foreach (var pid in wz.Embarque.AtStation(_zoneNode, PasajeroTipo.Peloton)) { _embVistos.Add(pid); var pe = _uw.AddPlatoon(PlatoonKind.Fusileros, ex + 6000 * _escolta.Count, ey, west, Formation.Linea); _pname[pe.Id] = "Escolta " + (_escolta.Count + 1); _escolta.Add(pe.Id); }
+                if (wz != null && _zoneNode >= 0) foreach (var pid in wz.Embarque.AtStation(_zoneNode, PasajeroTipo.Peloton)) { _embVistos.Add(pid); if (resume && !NightRun.Session.Emb.Add(pid)) continue; var pe = _uw.AddPlatoon(PlatoonKind.Fusileros, ex + 6000 * _escolta.Count, ey, west, Formation.Linea); _pname[pe.Id] = "Escolta " + (_escolta.Count + 1); _escolta.Add(pe.Id); }
                 string trenAqui = "ninguno"; if (wz != null) foreach (var sv in wz.Services) if (sv.AtStop && sv.Stops.Count > 0 && sv.Stops[sv.StopIndex].Node == _zoneNode) trenAqui = sv.Train.Name + (sv.GateNode == _zoneNode ? " (a las puertas)" : " (en el andén)");
                 if (DiaEnLaRed()) { _esperandoNoche = true; Debug.Log($"[NOCHE] {_estacionZona} de día ({NetConst.Clock(wz != null ? wz.Tick : 0)}): la noche empieza a las 22:00 de la red"); }
                 else if (trenAqui == "ninguno" && wz != null && _ng.P.TrainNotDefeat) { _ng.TrainHp = 0; _trenPerdidoAvisado = true; _nocheSinTren = true; Debug.Log("[NOCHE] sin tren en la estación: la noche empieza sin tren (TrainHp = 0)"); }   // Hugo: si no, la noche mataba un tren que no estaba (traza de la 104); con el arreglo de Marcos (Level.TrainNightX) la horda ya no se va a X 900
                 Debug.Log($"[NOCHE] tren en {_estacionZona}: {trenAqui}; rectángulo del tren en la zona X {tr.X0 / 1000f:0.0}–{tr.X1 / 1000f:0.0}, Z {tr.Y0 / 1000f:0.0}–{tr.Y1 / 1000f:0.0} m; edificio X {_ng.P.StationRect.X0 / 1000f:0.0}–{_ng.P.StationRect.X1 / 1000f:0.0}, Z {_ng.P.StationRect.Y0 / 1000f:0.0}–{_ng.P.StationRect.Y1 / 1000f:0.0}; escolta {_escolta.Count} pelotón(es) en ({ex / 1000f:0.0}; {ey / 1000f:0.0}); el tren {(_ng.P.TrainNotDefeat ? "no es" : "es")} derrota");
             }
-            if (_estacionZona == "Sagunto" && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinazotea") < 0)      // D-N174 (Lucia, Alvaro 10.15): 2 pelotones de tiradores libres en el ala oeste del edificio de viajeros, boca a 6,35 m
+            if (!resume && _estacionZona == "Sagunto" && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinazotea") < 0)      // D-N174 (Lucia, Alvaro 10.15): 2 pelotones de tiradores libres en el ala oeste del edificio de viajeros, boca a 6,35 m
                 for (int az = 0; az < 2; az++) { var pa = _uw.AddPlatoon(PlatoonKind.Tiradores, 84500, 74300 + 4000 * az, west, Formation.Cuna); pa.EyeMm = 6350; _pname[pa.Id] = "Tiradores " + (az == 0 ? "azotea 1" : "azotea 2"); }
-            if (NightRun.Session != null && NightRun.Session.Node >= 0 && NightRun.Session.Node != _zoneNode)       // otra zona: su noche se aparca (sigue fuera de pantalla) y se toma la de esta, si la hay
-            {
-                NightRun.Aparcadas[NightRun.Session.Node] = NightRun.Session; NightRun.Session = null;
-                if (NightRun.Aparcadas.TryGetValue(_zoneNode, out var esta)) { NightRun.Session = esta; NightRun.Aparcadas.Remove(_zoneNode); }
-                Debug.Log($"[NOCHE] noche de {_estacionZona}: {(NightRun.Session != null ? "la suya, reanudada" : "nueva")} ({NightRun.Aparcadas.Count} aparcada(s))");
-            }
-            bool resume = NightRun.Session != null && NightRun.Session.Away && NightRun.Session.Ng != null;
-            if (resume)                                                              // la noche ya existia: se reanuda con su NightGame y su UnitsWorld
-            {
-                var S = NightRun.Session; _ng = S.Ng; _uw = S.Uw; _pname.Clear(); foreach (var kv in S.PName) _pname[kv.Key] = kv.Value;
-                _wallMax = S.WallMax; _wallHp = S.WallHp; _lastWave = S.LastWave; _nightWaveTotal = S.WaveTotal; _fullTrace.Clear(); if (S.FullTrace != null) _fullTrace.Append(S.FullTrace.ToString());
-            }
             foreach (var wld in new[] { _worldA, _worldB })                          // sin los zombis iniciales de la zona: solo las oleadas
             {
                 if (wld == null || !wld.IsCreated) continue;
@@ -205,8 +210,9 @@ namespace TBD.View
             }
             if (_ng.State == NightState.Derrota && !_endDismissed) return;            // derrota: el mundo se para
             _spawns.Clear();
-            bool diaRed = DiaEnLaRed();      // S1 qa52 (Marcos): entrar de día en una zona no arranca la noche; la noche espera a las 22:00 de la red
-            if (!diaRed && _esperandoNoche) IniciaNocheZona();
+            bool diaRed;
+            if (_ng.P.NetClock) { if (_ng.StartNetTick < 0 || _ng.State == NightState.Victoria) ArranqueRedZona(); diaRed = _ng.StartNetTick < 0; }   // reloj único: la zona arranca su noche a las 22:00 de la red (Begin) y no avanza antes
+            else { diaRed = DiaEnLaRed(); if (!diaRed && _esperandoNoche) IniciaNocheZona(); }      // S1 qa52 (Marcos): noche con reloj propio, parche de día
             if (!TutorialHud.HordaEnEspera && !diaRed) { var st0 = _ng.State; _ng.Attack(_pileNearStation, _nearTrain); SurroundedTrainZona(_nearTrain); _ng.ZombiesAlive = _zomCounted ? _zomPos.Count : -1; _ng.Step(_spawns); if (st0 == NightState.Jugando && _ng.State != NightState.Jugando) NightEnded(); if (_ng.State == NightState.Derrota) return; }   // D-N136: NightGame gana al acabar con la horda (WinOnClear, misma regla que NightSim)
             playing = _ng.State == NightState.Jugando;
 
@@ -478,7 +484,7 @@ namespace TBD.View
         void NightEnded()
         {
             if (_ng.State == NightState.Derrota) Sfx.Play("estacion_caida", Vector3.zero, 0.9f, 1f);
-            if (_ng.State == NightState.Derrota) ClearNightSession(); else if (NightRun.Session != null) NightRun.Session.Reported = true;   // D-N170: tras ganar la sesion SE QUEDA (el mundo sigue; salir y entrar no vuelve a sacar «Sagunto resiste» ni otra horda); solo la derrota la borra
+            if (_ng.State == NightState.Derrota) ClearNightSession(false); else if (NightRun.Session != null) NightRun.Session.Reported = true;   // D-N170: tras ganar la sesion SE QUEDA (el mundo sigue; salir y entrar no vuelve a sacar «Sagunto resiste» ni otra horda); solo la derrota la borra
             try { string d0 = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(d0); System.IO.File.WriteAllText(System.IO.Path.Combine(d0, "traza-noche" + TrazaSufijo + ".csv"), _fullTrace.ToString()); if (_rec != null && !_rec.Done) System.IO.File.WriteAllText(System.IO.Path.Combine(d0, "traza-zona" + TrazaSufijo + ".csv"), _rec.Trace.ToCsv()); } catch (System.Exception e0) { Debug.LogWarning("[TBD] traza noche: " + e0.Message); }
             bool win = _ng.State == NightState.Victoria; var a = _uw;
             int alive = 0, total = 0; foreach (var pl in a.Platoons) { alive += pl.AliveCount(); total += pl.Men.Count; }
@@ -533,7 +539,7 @@ namespace TBD.View
         /// <summary>«Seguir» (D-N91): abre la noche siguiente con las mismas oleadas a +10 % y reinicia los contadores del parte; el mundo no se detuvo.</summary>
         void NextNight()
         {
-            _reportClosed = true; _seguirTrasNoche = true; LeaveToMap(); ClearNightSession(); return;   // Lucía b4c2fe5: sin salto al amanecer (rompe el tiempo real)   // Eugenio (I-Noche110): sin el cartel viejo arriba del mapa   // Lucía (3f1764c): «Seguir» lleva al mapa y la red salta a las 06:00 del día siguiente
+            _reportClosed = true; _seguirTrasNoche = true; if (!(_ng != null && _ng.P.NetClock)) ClearNightSession(); LeaveToMap(); return;   // reloj único: la noche ganada vuelve a la red y la siguiente empieza a las 22:00 (BeginNextNight)   // Lucía b4c2fe5: sin salto al amanecer (rompe el tiempo real)   // Eugenio (I-Noche110): sin el cartel viejo arriba del mapa   // Lucía (3f1764c): «Seguir» lleva al mapa y la red salta a las 06:00 del día siguiente
             var np = _ng.P; np.ScalePermil = np.ScalePermil * 11 / 10;
             if (_ng.BeginNextNight(np)) { _reportClosed = false; _lastWave = -1; _nightKills = 0; _nightShotsSpent = 0; _nightLost = 0; _bannerText = $"{TimeStr()}. Noche {_ng.NightIndex + 1}.\nAguanta hasta el amanecer."; _bannerUntil = Time.unscaledTime + 4f; }
             else _reportClosed = true;
