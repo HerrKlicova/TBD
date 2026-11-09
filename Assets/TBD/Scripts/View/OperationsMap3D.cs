@@ -793,7 +793,7 @@ namespace TBD.View
                     GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#982420><b>" + txt + "</b></color>", _small); y += rr.height;
                     if (em.InApartado) { GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>" + Puertas.TextoApartado + "</color>", _small); y += _small.fontSize * 1.5f; }
                     var ev = Event.current; if (ev.type == EventType.MouseDown && ev.button == 0 && ev.clickCount == 2 && rr.Contains(ev.mousePosition)) { ev.Use(); EnterZone(em.Node); }
-                    if (_emSonado != em.Tick) { _emSonado = em.Tick; Sfx.Play("aviso_horda", Vector3.zero, 0.7f, 0.05f); Sfx.Duck(1.5f);   // Nuria (mvp-em1-caida-repetir.md) Debug.Log("[MAPA] EM-1 " + txt); }
+                    if (_emSonado != em.Tick) { _emSonado = em.Tick; Sfx.Play("aviso_horda", Vector3.zero, 0.7f, 0.05f); Sfx.Duck(1.5f); Debug.Log("[MAPA] EM-1 " + txt); }   // sonido: Nuria (mvp-em1-caida-repetir.md)
                 }
             }
             y = DrawColmenaAviso(pw, y, ref shown);                  // D-N160: «La Colmena se agita» (ámbar), antes del Enjambre
