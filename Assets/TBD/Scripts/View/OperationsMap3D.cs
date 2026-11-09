@@ -919,7 +919,7 @@ namespace TBD.View
             DrawCargo(pw);
             if (!Ui3.Activa) DrawIntel();                             // D-N185: con -ui3 el informe se abre con Tab (franja de arriba)
             if (!Ui3.Activa) GUI.Label(new Rect(16, Screen.height - _small.fontSize * 2.4f, Screen.width, 30),
-                "WASD mover · Q E girar · R F inclinar · rueda zoom (a menos de 2 km de una estación se entra en la zona) · J ir a la alerta · Tab informe · I símbolos APP-6 · Espacio pausa · 1/2/3 velocidad · Intro entrar en la emboscada · F9 captura", _small);
+                "WASD mover · Q E girar · R F inclinar · rueda zoom (a menos de 2 km de una estación se entra en la zona) · J ir a la alerta · Tab informe · I símbolos APP-6 · Espacio pausa · 1/2/3 velocidad · Intro entrar en la emboscada", _small);
             NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart);
         }
 

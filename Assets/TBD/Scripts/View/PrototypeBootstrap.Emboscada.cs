@@ -71,7 +71,7 @@ namespace TBD.View
             bool perdido = _ng.TrainHp <= 0;
             if (perdido || (_zomCounted && _zomPos.Count <= _embBase + 5))
             {
-                _embEnCurso = false; w.AmbushEnd(perdido);
+                _embEnCurso = false; w.AmbushEnd(perdido); if (NetSession.B != null) NetSession.B.AmbushEnd(perdido);   // en los dos mundos: con solo A, desincronización (qa52)
                 Debug.Log($"[EMBOSCADA] fin en la zona: {(perdido ? "tren perdido" : "rechazada")} (zombis {_zomPos.Count})");
                 HintMsg(perdido ? "El tren ha caído en la emboscada." : "Emboscada rechazada: el tren entra.", perdido);
             }
