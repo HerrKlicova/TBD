@@ -6,32 +6,49 @@ using UnityEngine;
 namespace TBD.View
 {
     /// <summary>
-    /// Partida de 30 min (Lucía, plan-partida-30min.md; red de Nacho, NetWorld.LastAmbush): cuando la red dispara la emboscada en el nodo de esta zona con el jugador
-    /// dentro (OnScreen), la zona crea los zombis (unos 300) en su entrada de más peso, que está fuera de la vista (D-N182). Una vez por emboscada (Tick).
-    /// Fuera de pantalla la resuelve la red. Con InApartado, la zona repite el aviso de la D-N177.
+    /// Partida de 30 min, emboscada de Lucía (e5f2f1c) con la red de Nacho (3544f914): el segundo tren que llega a Nules el día 2 queda a las puertas y la red rellena
+    /// NetWorld.LastAmbush. Con el jugador en la zona (OnScreen), la zona crea los 300 en la franja oeste (AmbushSpawn*, X 0–20 m, Z 30–70 m), repartidos en
+    /// AmbushArrivalS (30 s), y van a por el tren (X 20–84 m sobre la vía). Cuando se acaba la horda llama a w.AmbushEnd(trenPerdido); si no, la red suelta el tren
+    /// a los 10 min (HoldUntil). Fuera de pantalla lo resuelve la red. Una vez por emboscada (Tick).
     /// </summary>
     public partial class PrototypeBootstrap
     {
         long _emboscadaVista = -1;
+        int _embPendientes, _embTicks, _embBase = -1, _embIdx; bool _embEnCurso;
 
         void EmboscadaEnZona(List<SpawnPoint> spawns)
         {
             var w = NetSession.A; if (w == null || _ng == null) return;
             var e = w.LastAmbush;
-            if (e.Tick < 0 || e.Tick == _emboscadaVista || !e.OnScreen || e.Node != _zoneNode) return;
-            _emboscadaVista = e.Tick;
-            var en = _ng.P.Entries; if (en == null || en.Length == 0) { Debug.LogWarning("[EMBOSCADA] la zona no tiene entradas: no se crean zombis"); return; }
-            int best = 0; for (int i = 1; i < en.Length; i++) if (en[i].Weight > en[best].Weight) best = i;
-            var r = en[best]; int n = Mathf.Max(1, e.Zombies);
-            for (int i = 0; i < n; i++)
+            if (e.Tick >= 0 && e.Tick != _emboscadaVista && e.OnScreen && e.Node == _zoneNode)
             {
-                uint h = (uint)(i * 2654435761u) ^ (uint)e.Tick;                  // reparto fijo por índice y tick (sin azar de Unity: los dos mundos ven lo mismo)
-                int x = r.X0 + (int)(h % (uint)Mathf.Max(1, r.X1 - r.X0)), y = r.Y0 + (int)((h / 7919u) % (uint)Mathf.Max(1, r.Y1 - r.Y0));
-                spawns.Add(new SpawnPoint { Wave = 0, Entry = best, X = x, Y = y, Front = true });
+                _emboscadaVista = e.Tick; _embEnCurso = true; _embPendientes = Mathf.Max(1, e.Zombies); _embTicks = NetWorld.AmbushArrivalS * IMath.TickRate; _embIdx = 0;
+                _embBase = _zomPos.Count;
+                string tren = e.Service >= 0 && e.Service < w.Services.Count ? w.Services[e.Service].Train.Name : "tren";
+                Debug.Log($"[EMBOSCADA] zona {w.Graph.Nodes[e.Node].Name}: {_embPendientes} zombis en {NetWorld.AmbushArrivalS} s por la franja oeste contra el {tren}");
+                HintMsg($"Emboscada en {w.Graph.Nodes[e.Node].Name}: unos {_embPendientes} zombis atacan el {tren}.", true);   // texto de EM-1 (Lucía, a8b49fd)
             }
-            string tren = e.Service >= 0 && e.Service < w.Services.Count ? w.Services[e.Service].Train.Name : "tren";
-            Debug.Log($"[EMBOSCADA] zona {w.Graph.Nodes[e.Node].Name}: {n} zombis por {r.Name} contra el {tren}{(e.InApartado ? " (en el apartado)" : "")}");
-            HintMsg($"Emboscada en {w.Graph.Nodes[e.Node].Name}: unos {n} zombis atacan el {tren}." + (e.InApartado ? " " + Puertas.TextoApartado : ""), true);   // texto de EM-1 (Lucía, a8b49fd)
+            if (!_embEnCurso) return;
+            if (_embPendientes > 0)
+            {
+                int n = _embTicks > 1 ? Mathf.CeilToInt(_embPendientes / (float)_embTicks) : _embPendientes; _embTicks = Mathf.Max(1, _embTicks - 1);
+                for (int i = 0; i < n && _embPendientes > 0; i++, _embPendientes--, _embIdx++)
+                {
+                    uint h = (uint)(_embIdx * 2654435761u) ^ (uint)_emboscadaVista;           // reparto fijo (sin azar de Unity: los dos mundos ven lo mismo)
+                    int x = NetWorld.AmbushSpawnX0Mm + (int)(h % (uint)(NetWorld.AmbushSpawnX1Mm - NetWorld.AmbushSpawnX0Mm));
+                    int y = NetWorld.AmbushSpawnZ0Mm + (int)((h / 7919u) % (uint)(NetWorld.AmbushSpawnZ1Mm - NetWorld.AmbushSpawnZ0Mm));
+                    spawns.Add(new SpawnPoint { Wave = 0, Entry = 0, X = x, Y = y, Front = true });
+                }
+                return;
+            }
+            // acabada la llegada: termina cuando la horda vuelve a lo que había antes (o el tren cae)
+            bool perdido = _ng.TrainHp <= 0;
+            if (perdido || (_zomCounted && _zomPos.Count <= _embBase + 5))
+            {
+                _embEnCurso = false; w.AmbushEnd(perdido);
+                Debug.Log($"[EMBOSCADA] fin en la zona: {(perdido ? "tren perdido" : "rechazada")} (zombis {_zomPos.Count})");
+                HintMsg(perdido ? "El tren ha caído en la emboscada." : "Emboscada rechazada: el tren entra.", perdido);
+            }
         }
     }
 }
