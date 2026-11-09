@@ -46,6 +46,8 @@ namespace TBD.View
         readonly Dictionary<Mesh, int> _indice = new Dictionary<Mesh, int>();
         readonly Dictionary<GameObject, Entity> _ent = new Dictionary<GameObject, Entity>();
 
+        public static long TrisPila;           // [TRIS]: triángulos de las piezas puestas ahora (instancias × malla)
+        readonly Dictionary<GameObject, long> _tris = new Dictionary<GameObject, long>();
         public static bool Activa = true;
         public static bool Forzar4;            // -pila4: todas las celdas a la altura 4, haya o no zombis (Sara, medir-fps-peor-caso.md)       // -sinpila la apaga (para comparar en captura)
         public static float EscalaAlto = 1f;    // alto y fondo de la pieza; las piezas vienen a escala real
@@ -239,7 +241,7 @@ namespace TBD.View
             if (!em.HasComponent<LocalToWorld>(e)) em.AddComponentData(e, new LocalToWorld { Value = math.mul(lt.ToMatrix(), post) });
             else em.SetComponentData(e, new LocalToWorld { Value = math.mul(lt.ToMatrix(), post) });
             em.AddComponentData(e, new ZombiePaleta { Value = HordaPaleta.Pack((uint)(ci * 7919 + (int)(tr.A.x * 13f) + (int)(tr.A.y * 31f))) });
-            _ent[go] = e;
+            _ent[go] = e; long tm = 0; for (int sm = 0; sm < m.subMeshCount; sm++) tm += m.GetIndexCount(sm) / 3; _tris[go] = tm; TrisPila += tm;   // [TRIS] (Sara)
             return go;
         }
 
@@ -247,6 +249,7 @@ namespace TBD.View
         void Quitar(GameObject go)
         {
             if (_ent.TryGetValue(go, out var e)) { if (EntityManager.Exists(e)) EntityManager.DestroyEntity(e); _ent.Remove(go); }
+            if (_tris.TryGetValue(go, out var tq)) { TrisPila -= tq; _tris.Remove(go); }
             Object.Destroy(go);
         }
 

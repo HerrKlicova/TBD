@@ -278,7 +278,8 @@ namespace TBD.View
             NetSession.PushPayload(NetCmdType.SetSchedule, sv, p);
             Empezar(sv, _origenP, _destinoP, _carga[(int)Res.Municion]);
             if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Union") Sfx.Play("tren_pitido_electrico", Vector3.zero, 0.36f, 10f);   // D-N170: en el mapa, en 2D a 0,36 (Nuria v2), como mucho una vez cada 10 s
-            if (W.Besieged(_destinoP) && W.EscortSoldiers(sv) == 0) { _aviso = Puertas.AvisoSitiada(W, _destinoP); _avisoHasta = Time.unscaledTime + 5f; _avisoAmbar = true; Debug.Log("[TREN] " + _aviso); }   // D-N177: en ámbar
+            if (W.Besieged(_destinoP) && W.EscortSoldiers(sv) == 0 && Puertas.SePierde(W, sv, _destinoP)) {   // Lucía: solo si en su sitio de espera se pierde
+                _aviso = Puertas.AvisoSitiada(W, _destinoP); _avisoHasta = Time.unscaledTime + 5f; _avisoAmbar = true; Debug.Log("[TREN] " + _aviso); }   // D-N177: en ámbar
             _vista = Vista.Nada;
             Debug.Log($"[TREN] enviado {W.Services[sv].Train.Name} de {W.Graph.Nodes[_origenP].Name} a {W.Graph.Nodes[_destinoP].Name}: carga {string.Join("/", _carga)}, ETA {TrenPreparar.HhMm(TrenPreparar.EtaDesdeParada(W, sv, _destinoP))}");
             TutorialHud.Senal(TutorialGuion.Senales.TrenEnviado);

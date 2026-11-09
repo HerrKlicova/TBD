@@ -43,6 +43,23 @@ namespace TBD.View
             ColmenaAvisoFuente = () => { var w = NetSession.A; return w != null && w.Director.ColWarning; };
         }
 
+        /// <summary>
+        /// ¿Se pierde sin escolta el tren en la estación sitiada a la que va o en la que está? (Lucía, informe-textos.md 09-11 01:44; Hugo, tren-a-las-puertas.md,
+        /// tabla vigente de 9-nov 01:45). El sitio sale de la red (D-N152): si el tren ya está dentro (TrainAtNode y no GateNode), está en el andén o el apartado;
+        /// si espera a las puertas (GateNode) o va de camino con GatesEnabled, esperará fuera. Sitios medidos donde se salva sin escolta: Nules fuera de la
+        /// puerta oeste (88 %) y Sagunto puerta este (100 %). Todo lo demás se pierde (D-N152: sitio sin medir, tren perdido).
+        /// </summary>
+        bool TrenSePierde(int service, string estacion)
+        {
+            var s = _a.Services[service];
+            int node = _a.Graph.Nodes.FindIndex(n => n.Name == estacion);
+            bool fuera;
+            if (node >= 0 && s.GateNode == node) fuera = true;
+            else if (node >= 0 && _a.TrainAtNode(s, node)) fuera = false;
+            else fuera = _a.GatesEnabled;
+            return !(fuera && InformeTextos.SeSalvaFuera(estacion));
+        }
+
         void AbrirInforme(bool on)
         {
             if (on == _informeOn) return;
@@ -233,6 +250,7 @@ namespace TBD.View
             {
                 string se = Puertas.SinEscolta(_a, i); if (se == null) continue;
                 string nombre = _a.Services[i].Train.Name, sitiada = InformeTextos.SitiadaDe(se);
+                if (!TrenSePierde(i, sitiada)) continue;                                // Lucía 09-11 01:44: solo donde la tabla de Hugo dice que se pierde
                 if (d.Valoracion.Count < 2) d.Valoracion.Add(T.ValTrenSinEscolta(nombre, sitiada));
                 d.Necesidades.Add(T.NecEscolta(nombre));
             }
@@ -430,6 +448,9 @@ namespace TBD.View
             int ef = Eficacia(estacion);
             return horda <= 0 ? 2 : (horda + ef - 1) / ef + 2;
         }
+        /// <summary>Estaciones donde el tren sin escolta que espera fuera de la puerta se salva (Hugo, tren-a-las-puertas.md 9-nov 01:45): Nules puerta oeste 88 %,
+        /// Sagunto puerta este 100 %. Dentro (apartado) o en estaciones sin medir, se pierde.</summary>
+        public static bool SeSalvaFuera(string estacion) { return estacion == "Nules" || estacion == "Sagunto"; }
         public static int Eficacia(string estacion) { return estacion == "Sagunto" ? 390 : 300; }
         /// <summary>Color de la necesidad cuando la estación tiene menos munición que el mínimo: el ámbar de aviso (Lucía, 09-11, decisiones-noche.md).</summary>
         public const string ColorFalta = "e08c30";

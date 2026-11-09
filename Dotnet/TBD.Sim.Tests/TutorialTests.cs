@@ -575,7 +575,8 @@ namespace TBD.Sim.Tests
                 check(!Puertas.EnPuertas(w, 0, sg) && Puertas.Motivo(w, 0) == null && Puertas.SinEscolta(w, 0) == null, "al empezar, ningún tren a las puertas ni aviso");
                 w.Services[1].GateNode = nu; w.Graph.Nodes[nu].State = NodeState.Asediada;
                 check(Puertas.EnPuertas(w, 1, nu) && Puertas.Motivo(w, 1) == w.GateReason(1) && Puertas.Motivo(w, 1).Contains("sitiada"), "a las puertas según GateNode de la red, con su motivo");
-                check(Puertas.SinEscolta(w, 1) == w.EscortWarning(1), "D-N177: el aviso de escolta es el de la red (EscortWarning)");
+                check(Puertas.SinEscolta(w, 1) == null || Puertas.SePierde(w, 1, nu), "D-N177 (Lucía): el aviso de escolta solo sale si en su sitio de espera el tren se pierde");
+                check(!Puertas.SePierde(w, 1, nu) && !Puertas.SePierde(w, 1, TrenPreparar.Nodo(w, "Sagunto")) && Puertas.SePierde(w, 1, TrenPreparar.Nodo(w, "Castellón")), "fuera de la puerta en Nules y en Sagunto se salva (NightSim): sin aviso; en Castellón (sin medir), sí");
                 w.Graph.Nodes[nu].State = NodeState.Segura; check(Puertas.SinEscolta(w, 1) == null, "sin asedio, sin aviso");
                 check(w.UndefendedWarnings().Count == 0, "Inicio: al empezar no hay ninguna horda en camino a una zona sin tropa");
                 { var rc = new RutaCap3(); int tx = 100_000, ty = 34_000; check(RutaCap3.Rodea(192_000, 60_000, tx, ty) && rc.Ajustar(7, 192_000, 60_000, ref tx, ref ty, -1, true) && tx == 160_000 && ty == 40_000, "capítulo 3: de la puerta este (192; 60) al flanco sur (100; 34) pasa antes por (160; 40)");

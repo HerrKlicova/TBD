@@ -32,13 +32,13 @@
   "escala_oleadas_permil": {
     "facil": 855,
     "normal": 1000,
-    "dificil": 1109
+    "dificil": 1123
   },
   "recursos_iniciales": {
     "municion_u": 20,
     "materiales_u": 20,
     "combustible_u": 0,
-    "nota": "CASO DE REFERENCIA: el objetivo «Lleva munición a Nules» tras la 1.ª noche se cumple al descargar 20 u o más (Lucía, 8-nov); materiales 20 u, supuesto mío. La reserva de Nules empieza con 0 u de munición (existencias_red.json); el almacén toma min(tope 47/30/40, reserva). Recinto de partida 124,3 u ya construido (82,3 de muro + 42 de puertas, Iker)."
+    "nota": "CASO DE REFERENCIA: el objetivo «Lleva munición a Nules» tras la 1.ª noche se cumple al descargar 20 u o más (Lucía, 8-nov); materiales 20 u, supuesto mío. La reserva de Nules empieza con 0 u de munición (existencias_red.json); el almacén toma min(tope 47/30/40, reserva). Recinto de partida 132,24 u ya construido (90,24 de muro + 42 de puertas; Álvaro 9-nov, nules-nivel.md §14: 20,41 m del muro oeste pasan de sacos a HESCO)."
   },
   "fuerza": {
     "pelotones": [
@@ -86,12 +86,12 @@
         "hora": "22:00",
         "minuto_juego": 0,
         "llegada_s_reales": 180,
-        "total": 2440,
+        "total": 2470,
         "por_entrada": {
-          "O1": 610,
-          "O2": 976,
-          "O3": 488,
-          "O4": 366
+          "O1": 617,
+          "O2": 989,
+          "O3": 494,
+          "O4": 370
         }
       }
     ]
