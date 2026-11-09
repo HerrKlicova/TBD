@@ -43,6 +43,8 @@ namespace TBD.View
         readonly Dictionary<string, (Rect r, int frame)> _obj = new Dictionary<string, (Rect, int)>();
         GUIStyle _head, _txt, _btn, _line; Texture2D _panel, _white, _btnTex, _btnHot;
         float _flash; int _repVistas; string _pasoVisto; bool _pausaMapa; float _c90T;
+        float _maqCompletaT = -1f; public const float LecturaS = 1.5f;      // tras escribirse entero, tiempo de lectura antes de que un cierre por tiempo la quite
+        bool TextoListo() { return _maq == null || (_maq.Completa && _maqCompletaT >= 0f && Time.unscaledTime - _maqCompletaT >= LecturaS); }
         Maquina _maq, _maqS; Suelta _sueltaVista; readonly List<string> _snd = new List<string>();   // texto letra a letra con tecleo (Eugenio, 8-nov)
 
         static readonly Color Bone = new Color32(0xd4, 0xd0, 0xcc, 255), Ink = new Color32(0x1c, 0x20, 0x0c, 255);
@@ -108,7 +110,7 @@ namespace TBD.View
         }
         void ArrancarCap4()
         {
-            var m4 = TutorialGuion.NuevoCap4(new Prefs()); m4.EstadoActual = EstadoJuego; m4.Relleno = t => t.Replace("{eta}", AerodromoVista.EtaTexto());
+            var m4 = TutorialGuion.NuevoCap4(new Prefs()); m4.EstadoActual = EstadoJuego; m4.TextoListo = TextoListo; m4.Relleno = t => t.Replace("{eta}", AerodromoVista.EtaTexto());
             if (!m4.Arrancar(NightRun.Difficulty, forzar: Arg("-tutorial"))) return;
             _cap4Pendiente = false; _m = m4; _logVisto = 0; _pasoVisto = null;
             Debug.Log("[TUTORIAL] capítulo 4 (aeródromo): arranca");
@@ -221,7 +223,7 @@ namespace TBD.View
                 if (_pendiente && NightRun.Active && !Arg("-sintutorial"))
                 {
                     _pendiente = false;
-                    _m = TutorialGuion.Nuevo(new Prefs()); _logVisto = 0; _m.EstadoActual = EstadoJuego; _m.Relleno = t => t.Replace("{eta}", TrenPanel.EtaTexto()); _principal = _m;
+                    _m = TutorialGuion.Nuevo(new Prefs()); _logVisto = 0; _m.EstadoActual = EstadoJuego; _m.TextoListo = TextoListo; _m.Relleno = t => t.Replace("{eta}", TrenPanel.EtaTexto()); _principal = _m;
                     bool ok = _m.Arrancar(NightRun.Difficulty, forzar: Arg("-tutorial") || Arg("-tutorial-auto"));
                     Debug.Log(ok ? $"[TUTORIAL] arranca (dificultad {NightRun.Difficulty})" : $"[TUTORIAL] no arranca (dificultad {NightRun.Difficulty})");
                     if (!ok) _m = null;
@@ -273,6 +275,7 @@ namespace TBD.View
                 if (_m.Repeticiones != _repVistas) { _repVistas = _m.Repeticiones; _flash = 1.2f; _maq = new Maquina(_m.TextoSinRelleno, (uint)(p.Id.GetHashCode() + _repVistas)); }   // al repetirse se vuelve a escribir
                 if (_maq != null && _maq.Texto != _m.TextoSinRelleno) _maq = new Maquina(_m.TextoSinRelleno, 7);   // el texto cambió (la línea extra del 1.3); el ETA no cuenta
                 _maq?.Avanzar(Time.unscaledDeltaTime, _snd);
+                if (_maq != null && _maq.Completa) { if (_maqCompletaT < 0f) _maqCompletaT = Time.unscaledTime; } else _maqCompletaT = -1f;
                 if (Auto && _m.EnPaso >= 2.5f && p.Cierre == Cierre.Senal)
                 {
                     CapturaAuto("paso_" + p.Id.Replace('.', '_'));

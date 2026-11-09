@@ -66,6 +66,9 @@ namespace TBD.Tutorial
         public const string BotonSaltar = "Saltar tutorial";
         /// <summary>Lucía (mvp-lo-que-falta, 9-nov): cada tarjeta se ve al menos estos segundos; una señal que llega antes la cierra al cumplirlos. Las pruebas lo ponen a 0.</summary>
         public static float MinVisible = 3f;
+        /// <summary>La vista dice si el texto de la tarjeta ya se ha escrito entero y ha dado tiempo a leerlo (Eugenio, 9-nov: el 1.3 pasaba al 1.4 a medio escribir).
+        /// Los cierres por tiempo esperan a que sea true; los cierres por una acción del jugador, no. null = siempre listo (pruebas).</summary>
+        public Func<bool> TextoListo;
         bool _cierrePendiente; string _cierrePor;
         public const float RepetirCada = 25f;      // sin avanzar en una tarjeta de señal, se repite su texto (desvío sin castigo)
         public const int DificilDesde = 951;       // palanca de dificultad (D-N74): 725 fácil, 850 normal, 1000 difícil; la difícil no tiene tutorial
@@ -195,14 +198,14 @@ namespace TBD.Tutorial
             var p = Actual;
             EnPaso += dt; _sinAvance += dt;
             if (_cierrePendiente && EnPaso >= MinVisible) { Log($"{p.Id} cerrado por {_cierrePor} (a los {MinVisible:0} s)"); Siguiente(); return; }
-            if (p.Cierre == Cierre.Segundos) { if (EnPaso >= p.Segundos) { Log($"{p.Id} cerrado a los {p.Segundos:0} s"); Siguiente(); } return; }
+            if (p.Cierre == Cierre.Segundos) { if (EnPaso >= p.Segundos && (TextoListo == null || TextoListo())) { Log($"{p.Id} cerrado a los {p.Segundos:0} s"); Siguiente(); } return; }
             if (EstadoActual != null)
             {
                 bool todas = true, alguna = false; string cual = null;
                 foreach (var x in p.Senales) { bool ya = _enPaso.Contains(x) || EstadoActual(x); todas &= ya; if (ya && !alguna) { alguna = true; cual = x; } }
                 if ((p.Todas ? todas : alguna) && EnPaso >= MinVisible) { Log($"{p.Id} cerrado: ya se cumple {cual}"); Siguiente(); return; }
             }
-            if (p.Segundos > 0 && EnPaso >= Math.Max(p.Segundos, MinVisible)) { Log($"{p.Id} cerrado por tiempo"); Siguiente(); return; }
+            if (p.Segundos > 0 && EnPaso >= Math.Max(p.Segundos, MinVisible) && (TextoListo == null || TextoListo())) { Log($"{p.Id} cerrado por tiempo"); Siguiente(); return; }
             if (_sinAvance >= RepetirCada && !p.Pausa && !p.Linea) Repetir();
         }
 
