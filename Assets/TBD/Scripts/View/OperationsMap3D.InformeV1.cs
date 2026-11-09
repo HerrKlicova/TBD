@@ -510,8 +510,8 @@ namespace TBD.View
         public string AmenazaAtaca(string est, string dir, string cifra)                 // Lucía, añadidos 08-11
         { return est + ": la Colmena ataca" + (dir != null ? " por el " + SinAl(dir) : "") + "." + (cifra != null ? " " + cifra + "." : ""); }
         /// <summary>Lucía: «{tramo}: el tren {n} pasa a la misma hora {k} días seguidos. Lo ha aprendido.» La red da el tramo y la franja, pero no el tren
-        /// ni los días seguidos (M es una memoria con olvido, no un contador), así que esas partes quedan vacías. Falta que Lucía dé por buena la hora.</summary>
-        public string AmenazaTrafico(string tramo, string hora) { return tramo + ": el tren pasa a la misma hora, hacia las " + hora + ". Lo ha aprendido."; }
+        /// ni los días seguidos (M es una memoria con olvido, no un contador): versión corta de Lucía (09-11). Con tren y días, vuelve la plantilla completa.</summary>
+        public string AmenazaTrafico(string tramo, string hora) { return tramo + ": el tren pasa siempre hacia las " + hora + ". Lo ha aprendido."; }   // Lucía, 09-11: corta hasta que la red dé tren y días
         public string AmenazaAtencion(string zona) { return zona + ": la Colmena se aparta de donde miramos y crece donde no."; }
         public string AmenazaTrebol(string est, string dir) { return est + ": movimiento sin identificar" + (dir != null ? " " + dir + " de la estación" : " cerca de la estación") + "."; }
 
