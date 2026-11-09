@@ -1002,6 +1002,8 @@ namespace TBD.View
                 if (System.Array.IndexOf(pref, "Trozo") >= 0 && _chunkRoot != null) _chunkRoot.gameObject.SetActive(false);   // los trozos de suelo se cargan después: se apaga la raíz
                 Debug.Log("[SOMBRA] -ocultar " + args[io + 1] + ": " + apagados + " renderers apagados");
             }
+            int ip = System.Array.IndexOf(args, "-picar");
+            if (ip >= 0 && ip + 1 < args.Length) StartCoroutine(Picar(args[ip + 1]));
             var lp = LightmapSettings.lightProbes;
             Debug.Log("[SOMBRA] sondas de luz en la escena: " + (lp != null ? lp.count.ToString() : "ninguna") + " · mapas de luz: " + LightmapSettings.lightmaps.Length + " · modo ambiente: " + RenderSettings.ambientMode + " · reflejo: " + RenderSettings.defaultReflectionMode);
             bool trozo = false; var ic = System.Globalization.CultureInfo.InvariantCulture;
@@ -1020,6 +1022,38 @@ namespace TBD.View
                     + " bloque=" + r.HasPropertyBlock() + " tex=" + (t != null ? t.name + " " + t.width + "x" + t.height + " " + t.graphicsFormat : "-")
                     + " col=" + (m != null && m.HasProperty("_BaseColor") ? ColorUtility.ToHtmlStringRGBA(m.GetColor("_BaseColor")) : "-") + " shader=" + (m != null ? m.shader.name : "-")
                     + (esVia && sinSondas ? " [-viasinsondas]" : "") + (esVia && sinTex ? " [-viasintextura]" : ""));
+            }
+        }
+
+        /// <summary>I-Noche84: -ocultar no encuentra la franja. -picar "x,y;x,y" (píxeles de pantalla, origen arriba a la izquierda) lanza un rayo desde la cámara del mundo
+        /// por cada punto y registra, cada 20 s hasta los 120 s, las cajas de todos los renderers que cruza, de la más cercana a la más lejana (nombre, padre, material).</summary>
+        System.Collections.IEnumerator Picar(string spec)
+        {
+            var ic = System.Globalization.CultureInfo.InvariantCulture;
+            for (int vuelta = 0; vuelta < 6; vuelta++)
+            {
+                yield return new WaitForSeconds(20f);
+                if (_worldCam == null) continue;
+                foreach (var pt in spec.Split(';'))
+                {
+                    var xy = pt.Split(','); if (xy.Length != 2) continue;
+                    float px = float.Parse(xy[0], ic), py = float.Parse(xy[1], ic);
+                    var ray = _worldCam.ViewportPointToRay(new Vector3(px / Screen.width, 1f - py / Screen.height, 0f));
+                    var hits = new System.Collections.Generic.List<(float d, string txt)>();
+                    foreach (var r in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+                    {
+                        if (!r.enabled || !r.gameObject.activeInHierarchy || ((1 << r.gameObject.layer) & _worldCam.cullingMask) == 0) continue;
+                        if (!r.bounds.IntersectRay(ray, out float d)) continue;
+                        var m = r.sharedMaterial; var t = m != null && m.HasProperty("_BaseMap") ? m.GetTexture("_BaseMap") : null;
+                        hits.Add((d, r.name + " (padre " + (r.transform.parent != null ? r.transform.parent.name : "-") + ") " + (m != null ? m.shader.name : "-")
+                            + " col=" + (m != null && m.HasProperty("_BaseColor") ? ColorUtility.ToHtmlStringRGB(m.GetColor("_BaseColor")) : "-") + " tex=" + (t != null ? t.name : "-")
+                            + " y=" + r.bounds.min.y.ToString("0.00", ic) + ".." + r.bounds.max.y.ToString("0.00", ic) + " tam=" + r.bounds.size.ToString("0.0")));
+                    }
+                    hits.Sort((a, b) => a.d.CompareTo(b.d));
+                    var sb = new System.Text.StringBuilder("[PICAR] t=" + Time.timeSinceLevelLoad.ToString("0", ic) + " punto " + pt + ": " + hits.Count + " cajas");
+                    for (int i = 0; i < hits.Count && i < 10; i++) sb.Append("\n   " + hits[i].d.ToString("0.00", ic) + " m · " + hits[i].txt);
+                    Debug.Log(sb.ToString());
+                }
             }
         }
 
