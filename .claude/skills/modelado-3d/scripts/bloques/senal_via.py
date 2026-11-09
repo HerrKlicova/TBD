@@ -17,7 +17,7 @@ from taller import Taller
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 PIEZAS = ["mastil", "cabeza", "foco", "placa", "letra", "armario"]
-COLORES = {"mastil": "6c7874", "cabeza": "48403c", "foco": "48403c", "placa": "d4d0cc", "letra": "48403c",
+COLORES = {"mastil": "6c7874", "cabeza": "48403c", "foco": "48403c", "placa": "b8b8b8", "letra": "48403c",
            "armario": "94948c"}
 FACCION = "neutro"
 PRESUPUESTO = {0: (20, 700), 1: (10, 300)}

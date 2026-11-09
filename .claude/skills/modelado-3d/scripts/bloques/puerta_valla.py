@@ -4,8 +4,8 @@ de acceso de la foto AE1). Teo (3), 8-nov.
 Foto AE1_betera_torre_1 de Paula: pórtico de tubo verde con el cartel de letras sueltas encima («TODO POR LA PATRIA»;
 en el modelo, una placa sin letras) y una puerta de dos hojas de barrotes con chapa abajo, entre muretes encalados.
 Medidas SIN VERIFICAR: hueco de 7 m (carretera de dos carriles), hojas de 3,5 × 2,2 m, pórtico de 5 m.
-Colores: pórtico y hojas 50541c (el verde de la foto), chapa 70784c, placa d4d0cc (letras 48403c en el LOD0), muretes
-d4d0cc con remate 94948c, sacos 605c48, espino 48403c.
+Colores: pórtico y hojas 50541c (el verde de la foto), chapa 70784c, placa b8b8b8 (9-nov; antes d4d0cc, reservado) (letras 48403c en el LOD0), muretes
+b8b8b8 (9-nov; antes d4d0cc, reservado) con remate 94948c, sacos 605c48, espino 48403c.
 Disposición: origen en el suelo, en el centro del hueco; la valla a lo largo de X y FUERA = −Y (= +Z de Unity con yaw 0).
 Jerarquía: SM_…_LODn con Hoja_O (bisagra en x = −3,5) y Hoja_E (x = +3,5); ABRIR = girar +90° (O) y −90° (E) sobre la
 vertical, hacia dentro.
@@ -18,8 +18,8 @@ from montaje import Montaje, separar as _separar
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0) % 5
 PIEZAS = ["portico", "hoja", "chapa", "placa", "letra", "murete", "remate", "sacos", "espino"]
-COLORES = {"portico": "50541c", "hoja": "50541c", "chapa": "70784c", "placa": "d4d0cc", "letra": "48403c",
-           "murete": "d4d0cc", "remate": "94948c", "sacos": "605c48", "espino": "48403c"}
+COLORES = {"portico": "50541c", "hoja": "50541c", "chapa": "70784c", "placa": "b8b8b8", "letra": "48403c",
+           "murete": "b8b8b8", "remate": "94948c", "sacos": "605c48", "espino": "48403c"}
 FACCION = "neutro"
 NORMALES_ARRIBA = True
 NORMALES_INCLINACION = 0.5

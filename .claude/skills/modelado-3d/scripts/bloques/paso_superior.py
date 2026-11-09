@@ -5,7 +5,7 @@ cruza a lo largo de Y. MEDIDAS SIN VERIFICAR (típicas, a falta de las fotos de 
 superior del fondo de E3_poste_catenaria_2): gálibo libre de 7,0 m sobre el carril (vía electrificada), tablero de
 1,3 m de canto con cuatro vigas, calzada de 9 m entre pretiles de 0,3 x 1,1 m, estribos de 3 m de fondo con aletas.
 Los terraplenes de acceso los pone el terreno (Marcos). Colores: hormigón 94948c, cara inferior, vigas e imposta
-6c7874, calzada 48403c, línea de la calzada d4d0cc (solo LOD0).
+6c7874, calzada 48403c, línea de la calzada b8b8b8 (9-nov; antes d4d0cc, reservado) (solo LOD0).
 """
 import math, os
 from taller import Taller
@@ -14,7 +14,7 @@ VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 PIEZAS = ["hormigon", "viga", "calzada", "linea", "imposta", "estribo"]
 # Lucía (17:37): nada de b8b8b8 a lo largo de piezas largas en ninguna pieza (el filo claro del pretil se confunde con
 # el contorno de selección d4d0cc). Hormigón 94948c; imposta un escalón más oscura.
-COLORES = {"hormigon": "94948c", "viga": "6c7874", "calzada": "48403c", "linea": "d4d0cc", "imposta": "6c7874",
+COLORES = {"hormigon": "94948c", "viga": "6c7874", "calzada": "48403c", "linea": "b8b8b8", "imposta": "6c7874",
            "estribo": "94948c"}
 FACCION = "neutro"
 PRESUPUESTO = {0: (60, 1500), 1: (30, 600)}

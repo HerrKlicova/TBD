@@ -5,7 +5,7 @@ Sin foto de Bétera. Tipo genérico de tanque aéreo de combustible: cilindro de
 hormigón, pasarela con barandilla arriba, escalera en un fondo, boca de hombre, venteo y tubería de salida con válvula
 abajo. Medidas SIN VERIFICAR: 12 m de largo, 3 m de diámetro y eje a 2,1 m.
 Las existencias del aeródromo se leen en los tanques (D-N173): el nivel lo pone el juego, no el modelo.
-Colores: cuerpo 94948c (gris), 70784c (verde) o d4d0cc (blanco) según la variante, con la generatriz de arriba más
+Colores: cuerpo 94948c (gris), 70784c (verde) o b8b8b8 (9-nov; antes d4d0cc, reservado) (blanco) según la variante, con la generatriz de arriba más
 clara b4a080 en la pasarela; cunas 94948c, tubería y escalera 6c7874, válvula 543820, óxido 7c3c18, sacos 605c48.
 Origen en el suelo, en el centro; eje del tanque a lo largo de X. «Fuera» no aplica.
 Variantes (TBD_VARIANTE % 5): 0 gris; 1 verde militar; 2 blanco; 3 viejo con regueros de óxido; 4 protegido con un
@@ -16,7 +16,7 @@ from taller import Taller
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0) % 5
 PIEZAS = ["cuerpo", "cuna", "metal", "pasarela", "valvula", "oxido", "sacos"]
-CUERPO = {0: "94948c", 1: "70784c", 2: "d4d0cc", 3: "94948c", 4: "70784c"}[VAR]
+CUERPO = {0: "94948c", 1: "70784c", 2: "b8b8b8", 3: "94948c", 4: "70784c"}[VAR]   # v2 blanco en b8b8b8 (9-nov, Lucía: d4d0cc reservado)
 COLORES = {"cuerpo": CUERPO, "cuna": "94948c" if VAR != 0 else "88885c", "metal": "6c7874", "pasarela": "b4a080",
            "valvula": "543820", "oxido": "7c3c18", "sacos": "605c48"}
 FACCION = "neutro"

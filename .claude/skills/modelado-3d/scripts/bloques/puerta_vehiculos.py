@@ -28,7 +28,7 @@ ASPECTO = VAR % 5
 PIEZAS = ["sacos", "hesco", "relleno", "hormigon", "marco", "chapa", "tablon", "fleje", "malla", "alambre", "placa"]
 COLORES = {"sacos": "88885c", "hesco": "70784c", "relleno": "b4a080", "hormigon": "b8b8b8", "marco": "6c7874",
            "chapa": "94948c", "tablon": "b4a080", "fleje": "48403c", "malla": "70784c", "alambre": "48403c",
-           "placa": "d4d0cc"}
+           "placa": "b8b8b8"}
 FACCION = "propio"
 PRESUPUESTO = {0: (150, 3000), 1: (75, 1500)}
 UMBRAL_CONTORNO = {0: 9.0, 1: 9.0}

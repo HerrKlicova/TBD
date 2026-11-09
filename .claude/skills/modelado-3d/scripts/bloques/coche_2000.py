@@ -5,7 +5,7 @@ marca: son perfiles genéricos de compacto y de berlina de esa época, sin logot
 MEDIDAS SIN VERIFICAR (típicas de la clase, sin ficha consultada): compacto de 4,3 × 1,77 × 1,46 m; berlina de
 4,4 × 1,75 × 1,44 m y berlina corta de 4,3 m; ruedas de 0,62 m de diámetro.
 Colores (el rojo de la foto del León está vetado): carrocería por valor partido (techo, costado): gris azulado
-azul 94948c/283440 (los grises y 60546c están vetados en costados), beige b4a080/605c48 y blanco d4d0cc/b8b8b8 (Lucía: el negro se fundía con la horda). Lunas 48403c, ruedas de goma 283440 (separadas de la
+azul 94948c/283440 (los grises y 60546c están vetados en costados), beige b4a080/605c48 y blanco b8b8b8 (9-nov; antes d4d0cc, reservado)/b8b8b8 (Lucía: el negro se fundía con la horda). Lunas 48403c, ruedas de goma 283440 (separadas de la
 carrocería, norma de Eugenio), faros 88885c en el LOD0. Delante = −Y (+Z en Unity).
 Variantes: 0 compacto; 1 berlina; 2 berlina corta; 3 compacto con la puerta del conductor abierta y una rueda pinchada;
 4 berlina quemada (sin lunas ni ruedas, caída sobre las llantas); 5 berlina corta con las puertas y el maletero abiertos.
@@ -16,7 +16,7 @@ from taller import Taller
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 _V = VAR % 6
 _TIPO = (0, 1, 2, 0, 1, 2)[_V]            # 0 compacto, 1 berlina, 2 berlina corta
-_PINT = (("94948c", "283440"), ("b4a080", "605c48"), ("d4d0cc", "b8b8b8"))[_TIPO]   # blanco (Lucía, 18:14: 181c30 se funde con la horda)
+_PINT = (("94948c", "283440"), ("b4a080", "605c48"), ("b8b8b8", "88885c"))[_TIPO]   # blanco en b8b8b8/88885c (9-nov, Lucía: d4d0cc es la selección), antes (Lucía, 18:14: 181c30 se funde con la horda)
 QUEMADO = _V == 4
 PIEZAS = ["casco", "luna", "rueda", "faro", "puerta"]
 COLORES = {"casco": "48403c" if QUEMADO else _PINT[1], "luna": "283440" if QUEMADO else "48403c", "rueda": "283440",

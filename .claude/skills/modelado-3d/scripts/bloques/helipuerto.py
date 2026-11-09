@@ -11,10 +11,10 @@ sobre vástago en esquinas y centros de lado; civil, solo para la losa y las bal
 flexibles rodantes negros y mangueras por el suelo), H9_1 (pareja de luces sobre soporte galvanizado con caja de
 bornes, poste de menos de 1 m) y H9_2 (balizas bajas sobre hierba).
 Lo que se modela: losa cuadrada de 18 m (cubre la TLOF de 16,2 con margen), marcas de la zona de toma (círculo y «H»
-en d4d0cc sobre hormigón 6c7874, oscuro para que la H se lea), borde de la FATO de 30 m marcado con balizas bajas, manga de viento y un punto de
+en b8b8b8 (9-nov; antes d4d0cc, reservado) sobre hormigón 6c7874, oscuro para que la H se lea), borde de la FATO de 30 m marcado con balizas bajas, manga de viento y un punto de
 rearme y repostaje con cajas de munición, bidones y depósito flexible.
 Los focos de las balizas van apagados en 60546c y salen en el hijo «Luces» (transformación identidad) para que Marcos
-les dé emisión de noche. Nada de rojo ni ámbar (la manga va en d4d0cc con bandas 48403c).
+les dé emisión de noche. Nada de rojo ni ámbar (la manga va en b8b8b8 (9-nov; antes d4d0cc, reservado) con bandas 48403c).
 Origen en el centro de la H, en el suelo; la H se lee mirando a −Y (+Z en Unity).
 Variantes (TBD_VARIANTE % 5): 0 losa de hormigón con H y círculo, 12 balizas y rearme pequeño; 1 de campaña: chapas
 perforadas (PSP) en vez de losa, balizas solo en las esquinas y depósito flexible con bomba; 2 dañada: esquina rota,
@@ -28,8 +28,8 @@ VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 ASPECTO = VAR % 5
 PIEZAS = ["losa", "marca", "baliza", "foco", "caja", "bidon", "deposito", "palet", "manga", "mastil", "sacos",
           "gavion", "lona", "chapa", "crater", "psp"]
-COLORES = {"losa": "6c7874", "marca": "d4d0cc", "baliza": "605c48", "foco": "60546c", "caja": "50541c",
-           "bidon": "605c48", "deposito": "48403c", "palet": "6c4038", "manga": "d4d0cc", "mastil": "6c7874",
+COLORES = {"losa": "6c7874", "marca": "b8b8b8", "baliza": "605c48", "foco": "60546c", "caja": "50541c",
+           "bidon": "605c48", "deposito": "48403c", "palet": "6c4038", "manga": "b8b8b8", "mastil": "6c7874",
            "sacos": "847c34", "gavion": "847c34", "lona": "70784c", "chapa": "6c7874", "crater": "48403c",
            "psp": "70784c"}    # chapas perforadas de campaña, más verdes que el hormigón
 FACCION = "neutro"
@@ -94,7 +94,7 @@ def construir(nombre="SM_Helipuerto", lod=0):
     for x in (-1.6, 1.6):
         m.caja((x, 0, zt + 0.01), (0.7, 5.0, 0.02), "marca")
     m.caja((0, 0, zt + 0.01), (2.48, 0.7, 0.02), "marca")
-    if a in (0, 3, 4):                                      # banda del borde de la losa (H7_3; en d4d0cc, sin amarillo)
+    if a in (0, 3, 4):                                      # banda del borde de la losa (H7_3; en b8b8b8 (9-nov; antes d4d0cc, reservado), sin amarillo)
         for sx, sy, lx, ly in ((0, -h + 0.3, LOSA - 0.02, 0.5), (0, h - 0.3, LOSA - 0.02, 0.5),
                                (-h + 0.3, 0, 0.5, LOSA - 1.3), (h - 0.3, 0, 0.5, LOSA - 1.3)):
             m.caja((sx, sy, zt + 0.01), (lx, ly, 0.02), "marca")

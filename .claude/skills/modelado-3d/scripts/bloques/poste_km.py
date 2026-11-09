@@ -2,7 +2,7 @@
 
 SIN FOTO de Paula (no está en las E: se pide). De memoria y SIN VERIFICAR: poste de hormigón blanco de sección
 cuadrada, de unos 0,25 m y 1,1 m de alto, con la cabeza achaflanada y el número del kilómetro pintado en negro en dos
-caras; los hectométricos son más bajos (0,6 m). Colores: hormigón d4d0cc, número 48403c, base de tierra 94948c.
+caras; los hectométricos son más bajos (0,6 m). Colores: hormigón b8b8b8 (9-nov; antes d4d0cc, reservado), número 48403c, base de tierra 94948c.
 Origen al pie; las caras con número miran a ±X (a lo largo de la vía). El LOD1 tiene 0,34 m de sección (2 px).
 Variantes: 0 kilométrico; 1 inclinado; 2 partido por la mitad, con el trozo en el suelo; 3 hectométrico;
 4 kilométrico con una placa de chapa atornillada; 5 tumbado.
@@ -12,7 +12,7 @@ from taller import Taller
 
 VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0)
 PIEZAS = ["hormigon", "numero", "base"]
-COLORES = {"hormigon": "d4d0cc", "numero": "48403c", "base": "94948c"}
+COLORES = {"hormigon": "b8b8b8", "numero": "48403c", "base": "94948c"}
 FACCION = "neutro"
 PRESUPUESTO = {0: (6, 200), 1: (3, 100)}
 UMBRAL_CONTORNO = {0: 9.0, 1: 9.0}

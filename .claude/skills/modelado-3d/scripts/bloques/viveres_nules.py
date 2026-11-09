@@ -16,7 +16,7 @@ Piezas:
   3 Balsa de riego (NV5: lámina impermeable y agua; Ø 14 m): Llena, Media, Vacia, Vallada, Rota (talud caído).
   4 Palots genéricos (cajones de 1,2 × 1,0 × 0,75 m; sin copiar los de manzana de NV4): Pila2, Bloque (3 × 2 × 3),
     Fila, Volcados, ConFruta.
-Colores: copa 70784c (arriba 88885c, abajo 50541c), tronco 605c48, fruta a86c50, tutor b4a080, cal d4d0cc, piedra
+Colores: copa 70784c (arriba 88885c, abajo 50541c), tronco 605c48, fruta a86c50, tutor b4a080, cal b8b8b8 (9-nov; antes d4d0cc, reservado), piedra
 94948c, teja a86c50, carpintería 605c48, ciprés 50541c (arriba 70784c), agua 6c7874, lámina 605c48, valla b8b8b8,
 palot b8b8b8 / 94948c, tierra 845c28 (solo arriba).
 """
@@ -34,7 +34,7 @@ NOMBRES_V = [["Plantones", "Jovenes", "HileraJoven", "HileraAdulta", "Calva"],
 PIEZAS = ["copa", "tronco", "fruta", "tutor", "cal", "piedra", "teja", "carpinteria", "cipres", "agua", "lamina",
           "valla", "palot", "palot2", "tierra", "hueco"]
 COLORES = {"copa": "70784c", "tronco": "605c48", "fruta": "a86c50", "tutor": "b4a080",
-           "cal": "f0dc9c" if (PIEZA, V) == (2, 1) else "d4d0cc", "piedra": "94948c", "teja": "a86c50",
+           "cal": "f0dc9c" if (PIEZA, V) == (2, 1) else "b8b8b8", "piedra": "94948c", "teja": "a86c50",
            "carpinteria": "605c48", "cipres": "50541c", "agua": "6c7874", "lamina": "605c48", "valla": "b8b8b8",
            "palot": "b8b8b8", "palot2": "94948c", "tierra": "845c28", "hueco": "605c48"}
 VALOR_PIEZAS = {"copa": ("88885c", "70784c", "50541c"), "cipres": ("70784c", "50541c", "50541c")}
