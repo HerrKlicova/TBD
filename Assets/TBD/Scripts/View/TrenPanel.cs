@@ -207,7 +207,7 @@ namespace TBD.View
                 if (meta == Nodo("Nules")) TutorialHud.Senal(TutorialGuion.Senales.TrenEnNules);
                 TutorialHud.Viaje.Llegado(Viaje, nombre);
                 var emb = W.LastAmbush; bool cercado = emb.Service == Viaje && emb.Surrounded && !emb.Repelled && emb.HoldUntil > W.Tick;
-                if (meta != Casa && !cercado) { DescargarFuera(); Debug.Log("[TREN] descarga automática al llegar a " + nombre); }   // Eugenio (I-Noche110): llevó tropa y munición y el objetivo seguía a 0: fuera de casa, el tren descarga solo al llegar
+                if (meta != Casa && !cercado && _yo != null) { _yo.DescargarFuera(); Debug.Log("[TREN] descarga automática al llegar a " + nombre); }   // Eugenio (I-Noche110): llevó tropa y munición y el objetivo seguía a 0: fuera de casa, el tren descarga solo al llegar
             }
         }
 
