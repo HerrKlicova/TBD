@@ -53,13 +53,20 @@ namespace TBD.View
         }
         static int ColEstado() { try { return ColmenaEstadoFuente != null ? ColmenaEstadoFuente() : -1; } catch { return -1; } }
         static int ColSenal() { try { return ColmenaSenalFuente != null ? ColmenaSenalFuente() : -1; } catch { return -1; } }
+        /// <summary>¿Aviso ámbar «La Colmena se agita»? Con la red enganchada manda Director.ColWarning (Nacho, 3db0a0b); sin ella, la señal contra colmena_aviso_x1000.</summary>
+        public static System.Func<bool> ColmenaAvisoFuente;
+        static bool ColAviso()
+        {
+            try { if (ColmenaAvisoFuente != null) return ColmenaAvisoFuente(); } catch { return false; }
+            int sen = ColSenal(), est = ColEstado();
+            return sen >= 0 && sen >= ColAvisoMil() && est != 2;
+        }
 
         /// <summary>Aviso ámbar antes del Enjambre (Lucía 25:15): con la señal en col_aviso, un punto antes del Enjambre. Ámbar, no rojo: el rojo es de ataques.
         /// Va en el panel de avisos del mapa, debajo de los de «zona sin tropa». Devuelve la nueva y.</summary>
         float DrawColmenaAviso(float pw, float y, ref int shown)
         {
-            int sen = ColSenal(), est = ColEstado();
-            if (sen < 0 || sen < ColAvisoMil() || est == 2 || shown >= 4) return y;
+            if (!ColAviso() || shown >= 4) return y;
             shown++;
             int zp = IconPx(16);
             DrawIcon(new Rect(20, y - 2, zp, zp), "alertas/vm_alertas_asedio_16");
