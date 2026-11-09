@@ -26,7 +26,7 @@ namespace TBD.Units
     public struct WaveSpec { public int StartMinute; public int Zombies; public int ArrivalSeconds; public int[] EntryCount; }   // EntryCount (opcional): reparto exacto por entrada
     public struct EntrySpec { public string Name; public int X0, Y0, X1, Y1; public int Weight; }   // rectángulo de aparición en mm y peso (‰ relativo)
     public struct RectMm { public int X0, Y0, X1, Y1; public RectMm(int x0, int y0, int x1, int y1) { X0 = x0; Y0 = y0; X1 = x1; Y1 = y1; } }
-    public struct SpawnPoint { public int Wave, Entry, X, Y; public bool Front; }
+    public struct SpawnPoint { public int Wave, Entry, X, Y; public bool Front; public int AheadTicks; }   // AheadTicks (D-N182): ticks que lleva andando desde que nació fuera de la vista (0 sin adelanto)
 
     public struct NightParams
     {
@@ -218,6 +218,19 @@ namespace TBD.Units
             return t <= df ? (int)(nf * t / df) : (int)(nf + (n - nf) * (t - df) / Math.Max(1, d - df));
         }
 
+        /// <summary>D-N182 (Lucía, 9-nov): la horda nace fuera de la vista y llega andando a la misma hora. Con SpawnLeadTicks = L, cada zombi nace L ticks antes de
+        /// su hora de siempre (la del reparto de Cumulative). Los que tocaba nacer antes de empezar la noche salen en el primer tick con AheadTicks = lo que ya habrían
+        /// andado; quien coloca al zombi (NightSim o la zona) lo adelanta esa distancia. 0 = como siempre.</summary>
+        public int SpawnLeadTicks;
+        /// <summary>Primer tick local (desde el inicio de la oleada) en que Cumulative llega a n.</summary>
+        public int DueTick(int w, int n)
+        {
+            int lo = 1, hi = Math.Max(1, WaveDurationTicks(w));
+            if (Cumulative(w, hi) < n) return hi;
+            while (lo < hi) { int mid = lo + (hi - lo) / 2; if (Cumulative(w, mid) >= n) hi = mid; else lo = mid + 1; }
+            return lo;
+        }
+
         /// <summary>Un tick. Rellena «spawns» con los zombis que entran en este tick (la lista se vacía antes). Siempre gana la derrota.</summary>
         /// <summary>Un tick con recuentos (D-N133): se pierde con 0 estaciones principales vivas o 0 trenes vivos.</summary>
         public void Step(int stationsAlive, int trainsAlive, List<SpawnPoint> spawns)
@@ -237,11 +250,11 @@ namespace TBD.Units
             spawns.Clear();
             for (int w = 0; w < P.Waves.Length; w++)
             {
-                int t = Tick - WaveStartTick(w);
+                int t = Tick - WaveStartTick(w) + SpawnLeadTicks;
                 if (t < 0) continue;
                 int due = Cumulative(w, t) - Spawned[w];
                 bool front = t <= WaveDurationTicks(w) * P.FrontTimePct / 100;
-                for (int k = 0; k < due; k++) spawns.Add(Place(w, front));
+                for (int k = 0; k < due; k++) { var sp = Place(w, front); if (SpawnLeadTicks > 0) sp.AheadTicks = Math.Min(SpawnLeadTicks, t - DueTick(w, Spawned[w] + k + 1)); spawns.Add(sp); }
                 if (due > 0) { Spawned[w] += due; _lastSpawnTick = Tick; }
             }
             // fin de partida: la derrota tiene prioridad sobre la victoria en el mismo tick
@@ -289,6 +302,7 @@ namespace TBD.Units
         public ulong Hash()
         {
             ulong h = IMath.Mix(0x20E0 ^ (ulong)(uint)Tick) + IMath.Mix(0x20E1 ^ Rng.S) + IMath.Mix(0x20E2 ^ (ulong)State ^ ((ulong)(uint)(DefeatTick + 1) << 8)) + IMath.Mix(0x20E3 ^ (ulong)(uint)P.ScalePermil ^ ((ulong)(uint)P.ClockX << 20)) + IMath.Mix(0x20E4 ^ (ulong)(uint)NightIndex ^ ((ulong)(uint)NightsSurvived << 20) ^ ((ulong)(uint)Report.CloseTick << 40)) + IMath.Mix(0x20E5 ^ (ulong)(uint)StationHp ^ ((ulong)(uint)TrainHp << 24)) + IMath.Mix(0x20E7 ^ (ulong)(uint)WallPermil ^ ((ulong)(uint)Report.IntegrityPermil << 20) ^ ((ulong)(uint)Report.WallPermil << 40)) + (_stationRem != 0 || _trainRem != 0 ? IMath.Mix(0x20E6 ^ (ulong)(uint)_stationRem ^ ((ulong)(uint)_trainRem << 16)) : 0UL);
+            if (SpawnLeadTicks != 0) h += IMath.Mix(0x20E8 ^ (ulong)(uint)SpawnLeadTicks);
             for (int i = 0; i < Spawned.Length; i++) { h += IMath.Mix((ulong)(uint)Spawned[i] + ((ulong)i << 40) + 17); for (int e = 0; e < SpawnedEntry[i].Length; e++) h += IMath.Mix((ulong)(uint)SpawnedEntry[i][e] + ((ulong)i << 40) + ((ulong)e << 52) + 19); }
             return h;
         }

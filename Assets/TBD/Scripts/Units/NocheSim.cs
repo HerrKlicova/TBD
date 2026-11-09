@@ -336,9 +336,11 @@ namespace TBD.Units
             // 1) la noche: reloj, oleadas y fin de partida (gana la derrota)
             Night.WallPermil = SP.WallHp > 0 ? (int)((long)WallHp * 1000 / SP.WallHp) : 0;
             Night.ZombiesAlive = AliveZombies();                               // D-N136: victoria al acabar con la horda
+            int vTick = SP.ZombieSpeedMmS / IMath.TickRate;
+            Night.SpawnLeadTicks = SpawnLeadMm > 0 && vTick > 0 ? SpawnLeadMm / vTick : 0;
             Night.Step(_spawns);
             var cur = Current();
-            foreach (var s in _spawns) { _z.Add(new Zomb { X = s.X, Y = s.Y }); Spawned++; if (cur != null) cur.Spawned++; }
+            foreach (var s in _spawns) { int sx = s.X, sy = s.Y; if (Night.SpawnLeadTicks > 0) Lead(ref sx, ref sy, Night.SpawnLeadTicks * vTick - s.AheadTicks * vTick); _z.Add(new Zomb { X = sx, Y = sy }); Spawned++; if (cur != null) cur.Spawned++; }
             // 2) los zombis: caminan hacia el edificio; el muro los detiene; se cuenta la pila
             int pile = 0, speed = SP.ZombieSpeedMmS / IMath.TickRate;
             WallEvents.Clear();
@@ -569,6 +571,15 @@ namespace TBD.Units
         public bool D181On = true;
         /// <summary>D-N180 (2): si el tren ya no está (destruido) o está fuera del recinto, el que ha trepado y no tiene a nadie cerca va al edificio de viajeros
         /// (Goal 5) en lugar de quedarse empujando contra el muro hacia el tren de fuera: la noche siempre acaba.</summary>
+        /// <summary>D-N182: distancia extra (mm) a la que nace la horda, fuera de la vista. Nace antes lo que tarda en andarla, así que llega al muro a la misma hora.
+        /// La aleja del edificio en línea recta (la misma por la que luego camina hacia él), con enteros. 0 = como siempre.</summary>
+        public int SpawnLeadMm;
+        void Lead(ref int x, ref int y, int d)
+        {
+            bool gate = SP.GateGapMm > 0 && x < SP.FortX0 - 500;      // con hueco en la vía camina hacia la puerta (como en Step)
+            int dx = x - (gate ? SP.FortX0 - 1000 : SP.StationX), dy = y - SP.StationY, r = IMath.Dist(dx, dy);
+            if (d <= 0 || r < 1) return; x += IMath.DivR((long)dx * d, r); y += IMath.DivR((long)dy * d, r);
+        }
         public bool TrainReachableFromInside() { var r = Night.P.TrainRect; return Night.TrainHp > 0 && r.X1 > SP.FortX0 && r.X0 < SP.FortX1 && r.Y1 > SP.FortY0 && r.Y0 < SP.FortY1; }
 
         void RetargetClimber(Zomb z)

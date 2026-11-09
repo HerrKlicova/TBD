@@ -30,6 +30,21 @@ namespace TBD.Sim.Tests
                 int s0, t0n, s1, t1n, s2, t2n; g.CountAttackers(zs, out s0, out t0n); g.CountAttackers(zs, i => i == 1, out s1, out t1n); g.CountAttackers(zs, null, out s2, out t2n);
                 check(s0 == 2 && s1 == 1 && s2 == 2 && t0n == t1n, $"D-N181: dos zombis pegados a la fachada; cuentan para la estación {s0} sin filtro, {s1} si solo uno la tiene de objetivo, {s2} con filtro nulo");
             }
+            {   // D-N182: la horda nace 150 m más lejos y antes; al muro llega igual (el azar de la colocación se reparte en otro orden: se compara el reparto, no zombi a zombi)
+                var n0 = Make(false); var n1 = Make(false); n1.SpawnLeadMm = 150000;
+                var l0 = new List<Target>(); var l1 = new List<Target>(); int minX = int.MaxValue; var sb = new System.Text.StringBuilder(); bool same = true;
+                for (int k = 1; k <= 90 * IMath.TickRate; k++)
+                {
+                    n0.Step(); n1.Step(); if (k == 1) { n1.ExportZombies(l1); foreach (var z in l1) minX = Math.Min(minX, z.X); }
+                    if (k % (15 * IMath.TickRate) != 0) continue;
+                    n0.ExportZombies(l0); n1.ExportZombies(l1);
+                    int c0 = 0, c1 = 0; long s0 = 0, s1 = 0; foreach (var z in l0) if (z.X >= 10000) { c0++; s0 += z.X; } foreach (var z in l1) if (z.X >= 10000) { c1++; s1 += z.X; }
+                    long m0 = c0 > 0 ? s0 / c0 : 0, m1 = c1 > 0 ? s1 / c1 : 0;
+                    same &= Math.Abs(c0 - c1) * 100 <= Math.Max(20, c0 * 3) && Math.Abs(m0 - m1) <= 2000;
+                    sb.Append($" {k / IMath.TickRate} s: {c0}/{c1} a {m0 / 1000}/{m1 / 1000} m;");
+                }
+                check(minX < -100000 && same, $"D-N182: con 150 m de adelanto nacen fuera (x mín. {minX / 1000} m) y pasan los 10 m a la vez (sin/con adelanto, zombis y x media):{sb}");
+            }
             var b = Make(true); var rb = b.Night.P.TrainRect;
             for (int k = 0; k < 4; k++) b.ImportZombie(rb.X0 + 5000 + k * 10000, rb.Y1 + 500);
             var esc = b.Units.AddPlatoon(PlatoonKind.Fusileros, rb.X0 + 30000, rb.Y1 + 40000, 0); esc.HoldFire = true;      // a 40 m, sin disparar: solo cuenta que está a su alcance
