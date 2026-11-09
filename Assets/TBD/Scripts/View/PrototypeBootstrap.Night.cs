@@ -93,7 +93,7 @@ namespace TBD.View
                 if (sim != null && sim.JsonForce != null && sim.JsonForce.Count > 1 && (wz == null || wz.LastAmbush.Tick < 0 || wz.LastAmbush.HoldUntil <= wz.Tick)) { ex = sim.JsonForce[1].Value[0]; ey = sim.JsonForce[1].Value[1]; }   // de noche, el pelotón enviado va donde lo midió NightSim (71,5; 70,5)
                 if (wz != null && _zoneNode >= 0) foreach (var pid in wz.Embarque.AtStation(_zoneNode, PasajeroTipo.Peloton)) { var pe = _uw.AddPlatoon(PlatoonKind.Fusileros, ex + 6000 * _escolta.Count, ey, west, Formation.Linea); _pname[pe.Id] = "Escolta " + (_escolta.Count + 1); _escolta.Add(pe.Id); }
                 string trenAqui = "ninguno"; if (wz != null) foreach (var sv in wz.Services) if (sv.AtStop && sv.Stops.Count > 0 && sv.Stops[sv.StopIndex].Node == _zoneNode) trenAqui = sv.Train.Name + (sv.GateNode == _zoneNode ? " (a las puertas)" : " (en el andén)");
-                if (trenAqui == "ninguno" && wz != null && _ng.P.TrainNotDefeat) { _ng.TrainHp = 0; _trenPerdidoAvisado = true; Debug.Log("[NOCHE] sin tren en la estación: la noche empieza sin tren (TrainHp = 0)"); }   // Hugo: si no, la noche mataba un tren que no estaba (traza de la 104); con el arreglo de Marcos (Level.TrainNightX) la horda ya no se va a X 900
+                if (trenAqui == "ninguno" && wz != null && _ng.P.TrainNotDefeat) { _ng.TrainHp = 0; _trenPerdidoAvisado = true; _nocheSinTren = true; Debug.Log("[NOCHE] sin tren en la estación: la noche empieza sin tren (TrainHp = 0)"); }   // Hugo: si no, la noche mataba un tren que no estaba (traza de la 104); con el arreglo de Marcos (Level.TrainNightX) la horda ya no se va a X 900
                 Debug.Log($"[NOCHE] tren en {_estacionZona}: {trenAqui}; rectángulo del tren en la zona X {tr.X0 / 1000f:0.0}–{tr.X1 / 1000f:0.0}, Z {tr.Y0 / 1000f:0.0}–{tr.Y1 / 1000f:0.0} m; edificio X {_ng.P.StationRect.X0 / 1000f:0.0}–{_ng.P.StationRect.X1 / 1000f:0.0}, Z {_ng.P.StationRect.Y0 / 1000f:0.0}–{_ng.P.StationRect.Y1 / 1000f:0.0}; escolta {_escolta.Count} pelotón(es) en ({ex / 1000f:0.0}; {ey / 1000f:0.0}); el tren {(_ng.P.TrainNotDefeat ? "no es" : "es")} derrota");
             }
             if (_estacionZona == "Sagunto" && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinazotea") < 0)      // D-N174 (Lucia, Alvaro 10.15): 2 pelotones de tiradores libres en el ala oeste del edificio de viajeros, boca a 6,35 m
@@ -486,7 +486,7 @@ namespace TBD.View
         }
         bool _endDismissed, _reportClosed;
         List<string> _enPie;
-        readonly List<int> _escolta = new List<int>();
+        readonly List<int> _escolta = new List<int>(); bool _nocheSinTren;      // S2 qa50: sin tren en la estación no hay aviso, frente ni barra de tren
         /// <summary>Estaciones propias que siguen en pie, sin la de esta zona (Sagunto, las fundadas y la cercada; las perdidas no).</summary>
         List<string> EstacionesEnPie()
         {

@@ -215,6 +215,7 @@ namespace TBD.View.UiNoche
             };
             foreach (var e in estado)
             {
+                if (e.v < 0f) continue;      // sin tren (S2 qa50): no sale la barra
                 UiNocheKit.Pieza(e.icono, x0 + 12, y - 2);
                 UiNocheKit.Texto(x0 + 32, y, e.nombre, UiNocheKit.Beige, 9);
                 Barra(x0 + 110, y + 2, pw - 170, e.v, e.u1, e.u2);

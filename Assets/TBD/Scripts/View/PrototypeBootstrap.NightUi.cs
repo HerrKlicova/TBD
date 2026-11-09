@@ -49,18 +49,18 @@ namespace TBD.View
             if (anyZero && emptyStock) d.AvisosL.Add(new Aviso { nivel = Nivel.Aviso, icono = "ui_estado_sin_municion_16", texto = "Sin munición: almacén vacío", desde = AvisoT("sinmun") });
             else if (!anyZero) _avisoDesde.Remove("sinmun");
             if (_pileNearStation > 0) d.AvisosL.Add(new Aviso { nivel = Nivel.Ataque, icono = "ui_aviso_estacion_atacada_16", texto = "Estación atacada", desde = AvisoT("est") }); else _avisoDesde.Remove("est");
-            if (_nearTrain > 0) d.AvisosL.Add(new Aviso { nivel = Nivel.Ataque, icono = "ui_aviso_tren_atacado_16", texto = "Tren atacado", desde = AvisoT("tren") }); else _avisoDesde.Remove("tren");
+            if (_nearTrain > 0 && _ng.TrainHp > 0) d.AvisosL.Add(new Aviso { nivel = Nivel.Ataque, icono = "ui_aviso_tren_atacado_16", texto = "Tren atacado", desde = AvisoT("tren") }); else _avisoDesde.Remove("tren");
             int wv = CurrentWave(); if (wv >= 0 && Time.unscaledTime - _waveBannerT0 < 8f) d.AvisosL.Add(new Aviso { nivel = Nivel.Info, icono = "ui_aviso_oleada_entrante_16", texto = $"Oleada {wv + 1} entrante", desde = _waveBannerT0 });
             Gravedad G(int n) { return n > 150 ? Gravedad.Alta : n > 30 ? Gravedad.Media : Gravedad.Baja; }
             if (_pileNearStation > 0) d.FrentesL.Add(new Frente { icono = "ui_frente_estacion_16", nombre = "Estación", gravedad = G(_pileNearStation) });
-            if (_nearTrain > 0) d.FrentesL.Add(new Frente { icono = "ui_frente_tren_16", nombre = "Tren", gravedad = G(_nearTrain) });
+            if (_nearTrain > 0 && _ng.TrainHp > 0) d.FrentesL.Add(new Frente { icono = "ui_frente_tren_16", nombre = "Tren", gravedad = G(_nearTrain) });
             d.FrentesL.Sort((a, b) => ((int)b.gravedad).CompareTo((int)a.gravedad));
             int alv = 0, tot = 0; foreach (var pl in _uw.Platoons) { alv += pl.AliveCount(); tot += pl.Men.Count; }
             bool won = _ng.State == NightState.Victoria;
             d.Parte = new Parte
             {
-                victoria = won, titulo = _ng.State == NightState.Derrota ? _ng.DefeatHeadline(string.IsNullOrEmpty(_estacionZona) ? "Sagunto" : _estacionZona).TrimEnd((char)46) : (string.IsNullOrEmpty(_estacionZona) ? "Sagunto" : _estacionZona) + " resiste",   // el parte nombra la estación de la zona (Nules en la noche 2) zombis = _nightKills, bajas = tot - alv, municionGastada = Mathf.RoundToInt(_nightShotsSpent / (float)WeaponCatalog.ShotsPerU), municionRestante = d.Municion,
-                estacion = _ng.State != NightState.Jugando ? _endStationF : _ng.StationHp / (float)Mathf.Max(1, _ng.StationHpMax), tren = _ng.State != NightState.Jugando ? _endTrainF : _ng.TrainHp / (float)Mathf.Max(1, _ng.TrainHpMax), muro = won ? _ng.Report.WallPermil / 1000f : _ng.WallPermil / 1000f
+                victoria = won, titulo = _ng.State == NightState.Derrota ? _ng.DefeatHeadline(string.IsNullOrEmpty(_estacionZona) ? "Sagunto" : _estacionZona).TrimEnd((char)46) : (string.IsNullOrEmpty(_estacionZona) ? "Sagunto" : _estacionZona) + " resiste", zombis = _nightKills, bajas = tot - alv, municionGastada = Mathf.RoundToInt(_nightShotsSpent / (float)WeaponCatalog.ShotsPerU), municionRestante = d.Municion,   // el parte nombra la estación de la zona (Nules en la noche 2)
+                estacion = _ng.State != NightState.Jugando ? _endStationF : _ng.StationHp / (float)Mathf.Max(1, _ng.StationHpMax), tren = _nocheSinTren ? -1f : _ng.State != NightState.Jugando ? _endTrainF : _ng.TrainHp / (float)Mathf.Max(1, _ng.TrainHpMax), muro = won ? _ng.Report.WallPermil / 1000f : _ng.WallPermil / 1000f
             };
         }
         float _waveBannerT0 = -100f;
