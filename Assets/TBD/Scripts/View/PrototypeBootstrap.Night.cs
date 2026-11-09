@@ -477,13 +477,13 @@ namespace TBD.View
             return r;
         }
         static string Lista(List<string> l) { return l.Count <= 1 ? (l.Count == 1 ? l[0] : "") : string.Join(", ", l.GetRange(0, l.Count - 1)) + " y " + l[l.Count - 1]; }
-        /// <summary>«Seguir» tras perder la estación de la zona: vuelve al mapa. PENDIENTE: el comando de red que la marca perdida (pedido a Nacho, LoseNode).</summary>
+        /// <summary>«Seguir» tras perder la estación de la zona: la marca perdida en la red (LoseNode) y vuelve al mapa.</summary>
         void SeguirTrasCaer()
         {
             _endDismissed = true; Debug.Log($"[NOCHE] {(_estacionZona ?? "?")} ha caído; se sigue en el mapa ({Lista(_enPie)} en pie)");
             PerderNodoEnRed(_zoneNode); LeaveToMap();
         }
-        partial void PerderNodoEnRed(int nodo);
+        void PerderNodoEnRed(int nodo) { if (nodo >= 0) NetSession.Push(NetCmdType.LoseNode, nodo, 0); }   // Nacho (268427f6): misma caída que fuera de pantalla, por la cola (A y B en el mismo tick)
 
         /// <summary>«Seguir» (D-N91): abre la noche siguiente con las mismas oleadas a +10 % y reinicia los contadores del parte; el mundo no se detuvo.</summary>
         void NextNight()
