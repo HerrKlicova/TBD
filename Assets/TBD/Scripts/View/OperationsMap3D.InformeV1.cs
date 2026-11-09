@@ -172,7 +172,7 @@ namespace TBD.View
             if (d.Amenaza.Count < 3 && trafico.Count > 0)
             {
                 var l = trafico[0];
-                d.Amenaza.Add(l.Tren != null && l.Dias > 0 ? T.AmenazaTraficoTren(l.Tramo, l.Tren, l.Dias, l.Hora) : T.AmenazaTrafico(l.Tramo, l.Hora));
+                d.Amenaza.Add(l.Tren != null && l.Dias > 0 && l.Sigue ?   /* «días seguidos» solo con la racha viva (pasó hoy o ayer) */ T.AmenazaTraficoTren(l.Tramo, l.Tren, l.Dias, l.Hora) : T.AmenazaTrafico(l.Tramo, l.Hora));
             }
             // memoria de atención (NetWorld.IntelAttention): solo con un nodo mirado hoy y alguno olvidado
             _a.IntelAttention(out int foc, out var olvidados);
