@@ -172,6 +172,18 @@ namespace TBD.View
             v.Pos = np;
             v.Pos.x = Mathf.Clamp(v.Pos.x, 5f, 505f); v.Pos.y = Mathf.Clamp(v.Pos.y, 5f, 475f);
             v.SpinWheel += v.Speed / 0.55f * Mathf.Rad2Deg * dt;
+            if (!v.HasTarget && v.Speed < 0.1f) ApartaDeEstacion(v);
+        }
+
+        /// <summary>Marcos/Iker (9-nov): un vehículo parado a menos de 2 m del StationRect cuenta como atacante de la estación para los zombis que van a por él.
+        /// Al quedarse parado se aparta 2 m hacia fuera por el lado más cercano (en mm enteros, dentro del tick: no cambia con el turbo).</summary>
+        void ApartaDeEstacion(Veh v)
+        {
+            if (_ng == null) return; const int m = 2000; var r = _ng.P.StationRect; int x = Mm(v.Pos.x), y = Mm(v.Pos.y);
+            if (x <= r.X0 - m || x >= r.X1 + m || y <= r.Y0 - m || y >= r.Y1 + m) return;
+            int dS = y - (r.Y0 - m), dN = (r.Y1 + m) - y, dW = x - (r.X0 - m), dE = (r.X1 + m) - x, d = System.Math.Min(System.Math.Min(dS, dN), System.Math.Min(dW, dE));
+            if (d == dS) y = r.Y0 - m; else if (d == dN) y = r.Y1 + m; else if (d == dW) x = r.X0 - m; else x = r.X1 + m;
+            v.Pos = new Vector2(x / 1000f, y / 1000f); Debug.Log($"[NOCHE] {v.Name} se aparta de la estación a ({x / 1000f:0.0};{y / 1000f:0.0})");
         }
 
         /// <summary>¿El tramo a-b cruza un muro del recinto? Oeste (puerta cerrada), norte y este: macizos; sur: macizo salvo la puerta de vehiculos E4 (X 95-103).</summary>
