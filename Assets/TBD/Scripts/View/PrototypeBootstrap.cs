@@ -1083,6 +1083,7 @@ namespace TBD.View
             _gradeIndex = index;
             if (_groundMat != null && _groundDayTex != null) _groundMat.SetTexture("_BaseMap", index == 2 ? _groundNightTex : _groundDayTex);
             SetChunksGrade(index);
+            if (_gs != null && _mGround != null) _mGround.SetColor("_BaseColor", index == 2 ? (Color)_sueloMedioNoche : (Color)_sueloMedioDia);   // el suelo de cajas bajo los trozos, del color medio: un trozo que aún no ha llegado no se nota
             if (_vignette != null) _vignette.intensity.Override(index == 2 ? 0f : 0.28f);        // de noche sin viñeta: la paleta la cuantizaba en anillos concéntricos (Lucía)
             switch (index)
             {
@@ -2120,39 +2121,50 @@ namespace TBD.View
             gs.noche = Px("suelo_noche_A_64"); gs.mApis = Mean(gs.apis); gs.mLabr = Mean(gs.labr); gs.mAsf = Mean(gs.asf); gs.mRod = Mean(gs.rod); gs.mSeca = gs.seca != null ? Mean(gs.seca) : gs.mApis;
             var mk = Resources.Load<Texture2D>("Suelo/sagunto_sin_vegetacion_1m"); _vegMask = mk != null && mk.width == MapW && mk.height == MapH ? mk.GetPixels32() : null;
             _gs = gs; _chunkRoot = new GameObject("Suelo por trozos (D-N67)").transform; _chunkRoot.SetParent(root, false);
-            _chunks.Clear(); _chunkPending.Clear(); while (_chunkDone.TryDequeue(out _)) { } _vegQueue.Clear();
+            _chunks.Clear(); _chunkPending.Clear(); while (_chunkDone.TryDequeue(out _)) { } _vegQueue.Clear(); _chunkPrecarga = true;
+            _sueloMedioNoche = gs.noche != null ? Mean(gs.noche) : gs.mApis; _sueloMedioDia = gs.mApis;
         }
 
         static int ChunkKey(int i, int j) { return j * 64 + i; }
+        bool _chunkPrecarga; Color32 _sueloMedioNoche, _sueloMedioDia;
 
         void UpdateGroundStreaming()
         {
             if (_gs == null) return;
             if (_chunkRoot == null) { _gs = null; _chunks.Clear(); _chunkPending.Clear(); return; }           // la zona se ha destruido
-            // 1) subir a la GPU el trozo terminado (1 por fotograma)
-            bool didChunk = false;
-            if (_chunkDone.TryDequeue(out var res))
+            // Eugenio 09-11 07:10: «cuando mueves la cámara es como que se va cargando suelo». Antes: 1 trozo subido por fotograma, 2 hilos y radio fijo de 170 m;
+            // al desplazar la cámara se veía el Suelo de cajas (b0a060) hasta que llegaba el trozo. Ahora (Bruno): varios hilos, varios trozos por fotograma con un
+            // presupuesto de 4 ms (sin límite de tiempo mientras se precarga la zona al entrar), radio según lo que abarca la cámara, y el suelo de cajas con el color
+            // medio del suelo de noche o de día para que un trozo que aún falta no se note (ver ApplyGrade).
+            // 1) subir a la GPU los trozos terminados
+            bool didChunk = false; var swUp = System.Diagnostics.Stopwatch.StartNew();
+            int maxPorFotograma = _chunkPrecarga ? 8 : 3;
+            for (int up = 0; up < maxPorFotograma && (_chunkPrecarga || swUp.ElapsedMilliseconds < 4); up++)
             {
+                if (!_chunkDone.TryDequeue(out var res)) break;
                 didChunk = true;
                 _chunkPending.Remove(ChunkKey(res.I, res.J));
                 if (res.Error != null) Debug.LogWarning("[TBD] Trozo de suelo " + res.I + "," + res.J + ": " + res.Error);
                 else FinishChunk(res);
             }
             if (!didChunk && _vegQueue.Count > 0) _vegQueue.Dequeue()();
-            // 2) cargar los cercanos al foco (mas cercanos primero, hasta 2 hilos a la vez) y descargar los lejanos
-            float fx = _focus.x, fz = _focus.z; int started = 0;
+            // 2) cargar los cercanos al foco (más cercanos primero, varios hilos a la vez) y descargar los lejanos
+            float fx = _focus.x, fz = _focus.z;
             int cols = (MapW + ChunkM - 1) / ChunkM, rows = (MapH + ChunkM - 1) / ChunkM;
-            int bestI = -1, bestJ = -1; float bestD = float.MaxValue;
-            if (_chunkPending.Count < 2)
+            float vista = _worldCam != null ? _worldCam.orthographicSize * Mathf.Max(1f, _worldCam.aspect) * 1.6f : 0f;      // media diagonal aproximada de lo que se ve, con la inclinación
+            float loadR = Mathf.Min(ChunkKeepR - 40f, Mathf.Max(ChunkLoadR, vista + ChunkM));
+            int hilos = Mathf.Clamp(SystemInfo.processorCount - 2, 2, 6);
+            while (_chunkPending.Count < hilos)
+            {
+                int bestI = -1, bestJ = -1; float bestD = float.MaxValue;
                 for (int j = 0; j < rows; j++)
                     for (int i = 0; i < cols; i++)
                     {
                         int key = ChunkKey(i, j); if (_chunks.ContainsKey(key) || _chunkPending.Contains(key)) continue;
                         float cx = MapX0 + i * ChunkM + ChunkM * 0.5f, cz = MapZ0 + j * ChunkM + ChunkM * 0.5f; float d = Mathf.Sqrt((cx - fx) * (cx - fx) + (cz - fz) * (cz - fz));
-                        if (d < ChunkLoadR && d < bestD) { bestD = d; bestI = i; bestJ = j; }
+                        if (d < loadR && d < bestD) { bestD = d; bestI = i; bestJ = j; }
                     }
-            if (bestI >= 0 && started == 0)
-            {
+                if (bestI < 0) break;
                 int ci = bestI, cj = bestJ; _chunkPending.Add(ChunkKey(ci, cj)); var gs = _gs;
                 System.Threading.Tasks.Task.Run(() =>
                 {
@@ -2160,6 +2172,7 @@ namespace TBD.View
                     catch (System.Exception e) { _chunkDone.Enqueue(new ChunkResult { I = ci, J = cj, Error = e.Message }); }
                 });
             }
+            if (_chunkPrecarga && _chunkPending.Count == 0 && _chunkDone.IsEmpty) { _chunkPrecarga = false; Debug.Log("[TBD] Suelo por trozos precargado: " + _chunks.Count + " trozos"); }
             System.Collections.Generic.List<int> drop = null;
             foreach (var kv in _chunks)
             {
