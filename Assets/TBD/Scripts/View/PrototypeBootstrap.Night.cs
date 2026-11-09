@@ -482,12 +482,15 @@ namespace TBD.View
             Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} causa={(win ? "-" : _ng.Cause == DefeatCause.Estacion ? "estacion" : _ng.Cause == DefeatCause.Tren ? "tren" : _ng.Cause == DefeatCause.Ambas ? "estacion+tren" : (_wallHp <= 0 ? "muro" : "otra"))} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 pila_max={_pilaMuroMax} pila_estacion_max={_pilaMaxVista} recargas={_resupplies} desync={_desync} hora_fin={TimeStr()}");
             NaLog();                                                                     // [NOCHE-ARMAS] (Sara, Hugo): pelotones, vehículos, almacén y dotación
             { string est = string.IsNullOrEmpty(_estacionZona) ? "Sagunto" : _estacionZona;   // partida de 30 min (Lucía): el cartel nombra la estación de la zona (Nules en la noche 2)
-              _endReason = win ? (_ng.WonByClear ? $"{TimeStr()}. {est} resiste.\nLa horda ha caído." : $"06:00. {est} resiste.\nAmanece.") : _ng.DefeatHeadline(est);
+              long amD = NetSession.A != null ? NetSession.ProximoAmanecer(NetSession.A.Tick) / NetConst.DayTicks + 1 : 2;   // Lucía (3f1764c): «Sagunto resiste. / Amanece el día {n}.»
+              _endReason = win ? $"{est} resiste.\nAmanece el día {amD}." : _ng.DefeatHeadline(est);
               _enPie = win ? null : EstacionesEnPie();
+              if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-seguir-auto") >= 0) Invoke(nameof(SeguirAuto), 2f);   // QA: pulsa «Seguir» sola
               if (!win && _enPie.Count > 0) _endReason = $"<color=#982420>{est} ha caído.</color>\n{Lista(_enPie)} {(_enPie.Count > 1 ? "siguen" : "sigue")} en pie.";   // S2 de la qa50 (Lucía, 7705049): no acaba la partida
               if (est == "Nules") _endReason += "\nFin de la partida de prueba. Puedes seguir en el mundo."; }   // D-N136/D-N146
         }
         bool _endDismissed, _reportClosed;
+        void SeguirAuto() { if (_ng == null) return; if (_ng.State == NightState.Victoria) { Debug.Log("[NOCHE] auto: Seguir"); NextNight(); } else if (_enPie != null && _enPie.Count > 0) { Debug.Log("[NOCHE] auto: Seguir tras caer"); SeguirTrasCaer(); } }
         List<string> _enPie;
         readonly List<int> _escolta = new List<int>(); bool _nocheSinTren;      // S2 qa50: sin tren en la estación no hay aviso, frente ni barra de tren
         /// <summary>Estaciones propias que siguen en pie, sin la de esta zona (Sagunto, las fundadas y la cercada; las perdidas no).</summary>
@@ -502,14 +505,14 @@ namespace TBD.View
         void SeguirTrasCaer()
         {
             _endDismissed = true; Debug.Log($"[NOCHE] {(_estacionZona ?? "?")} ha caído; se sigue en el mapa ({Lista(_enPie)} en pie)");
-            PerderNodoEnRed(_zoneNode); LeaveToMap();
+            PerderNodoEnRed(_zoneNode); NetSession.SaltarAlAmanecer(); LeaveToMap();
         }
         void PerderNodoEnRed(int nodo) { if (nodo >= 0) NetSession.Push(NetCmdType.LoseNode, nodo, 0); }   // Nacho (268427f6): misma caída que fuera de pantalla, por la cola (A y B en el mismo tick)
 
         /// <summary>«Seguir» (D-N91): abre la noche siguiente con las mismas oleadas a +10 % y reinicia los contadores del parte; el mundo no se detuvo.</summary>
         void NextNight()
         {
-            _reportClosed = true; return;                                                // D-N136/137: al ganar se sigue en el mundo, sin reiniciar
+            _reportClosed = true; NetSession.SaltarAlAmanecer(); LeaveToMap(); return;   // Lucía (3f1764c): «Seguir» lleva al mapa y la red salta a las 06:00 del día siguiente
             var np = _ng.P; np.ScalePermil = np.ScalePermil * 11 / 10;
             if (_ng.BeginNextNight(np)) { _reportClosed = false; _lastWave = -1; _nightKills = 0; _nightShotsSpent = 0; _nightLost = 0; _bannerText = $"{TimeStr()}. Noche {_ng.NightIndex + 1}.\nAguanta hasta el amanecer."; _bannerUntil = Time.unscaledTime + 4f; }
             else _reportClosed = true;

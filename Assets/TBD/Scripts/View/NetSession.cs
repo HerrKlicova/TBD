@@ -34,6 +34,11 @@ namespace TBD.View
         public static bool HasSave { get { return System.IO.File.Exists(SavePath); } }
         /// <summary>Multiplicador de pasos de red por fotograma para las corridas automáticas (A y B pasan los mismos ticks). 1 en el juego.</summary>
         public static int Turbo = 1;
+        /// <summary>Lucía (3f1764c): al acabar una noche de zona la red salta a las 06:00 del día siguiente (los trenes avanzan con ella). Tick destino, −1 sin salto.</summary>
+        public static long SaltarHasta = -1;
+        /// <summary>Las 06:00 siguientes al tick de la red (hoy si aún no han dado, si no mañana).</summary>
+        public static long ProximoAmanecer(long tick) { long d = tick / NetConst.DayTicks, am = d * NetConst.DayTicks + NetConst.Hours(6); return tick < am ? am : am + NetConst.DayTicks; }
+        public static void SaltarAlAmanecer() { if (A == null) return; SaltarHasta = ProximoAmanecer(A.Tick); if (A.Paused) Push(NetCmdType.Resume, 0, 0); Debug.Log($"[TBD] la red salta al amanecer: {NetConst.Clock(A.Tick)} → día {SaltarHasta / NetConst.DayTicks + 1}, 06:00"); }
         // Guardado automático del atardecer (Lucía, 7705049: «Repetir la noche»): la red a las 19:00 de cada día, la hora del aviso de la horda de zona. Solo la red.
         public static string SaveAtardecer { get { return System.IO.Path.Combine(Application.persistentDataPath, "atardecer.tbd"); } }
         public static bool HayAtardecer { get { return _atardecerDia >= 0 && System.IO.File.Exists(SaveAtardecer); } }
@@ -134,6 +139,14 @@ namespace TBD.View
             AvisoLog(); GuardarAtardecer();
             var kb5 = UnityEngine.InputSystem.Keyboard.current;
             if (kb5 != null && kb5.f5Key.wasPressedThisFrame) { bool ok = SaveGame(); Debug.Log(ok ? "[TBD] Partida guardada en " + SavePath : "[TBD] No hay partida que guardar"); }   // F5: guardado rapido
+            if (SaltarHasta > A.Tick)
+            {
+                int n = (int)System.Math.Min(SaltarHasta - A.Tick, 2500L);
+                for (int i = 0; i < n; i++) { A.Step(); if (Check) B.Step(); if (A.Paused) break; }
+                if (Check && !Desync && A.Hash() != B.Hash()) { Desync = true; DesyncTick = A.Tick; Debug.LogError($"[TBD] Red: desincronización en el tick {A.Tick}"); }
+                if (A.Tick >= SaltarHasta) { SaltarHasta = -1; _acc = 0f; Debug.Log($"[TBD] amanece: día {A.Tick / NetConst.DayTicks + 1}, {NetConst.Clock(A.Tick)}"); }
+                return;
+            }
             _acc += Mathf.Min(Time.unscaledDeltaTime, 0.25f);
             const float step = 1f / NetConst.TickRate;
             while (_acc >= step)
