@@ -20,7 +20,7 @@ namespace TBD.View
                 Vector3 p = x.Cabeza ? cabeza : x.Puerta >= 0 && puerta != null ? puerta(x.Puerta) : anden;
                 Sfx.PlayClipAt(x.Clip, p, x.Clip.Contains("pitido") ? 0.72f : 1f);
                 float vo = x.Clip.Contains("pitido") ? 0.72f : 1f; string sitio = x.Cabeza ? "cabeza" : x.Puerta >= 0 ? "puerta " + x.Puerta : "anden";
-                Debug.Log("[TREN-SONIDO] " + x.Clip + " vol=" + vo.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + " " + sitio);   // Nuria: comprobar orden y volumen en el log
+                Debug.Log("[TREN-SONIDO] " + x.Clip + " vol=" + vo.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + " " + sitio + (Sfx.Existe(x.Clip) ? " ok" : " FALTA"));   // Nuria: comprobar orden y volumen en el log
             }
             sonidos.Clear();
         }

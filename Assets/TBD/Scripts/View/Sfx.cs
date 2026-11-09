@@ -170,6 +170,8 @@ namespace TBD.View
         /// <summary>Efecto por evento SIEMPRE en 3D en «pos» (impactos, zombis, muros...).</summary>
         public static void PlayAt(string evento, Vector3 pos, float vol = 1f, float minGap = 0.05f) => I.PlayEv(evento, pos, vol, minGap);
         /// <summary>Un clip concreto (nombre completo, con «sfx_» y la variante) en 3D. D1 de Nuria: SalidaTren ya elige la variante y PlayAt le añadía otro «sfx_».</summary>
+        /// <summary>¿Encuentra Sfx ese clip? (Nuria: [TREN-SONIDO] … ok / FALTA)</summary>
+        public static bool Existe(string clip) { return I.Clip(clip) != null; }
         public static void PlayClipAt(string clip, Vector3 pos, float vol = 1f) { var s = I; if (!s.Gate(clip, 0.02f)) return; s.Fire(s.Clip(clip), GroupOf(clip.Replace("sfx_", "")), pos, vol, 1f); }
 
         /// <summary>D4 (Lucía): baja −6 dB (×0,5) con fundido de 0,3 s los bucles 2D del mapa (ambiente y batalla del mapa) durante «segundos». Lo llaman los CO, la señal 6 y el aviso ámbar.</summary>
