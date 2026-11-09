@@ -2581,7 +2581,10 @@ namespace TBD.View
         {
             foreach (var l in _floodLights) l.intensity = intensity;
             foreach (var l in _cohesionLights) l.intensity = intensity > 0f ? 90f : 0f;
-            foreach (var rm in _rimMats) { rm.EnableKeyword("_EMISSION"); rm.SetColor("_EmissionColor", intensity > 40f ? HexColor("404460") * 0.6f : Color.black); }
+            // Borde azul de noche (#404460 × 0,6): APAGADO para el MVP (Lucía 09-11 05:08). Nunca se vio (la build no compilaba _EMISSION hasta 98e25852) y las medidas
+            // de noche están hechas sin él. -bordenoche lo enciende para la captura con y sin borde de después del MVP.
+            bool borde = intensity > 40f && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-bordenoche") >= 0;
+            foreach (var rm in _rimMats) { rm.EnableKeyword("_EMISSION"); rm.SetColor("_EmissionColor", borde ? HexColor("404460") * 0.6f : Color.black); }
             foreach (var rm in _rimModelMats) { rm.EnableKeyword("_EMISSION"); rm.SetColor("_EmissionColor", Color.black); }   // rim apagado (Lucía): hacía del tren un fantasma lila; el fresnel de borde queda para después del prototipo
             foreach (var h in _halos) h.gameObject.SetActive(intensity > 0f);
         }
