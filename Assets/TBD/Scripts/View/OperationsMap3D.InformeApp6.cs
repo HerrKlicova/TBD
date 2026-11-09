@@ -222,21 +222,8 @@ namespace TBD.View
         /// </summary>
         void DrawEje(RailNode nd, Vector3 sp, bool ataca, int esc)
         {
-            var f = _a.Field;
             int cx = nd.XMeters, cy = nd.YMeters;
-            double sx = 0, sy = 0, peso = 0; int best = 0, bx = 0, by = 0;
-            for (int dy = -32; dy <= 32; dy++)
-                for (int dx = -32; dx <= 32; dx++)
-                {
-                    int r2 = dx * dx + dy * dy; if (r2 < 4 || r2 > 32 * 32) continue;
-                    int d = f.At(cx + dx, cy + dy); if (d <= 0) continue;
-                    if (r2 <= 16 * 16) { double r = System.Math.Sqrt(r2); sx += d * dx / r; sy += d * dy / r; peso += d; }
-                    if (d > best) { best = d; bx = dx; by = dy; }
-                }
-            double ux, uy;
-            if (peso > 0 && sx * sx + sy * sy > 1e-6) { double m = System.Math.Sqrt(sx * sx + sy * sy); ux = sx / m; uy = sy / m; }
-            else if (best > 0) { double m = System.Math.Sqrt(bx * bx + by * by); ux = bx / m; uy = by / m; }
-            else return;
+            if (!LadoHorda(nd, out double ux, out double uy)) return;           // la regla está en OperationsMap3D.InformeV1.cs (la usa también el parte)
 
             var lift = 0.8f * Mathf.Clamp(_dist / 230f, 0.0015f, 2f);
             var lejos = _cam.WorldToScreenPoint(MapToWorld(cx + ux * 6, cy + uy * 6, lift));
