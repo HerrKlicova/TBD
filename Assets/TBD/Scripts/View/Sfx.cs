@@ -169,6 +169,12 @@ namespace TBD.View
 
         /// <summary>Efecto por evento SIEMPRE en 3D en «pos» (impactos, zombis, muros...).</summary>
         public static void PlayAt(string evento, Vector3 pos, float vol = 1f, float minGap = 0.05f) => I.PlayEv(evento, pos, vol, minGap);
+        /// <summary>Un clip concreto (nombre completo, con «sfx_» y la variante) en 3D. D1 de Nuria: SalidaTren ya elige la variante y PlayAt le añadía otro «sfx_».</summary>
+        public static void PlayClipAt(string clip, Vector3 pos, float vol = 1f) { var s = I; if (!s.Gate(clip, 0.02f)) return; s.Fire(s.Clip(clip), GroupOf(clip.Replace("sfx_", "")), pos, vol, 1f); }
+
+        /// <summary>D4 (Lucía): baja −6 dB (×0,5) con fundido de 0,3 s los bucles 2D del mapa (ambiente y batalla del mapa) durante «segundos». Lo llaman los CO, la señal 6 y el aviso ámbar.</summary>
+        public static void Duck(float segundos) { var s = I; s._duckMapaHasta = Mathf.Max(s._duckMapaHasta, Time.unscaledTime + segundos); }
+        float _duckMapaHasta, _duckMapaCur = 1f;
 
         void PlayEv(string evento, Vector3? pos, float vol, float minGap)
         {
@@ -215,11 +221,12 @@ namespace TBD.View
         void Update()
         {
             float dt = Time.unscaledDeltaTime, now = Time.unscaledTime; _duckCur = Mathf.MoveTowards(_duckCur, now < _duckUntil ? 0.55f : 1f, dt / 0.25f); float duck = _duckCur;
+            _duckMapaCur = Mathf.MoveTowards(_duckMapaCur, now < _duckMapaHasta ? 0.5f : 1f, dt / 0.3f);
             foreach (var l in _loops.Values)
             {
                 float rate = l.Target > l.Cur ? dt / FadeIn : dt / FadeOut; l.Cur = Mathf.MoveTowards(l.Cur, l.Target, rate);
                 float master = l.Music ? MainMenu.MusicVolume : MainMenu.SfxVolume;
-                l.A.volume = l.Cur * master * GlobalGain * (l.Spatial ? CloseGain() : 1f) * (l.Music || l.Spatial ? 1f : duck);
+                l.A.volume = l.Cur * master * GlobalGain * (l.Spatial ? CloseGain() : 1f) * (l.Music || l.Spatial ? 1f : duck * _duckMapaCur);   // D4: los bucles 2D bajan con Duck
                 if (l.Cur > 0.001f)
                 {
                     l.SilentSince = -1f;

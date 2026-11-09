@@ -104,6 +104,7 @@ namespace TBD.View
             NetSession.Ensure();                       // la red vive en la sesión y sigue corriendo dentro de las zonas (hito 3)
             _a = NetSession.A;
             ColmenaEstadoFuente = () => NetSession.A.Director.ColState; ColmenaSenalFuente = () => (int)NetSession.A.Director.ColSignalMil;   // D-N160: la Colmena de la red (Nacho) en la capa APP-6 y el informe (Bruno)
+            if (!TutorialHud.Activo && _a.Director.ColmenaIntro(_a)) { Sfx.Play("sfx_colmena_dispersa_2", 1f); Sfx.Duck(3f); _intelVisto = _a.Intel.Count; }   // CO-0 (Nacho; Lucía: una vez por partida, también tras cargar)
             _b = NetSession.B;
             _relief = new PlaceholderRelief(_a.Graph);
             SetupCamera();
@@ -247,7 +248,7 @@ namespace TBD.View
                 ahora.Add(zw.Node);
                 if (_avisoVisto.Contains(zw.Node)) continue;
                 if (_avisoSonado.TryGetValue(zw.Node, out var t0) && Time.unscaledTime - t0 < 10f) continue;
-                _avisoSonado[zw.Node] = Time.unscaledTime; Sfx.Play("ui_aviso_ambar", Vector3.zero, 0.6f, 0.05f);
+                _avisoSonado[zw.Node] = Time.unscaledTime; Sfx.Play("ui_aviso_ambar", Vector3.zero, 0.6f, 0.05f); Sfx.Duck(1.5f);
             }
             _avisoVisto.Clear(); foreach (var n in ahora) _avisoVisto.Add(n);
         }
@@ -262,15 +263,15 @@ namespace TBD.View
             {
                 switch (_a.Intel[i].Id)
                 {
-                    case "CO-1": Sfx.Play("sfx_colmena_acecho_1", 1f); break;
-                    case "CO-2": Sfx.Play("sfx_colmena_enjambre_2", 1f); break;
-                    case "CO-3": Sfx.Play("sfx_colmena_vuelta_acecho_1", 1f); break;
-                    case "CO-0": case "CO-4": Sfx.Play("sfx_colmena_dispersa_2", 1f); break;
+                    case "CO-1": Sfx.Play("sfx_colmena_acecho_1", 1f); Sfx.Duck(3f); break;
+                    case "CO-2": Sfx.Play("sfx_colmena_enjambre_2", 1f); Sfx.Duck(3f); break;
+                    case "CO-3": Sfx.Play("sfx_colmena_vuelta_acecho_1", 1f); Sfx.Duck(3f); break;
+                    case "CO-4": Sfx.Play("sfx_colmena_dispersa_2", 1f); Sfx.Duck(3f); break;      // el CO-0 suena en ColmenaIntro (al abrir el mapa)
                 }
             }
             _intelVisto = _a.Intel.Count;
             bool aviso = _a.Director.ColWarning;
-            if (aviso && !_avisoColAntes) Sfx.Play("sfx_ui_aviso_senal6_1", 1f);      // la señal llega a 6: «La Colmena se agita…»
+            if (aviso && !_avisoColAntes) { Sfx.Play("sfx_ui_aviso_senal6_1", 1f); Sfx.Duck(2f); }      // la señal llega a 6: «La Colmena se agita…»
             _avisoColAntes = aviso;
             if (_informeOn && !_informeAntes) Sfx.Play("sfx_ui_informe_abrir_1", 1f);
             _informeAntes = _informeOn;
