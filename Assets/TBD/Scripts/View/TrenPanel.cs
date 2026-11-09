@@ -595,11 +595,14 @@ namespace TBD.View
         // salida del tren a la vista (D-N170, sonidos de Nuria): nadie llamaba a SalidaTrenSonido en la zona, así que no sonaba; al salir un tren de la estación de la zona
         // se toca la secuencia (aviso, cierre de puertas, pitido en la cabeza y arranque) en el andén (143; 64,5), con la cabeza 20 m al este
         readonly Dictionary<int, bool> _antes = new Dictionary<int, bool>();
+        static readonly bool _demo = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-salidademo") >= 0; bool _demoHecho;   // -salidademo: una salida a los 10 s de entrar en la zona
         readonly List<SalidaTren> _salidas = new List<SalidaTren>(); readonly List<SonidoSalida> _sonSal = new List<SonidoSalida>();
         static readonly Vector3 AndenZona = new Vector3(143f, 1f, 64.5f), CabezaZona = new Vector3(163f, 2f, 64.5f);
         void SalidasALaVista()
         {
-            if (W == null) return;
+            if (!_demoHecho && _demo && Time.timeSinceLevelLoad > 10f) { _demoHecho = true; _salidas.Add(new SalidaTren(TipoTren.Electrico, 60f, 7u, 4, false)); Debug.Log("[TREN] sale a la vista: -salidademo"); }   // prueba de oído (Nuria, Eugenio)
+            if (W != null)
+            {
             int casa = W.Embarque.HomeNode;
             for (int i = 0; i < W.Services.Count; i++)
             {
@@ -610,6 +613,7 @@ namespace TBD.View
                     Debug.Log("[TREN] sale a la vista: " + s.Train.Name);
                 }
                 _antes[i] = enCasa;
+            }
             }
             for (int k = _salidas.Count - 1; k >= 0; k--)
             {
