@@ -32,6 +32,8 @@ namespace TBD.View
 
         public static string SavePath { get { return System.IO.Path.Combine(Application.persistentDataPath, "partida.tbd"); } }
         public static bool HasSave { get { return System.IO.File.Exists(SavePath); } }
+        /// <summary>Multiplicador de pasos de red por fotograma para las corridas automáticas (A y B pasan los mismos ticks). 1 en el juego.</summary>
+        public static int Turbo = 1;
         // Guardado automático del atardecer (Lucía, 7705049: «Repetir la noche»): la red a las 19:00 de cada día, la hora del aviso de la horda de zona. Solo la red.
         public static string SaveAtardecer { get { return System.IO.Path.Combine(Application.persistentDataPath, "atardecer.tbd"); } }
         public static bool HayAtardecer { get { return _atardecerDia >= 0 && System.IO.File.Exists(SaveAtardecer); } }
@@ -137,7 +139,7 @@ namespace TBD.View
             while (_acc >= step)
             {
                 _acc -= step;
-                int n = A.Paused ? 1 : A.Speed;                // en pausa se sigue llamando a Step para aplicar las órdenes
+                int n = A.Paused ? 1 : A.Speed * Mathf.Max(1, Turbo);   // en pausa se sigue llamando a Step para aplicar las órdenes; Turbo solo para corridas (-dia2-auto)
                 for (int i = 0; i < n; i++)
                 {
                     A.Step();

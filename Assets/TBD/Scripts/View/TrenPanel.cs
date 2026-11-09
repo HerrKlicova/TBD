@@ -228,6 +228,7 @@ namespace TBD.View
             Seguir();
             if (Arg("-trenpanel-auto")) AutoIdaVuelta();
             if (Arg("-refuerzos-auto")) AutoRefuerzos();
+            if (Arg("-dia2-auto")) AutoDia2();
         }
 
         /// <summary>Cámara pegada al tren seguido (D-N170). Se suelta si el jugador toca la cámara o si el tren para.</summary>
@@ -540,6 +541,33 @@ namespace TBD.View
                 case 8: if (t > 103f) { DescargarFuera(); _autoPaso++; } break;
                 case 9: if (Viaje < 0) { Debug.Log($"[TREN] auto: ciclo completo; Nules tiene {W.Stock[nul, 0]} de munición y {W.Stock[nul, 2]} de materiales"); Cap("5_de_vuelta"); _autoT0 = Time.unscaledTime - 200f; _autoPaso++; } else if (t > 340f) { Debug.LogError("[TREN] auto: el tren no volvió"); Application.Quit(1); } break;
                 case 10: if (t > 203f) { Debug.Log("[TREN] auto: fin"); Application.Quit(0); _autoPaso++; } break;
+            }
+        }
+
+        /// <summary>
+        /// -dia2-auto (Marcos, T8 y T9 de la qa50): avanza la red al día 2 (Turbo), manda el primer tren de Sagunto a Nules y luego el segundo con un pelotón y 20 u
+        /// (el segundo que llega el día 2 dispara la emboscada de Nacho), espera a las 21:00 y entra en la zona de Nules para la noche 2. Con -nightbot la juega el bot
+        /// y NightEnded deja resultado= y causa=. Registra [DIA2] en cada paso.
+        /// </summary>
+        void AutoDia2()
+        {
+            float t = AutoT(); int sag = Casa, nul = Nodo("Nules"); long dia2 = NetConst.DayTicks;
+            switch (_autoPaso)
+            {
+                case 0: if (t > 3f) { NetSession.Turbo = 40; NetSession.Push(NetCmdType.SetSpeed, 4, 0); Debug.Log("[DIA2] avanzo la red al día 2"); _autoPaso++; } break;
+                case 1: if (W.Tick >= dia2 + NetConst.Hours(6.5)) { NetSession.Turbo = 1; Debug.Log($"[DIA2] día 2, {NetConst.Clock(W.Tick)}"); _autoT0 = Time.unscaledTime; _autoPaso++; } break;
+                case 2: if (t > 2f && TrenPreparar.TrenEn(W, sag) >= 0 && !Embarque.Ocupado) { AbrirPreparar(sag); PonerDestino(nul); Enviar(); Debug.Log("[DIA2] primer tren a Nules"); _autoT0 = Time.unscaledTime; _autoPaso++; } else if (t > 30f) { Debug.LogError("[DIA2] no hay tren en Sagunto"); _autoPaso = 9; } break;
+                case 3: if (t > 4f && TrenPreparar.TrenEn(W, sag) >= 0 && !Embarque.Ocupado)
+                    {
+                        AbrirPreparar(sag); Cargar((int)Res.Municion, 20); int sv = TrenPreparar.TrenEn(W, sag); var ses = NightRun.Session;
+                        if (ses != null && ses.Uw != null && ses.Uw.Platoons.Count > 0) Embarque.Subir(sv, PasajeroTipo.Peloton, ses.Uw.Platoons[0].Id, sag); else Debug.LogWarning("[DIA2] sin pelotón que subir (no hay sesión de zona)");
+                        _autoT0 = Time.unscaledTime; _autoPaso++;
+                    }
+                    else if (t > 30f) { Debug.LogError("[DIA2] no hay segundo tren en Sagunto"); _autoPaso = 9; } break;
+                case 4: if (t > 2f && !Embarque.Ocupado) { PonerDestino(nul); Enviar(); Debug.Log("[DIA2] segundo tren a Nules con pelotón y 20 u"); _autoPaso++; } break;
+                case 5: if (W.LastAmbush.Tick >= 0) { var e = W.LastAmbush; Debug.Log($"[DIA2] emboscada: nodo {W.Graph.Nodes[e.Node].Name}, {e.Zombies} zombis, en pantalla {e.OnScreen}, rechazada {e.Repelled}, cercado {e.Surrounded}"); NetSession.Turbo = 20; _autoPaso++; }
+                        else if (W.Tick >= dia2 + NetConst.Hours(20)) { Debug.LogWarning("[DIA2] sin emboscada a las 20:00"); NetSession.Turbo = 20; _autoPaso++; } break;
+                case 6: if (W.Tick >= dia2 + NetConst.Hours(21)) { NetSession.Turbo = 1; Debug.Log($"[DIA2] {NetConst.Clock(W.Tick)}: objetivo del día 2 {(W.ObjMet ? "cumplido" : "no cumplido")} (tropa {W.ObjTroops}, munición {W.Stock[nul, (int)Res.Municion]} u); entro en Nules para la noche 2"); var mapa = FindObjectOfType<OperationsMap3D>(); if (mapa != null) mapa.EnterZone(nul); else Debug.LogError("[DIA2] no hay mapa"); _autoPaso++; } break;
             }
         }
 
