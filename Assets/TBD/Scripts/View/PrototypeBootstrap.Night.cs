@@ -80,6 +80,8 @@ namespace TBD.View
                 _ng = new NightGame(np, 77u + SemillaQA);
             }
             catch (System.Exception e) { Debug.LogWarning("[TBD] balance_*.csv no se pudo leer (" + e.Message + "): valores por defecto de Nacho"); }
+            if (NetSession.A != null && _zoneNode >= 0 && _zoneNode < NetSession.A.Graph.Nodes.Count)      // Hugo (nules.json, noche_sagunto.json): el almacén de la zona = min(tope 47 u, reserva de la red); Nules empieza con 0 y el objetivo del día 2 lo llena
+            { int reservaU = NetSession.A.Stock[_zoneNode, (int)Res.Municion]; int topeU = 47; stock = System.Math.Min(topeU, System.Math.Max(0, reservaU)) * WeaponCatalog.ShotsPerU; Debug.Log($"[NOCHE] almacén de munición de la zona: min(tope {topeU}, reserva {reservaU}) = {stock / WeaponCatalog.ShotsPerU} u"); }
             _uw = new UnitsWorld(1234u + SemillaQA) { StockShots = stock };
             int west = 32768;                                                        // rumbo −X (hacia la puerta oeste)
             _pname.Clear();
