@@ -29,7 +29,7 @@ namespace TBD.View
             cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = Dark;
             Sfx.StopAllLoops(); Sfx.Loop("mus_menu", 0.8f, true);
             var cla = System.Environment.GetCommandLineArgs(); if (System.Array.IndexOf(cla, "-stress10k") >= 0 || System.Array.IndexOf(cla, "-stress10k-sagunto") >= 0 || System.Array.IndexOf(cla, "-trainview") >= 0) { NightRun.Active = false; SceneManager.LoadScene("Union"); }   // pruebas de rendimiento: sin la noche
-            else if (System.Array.IndexOf(cla, "-menu-auto") >= 0) StartGame();       // pruebas: arranca directo
+            else if (Auto) StartGame();       // pruebas: arranca directo (-menu-auto; -tutorial-auto lo implica, S3 de Marcos 9-nov)
         }
 
         static Texture2D Tex(Color c) { var t = new Texture2D(1, 1); t.SetPixel(0, 0, c); t.Apply(); return t; }
@@ -58,7 +58,8 @@ namespace TBD.View
             return nv;
         }
 
-        void StartGame() { Sfx.Play("sfx_ui_clic"); Sfx.StopLoop("mus_menu"); NetSession.Reset(); NightRun.Active = true; if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-menu-auto") >= 0) SceneManager.LoadScene("Union"); else IntroVista.Antes(() => SceneManager.LoadScene("Union")); }
+        static bool Auto { get { var a = System.Environment.GetCommandLineArgs(); return System.Array.IndexOf(a, "-menu-auto") >= 0 || System.Array.IndexOf(a, "-tutorial-auto") >= 0; } }
+        void StartGame() { Sfx.Play("sfx_ui_clic"); Sfx.StopLoop("mus_menu"); NetSession.Reset(); NightRun.Active = true; if (Auto) SceneManager.LoadScene("Union"); else IntroVista.Antes(() => SceneManager.LoadScene("Union")); }
         void ContinueGame()
         {
             try { NetSession.LoadGame(); NightRun.Active = false; SceneManager.LoadScene("Union"); }
