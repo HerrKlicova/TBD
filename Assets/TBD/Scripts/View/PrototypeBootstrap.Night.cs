@@ -75,7 +75,7 @@ namespace TBD.View
                 string dir = System.IO.Path.Combine(Application.streamingAssetsPath, "Noche");
                 var tu = new CsvTable(System.IO.File.ReadAllText(System.IO.Path.Combine(dir, "balance_unidades.csv"))); WeaponCatalog.Load(tu); PlatoonCatalog.Load(tu);
                 var tn = new CsvTable(System.IO.File.ReadAllText(System.IO.Path.Combine(dir, "balance_noche.csv")));
-                var jp = _ng.P; var np = NightParams.FromCsv(tn); np.Waves = jp.Waves; np.Entries = jp.Entries; np.ClockX = jp.ClockX; np.ScalePermil = jp.ScalePermil; np.TrainNotDefeat = jp.TrainNotDefeat;   // Nules (Lucía da2d050): lo trae el JSON de la noche; el CSV no lo tiene
+                var jp = _ng.P; var np = NightParams.FromCsv(tn); np.Waves = jp.Waves; np.Entries = jp.Entries; np.ClockX = jp.ClockX; np.ScalePermil = jp.ScalePermil; np.TrainNotDefeat = jp.TrainNotDefeat; if (sim != null && sim.JsonForce != null) np.TrainRect = jp.TrainRect;   // Nules (Lucía da2d050; Hugo/Nacho 10:38): el JSON trae el tren fuera de la puerta este y que no es derrota; el CSV no lo tiene
                 np.EndHour = (np.StartHour + 23) % 24;                                  // D-N164: sin victoria por tiempo; solo se gana acabando con la horda
                 _ng = new NightGame(np, 77u + SemillaQA);
             }
@@ -89,7 +89,8 @@ namespace TBD.View
             Debug.Log($"[NOCHE] plantel de {_estacionZona}: {_pname.Count} pelotones");
             _escolta.Clear();
             {   // tropa bajada del tren en esta estación (Embarque.AtStation): sale junto al tren y el bot no la manda al muro (Hugo/Nacho, 9-nov)
-                var wz = NetSession.A; var tr = _ng.P.TrainRect; int ex = (tr.X0 + tr.X1) / 2, ey = tr.Y1 + 3000;
+                var wz = NetSession.A; var tr = _ng.P.TrainRect; int ex = (tr.X0 + tr.X1) / 2, ey = tr.Y0 - 2900;   // junto al tren por el sur: en Nules A (192; 60), la escolta de la emboscada de Hugo
+                if (sim != null && sim.JsonForce != null && sim.JsonForce.Count > 1 && (wz == null || wz.LastAmbush.Tick < 0 || wz.LastAmbush.HoldUntil <= wz.Tick)) { ex = sim.JsonForce[1].Value[0]; ey = sim.JsonForce[1].Value[1]; }   // de noche, el pelotón enviado va donde lo midió NightSim (71,5; 70,5)
                 if (wz != null && _zoneNode >= 0) foreach (var pid in wz.Embarque.AtStation(_zoneNode, PasajeroTipo.Peloton)) { var pe = _uw.AddPlatoon(PlatoonKind.Fusileros, ex + 6000 * _escolta.Count, ey, west, Formation.Linea); _pname[pe.Id] = "Escolta " + (_escolta.Count + 1); _escolta.Add(pe.Id); }
                 string trenAqui = "ninguno"; if (wz != null) foreach (var sv in wz.Services) if (sv.AtStop && sv.Stops.Count > 0 && sv.Stops[sv.StopIndex].Node == _zoneNode) trenAqui = sv.Train.Name + (sv.GateNode == _zoneNode ? " (a las puertas)" : " (en el andén)");
                 Debug.Log($"[NOCHE] tren en {_estacionZona}: {trenAqui}; rectángulo del tren en la zona X {tr.X0 / 1000f:0.0}–{tr.X1 / 1000f:0.0}, Z {tr.Y0 / 1000f:0.0}–{tr.Y1 / 1000f:0.0} m; edificio X {_ng.P.StationRect.X0 / 1000f:0.0}–{_ng.P.StationRect.X1 / 1000f:0.0}, Z {_ng.P.StationRect.Y0 / 1000f:0.0}–{_ng.P.StationRect.Y1 / 1000f:0.0}; escolta {_escolta.Count} pelotón(es) en ({ex / 1000f:0.0}; {ey / 1000f:0.0}); el tren {(_ng.P.TrainNotDefeat ? "no es" : "es")} derrota");

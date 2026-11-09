@@ -731,7 +731,7 @@ namespace TBD.View
             {
                 _emSonado = em.Tick; string tren = em.Service >= 0 && em.Service < _a.Services.Count ? _a.Services[em.Service].Train.Name : "tren";
                 Sfx.Play("aviso_horda", Vector3.zero, 0.7f, 0.05f); Sfx.Duck(1.5f);   // Nuria (mvp-em1-caida-repetir.md)
-                Debug.Log($"[MAPA] EM-1 Emboscada en {_a.Graph.Nodes[em.Node].Name}: unos {em.Zombies} zombis atacan el {tren}.");
+                Debug.Log($"[MAPA] EM-1 Emboscada en {_a.Graph.Nodes[em.Node].Name}: unos {em.Zombies} zombis atacan el {tren} fuera de la puerta este.");
             }
             long hd = _a.Tick % NetConst.DayTicks; if (hd < NetConst.Hours(19) || hd >= NetConst.Hours(22)) return;
             foreach (var sv in _a.Services)
@@ -821,7 +821,7 @@ namespace TBD.View
                 {
                     int zp = IconPx(16); shown++;
                     string tren = em.Service >= 0 && em.Service < _a.Services.Count ? _a.Services[em.Service].Train.Name : "tren";
-                    string txt = $"Emboscada en {_a.Graph.Nodes[em.Node].Name}: unos {em.Zombies} zombis atacan el {tren}.";
+                    string txt = $"Emboscada en {_a.Graph.Nodes[em.Node].Name}: unos {em.Zombies} zombis atacan el {tren} fuera de la puerta este.";
                     var rr = new Rect(20, y - 2, pw - 20, Mathf.Max(_small.fontSize * 1.5f, zp + 4));
                     DrawIcon(new Rect(20, y - 2, zp, zp), "alertas/vm_alertas_" + AlertIcon(AlertKind.NodoAsediado) + "_16");
                     GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#982420><b>" + txt + "</b></color>", _small); y += rr.height;

@@ -5,7 +5,6 @@
   "hora_fin": "06:00",
   "duracion_s_reales": 279,
   "victoria": "acabar con la horda con el edificio de viajeros en pie (D-N164: el amanecer no da la victoria)",
-  "geometria_nightsim": { "_nota": "Iker, 9-nov (Lucía da2d050, D-N177): perder el tren no es derrota en Nules. SOLO esta clave; la geometría de Nules (recinto, edificio, tren) está pendiente de Nacho/Hugo", "tren_no_es_derrota": true },
   "derrota": "la horda destruye el edificio de viajeros. Si hay un tren en el apartado y lo destruyen, se pierden el tren, su carga y la tropa a bordo, pero no es derrota (como la D-N177; aprobado por Lucía, 8-nov 23:25)",
   "entradas": {
     "O1": {
@@ -95,6 +94,32 @@
           "O4": 370
         }
       }
+    ]
+  },
+  "geometria_nightsim": {
+    "_nota": "Nacho, 9-nov 10:38: colocación con la que NightSim midió la Nules opción A (geometría de Sagunto: recinto X 70-156, Z 44-85; edificio 98-114 x 75-83). Tren fuera de la puerta este (RutaCap3, puerta este 192;60). Los ametralladores van en la azotea del ala oeste (84500;76300, ojos a 6,35 m) y los pone el montaje. El 2.º pelotón de fusileros es el enviado (objetivo del día 2). La escolta de la emboscada va en (192000;60000). Las medidas de la Nules B (apartado Z 49) NO se aplican a la A. Resultados A: noche 2 con objetivo 99,5 %, sin objetivo 0 %; emboscada con escolta, tren salvado 100 %; sin escolta, perdido 100 %.",
+    "tren_mm": [
+      160000,
+      62900,
+      224000,
+      66100
+    ],
+    "tren_no_es_derrota": true,
+    "pelotones": [
+      [
+        "fusileros",
+        71500,
+        58500
+      ],
+      [
+        "fusileros",
+        71500,
+        70500
+      ]
+    ],
+    "escolta_emboscada_mm": [
+      192000,
+      60000
     ]
   }
 }

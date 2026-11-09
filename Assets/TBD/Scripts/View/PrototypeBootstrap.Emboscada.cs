@@ -33,7 +33,7 @@ namespace TBD.View
                 _embBase = _zomPos.Count;
                 string tren = e.Service >= 0 && e.Service < w.Services.Count ? w.Services[e.Service].Train.Name : "tren";
                 Debug.Log($"[EMBOSCADA] zona {w.Graph.Nodes[e.Node].Name}: {_embPendientes} zombis en {NetWorld.AmbushArrivalS} s por la franja oeste contra el {tren}");
-                HintMsg($"Emboscada en {w.Graph.Nodes[e.Node].Name}: unos {_embPendientes} zombis atacan el {tren}.", true);   // texto de EM-1 (Lucía, a8b49fd)
+                HintMsg($"Emboscada en {w.Graph.Nodes[e.Node].Name}: unos {_embPendientes} zombis atacan el {tren} fuera de la puerta este.", true);   // texto de EM-1 (Lucía, a8b49fd)
             }
             if (!_embEnCurso) return;
             if (_embPendientes > 0)
