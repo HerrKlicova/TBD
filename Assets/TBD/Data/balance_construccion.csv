@@ -4,6 +4,7 @@ pieza_hesco_u_por_10m;6;1;defensiva, 150 m = 90 u = nivel 3, obra 4 obreros·h p
 pieza_puerta_u;6;1;defensiva, obra 4 obreros·h
 pieza_puerta_via_u;8;1;D-N59 (Lucía): defensiva, cuenta para nivel y mantenimiento, deja pasar al tren
 obra_puerta_via_h;6;1;D-N59: obrero·h
+via_hueco_mm;5000;1;D-N151 (Lucía, 9-nov): hueco de la puerta de vía de 5 m (manda la pieza SM_PuertaVia de Teo: el tren tiene que caber); antes 3,2 m
 pieza_puerta_vehiculos_u;10;1;D-N72 (Álvaro y Hugo): puerta de 8 m en el muro sur para el Dragón, dos hojas de 4 m, defensiva, cuenta para nivel y mantenimiento
 obra_puerta_vehiculos_h;8;1;D-N72: obrero·h
 puerta_vehiculos_ancho_mm;8000;1;D-N72: el Dragón mide 3 m de ancho, cabe girando

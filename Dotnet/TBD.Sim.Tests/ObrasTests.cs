@@ -498,22 +498,22 @@ namespace TBD.Sim.Tests
         {
             Console.WriteLine("[21] Puerta de vía (hito 5, diseno-hito5.md §2a): la red de Obras conoce la vía");
             var p = ObrasParams.FromCsv(new CsvTable(File.ReadAllText(Path.Combine(BalanceTests.DataDirPublic(), "balance_construccion.csv"))));
-            check(p.ViaGateU == 8 && p.HViaGate == 6 && p.TrackHalfMm == 1600 && p.GateSwapTicks == 180 && p.GateNearMm == 150_000,
-                $"la puerta de vía cuesta 8 u y 6 obrero·h (pieza_puerta_via_u y obra_puerta_via_h del CSV de Hugo); hueco de 3,2 m, 6 s = 180 ticks de zona, abre a 150 m");
+            check(p.ViaGateU == 8 && p.HViaGate == 6 && p.TrackHalfMm == 2500 && p.GateSwapTicks == 180 && p.GateNearMm == 150_000,
+                $"la puerta de vía cuesta 8 u y 6 obrero·h (pieza_puerta_via_u y obra_puerta_via_h del CSV de Hugo); hueco de 5 m (via_hueco_mm, D-N151), 6 s = 180 ticks de zona, abre a 150 m");
 
-            // un muro que cruza la vía en perpendicular: puerta sola, 3,2 m, y su coste va en el trazado
+            // un muro que cruza la vía en perpendicular: puerta sola, 5 m, y su coste va en el trazado
             var perp = Obras.PlanWall(p, PieceKind.Hesco, new[] { 20_000, -10_000, 20_000, 10_000 }, 900, 2000);
             WorkPiece gate = default; int gates = 0; foreach (var x in perp.Pieces) if (x.IsGate) { gate = x; gates++; }
-            check(perp.Ok && perp.Gates == 1 && gates == 1 && perp.Pieces.Count == 3 && perp.WantedMm == 16_800, $"un muro de 20 m que cruza la vía deja 16,8 m de muro y una puerta de vía: {perp.Pieces.Count} piezas, pedido {perp.WantedMm} mm");
-            check(gate.X0 == 20_000 && gate.Y0 == -1600 && gate.X1 == 20_000 && gate.Y1 == 1600 && gate.CostE4 == 80_000 && gate.LifeMil == 1000 && !gate.Built, "la puerta ocupa 3,2 m perpendiculares a la vía, de y = −1.600 a y = 1.600, y cuesta 8 u");
-            check(perp.CostE4 == 2 * 8400 * 6 + 80_000 && perp.CostU == 19, $"el coste en directo suma muro y puerta: {perp.CostE4} E4 = {perp.CostU} u (2 × 8,4 m de HESCO + 8 u)");
+            check(perp.Ok && perp.Gates == 1 && gates == 1 && perp.Pieces.Count == 3 && perp.WantedMm == 15_000, $"un muro de 20 m que cruza la vía deja 15 m de muro y una puerta de vía: {perp.Pieces.Count} piezas, pedido {perp.WantedMm} mm");
+            check(gate.X0 == 20_000 && gate.Y0 == -2500 && gate.X1 == 20_000 && gate.Y1 == 2500 && gate.CostE4 == 80_000 && gate.LifeMil == 1000 && !gate.Built, "la puerta ocupa 5 m perpendiculares a la vía, de y = −2.500 a y = 2.500, y cuesta 8 u");
+            check(perp.CostE4 == 2 * 7500 * 6 + 80_000 && perp.CostU == 17, $"el coste en directo suma muro y puerta: {perp.CostE4} E4 = {perp.CostU} u (2 × 7,5 m de HESCO + 8 u)");
             check(Obras.HeightMm(PieceKind.PuertaVia) == 2100 && p.WorkE4(PieceKind.PuertaVia, 0) == 6 * NetConst.HourTicks * 10_000, "la puerta mide 2,1 m cerrada, como el HESCO, y son 6 obrero·h de obra");
 
-            // en diagonal: el hueco medido sobre el muro es 3,2 ÷ sen α; por debajo de 45° no se acepta
+            // en diagonal: el hueco medido sobre el muro es 5 ÷ sen α; por debajo de 45° no se acepta
             var d45 = Obras.PlanWall(p, PieceKind.Hesco, new[] { 0, -10_000, 20_000, 10_000 }, 900, 2000);
             WorkPiece g45 = default; foreach (var x in d45.Pieces) if (x.IsGate) g45 = x;
             long chord = Obras.SegLenMm(g45.X0, g45.Y0, g45.X1, g45.Y1);
-            check(d45.Ok && d45.Gates == 1 && chord == 4525, $"a 45° el hueco es 3,2 ÷ sen 45° = 4,525 m: {chord} mm");
+            check(d45.Ok && d45.Gates == 1 && chord == 7071, $"a 45° el hueco es 5 ÷ sen 45° = 7,071 m: {chord} mm");
             var shallow = Obras.PlanWall(p, PieceKind.Hesco, new[] { 0, -10_000, 30_000, 10_000 }, 900, 2000);
             check(!shallow.Ok && shallow.Why == "El muro cruza la vía demasiado en diagonal" && shallow.Pieces.Count == 0, $"a menos de 45° se rechaza el trazado: «{shallow.Why}»");
 
@@ -521,21 +521,21 @@ namespace TBD.Sim.Tests
             var along = Obras.PlanWall(p, PieceKind.Hesco, new[] { 0, 500, 30_000, 500 }, 900, 2000);
             check(!along.Ok && along.Why == "el muro cae sobre la vía", $"un muro dentro del gálibo no se construye: «{along.Why}»");
             var ends = Obras.PlanWall(p, PieceKind.Sacos, new[] { 5000, 5000, 5000, 500 }, 900, 2000);
-            check(ends.Ok && ends.Gates == 0 && ends.AllowedMm == 3400 && ends.Pieces[ends.Pieces.Count - 1].Y1 == 1600, $"un muro que acaba en la vía se recorta en el borde del gálibo (y = 1.600): {ends.AllowedMm} mm, sin puerta");
-            var touch = Obras.PlanWall(p, PieceKind.Sacos, new[] { 0, 1600, 20_000, 1600 }, 900, 2000);
-            check(touch.Ok && touch.Gates == 0 && touch.AllowedMm == 20_000, "un muro justo en el borde del gálibo (y = 1.600) se queda entero");
+            check(ends.Ok && ends.Gates == 0 && ends.AllowedMm == 2500 && ends.Pieces[ends.Pieces.Count - 1].Y1 == 2500, $"un muro que acaba en la vía se recorta en el borde del gálibo (y = 2.500): {ends.AllowedMm} mm, sin puerta");
+            var touch = Obras.PlanWall(p, PieceKind.Sacos, new[] { 0, 2500, 20_000, 2500 }, 900, 2000);
+            check(touch.Ok && touch.Gates == 0 && touch.AllowedMm == 20_000, "un muro justo en el borde del gálibo (y = 2.500) se queda entero");
 
             // corte por materiales: la puerta entra en la regla (orden del trazado)
             var c10 = Obras.PlanWall(p, PieceKind.Hesco, new[] { 20_000, -10_000, 20_000, 10_000 }, 10, 2000);
-            check(c10.Ok && c10.Cut && c10.Gates == 0 && c10.AllowedMm == 8400 && c10.CostU == 6, $"con 10 u el muro se corta antes de la vía y no lleva puerta ({c10.AllowedMm} mm, {c10.CostU} u)");
+            check(c10.Ok && c10.Cut && c10.Gates == 0 && c10.AllowedMm == 7500 && c10.CostU == 5, $"con 10 u el muro se corta antes de la vía y no lleva puerta ({c10.AllowedMm} mm, {c10.CostU} u)");
             var c14 = Obras.PlanWall(p, PieceKind.Hesco, new[] { 20_000, -10_000, 20_000, 10_000 }, 14, 2000);
-            check(c14.Ok && c14.Cut && c14.Gates == 1 && c14.AllowedMm == 10_000 && c14.CostE4 == 140_000 && c14.CostU == 14, $"con 14 u cabe el primer muro, la puerta y 1,6 m del segundo: {c14.AllowedMm} mm, {c14.CostU} u");
+            check(c14.Ok && c14.Cut && c14.Gates == 1 && c14.AllowedMm == 10_000 && c14.CostE4 == 140_000 && c14.CostU == 14, $"con 14 u cabe el primer muro, la puerta y 2,5 m del segundo: {c14.AllowedMm} mm, {c14.CostU} u");
             check(Obras.PlanWall(p, PieceKind.Hesco, new[] { 20_000, -10_000, 20_000, 10_000 }, 900, 2).Why == "demasiadas piezas en el nodo", "el tope de piezas cuenta también la puerta");
 
             // las piezas puntuales no ocupan la vía
             check(Obras.PlanPoint(p, PieceKind.Nido, 5000, 800, 900, 2000).Why == "la vía queda libre" && Obras.PlanPoint(p, PieceKind.Puerta, 0, 0, 900, 2000).Why == "la vía queda libre", "un nido o una puerta suelta en el gálibo de la vía se rechaza");
-            check(Obras.PlanPoint(p, PieceKind.Nido, 5000, 1600, 900, 2000).Ok && Obras.PlanPoint(p, PieceKind.Anden, 0, 1600, 900, 2000).Ok, "pero sí pegado al borde del gálibo (a 1,6 m de la vía)");
-            check(Obras.PlanPoint(p, PieceKind.Anden, 0, 0, 900, 2000).Why == "la vía queda libre" && Obras.PlanPoint(p, PieceKind.Deposito, 0, -1599, 900, 2000).Why == "la vía queda libre" && Obras.PlanPoint(p, PieceKind.Foco, 0, 1599, 900, 2000).Why == "la vía queda libre", "el andén fortificado tampoco invade el gálibo: está junto a la vía, no encima (Lucía)");
+            check(Obras.PlanPoint(p, PieceKind.Nido, 5000, 2500, 900, 2000).Ok && Obras.PlanPoint(p, PieceKind.Anden, 0, 2500, 900, 2000).Ok, "pero sí pegado al borde del gálibo (a 2,5 m de la vía)");
+            check(Obras.PlanPoint(p, PieceKind.Anden, 0, 0, 900, 2000).Why == "la vía queda libre" && Obras.PlanPoint(p, PieceKind.Deposito, 0, -2499, 900, 2000).Why == "la vía queda libre" && Obras.PlanPoint(p, PieceKind.Foco, 0, 2499, 900, 2000).Why == "la vía queda libre", "el andén fortificado tampoco invade el gálibo: está junto a la vía, no encima (Lucía)");
             check(!Obras.PlanPoint(p, PieceKind.PuertaVia, 0, 5000, 900, 2000).Ok, "la puerta de vía no se coloca a mano");
 
             // en el mundo: la orden paga muro y puerta, el nivel cuenta la puerta, el hash es el mismo en dos mundos
