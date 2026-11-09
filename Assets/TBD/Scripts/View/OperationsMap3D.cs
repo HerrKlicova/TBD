@@ -103,6 +103,7 @@ namespace TBD.View
             Application.targetFrameRate = 60;
             NetSession.Ensure();                       // la red vive en la sesión y sigue corriendo dentro de las zonas (hito 3)
             _a = NetSession.A;
+            ColmenaEstadoFuente = () => NetSession.A.Director.ColState; ColmenaSenalFuente = () => (int)NetSession.A.Director.ColSignalMil;   // D-N160: la Colmena de la red (Nacho) en la capa APP-6 y el informe (Bruno)
             _b = NetSession.B;
             _relief = new PlaceholderRelief(_a.Graph);
             SetupCamera();
