@@ -280,10 +280,32 @@ namespace TBD.View
         }
         /// <summary>Ya ha salido un tren hacia Nules el día 2 (para el recordatorio de las 15:00 de Lucía).</summary>
         public static bool TrenHaciaNulesDia2;
-        void Enviar()
+        /// <summary>F0 (núcleo): por qué el tren «sv» no puede ir a «nodo», o null si puede (estación perdida, cercada, ya está allí, sin ruta, embarque en curso).</summary>
+        public static string PorQueNoLlega(int sv, int nodo)
+        {
+            var w = NetSession.A; if (w == null || sv < 0 || sv >= w.Services.Count) return "No hay tren seleccionado";
+            var s = w.Services[sv]; string nom = w.Graph.Nodes[nodo].Name;
+            if (!s.AtStop) return $"{s.Train.Name} está en marcha";
+            int org = s.GateNode >= 0 ? s.GateNode : s.Stops[s.StopIndex].Node;
+            if (org == nodo) return $"{s.Train.Name} ya está en {nom}";
+            if (w.NodeLost[nodo]) return $"{nom} está perdida";
+            if (nodo == w.Director.CerradaNodo) return AvisoCerco;
+            if (Embarque.Ocupado) return "Espera a que acabe el embarque";
+            if (TrenPreparar.Envio(w, sv, nodo, new int[NetConst.ResCount]) == null) return $"No hay vía libre hasta {nom}";
+            return null;
+        }
+        /// <summary>F0: envía el tren «sv» a «nodo» con la carga elegida en «Preparar tren» para su estación (si se abrió), si no sin carga nueva.</summary>
+        public static bool EnviarDesdeMapa(int sv, int nodo)
+        {
+            if (_yo == null || PorQueNoLlega(sv, nodo) != null) return false;
+            var s = NetSession.A.Services[sv]; int org = s.GateNode >= 0 ? s.GateNode : s.Stops[s.StopIndex].Node;
+            if (_yo._origenP != org) System.Array.Clear(_yo._carga, 0, _yo._carga.Length);
+            _yo._origenP = org; _yo.PonerDestino(nodo); _yo.Enviar(sv); return Viaje == sv;
+        }
+        void Enviar(int svElegido = -1)
         {
             if (W != null && _destinoP >= 0 && _destinoP == Nodo("Nules") && W.Tick / NetConst.DayTicks == 1) TrenHaciaNulesDia2 = true;
-            int sv = TrenPreparar.TrenEn(W, _origenP); if (sv < 0 || _destinoP < 0 || Embarque.Ocupado) return;
+            int sv = svElegido >= 0 ? svElegido : TrenPreparar.TrenEn(W, _origenP); if (sv < 0 || _destinoP < 0 || Embarque.Ocupado) return;
             var p = TrenPreparar.Envio(W, sv, _destinoP, _carga); if (p == null) return;
             NetSession.PushPayload(NetCmdType.SetSchedule, sv, p);
             Empezar(sv, _origenP, _destinoP, _carga[(int)Res.Municion]);
@@ -305,6 +327,7 @@ namespace TBD.View
             if (Viaje < 0) return;
             var sv = W.Services[Viaje]; var delta = new int[NetConst.ResCount]; bool hay = false;
             for (int r = 0; r < NetConst.ResCount; r++) { delta[r] = -sv.Cargo[r]; hay |= sv.Cargo[r] > 0; }   // Lucía (decisiones 09-11, andén ocupado): a las puertas también baja la carga, como la tropa
+            if (sv.Cargo[(int)Res.Municion] > 0) { int u = sv.Cargo[(int)Res.Municion], antes = W.Stock[Destino, (int)Res.Municion], alm = System.Math.Max(0, System.Math.Min(u, 47 - antes)); _aviso = $"Descargado en {W.Graph.Nodes[Destino].Name}: {alm} u al almacén, {u - alm} u a la reserva."; _avisoHasta = Time.unscaledTime + 5f; _avisoAmbar = false; Debug.Log("[TREN] " + _aviso); }   // Hugo y Lucía: el almacén de la zona llega hasta su tope (47 u); el resto, reserva
             if (hay) { var c = NetWorld.CmdCargo(W.Tick, Viaje, Destino, delta); NetSession.A.Push(c); if (NetSession.B != null) NetSession.B.Push(c); }
             Embarque.BajarTodo(Viaje, Destino); _descargadoAqui = true; _vista = Vista.Nada;
             Debug.Log("[TREN] descarga en " + W.Graph.Nodes[Destino].Name + " (el tren se queda)");
@@ -509,6 +532,9 @@ namespace TBD.View
                 }
             }
             yy += lh * filasV + lh * 0.2f;
+            // F0 del núcleo: el destino ya no se elige aquí; el tren queda seleccionado y se manda con clic derecho en la estación de destino (OrdenesMapa).
+            // El tutorial (capítulos 3 y 4) aún usa el panel entero hasta que Lucía reescriba sus pasos.
+            if (!TutorialHud.Activo) { if (OrdenesMapa.Tipo != OrdenesMapa.Sel.Tren || OrdenesMapa.Id != sv) OrdenesMapa.Seleccionar(OrdenesMapa.Sel.Tren, sv, "Preparar tren"); GUI.Label(new Rect(x0, yy, ww, lh * 2f), "<b>Tren seleccionado.</b> Carga lo que quieras y haz <b>clic derecho</b> en la estación de destino del mapa.", _s); return; }
             // destino y ETA
             GUI.Label(new Rect(x0, yy, ww * 0.3f, lh), "<b>Destino</b>", _s);
             int otro = casa ? Nodo("Nules") : Casa, cas = Nodo("Castellón");

@@ -44,6 +44,8 @@ namespace TBD.View
         }
 
         /// <summary>Nueva partida: Bétera vuelve a su estado inicial.</summary>
+        /// <summary>F0: pelotones de embarque libres en Bétera (un NH90 sale con pelotón si hay alguno).</summary>
+        public static int PelotonesLibres() { var a = Estado; if (a == null) return 0; int n = 0; foreach (var b in a.PelotonEnBase) if (b) n++; return n; }
         public static void Reiniciar() { _a = null; Llegadas.Clear(); }
 
         /// <summary>La zona: el NH90 ha bajado del 30 % de munición (D-N173). Vuelve solo a Bétera con su ETA.</summary>
@@ -184,6 +186,7 @@ namespace TBD.View
                 if (Boton(cr, (_conPeloton && libres > 0 ? "✓ " : "") + "Con pelotón a bordo", libres > 0, TutorialGuion.Resaltes.ConPeloton)) { _conPeloton = !_conPeloton; if (_conPeloton) TutorialHud.Senal(TutorialGuion.Senales.NH90ConPeloton); }
                 yy += lh * 1.4f;
             }
+            if (!TutorialHud.Activo && s.Estado == AeronaveEstado.EnBase) { if (OrdenesMapa.Tipo != OrdenesMapa.Sel.NH90 || OrdenesMapa.Id != s.Id) OrdenesMapa.Seleccionar(OrdenesMapa.Sel.NH90, s.Id, "panel de Bétera"); GUI.Label(new Rect(x0, yy, ww, lh * 2f), $"<b>{s.Nombre} seleccionado.</b> Clic derecho en la estación de destino del mapa.", _s); return; }   // F0: sin destino ni Enviar en el panel
             foreach (var kv in a.Destinos)
             {
                 int node = TrenPreparar.Nodo(w, kv.Key); if (node < 0) continue;

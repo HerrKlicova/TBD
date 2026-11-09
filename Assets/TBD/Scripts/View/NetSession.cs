@@ -50,6 +50,21 @@ namespace TBD.View
             try { System.IO.File.WriteAllBytes(SaveAtardecer, NetSave.Save(A)); _atardecerDia = dia; Debug.Log($"[TBD] guardado del atardecer (día {dia + 1}, {NetConst.Clock(A.Tick)})"); } catch (System.Exception e) { Debug.LogWarning("[TBD] guardado del atardecer: " + e.Message); }
         }
         // Eugenio (I-Noche110): «Volver a empezar» tras perderlo todo vuelve al último amanecer (punto de control), no al principio de la campaña
+        static long _ultimoTickReloj = -1;
+        public static string AvisoNoche; public static float AvisoNocheHasta;
+        /// <summary>Al dar las 06:00 se guarda el punto de control del amanecer; al dar las 22:00 la red baja a ×1 con un aviso (Nacho, reloj único de la noche).</summary>
+        void RelojDelDia()
+        {
+            if (A == null) return; long t = A.Tick; if (_ultimoTickReloj < 0 || t < _ultimoTickReloj) { _ultimoTickReloj = t; return; }
+            long d0 = _ultimoTickReloj / NetConst.DayTicks, d1 = t / NetConst.DayTicks;
+            for (long d = d0; d <= d1; d++)
+            {
+                long am = d * NetConst.DayTicks + NetConst.Hours(6), no = d * NetConst.DayTicks + NetConst.Hours(22);
+                if (_ultimoTickReloj < am && t >= am && d > 0) GuardarAmanecer();
+                if (_ultimoTickReloj < no && t >= no) { if (A.Speed > 1) Push(NetCmdType.SetSpeed, 1, 0); AvisoNoche = "22:00 · Cae la noche: la partida vuelve a velocidad ×1"; AvisoNocheHasta = Time.unscaledTime + 5f; Debug.Log("[TBD] " + AvisoNoche); }
+            }
+            _ultimoTickReloj = t;
+        }
         public static string SaveAmanecer { get { return System.IO.Path.Combine(Application.persistentDataPath, "amanecer.tbd"); } }
         public static long AmanecerDia = -1;
         public static bool HayAmanecer { get { return AmanecerDia >= 0 && System.IO.File.Exists(SaveAmanecer); } }
@@ -142,7 +157,7 @@ namespace TBD.View
         void Update()
         {
             AudioListener.pause = (PrototypeBootstrap.ZonaPausada && SceneManager.GetActiveScene().name == "SampleScene") || (A != null && A.Paused && SceneManager.GetActiveScene().name == "Union");   // al pausar, silencio (Nuria, revisión del 9-nov): pausa de la zona o del mapa
-            AvisoLog(); GuardarAtardecer();
+            AvisoLog(); GuardarAtardecer(); RelojDelDia();
             var kb5 = UnityEngine.InputSystem.Keyboard.current;
             if (kb5 != null && kb5.f5Key.wasPressedThisFrame) { bool ok = SaveGame(); Debug.Log(ok ? "[TBD] Partida guardada en " + SavePath : "[TBD] No hay partida que guardar"); }   // F5: guardado rapido
             if (SaltarHasta > A.Tick)

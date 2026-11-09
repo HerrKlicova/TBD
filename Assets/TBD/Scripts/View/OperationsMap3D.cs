@@ -50,6 +50,8 @@ namespace TBD.View
         readonly List<LineRenderer> _rails = new List<LineRenderer>();
         readonly List<Transform> _nodes = new List<Transform>();
         readonly List<Transform> _trains = new List<Transform>();
+        /// <summary>F0: posición en el mundo del icono del tren «i» (para seleccionarlo en el mapa).</summary>
+        public Vector3 PosTren(int i) { return i >= 0 && i < _trains.Count && _trains[i] != null ? _trains[i].position : new Vector3(0, -9999, 0); }
         long _lastFieldTick = -1;
 
         // detalle del terreno alrededor del foco (misma función de elevación, más fina): enlaza el mapa con la zona
@@ -756,6 +758,7 @@ namespace TBD.View
         float _nombreTrenW;
         long _emSonado = -1; long _trenParadoAvisado = -1; long _recordatorioLog = -1;
         /// <summary>Lucía (13365b8): el día 2, de 15:00 a 22:00, si aún no ha salido ningún tren hacia Nules.</summary>
+        bool NulesSinCumplirA19() { int nul = -1; for (int i = 0; i < _a.Graph.Nodes.Count; i++) if (_a.Graph.Nodes[i].Name == "Nules") nul = i; long hd = _a.Tick % NetConst.DayTicks; return nul >= 0 && _a.Tick / NetConst.DayTicks == 1 && hd >= NetConst.Hours(19) && hd < NetConst.Hours(22) && !_a.NodeLost[nul] && !(_a.ObjTroops && _a.ObjAmmo); }
         bool RecordatorioNules(out int nul)
         {
             nul = -1; for (int i = 0; i < _a.Graph.Nodes.Count; i++) if (_a.Graph.Nodes[i].Name == "Nules") nul = i;
@@ -837,6 +840,8 @@ namespace TBD.View
                 DrawIcon(new Rect(20, y - 2, zp, zp), "alertas/vm_alertas_" + AlertIcon(AlertKind.NodoAsediado) + "_16");
                 GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>" + Puertas.TextoApartado + "</color>", _small); y += Mathf.Max(_small.fontSize * 1.5f, zp + 4);
             }
+            if (NulesSinCumplirA19())      // Hugo y Lucía (d4d0cc): a las 19:00, si el objetivo no está cumplido, también se puede ir por aire
+            { int zp = IconPx(16); shown++; GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>Nules no está lista para la noche. Puedes mandar los NH90 desde Bétera.</color>", _small); y += Mathf.Max(_small.fontSize * 1.5f, zp + 4); }
             if (RecordatorioNules(out _))      // Lucía (13365b8): recordatorio de las 15:00, doble clic va a Sagunto
             {
                 int zp = IconPx(16); shown++; var rr = new Rect(20, y - 2, pw - 20, Mathf.Max(_small.fontSize * 1.5f, zp + 4));

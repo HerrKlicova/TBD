@@ -25,6 +25,7 @@ namespace TBD.View
         public sealed class VehInfo { public string Name; public string Tipo; public bool Vivo; public bool Embarcado; }
         /// <summary>Registro estatico de los vehiculos de la noche (nombre, tipo, vivo), en orden de creacion: el id de vehiculo del embarque es el indice (Nacho). Lo lee el mapa siempre, tambien de dia.</summary>
         public static readonly System.Collections.Generic.List<VehInfo> Vehs = new System.Collections.Generic.List<VehInfo>();
+        public static bool NocheGanada;           // ya se ganó una noche: el mapa anuncia el objetivo siguiente (Lucía b4c2fe5)
         public static NightSession Session;       // la noche persistente: sobrevive a la escena de la zona (D-N91); la de la última zona
         public static readonly System.Collections.Generic.Dictionary<int, NightSession> Aparcadas = new System.Collections.Generic.Dictionary<int, NightSession>();   // las de las otras zonas (siguen con su reloj)
         public static int Difficulty = 850;      // palanca única (D-N74): 725 fácil, 850 normal, 1000 difícil
@@ -483,8 +484,8 @@ namespace TBD.View
             Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} causa={(win ? "-" : _ng.Cause == DefeatCause.Estacion ? "estacion" : _ng.Cause == DefeatCause.Tren ? "tren" : _ng.Cause == DefeatCause.Ambas ? "estacion+tren" : (_wallHp <= 0 ? "muro" : "otra"))} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 pila_max={_pilaMuroMax} pila_estacion_max={_pilaMaxVista} recargas={_resupplies} desync={_desync} hora_fin={TimeStr()}");
             NaLog();                                                                     // [NOCHE-ARMAS] (Sara, Hugo): pelotones, vehículos, almacén y dotación
             { string est = string.IsNullOrEmpty(_estacionZona) ? "Sagunto" : _estacionZona;   // partida de 30 min (Lucía): el cartel nombra la estación de la zona (Nules en la noche 2)
-              long amD = NetSession.A != null ? NetSession.ProximoAmanecer(NetSession.A.Tick) / NetConst.DayTicks + 1 : 2;   // Lucía (3f1764c): «Sagunto resiste. / Amanece el día {n}.»
-              _endReason = win ? $"{est} resiste.\nAmanece el día {amD}." : _ng.DefeatHeadline(est);
+              _endReason = win ? (_ng.WonByClear ? $"{TimeStr()}. {est} resiste.\nLa horda ha caído." : $"06:00. {est} resiste.\nAmanece.") : _ng.DefeatHeadline(est);   // Lucía b4c2fe5: sin salto al amanecer
+              if (win) NightRun.NocheGanada = true;
               _enPie = win ? null : EstacionesEnPie();
               if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-seguir-auto") >= 0) Invoke(nameof(SeguirAuto), 2f);   // QA: pulsa «Seguir» sola
               if (!win && _enPie.Count > 0) _endReason = $"<color=#982420>{est} ha caído.</color>\n{Lista(_enPie)} {(_enPie.Count > 1 ? "siguen" : "sigue")} en pie.";   // S2 de la qa50 (Lucía, 7705049): no acaba la partida
@@ -507,14 +508,14 @@ namespace TBD.View
         void SeguirTrasCaer()
         {
             _endDismissed = true; Debug.Log($"[NOCHE] {(_estacionZona ?? "?")} ha caído; se sigue en el mapa ({Lista(_enPie)} en pie)");
-            PerderNodoEnRed(_zoneNode); NetSession.SaltarAlAmanecer(); LeaveToMap();
+            PerderNodoEnRed(_zoneNode); LeaveToMap();
         }
         void PerderNodoEnRed(int nodo) { if (nodo >= 0) NetSession.Push(NetCmdType.LoseNode, nodo, 0); }   // Nacho (268427f6): misma caída que fuera de pantalla, por la cola (A y B en el mismo tick)
 
         /// <summary>«Seguir» (D-N91): abre la noche siguiente con las mismas oleadas a +10 % y reinicia los contadores del parte; el mundo no se detuvo.</summary>
         void NextNight()
         {
-            _reportClosed = true; _seguirTrasNoche = true; NetSession.SaltarAlAmanecer(); LeaveToMap(); ClearNightSession(); return;   // Eugenio (I-Noche110): sin el cartel viejo arriba del mapa   // Lucía (3f1764c): «Seguir» lleva al mapa y la red salta a las 06:00 del día siguiente
+            _reportClosed = true; _seguirTrasNoche = true; LeaveToMap(); ClearNightSession(); return;   // Lucía b4c2fe5: sin salto al amanecer (rompe el tiempo real)   // Eugenio (I-Noche110): sin el cartel viejo arriba del mapa   // Lucía (3f1764c): «Seguir» lleva al mapa y la red salta a las 06:00 del día siguiente
             var np = _ng.P; np.ScalePermil = np.ScalePermil * 11 / 10;
             if (_ng.BeginNextNight(np)) { _reportClosed = false; _lastWave = -1; _nightKills = 0; _nightShotsSpent = 0; _nightLost = 0; _bannerText = $"{TimeStr()}. Noche {_ng.NightIndex + 1}.\nAguanta hasta el amanecer."; _bannerUntil = Time.unscaledTime + 4f; }
             else _reportClosed = true;

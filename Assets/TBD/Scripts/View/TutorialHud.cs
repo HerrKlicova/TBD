@@ -452,6 +452,8 @@ namespace TBD.View
                     if (antes != Defensa.Estado) { Debug.Log("[TUTORIAL] objetivo " + ObjetivoDefensa.Titulo + ": " + Defensa.Estado); if (Defensa.Estado != EstadoDefensa.Activo) _defensaHasta = Time.unscaledTime + 6f; }
                     // Objetivo del día 2, v2 (Lucía 13365b8, informe-textos.md): tarjeta al amanecer (≥ 6 s, se cierra con clic) y recuadro fijo a la derecha
                     bool dia2 = wn.Tick >= ObjetivoDefensa.Desde && wn.Tick < ObjetivoDefensa.Hasta && !wn.NodeLost[nul];
+                    if (!dia2 && NightRun.NocheGanada && wn.Tick < ObjetivoDefensa.Desde && !IntroVista.Mostrando)      // Lucía (b4c2fe5): mientras llega el amanecer, la franja superior anuncia el objetivo
+                    { var fr = new Rect(Screen.width * 0.5f - u * 14f, u * 0.5f, u * 28f, u * 1.9f); GUI.DrawTexture(fr, _panel); GUI.Label(new Rect(fr.x, fr.y + u * 0.25f, fr.width, fr.height), "<color=#d4d0cc>Siguiente: Defiende Nules (empieza al amanecer)</color>", new GUIStyle(_line) { alignment = TextAnchor.UpperCenter }); }
                     if (dia2 && _tarjetaObjT < 0f) { _tarjetaObjT = Time.unscaledTime; Debug.Log("[TUTORIAL] tarjeta del objetivo del día 2"); }
                     if (_tarjetaObjT >= 0f && !_tarjetaObjCerrada)
                     {
