@@ -95,6 +95,7 @@ namespace TBD.View
             Ensure(); A = a; B = b;
         }
 
+        static string DiffSistemas() { var x = A.Systems(); var y = B.Systems(); string r = ""; if (x.Control != y.Control) r += "control "; if (x.Field != y.Field) r += "mancha "; if (x.Trains != y.Trains) r += "trenes "; if (x.Stock != y.Stock) r += "existencias "; if (x.Edges != y.Edges) r += "vias "; if (x.Memory != y.Memory) r += "memoria "; return "difiere: " + r + $"(A tick {A.Tick} vel {A.Speed} pausa {A.Paused} zona {A.ActiveZoneNode}; B tick {B.Tick} vel {B.Speed} pausa {B.Paused} zona {B.ActiveZoneNode}; servicios {A.Services.Count}/{B.Services.Count})"; }
         public static void Ensure()
         {
             if (_instance != null) return;
@@ -165,7 +166,7 @@ namespace TBD.View
             {
                 int n = (int)System.Math.Min(SaltarHasta - A.Tick, 2500L);
                 for (int i = 0; i < n; i++) { A.Step(); if (Check) B.Step(); if (A.Paused) break; }
-                if (Check && !Desync && A.Hash() != B.Hash()) { Desync = true; DesyncTick = A.Tick; Debug.LogError($"[TBD] Red: desincronización en el tick {A.Tick}"); }
+                if (Check && !Desync && A.Hash() != B.Hash()) { Desync = true; DesyncTick = A.Tick; Debug.LogError($"[TBD] Red: desincronización en el tick {A.Tick} · {DiffSistemas()}"); }
                 if (A.Tick >= SaltarHasta) { SaltarHasta = -1; _acc = 0f; Debug.Log($"[TBD] amanece: día {A.Tick / NetConst.DayTicks + 1}, {NetConst.Clock(A.Tick)}"); GuardarAmanecer(); }
                 return;
             }
@@ -179,7 +180,7 @@ namespace TBD.View
                 {
                     A.Step();
                     if (Check) B.Step();
-                    if (Check && !Desync && A.Hash() != B.Hash()) { Desync = true; DesyncTick = A.Tick; Debug.LogError($"[TBD] Red: desincronización en el tick {A.Tick}"); }
+                    if (Check && !Desync && A.Hash() != B.Hash()) { Desync = true; DesyncTick = A.Tick; Debug.LogError($"[TBD] Red: desincronización en el tick {A.Tick} · {DiffSistemas()}"); }
                 }
             }
         }

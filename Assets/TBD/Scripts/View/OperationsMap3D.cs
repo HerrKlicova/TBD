@@ -106,6 +106,7 @@ namespace TBD.View
             NetSession.Ensure();                       // la red vive en la sesión y sigue corriendo dentro de las zonas (hito 3)
             _a = NetSession.A;
             ColmenaEstadoFuente = () => NetSession.A.Director.ColState; ColmenaSenalFuente = () => (int)NetSession.A.Director.ColSignalMil;   // D-N160: la Colmena de la red (Nacho) en la capa APP-6 y el informe (Bruno)
+            if (!TutorialHud.Activo && NetSession.B != null && NetSession.B != _a) NetSession.B.Director.ColmenaIntro(NetSession.B);   // qa52: la entrada CO-0 en los dos mundos (con solo A, desincronización de «memoria» en el tick 5776)
             if (!TutorialHud.Activo && _a.Director.ColmenaIntro(_a)) { Sfx.Play("sfx_colmena_dispersa_2", 1f); Sfx.Duck(3f); _intelVisto = _a.Intel.Count; }   // CO-0 (Nacho; Lucía: una vez por partida, también tras cargar)
             _b = NetSession.B;
             _relief = new PlaceholderRelief(_a.Graph);
@@ -862,7 +863,7 @@ namespace TBD.View
                 GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>" + Puertas.TextoApartado + "</color>", _small); y += Mathf.Max(_small.fontSize * 1.5f, zp + 4);
             }
             if (NulesSinCumplirA19())      // Hugo y Lucía (d4d0cc): a las 19:00, si el objetivo no está cumplido, también se puede ir por aire
-            { int zp = IconPx(16); shown++; GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>Nules no está lista para la noche. Puedes mandar los NH90 desde Bétera.</color>", _small); y += Mathf.Max(_small.fontSize * 1.5f, zp + 4); }
+            { int zp = IconPx(16); shown++; GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>Nules no está lista para la noche.</color>", _small); y += Mathf.Max(_small.fontSize * 1.5f, zp + 4); }
             if (RecordatorioNules(out _))      // Lucía (13365b8): recordatorio de las 15:00, doble clic va a Sagunto
             {
                 int zp = IconPx(16); shown++; var rr = new Rect(20, y - 2, pw - 20, Mathf.Max(_small.fontSize * 1.5f, zp + 4));
