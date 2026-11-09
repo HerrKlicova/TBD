@@ -574,7 +574,8 @@ namespace TBD.View
                 case 5: if (t > 2f && !Embarque.Ocupado) { PonerDestino(nul); Enviar(); Debug.Log($"[DIA2] segundo tren a Nules {(escolta ? "con pelotón" : "sin escolta")} y 25 u"); _autoPaso++; } break;
                 case 6: if (W.LastAmbush.Tick >= 0) { var e = W.LastAmbush; Debug.Log($"[DIA2] emboscada: nodo {W.Graph.Nodes[e.Node].Name}, {e.Zombies} zombis, en pantalla {e.OnScreen}, rechazada {e.Repelled}, cercado {e.Surrounded}"); NetSession.Turbo = 20; _autoPaso++; }
                         else if (W.Tick >= dia2 + NetConst.Hours(20)) { Debug.LogWarning("[DIA2] sin emboscada a las 20:00"); NetSession.Turbo = 20; _autoPaso++; } break;
-                case 7: if (Viaje >= 0 && W.Services[Viaje].AtStop && W.Services[Viaje].Stops[W.Services[Viaje].StopIndex].Node == nul && !Puertas.EnPuertas(W, Viaje, nul)) { NetSession.Turbo = 1; DescargarFuera(); Debug.Log($"[DIA2] el tren entra en Nules y descarga ({NetConst.Clock(W.Tick)})"); NetSession.Turbo = 20; _autoPaso++; }
+                case 7: if (W.LastAmbush.TrainLost) { Debug.Log("[DIA2] el tren se ha perdido en la emboscada: no hay descarga"); _autoPaso++; }
+                        else if (Viaje >= 0 && W.Services[Viaje].AtStop && W.Services[Viaje].Stops[W.Services[Viaje].StopIndex].Node == nul && !Puertas.EnPuertas(W, Viaje, nul)) { NetSession.Turbo = 1; DescargarFuera(); Debug.Log($"[DIA2] el tren entra en Nules y descarga ({NetConst.Clock(W.Tick)})"); NetSession.Turbo = 20; _autoPaso++; }
                         else if (W.Tick >= dia2 + NetConst.Hours(20.5)) { Debug.Log("[DIA2] el tren no ha entrado en Nules (sigue a las puertas o perdido)"); _autoPaso++; } break;
                 case 8: if (W.Tick >= dia2 + NetConst.Hours(19.5))      // como un jugador que hace caso del aviso de las 19:00: el tren vuelve a Sagunto (salvo -dia2-auto-tren-aparcado)
                     {
