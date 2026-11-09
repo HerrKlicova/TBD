@@ -1148,6 +1148,9 @@ namespace TBD.View
                 if (n.StartsWith("Decal") && r.bounds.max.y > 0.2f) continue;            // solo los decals del suelo (no la placa, el reloj, las pintadas ni la línea del andén)
                 foreach (var m in r.sharedMaterials) if (m != null && hechos.Add(m)) EmisionSuelo(m, noche);
             }
+            if (noche) Debug.Log("[SOMBRA] ambientesuelo K=" + AmbienteSueloK.ToString(System.Globalization.CultureInfo.InvariantCulture) + " · " + hechos.Count + " materiales del suelo · ΔA lineal=("
+                + (_ambNocheLin.r * AmbienteSueloK).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "; " + (_ambNocheLin.g * AmbienteSueloK).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "; "
+                + (_ambNocheLin.b * AmbienteSueloK).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + ") (los trozos que llegan después se suman solos)");
         }
 
         static readonly float AmbienteSueloK = LeerFloat("-ambientesuelo", 1.1f);
