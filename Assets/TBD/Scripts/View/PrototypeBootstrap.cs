@@ -934,7 +934,7 @@ namespace TBD.View
         /// Fuerza de la sombra de la luna de noche (Lucía, decisiones-noche 09-11 02:01; Sara, qa47 resultado-tren-dn157.md). Con 0,85 (la del día) la sombra del tren
         /// en el balasto sale en L* 3,4 y los zombis pegados (L* 0–2) desaparecen en ella. Objetivo: sombra en pantalla con L* ≥ 10 (la entrada 181c30 de la paleta,
         /// L* 10,8) y siempre más oscura que el balasto iluminado (L* 20–26), para que se siga leyendo como sombra. La horda NO cambia (D-N80).
-        /// 0,65 es una ESTIMACIÓN (Bruno, desde la nube: con la medida de Sara, la sombra deja pasar ~10 % de la luna y hace falta ~33 %); SIN MEDIR en la build.
+        /// Por defecto 0,75 (Lucía, 09-11 03:41, con la medida de Sara en la I-Noche80).
         /// Desde el 09-11 02:45 se aplica pasando 1 − SombraNoche de la luna al ambiente (ver ApplyGrade), porque la fuerza de la sombra sola no hacía nada.
         /// Es global: aclara igual todas las sombras de la luna (muro, casas, tren), así que un zombi a la sombra del muro también se separa.
         /// -sombranoche 0.55 (o el valor que sea) la cambia sin compilar, para que Marcos barra 0,55 / 0,65 / 0,75 y Sara mida.
@@ -952,12 +952,44 @@ namespace TBD.View
             Debug.Log(sb.ToString());
         }
 
+        /// <summary>qa47 (I-Noche80): la sombra del tren sale en 090a10 (L* 2,8) con cualquier fuerza de sombra, ambiente o sonda, y ese color no está en el código
+        /// ni en la paleta (el cuantizador está apagado de noche, D-N129). Para saber qué superficie es: una línea [SOMBRA] por cada material distinto de lo que hay
+        /// a menos de 0,6 m del suelo en la franja de la vía (±6 m), con su shader, color base y textura. Un color base casi negro ahí sería el culpable (solo refleja el cielo).
+        /// -sinssao apaga la oclusión ambiental de pantalla (SSAO del PC_Renderer) para descartarla. Las dos cosas son solo de vista: no tocan la simulación.</summary>
+        void DiagnosticoSombra()
+        {
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinssao") >= 0)
+            {
+                var rend = (GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset)?.GetRenderer(0);
+                var prop = typeof(ScriptableRenderer).GetProperty("rendererFeatures", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+                if (rend != null && prop != null && prop.GetValue(rend) is System.Collections.Generic.List<ScriptableRendererFeature> fs)
+                    foreach (var f in fs) if (f != null && f.GetType().Name.Contains("AmbientOcclusion")) { f.SetActive(false); Debug.Log("[SOMBRA] SSAO apagada (-sinssao): " + f.name); }
+            }
+            var vistos = new System.Collections.Generic.Dictionary<string, int>(); var ejemplo = new System.Collections.Generic.Dictionary<string, string>();
+            foreach (var r in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+            {
+                if (!r.enabled || !r.gameObject.activeInHierarchy) continue;
+                var b = r.bounds;
+                if (b.min.y > 0.6f || b.max.z < Level.TrackY - 6f || b.min.z > Level.TrackY + 6f) continue;
+                foreach (var m in r.sharedMaterials)
+                {
+                    if (m == null) continue;
+                    string col = m.HasProperty("_BaseColor") ? ColorUtility.ToHtmlStringRGB(m.GetColor("_BaseColor")) : "-";
+                    var tex = m.HasProperty("_BaseMap") ? m.GetTexture("_BaseMap") : null;
+                    string key = m.shader.name + " col=" + col + " tex=" + (tex != null ? tex.name : "-") + " cola=" + m.renderQueue + " capa=" + r.gameObject.layer;
+                    vistos[key] = vistos.TryGetValue(key, out var n) ? n + 1 : 1;
+                    if (!ejemplo.ContainsKey(key)) ejemplo[key] = r.name + " y=" + b.min.y.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + ".." + b.max.y.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + " recibeSombra=" + r.receiveShadows + " sondas=" + r.lightProbeUsage;
+                }
+            }
+            foreach (var kv in vistos) Debug.Log("[SOMBRA] " + kv.Value + "× " + kv.Key + " · p. ej. " + ejemplo[kv.Key]);
+        }
+
         static readonly float SombraNoche = LeerSombraNoche();
         static float LeerSombraNoche()
         {
             var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-sombranoche");
             if (i >= 0 && i + 1 < a.Length && float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)) return Mathf.Clamp01(v);
-            return 0.65f;
+            return 0.75f;                                                     // Lucía 09-11 03:41 (decisiones-noche): 0,75, el más oscuro con la carga ≥ 8 (Sara, I-Noche80: 8,2)
         }
 
         void ApplyGrade(int index)
@@ -1004,6 +1036,7 @@ namespace TBD.View
                         SetLight(lunaCol, lunaI * (1f - k), amb, 50f);
                         if (_sun != null) _sun.shadowStrength = 1f;
                         DiagnosticoLuces();
+                        DiagnosticoSombra();
                     }
                     SetFloodlights(90f);
                     break;
