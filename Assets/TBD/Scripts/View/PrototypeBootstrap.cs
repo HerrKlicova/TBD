@@ -1161,7 +1161,7 @@ namespace TBD.View
                 string n = r.name;
                 if (!(n.StartsWith("Trozo de suelo") || n.StartsWith("Suelo") || n.StartsWith("Calle") || n.StartsWith("Vía") || n.StartsWith("Balasto") || n.StartsWith("Decal") || n.StartsWith("Grieta") || n.StartsWith("Rodada") || n.StartsWith("Paso a nivel"))) continue;
                 if (n.StartsWith("Decal") && r.bounds.max.y > 0.2f) continue;            // solo los decals del suelo (no la placa, el reloj, las pintadas ni la línea del andén)
-                foreach (var m in r.sharedMaterials) if (m != null && hechos.Add(m)) { EmisionSuelo(m, noche); if (detalle && !n.StartsWith("Trozo")) nombres.Append(" | " + n + " kw=" + m.IsKeywordEnabled("_EMISSION") + " e=" + ColorUtility.ToHtmlStringRGB(m.GetColor("_EmissionColor"))); }
+                foreach (var m in r.sharedMaterials) if (m != null && hechos.Add(m)) { EmisionSuelo(m, noche); if (detalle && !n.StartsWith("Trozo")) nombres.Append(" | " + n + " kw=" + m.IsKeywordEnabled("_EMISSION") + " e(lin)=" + m.GetVector("_EmissionColor").x.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "/" + m.GetVector("_EmissionColor").z.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + " sh=" + (m.shader != null ? m.shader.name : "null") + " gi=" + m.globalIlluminationFlags); }
             }
             if (detalle) Debug.Log("[SOMBRA] ambientesuelo piezas (sin los trozos):" + nombres);
             if (noche) Debug.Log("[SOMBRA] ambientesuelo K=" + AmbienteSueloK.ToString(System.Globalization.CultureInfo.InvariantCulture) + " · " + hechos.Count + " materiales del suelo · ΔA lineal=("
@@ -1176,12 +1176,12 @@ namespace TBD.View
         {
             if (!m.HasProperty("_EmissionColor") || !m.HasProperty("_BaseMap")) return;
             m.EnableKeyword("_EMISSION");
-            m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+            m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;      // con EmissiveIsBlack el URP puede quitar _EMISSION (Iker, I-Noche92)
             var bm = m.GetTexture("_BaseMap");
             m.SetTexture("_EmissionMap", bm);
             var bc = m.HasProperty("_BaseColor") ? m.GetColor("_BaseColor").linear : Color.white;
             var e = noche && AmbienteSueloK > 0f ? new Color(_ambNocheLin.r * bc.r, _ambNocheLin.g * bc.g, _ambNocheLin.b * bc.b) * AmbienteSueloK : Color.black;
-            m.SetColor("_EmissionColor", e);                                   // el color de emisión de URP va en lineal
+            m.SetVector("_EmissionColor", new Vector4(e.r, e.g, e.b, 1f));     // SetVector, sin conversión: SetColor toma el color en gamma y lo pasa a lineal, y ΔA≈0,02 llegaba al shader como ≈0,002 (por eso K no cambiaba nada)
         }
 
         static float LeerFloat(string bandera, float porDefecto)
