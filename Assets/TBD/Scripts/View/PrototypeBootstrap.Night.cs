@@ -196,6 +196,7 @@ namespace TBD.View
             }
 
             // zombis nuevos (en los dos mundos, en el mismo punto)
+            EmboscadaEnZona(_spawns);                                                   // partida de 30 min: la emboscada de la red con el jugador en la zona (300 zombis)
             if (_sinHorda) _spawns.Clear();                                           // QA (Sara, qa48 «vacío»): -sinhorda no saca zombis
             if (_spawns.Count > 0) SpawnZombies(_spawns);
 

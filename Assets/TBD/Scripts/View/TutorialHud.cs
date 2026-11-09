@@ -441,7 +441,7 @@ namespace TBD.View
                 var wn = NetSession.A; int nul = wn != null ? TrenPreparar.Nodo(wn, "Nules") : -1;
                 if (wn != null && nul >= 0)
                 {
-                    int mun = wn.Stock[nul, (int)Res.Municion]; bool tropa = wn.ZoneDefended(nul); var antes = Defensa.Estado;
+                    int mun = wn.Stock[nul, (int)Res.Municion]; bool tropa = wn.ObjTroops;   // Nacho (e136e545): un pelotón bajado en Nules por el embarque; la guarnición de la D-N183 no cuenta var antes = Defensa.Estado;
                     Defensa.Actualizar(wn.Tick, mun, tropa, wn.NodeLost[nul]);
                     if (antes != Defensa.Estado) { Debug.Log("[TUTORIAL] objetivo " + ObjetivoDefensa.Titulo + ": " + Defensa.Estado); if (Defensa.Estado != EstadoDefensa.Activo) _defensaHasta = Time.unscaledTime + 6f; }
                     if (Defensa.Estado == EstadoDefensa.Activo || Time.unscaledTime < _defensaHasta)
@@ -457,8 +457,9 @@ namespace TBD.View
 
         void OnGUI()
         {
-            if (_m == null || IntroVista.Mostrando) return;
+            if (IntroVista.Mostrando) return;
             GUI.depth = -100;                 // por encima del resto de la interfaz
+            if (_m == null) { Styles(); Avisos(); return; }      // sin tutorial también salen los avisos y el objetivo del día 2 (partida de 30 min)
             Styles(); MapTargets(); Avisos();
             float t = Time.unscaledTime;
             if (_m.Visible)

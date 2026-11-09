@@ -722,6 +722,7 @@ namespace TBD.View
             foreach (var st in new[] { _label, _small, _title }) { st.clipping = TextClipping.Overflow; st.wordWrap = false; st.padding = new RectOffset(2, 2, 2, 6); st.overflow = new RectOffset(0, 0, 0, 8); }   // la altura del rectángulo no recorta el texto (nombres cortados por abajo)
         }
 
+        long _emSonado = -1;
         void OnGUI()
         {
             if (_a == null) return;
@@ -779,6 +780,21 @@ namespace TBD.View
                 int zp = IconPx(16); shown++;
                 DrawIcon(new Rect(20, y - 2, zp, zp), "alertas/vm_alertas_" + AlertIcon(AlertKind.NodoAsediado) + "_16");
                 GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>" + Puertas.TextoApartado + "</color>", _small); y += Mathf.Max(_small.fontSize * 1.5f, zp + 4);
+            }
+            {   // EM-1 (Lucía, a8b49fd): emboscada de la red en 982420; doble clic lleva a la zona del nodo. Visible 2 h de juego
+                var em = _a.LastAmbush;
+                if (em.Tick >= 0 && em.Node >= 0 && em.Node < _a.Graph.Nodes.Count && _a.Tick - em.Tick < NetConst.Hours(2))
+                {
+                    int zp = IconPx(16); shown++;
+                    string tren = em.Service >= 0 && em.Service < _a.Services.Count ? _a.Services[em.Service].Train.Name : "tren";
+                    string txt = $"Emboscada en {_a.Graph.Nodes[em.Node].Name}: unos {em.Zombies} zombis atacan el {tren}.";
+                    var rr = new Rect(20, y - 2, pw - 20, Mathf.Max(_small.fontSize * 1.5f, zp + 4));
+                    DrawIcon(new Rect(20, y - 2, zp, zp), "alertas/vm_alertas_" + AlertIcon(AlertKind.NodoAsediado) + "_16");
+                    GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#982420><b>" + txt + "</b></color>", _small); y += rr.height;
+                    if (em.InApartado) { GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>" + Puertas.TextoApartado + "</color>", _small); y += _small.fontSize * 1.5f; }
+                    var ev = Event.current; if (ev.type == EventType.MouseDown && ev.button == 0 && ev.clickCount == 2 && rr.Contains(ev.mousePosition)) { ev.Use(); EnterZone(em.Node); }
+                    if (_emSonado != em.Tick) { _emSonado = em.Tick; Sfx.Play("ui_aviso_ambar", 0.8f); Sfx.Duck(2f); Debug.Log("[MAPA] EM-1 " + txt); }
+                }
             }
             y = DrawColmenaAviso(pw, y, ref shown);                  // D-N160: «La Colmena se agita» (ámbar), antes del Enjambre
             foreach (var zw in zws)       // aviso ámbar: la horda va a una zona sin tropa (Lucía, 8-nov; regla de Nacho)
