@@ -31,8 +31,8 @@ namespace TBD.Sim.Tests
             check(l.Hash() == hNight, "se guarda y se carga en mitad del asedio");
             To(w, 2 * D + NetConst.Hours(6) + 1);
             var r = w.LastZoneSiege;
-            check(r.Node == nul && !r.Lost && !r.OnScreen && r.Killed == 2400 && r.SpentU == 4 && r.Casualties == 0 && w.GarrisonMil[nul] == 12000 && w.Stock[nul, (int)Res.Municion] == 20 - r.SpentU && !w.NodeLost[nul] && !w.Besieged(nul),
-                $"con 20 u, Nules aguanta: abate las 2400 y gasta {r.SpentU} u (3,3 de Hugo, en u enteras por arriba)");
+            check(r.Node == nul && !r.Lost && !r.OnScreen && r.Killed == 2400 && r.SpentU == 6 && r.Casualties == 0 && w.GarrisonMil[nul] == 12000 && w.Stock[nul, (int)Res.Municion] == 20 - r.SpentU && !w.NodeLost[nul] && !w.Besieged(nul),
+                $"con 20 u, Nules aguanta: abate las 2400 y gasta {r.SpentU} u (opción A: 400 por u, sin bonus del muro)");
             check(w.Intel.Exists(e => e.Id == "ZS-1"), "parte «Nules aguanta la noche»");
 
             var z = NetScenario.Inicio(); To(z, D + NetConst.Hours(19) + 1); z.Stock[nul, (int)Res.Municion] = 0; To(z, 2 * D + NetConst.Hours(6) + 1);
@@ -46,12 +46,14 @@ namespace TBD.Sim.Tests
 
             var s3 = NetScenario.Inicio(); s3.ActiveZoneNode = nul; To(s3, D + NetConst.Hours(19) + 1); s3.Stock[nul, (int)Res.Municion] = 0; To(s3, 2 * D + NetConst.Hours(6) + 1);
             check(s3.LastZoneSiege.OnScreen && !s3.NodeLost[nul] && s3.Stock[nul, (int)Res.Municion] == 0 && !s3.Intel.Exists(e => e.Id == "ZS-2"), "con la zona de Nules en pantalla no se aplica: manda NightSim");
-            check(NetSave.NetVersion == 5, "la versión de la red sube a 5");
+            check(NetSave.NetVersion >= 5, "la versión de la red es 5 o más (5: hordas de zona)");
             check(sag >= 0 && !w.NodeLost[sag], "");
             var e = NetScenario.Inicio(); long wu = e.WallU(nul);
             check(wu == 124, $"el recinto de Nules en Inicio: {wu} u (Lucía: 124,3)");
-            var f3 = NetScenario.Inicio(); To(f3, D + NetConst.Hours(19) + 1); f3.Stock[nul, (int)Res.Municion] = 2; To(f3, 2 * D + NetConst.Hours(6) + 1);
-            check(!f3.LastZoneSiege.Lost && f3.LastZoneSiege.Killed == 2 * 731 && f3.GarrisonMil[nul] == 12000 - (2400 - 1462) * 4, $"con 2 u: abate 1462 (731 por u), quedan 938 en pie, el muro baja {f3.LastZoneSiege.DamageU} u y la guarnición pierde 3,75: aguanta con {f3.GarrisonMil[nul] / 1000.0:0.00}");
+            var f3 = NetScenario.Inicio(); To(f3, D + NetConst.Hours(19) + 1); f3.Stock[nul, (int)Res.Municion] = 5; To(f3, 2 * D + NetConst.Hours(6) + 1);
+            check(!f3.LastZoneSiege.Lost && f3.LastZoneSiege.Killed == 5 * 400 && f3.GarrisonMil[nul] == 12000 - (2400 - 2000) * 4, $"con 5 u: abate 2000 (400 por u, opción A), quedan 400 en pie, el muro baja {f3.LastZoneSiege.DamageU} u y la guarnición pierde 1,6: aguanta con {f3.GarrisonMil[nul] / 1000.0:0.00}");
+            var f2 = NetScenario.Inicio(); To(f2, D + NetConst.Hours(19) + 1); f2.Stock[nul, (int)Res.Municion] = 2; To(f2, 2 * D + NetConst.Hours(6) + 1);
+            check(f2.LastZoneSiege.Lost && f2.LastZoneSiege.Killed == 800, $"con 2 u ya no aguanta (antes, con el bonus del muro, sí): abate 800, quedan 1600 y la guarnición baja de la mitad");
         }
     }
 }
