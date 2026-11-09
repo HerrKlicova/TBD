@@ -592,9 +592,37 @@ namespace TBD.View
         static NetWorld W { get { return NetSession.A; } }
 
         readonly HashSet<int> _caidos = new HashSet<int>();
+        // salida del tren a la vista (D-N170, sonidos de Nuria): nadie llamaba a SalidaTrenSonido en la zona, así que no sonaba; al salir un tren de la estación de la zona
+        // se toca la secuencia (aviso, cierre de puertas, pitido en la cabeza y arranque) en el andén (143; 64,5), con la cabeza 20 m al este
+        readonly Dictionary<int, bool> _antes = new Dictionary<int, bool>();
+        readonly List<SalidaTren> _salidas = new List<SalidaTren>(); readonly List<SonidoSalida> _sonSal = new List<SonidoSalida>();
+        static readonly Vector3 AndenZona = new Vector3(143f, 1f, 64.5f), CabezaZona = new Vector3(163f, 2f, 64.5f);
+        void SalidasALaVista()
+        {
+            if (W == null) return;
+            int casa = W.Embarque.HomeNode;
+            for (int i = 0; i < W.Services.Count; i++)
+            {
+                var s = W.Services[i]; bool enCasa = W.TrainAtNode(s, casa) && s.GateNode < 0;
+                if (_antes.TryGetValue(i, out var antes) && antes && !enCasa && !s.Destroyed)
+                {
+                    _salidas.Add(new SalidaTren(TipoTren.Electrico, 60f, TrenPreparar.SemillaSalida(s.Train.Id, casa, W.Tick / NetConst.DayTicks), 4, false));
+                    Debug.Log("[TREN] sale a la vista: " + s.Train.Name);
+                }
+                _antes[i] = enCasa;
+            }
+            for (int k = _salidas.Count - 1; k >= 0; k--)
+            {
+                var sal = _salidas[k]; _sonSal.Clear(); sal.Avanzar(Time.deltaTime, _sonSal);
+                SalidaTrenSonido.Tocar(_sonSal, pu => AndenZona + new Vector3(-8f + 5f * pu, 0f, 0f), AndenZona, CabezaZona + new Vector3(sal.Distancia, 0f, 0f));
+                if (sal.T > 20f) _salidas.RemoveAt(k);
+            }
+        }
+
         void Update()
         {
             TrenPanel.Vigilar();
+            SalidasALaVista();
             if (W != null)       // D-N177: el tren cae a las puertas de casa → sfx_tren_caido_puertas en la puerta (Nuria), una vez por tren
                 for (int i = 0; i < W.Services.Count; i++)
                 {
