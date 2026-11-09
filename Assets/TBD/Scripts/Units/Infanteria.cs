@@ -26,7 +26,7 @@ namespace TBD.Units
     public struct TargetHit { public int TargetId; public int Damage; public int Platoon; public WeaponId Weapon; }
 
     /// <summary>Explosión que cae este tick (para el efecto visual en el punto de impacto).</summary>
-    public struct Blast { public int X, Y, RadiusMm; public WeaponId Weapon; }
+    public struct Blast { public int X, Y, RadiusMm; public WeaponId Weapon; public int Platoon, InRadius, Hits; }   // Platoon, InRadius y Hits: solo para medir (fuera del hash)
 
     public struct Casualty { public int Platoon, Man, X, Y; }
     /// <summary>Contacto de la horda con un pelotón en un tick: zombis pegados a sus soldados (suma de contactos) y vida quitada.</summary>
@@ -214,6 +214,11 @@ namespace TBD.Units
             }
         }
 
+        /// <summary>Reparto de objetivos (Lucía, 9-nov, decisiones-noche): un lanzagranadas no dispara a un punto que ya tiene una granada en vuelo a menos de su radio; ese tirador usa el fusil.
+        /// Medido en NightSim: los granaderos pasan de 347 a 437 abatidos por u en normal y Sagunto difícil sube a ~6470. Es regla, no estado: fuera del hash.</summary>
+        public bool GrenadeDeconflict = true;
+        bool GrenadeInbound(int x, int y, int r) { long r2 = (long)r * r; foreach (var q in _pending) { long dx = q.X - x, dy = q.Y - y; if (dx * dx + dy * dy < r2) return true; } return false; }
+        public long DxResupShots, DxResupN;      // medida: lo que sale del almacén en recargas de pelotón (fuera del hash)
         public Platoon Find(int id) { for (int i = 0; i < Platoons.Count; i++) if (Platoons[i].Id == id) return Platoons[i]; return null; }
 
         // ------------------------------------------------------------ órdenes (cada una es una orden de la simulación)
@@ -250,6 +255,7 @@ namespace TBD.Units
             StockShots -= n; p.AmmoShots += n;
             int c = WeaponCatalog.Table[(int)WeaponId.C90].CostShots;
             while (p.C90Left < p.C90Cap && StockShots >= c && c >= 0) { StockShots -= c; p.C90Left++; n += c; if (c == 0) { p.C90Left = p.C90Cap; break; } }
+            if (n > 0) { DxResupShots += n; DxResupN++; }
             return n;
         }
 
@@ -575,6 +581,7 @@ namespace TBD.Units
                     if (bi < 0) continue;
                     var tg = targets[bi];
                     if (w.MinCluster > 1 && CountNear(targets, tg.X, tg.Y, w.RadiusMm, w.MinCluster) < w.MinCluster) continue;   // el granadero usa el fusil
+                    if (GrenadeDeconflict && w.Explosive && w.FlightTicks > 0 && GrenadeInbound(tg.X, tg.Y, w.RadiusMm)) continue;   // reparto (Lucía, 9-nov): ese grupo ya tiene una granada en vuelo; usa el fusil
                     Fire(p, m, slot, (WeaponId)wid, w, tg, targets, res);
                     break;
                 }
@@ -644,7 +651,7 @@ namespace TBD.Units
 
         void Explode(int x, int y, Weapon w, WeaponId wid, int platoon, int exclude, IList<Target> targets, StepResult res)
         {
-            res.Blasts.Add(new Blast { X = x, Y = y, RadiusMm = w.RadiusMm, Weapon = wid });
+            int bi0 = res.Blasts.Count; res.Blasts.Add(new Blast { X = x, Y = y, RadiusMm = w.RadiusMm, Weapon = wid, Platoon = platoon });
             long r2 = (long)w.RadiusMm * w.RadiusMm;
             _scratch.Clear();
             for (int t = 0; t < targets.Count; t++)
@@ -662,6 +669,7 @@ namespace TBD.Units
             int kills = exclude >= 0 ? 1 : 0;
             for (int k = 0; k < _scratch.Count && kills < w.CapKills; k++)
                 if (Rng.Below(1000) < w.LethalityPm) { res.Hits.Add(new TargetHit { TargetId = targets[_scratch[k]].Id, Damage = KillDamage, Platoon = platoon, Weapon = wid }); kills++; }
+            { var bb = res.Blasts[bi0]; bb.InRadius = _scratch.Count + (exclude >= 0 ? 1 : 0); bb.Hits = kills; res.Blasts[bi0] = bb; }
         }
 
         void ResolvePending(IList<Target> targets, StepResult res)
