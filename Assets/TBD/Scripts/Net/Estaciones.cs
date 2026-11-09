@@ -11,7 +11,7 @@ namespace TBD.Net
     public enum StationKind : byte { NoFundada = 0, Apeadero = 1, Estacion = 2 }
 
     public enum RepairResult : byte { Ok = 0, SinEscombros = 1, SinTrenDeObras = 2, TrenLejos = 3, SinCarga = 4, HordeEncima = 5, YaEnObra = 6 }
-    public enum ScheduleResult : byte { Ok = 0, TrenInexistente = 1, NoEstaParado = 2, HorarioInvalido = 3, NoIncluyeParadaActual = 4 }
+    public enum ScheduleResult : byte { Ok = 0, TrenInexistente = 1, NoEstaParado = 2, HorarioInvalido = 3, NoIncluyeParadaActual = 4, Cercada = 5 }   // Cercada: D-N184, una parada en una estación cercada
     public enum FoundResult : byte { Ok = 0, NoEsEmplazamiento = 1, YaFundada = 2, SinTren = 3, SinCarga = 4, HordeEncima = 5 }
 
     public struct StationParams
