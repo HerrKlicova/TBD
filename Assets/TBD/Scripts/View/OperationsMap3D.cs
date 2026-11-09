@@ -420,6 +420,7 @@ namespace TBD.View
             long fieldTick = _a.Tick / NetConst.FieldEvery;
             if (fieldTick != _lastFieldTick) { _lastFieldTick = fieldTick; UpdateTexture(); UpdateDetailTexture(); }
             UpdateNetwork();
+            UpdateMasasEnMarcha();                       // D-N182: la masa del asedio anunciado llega andando por su rumbo (solo vista)
             UpdateCamera();
             UpdateDetail();
             CheckZoneEntry();
