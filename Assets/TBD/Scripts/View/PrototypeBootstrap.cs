@@ -1002,6 +1002,18 @@ namespace TBD.View
                 if (System.Array.IndexOf(pref, "Trozo") >= 0 && _chunkRoot != null) _chunkRoot.gameObject.SetActive(false);   // los trozos de suelo se cargan después: se apaga la raíz
                 Debug.Log("[SOMBRA] -ocultar " + args[io + 1] + ": " + apagados + " renderers apagados");
             }
+            // I-Noche85: los puntos de la franja y el del suelo iluminado cruzan los mismos objetos (trozo de suelo, Capa C, Suelo oeste): la franja es SUELO, más oscuro
+            // solo por la luz. Como no es la luna (sale igual con -luz ambiente), la sospecha son las sombras de los focos y farolas (luces de punto o foco).
+            // [LUCES] registra todas las luces activas; -sombrafocos F pone la fuerza de sombra F (0 = sin sombra) en todas las luces que no son direccionales.
+            int isf = System.Array.IndexOf(args, "-sombrafocos"); float sf = -1f;
+            if (isf >= 0 && isf + 1 < args.Length) float.TryParse(args[isf + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out sf);
+            foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None))
+            {
+                if (!l.isActiveAndEnabled) continue;
+                if (sf >= 0f && l.type != LightType.Directional) l.shadowStrength = Mathf.Clamp01(sf);
+                Debug.Log("[LUCES] " + l.name + " (padre " + (l.transform.parent != null ? l.transform.parent.name : "-") + ") " + l.type + " i=" + l.intensity.ToString("0.##") + " alcance=" + l.range.ToString("0")
+                    + " sombras=" + l.shadows + " fuerza=" + l.shadowStrength.ToString("0.##") + " pos=" + l.transform.position.ToString("0") + " color=" + ColorUtility.ToHtmlStringRGB(l.color));
+            }
             int ip = System.Array.IndexOf(args, "-picar");
             if (ip >= 0 && ip + 1 < args.Length) StartCoroutine(Picar(args[ip + 1]));
             var lp = LightmapSettings.lightProbes;
