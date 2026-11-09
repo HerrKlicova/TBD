@@ -420,7 +420,7 @@ namespace TBD.View
             long fieldTick = _a.Tick / NetConst.FieldEvery;
             if (fieldTick != _lastFieldTick) { _lastFieldTick = fieldTick; UpdateTexture(); UpdateDetailTexture(); }
             UpdateNetwork();
-            UpdateMasasEnMarcha(); UpdateCerco();                       // D-N182: la masa del asedio anunciado llega andando por su rumbo (solo vista)
+            UpdateMasasEnMarcha(); UpdateCerco(); AvisosEnLog();                       // D-N182: la masa del asedio anunciado llega andando por su rumbo (solo vista)
             UpdateCamera();
             UpdateDetail();
             CheckZoneEntry();
@@ -723,6 +723,25 @@ namespace TBD.View
         }
 
         long _emSonado = -1; long _trenParadoAvisado = -1;
+        /// <summary>Sonido y línea de log de los avisos del mapa en Update (OnGUI no corre con -nographics; Sara los comprueba en lote).</summary>
+        void AvisosEnLog()
+        {
+            var em = _a.LastAmbush;
+            if (em.Tick >= 0 && em.Node >= 0 && em.Node < _a.Graph.Nodes.Count && _emSonado != em.Tick)
+            {
+                _emSonado = em.Tick; string tren = em.Service >= 0 && em.Service < _a.Services.Count ? _a.Services[em.Service].Train.Name : "tren";
+                Sfx.Play("aviso_horda", Vector3.zero, 0.7f, 0.05f); Sfx.Duck(1.5f);   // Nuria (mvp-em1-caida-repetir.md)
+                Debug.Log($"[MAPA] EM-1 Emboscada en {_a.Graph.Nodes[em.Node].Name}: unos {em.Zombies} zombis atacan el {tren}.");
+            }
+            long hd = _a.Tick % NetConst.DayTicks; if (hd < NetConst.Hours(19) || hd >= NetConst.Hours(22)) return;
+            foreach (var sv in _a.Services)
+            {
+                if (!sv.AtStop || sv.Stops.Count == 0) continue; int nn = sv.GateNode >= 0 ? sv.GateNode : sv.Stops[sv.StopIndex].Node;
+                if (nn < 0 || nn == _a.Embarque.HomeNode || _a.NodeLost[nn]) continue;
+                long k = _a.Tick / NetConst.DayTicks * 1000 + nn; if (_trenParadoAvisado == k) continue; _trenParadoAvisado = k;
+                Debug.Log($"[MAPA] Hay un tren parado en {_a.Graph.Nodes[nn].Name}. Sácalo antes de la noche o puede perderse.");
+            }
+        }
         void OnGUI()
         {
             if (_a == null) return;
@@ -794,7 +813,6 @@ namespace TBD.View
                         DrawIcon(new Rect(20, y - 2, zp, zp), "alertas/vm_alertas_" + AlertIcon(AlertKind.NodoAsediado) + "_16");
                         GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>" + txt + "</color>", _small); y += rr.height;
                         var ev = Event.current; if (ev.type == EventType.MouseDown && ev.button == 0 && ev.clickCount == 2 && rr.Contains(ev.mousePosition)) { ev.Use(); EnterZone(nn); }
-                        if (_trenParadoAvisado != _a.Tick / NetConst.DayTicks * 1000 + nn) { _trenParadoAvisado = _a.Tick / NetConst.DayTicks * 1000 + nn; Debug.Log("[MAPA] " + txt); }
                     }
             }
             {   // EM-1 (Lucía, a8b49fd): emboscada de la red en 982420; doble clic lleva a la zona del nodo. Visible 2 h de juego
@@ -809,7 +827,6 @@ namespace TBD.View
                     GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#982420><b>" + txt + "</b></color>", _small); y += rr.height;
                     if (em.InApartado) { GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>" + Puertas.TextoApartado + "</color>", _small); y += _small.fontSize * 1.5f; }
                     var ev = Event.current; if (ev.type == EventType.MouseDown && ev.button == 0 && ev.clickCount == 2 && rr.Contains(ev.mousePosition)) { ev.Use(); EnterZone(em.Node); }
-                    if (_emSonado != em.Tick) { _emSonado = em.Tick; Sfx.Play("aviso_horda", Vector3.zero, 0.7f, 0.05f); Sfx.Duck(1.5f); Debug.Log("[MAPA] EM-1 " + txt); }   // sonido: Nuria (mvp-em1-caida-repetir.md)
                 }
             }
             y = DrawColmenaAviso(pw, y, ref shown);                  // D-N160: «La Colmena se agita» (ámbar), antes del Enjambre
