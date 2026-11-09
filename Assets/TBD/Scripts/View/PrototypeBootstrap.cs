@@ -1140,14 +1140,28 @@ namespace TBD.View
         /// </summary>
         void AmbienteSuelo(bool noche)
         {
+            AmbienteSueloAhora(noche);
+            if (noche) StartCoroutine(AmbienteSueloLuego());                 // I-Noche89: la vía, el balasto y el hollín no cambiaban con K; por si se crean después del paso a la noche
+        }
+
+        System.Collections.IEnumerator AmbienteSueloLuego()
+        {
+            yield return new WaitForSeconds(2f); if (_gradeIndex == 2) AmbienteSueloAhora(true, true);
+            yield return new WaitForSeconds(10f); if (_gradeIndex == 2) AmbienteSueloAhora(true, true);
+        }
+
+        void AmbienteSueloAhora(bool noche, bool detalle = false)
+        {
+            var nombres = new System.Text.StringBuilder();
             var hechos = new System.Collections.Generic.HashSet<Material>();
             foreach (var r in FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None))
             {
                 string n = r.name;
                 if (!(n.StartsWith("Trozo de suelo") || n.StartsWith("Suelo") || n.StartsWith("Calle") || n.StartsWith("Vía") || n.StartsWith("Balasto") || n.StartsWith("Decal") || n.StartsWith("Grieta") || n.StartsWith("Rodada") || n.StartsWith("Paso a nivel"))) continue;
                 if (n.StartsWith("Decal") && r.bounds.max.y > 0.2f) continue;            // solo los decals del suelo (no la placa, el reloj, las pintadas ni la línea del andén)
-                foreach (var m in r.sharedMaterials) if (m != null && hechos.Add(m)) EmisionSuelo(m, noche);
+                foreach (var m in r.sharedMaterials) if (m != null && hechos.Add(m)) { EmisionSuelo(m, noche); if (detalle && !n.StartsWith("Trozo")) nombres.Append(" | " + n + " kw=" + m.IsKeywordEnabled("_EMISSION") + " e=" + ColorUtility.ToHtmlStringRGB(m.GetColor("_EmissionColor"))); }
             }
+            if (detalle) Debug.Log("[SOMBRA] ambientesuelo piezas (sin los trozos):" + nombres);
             if (noche) Debug.Log("[SOMBRA] ambientesuelo K=" + AmbienteSueloK.ToString(System.Globalization.CultureInfo.InvariantCulture) + " · " + hechos.Count + " materiales del suelo · ΔA lineal=("
                 + (_ambNocheLin.r * AmbienteSueloK).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "; " + (_ambNocheLin.g * AmbienteSueloK).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "; "
                 + (_ambNocheLin.b * AmbienteSueloK).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + ") (los trozos que llegan después se suman solos)");
