@@ -944,7 +944,7 @@ namespace TBD.View
         {
             var ls = FindObjectsByType<Light>(FindObjectsSortMode.None);
             var sb = new System.Text.StringBuilder("[LUZ] noche: sun=" + (RenderSettings.sun != null ? RenderSettings.sun.name : "null") + " _sun=" + (_sun != null ? _sun.name : "null")
-                + " ambiente=" + RenderSettings.ambientLight + " sombranoche=" + SombraNoche.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                + " ambiente=" + RenderSettings.ambientLight + " sondaDC=(" + RenderSettings.ambientProbe[0, 0].ToString("0.###") + "; " + RenderSettings.ambientProbe[1, 0].ToString("0.###") + "; " + RenderSettings.ambientProbe[2, 0].ToString("0.###") + ") sombranoche=" + SombraNoche.ToString(System.Globalization.CultureInfo.InvariantCulture));
             foreach (var l in ls) if (l.isActiveAndEnabled && l.type == LightType.Directional)
                 sb.Append($" | {l.name} {l.type} i={l.intensity:0.###} sombras={l.shadows} fuerza={l.shadowStrength:0.##}");
             var urp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline as UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset;
@@ -1014,6 +1014,26 @@ namespace TBD.View
         {
             if (_sun != null) { _sun.color = sunColor; _sun.intensity = sunIntensity; _sun.transform.rotation = Quaternion.Euler(elevation, -35f, 0f); }
             RenderSettings.ambientLight = ambient;
+            AmbienteEnSombra(ambient);
+        }
+
+        /// <summary>
+        /// Sara (qa47, I-Noche78): la sombra no recibía el ambiente. Causa probable: en el reproductor, cambiar RenderSettings.ambientLight en tiempo de ejecución
+        /// no rehace la sonda de ambiente (RenderSettings.ambientProbe, la SH que suman URP/Lit y TBD/Horda); se queda la del arranque, casi negra.
+        /// Arreglo: de noche se escribe la sonda a mano con el ambiente de la noche, así la zona en sombra recibe A + k·luna (ver ApplyGrade).
+        /// De día y al atardecer se deja la sonda de siempre (la que se aprobó a ojo), para no cambiar su aspecto. -sinsondanoche lo apaga para comparar.
+        /// </summary>
+        SphericalHarmonicsL2 _sondaOriginal; bool _sondaGuardada;
+        static readonly bool SinSondaNoche = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinsondanoche") >= 0;
+        void AmbienteEnSombra(Color ambient)
+        {
+            if (!_sondaGuardada) { _sondaOriginal = RenderSettings.ambientProbe; _sondaGuardada = true; }
+            if (_gradeIndex == 2 && !SinSondaNoche)
+            {
+                var sh = new SphericalHarmonicsL2(); sh.AddAmbientLight(ambient);
+                RenderSettings.ambientProbe = sh;
+            }
+            else RenderSettings.ambientProbe = _sondaOriginal;
         }
 
         // ================================================================ interfaz nítida (capa 4)
