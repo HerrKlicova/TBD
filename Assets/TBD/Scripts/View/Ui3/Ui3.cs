@@ -115,8 +115,11 @@ namespace TBD.View
             FilaLey("sim-aro-amb", "Cercada");
             FilaLey("sim-aro-rojo", "Bajo ataque (parpadea)");
             FilaLey("sim-otra", "Otra estación (no es tuya)");
-            FilaLey("sim-tren", "Tren");
+            FilaIcono(IconosMapa.Icono.TrenMarcha, "Tren en marcha (la punta, hacia dónde)");
+            FilaIcono(IconosMapa.Icono.TrenParado, "Tren parado");
+            FilaIcono(IconosMapa.Icono.Helicoptero, "Helicóptero NH90");
             FilaLey("sim-horda", "Horda");
+            FilaIcono(IconosMapa.Icono.FlechaPunta, "Horda en marcha y hacia dónde");
         }
 
         VisualElement Casilla(string txt, out Label etiqueta)
@@ -134,6 +137,16 @@ namespace TBD.View
         void FilaLey(string sim, string txt)
         {
             var f = E("ley-fila"); var s = E("ley-sim"); s.Add(E(sim)); f.Add(s); f.Add(L(txt, "ley-txt")); _leyenda.Add(f);
+        }
+
+        /// <summary>Fila de la leyenda con una silueta de Bruno (IconosMapa, por código, 32 px en filtro Point).</summary>
+        void FilaIcono(IconosMapa.Icono icono, string txt)
+        {
+            var f = E("ley-fila"); var s = E("ley-sim");
+            var img = E(); img.style.width = 28; img.style.height = 28;
+            var tex = IconosMapa.Textura(icono, 32);
+            if (tex != null) img.style.backgroundImage = new StyleBackground(tex);
+            s.Add(img); f.Add(s); f.Add(L(txt, "ley-txt")); _leyenda.Add(f);
         }
 
         // ---------------------------------------------------------------- cada fotograma

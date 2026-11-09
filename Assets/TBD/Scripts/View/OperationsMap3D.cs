@@ -805,7 +805,9 @@ namespace TBD.View
                 int tp = IconPx(32);
                 var sv = _a.Services[i];
                 string tn = _a.Encounter.Active && _a.Encounter.Service == i ? "bajo_ataque" : sv.Ambushed ? "bajo_ataque" : sv.Train.State == RailTrainState.EnMarcha ? "en_marcha" : sv.Train.State == RailTrainState.Detenido ? "detenido" : "detenido";
-                DrawIcon(new Rect(sp.x - tp * 0.5f, Screen.height - sp.y - tp * 1.6f, tp, tp), "trenes/vm_tren_" + tn + "_32");
+                if (Ui3.Activa && tn != "bajo_ataque")      // D-N185: siluetas de Bruno (IconosMapa); el tren bajo ataque sigue con su icono rojo
+                    GUI.DrawTexture(new Rect(sp.x - tp * 0.5f, Screen.height - sp.y - tp * 1.6f, tp, tp), IconosMapa.Textura(tn == "en_marcha" ? IconosMapa.Icono.TrenMarcha : IconosMapa.Icono.TrenParado, tp >= 24 ? 32 : 16));
+                else DrawIcon(new Rect(sp.x - tp * 0.5f, Screen.height - sp.y - tp * 1.6f, tp, tp), "trenes/vm_tren_" + tn + "_32");
                 { string tl = "<b><color=#FFF0A0>" + _a.Services[i].Train.Name + "</color></b>"; GUI.Label(SinPisar(new Rect(sp.x - 30, Screen.height - sp.y - 26 - _small.fontSize * 0.8f, _small.CalcSize(new GUIContent(tl)).x + 4f, _small.fontSize * 1.4f)), tl, _small); }
                 string se = tn == "bajo_ataque" ? null : Puertas.SinEscolta(_a, i);       // D-N177: ámbar en el icono; el rojo es solo el de bajo ataque
                 if (se != null) GUI.Label(new Rect(sp.x - 30, Screen.height - sp.y - 26 + _small.fontSize * 1.2f, 260, _small.fontSize * 2.2f), "<color=#E08C30>" + se + "</color>", _small);
