@@ -430,7 +430,7 @@ namespace TBD.View
             _nightLost = total - alive;
             float left = a.StockShots / (float)WeaponCatalog.ShotsPerU;
             _endStationF = _ng.StationHp / (float)Mathf.Max(1, _ng.StationHpMax); _endTrainF = _ng.TrainHp / (float)Mathf.Max(1, _ng.TrainHpMax);   // el parte congela estas cifras: despues del amanecer la horda sigue y no debe vaciar la barra (Sara)
-            Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 pila_max={_pilaMuroMax} pila_estacion_max={_pilaMaxVista} recargas={_resupplies} desync={_desync} hora_fin={TimeStr()}");
+            Debug.Log($"[NOCHE] resultado={(win ? "victoria" : "derrota")} causa={(win ? "-" : _ng.Cause == DefeatCause.Estacion ? "estacion" : _ng.Cause == DefeatCause.Tren ? "tren" : _ng.Cause == DefeatCause.Ambas ? "estacion+tren" : (_wallHp <= 0 ? "muro" : "otra"))} abatidos={_nightKills} bajas={_nightLost} municion_gastada_u={_nightShotsSpent / (float)WeaponCatalog.ShotsPerU:0.0} municion_restante_u={left:0.0} combustible_gastado_u=0 pila_max={_pilaMuroMax} pila_estacion_max={_pilaMaxVista} recargas={_resupplies} desync={_desync} hora_fin={TimeStr()}");
             NaLog();                                                                     // [NOCHE-ARMAS] (Sara, Hugo): pelotones, vehículos, almacén y dotación
             _endReason = win ? (_ng.WonByClear ? $"{TimeStr()}. Sagunto resiste.\nLa horda ha caído." : "06:00. Sagunto resiste.\nAmanece.") : _ng.DefeatHeadline();   // D-N136/D-N146
         }
