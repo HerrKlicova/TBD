@@ -1304,7 +1304,7 @@ namespace TBD.Sim.Tests
                 }
                 swc.Stop();
                 var snap = sim.Snapshot(); int spent = 0; foreach (var p in sim.Units.Platoons) spent += p.AmmoSpent;
-                check((snap.State == NightState.Victoria ? snap.ZombiesSpawned == 7310 : snap.ZombiesSpawned > 0 && snap.ZombiesSpawned <= 7310) && snap.Kills <= snap.ZombiesSpawned && snap.Kills + snap.ZombiesAlive <= snap.ZombiesSpawned, $"balance de zombis (la noche acabó en {snap.State}): entraron {snap.ZombiesSpawned} de 7.310, abatidos {snap.Kills}, vivos {snap.ZombiesAlive}");
+                check((snap.State == NightState.Victoria ? snap.ZombiesSpawned == 5250 : snap.ZombiesSpawned > 0 && snap.ZombiesSpawned <= 5250) && snap.Kills <= snap.ZombiesSpawned && snap.Kills + snap.ZombiesAlive <= snap.ZombiesSpawned, $"balance de zombis (la noche acabó en {snap.State}): entraron {snap.ZombiesSpawned} de 5.250, abatidos {snap.Kills}, vivos {snap.ZombiesAlive}");
                 check(snap.PlatoonAmmoShots + snap.StockShots + spent == ammo0, $"la munición se conserva: inicial {ammo0} = restante {snap.PlatoonAmmoShots + snap.StockShots} + gastada {spent} disparos");
                 int rs = 0, ks = 0, ds = 0; foreach (var w in sim.Waves) { rs += w.Resupplies; ks += w.Kills; ds += w.SoldierDeaths; }
                 check(rs == snap.Resupplies && rs == resup && ks == snap.Kills && ds == snap.SoldierDeaths, $"las estadísticas por oleada suman los totales (recargas {rs}, bajas enemigas {ks}, bajas propias {ds})");

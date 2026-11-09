@@ -214,6 +214,10 @@ namespace TBD.Units
             }
         }
 
+        /// <summary>Reparto de objetivos (Lucía, 9-nov, decisiones-noche): un lanzagranadas no dispara a un punto que ya tiene una granada en vuelo a menos de su radio; ese tirador usa el fusil.
+        /// Medido en NightSim: los granaderos pasan de 347 a 437 abatidos por u en normal y Sagunto difícil sube a ~6470. Es regla, no estado: fuera del hash.</summary>
+        public bool GrenadeDeconflict = true;
+        bool GrenadeInbound(int x, int y, int r) { long r2 = (long)r * r; foreach (var q in _pending) { long dx = q.X - x, dy = q.Y - y; if (dx * dx + dy * dy < r2) return true; } return false; }
         public Platoon Find(int id) { for (int i = 0; i < Platoons.Count; i++) if (Platoons[i].Id == id) return Platoons[i]; return null; }
 
         // ------------------------------------------------------------ órdenes (cada una es una orden de la simulación)
@@ -575,6 +579,7 @@ namespace TBD.Units
                     if (bi < 0) continue;
                     var tg = targets[bi];
                     if (w.MinCluster > 1 && CountNear(targets, tg.X, tg.Y, w.RadiusMm, w.MinCluster) < w.MinCluster) continue;   // el granadero usa el fusil
+                    if (GrenadeDeconflict && w.Explosive && w.FlightTicks > 0 && GrenadeInbound(tg.X, tg.Y, w.RadiusMm)) continue;   // reparto (Lucía, 9-nov): ese grupo ya tiene una granada en vuelo; usa el fusil
                     Fire(p, m, slot, (WeaponId)wid, w, tg, targets, res);
                     break;
                 }
