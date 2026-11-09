@@ -21,6 +21,7 @@ namespace TBD.Tutorial
         public bool Todas;                 // con Cierre.Senal: hacen falta todas (en cualquier orden), no una (1.1: cámara movida y rueda)
         public float Segundos;             // con Cierre.Segundos; con Cierre.Senal, si > 0, tope para cerrarse sola (red de seguridad)
         public string Espera;              // si no es null, la tarjeta no sale hasta que haya llegado esta señal en el capítulo, o hasta que se cumpla como estado
+        public float EsperaMax;            // con Espera: si pasan estos segundos sin cumplirse, la tarjeta sale igual (2.1: 30 s, Lucía 9-nov)
         public string ExtraSi, Extra;      // si ha llegado la señal ExtraSi en el capítulo, se añade Extra al texto (1.3: vehículos fuera)
         public bool Pausa;                 // con la tarjeta fuera, el juego se pausa (solo la del capítulo 0)
         public bool Linea;                 // una sola línea, sin cabecera (1.9, mientras dura el ataque)
@@ -94,7 +95,8 @@ namespace TBD.Tutorial
         /// <summary>Rellena los huecos del texto («{eta}»: lo que falta para que llegue el tren). Lo pone la vista; null = sin cambios.</summary>
         public Func<string, string> Relleno;
         /// <summary>La tarjeta se ve: hay paso actual y no está esperando su señal previa.</summary>
-        public bool Visible { get { var p = Actual; return p != null && (p.Espera == null || _hechos.Contains(p.Espera) || (EstadoActual != null && EstadoActual(p.Espera))); } }
+        public bool Visible { get { var p = Actual; return p != null && (p.Espera == null || _hechos.Contains(p.Espera) || (EstadoActual != null && EstadoActual(p.Espera)) || (p.EsperaMax > 0 && _esperando >= p.EsperaMax)); } }
+        float _esperando;
         public bool PideHordaEnEspera
         {
             get
@@ -185,7 +187,7 @@ namespace TBD.Tutorial
         {
             if (SueltaActual != null) { _enSuelta += dt; if (_enSuelta >= SueltaActual.Segundos) SueltaActual = null; }
             DecidirAlt();
-            if (!Visible) return;
+            if (!Visible) { if (Actual != null && Actual.EsperaMax > 0) { _esperando += dt; if (_esperando >= Actual.EsperaMax) Log($"sale {Actual.Id} por tiempo ({Actual.EsperaMax:0} s esperando {Actual.Espera})"); } return; }
             var p = Actual;
             EnPaso += dt; _sinAvance += dt;
             if (p.Cierre == Cierre.Segundos) { if (EnPaso >= p.Segundos) { Log($"{p.Id} cerrado a los {p.Segundos:0} s"); Siguiente(); } return; }
@@ -201,7 +203,7 @@ namespace TBD.Tutorial
 
         void Siguiente()
         {
-            var c = Cap; Repeticiones = 0; EnPaso = 0; _sinAvance = 0; _enPaso.Clear(); _alt = false; _altDecidido = false;
+            var c = Cap; Repeticiones = 0; EnPaso = 0; _sinAvance = 0; _esperando = 0; _enPaso.Clear(); _alt = false; _altDecidido = false;
             if (PasoIndex + 1 < c.Pasos.Length) { PasoIndex++; Log($"paso {Actual.Id}"); return; }
             if (CapIndex + 1 < _caps.Length) { EntrarCapitulo(CapIndex + 1); return; }
             Estado = EstadoTutorial.Terminado; _mem.Escribir(_clave); Log("terminado");
@@ -209,7 +211,7 @@ namespace TBD.Tutorial
 
         void EntrarCapitulo(int i)
         {
-            CapIndex = i; PasoIndex = 0; _hechos.Clear(); _enPaso.Clear(); _alt = false; _altDecidido = false; EnPaso = 0; _sinAvance = 0; Repeticiones = 0;
+            CapIndex = i; PasoIndex = 0; _hechos.Clear(); _enPaso.Clear(); _alt = false; _altDecidido = false; EnPaso = 0; _sinAvance = 0; _esperando = 0; Repeticiones = 0;
             Log($"capítulo {Cap.Numero}: {Cap.Titulo}; paso {Actual.Id}");
         }
 

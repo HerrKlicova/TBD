@@ -57,12 +57,13 @@ namespace TBD.Sim.Tests
             m.Senal(TutorialGuion.Senales.VehiculosFuera); Run1(m, 4);
             check(m.Actual.Id == "1.3" && m.Texto.EndsWith("Selecciónalos igual que a la tropa."), "1.3 añade «Los vehículos también disparan…» con vehículos fuera");
             // desvío: repetir sin castigo
-            Run1(m, 4); int r0 = m.Repeticiones;
-            for (int i = 0; i < 260; i++) m.Avanzar(0.1f);
-            check(m.Actual.Id == "1.4" && m.Repeticiones > r0, "sin avanzar 25 s, la tarjeta se repite y no pasa nada más");
-            m.Senal("desvio"); check(m.Actual.Id == "1.4", "la señal de desvío repite la tarjeta y no la cierra");
+            Run1(m, 4);
+            for (int i = 0; i < 90; i++) m.Avanzar(0.1f);
+            m.Senal("desvio"); check(m.Actual.Id == "1.4", "la señal de desvío no cierra la tarjeta");
             // una señal de otro paso no cierra el actual
             m.Senal(TutorialGuion.Senales.TrenEnviado); check(m.Actual.Id == "1.4", "una señal que no toca no cierra la tarjeta");
+            for (int i = 0; i < 15; i++) m.Avanzar(0.1f);
+            check(m.Actual.Id == "1.5", "sin la señal, a los 10 s el paso sigue solo (red de seguridad de los capítulos 1 y 2, 9-nov)");
 
             // --- saltar: queda recordado, no vuelve a salir
             m.Saltar();

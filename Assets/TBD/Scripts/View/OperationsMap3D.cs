@@ -420,7 +420,7 @@ namespace TBD.View
             long fieldTick = _a.Tick / NetConst.FieldEvery;
             if (fieldTick != _lastFieldTick) { _lastFieldTick = fieldTick; UpdateTexture(); UpdateDetailTexture(); }
             UpdateNetwork();
-            UpdateMasasEnMarcha();                       // D-N182: la masa del asedio anunciado llega andando por su rumbo (solo vista)
+            UpdateMasasEnMarcha(); UpdateCerco();                       // D-N182: la masa del asedio anunciado llega andando por su rumbo (solo vista)
             UpdateCamera();
             UpdateDetail();
             CheckZoneEntry();
@@ -734,6 +734,11 @@ namespace TBD.View
                 int px = IconPx(32);
                 DrawIcon(new Rect(sp.x - px * 0.5f, Screen.height - sp.y - px * 1.1f, px, px), "estaciones/vm_estacion_" + StateName(n.State) + "_32");
                 GUI.Label(new Rect(sp.x + px * 0.5f + 4, Screen.height - sp.y - 10, 220, _small.fontSize * 2.2f), n.Name, _small);
+                if (n.Id == _a.Director.CercoNodo)       // D-N184: al pasar el ratón por Castellón
+                {
+                    var mp = Event.current.mousePosition; if ((mp - new Vector2(sp.x, Screen.height - sp.y - px * 0.6f)).magnitude < px * 1.2f)
+                    { var tr = new Rect(sp.x + px * 0.5f + 4, Screen.height - sp.y + _small.fontSize * 1.2f, 360, _small.fontSize * 2.2f); GUI.DrawTexture(tr, Texture2D.blackTexture); GUI.Label(tr, " Castellón · cercada. Aguanta, pero está aislada.", _small); }
+                }
             }
             DrawApp6();                                              // D-N160: símbolos APP-6 de cada estación (OperationsMap3D.InformeApp6.cs)
             for (int i = 0; i < _trains.Count; i++)

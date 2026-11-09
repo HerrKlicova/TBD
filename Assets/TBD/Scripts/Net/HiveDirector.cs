@@ -165,6 +165,8 @@ namespace TBD.Net
         public ulong Seed;                          // semilla de la partida (0 por defecto)
         /// <summary>D-N156 (Lucía): un nodo protegido de asedio hasta un tick (Nules, hasta pasada la 1.ª noche). −1 = ninguno. Lo pone NetScenario.Inicio; no se guarda.</summary>
         public int SinAsedioNodo = -1; public long SinAsedioHasta;
+        /// <summary>D-N184 (Lucía, 9-nov): nodo cercado (Castellón). El cerco es solo de vista: nunca se elige para un asedio y no puede caer. -1, ninguno (Mvp y goldens).</summary>
+        public int CercoNodo = -1;
         /// <summary>Lucía (8-nov 23:20): cada zona tiene su propia horda. Una horda de zona ataca su nodo cada noche desde el día FromDay (0 = 1.ª noche), de 22:00 a 06:00,
         /// con aviso a las 19:00 (SiegeWarnH). Al acabar, si la zona no está en pantalla, la resuelve NetWorld.ResolveZoneSiege (regla abstracta). Lo pone el escenario; no se guarda.</summary>
         public struct ZoneHorde { public int Node, FromDay, Zombies; }
@@ -199,7 +201,7 @@ namespace TBD.Net
             var sq = new long[w.Graph.Nodes.Count];
             for (int n = 0; n < sq.Length; n++)
             {
-                if (n == w.ActiveZoneNode || Active.Exists(p => p.Kind == PlanKind.Asedio && p.Node == n)) continue;
+                if (n == w.ActiveZoneNode || n == CercoNodo || Active.Exists(p => p.Kind == PlanKind.Asedio && p.Node == n)) continue;
                 long wt = SiegeTargetWeight(w, n);
                 sq[n] = wt * wt; total += sq[n];
             }

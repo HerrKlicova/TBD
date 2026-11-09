@@ -234,6 +234,11 @@ namespace TBD.View
                     int vf = 0; foreach (var v in _vehs) if (v.Go != null && v.Go.activeSelf) vf++;
                     _tramosPm.Clear(); foreach (var sg in _segs) if (!sg.IsGate && sg.Max > 0f) _tramosPm.Add(sg.Open ? 0 : (int)(sg.Hp * 1000f / sg.Max));
                     TutorialHud.Zona(_zomPos.Count, vf, _tramosPm);
+                    {   // 2.1 (Lucía): el capítulo 2 no empieza con horda a menos de 15 m del tramo más dañado del muro oeste
+                        Seg peor = null; foreach (var sg in _segs) if (!sg.IsGate && sg.Max > 0f && (peor == null || sg.Hp / sg.Max < peor.Hp / peor.Max)) peor = sg;
+                        bool libre = true; if (peor != null) foreach (var zp in _zomPos) if (DistSeg(zp, peor.A, peor.B) <= 15f) { libre = false; break; }
+                        TutorialHud.Estado(TutorialGuion.Senales.TramoDespejado, libre);
+                    }
                     // recorrido del capítulo 3: pelotones fuera del muro (zombi a ≤ 25 m), en el flanco sur (≤ 10 m) y en R2 (≤ 6 m)
                     bool cerca = false, enFlanco = false, enR2 = false;
                     foreach (var pl in _uw.Platoons)
@@ -632,7 +637,7 @@ namespace TBD.View
             if (kb.gKey.wasPressedThisFrame) { _vehFire = !_vehFire; foreach (var vv in _vehs) vv.Fire = _vehFire; Debug.Log("[NOCHE] fuego de los vehiculos: " + (_vehFire ? "libre" : "alto el fuego")); }
             if (kb.tKey.wasPressedThisFrame) { if (_selVeh != null) StartVehicleResupply(_selVeh); else { NaResupAntes(); foreach (var id in _sel) _uw.Resupply(id); NaResupDespues(); } }
             if (kb.rKey.wasPressedThisFrame && kb.leftShiftKey.isPressed) { NaResupAntes(); foreach (var id in _sel) _uw.Resupply(id); NaResupDespues(); }
-            if (kb.escapeKey.wasPressedThisFrame && _ng != null && _ng.State == NightState.Jugando) _paused = !_paused;      // pausa (D-N137)
+            if (kb.escapeKey.wasPressedThisFrame && !_c90Aim && _ng != null && (_ng.State == NightState.Jugando || TutorialHud.Activo)) { _paused = !_paused; if (!_paused) TutorialHud.Senal(TutorialGuion.Senales.PausaCerrada); }      // pausa (D-N137); 1.7: cerrarla con Esc también cuenta
             { float zf = Mathf.Clamp01(_total / 3000f); }
             NightAudio();
             UpdateNightSoldiers(); UpdateVehicleViews();

@@ -1890,6 +1890,7 @@ namespace TBD.Net
             Stock("Castellón", 0, 30, 0, 26, 0);   // D-N183 (Lucía, 9-nov): propia desde el inicio; Hugo (existencias_red.json): 0 de munición, 30 de combustible (tope de zona), 26 personas, sin víveres ni consumo en el MVP
             w.Stations.P.Sites = new string[0];
             w.Stations.Founded[Id("Nules")] = true; w.Stations.Founded[Id("Castellón")] = true;
+            w.Director.CercoNodo = Id("Castellón");    // D-N184: Castellón cercada (solo vista): ni asedios ni trenes
             w.Director.SinAsedioNodo = Id("Nules"); w.Director.SinAsedioHasta = NetConst.DayTicks + NetConst.Hours(8);     // D-N156: Nules sin asedio la 1.ª noche (hasta las 08:00 del día siguiente)
             w.Director.ZoneHordes.Add(new HiveDirector.ZoneHorde { Node = Id("Nules"), FromDay = 1, Zombies = 2200 }); w.GarrisonMil[Id("Nules")] = 12_000; w.ZoneWallE4[Id("Nules")] = 1_322_400;   // guarnición de 12 y recinto de 132,24 u (Álvaro, nules-nivel.md §14: HESCO en los cruces de andén del oeste; antes 124,3)   // horda propia de Nules desde la 2.ª noche: 2200 en normal (Lucía, 9-nov 00:56, medida en NightSim con la D-N180; difícil 2440 cuando la red tenga dificultad); Castellón, sin noche en el MVP
             w.Services.Clear();

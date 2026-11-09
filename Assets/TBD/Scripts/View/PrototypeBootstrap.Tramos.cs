@@ -159,7 +159,7 @@ namespace TBD.View
             if (_segSel == null) GUI.Label(new Rect(x, y, r.width - 16f * k, lh * 2f), "Clic en un tramo del muro oeste.", st);
             else
             {
-                var s = _segSel; bool rebuild = s.Open; string why = SegBlockReason(s, rebuild); float need = rebuild ? s.Max / 11924f : Mathf.Max(0.01f, (s.Max - s.Hp) / 5000f);
+                var s = _segSel; bool rebuild = s.Open; string why = SegBlockReason(s, rebuild); if (Event.current.type == EventType.Repaint) TutorialHud.Estado(TutorialGuion.Senales.ReparacionBloqueada, why != null && why.StartsWith("Hay zombis")); float need = rebuild ? s.Max / 11924f : Mathf.Max(0.01f, (s.Max - s.Hp) / 5000f);
                 GUI.Label(new Rect(x, y, r.width - 16f * k, lh), $"{s.Name}: {(s.Open ? "BRECHA" : Mathf.RoundToInt(100f * s.Hp / s.Max) + " %")}", st); y += lh;
                 GUI.Label(new Rect(x, y, r.width - 16f * k, lh), (rebuild ? "Reconstruir" : "Reparar") + $" · {need:0.0} u" + (rebuild ? $" · {RebuildTicksFor(s) / 30f:0} s" : ""), st); y += lh;
                 var bs = new GUIStyle(GUI.skin.button) { fontSize = Mathf.Max(11, Mathf.RoundToInt(14 * k)) }; GUI.enabled = why == null || (why != null && false);

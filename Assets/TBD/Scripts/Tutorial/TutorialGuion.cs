@@ -18,7 +18,7 @@ namespace TBD.Tutorial
             public const string CamaraMovida = "camara_movida", RuedaUsada = "rueda_usada", PelotonSeleccionado = "peloton_seleccionado", OrdenMover = "orden_mover",
                 FormacionDada = "formacion_dada", PausaCerrada = "pausa_cerrada", HordaAvanza = "horda_avanza", AtaqueRechazado = "ataque_rechazado", VehiculosFuera = "vehiculos_fuera";
             // capítulo 2 (zona, Marcos)
-            public const string ObrasAbierto = "obras_abierto", TramoSeleccionado = "tramo_seleccionado", ReparacionConfirmada = "reparacion_confirmada",
+            public const string ObrasAbierto = "obras_abierto", TramoSeleccionado = "tramo_seleccionado", ReparacionConfirmada = "reparacion_confirmada", ReparacionBloqueada = "reparacion_bloqueada", TramoDespejado = "tramo_despejado",
                 TramoSobre70 = "tramo_sobre_70", ObrasCerrado = "obras_cerrado";
             // capítulo 3 (mapa y panel del tren, Iker)
             public const string MapaAbierto = "mapa_abierto", PanelTrenAbierto = "panel_tren_abierto", CargaPuesta = "carga_puesta", PelotonABordo = "peloton_a_bordo",
@@ -84,6 +84,12 @@ namespace TBD.Tutorial
             var p11 = S("1.1", "Mueve la cámara con W A S D. Acércate y aléjate con la rueda.", R(Resaltes.BarraAtajos), Senales.CamaraMovida, Senales.RuedaUsada);
             p11.Todas = true;
             var p19 = S("1.9", "Vigila la vida del muro arriba. Si un tramo cae, entran.", R(Resaltes.BarraMuro), Senales.AtaqueRechazado); p19.Linea = true; p19.Segundos = 90f;   // red de seguridad (Nacho)
+            // red de seguridad (Lucía/coordinador, 9-nov): ningún paso de los capítulos 1 y 2 se queda esperando su señal más de 10 s
+            var p14 = S("1.4", "Selecciona un pelotón: clic en él, en su tarjeta o con su número (1 a 5). Para coger varios, arrastra un recuadro.", R(Resaltes.TarjetasPeloton), Senales.PelotonSeleccionado); p14.Segundos = TopeS;
+            var p15 = S("1.5", "Clic derecho para moverlo. Ponlo junto al muro oeste.", R(Resaltes.TramoOeste), Senales.OrdenMover); p15.Segundos = TopeS;
+            var p16 = S("1.6", "Arrastra con el clic derecho para dibujar un frente. Prueba una formación con F1 a F4.", R(Resaltes.TeclasFormacion), Senales.FormacionDada); p16.Segundos = TopeS;
+            var p17 = S("1.7", "Esc abre el menú de pausa y congela la partida. Desde ahí también se salta el tutorial.", R(Resaltes.BotonMenu), Senales.PausaCerrada); p17.Segundos = TopeS;
+            p11.Segundos = TopeS;
             var p18 = S("1.8", "Ahí vienen. Disparan solos cuando los tienen a tiro.", null, Senales.HordaAvanza); p18.Segundos = 3f; p18.SueltaHorda = true;   // aquí se suelta la horda; se cierra al avanzar o a los 3 s
             return new Capitulo
             {
@@ -93,10 +99,10 @@ namespace TBD.Tutorial
                     p11,
                     T("1.2", "Se acerca un grupo desde el oeste. Las puertas se han cerrado: para entrar tendrán que romper el muro.", 4, Resaltes.GrupoZombis, Resaltes.Puertas),
                     p13,
-                    S("1.4", "Selecciona un pelotón: clic en él, en su tarjeta o con su número (1 a 5). Para coger varios, arrastra un recuadro.", R(Resaltes.TarjetasPeloton), Senales.PelotonSeleccionado),
-                    S("1.5", "Clic derecho para moverlo. Ponlo junto al muro oeste.", R(Resaltes.TramoOeste), Senales.OrdenMover),
-                    S("1.6", "Arrastra con el clic derecho para dibujar un frente. Prueba una formación con F1 a F4.", R(Resaltes.TeclasFormacion), Senales.FormacionDada),
-                    S("1.7", "Esc abre el menú de pausa y congela la partida. Desde ahí también se salta el tutorial.", R(Resaltes.BotonMenu), Senales.PausaCerrada),
+                    p14,
+                    p15,
+                    p16,
+                    p17,
                     p18,
                     p19,
                     T("1.10", "Ataque rechazado. Esta noche vendrán muchos más.", 4),
@@ -104,20 +110,32 @@ namespace TBD.Tutorial
             };
         }
 
+        public const float TopeS = 10f;
+
         public static Capitulo Cap2()
         {
+            // Lucía (9-nov, tutorial-textos.md): el capítulo no empieza con horda a menos de 15 m del tramo dañado (como mucho 30 s de espera);
+            // el 2.4 dice dónde está el botón y, si está bloqueado por zombis, avisa y sigue solo a los 8 s
+            var p21 = T("2.1", "El muro oeste está tocado. Esta noche no aguantará así.", 4, Resaltes.TramoDanado); p21.Espera = Senales.TramoDespejado; p21.EsperaMax = 30f;
+            var p22 = S("2.2", "Pulsa B para entrar en Obras. El combate sigue mientras construyes.", R(Resaltes.BotonObras), Senales.ObrasAbierto); p22.Segundos = TopeS;
+            var p23 = S("2.3", "Los tramos dañados salen marcados. Haz clic en el del oeste.", R(Resaltes.TramoDanado), Senales.TramoSeleccionado); p23.Segundos = TopeS;
+            var p24 = S("2.4", "Abajo a la derecha, pulsa «Reparar». Gasta materiales y tarda un poco.", R(Resaltes.CosteObra), Senales.ReparacionConfirmada); p24.Segundos = TopeS;
+            var p24b = T("2.4b", "No se puede reparar con zombis encima del muro. Límpialo primero.", 8, Resaltes.TramoDanado);
+            p24.AltSi = Senales.ReparacionBloqueada; p24.Alt = p24b; p24.CambiaEnMarcha = true;
+            var p25 = S("2.5", "Van los zapadores. Mientras reparan no disparan, y el ruido atrae a la horda.", R(Resaltes.Zapadores, Resaltes.IconoRuido), Senales.TramoSobre70); p25.Segundos = TopeS;
+            var p27 = S("2.7", "Sal de Obras con B o con clic derecho en vacío.", R(Resaltes.BotonObras), Senales.ObrasCerrado); p27.Segundos = TopeS;
             return new Capitulo
             {
                 Numero = 2, Titulo = "Reparar",
                 Pasos = new[]
                 {
-                    T("2.1", "El muro oeste está tocado. Esta noche no aguantará así.", 4, Resaltes.TramoDanado),
-                    S("2.2", "Pulsa B para entrar en Obras. El combate sigue mientras construyes.", R(Resaltes.BotonObras), Senales.ObrasAbierto),
-                    S("2.3", "Los tramos dañados salen marcados. Haz clic en el del oeste.", R(Resaltes.TramoDanado), Senales.TramoSeleccionado),
-                    S("2.4", "Reparar cuesta materiales y tiempo. Confirma con clic.", R(Resaltes.CosteObra), Senales.ReparacionConfirmada),
-                    S("2.5", "Van los zapadores. Mientras reparan no disparan, y el ruido atrae a la horda.", R(Resaltes.Zapadores, Resaltes.IconoRuido), Senales.TramoSobre70),
+                    p21,
+                    p22,
+                    p23,
+                    p24,
+                    p25,
                     T("2.6", "Si un tramo cae del todo, se reconstruye, y solo con la zona limpia. Sale caro.", 4),
-                    S("2.7", "Sal de Obras con B o con clic derecho en vacío.", R(Resaltes.BotonObras), Senales.ObrasCerrado),
+                    p27,
                 }
             };
         }

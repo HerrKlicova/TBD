@@ -189,6 +189,9 @@ namespace TBD.View
         }
         static readonly SenalesZona _zona = new SenalesZona();
         static readonly HashSet<string> _zonaEstado = new HashSet<string>();
+        static readonly HashSet<string> _estadoZona = new HashSet<string>();
+        /// <summary>Un estado que la zona mantiene (2.4 bloqueado por zombis, tramo despejado para el capítulo 2). No se borra solo: la zona lo pone y lo quita.</summary>
+        public static void Estado(string s, bool si) { if (si) _estadoZona.Add(s); else _estadoZona.Remove(s); }
 
         static void Ensure()
         {
@@ -240,7 +243,7 @@ namespace TBD.View
             if (s == TutorialGuion.Senales.Pila150) return _pila150;
             if (s == TutorialGuion.Senales.Cap3Dispara) return _pila150 || PorTiempo;
             if (s == TutorialGuion.Senales.Cap3PorTiempo) return !_pila150 && PorTiempo;
-            if (_zonaEstado.Contains(s)) return true;
+            if (_zonaEstado.Contains(s) || _estadoZona.Contains(s)) return true;
             return EstadoExtra != null && EstadoExtra(s);
         }
 
@@ -300,13 +303,15 @@ namespace TBD.View
         // ---------------------------------------------------------------- dibujo
         static Texture2D Tex(Color c) { var t = new Texture2D(1, 1); t.SetPixel(0, 0, c); t.Apply(); return t; }
 
+        int _stylesH;
         void Styles()
         {
-            if (_txt != null) return;
+            if (_txt != null && _stylesH == Screen.height) return;      // la resolución cambió (1920/1600/1280): se rehacen con su tamaño
+            _stylesH = Screen.height;
             _panel = Tex(new Color(0.07f, 0.08f, 0.05f, 0.92f)); _white = Tex(Color.white);
             _btnTex = Tex(new Color(0.16f, 0.18f, 0.10f, 1f)); _btnHot = Tex(Bone);
             int u = Mathf.Max(10, Screen.height / 60);
-            _head = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(u * 1.2f), fontStyle = FontStyle.Bold }; _head.normal.textColor = new Color(Bone.r, Bone.g, Bone.b, 0.7f);
+            _head = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(u * 1.2f), fontStyle = FontStyle.Bold, wordWrap = false, clipping = TextClipping.Clip }; _head.normal.textColor = new Color(Bone.r, Bone.g, Bone.b, 0.7f);
             _txt = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(u * 1.7f), fontStyle = FontStyle.Bold, wordWrap = true, richText = true }; _txt.normal.textColor = Bone;   // letra gruesa (Eugenio)
             _line = new GUIStyle(_txt) { wordWrap = false };
             _btn = new GUIStyle(GUI.skin.button) { fontSize = Mathf.RoundToInt(u * 1.2f), fontStyle = FontStyle.Bold };
@@ -475,7 +480,9 @@ namespace TBD.View
                     var card = new Rect(x, y, w, h);
                     GUI.DrawTexture(card, _panel);
                     Frame(card, 0.35f + Mathf.Clamp01(_flash) * 0.65f);       // al salir o al repetirse, el borde se enciende un momento
-                    GUI.Label(new Rect(x + pad, y + pad * 0.6f, w - 2 * pad, _head.fontSize * 1.8f), _m.Cabecera, _head);
+                    { var hc = new GUIContent(_m.Cabecera); int fs0 = _head.fontSize; float hw = _head.CalcSize(hc).x;      // S3 (Sara): la cabecera no se parte ni pisa el texto; si no cabe, encoge
+                      if (hw > w - 2 * pad) _head.fontSize = Mathf.Max(9, Mathf.FloorToInt(fs0 * (w - 2 * pad) / hw));
+                      GUI.Label(new Rect(x + pad, y + pad * 0.6f, w - 2 * pad, fs0 * 1.6f), hc, _head); _head.fontSize = fs0; }
                     GUI.Label(new Rect(x + pad, y + pad * 0.6f + _head.fontSize * 1.6f, w - 2 * pad, th + 4), Escrito(_maq, _m.Texto), _txt);
                     var ev = Event.current;                                                                     // clic en la tarjeta con el texto a medias: se completa
                     if (ev.type == EventType.MouseDown && ev.button == 0 && card.Contains(ev.mousePosition) && _maq != null && !_maq.Completa) { _maq.Completar(_snd); ev.Use(); }

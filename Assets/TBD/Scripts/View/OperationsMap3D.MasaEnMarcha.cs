@@ -27,6 +27,19 @@ namespace TBD.View
             mx = nd.XMeters + ux * u; my = nd.YMeters + uy * u;
         }
 
+        Transform _cerco;
+        /// <summary>D-N184: mancha fija e08c30 sobre el nodo cercado (Castellón). Solo vista.</summary>
+        void UpdateCerco()
+        {
+            int c = _a.Director.CercoNodo;
+            if (c < 0 || c >= _a.Graph.Nodes.Count) { if (_cerco != null) { Destroy(_cerco.gameObject); _cerco = null; } return; }
+            if (_cerco != null) return;
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder); go.name = "Cerco " + _a.Graph.Nodes[c].Name; Destroy(go.GetComponent<Collider>());
+            var m = new Material(_lineMat); m.SetColor("_BaseColor", new Color32(0xe0, 0x8c, 0x30, 0xff)); go.GetComponent<Renderer>().sharedMaterial = m;
+            go.transform.localScale = new Vector3(6f, 0.04f, 6f); go.transform.position = MapToWorld(_a.Graph.Nodes[c].XMeters, _a.Graph.Nodes[c].YMeters, 0.2f);
+            _cerco = go.transform;
+        }
+
         void UpdateMasasEnMarcha()
         {
             var dir = _a.Director; long warn = NetConst.Hours(dir.P.SiegeWarnH);
@@ -45,8 +58,8 @@ namespace TBD.View
                     if (_masaMat == null) { _masaMat = new Material(_lineMat); _masaMat.SetColor("_BaseColor", new Color32(0x1c, 0x20, 0x0c, 0xff)); }
                     var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder); go.name = "Masa en marcha " + nd.Name; Destroy(go.GetComponent<Collider>());
                     go.GetComponent<Renderer>().sharedMaterial = _masaMat;
-                    int n = HiveDirector.IsZoneSiege(p) ? p.Moved * NetWorld.ZombiesPerPermil : _a.SiegeZombies(p.Node);
-                    float s = Mathf.Clamp(Mathf.Sqrt(Mathf.Max(1, n) / 2000f), 0.8f, 2.5f) * 1.4f;      // km de diámetro, según la cifra
+                    long n = HiveDirector.IsZoneSiege(p) ? (long)p.Moved * NetWorld.ZombiesPerPermil : dir.DayBudget(p.StartTick / NetConst.DayTicks, dir.HuellaMil(_a)) * dir.P.SiegeShareMil / 1000 * dir.P.SiegeDays;   // antes del ataque la masa aún no ha reclutado (SiegeZombies = 0): la cifra del aviso ES-2, «hasta n»
+                    float s = Mathf.Clamp(Mathf.Sqrt(Mathf.Max(1f, (float)n) / 2000f), 0.8f, 2.5f) * 1.4f;      // km de diámetro, según la cifra
                     go.transform.localScale = new Vector3(s, 0.05f, s);
                     ms = new Masa { T = go.transform, Ux = ux, Uy = uy, Km = km, Aviso = aviso, Ataque = p.StartTick, Nodo = p.Node };
                     _masas[key] = ms;
