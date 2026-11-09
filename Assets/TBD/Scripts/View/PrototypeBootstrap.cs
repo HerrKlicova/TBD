@@ -656,7 +656,7 @@ namespace TBD.View
             if ((wasd && kb.sKey.isPressed) || kb.downArrowKey.isPressed) pan -= fwd;
             if ((wasd && kb.aKey.isPressed) || kb.leftArrowKey.isPressed) pan -= right;
             if ((wasd && kb.dKey.isPressed) || kb.rightArrowKey.isPressed) pan += right;
-            if (_nightOn && Mouse.current != null && Application.isFocused && BarridoV <= 0f)      // con -barrido no hay desplazamiento por el borde en toda la partida (Marcos no controla el ratón en las corridas de QA)
+            if (_nightOn && Mouse.current != null && Application.isFocused && !SinBorde)      // sin desplazamiento por el borde en las corridas de QA (Marcos no controla el ratón y el foco se salía del mapa)
             {
                 var mpe = Mouse.current.position.ReadValue(); float edge = 6f;
                 if (mpe.y >= Screen.height - edge) pan += fwd; if (mpe.y <= edge) pan -= fwd; if (mpe.x <= edge) pan -= right; if (mpe.x >= Screen.width - edge) pan += right;
@@ -1169,6 +1169,9 @@ namespace TBD.View
                 + (_ambNocheLin.b * AmbienteSueloK).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + ") (los trozos que llegan después se suman solos)");
         }
 
+        // -sinborde apaga el desplazamiento por el borde de la pantalla; también lo apagan las banderas de QA con encuadre fijo: -barrido, -capdirecta y -focus
+        static readonly bool SinBorde = TieneArg("-sinborde") || TieneArg("-barrido") || TieneArg("-capdirecta") || TieneArg("-focus");
+        static bool TieneArg(string b) { return System.Array.IndexOf(System.Environment.GetCommandLineArgs(), b) >= 0; }
         static readonly float AmbienteSueloK = LeerFloat("-ambientesuelo", 1.1f);
         Color _ambNocheLin = new Color(0.061f, 0.071f, 0.123f);
 
