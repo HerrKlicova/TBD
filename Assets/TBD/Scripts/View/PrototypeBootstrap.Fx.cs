@@ -79,7 +79,7 @@ namespace TBD.View
             foreach (var v in _vehs)
             {
                 if (v.Go == null) continue; var p3 = new Vector3(v.Pos.x, v.Alt, v.Pos.y);
-                if (v.Heli) Sfx.LoopAt("rotor_" + v.Name, "sfx_nh90_rotor_" + (1 + (Mathf.Abs(v.Name.GetHashCode()) % 6)), p3, 0.22f * v.Rpm, 200f);   // el volumen sigue a las palas (Nuria)
+                if (v.Heli) Sfx.LoopAt("rotor_" + v.Name, "sfx_nh90_rotor_" + (1 + (Mathf.Abs(v.Name.GetHashCode()) % 6)), p3, 0.22f * v.Rpm, 300f);   // el volumen sigue a las palas (Nuria)
                 else Sfx.LoopAt("motor_" + v.Name, v.Name.StartsWith("Drag") ? "sfx_dragon_motor_1" : "sfx_vamtac_motor_1", p3, Mathf.Abs(v.Speed) > 0.5f ? 0.25f : 0f, 60f);
             }
             bool attack = _ng.State == NightState.Jugando && (_pileNearStation > 0 || _nearTrain > 0);
