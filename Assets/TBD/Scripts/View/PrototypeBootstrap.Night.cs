@@ -463,9 +463,27 @@ namespace TBD.View
             NaLog();                                                                     // [NOCHE-ARMAS] (Sara, Hugo): pelotones, vehículos, almacén y dotación
             { string est = string.IsNullOrEmpty(_estacionZona) ? "Sagunto" : _estacionZona;   // partida de 30 min (Lucía): el cartel nombra la estación de la zona (Nules en la noche 2)
               _endReason = win ? (_ng.WonByClear ? $"{TimeStr()}. {est} resiste.\nLa horda ha caído." : $"06:00. {est} resiste.\nAmanece.") : _ng.DefeatHeadline(est);
+              _enPie = win ? null : EstacionesEnPie();
+              if (!win && _enPie.Count > 0) _endReason = $"<color=#982420>{est} ha caído.</color>\n{Lista(_enPie)} {(_enPie.Count > 1 ? "siguen" : "sigue")} en pie.";   // S2 de la qa50 (Lucía, 7705049): no acaba la partida
               if (est == "Nules") _endReason += "\nFin de la partida de prueba. Puedes seguir en el mundo."; }   // D-N136/D-N146
         }
         bool _endDismissed, _reportClosed;
+        List<string> _enPie;
+        /// <summary>Estaciones propias que siguen en pie, sin la de esta zona (Sagunto, las fundadas y la cercada; las perdidas no).</summary>
+        List<string> EstacionesEnPie()
+        {
+            var r = new List<string>(); var w = NetSession.A; if (w == null) return r;
+            for (int n = 0; n < w.Graph.Nodes.Count; n++) if (n != _zoneNode && !w.NodeLost[n] && (w.Stations.Founded[n] || n == w.Embarque.HomeNode)) r.Add(w.Graph.Nodes[n].Name);
+            return r;
+        }
+        static string Lista(List<string> l) { return l.Count <= 1 ? (l.Count == 1 ? l[0] : "") : string.Join(", ", l.GetRange(0, l.Count - 1)) + " y " + l[l.Count - 1]; }
+        /// <summary>«Seguir» tras perder la estación de la zona: vuelve al mapa. PENDIENTE: el comando de red que la marca perdida (pedido a Nacho, LoseNode).</summary>
+        void SeguirTrasCaer()
+        {
+            _endDismissed = true; Debug.Log($"[NOCHE] {(_estacionZona ?? "?")} ha caído; se sigue en el mapa ({Lista(_enPie)} en pie)");
+            PerderNodoEnRed(_zoneNode); LeaveToMap();
+        }
+        partial void PerderNodoEnRed(int nodo);
 
         /// <summary>«Seguir» (D-N91): abre la noche siguiente con las mismas oleadas a +10 % y reinicia los contadores del parte; el mundo no se detuvo.</summary>
         void NextNight()
@@ -808,6 +826,14 @@ namespace TBD.View
                 if (won)
                 {
                     if (GUI.Button(new Rect(r.center.x - 160 * k, r.yMax - 100 * k, 320 * k, 64 * k), "Seguir")) NextNight();
+                }
+                else if (_enPie != null && _enPie.Count > 0)
+                {   // S2 (Lucía, 7705049): Seguir (predeterminado), Repetir la noche (si hay guardado del atardecer) y Menú principal
+                    float bw = 240 * k, gap = 20 * k, n = NetSession.HayAtardecer ? 3 : 2, bx = r.center.x - (n * bw + (n - 1) * gap) * 0.5f, by = r.yMax - 100 * k;
+                    if (GUI.Button(new Rect(bx, by, bw, 64 * k), "<b>Seguir</b>") || (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Return)) SeguirTrasCaer();
+                    bx += bw + gap;
+                    if (NetSession.HayAtardecer) { if (GUI.Button(new Rect(bx, by, bw, 64 * k), "Repetir la noche")) { NetSession.CargarAtardecer(); NightRun.Active = true; SceneManager.LoadScene("Union"); } bx += bw + gap; }
+                    if (GUI.Button(new Rect(bx, by, bw, 64 * k), "Menú principal")) { NetSession.Reset(); NightRun.Active = false; SceneManager.LoadScene("Menu"); }
                 }
                 else
                 {

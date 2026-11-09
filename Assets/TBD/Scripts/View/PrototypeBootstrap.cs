@@ -317,7 +317,7 @@ namespace TBD.View
             if (_zoneNode < 0 || _leaving) return;
             _leaving = true;
             int alive = _zombieQuery.CalculateEntityCount();
-            if (NightRun.Active && _nightInit && _ng != null) { SaveNightSession(); alive = 0; }      // noche persistente: los zombis pasan a NightSim, no a la mancha del mapa
+            if (NightRun.Active && _nightInit && _ng != null && _ng.State != TBD.Units.NightState.Derrota) { SaveNightSession(); alive = 0; }      // S2: tras caer la estación no se guarda su noche      // noche persistente: los zombis pasan a NightSim, no a la mancha del mapa
             var ammo = _worldA.EntityManager.GetComponentData<ZoneAmmo>(_rootA);
             int usedUnits = (int)((ammo.ShotsFired + _combat.ShotsPerUnit - 1) / _combat.ShotsPerUnit);   // redondeo hacia arriba: una caja empezada se gasta
             if (_ambush)

@@ -28,10 +28,27 @@ namespace TBD.View
         float _acc;
 
         /// <summary>Descarta la sesion de red (nueva partida o repetir la noche).</summary>
-        public static void Reset() { PrototypeBootstrap.ClearNightSession(); if (_instance != null) Destroy(_instance.gameObject); _instance = null; A = null; B = null; Desync = false; }
+        public static void Reset() { PrototypeBootstrap.ClearNightSession(); if (_instance != null) Destroy(_instance.gameObject); _instance = null; A = null; B = null; Desync = false; _atardecerDia = -1; }
 
         public static string SavePath { get { return System.IO.Path.Combine(Application.persistentDataPath, "partida.tbd"); } }
         public static bool HasSave { get { return System.IO.File.Exists(SavePath); } }
+        // Guardado automático del atardecer (Lucía, 7705049: «Repetir la noche»): la red a las 19:00 de cada día, la hora del aviso de la horda de zona. Solo la red.
+        public static string SaveAtardecer { get { return System.IO.Path.Combine(Application.persistentDataPath, "atardecer.tbd"); } }
+        public static bool HayAtardecer { get { return _atardecerDia >= 0 && System.IO.File.Exists(SaveAtardecer); } }
+        static long _atardecerDia = -1;
+        void GuardarAtardecer()
+        {
+            if (A == null) return; long dia = A.Tick / NetConst.DayTicks;
+            if (dia == _atardecerDia || A.Tick % NetConst.DayTicks < NetConst.Hours(19) || A.Tick % NetConst.DayTicks >= NetConst.Hours(22)) return;
+            try { System.IO.File.WriteAllBytes(SaveAtardecer, NetSave.Save(A)); _atardecerDia = dia; Debug.Log($"[TBD] guardado del atardecer (día {dia + 1}, {NetConst.Clock(A.Tick)})"); } catch (System.Exception e) { Debug.LogWarning("[TBD] guardado del atardecer: " + e.Message); }
+        }
+        /// <summary>«Repetir la noche»: la red del último atardecer en dos mundos nuevos.</summary>
+        public static void CargarAtardecer()
+        {
+            var data = System.IO.File.ReadAllBytes(SaveAtardecer); long dia = _atardecerDia;
+            Reset(); var a = NetScenario.Inicio(false); NetSave.Load(data, a); var b = NetScenario.Inicio(false); NetSave.Load(data, b);
+            Ensure(); A = a; B = b; _atardecerDia = dia;
+        }
 
         /// <summary>Guarda la red (NetSave) en partida.tbd. Devuelve false si no hay sesion.</summary>
         public static bool SaveGame()
@@ -112,7 +129,7 @@ namespace TBD.View
         void Update()
         {
             AudioListener.pause = (PrototypeBootstrap.ZonaPausada && SceneManager.GetActiveScene().name == "SampleScene") || (A != null && A.Paused && SceneManager.GetActiveScene().name == "Union");   // al pausar, silencio (Nuria, revisión del 9-nov): pausa de la zona o del mapa
-            AvisoLog();
+            AvisoLog(); GuardarAtardecer();
             var kb5 = UnityEngine.InputSystem.Keyboard.current;
             if (kb5 != null && kb5.f5Key.wasPressedThisFrame) { bool ok = SaveGame(); Debug.Log(ok ? "[TBD] Partida guardada en " + SavePath : "[TBD] No hay partida que guardar"); }   // F5: guardado rapido
             _acc += Mathf.Min(Time.unscaledDeltaTime, 0.25f);
