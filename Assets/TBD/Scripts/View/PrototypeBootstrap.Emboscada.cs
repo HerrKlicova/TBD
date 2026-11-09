@@ -38,6 +38,13 @@ namespace TBD.View
             if (TrenPanel.Dia2Volver && _nightInit && Time.timeSinceLevelLoad > 4f) { TrenPanel.Dia2Volver = false; Debug.Log("[DIA2] sesión de zona creada; vuelvo al mapa"); LeaveToMap(); return; }   // -dia2-auto
             var w = NetSession.A; if (w == null || _ng == null) return;
             SolidoDelTren();
+            if ((_ng.Tick % 30) == 0 && _uw != null && _zoneNode >= 0 && NetSession.A != null && _zoneNode != NetSession.A.Embarque.HomeNode)      // S1 qa52: la tropa que baja del tren con la zona abierta también sale (junto al tren) y pelea
+                foreach (var pid in NetSession.A.Embarque.AtStation(_zoneNode, PasajeroTipo.Peloton))
+                {
+                    if (!_embVistos.Add(pid)) continue; var tr = _ng.P.TrainRect; int ex = (tr.X0 + tr.X1) / 2 + 6000 * _escolta.Count, ey = tr.Y0 - 2900;
+                    var pe = _uw.AddPlatoon(PlatoonKind.Fusileros, ex, ey, 32768, Formation.Linea); _pname[pe.Id] = "Escolta " + (_escolta.Count + 1); _escolta.Add(pe.Id); if (_bot != null) _bot.Busy.Add(pe.Id);
+                    Debug.Log($"[NOCHE] baja la escolta del tren en {_estacionZona}: pelotón en ({ex / 1000f:0.0}; {ey / 1000f:0.0})");
+                }
             if (_ng.P.TrainNotDefeat && _ng.TrainHp <= 0 && !_trenPerdidoAvisado)      // Lucía (da2d050): en Nules perder el tren no es derrota; aviso y se sigue
             {
                 _trenPerdidoAvisado = true; string tn = "tren"; int si = -1; for (int k = 0; k < w.Services.Count; k++) { var sv = w.Services[k]; if (sv.AtStop && sv.Stops.Count > 0 && sv.Stops[sv.StopIndex].Node == _zoneNode) { tn = sv.Train.Name; si = k; break; } }

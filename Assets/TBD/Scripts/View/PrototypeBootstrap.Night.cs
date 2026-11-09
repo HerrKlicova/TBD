@@ -93,10 +93,12 @@ namespace TBD.View
             _escolta.Clear();
             {   // tropa bajada del tren en esta estación (Embarque.AtStation): sale junto al tren y el bot no la manda al muro (Hugo/Nacho, 9-nov)
                 var wz = NetSession.A; var tr = _ng.P.TrainRect; int ex = (tr.X0 + tr.X1) / 2, ey = tr.Y0 - 2900;   // junto al tren por el sur: en Nules A (192; 60), la escolta de la emboscada de Hugo
-                if (sim != null && sim.JsonForce != null && sim.JsonForce.Count > 1 && (wz == null || wz.LastAmbush.Tick < 0 || wz.LastAmbush.HoldUntil <= wz.Tick)) { ex = sim.JsonForce[1].Value[0]; ey = sim.JsonForce[1].Value[1]; }   // de noche, el pelotón enviado va donde lo midió NightSim (71,5; 70,5)
-                if (wz != null && _zoneNode >= 0) foreach (var pid in wz.Embarque.AtStation(_zoneNode, PasajeroTipo.Peloton)) { var pe = _uw.AddPlatoon(PlatoonKind.Fusileros, ex + 6000 * _escolta.Count, ey, west, Formation.Linea); _pname[pe.Id] = "Escolta " + (_escolta.Count + 1); _escolta.Add(pe.Id); }
+                if (sim != null && sim.JsonForce != null && sim.JsonForce.Count > 1 && (wz == null || wz.LastAmbush.Tick < 0 || wz.LastAmbush.HoldUntil <= wz.Tick)) { ex = sim.JsonForce[1].Value[0]; ey = sim.JsonForce[1].Value[1]; }
+                if (sim != null && sim.JsonForce != null && sim.JsonForce.Count > 1) _puestoEnviado = new Vector2Int(sim.JsonForce[1].Value[0], sim.JsonForce[1].Value[1]);   // de noche, el pelotón enviado va donde lo midió NightSim (71,5; 70,5)
+                if (wz != null && _zoneNode >= 0) foreach (var pid in wz.Embarque.AtStation(_zoneNode, PasajeroTipo.Peloton)) { _embVistos.Add(pid); var pe = _uw.AddPlatoon(PlatoonKind.Fusileros, ex + 6000 * _escolta.Count, ey, west, Formation.Linea); _pname[pe.Id] = "Escolta " + (_escolta.Count + 1); _escolta.Add(pe.Id); }
                 string trenAqui = "ninguno"; if (wz != null) foreach (var sv in wz.Services) if (sv.AtStop && sv.Stops.Count > 0 && sv.Stops[sv.StopIndex].Node == _zoneNode) trenAqui = sv.Train.Name + (sv.GateNode == _zoneNode ? " (a las puertas)" : " (en el andén)");
-                if (trenAqui == "ninguno" && wz != null && _ng.P.TrainNotDefeat) { _ng.TrainHp = 0; _trenPerdidoAvisado = true; _nocheSinTren = true; Debug.Log("[NOCHE] sin tren en la estación: la noche empieza sin tren (TrainHp = 0)"); }   // Hugo: si no, la noche mataba un tren que no estaba (traza de la 104); con el arreglo de Marcos (Level.TrainNightX) la horda ya no se va a X 900
+                if (DiaEnLaRed()) { _esperandoNoche = true; Debug.Log($"[NOCHE] {_estacionZona} de día ({NetConst.Clock(wz != null ? wz.Tick : 0)}): la noche empieza a las 22:00 de la red"); }
+                else if (trenAqui == "ninguno" && wz != null && _ng.P.TrainNotDefeat) { _ng.TrainHp = 0; _trenPerdidoAvisado = true; _nocheSinTren = true; Debug.Log("[NOCHE] sin tren en la estación: la noche empieza sin tren (TrainHp = 0)"); }   // Hugo: si no, la noche mataba un tren que no estaba (traza de la 104); con el arreglo de Marcos (Level.TrainNightX) la horda ya no se va a X 900
                 Debug.Log($"[NOCHE] tren en {_estacionZona}: {trenAqui}; rectángulo del tren en la zona X {tr.X0 / 1000f:0.0}–{tr.X1 / 1000f:0.0}, Z {tr.Y0 / 1000f:0.0}–{tr.Y1 / 1000f:0.0} m; edificio X {_ng.P.StationRect.X0 / 1000f:0.0}–{_ng.P.StationRect.X1 / 1000f:0.0}, Z {_ng.P.StationRect.Y0 / 1000f:0.0}–{_ng.P.StationRect.Y1 / 1000f:0.0}; escolta {_escolta.Count} pelotón(es) en ({ex / 1000f:0.0}; {ey / 1000f:0.0}); el tren {(_ng.P.TrainNotDefeat ? "no es" : "es")} derrota");
             }
             if (_estacionZona == "Sagunto" && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinazotea") < 0)      // D-N174 (Lucia, Alvaro 10.15): 2 pelotones de tiradores libres en el ala oeste del edificio de viajeros, boca a 6,35 m
@@ -203,7 +205,9 @@ namespace TBD.View
             }
             if (_ng.State == NightState.Derrota && !_endDismissed) return;            // derrota: el mundo se para
             _spawns.Clear();
-            if (!TutorialHud.HordaEnEspera) { var st0 = _ng.State; _ng.Attack(_pileNearStation, _nearTrain); SurroundedTrainZona(_nearTrain); _ng.ZombiesAlive = _zomCounted ? _zomPos.Count : -1; _ng.Step(_spawns); if (st0 == NightState.Jugando && _ng.State != NightState.Jugando) NightEnded(); if (_ng.State == NightState.Derrota) return; }   // D-N136: NightGame gana al acabar con la horda (WinOnClear, misma regla que NightSim)
+            bool diaRed = DiaEnLaRed();      // S1 qa52 (Marcos): entrar de día en una zona no arranca la noche; la noche espera a las 22:00 de la red
+            if (!diaRed && _esperandoNoche) IniciaNocheZona();
+            if (!TutorialHud.HordaEnEspera && !diaRed) { var st0 = _ng.State; _ng.Attack(_pileNearStation, _nearTrain); SurroundedTrainZona(_nearTrain); _ng.ZombiesAlive = _zomCounted ? _zomPos.Count : -1; _ng.Step(_spawns); if (st0 == NightState.Jugando && _ng.State != NightState.Jugando) NightEnded(); if (_ng.State == NightState.Derrota) return; }   // D-N136: NightGame gana al acabar con la horda (WinOnClear, misma regla que NightSim)
             playing = _ng.State == NightState.Jugando;
 
             // oleadas: líneas de registro y rótulo
@@ -492,10 +496,24 @@ namespace TBD.View
               if (est == "Nules") _endReason += "\nFin de la partida de prueba. Puedes seguir en el mundo."; }   // D-N136/D-N146
         }
         bool _endDismissed, _reportClosed; bool _seguirTrasNoche;
+        bool _esperandoNoche; Vector2Int? _puestoEnviado;
+        /// <summary>¿Es de día en la red (06:00–21:59) y la zona no está en el tutorial? De día la noche de la zona no avanza (parche hasta el reloj único de Nacho).</summary>
+        bool DiaEnLaRed() { var w = NetSession.A; if (w == null || TutorialHud.Activo || !NightRun.Active || _zoneNode < 0) return false; long h = w.Tick % NetConst.DayTicks; return h >= NetConst.Hours(6) && h < NetConst.Hours(22); }
+        /// <summary>Las 22:00 de la red con la zona abierta de día: la noche arranca con lo que hay ahora (munición del almacén, tren en la estación y su sitio).</summary>
+        void IniciaNocheZona()
+        {
+            _esperandoNoche = false; var w = NetSession.A; if (w == null) return;
+            int reservaU = w.Stock[_zoneNode, (int)Res.Municion]; int alm = System.Math.Min(47, System.Math.Max(0, reservaU)); _uw.StockShots = alm * WeaponCatalog.ShotsPerU;
+            string tren = null; bool puertas = false; foreach (var sv in w.Services) if (sv.AtStop && sv.Stops.Count > 0 && (sv.GateNode == _zoneNode || sv.Stops[sv.StopIndex].Node == _zoneNode)) { tren = sv.Train.Name; puertas = sv.GateNode == _zoneNode; break; }
+            if (tren == null && _ng.P.TrainNotDefeat) { _ng.TrainHp = 0; _trenPerdidoAvisado = true; _nocheSinTren = true; }
+            if (_ng.P.TrainNotDefeat && !puertas) { var pp = _ng.P; pp.TrainRect = NightParams.Default().TrainRect; _ng.P = pp; }      // en el andén, dentro (Nules A)
+            if (_puestoEnviado.HasValue) foreach (var id in _escolta) { if (_bot != null) _bot.Busy.Remove(id); _uw.Move(id, _puestoEnviado.Value.x, _puestoEnviado.Value.y, 32768); }   // la escolta deja el tren y va al puesto de la noche (Hugo/Nacho: (71,5; 70,5))
+            Debug.Log($"[NOCHE] 22:00 en la red: empieza la noche de {_estacionZona} (almacén min(47, {reservaU}) = {alm} u, tren {(tren ?? "ninguno")}{(puertas ? " a las puertas" : "")})");
+        }
         bool TrenALasPuertas() { var w = NetSession.A; if (w == null || _zoneNode < 0) return true; foreach (var sv in w.Services) if (sv.AtStop && sv.Stops.Count > 0 && (sv.GateNode == _zoneNode || sv.Stops[sv.StopIndex].Node == _zoneNode)) return sv.GateNode == _zoneNode; return true; }   // sin tren: da igual (la noche empieza sin tren)
         void SeguirAuto() { if (_ng == null) return; if (_ng.State == NightState.Victoria) { Debug.Log("[NOCHE] auto: Seguir"); NextNight(); } else if (_enPie != null && _enPie.Count > 0) { Debug.Log("[NOCHE] auto: Seguir tras caer"); SeguirTrasCaer(); } }
         List<string> _enPie;
-        readonly List<int> _escolta = new List<int>(); bool _nocheSinTren;      // S2 qa50: sin tren en la estación no hay aviso, frente ni barra de tren
+        readonly List<int> _escolta = new List<int>(); readonly HashSet<int> _embVistos = new HashSet<int>(); bool _nocheSinTren;      // S2 qa50: sin tren en la estación no hay aviso, frente ni barra de tren
         /// <summary>Estaciones propias que siguen en pie, sin la de esta zona (Sagunto, las fundadas y la cercada; las perdidas no).</summary>
         List<string> EstacionesEnPie()
         {

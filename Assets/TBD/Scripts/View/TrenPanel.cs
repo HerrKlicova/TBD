@@ -189,6 +189,7 @@ namespace TBD.View
         public static string EtaTexto() { return W != null && Viaje >= 0 && Viaje < W.Services.Count && !W.Services[Viaje].AtStop ? TrenPreparar.HhMm(TrenPreparar.EtaEnMarcha(W, Viaje)) : "—"; }
 
         /// <summary>Llegadas: aparcar y avisar. La llaman el mapa (TrenPanel) y la zona (TrenAnden), así que funciona en las dos vistas.</summary>
+        static float _reintentoT;
         public static void Vigilar()
         {
             if (W == null) return;
@@ -196,6 +197,7 @@ namespace TBD.View
             if (Viaje < 0 || Viaje >= W.Services.Count) return;
             var sv = W.Services[Viaje];
             int meta = _descargando ? Origen : Destino;
+            if (_llegado && !_descargando && meta != Casa && sv.AtStop && sv.CargoTotal() > 0 && sv.GateNode != meta && W.TrainAtNode(sv, meta) && Time.unscaledTime > _reintentoT) { _reintentoT = Time.unscaledTime + 1f; Debug.Log("[TREN] entra al andén de " + W.Graph.Nodes[meta].Name + " y descarga lo que llevaba"); DescargarSinPanel(); }   // a las puertas la red no deja bajar la carga (D-N152): se baja al entrar
             if (sv.AtStop && sv.Stops.Count > 1 && sv.Stops[sv.StopIndex].Node == meta && sv.DepartedDay.Count > 0 && Time.unscaledTime > _aparcadoT + 1f)
             {
                 NetSession.PushPayload(NetCmdType.SetSchedule, Viaje, TrenPreparar.Aparcar(W, Viaje)); _aparcadoT = Time.unscaledTime;
@@ -209,7 +211,7 @@ namespace TBD.View
                 if (meta == Nodo("Nules")) TutorialHud.Senal(TutorialGuion.Senales.TrenEnNules);
                 TutorialHud.Viaje.Llegado(Viaje, nombre);
                 var emb = W.LastAmbush; bool cercado = emb.Service == Viaje && emb.Surrounded && !emb.Repelled && emb.HoldUntil > W.Tick;
-                if (meta != Casa && !cercado && _yo != null) { _yo.DescargarFuera(); Debug.Log("[TREN] descarga automática al llegar a " + nombre); }   // Eugenio (I-Noche110): llevó tropa y munición y el objetivo seguía a 0: fuera de casa, el tren descarga solo al llegar
+                if (meta != Casa && !cercado) { DescargarSinPanel(); Debug.Log("[TREN] descarga automática al llegar a " + nombre); }   // Eugenio (I-Noche110): llevó tropa y munición y el objetivo seguía a 0: fuera de casa, el tren descarga solo al llegar
             }
         }
 
@@ -324,14 +326,16 @@ namespace TBD.View
         /// Descargar fuera de casa: la carga baja al andén con CmdCargo (orden de Nacho; con asedio, D-N166, la carga se queda a bordo) y la tropa se queda
         /// en la estación. El tren se queda aparcado: para volver, «Preparar tren» desde esa estación.
         /// </summary>
-        void DescargarFuera()
+        void DescargarFuera() { DescargarSinPanel(); _vista = Vista.Nada; }
+        /// <summary>La descarga, sin tocar el panel: vale también desde la zona (la llegada la ve TrenAnden y allí no hay TrenPanel).</summary>
+        static void DescargarSinPanel()
         {
             if (Viaje < 0) return;
             var sv = W.Services[Viaje]; var delta = new int[NetConst.ResCount]; bool hay = false;
             for (int r = 0; r < NetConst.ResCount; r++) { delta[r] = -sv.Cargo[r]; hay |= sv.Cargo[r] > 0; }   // Lucía (decisiones 09-11, andén ocupado): a las puertas también baja la carga, como la tropa
             if (sv.Cargo[(int)Res.Municion] > 0) { int u = sv.Cargo[(int)Res.Municion], antes = W.Stock[Destino, (int)Res.Municion], alm = System.Math.Max(0, System.Math.Min(u, 47 - antes)); _aviso = $"Descargado en {W.Graph.Nodes[Destino].Name}: {alm} u al almacén, {u - alm} u a la reserva."; _avisoHasta = Time.unscaledTime + 5f; _avisoAmbar = false; Debug.Log("[TREN] " + _aviso); }   // Hugo y Lucía: el almacén de la zona llega hasta su tope (47 u); el resto, reserva
             if (hay) { var c = NetWorld.CmdCargo(W.Tick, Viaje, Destino, delta); NetSession.A.Push(c); if (NetSession.B != null) NetSession.B.Push(c); }
-            Embarque.BajarTodo(Viaje, Destino); _descargadoAqui = true; _vista = Vista.Nada;
+            Embarque.BajarTodo(Viaje, Destino); _descargadoAqui = true;
             Debug.Log("[TREN] descarga en " + W.Graph.Nodes[Destino].Name + " (el tren se queda)");
             TutorialHud.Senal(TutorialGuion.Senales.Descargado);
             if (hay) TutorialHud.Viaje.Descargado(Viaje, W.Graph.Nodes[Destino].Name);      // con asedio la carga no baja (D-N166): el objetivo espera

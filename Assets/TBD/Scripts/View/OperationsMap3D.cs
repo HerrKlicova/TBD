@@ -128,7 +128,7 @@ namespace TBD.View
         }
 
         /// <summary>QA: -trenpanel-auto y -refuerzos-auto se juegan en el mapa (TrenPanel solo vive en Union); con ellas no se entra directo en la noche.</summary>
-        static bool PruebaDeMapa { get { var a = System.Environment.GetCommandLineArgs(); return System.Array.IndexOf(a, "-trenpanel-auto") >= 0 || System.Array.IndexOf(a, "-refuerzos-auto") >= 0 || System.Array.IndexOf(a, "-dia2-auto") >= 0 || System.Array.IndexOf(a, "-dia2-auto-sinescolta") >= 0 || System.Array.IndexOf(a, "-dia2-auto-tren-aparcado") >= 0; } }
+        static bool PruebaDeMapa { get { var a = System.Environment.GetCommandLineArgs(); return System.Array.IndexOf(a, "-trenpanel-auto") >= 0 || System.Array.IndexOf(a, "-refuerzos-auto") >= 0 || System.Array.IndexOf(a, "-dia2-auto") >= 0 || System.Array.IndexOf(a, "-dia2-auto-sinescolta") >= 0 || System.Array.IndexOf(a, "-dia2-auto-tren-aparcado") >= 0 || System.Array.IndexOf(a, "-dia2-auto-enzona") >= 0; } }
 
         /// <summary>QA (Sara, D-N173): -zona &lt;nombre&gt; (Nules, Castellón...) elige la zona de la noche; sin ella o si no existe, Sagunto (nodo 0).</summary>
         static int ZonaArg()
