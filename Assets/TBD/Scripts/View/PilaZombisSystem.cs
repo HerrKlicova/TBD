@@ -40,7 +40,7 @@ namespace TBD.View
         readonly List<GameObject> _remates = new List<GameObject>();
         Mesh[,] _mCelda, _mIzq, _mDer, _cCelda, _cIzq, _cDer;
         bool _cargado, _falta;
-        float _t;
+        float _t, _diagT = -100f;
         Transform _raiz;
         RenderMeshArray _rma;
         readonly Dictionary<Mesh, int> _indice = new Dictionary<Mesh, int>();
@@ -160,6 +160,7 @@ namespace TBD.View
             bool cambio = false;
             var claves = new List<long>(_celdas.Keys);
             foreach (var k in _cuenta.Keys) if (!_celdas.ContainsKey(k)) claves.Add(k);
+            if (Forzar4) for (int ti = 0; ti < tramos.Count; ti++) for (int ci = 0; ci < tramos[ti].Celdas; ci++) { long k = ti * 100000L + ci; if (!_celdas.ContainsKey(k) && !_cuenta.ContainsKey(k)) claves.Add(k); }   // -pila4: todas las celdas, haya zombis o no
             foreach (var k in claves)
             {
                 _cuenta.TryGetValue(k, out int n);
@@ -178,6 +179,13 @@ namespace TBD.View
                 }
                 if (st.Altura == 0) _celdas.Remove(k); else _celdas[k] = st;
                 cambio = true;
+            }
+
+            // diagnóstico cada 10 s (Lucía, 9-nov: «pila=409 y en pantalla sueltos»): cuántas celdas cuentan y cuántas tienen pieza
+            if (ahora - _diagT > 10f)
+            {
+                _diagT = ahora; int max = 0, de3 = 0; foreach (var v in _cuenta.Values) { if (v > max) max = v; if (v >= 3) de3++; }
+                Debug.Log($"[Pila] tramos={tramos.Count} celdas_con_zombis={_cuenta.Count} celdas_3_o_mas={de3} max_por_celda={max} piezas={_celdas.Count} ocultos={_ocultos.Count}");
             }
 
             // 3) Remates en los extremos de cada tramo seguido de celdas con pila (se rehacen solo si algo ha cambiado).
