@@ -14,7 +14,7 @@ namespace TBD.View
     /// Los textos son los de Lucía (docs/informe-textos.md, 08-11) y están TODOS en InformeTextos, abajo: cambiarlos solo ahí.
     /// Una línea que se queda vacía no se muestra (regla de Lucía). Lo que la red todavía no da se deja fuera (no se inventa):
     ///   - memoria de tráfico y de atención (sección 3): falta que la red las exponga; ver Pendiente en InformeTextos.
-    ///   - tipo de vehículo (Dragón, VAMTAC): Pasajero solo dice Vehiculo; sale «n vehículos».
+    ///   - tipo de vehículo (Dragón, VAMTAC): Pasajero solo dice Vehiculo; la parte opcional no sale (Lucía, 09-11).
     ///   - pelotones en casa: la guarnición de Sagunto no está en Embarque.Lista; sale «guarnición» (Lucía, añadidos 08-11).
     /// </summary>
     public sealed partial class OperationsMap3D
@@ -155,7 +155,7 @@ namespace TBD.View
                 string dir = null, rumbo = null;
                 if (LadoHorda(nd, out var ux, out var uy)) { dir = Rumbo(ux, uy); rumbo = InformeTextos.SinAl(Rumbo(-ux, -uy)); }
                 string cifra = Estimacion(_a.SiegeZombies(p.Node), OjosEn(p.Node, out _, out _), est);
-                d.Amenaza.Add(p.Started ? T.AmenazaAtaca(nd.Name, dir, cifra) : T.AmenazaMasa(nd.Name, dir, cifra, rumbo, Dtg(p.StartTick)));
+                d.Amenaza.Add(p.Started ? InformeTextos.ConBarra(T.AmenazaAtaca(nd.Name, dir, cifra), InformeTextos.ColorAtaque) : T.AmenazaMasa(nd.Name, dir, cifra, rumbo, Dtg(p.StartTick)));
             }
             var trebol = new List<int>();
             for (int k = 0; k < g.Nodes.Count; k++) if (Trebol(k)) trebol.Add(k);
@@ -198,16 +198,16 @@ namespace TBD.View
             foreach (var zw in _a.UndefendedWarnings())
             {
                 string nm = g.Nodes[zw.Node].Name;
-                if (d.Valoracion.Count < 2) d.Valoracion.Add(T.ValSinDefensa(nm, zw.Started ? null : Dtg(now + zw.EtaTicks), zw.Started));
+                if (d.Valoracion.Count < 2) { string v = T.ValSinDefensa(nm, zw.Started ? null : Dtg(now + zw.EtaTicks), zw.Started); d.Valoracion.Add(zw.Started ? InformeTextos.ConBarra(v, InformeTextos.ColorAtaque) : v); }
             }
-            foreach (var p in ased)                                                      // munición mínima ante el asedio (regla de Hugo, 08-11)
+            foreach (var p in ased)                                                      // munición mínima ante el asedio (regla de Hugo, 08-11); en ámbar si falta (Lucía, 09-11)
             {
                 int min = InformeTextos.MunicionMinima(_a.SiegeZombies(p.Node));
                 long mun = _a.Stock[p.Node, (int)Res.Municion];
                 bool tropa = _a.ZoneDefended(p.Node);
                 if (tropa && mun >= min) continue;
                 string l = tropa ? T.NecMunicion(min, g.Nodes[p.Node].Name) : T.NecTropa(min, g.Nodes[p.Node].Name);
-                d.Necesidades.Add(mun < min ? "<color=#" + InformeTextos.ColorFalta + ">" + l + "</color>" : l);
+                d.Necesidades.Add(mun < min ? InformeTextos.EnColor(l, InformeTextos.ColorFalta) : l);
             }
             for (int i = 0; i < _a.Services.Count; i++)
             {
@@ -297,9 +297,12 @@ namespace TBD.View
             foreach (var l in lineas)
             {
                 if (string.IsNullOrEmpty(l)) continue;
-                var gc = new GUIContent(l);
+                string txt = l; Color32 barra = default; bool conBarra = false;
+                if (l[0] == InformeTextos.MarcaBarra && l.Length > 7 && ColorUtility.TryParseHtmlString("#" + l.Substring(1, 6), out var cb)) { barra = cb; conBarra = true; txt = l.Substring(7); }
+                var gc = new GUIContent(txt);
                 float h = Mathf.Max(lh, _infTxt.CalcHeight(gc, w - sangria));
-                Caja(new Rect(x + 2, y + _infTxt.fontSize * 0.5f, U + 1, U + 1), C_GRIS);  // viñeta cuadrada
+                if (conBarra) Caja(new Rect(x, y + U * 0.5f, 2 * U, h - U), barra);                 // barra de color a la izquierda, todo el alto de la línea
+                else Caja(new Rect(x + 2, y + _infTxt.fontSize * 0.5f, U + 1, U + 1), C_GRIS);  // viñeta cuadrada
                 GUI.Label(new Rect(x + sangria, y, w - sangria, h), gc, _infTxt);
                 y += h + U;
             }
@@ -405,9 +408,15 @@ namespace TBD.View
         /// anunciado (SiegeZombies ya lleva la dificultad de la partida). Nules 2.400: 8 u; Sagunto normal 5.250: 16 u; difícil 5.700: 17 u.
         /// Los 20 u de Nules de la D-N179 son el objetivo de diseño del día 2, no esta regla.</summary>
         public static int MunicionMinima(int horda) { return horda <= 0 ? 2 : (horda + 399) / 400 + 2; }
-        /// <summary>Color de la necesidad cuando la estación tiene menos munición que el mínimo (Hugo: «en rojo»). Es el rojo de ataque 982420;
-        /// Lucía decide si se queda (el rojo era solo para ataques).</summary>
-        public const string ColorFalta = "982420";
+        /// <summary>Color de la necesidad cuando la estación tiene menos munición que el mínimo: el ámbar de aviso (Lucía, 09-11, decisiones-noche.md).</summary>
+        public const string ColorFalta = "e08c30";
+        /// <summary>Las líneas de ataque en curso (amenaza y valoración) van en el rojo de ataque (Lucía, 09-11). El glifo de la Colmena sigue en hueso d4d0cc.</summary>
+        public const string ColorAtaque = "982420";
+        public static string EnColor(string l, string hex) { return "<color=#" + hex + ">" + l + "</color>"; }
+        /// <summary>Línea con el texto en hueso y una barra de color a la izquierda en vez de la viñeta (Lucía, 09-11: las de ataque, barra roja;
+        /// las necesidades, si cuesta leerlas en ámbar, pasarán a barra ámbar). Marca: '\u0007' + 6 cifras hex + texto; la lee Seccion.</summary>
+        public const char MarcaBarra = '\u0007';
+        public static string ConBarra(string l, string hex) { return MarcaBarra + hex + l; }
 
         /// <summary>Saca la estación de «Sin escolta: {estación} está sitiada» (Puertas.SinEscolta).</summary>
         public static string SitiadaDe(string aviso)
@@ -450,8 +459,8 @@ namespace TBD.View
             var sb = new System.Text.StringBuilder(est).Append(": ");
             if (pel > 0) sb.Append(pel).Append(pel == 1 ? " pelotón" : " pelotones");
             else if (casa) sb.Append("guarnición");                                       // Lucía, añadidos 08-11: hasta que la red exponga los pelotones de casa
-            if (veh > 0) sb.Append(pel > 0 || casa ? ", " : "").Append(veh).Append(veh == 1 ? " vehículo" : " vehículos");
-            sb.Append(". Munición ").Append(mun).Append(" u");
+            // {, Dragón}{, n VAMTAC}: la red no da el tipo de vehículo (Pasajero solo dice Vehiculo), así que esa parte queda vacía y no sale (Lucía, 09-11). veh queda para cuando Nacho lo exponga.
+            sb.Append(pel > 0 || casa ? ". " : "").Append("Munición ").Append(mun).Append(" u");
             if (viv > 0) sb.Append(". Víveres ").Append(viv).Append(" u");
             return sb.Append('.').ToString();
         }
