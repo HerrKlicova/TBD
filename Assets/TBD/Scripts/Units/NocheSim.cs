@@ -225,15 +225,43 @@ namespace TBD.Units
             }
             var rec = (Dictionary<string, object>)root["recursos_iniciales"];
             var spj = TBD.Net.BalanceSource.Read("nightsim_params.json");          // el balance de Hugo manda sobre el código; sin archivo, valen los de Default()
-            var sim = new NightSim(np, NightSimParams.FromJson(spj), (int)(long)rec["municion_u"], (int)(long)rec["materiales_u"], (int)(long)rec["combustible_u"], seed);
-            sim.VehicleParamsJson = spj;
+            var sp = NightSimParams.FromJson(spj);
+            // Otra estación (Nules, 8-nov): «geometria_nightsim» en el JSON de la noche, en mm de la zona: recinto, punto al que converge la horda, edificio, tren,
+            // rectángulos de las entradas O1–O4, vida del muro y pelotones de salida. Sin el bloque, Sagunto como siempre.
+            var geo = root.ContainsKey("geometria_nightsim") ? root["geometria_nightsim"] as Dictionary<string, object> : null;
+            List<KeyValuePair<PlatoonKind, int[]>> force = null;
+            if (geo != null)
+            {
+                Func<object, int[]> arr = v => { var l = (List<object>)v; var a = new int[l.Count]; for (int i = 0; i < l.Count; i++) a[i] = Convert.ToInt32(l[i]); return a; };
+                if (geo.ContainsKey("recinto_mm")) { var a = arr(geo["recinto_mm"]); sp.FortX0 = a[0]; sp.FortY0 = a[1]; sp.FortX1 = a[2]; sp.FortY1 = a[3]; }
+                if (geo.ContainsKey("puerta_mm")) { var a = arr(geo["puerta_mm"]); sp.StationX = a[0]; sp.StationY = a[1]; }
+                if (geo.ContainsKey("muro_hp")) sp.WallHp = Convert.ToInt32(geo["muro_hp"]);
+                if (geo.ContainsKey("tren_no_es_derrota") && geo["tren_no_es_derrota"] is bool tb) np.TrainNotDefeat = tb;
+                if (geo.ContainsKey("estacion_mm")) { var a = arr(geo["estacion_mm"]); np.StationRect = new RectMm(a[0], a[1], a[2], a[3]); }
+                if (geo.ContainsKey("tren_mm")) { var a = arr(geo["tren_mm"]); np.TrainRect = new RectMm(a[0], a[1], a[2], a[3]); }
+                if (geo.ContainsKey("entradas_mm"))
+                {
+                    var en = (Dictionary<string, object>)geo["entradas_mm"];
+                    for (int i = 0; i < np.Entries.Length; i++) { string k = "O" + (i + 1); if (!en.ContainsKey(k)) continue; var a = arr(en[k]); var e = np.Entries[i]; e.X0 = a[0]; e.Y0 = a[1]; e.X1 = a[2]; e.Y1 = a[3]; np.Entries[i] = e; }
+                }
+                if (geo.ContainsKey("pelotones"))
+                {
+                    force = new List<KeyValuePair<PlatoonKind, int[]>>();
+                    foreach (var o in (List<object>)geo["pelotones"]) { var l = (List<object>)o; force.Add(new KeyValuePair<PlatoonKind, int[]>((PlatoonKind)Enum.Parse(typeof(PlatoonKind), (string)l[0], true), new[] { Convert.ToInt32(l[1]), Convert.ToInt32(l[2]) })); }
+                }
+            }
+            var sim = new NightSim(np, sp, (int)(long)rec["municion_u"], (int)(long)rec["materiales_u"], (int)(long)rec["combustible_u"], seed);
+            sim.VehicleParamsJson = spj; sim.JsonForce = force;
             return sim;
         }
 
         /// <summary>Los cinco pelotones de la noche, dentro del recinto junto al muro oeste.</summary>
         /// <summary>Fuerza de salida repartida (calibración de Hugo, nightsim-calibracion.md): los del centro cubren los dos muros y los lanzagranadas no quedan a menos de su mínimo.</summary>
+        /// <summary>Pelotones de salida de «geometria_nightsim» (otra estación); null = los de Sagunto.</summary>
+        public List<KeyValuePair<PlatoonKind, int[]>> JsonForce;
         public void AddDefaultForce()
         {
+            if (JsonForce != null) { foreach (var f in JsonForce) Units.AddPlatoon(f.Key, f.Value[0], f.Value[1], 0); return; }
             Units.AddPlatoon(PlatoonKind.Fusileros, 86000, 56000, 0);
             Units.AddPlatoon(PlatoonKind.Granaderos, 113000, 64500, 0);
             Units.AddPlatoon(PlatoonKind.Ametralladores, 113000, 56000, 0);
@@ -394,8 +422,10 @@ namespace TBD.Units
             else if (AutoPlatoonResupply && Night.Tick % 15 == 0) ResupplyBot();   // fuera de pantalla: la misma recarga automática al 30 % que hace la zona cada 15 ticks
             int before = TotalAmmo();
             Units.Step(_targets, _res);
+            if (Dx != null) foreach (var ev in _res.Shots) { var dp = Units.Find(ev.Platoon); var a = DxRow((dp != null ? dp.Kind.ToString() : "?") + "/" + ev.Weapon); a[0] += WeaponCatalog.Table[(int)ev.Weapon].CostShots * 1000L; a[4]++; }
+            if (Dx != null) foreach (var b in _res.Blasts) { var dp = Units.Find(b.Platoon); var r = DxRow("BL " + (dp != null ? dp.Kind.ToString() : "?") + "/" + b.Weapon); r[0]++; r[1] += b.Hits; r[2] += b.InRadius; r[3] += b.InRadius >= 6 ? 1 : 0; }
             foreach (var h in _res.Hits)
-                if (h.TargetId >= 0 && h.TargetId < _z.Count && _z[h.TargetId].Alive) { _z[h.TargetId].Alive = false; Kills++; Units.NoteKill(h.Platoon); if (cur != null) cur.Kills++; }
+                if (h.TargetId >= 0 && h.TargetId < _z.Count && _z[h.TargetId].Alive) { if (Dx != null) { var dp = Units.Find(h.Platoon); DxRow((dp != null ? dp.Kind.ToString() : "?") + "/" + h.Weapon)[1 + DxCat(_z[h.TargetId])]++; } _z[h.TargetId].Alive = false; Kills++; Units.NoteKill(h.Platoon); if (cur != null) cur.Kills++; }
             if (cur != null) cur.AmmoSpentShots += _res.AmmoSpent;
             // 4b) los vehículos (fuera de UnitsWorld; misma regla que la zona)
             if (Vehicles.Count > 0) VehiclesStep(cur);
@@ -513,12 +543,12 @@ namespace TBD.Units
                 bool los = !v.Airborne && Units.LosBlockers.Count > 0;
                 for (int i = 0; i < _z.Count; i++) { var z = _z[i]; if (!z.Alive) continue; long dx = z.X - v.X, dy = z.Y - v.Y, d2 = dx * dx + dy * dy; if (d2 < best && (!los || Units.LineOfSight(v.X, v.Y, z.X, z.Y, EyeMm(v.Kind)))) { best = d2; bi = i; } }
                 if (bi < 0) continue;
-                v.NextFireTick = tick + v.PeriodTicks; v.Shots--; v.ShotsFired++;
+                v.NextFireTick = tick + v.PeriodTicks; v.Shots--; v.ShotsFired++; long[] dxr = null; if (Dx != null) { dxr = DxRow("Vehiculo/" + v.Kind); dxr[4]++; dxr[0] += v.MaxShots > 0 ? (long)v.ResupplyMilliU * WeaponCatalog.ShotsPerU / v.MaxShots : 0; }
                 int tx = _z[bi].X, ty = _z[bi].Y, left = v.KillsPerShot; long r2 = (long)v.SplashMm * v.SplashMm;
                 for (int i = 0; i < _z.Count && left > 0; i++)
                 {
                     var z = _z[i]; if (!z.Alive) continue; long dx = z.X - tx, dy = z.Y - ty;
-                    if (dx * dx + dy * dy < r2) { z.Alive = false; left--; Kills++; VehicleKills++; v.Kills++; if (cur != null) { cur.Kills++; cur.VehicleKills++; } }
+                    if (dx * dx + dy * dy < r2) { if (dxr != null) dxr[1 + DxCat(z)]++; z.Alive = false; left--; Kills++; VehicleKills++; v.Kills++; if (cur != null) { cur.Kills++; cur.VehicleKills++; } }
                 }
             }
         }
@@ -616,6 +646,11 @@ namespace TBD.Units
             bool inX = x > SP.FortX0 - r && x < SP.FortX1 + r, inY = y > SP.FortY0 - r && y < SP.FortY1 + r;
             return inX && inY;     // fuera del recinto y a menos de r de él
         }
+
+        /// <summary>Medida (rama de medidas, fuera del hash y del guardado): por «pelotón/arma» → [coste en milésimas de disparo del almacén, abatidos en la pila, en la marcha, dentro del recinto, disparos].</summary>
+        public Dictionary<string, long[]> Dx;
+        long[] DxRow(string k) { long[] a; if (!Dx.TryGetValue(k, out a)) { a = new long[5]; Dx[k] = a; } return a; }
+        int DxCat(Zomb z) { return InFort(z.X, z.Y) ? 2 : NearWall(z.X, z.Y) ? 0 : 1; }
 
         public int AliveZombies() { int n = 0; for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) n++; return n; }
         int PlatoonAmmo() { int n = 0; foreach (var p in Units.Platoons) n += p.AmmoShots; return n; }

@@ -16,13 +16,13 @@
   "escala_oleadas_permil": {
     "facil": 853,
     "normal": 1000,
-    "dificil": 1086
+    "dificil": 1232
   },
   "recursos_iniciales": {
     "municion_u": 47,
     "materiales_u": 40,
     "combustible_u": 30,
-    "nota": "TOPES del almacén de zona de Sagunto; se llenan con min(tope, reserva) al empezar la partida y cada ataque (ver existencias_red.json). Aparte, los pelotones y vehículos llevan su dotación (unas 10 u en total). El muro de partida (D-N63) y el pretil de la azotea ya están construidos"
+    "nota": "TOPES del almacén de zona de Sagunto; se llenan con min(tope, reserva) al empezar la partida y cada ataque (ver existencias_red.json). Aparte, los pelotones y vehículos llevan su dotación (unas 10 u en total). El muro de partida (D-N63, 120 u) ya está construido; la balaustrada de la azotea es parte del edificio, no del muro"
   },
   "fuerza": {
     "pelotones": [
@@ -75,11 +75,11 @@
         "hora": "22:00",
         "minuto_juego": 0,
         "llegada_s_reales": 180,
-        "total": 5700,
+        "total": 6470,
         "por_entrada": {
-          "O1": 2850,
-          "O2": 1710,
-          "O3": 1140,
+          "O1": 3235,
+          "O2": 1941,
+          "O3": 1294,
           "O4": 0
         }
       }
