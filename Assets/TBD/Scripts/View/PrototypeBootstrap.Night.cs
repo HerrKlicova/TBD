@@ -506,7 +506,7 @@ namespace TBD.View
             int reservaU = w.Stock[_zoneNode, (int)Res.Municion]; int alm = System.Math.Min(47, System.Math.Max(0, reservaU)); _uw.StockShots = alm * WeaponCatalog.ShotsPerU;
             string tren = null; bool puertas = false; foreach (var sv in w.Services) if (sv.AtStop && sv.Stops.Count > 0 && (sv.GateNode == _zoneNode || sv.Stops[sv.StopIndex].Node == _zoneNode)) { tren = sv.Train.Name; puertas = sv.GateNode == _zoneNode; break; }
             if (tren == null && _ng.P.TrainNotDefeat) { _ng.TrainHp = 0; _trenPerdidoAvisado = true; _nocheSinTren = true; }
-            if (_ng.P.TrainNotDefeat && !puertas) { var pp = _ng.P; pp.TrainRect = NightParams.Default().TrainRect; _ng.P = pp; }      // en el andén, dentro (Nules A)
+            if (_ng.P.TrainNotDefeat && tren != null && !puertas) { var pp = _ng.P; pp.TrainRect = NightParams.Default().TrainRect; _ng.P = pp; }      // en el andén, dentro (Nules A)
             if (_puestoEnviado.HasValue) foreach (var id in _escolta) { if (_bot != null) _bot.Busy.Remove(id); _uw.Move(id, _puestoEnviado.Value.x, _puestoEnviado.Value.y, 32768); }   // la escolta deja el tren y va al puesto de la noche (Hugo/Nacho: (71,5; 70,5))
             Debug.Log($"[NOCHE] 22:00 en la red: empieza la noche de {_estacionZona} (almacén min(47, {reservaU}) = {alm} u, tren {(tren ?? "ninguno")}{(puertas ? " a las puertas" : "")})");
         }
