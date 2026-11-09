@@ -1172,7 +1172,7 @@ namespace TBD.View
         // -sinborde apaga el desplazamiento por el borde de la pantalla; también lo apagan las banderas de QA con encuadre fijo: -barrido, -capdirecta y -focus
         static readonly bool SinBorde = TieneArg("-sinborde") || TieneArg("-barrido") || TieneArg("-capdirecta") || TieneArg("-focus");
         static bool TieneArg(string b) { return System.Array.IndexOf(System.Environment.GetCommandLineArgs(), b) >= 0; }
-        static readonly float AmbienteSueloK = LeerFloat("-ambientesuelo", 1.1f);
+        static readonly float AmbienteSueloK = LeerFloat("-ambientesuelo", 3.0f);   // K cerrado el 09-11 con la I-Noche94 (Bruno): sombra del tren en el balasto L* 9,5 (K=0) → 12,5 (K=1,5) → ~15,5 previsto con 3,0 (ventana de Sara 14–18)
         Color _ambNocheLin = new Color(0.061f, 0.071f, 0.123f);
 
         void EmisionSuelo(Material m, bool noche)
@@ -1907,9 +1907,14 @@ namespace TBD.View
             }
             // decals de Bruno (D-N61 / ambientacion-sagunto): hollín de la vía en el eje (mosaico de 9,6 m, 0,15 m/px), hollín junto a la puerta oeste (arrastres hacia +x: girado 180° dentro del muro),
             // y pintadas en el muro norte (AQUÍ HAY VIVOS 13 x 2 m y flecha 4 x 1,8 m hacia la estación) en #d4d0cc, nunca rojas
-            DecalQuad("Icons/texturas/decal_via_hollin_64x32", new Vector3(128f, 0.06f, ty), new Vector2(756f, 4.4f), new Vector3(90f, 0f, 0f), new Vector2(78.75f, 1f), root);
-            DecalQuad("Icons/decals/decal_hollin_puerta_1_64", new Vector3(63.5f, 0.07f, ty), new Vector2(9.6f, 9.6f), new Vector3(90f, 0f, 0f), Vector2.one, root);
-            DecalQuad("Icons/decals/decal_hollin_puerta_2_64", new Vector3(77f, 0.07f, ty), new Vector2(9.6f, 9.6f), new Vector3(90f, 0f, 180f), Vector2.one, root);
+            // Eugenio 09-11 07:50 (I-Noche91): «a lo largo de las vías hay como manchas». Eran estos hollines: el de la vía repite una mancha cada 9,6 m y los de la puerta
+            // oeste salen como agujeros negros sobre el balasto. Quitados por defecto (Bruno); -hollin los vuelve a poner para compararlos.
+            if (TieneArg("-hollin"))
+            {
+                DecalQuad("Icons/texturas/decal_via_hollin_64x32", new Vector3(128f, 0.06f, ty), new Vector2(756f, 4.4f), new Vector3(90f, 0f, 0f), new Vector2(78.75f, 1f), root);
+                DecalQuad("Icons/decals/decal_hollin_puerta_1_64", new Vector3(63.5f, 0.07f, ty), new Vector2(9.6f, 9.6f), new Vector3(90f, 0f, 0f), Vector2.one, root);
+                DecalQuad("Icons/decals/decal_hollin_puerta_2_64", new Vector3(77f, 0.07f, ty), new Vector2(9.6f, 9.6f), new Vector3(90f, 0f, 180f), Vector2.one, root);
+            }
             DecalQuad("Icons/decals/decal_pintada_aqui_hay_vivos", new Vector3(100f, 1.5f, Level.FortY1 - 1.6f), new Vector2(13f, 2f), Vector3.zero, Vector2.one, root);
             DecalQuad("Icons/decals/decal_pintada_flecha", new Vector3(112f, 1.5f, Level.FortY1 - 1.6f), new Vector2(4f, 1.8f), Vector3.zero, Vector2.one, root);
             // barricada civil rota a la entrada del pueblo y un autobús cruzado
