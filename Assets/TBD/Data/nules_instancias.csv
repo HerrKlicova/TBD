@@ -125,16 +125,16 @@ anden;SM_KitMarquesina;-1;141;0.68;73.7;180;1;si;marquesina del andén (módulos
 anden;SM_KitMarquesina;-1;147;0.68;73.7;180;1;si;marquesina del andén (módulos de 6 m)
 anden;SM_KitMarquesina;-1;153;0.68;73.7;180;1;si;marquesina del andén (módulos de 6 m)
 anden;SM_KitMarquesina;-1;159;0.68;73.7;180;1;si;marquesina del andén (módulos de 6 m)
-catenaria;SM_poste_catenaria;-1;30;0;69.0;180;1;si;poste norte (ménsula hacia la vía 1)
-catenaria;SM_poste_catenaria;-1;30;0;60.0;0;1;si;poste sur (ménsula hacia la vía 2)
-catenaria;SM_poste_catenaria;-1;80;0;69.0;180;1;si;poste norte (ménsula hacia la vía 1)
-catenaria;SM_poste_catenaria;-1;80;0;60.0;0;1;si;poste sur (ménsula hacia la vía 2)
-catenaria;SM_poste_catenaria;-1;130;0;69.0;180;1;si;poste norte (ménsula hacia la vía 1)
-catenaria;SM_poste_catenaria;-1;130;0;60.0;0;1;si;poste sur (ménsula hacia la vía 2)
-catenaria;SM_poste_catenaria;-1;180;0;69.0;180;1;si;poste norte (ménsula hacia la vía 1)
-catenaria;SM_poste_catenaria;-1;180;0;60.0;0;1;si;poste sur (ménsula hacia la vía 2)
-catenaria;SM_poste_catenaria;-1;230;0;69.0;180;1;si;poste norte (ménsula hacia la vía 1)
-catenaria;SM_poste_catenaria;-1;230;0;60.0;0;1;si;poste sur (ménsula hacia la vía 2)
+catenaria;SM_poste_catenaria;-1;30;0;68.2;270;1;si;"poste norte: mástil en Z 69,6 sobre el andén 1, ménsula hasta Z 66,4 (vía 1); §15"
+catenaria;SM_poste_catenaria;-1;30;0;60.77;90;1;si;"poste sur: mástil en Z 59,4 sobre el andén 2, ménsula hasta Z 62,6 (vía 2); §15"
+catenaria;SM_poste_catenaria;-1;80;0;68.2;270;1;si;"poste norte: mástil en Z 69,6 sobre el andén 1, ménsula hasta Z 66,4 (vía 1); §15"
+catenaria;SM_poste_catenaria;-1;80;0;60.77;90;1;si;"poste sur: mástil en Z 59,4 sobre el andén 2, ménsula hasta Z 62,6 (vía 2); §15"
+catenaria;SM_poste_catenaria;-1;130;0;68.2;270;1;si;"poste norte: mástil en Z 69,6 sobre el andén 1, ménsula hasta Z 66,4 (vía 1); §15"
+catenaria;SM_poste_catenaria;-1;130;0;60.77;90;1;si;"poste sur: mástil en Z 59,4 sobre el andén 2, ménsula hasta Z 62,6 (vía 2); §15"
+catenaria;SM_poste_catenaria;-1;180;0;68.2;270;1;si;"poste norte: mástil en Z 69,6 sobre el andén 1, ménsula hasta Z 66,4 (vía 1); §15"
+catenaria;SM_poste_catenaria;-1;180;0;60.77;90;1;si;"poste sur: mástil en Z 59,4 sobre el andén 2, ménsula hasta Z 62,6 (vía 2); §15"
+catenaria;SM_poste_catenaria;-1;230;0;68.2;270;1;si;"poste norte: mástil en Z 69,6 sobre el andén 1, ménsula hasta Z 66,4 (vía 1); §15"
+catenaria;SM_poste_catenaria;-1;230;0;60.77;90;1;si;"poste sur: mástil en Z 59,4 sobre el andén 2, ménsula hasta Z 62,6 (vía 2); §15"
 edificio;SM_EdificioViajerosNules;1;115;0;104.5;180;1;si;"v1 = Segura (D-N124); fachada a la vía"
 edificio;SM_MarquesinaAdosada;-1;115;0;87.6;180;1;si;de la fachada (Z 96) al andén (Z 79,2)
 muelle;SM_MuelleCarga;4;95;0;44.4;0;1;si;cabeza oeste con topes
@@ -262,3 +262,37 @@ urbano;SM_Senal;0;4;0;92.8;180;1;si;dirección, entrada oeste
 urbano;SM_Senal;1;192;0;92.8;180;1;si;junto al muro este del recinto
 urbano;SM_Semaforo;1;80;0;92.8;270;1;si;brazo sobre la calzada (−X local = −Z con yaw 270)
 urbano;SM_Semaforo;2;190;0;92.8;180;1;si;peatonal
+huerto_viveres;SM_Tapia;3;252;0;46;90;1;si;"testero este (Roto), Z 41–51; cobertura de cara al este (Nb)"
+huerto_viveres;SM_Tapia;0;227;0;40.5;180;1;si;"a lo largo de la calle del polígono; cobertura de cara a Nd"
+huerto_viveres;SM_Tapia;2;237;0;40.5;180;1;si;Portón (hueco de 2,4 m) a la calle
+huerto_viveres;SM_Tapia;0;247;0;40.5;180;1;si;a lo largo de la calle, hasta X 252
+huerto_viveres;SM_CasaLabor;2;205;0;47;180;1;si;"Porche: emparrado de 3 m hacia la calle (hasta Z 40); casa X 200–210, Z 43–51"
+huerto_viveres;SM_Palots;1;214;0;44;0;1;si;bloque de palots junto a la casa de labor
+huerto_viveres;SM_Naranjos;3;223;0;44;0;1;si;hilera adulta, parcela este
+huerto_viveres;SM_Naranjos;2;223;0;48;0;1;si;hilera joven, parcela este
+huerto_viveres;SM_Naranjos;3;239;0;44;0;1;si;hilera adulta, parcela este
+huerto_viveres;SM_Naranjos;2;239;0;48;0;1;si;hilera joven, parcela este
+huerto_viveres;SM_Naranjos;3;18;0;40.6;0;1;si;"franja oeste, solo naranjos; X 44–56 libre por la bajada con asedio (50; 44,5)"
+huerto_viveres;SM_Naranjos;3;34;0;40.6;0;1;si;"franja oeste, solo naranjos; X 44–56 libre por la bajada con asedio (50; 44,5)"
+huerto_viveres;SM_Naranjos;3;66;0;40.6;0;1;si;"franja oeste, solo naranjos; X 44–56 libre por la bajada con asedio (50; 44,5)"
+huerto_viveres;SM_Naranjos;1;18;0;44.5;0;1;si;"franja oeste, solo naranjos; X 44–56 libre por la bajada con asedio (50; 44,5)"
+huerto_viveres;SM_Naranjos;1;34;0;44.5;0;1;si;"franja oeste, solo naranjos; X 44–56 libre por la bajada con asedio (50; 44,5)"
+huerto_viveres;SM_Naranjos;1;66;0;44.5;0;1;si;"franja oeste, solo naranjos; X 44–56 libre por la bajada con asedio (50; 44,5)"
+huerto_viveres;SM_Balsa;0;264;0;49.5;0;1;no;"Ø 16,4 m: no cabe en la parcela (11,5 m de fondo), va en el faldón este, X 255,8–272,2, Z 41,3–57,7; sin colisión"
+pueblo;SM_Esquina;-1;129.0;0;116.0;180;1;si;"manzana del norte (§15): fachada al sur, a la explanada; hilera seguida para que el norte entre por la plaza"
+pueblo;SM_TresAlturas;-1;135.0;0;116.0;180;1;si;"manzana del norte (§15): fachada al sur, a la explanada; hilera seguida para que el norte entre por la plaza"
+pueblo;SM_CasaPatio;-1;141.0;0;116.0;180;1;si;"manzana del norte (§15): fachada al sur, a la explanada; hilera seguida para que el norte entre por la plaza"
+pueblo;SM_TresAlturas;-1;147.0;0;116.0;180;1;si;"manzana del norte (§15): fachada al sur, a la explanada; hilera seguida para que el norte entre por la plaza"
+pueblo;SM_BajoComercial;-1;153.0;0;116.0;180;1;si;"manzana del norte (§15): fachada al sur, a la explanada; hilera seguida para que el norte entre por la plaza"
+pueblo;SM_CasaPatio;-1;159.0;0;116.0;180;1;si;"manzana del norte (§15): fachada al sur, a la explanada; hilera seguida para que el norte entre por la plaza"
+pueblo;SM_BajoComercial;-1;165.0;0;116.0;180;1;si;"manzana del norte (§15): fachada al sur, a la explanada; hilera seguida para que el norte entre por la plaza"
+pueblo;SM_TresAlturas;-1;171.0;0;116.0;180;1;si;"manzana del norte (§15): fachada al sur, a la explanada; hilera seguida para que el norte entre por la plaza"
+pueblo;SM_CasaPatio;-1;177.0;0;116.0;180;1;si;"manzana del norte (§15): fachada al sur, a la explanada; hilera seguida para que el norte entre por la plaza"
+pueblo;SM_TresAlturas;-1;183.0;0;116.0;180;1;si;"manzana del norte (§15): fachada al sur, a la explanada; hilera seguida para que el norte entre por la plaza"
+pueblo;SM_BajoComercial;-1;189.0;0;116.0;180;1;si;"manzana del norte (§15): fachada al sur, a la explanada; hilera seguida para que el norte entre por la plaza"
+pueblo;SM_CasaPatio;-1;195.0;0;116.0;180;1;si;"manzana del norte (§15): fachada al sur, a la explanada; hilera seguida para que el norte entre por la plaza"
+pueblo;SM_BajoComercial;-1;201.0;0;116.0;180;1;si;"manzana del norte (§15): fachada al sur, a la explanada; hilera seguida para que el norte entre por la plaza"
+pueblo;SM_Esquina;-1;207.0;0;116.0;180;1;si;"manzana del norte (§15): fachada al sur, a la explanada; hilera seguida para que el norte entre por la plaza"
+acopios;SM_AcopioMunicion;0;140;0;88;0;1;si;"dentro del recinto, entre los coches aparcados (Z 80–82) y el muro norte (cara interior Z 95,5); la variante la manda el estado del acopio (0 lleno … 4 quemado)"
+acopios;SM_AcopioCombustible;0;152;0;88;0;1;si;"dentro del recinto; 2 m entre acopios; pasillo de 3 m a los coches y de 4,5 m al muro norte"
+acopios;SM_AcopioMateriales;0;164;0;88;0;1;si;"dentro del recinto; deja libre X 170–173 para llegar al tramo HESCO del muro norte"

@@ -44,40 +44,56 @@ namespace TBD.View
     }
 
     /// <summary>
-    /// Acopio de víveres de Nules (Models/Nules/acopio_viveres; regla en AcopioViveres). Montar(raíz de la zona, nules_instancias.csv) coloca las 5 pilas del
-    /// grupo «viveres»; Actualizar(víveres de Nules, caída, quemada) cambia la malla de todas a la vez cuando cambia el estado.
+    /// Acopios de una estación (regla en AcopioViveres). Víveres de Nules: Models/Nules/acopio_viveres, Montar(raíz de la zona, nules_instancias.csv) con las 5 pilas
+    /// del grupo «viveres». Carga (Teo, nucleo-zonas a2144e5): Models/Acopios, MontarCarga(raíz, recurso, sitios) con «Municion», «Combustible» o «Materiales».
+    /// Actualizar(unidades, caída, quemada) cambia la malla de todas las pilas a la vez cuando cambia el estado. Si falta el modelo, no se ve nada y sale [ACOPIO].
     /// </summary>
     public sealed class AcopioVista
     {
         readonly List<Transform> _pilas = new List<Transform>();
         int _estado = -1;
-        static Material _mat;
+        string _recurso = "Viveres", _carpeta = "Models/Nules/acopio_viveres";
+        static readonly Dictionary<string, Material> _mats = new Dictionary<string, Material>();
+        public const string CarpetaCarga = "Models/Acopios";
 
         public static AcopioVista Montar(Transform root, string csv, int viveres = 0)
         {
-            var a = new AcopioVista(); var g = new GameObject("Acopio de víveres").transform; g.SetParent(root, false);
-            foreach (var p in AcopioViveres.Pilas(csv))
+            return MontarEn(root, "Acopio de víveres", "Viveres", "Models/Nules/acopio_viveres", AcopioViveres.Pilas(csv), viveres);
+        }
+
+        /// <summary>Acopio de carga: sitios = x, y, z y yaw locales de root (el origen es el de AcopioViveres: centro de la huella de 10 × 6 m en el suelo).</summary>
+        public static AcopioVista MontarCarga(Transform root, string recurso, IEnumerable<float[]> sitios, int unidades)
+        {
+            return MontarEn(root, "Acopio de " + recurso, recurso, CarpetaCarga, sitios, unidades);
+        }
+
+        static AcopioVista MontarEn(Transform root, string nombre, string recurso, string carpeta, IEnumerable<float[]> sitios, int unidades)
+        {
+            var a = new AcopioVista { _recurso = recurso, _carpeta = carpeta }; var g = new GameObject(nombre).transform; g.SetParent(root, false);
+            foreach (var p in sitios)
             {
                 var t = new GameObject("Pila").transform; t.SetParent(g, false); t.localPosition = new Vector3(p[0], p[1], p[2]); t.localRotation = Quaternion.Euler(0f, p[3], 0f);
                 a._pilas.Add(t);
             }
-            a.Actualizar(viveres);
+            a.Actualizar(unidades);
             return a;
         }
 
-        public void Actualizar(int viveres, bool caida = false, bool quemada = false)
+        public void Actualizar(int unidades, bool caida = false, bool quemada = false)
         {
-            int e = AcopioViveres.Estado(viveres, caida, quemada); if (e == _estado) return; _estado = e;
-            string f = AcopioViveres.Archivo(e);
-            var prefab = Resources.Load<GameObject>("Models/Nules/acopio_viveres/" + f + "_LOD1");
+            int e = AcopioViveres.Estado(unidades, caida, quemada); if (e == _estado) return; _estado = e;
+            string f = AcopioViveres.Archivo(_recurso, e);
+            var prefab = Resources.Load<GameObject>(_carpeta + "/" + f + "_LOD1");
+            _mats.TryGetValue(_carpeta, out var mat);
             foreach (var t in _pilas)
             {
                 for (int i = t.childCount - 1; i >= 0; i--) CargaVagonVista.Kill(t.GetChild(i).gameObject);
                 if (prefab == null) continue;
                 var inst = Object.Instantiate(prefab, t); inst.name = f;
-                CargaVagonVista.Pintar(inst, "Models/Nules/acopio_viveres/T_Paleta32", ref _mat);
+                CargaVagonVista.Pintar(inst, _carpeta + "/T_Paleta32", ref mat);
             }
-            if (prefab == null) Debug.LogWarning("[ACOPIO] falta " + f);
+            _mats[_carpeta] = mat;
+            if (prefab == null) Debug.LogWarning("[ACOPIO] falta " + _carpeta + "/" + f);
         }
     }
 }
