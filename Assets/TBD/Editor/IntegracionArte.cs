@@ -11,7 +11,7 @@ namespace TBD.EditorTools
     ///   Unity.exe -batchmode -nographics -projectPath C:\Dev\TBD-2 -executeMethod TBD.EditorTools.IntegracionArte.Preparar -quit
     /// - Zombis D-N80 (Models/ZombiDN80) y pila (Models/PilaZombis): Mesh Compression Off, color de vértice importado sin tocar el alfa, sin materiales ni colliders.
     /// - Vías (Resources/Vias): Point, sin mipmaps, Repeat.
-    /// - TBD/Horda y TBD/Fantasma en Always Included Shaders.
+    /// - TBD/Horda, TBD/Fantasma y TBD/FantasmaContorno en Always Included Shaders.
     /// - Soldados armados: comprueba que Muzzle_0/Muzzle_1 siguen en el modelo importado (que el Avatar no los filtra) y que los vehículos traen Muzzle_0.
     /// </summary>
     public static class IntegracionArte
@@ -45,7 +45,7 @@ namespace TBD.EditorTools
             // Always Included Shaders
             var gs = AssetDatabase.LoadAssetAtPath<GraphicsSettings>("ProjectSettings/GraphicsSettings.asset");
             var so = new SerializedObject(gs); var arr = so.FindProperty("m_AlwaysIncludedShaders");
-            foreach (var nombre in new[] { "TBD/Horda", "TBD/Fantasma" })
+            foreach (var nombre in new[] { "TBD/Horda", "TBD/Fantasma", "TBD/FantasmaContorno" })
             {
                 var sh = Shader.Find(nombre);
                 if (sh == null) { Debug.LogWarning("[ARTE] no encuentro el shader " + nombre); continue; }

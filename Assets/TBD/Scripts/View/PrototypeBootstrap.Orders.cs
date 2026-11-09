@@ -115,8 +115,8 @@ namespace TBD.View
                 if (sel)
                 {
                     float r = 3.5f; foreach (var m in pl.Men) if (m.Alive) r = Mathf.Max(r, Vector2.Distance(new Vector2(m.X / 1000f, m.Y / 1000f), new Vector2(cx, cy)) + 1.6f);
-                    OvRing(cen, r, 2f, OvHueso, 0.85f);
-                    foreach (var m in pl.Men) if (m.Alive) OvDot(ToGui(new Vector3(m.X / 1000f, 0.05f, m.Y / 1000f)), 3f, OvHueso, 0.9f);
+                    OvRingC(cen, r, 2f, OvHueso, 0.85f);                               // contorno 283440 de 1 px del arte (Lucía, 9-nov; PrototypeBootstrap.Contorno.cs)
+                    foreach (var m in pl.Men) if (m.Alive) OvDotC(ToGui(new Vector3(m.X / 1000f, 0.05f, m.Y / 1000f)), 3f, OvHueso, 0.9f);
                 }
                 if (pl.Moving)                                                       // destino y ruta hasta que lleguen
                 {
@@ -128,8 +128,8 @@ namespace TBD.View
             if (_selVeh != null)                                                     // vehiculo: doble anillo con muesca de proa
             {
                 var v = _selVeh; var c = new Vector3(v.Pos.x, 0f, v.Pos.y);
-                OvRing(c, 3.6f, 2f, OvHueso, 0.9f); OvRing(c, 3.0f, 2f, OvHueso, 0.6f);
-                float hd = v.Heading * Mathf.Deg2Rad; var fw = new Vector3(Mathf.Sin(hd), 0f, Mathf.Cos(hd)); OvLine(ToGui(c + fw * 3.0f), ToGui(c + fw * 4.4f), 3f, OvHueso, 0.95f);
+                OvRingC(c, 3.6f, 2f, OvHueso, 0.9f); OvRingC(c, 3.0f, 2f, OvHueso, 0.6f);
+                float hd = v.Heading * Mathf.Deg2Rad; var fw = new Vector3(Mathf.Sin(hd), 0f, Mathf.Cos(hd)); OvLineC(ToGui(c + fw * 3.0f), ToGui(c + fw * 4.4f), 3f, OvHueso, 0.95f);
                 if (v.HasTarget) { var dst = new Vector3(v.Target.x, 0.06f, v.Target.y); OvRing(dst, 1.3f, 2f, OvHueso, 0.9f); }
             }
             if (Time.unscaledTime < _moveMarkUntil) { float k = (_moveMarkUntil - Time.unscaledTime) / 1.2f; OvRing(_moveMark, 0.8f + (1f - k) * 1.6f, 2f, OvHueso, k); }

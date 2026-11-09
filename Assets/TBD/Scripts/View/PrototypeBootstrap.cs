@@ -961,6 +961,7 @@ namespace TBD.View
             if (point)
             {
                 var c = ToGui(cur); float h = 14f;
+                FillRectContorno(new Rect(c.x - h - 2, c.y - h - 2, h * 2 + 4, h * 2 + 4));   // contorno 283440 de 1 px del arte (Lucía, 9-nov)
                 FillRect(new Rect(c.x - h, c.y - h, h * 2, h * 2), new Color(tint.r, tint.g, tint.b, 1f));
                 FillRect(new Rect(c.x - h - 2, c.y - h - 2, h * 2 + 4, 2), line); FillRect(new Rect(c.x - h - 2, c.y + h, h * 2 + 4, 2), line);
                 FillRect(new Rect(c.x - h - 2, c.y - h, 2, h * 2), line); FillRect(new Rect(c.x + h, c.y - h, 2, h * 2), line);
@@ -975,6 +976,7 @@ namespace TBD.View
                     if (!first)
                     {
                         Vector2 a = ToGui(prev), b2 = ToGui(wpt); var n = (b2 - a).normalized; var perp = new Vector2(-n.y, n.x) * 5f;
+                        if (ContornoOn) { float k = PxArte(); DrawLine2(a - n * k, b2 + n * k, 12f + 2f * k, Contorno); }   // contorno 283440 por fuera de los bordes (Lucía, 9-nov)
                         DrawLine2(a, b2, 8f, tint);
                         DrawLine2(a + perp, b2 + perp, 2f, line); DrawLine2(a - perp, b2 - perp, 2f, line);
                     }
@@ -2795,6 +2797,7 @@ namespace TBD.View
                     var b = new Vector3(WorkOrigin.x + w.X1 / 1000f, 0.15f, WorkOrigin.y + w.Y1 / 1000f);
                     var g = WallVisual(a, b, Level.WallHalf * 0.5f, 0.3f, Fantasma(true));   // fantasma: obra en marcha (Lucía 8-nov: hueso tramado al 50 %)
                     g.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    ContornoFantasma(g.GetComponent<MeshRenderer>());                 // contorno 283440 de 1 px en la RT del mundo (Lucía, 9-nov)
                     _workVisuals[i] = g;
                 }
             }
