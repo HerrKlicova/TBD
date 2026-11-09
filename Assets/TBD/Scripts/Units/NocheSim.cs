@@ -637,7 +637,7 @@ namespace TBD.Units
         /// <summary>Un tramo del muro: un trozo de un lado del recinto (Side 0 oeste, 1 este, 2 sur, 3 norte; A0-A1 a lo largo, en mm). Hp 0 = brecha: ya no detiene.</summary>
         public sealed class WallSegment { public int Side, A0, A1, Hp, HpMax, Rem, PriceU, ObraMh, HeightMm; public int LenMm { get { return A1 - A0; } } }
         public enum WallJobKind : byte { Reparar = 0, Reconstruir = 1 }
-        public sealed class WallJob { public WallJobKind Kind; public int Seg, Platoon, WorkTicks; public bool Ordered, Working, PrevHoldFire; }
+        public sealed class WallJob { public WallJobKind Kind; public int Seg, Platoon, WorkTicks, TotalTicks; public bool Ordered, Working, PrevHoldFire; }   // TotalTicks: reconstruir, ticks totales con los zapadores de este tick (para la barra de avance: WorkTicks / TotalTicks); solo lectura, fuera del hash
         /// <summary>Tramos (null = el muro de un solo bloque de siempre, sin cambio de hash). Se activa con EnableSegments.</summary>
         public List<WallSegment> Segments;
         public readonly List<WallJob> WallJobs = new List<WallJob>();
@@ -725,7 +725,7 @@ namespace TBD.Units
         Platoon Sappers() { foreach (var p in Units.Platoons) if (p.Kind == PlatoonKind.Zapadores && p.Aboard == 0 && p.AliveCount() > 0) return p; return null; }
         /// <summary>Tiempo de reconstruir (Hugo, reparar-costes.md §2): obra_h × 3600 / reloj_x / (2 × zapadores vivos) segundos reales. Sin dato de obra, sacos: 2 obrero·h cada 10 m.
         /// Con RebuildTicks &gt; 0 se usa ese tiempo fijo.</summary>
-        int RebuildTicksFor(int seg, int sappers)
+        public int RebuildTicksFor(int seg, int sappers)
         {
             if (RebuildTicks > 0) return RebuildTicks;
             var g = Segments[seg]; long mh = g.ObraMh > 0 ? g.ObraMh : 2000L * g.LenMm / 10000;
@@ -854,7 +854,7 @@ namespace TBD.Units
                 int add = Math.Min(hp, seg.HpMax - seg.Hp); seg.Hp += add; RepairHp += add; SumSegments();
                 if (seg.Hp >= seg.HpMax) { Repaired++; Ev(WallEventKind.Reparado, j.Seg); EndJob(j, p); }
             }
-            else if (++j.WorkTicks >= RebuildTicksFor(j.Seg, n)) { seg.Hp = (int)((long)seg.HpMax * RebuildPermil / 1000); seg.Rem = 0; SumSegments(); Rebuilt++; Ev(WallEventKind.Reconstruido, j.Seg); EndJob(j, p); }
+            else if (++j.WorkTicks >= (j.TotalTicks = RebuildTicksFor(j.Seg, n))) { seg.Hp = (int)((long)seg.HpMax * RebuildPermil / 1000); seg.Rem = 0; SumSegments(); Rebuilt++; Ev(WallEventKind.Reconstruido, j.Seg); EndJob(j, p); }
         }
 
         // ================================================================ D-N163: la zona usa un NightSim «sombra» como dueño de los tramos (Marcos, 86bbd5d)
