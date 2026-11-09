@@ -999,7 +999,8 @@ namespace TBD.View
                         // Funciona tanto si la fuerza de la sombra llega al shader como si no. k = 1 − SombraNoche (0,65 → k 0,35).
                         float k = 1f - SombraNoche;
                         var lunaCol = new Color(0.75f, 0.80f, 1.0f); const float lunaI = 0.45f;
-                        var amb = new Color(0.03f, 0.045f, 0.10f) + lunaCol * (lunaI * k);
+                        // La suma va en LINEAL (I-Noche79: sumada en gamma, la parte de la luna llegaba a la sonda 10 veces más débil y la sombra seguía en L* 3).
+                        var amb = (new Color(0.03f, 0.045f, 0.10f).linear + lunaCol.linear * (lunaI * k)).gamma;
                         SetLight(lunaCol, lunaI * (1f - k), amb, 50f);
                         if (_sun != null) _sun.shadowStrength = 1f;
                         DiagnosticoLuces();
@@ -1014,26 +1015,6 @@ namespace TBD.View
         {
             if (_sun != null) { _sun.color = sunColor; _sun.intensity = sunIntensity; _sun.transform.rotation = Quaternion.Euler(elevation, -35f, 0f); }
             RenderSettings.ambientLight = ambient;
-            AmbienteEnSombra(ambient);
-        }
-
-        /// <summary>
-        /// Sara (qa47, I-Noche78): la sombra no recibía el ambiente. Causa probable: en el reproductor, cambiar RenderSettings.ambientLight en tiempo de ejecución
-        /// no rehace la sonda de ambiente (RenderSettings.ambientProbe, la SH que suman URP/Lit y TBD/Horda); se queda la del arranque, casi negra.
-        /// Arreglo: de noche se escribe la sonda a mano con el ambiente de la noche, así la zona en sombra recibe A + k·luna (ver ApplyGrade).
-        /// De día y al atardecer se deja la sonda de siempre (la que se aprobó a ojo), para no cambiar su aspecto. -sinsondanoche lo apaga para comparar.
-        /// </summary>
-        SphericalHarmonicsL2 _sondaOriginal; bool _sondaGuardada;
-        static readonly bool SinSondaNoche = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinsondanoche") >= 0;
-        void AmbienteEnSombra(Color ambient)
-        {
-            if (!_sondaGuardada) { _sondaOriginal = RenderSettings.ambientProbe; _sondaGuardada = true; }
-            if (_gradeIndex == 2 && !SinSondaNoche)
-            {
-                var sh = new SphericalHarmonicsL2(); sh.AddAmbientLight(ambient);
-                RenderSettings.ambientProbe = sh;
-            }
-            else RenderSettings.ambientProbe = _sondaOriginal;
         }
 
         // ================================================================ interfaz nítida (capa 4)
