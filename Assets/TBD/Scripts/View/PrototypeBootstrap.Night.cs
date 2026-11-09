@@ -58,7 +58,11 @@ namespace TBD.View
             NightSim sim = null; int stock = 50 * WeaponCatalog.ShotsPerU;
             try
             {
-                string path = System.IO.Path.Combine(Application.streamingAssetsPath, "Noche", "noche_sagunto.json");
+                // cada zona su noche (Hugo, 9-nov): Nules lee nules.json (hordas 1880/2200/2440 desde la 2.ª noche, guarnición de fusileros y ametralladores); el resto, la de Sagunto
+                string estN = NetSession.A != null && _zoneNode >= 0 && _zoneNode < NetSession.A.Graph.Nodes.Count ? NetSession.A.Graph.Nodes[_zoneNode].Name : "Sagunto";
+                string fN = estN == "Nules" && System.IO.File.Exists(System.IO.Path.Combine(Application.streamingAssetsPath, "Noche", "nules.json")) ? "nules.json" : "noche_sagunto.json";
+                string path = System.IO.Path.Combine(Application.streamingAssetsPath, "Noche", fN);
+                Debug.Log("[NOCHE] noche de " + estN + ": " + fN);
                 string key = NightRun.Difficulty < 800 ? "facil" : NightRun.Difficulty <= 950 ? "normal" : "dificil";
                 { var cd = System.Environment.GetCommandLineArgs(); for (int i = 0; i + 1 < cd.Length; i++) if (cd[i] == "-dificultad" && (cd[i + 1] == "facil" || cd[i + 1] == "normal" || cd[i + 1] == "dificil")) key = cd[i + 1]; }   // QA: -dificultad facil|normal|dificil
                 sim = NightSim.FromJson(System.IO.File.ReadAllText(path), key, 77u); _ng = sim.Night; stock = sim.Units.StockShots;
@@ -156,6 +160,7 @@ namespace TBD.View
 
         // ---------------------------------------------------------------- un tick (30 Hz), antes de los sistemas de la zona
         readonly List<int> _tramosPm = new List<int>();
+        static readonly bool _sinHorda = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinhorda") >= 0;
         readonly RutaCap3 _rutaCap3 = new RutaCap3();         // paso fijo (160; 40) para rodear la esquina SE del fuerte (capítulo 3, Iker)
         void NightTick()
         {
@@ -189,6 +194,7 @@ namespace TBD.View
             }
 
             // zombis nuevos (en los dos mundos, en el mismo punto)
+            if (_sinHorda) _spawns.Clear();                                           // QA (Sara, qa48 «vacío»): -sinhorda no saca zombis
             if (_spawns.Count > 0) SpawnZombies(_spawns);
 
             // soldados: objetivos = zombis a menos de 60 m de algún soldado

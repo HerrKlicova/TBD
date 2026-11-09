@@ -111,10 +111,11 @@ namespace TBD.View
         // ---------------------------------------------------------------- [FPS] (Sara, docs/qa/medir-fps-peor-caso.md): con -fps, una línea por segundo
         static readonly bool _fpsOn = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-fps") >= 0;
         readonly System.Collections.Generic.List<float> _fpsDt = new System.Collections.Generic.List<float>(); float _fpsT0 = -1f;
-        Unity.Profiling.ProfilerRecorder _trisRec;
+        Unity.Profiling.ProfilerRecorder _trisRec; bool _fpsIni;
         void FpsLog()
         {
             if (!_fpsOn) return;
+            if (!_fpsIni) { _fpsIni = true; QualitySettings.vSyncCount = 0; Application.targetFrameRate = -1; Debug.Log($"[FPS] vSyncCount={QualitySettings.vSyncCount} targetFrameRate={Application.targetFrameRate}"); }   // Sara: sin tope de 30
             if (!_trisRec.Valid) _trisRec = Unity.Profiling.ProfilerRecorder.StartNew(Unity.Profiling.ProfilerCategory.Render, "Triangles Count");
             float now = Time.realtimeSinceStartup; if (_fpsT0 < 0f) _fpsT0 = now;
             _fpsDt.Add(Time.unscaledDeltaTime * 1000f);

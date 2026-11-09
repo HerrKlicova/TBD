@@ -272,7 +272,7 @@ namespace TBD.Sim.Tests
                 check(ae.Aeronaves[0].Estado == AeronaveEstado.EnBase && ae.Aeronaves[0].MunicionPm == 1000 && ae.MunicionMilliU == 50_000 - 1440, $"rearmado en la base: gasta 1,44 u de munición (80 % de 1,8 u) ({ta:0} s)");
                 check(!ae.PelotonEnBase[0], "el pelotón que bajó en Sagunto ya no está en la base");
                 ae.CombustibleMilliU = 2000; check(ae.PorQueNo(1, "Nules") == "No queda combustible", "sin combustible no despega (existencias propias, sin logística)");
-                check(Plantel.De("Sagunto").NH90 == 0 && Plantel.De("betera").NH90 == 2 && Plantel.De("Castellón").Pelotones.Length == 0 && Plantel.De("Nules").Pelotones.Length == 0 && Plantel.De("Nules", true).Pelotones.Length == 1, "plantel por estación: Sagunto sin NH90, Bétera con 2, Nules solo con el tutorial");
+                check(Plantel.De("Sagunto").NH90 == 0 && Plantel.De("betera").NH90 == 2 && Plantel.De("Castellón").Pelotones.Length == 0 && Plantel.De("Nules").Pelotones.Length == 2 && Plantel.De("Nules", true).Pelotones.Length == 3, "plantel por estación: Sagunto sin NH90, Bétera con 2, Nules con su guarnición (y el pelotón del tutorial)");
                 var ed = EstacionDato.FromJson(bj); check(ed.Tamano == EstacionTamano.Aerodromo, "EstacionDato lee Bétera como aeródromo");
             }
 
@@ -561,8 +561,8 @@ namespace TBD.Sim.Tests
                 var ps = Plantel.Pelotones("Sagunto"); var vs = Plantel.Vehiculos("Sagunto");
                 check(ps.Count == 5 && ps[0].Tipo == PlatoonKind.Fusileros && ps[0].X == 88000 && ps[0].Y == 54000 && ps[4].Tipo == PlatoonKind.Zapadores && ps[4].Nombre == "Zapadores", "Sagunto: los cinco pelotones de siempre, en sus sitios");
                 check(vs.Count == 3 && vs[0].Nombre == "Dragón" && vs[0].X == 99f && vs[1].Nombre == "VAMTAC 1" && vs[2].Nombre == "VAMTAC 2" && vs[2].X == 80f && !vs.Exists(v => v.Tipo == "nh90"), "Sagunto: Dragón y dos VAMTAC, sin NH90 (el aire sale de Bétera)");
-                check(Plantel.Pelotones("Nules").Count == 0 && Plantel.Vehiculos("Nules").Count == 0, "Nules fuera del tutorial: sin plantel propio (la guarnición es de la red)");
-                var pn = Plantel.Pelotones("Nules", tutorial: true); check(pn.Count == 1 && pn[0].Tipo == PlatoonKind.Fusileros && Plantel.Vehiculos("Nules", true).Count == 0, "Nules en el tutorial: el pelotón de fusileros del capítulo 3, sin vehículos");
+                check(Plantel.Pelotones("Nules").Count == 2 && Plantel.Pelotones("Nules")[1].Tipo == PlatoonKind.Ametralladores && Plantel.Vehiculos("Nules").Count == 0, "Nules: la guarnición de 12, fusileros y ametralladores (Hugo, nules.json)");
+                var pn = Plantel.Pelotones("Nules", tutorial: true); check(pn.Count == 3 && pn[2].Tipo == PlatoonKind.Fusileros && Plantel.Vehiculos("Nules", true).Count == 0, "Nules en el tutorial: la guarnición más el pelotón del capítulo 3, sin vehículos");
                 check(Plantel.Pelotones("Castellón").Count == 0 && Plantel.Vehiculos("Castellón").Count == 0, "Castellón (infestada): sin unidades propias");
                 var pb = Plantel.Pelotones("Bétera"); check(pb.Count == 3 && pb[0].Nombre == "Fusileros 1" && pb[2].Nombre == "Fusileros 3" && Plantel.De("Bétera").NH90 == 2 && Plantel.Vehiculos("Bétera").Count == 0, "Bétera: tres pelotones de fusileros (numerados) y los dos NH90, sin vehículos de tierra");
                 check(Plantel.Pelotones("Valencia").Count == 0 && Plantel.Pelotones("Teruel").Count == 0, "Valencia y Teruel (caídas): sin unidades");
