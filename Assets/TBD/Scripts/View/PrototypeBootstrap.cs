@@ -1172,7 +1172,7 @@ namespace TBD.View
         // -sinborde apaga el desplazamiento por el borde de la pantalla; también lo apagan las banderas de QA con encuadre fijo: -barrido, -capdirecta y -focus
         static readonly bool SinBorde = TieneArg("-sinborde") || TieneArg("-barrido") || TieneArg("-capdirecta") || TieneArg("-focus");
         static bool TieneArg(string b) { return System.Array.IndexOf(System.Environment.GetCommandLineArgs(), b) >= 0; }
-        static readonly float AmbienteSueloK = LeerFloat("-ambientesuelo", 1.1f);
+        static readonly float AmbienteSueloK = LeerFloat("-ambientesuelo", 3.0f);   // K cerrado el 09-11 con la I-Noche94 (Bruno): sombra del tren en el balasto L* 9,5 (K=0) → 12,5 (K=1,5) → ~15,5 previsto con 3,0 (ventana de Sara 14–18)
         Color _ambNocheLin = new Color(0.061f, 0.071f, 0.123f);
 
         void EmisionSuelo(Material m, bool noche)
