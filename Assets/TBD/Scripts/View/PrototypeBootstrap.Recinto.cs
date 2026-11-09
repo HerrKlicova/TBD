@@ -60,6 +60,34 @@ namespace TBD.View
             Debug.Log($"[RECINTO] Sagunto: {piezas} piezas y {puertas} puertas de Teo{(faltan > 0 ? $"; faltan {faltan}: se quedan las cajas" : "")}");
         }
 
+        /// <summary>Cada fotograma (solo vista, no toca la simulación): cada puerta de Teo busca su pieza de puerta en Works por posición (a menos de 3 m)
+        /// y gira las hojas según GateProg / GateSwapTicks. Rota (Broken) = brecha: las hojas se apagan (Teo, e3).</summary>
+        void UpdateRecintoPuertas()
+        {
+            if (!_recintoModelos || _recintoPuertas.Count == 0 || _zoneNode < 0 || NetSession.A == null) return;
+            var pieces = NetSession.A.Works.At(_zoneNode); var p = NetSession.A.Works.P;
+            if (pieces == null) return;
+            for (int k = 0; k < _recintoPuertas.Count; k++)
+            {
+                var d = _recintoPuertas[k]; if (d == null) continue;
+                var dp = new Vector2(d.position.x, d.position.z); int best = -1; float bd = 9f;
+                for (int i = 0; i < pieces.Count; i++)
+                {
+                    var w = pieces[i]; if (!w.IsGate) continue;
+                    var c = new Vector2(WorkOrigin.x + (w.X0 + w.X1) * 0.0005f, WorkOrigin.y + (w.Y0 + w.Y1) * 0.0005f);
+                    float dd = (c - dp).sqrMagnitude; if (dd < bd) { bd = dd; best = i; }
+                }
+                if (best < 0) continue;
+                var g = pieces[best];
+                float t = p.GateSwapTicks > 0 ? Mathf.Clamp01(g.GateProg / (float)p.GateSwapTicks) : 0f;
+                var o = FindDeep(d, "Hoja_O"); var e = FindDeep(d, "Hoja_E");
+                bool vis = !g.Broken && g.Built;
+                if (o != null && o.gameObject.activeSelf != vis) o.gameObject.SetActive(vis);
+                if (e != null && e.gameObject.activeSelf != vis) e.gameObject.SetActive(vis);
+                if (vis) SetHojas(d, t);
+            }
+        }
+
         /// <summary>Abre (1) o cierra (0) las hojas de una puerta del recinto: Hoja_O gira +90°·t y Hoja_E −90°·t sobre su Y local (hacia dentro).</summary>
         static void SetHojas(Transform puerta, float t)
         {
