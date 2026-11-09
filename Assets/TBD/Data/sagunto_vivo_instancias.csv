@@ -1,0 +1,18 @@
+grupo;prefab;variante;x_m;y_m;z_m;yaw_grados;escala_x;en_zona_mvp;nota
+vivo;SM_CocinaCampana;3;121;0;78;270;1;si;al este del edificio de viajeros (X 115), con el frente hacia él
+vivo;SM_Tienda;0;132;0;80;180;1;si;"franja norte, al este del andén; a 3 m del muro norte"
+vivo;SM_Tienda;1;140;0;80;180;1;si;franja norte
+vivo;SM_Tienda;3;148;0;80;180;1;si;franja norte, con colchones
+vivo;SM_BidonFuego;1;127;0;83;0;1;si;"entre la cocina y las tiendas; luz de Bruno, lejos del muro oeste (57 m)"
+vivo;SM_BidonFuego;3;147;0;73.5;0;1;si;extremo este de la franja norte, fuera del andén (acaba en X 138)
+vivo;SM_Bidones;0;135;0;59.5;0;1;si;"entre el almacén del muelle (Z ≤ 57,3) y la fila de postes (base desde Z 61,55); se movió de X 149 para dejar sitio al acopio de materiales (§10.24)"
+vivo;SM_Bidones;2;149;0;47.5;90;1;si;junto al muro sur, esquina SE
+vivo;SM_Bancales;0;131;0;47.3;0;1;si;huerto entre el almacén (Z 50,3) y el muro sur (Z 44)
+vivo;SM_Bancales;3;137.5;0;47.3;0;1;si;huerto, tomateras
+vivo;SM_Bancales;4;144;0;47.3;0;1;si;huerto, seco
+vivo;SM_Solar;0;99;0;103;0;1;si;hueco de la 5.ª casa de la hilera de delante
+vivo;SM_Solar;3;123;0;103;0;1;si;hueco de la 9.ª casa de la hilera de delante
+vivo;SM_Tendedero;0;81;0;95.5;0;1;si;patio trasero de la hilera de delante (fuera del muro)
+vivo;SM_Tendedero;2;111;0;95.5;0;1;si;patio trasero, con sábanas
+vivo;SM_Tendedero;1;135;0;95.5;0;1;si;patio trasero
+vivo;SM_ArmarioAdif;0;53.5;0;70.5;0;1;si;"paso a nivel, junto a la semibarrera norte y al oeste de la calle; sustituye a la caseta (§10.8); a 4 m de F2"

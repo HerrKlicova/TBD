@@ -1806,6 +1806,7 @@ namespace TBD.View
                 for (int i = 0; i < recursos.Length; i++)
                     AcopiosCarga[i] = AcopioVista.MontarCarga(root, recursos[i], new[] { new[] { SitioAcopioX[i], 0f, 57.5f, 0f } }, AcopioViveres.CapacidadRefU);
             }
+            NulesZona.MontarVivoSagunto(root, zonaNules);   // Bruno 09-11: kit «Sagunto vivo» de Teo en los sitios de Álvaro (§10.18), cajas si falta
             // pieza 8 de Teo: senal de via (origen al pie del mastil, mira a +Z, la via queda a 2,2 m en +X), topera en el eje y poste kilometrico.
             // La via corre a lo largo de X: giro 270 -> +X local pasa a +Z mundo (la via al norte) y la senal mira a -X, hacia el tren que llega del oeste.
             PlaceFlat("senales", "senal_via", new Vector3(24f, 0f, ty - 2.2f), 270f, root);

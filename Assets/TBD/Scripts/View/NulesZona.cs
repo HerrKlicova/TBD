@@ -53,6 +53,14 @@ namespace TBD.View
             { "SM_Semaforo", new[] { "Urbano/SM_Semaforo_v0_Simple_LOD1", "Urbano/SM_Semaforo_v1_Brazo_LOD1", "Urbano/SM_Semaforo_v2_Peatonal_LOD1", "Urbano/SM_Semaforo_v3_Doblado_LOD1", "Urbano/SM_Semaforo_v4_Caido_LOD1" } },
             { "SM_Senal", new[] { "Urbano/SM_Senal_v0_Direccion_LOD1", "Urbano/SM_Senal_v1_Redonda_LOD1", "Urbano/SM_Senal_v2_Triangular_LOD1", "Urbano/SM_Senal_v3_Doble_LOD1", "Urbano/SM_Senal_v4_Doblada_LOD1" } },
             { "SM_poste_catenaria", new[] { "Sagunto/poste_catenaria/SM_poste_catenaria_LOD1" } },
+            { "SM_ArmarioAdif", new[] { "Sagunto/vivo/ArmarioAdif/SM_ArmarioAdif_v0_Completo_LOD1", "Sagunto/vivo/ArmarioAdif/SM_ArmarioAdif_v1_Pintado_LOD1", "Sagunto/vivo/ArmarioAdif/SM_ArmarioAdif_v2_Abierto_LOD1", "Sagunto/vivo/ArmarioAdif/SM_ArmarioAdif_v3_CruzDoblada_LOD1", "Sagunto/vivo/ArmarioAdif/SM_ArmarioAdif_v4_Volcado_LOD1" } },
+            { "SM_Bancales", new[] { "Sagunto/vivo/Bancales/SM_Bancales_v0_Plantas_LOD1", "Sagunto/vivo/Bancales/SM_Bancales_v1_Plantado_LOD1", "Sagunto/vivo/Bancales/SM_Bancales_v2_Regadera_LOD1", "Sagunto/vivo/Bancales/SM_Bancales_v3_Tomateras_LOD1", "Sagunto/vivo/Bancales/SM_Bancales_v4_Seco_LOD1" } },
+            { "SM_BidonFuego", new[] { "Sagunto/vivo/BidonFuego/SM_BidonFuego_v0_Solo_LOD1", "Sagunto/vivo/BidonFuego/SM_BidonFuego_v1_Parrilla_LOD1", "Sagunto/vivo/BidonFuego/SM_BidonFuego_v2_Dos_LOD1", "Sagunto/vivo/BidonFuego/SM_BidonFuego_v3_Corro_LOD1", "Sagunto/vivo/BidonFuego/SM_BidonFuego_v4_Apagado_LOD1" } },
+            { "SM_Bidones", new[] { "Sagunto/vivo/Bidones/SM_Bidones_v0_Pale4_LOD1", "Sagunto/vivo/Bidones/SM_Bidones_v1_Fila6_LOD1", "Sagunto/vivo/Bidones/SM_Bidones_v2_Tumbados_LOD1", "Sagunto/vivo/Bidones/SM_Bidones_v3_Lona_LOD1", "Sagunto/vivo/Bidones/SM_Bidones_v4_Volcados_LOD1" } },
+            { "SM_CocinaCampana", new[] { "Sagunto/vivo/CocinaCampana/SM_CocinaCampana_v0_Olla_LOD1", "Sagunto/vivo/CocinaCampana/SM_CocinaCampana_v1_Lena_LOD1", "Sagunto/vivo/CocinaCampana/SM_CocinaCampana_v2_Garrafas_LOD1", "Sagunto/vivo/CocinaCampana/SM_CocinaCampana_v3_Comedor_LOD1", "Sagunto/vivo/CocinaCampana/SM_CocinaCampana_v4_Recogida_LOD1" } },
+            { "SM_Solar", new[] { "Sagunto/vivo/Solar/SM_Solar_v0_Escombro_LOD1", "Sagunto/vivo/Solar/SM_Solar_v1_Medianera_LOD1", "Sagunto/vivo/Solar/SM_Solar_v2_Vigas_LOD1", "Sagunto/vivo/Solar/SM_Solar_v3_Despejado_LOD1", "Sagunto/vivo/Solar/SM_Solar_v4_Tejas_LOD1" } },
+            { "SM_Tendedero", new[] { "Sagunto/vivo/Tendedero/SM_Tendedero_v0_Cuerda_LOD1", "Sagunto/vivo/Tendedero/SM_Tendedero_v1_DosCuerdas_LOD1", "Sagunto/vivo/Tendedero/SM_Tendedero_v2_Sabanas_LOD1", "Sagunto/vivo/Tendedero/SM_Tendedero_v3_Balcon_LOD1", "Sagunto/vivo/Tendedero/SM_Tendedero_v4_Vacio_LOD1" } },
+            { "SM_Tienda", new[] { "Sagunto/vivo/Tienda/SM_Tienda_v0_Militar_LOD1", "Sagunto/vivo/Tienda/SM_Tienda_v1_Lona_LOD1", "Sagunto/vivo/Tienda/SM_Tienda_v2_Iglu_LOD1", "Sagunto/vivo/Tienda/SM_Tienda_v3_Colchones_LOD1", "Sagunto/vivo/Tienda/SM_Tienda_v4_Caida_LOD1" } },
             { "SM_AcopioMunicion", new[] { "Acopios/SM_AcopioMunicion_v0_Lleno_LOD1", "Acopios/SM_AcopioMunicion_v1_Mitad_LOD1", "Acopios/SM_AcopioMunicion_v2_Vacio_LOD1", "Acopios/SM_AcopioMunicion_v3_Saqueado_LOD1", "Acopios/SM_AcopioMunicion_v4_Quemado_LOD1" } },
             { "SM_AcopioCombustible", new[] { "Acopios/SM_AcopioCombustible_v0_Lleno_LOD1", "Acopios/SM_AcopioCombustible_v1_Mitad_LOD1", "Acopios/SM_AcopioCombustible_v2_Vacio_LOD1", "Acopios/SM_AcopioCombustible_v3_Saqueado_LOD1", "Acopios/SM_AcopioCombustible_v4_Quemado_LOD1" } },
             { "SM_AcopioMateriales", new[] { "Acopios/SM_AcopioMateriales_v0_Lleno_LOD1", "Acopios/SM_AcopioMateriales_v1_Mitad_LOD1", "Acopios/SM_AcopioMateriales_v2_Vacio_LOD1", "Acopios/SM_AcopioMateriales_v3_Saqueado_LOD1", "Acopios/SM_AcopioMateriales_v4_Quemado_LOD1" } },
@@ -79,12 +87,33 @@ namespace TBD.View
             var csv = BalanceSource.Read("nules_instancias.csv");
             if (csv == null) { Debug.LogWarning("[NULES] falta nules_instancias.csv"); return res; }
             Suelo(root);
+            Piezas(root, csv, "NULES", res, soloZonaMvp ? (System.Func<string[], bool>)(c => c[8].Trim() == "si") : null);
+            return res;
+        }
+
+        /// <summary>
+        /// Kit «Sagunto vivo» de Teo con la colocación de Álvaro (sagunto_vivo_instancias.csv, sagunto-nivel.md §10.18; sin colisión). Cajas «FALTA» si no
+        /// está importado (Resources/Models/Sagunto/vivo/&lt;Pieza&gt;). En Nules A (terreno de Sagunto sin el pueblo) se quitan los solares y los tendederos del pueblo.
+        /// </summary>
+        public static Result MontarVivoSagunto(Transform parent, bool zonaNules)
+        {
+            var g = new GameObject("Sagunto vivo").transform; g.SetParent(parent, false);
+            var res = new Result { Root = g };
+            var csv = BalanceSource.Read("sagunto_vivo_instancias.csv");
+            if (csv == null) { Debug.LogWarning("[VIVO] falta sagunto_vivo_instancias.csv"); return res; }
+            Piezas(g, csv, "VIVO", res, zonaNules ? (System.Func<string[], bool>)(c => c[1] != "SM_Solar" && c[1] != "SM_Tendedero") : null);
+            return res;
+        }
+
+        /// <summary>Coloca las filas de un CSV de instancias de Álvaro (grupo;prefab;variante;x;y;z;yaw;escala_x;en_zona_mvp;nota) bajo root con la tabla Ficheros.</summary>
+        static void Piezas(Transform root, string csv, string tag, Result res, System.Func<string[], bool> filtro)
+        {
             var lineas = csv.Replace("\r", "").Split('\n');
             for (int i = 1; i < lineas.Length; i++)
             {
                 var l = lineas[i].Trim(); if (l.Length == 0) continue;
                 var c = l.Split(';'); if (c.Length < 9) continue;
-                if (soloZonaMvp && c[8].Trim() != "si") continue;
+                if (filtro != null && !filtro(c)) continue;
                 string prefab = c[1];
                 int v = int.Parse(c[2], System.Globalization.CultureInfo.InvariantCulture);
                 float x = F(c[3]), y = F(c[4]), z = F(c[5]), yaw = F(c[6]), ex = F(c[7]);
@@ -100,10 +129,9 @@ namespace TBD.View
                 if (ex != 0f && ex != 1f) { var sc = go.transform.localScale; go.transform.localScale = new Vector3(sc.x * ex, sc.y, sc.z); }
                 res.Placed++;
             }
-            Debug.Log("[NULES] zona montada: " + res.Placed + " piezas, " + res.Faltan + " sin modelo");
+            Debug.Log("[" + tag + "] montado: " + res.Placed + " piezas, " + res.Faltan + " sin modelo");
             var cuenta = new Dictionary<string, int>(); foreach (var m in res.Missing) { var p = m.Substring(0, m.IndexOf(' ')); cuenta[p] = cuenta.TryGetValue(p, out var n) ? n + 1 : 1; }
-            foreach (var kv in cuenta) Debug.Log("[NULES] sin modelo: " + kv.Key + " ×" + kv.Value);
-            return res;
+            foreach (var kv in cuenta) Debug.Log("[" + tag + "] sin modelo: " + kv.Key + " ×" + kv.Value);
         }
 
 
