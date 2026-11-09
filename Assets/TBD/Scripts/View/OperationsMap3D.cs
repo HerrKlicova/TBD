@@ -255,6 +255,22 @@ namespace TBD.View
             _avisoVisto.Clear(); foreach (var n in ahora) _avisoVisto.Add(n);
         }
 
+        // avisos de la red en el mapa (Nuria, sonido-vivo.md). Solo vista. La alarma pasa por el filtro del mapa y suena lejana; el tren perdido, con su golpe y la horda.
+        readonly HashSet<int> _asedioSonado = new HashSet<int>(); bool _trenPerdidoAntes, _redIni;
+        void SonidosRed()
+        {
+            if (_a == null) return;
+            var ahora = new HashSet<int>();
+            foreach (var pl in _a.Director.Active)
+                if (pl.Kind == TBD.Net.HiveDirector.PlanKind.Asedio && pl.Started && pl.Node >= 0) ahora.Add(pl.Node);
+            if (!_redIni) { _redIni = true; foreach (var n in ahora) _asedioSonado.Add(n); _trenPerdidoAntes = _a.LastAmbush.TrainLost; return; }   // al abrir el mapa no suena lo que ya estaba
+            foreach (var n in ahora) if (!_asedioSonado.Contains(n)) { Sfx.Play("alarma_ataque", Vector3.zero, 0.3f, 20f); Sfx.Duck(2f); break; }   // una por fotograma aunque empiecen dos
+            _asedioSonado.Clear(); foreach (var n in ahora) _asedioSonado.Add(n);
+            bool perdido = _a.LastAmbush.TrainLost;
+            if (perdido && !_trenPerdidoAntes) { Sfx.Play("tren_caido_puertas", Vector3.zero, 0.6f, 5f); Sfx.Duck(2f); }
+            _trenPerdidoAntes = perdido;
+        }
+
         // sonidos de la Colmena y del informe (Nuria, elegidos por Lucía): una variante fija, en 2D a 1,0
         int _intelVisto = -1; bool _avisoColAntes, _informeAntes;
         void SonidosColmena()
@@ -412,6 +428,7 @@ namespace TBD.View
         void Update()
         {
             SonidosColmena();
+            SonidosRed();                                 // Nuria (sonido-vivo.md): estación atacada y tren perdido fuera de pantalla
             Update_NightReturn();
             if (_a == null) return;                      // entrada directa a la zona (noche o prueba): el mapa no se ha construido
             HandleInput();
@@ -465,6 +482,7 @@ namespace TBD.View
         {
             if (_entering) return;
             _entering = true;
+            Sfx.Play("zoom_entrar_zona", Vector3.zero, 0.8f, 0.5f);                     // Nuria: barrido de zoom hacia la zona (sonido-vivo.md)
             NetSession.PendingZoneNode = node;
             NetSession.Push(NetCmdType.Materialize, node, 0);
             StartCoroutine(EnterRoutine());

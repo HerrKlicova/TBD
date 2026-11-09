@@ -247,6 +247,7 @@ namespace TBD.View
         {
             if (v.Heli || Mathf.Abs(v.Speed) < 2f) return; float hr = v.Heading * Mathf.Deg2Rad; var front = v.Pos + new Vector2(Mathf.Sin(hr), Mathf.Cos(hr)) * 3f; int n = 0;
             for (int i = 0; i < _zomPos.Count && n < 40; i++) if ((_zomPos[i] - front).sqrMagnitude < 6f) { _vehHits.Add(new TargetHit { TargetId = (int)_zomId[i], Damage = 100, Platoon = -1 }); NaVehHit(v, true); n++; }
+            if (n > 0) AtropelloSonido(front, n);                                          // Nuria: golpe sordo en el morro (solo vista)
         }
 
         // ---------------------------------------------------------------- vista de los vehículos (cada fotograma)
