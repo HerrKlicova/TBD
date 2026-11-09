@@ -252,6 +252,30 @@ namespace TBD.View
             _avisoVisto.Clear(); foreach (var n in ahora) _avisoVisto.Add(n);
         }
 
+        // sonidos de la Colmena y del informe (Nuria, elegidos por Lucía): una variante fija, en 2D a 1,0
+        int _intelVisto = -1; bool _avisoColAntes, _informeAntes;
+        void SonidosColmena()
+        {
+            if (_a == null) return;
+            if (_intelVisto < 0) _intelVisto = _a.Intel.Count;
+            for (int i = _intelVisto; i < _a.Intel.Count; i++)
+            {
+                switch (_a.Intel[i].Id)
+                {
+                    case "CO-1": Sfx.Play("sfx_colmena_acecho_1", 1f); break;
+                    case "CO-2": Sfx.Play("sfx_colmena_enjambre_2", 1f); break;
+                    case "CO-3": Sfx.Play("sfx_colmena_vuelta_acecho_1", 1f); break;
+                    case "CO-0": case "CO-4": Sfx.Play("sfx_colmena_dispersa_2", 1f); break;
+                }
+            }
+            _intelVisto = _a.Intel.Count;
+            bool aviso = _a.Director.ColWarning;
+            if (aviso && !_avisoColAntes) Sfx.Play("sfx_ui_aviso_senal6_1", 1f);      // la señal llega a 6: «La Colmena se agita…»
+            _avisoColAntes = aviso;
+            if (_informeOn && !_informeAntes) Sfx.Play("sfx_ui_informe_abrir_1", 1f);
+            _informeAntes = _informeOn;
+        }
+
         List<Vector2> TrenesAtacados()
         {
             var l = new List<Vector2>(); var g = _a.Graph;
@@ -384,6 +408,7 @@ namespace TBD.View
 
         void Update()
         {
+            SonidosColmena();
             Update_NightReturn();
             if (_a == null) return;                      // entrada directa a la zona (noche o prueba): el mapa no se ha construido
             HandleInput();
