@@ -55,6 +55,12 @@ namespace TBD.Sim.Tests
 
             var off = NetScenario.Inicio(); off.Director.P.ColOn = 0; Hold(off, 9); for (int day = 0; day <= 9; day++) off.Director.ColmenaDay(off, day);
             check(off.Director.ColState == 0 && off.Director.ColMultMil() == 1000 && off.Director.MaxSieges() == off.Director.P.MaxSiegesStage1, "apagado (colmena_estados = 0) no hace nada: ×1 y los asedios de la etapa");
+            var i0 = NetScenario.Inicio(); bool co0 = i0.Director.ColmenaIntro(i0), co0b = i0.Director.ColmenaIntro(i0);
+            check(co0 && !co0b && CountIntel(i0, "CO-0") == 1, "CO-0: la primera vez que se abre el mapa, con la Colmena Dispersa, sale una sola vez");
+            var i1 = NetScenario.Inicio(); var bi = NetSave.Save(i1); var li = NetScenario.Inicio(); NetSave.Load(bi, li);
+            check(!li.Director.ColmenaIntro(li) && CountIntel(li, "CO-0") == 0 && li.Hash() == i1.Hash(), "CO-0 no sale en una partida cargada (y no cambia el hash)");
+            var i2 = NetScenario.Inicio(); i2.Director.ColState = HiveDirector.ColAcecho;
+            check(!i2.Director.ColmenaIntro(i2) && CountIntel(i2, "CO-0") == 0, "CO-0 no sale si la Colmena ya no está Dispersa");
             check(NetSave.NetVersion == 6, "la versión de la red sube a 6");
         }
     }

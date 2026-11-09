@@ -271,6 +271,19 @@ namespace TBD.Net
         /// <summary>Presupuesto del día con el multiplicador del estado (DayZombies sigue siendo la curva pura).</summary>
         public long DayBudget(long day, long huellaMil) { return DayZombies(day, huellaMil) * ColMultMil() / 1000; }
 
+        /// <summary>CO-0 ya dado (o no toca): fuera del hash y del guardado; al cargar una partida vale true, así que una partida cargada nunca lo da.</summary>
+        public bool ColIntroDone;
+        /// <summary>CO-0 (Lucía, 9-nov): la vista lo llama la primera vez que se abre el mapa de la red después del tutorial. Sale una sola vez por partida
+        /// y solo si la Colmena está Dispersa (si no, ya salió el CO que tocaba). Devuelve true si ha añadido la entrada (para el sonido de Dispersa).</summary>
+        public bool ColmenaIntro(NetWorld w)
+        {
+            if (ColIntroDone) return false;
+            ColIntroDone = true;
+            if (P.ColOn == 0 || ColState != ColDispersa) return false;
+            w.Intel.Add(new IntelEntry { Tick = w.Tick, Id = "CO-0", Vars = new string[0] });
+            return true;
+        }
+
         static int HeldNodes(NetWorld w)
         {
             int held = 0;

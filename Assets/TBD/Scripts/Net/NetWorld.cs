@@ -484,7 +484,7 @@ namespace TBD.Net
             var cv = r.Ints(); if (cv == null || cv.Length != 2) throw new SaveException(SaveError.Corrupt, "estado de la Colmena no válido");
             Director.ColState = cv[0]; Director.ColDaysBelow = cv[1]; Director.ColSignalMil = r.Long();
             var ch = r.Ints(); if (ch == null || ch.Length != Director.ColHeld.Length) throw new SaveException(SaveError.Corrupt, "historia de la Colmena no válida");
-            Array.Copy(ch, Director.ColHeld, ch.Length);
+            Array.Copy(ch, Director.ColHeld, ch.Length); Director.ColIntroDone = true;      // CO-0: una partida cargada no lo da
             Injections.Clear(); Retirements.Clear(); LostThisTick = 0; RetiredThisTick = 0;      // datos de QA del tick: empiezan limpios
         }
 

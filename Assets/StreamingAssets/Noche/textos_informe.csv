@@ -27,6 +27,7 @@ TL-2;Chispas;El {tren} está listo, pero me faltan {n} para la dotación.;The {t
 TL-3;Chispas;Paramos el {tren}. Recuperamos {u} u de materiales.;Work on the {train} stopped. We salvaged {u} u of materials.
 ZS-1;Ibarra;{nodo} aguanta la noche: {abatidos} de {n} abatidos, {u} u de munición, {bajas} bajas.;{node} holds the night: {abatidos} of {n} down, {u} u of ammunition, {bajas} casualties.
 ZS-2;Ibarra;Hemos perdido {nodo}. Eran {n} y solo cayeron {abatidos}.;We have lost {node}. They were {n} and only {abatidos} went down.
+CO-0;Ibarra;La Colmena está dispersa. Si creces despacio, no se fija en ti.;The Hive is scattered. If you grow slowly, it will not notice you.
 CO-1;Ibarra;Se mueve distinto. Ya no vaga: escucha.;It moves differently. It no longer wanders: it listens.
 CO-2;Ibarra;Se está juntando. Has crecido demasiado deprisa y lo ha notado.;It is gathering. You have grown too fast and it has noticed.
 CO-3;Ibarra;Se dispersa otra vez. Por ahora.;It is scattering again. For now.
