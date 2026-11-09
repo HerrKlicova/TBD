@@ -3331,6 +3331,7 @@ namespace TBD.View
             foreach (var part in _trainParts) part.gameObject.SetActive(info.HasTrain);   // sin tren de la red en el andén, no hay tren
             // el tren avanza hacia +x; la locomotora va delante
             float x = train.X;                                                    // el sólido va de X − 61,5 a X + 2,5
+            if (_nightOn && _ng != null) { float fr = _ng.P.TrainRect.X1 / 1000f; if (Mathf.Abs(fr - (x + 2.5f)) > 15f) { x = fr - 2.5f; bool vivo = _ng.TrainHp > 0; foreach (var part in _trainParts) part.gameObject.SetActive(vivo); } }   // Nules (Iker, I-Noche101): la noche pone el tren fuera de la puerta este (TrainRect); el modelo va donde lo ve la simulación de la noche, no en el andén de Sagunto
             _trainParts[0].position = new Vector3(x + 2.5f - 12.015f, 0f, ty);    // locomotora: 24,03 m con el frente en X + 2,5
             _trainParts[1].position = new Vector3(x + 2.5f - 24.03f - 9.95f, 0f, ty);
             _trainParts[2].position = new Vector3(x + 2.5f - 24.03f - 19.9f - 9.95f, 0f, ty);
