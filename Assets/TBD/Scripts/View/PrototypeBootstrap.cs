@@ -1330,6 +1330,7 @@ namespace TBD.View
             var root = new GameObject("Ambientación de Sagunto").transform; root.SetParent(transform, false);
             float ty = Level.TrackY;
             BuildSaguntoWorld(root);
+            if (NetSession.A != null && _zoneNode >= 0 && _zoneNode < NetSession.A.Graph.Nodes.Count && NetSession.A.Graph.Nodes[_zoneNode].Name == "Sagunto") BuildRecintoSagunto(root);   // kit de defensas de Teo (Lucía, 9-nov)
             if (SueloMuestra) { if (SueloPorTrozos) BuildGroundStreamer(root); else BuildGroundSample(root); }
             if (SueloMuestra) BuildGroundSampleProps(root);
             Material M(string hex) { return Mat(hex); }
@@ -1375,6 +1376,7 @@ namespace TBD.View
             PlaceFlat("senales", "topera", new Vector3(50f, 0f, ty - 5f), 270f, root);        // fin de la via 2 (sale de X -250 a 50)
             // postes de catenaria cada 50 m a lo largo de toda la vía (dentro y fuera), a 3,6 m del eje; sin colisión
             for (float x = -240f; x <= 500f; x += 50f)                    // postes de X −240 a 500 (Álvaro C9); el modelo deja la vía hacia su -X: girado 90° la vía queda al norte (+Z)
+                if (x == 60f || x == 110f) continue; else                // Teo/Álvaro (9-nov): el de X 110 cae dentro del fuerte junto al tren y el de X 60 en la calle del paso a nivel
                 if (PlaceModel("poste_catenaria", "SM_poste_catenaria_LOD1", new Vector3(x, 0f, ty - 3.6f), 90f, root) == null)
                     Box("Poste", new Vector3(x, 4f, ty - 3.6f), new Vector3(0.25f, 8f, 0.25f), iron, root);
             // el pueblo fuera de los muros, al norte (lado contrario a la llegada de la horda por el oeste): dos manzanas de casas bajas encaladas (8 x 7 m, con colisión
@@ -2636,7 +2638,7 @@ namespace TBD.View
                     {
                         if (_workVisuals[i] != null) Destroy(_workVisuals[i]);
                         var c = new Vector3(WorkOrigin.x + (w.IsGate ? (w.X0 + w.X1) * 0.5f : w.X0) / 1000f, 0f, WorkOrigin.y + (w.IsGate ? (w.Y0 + w.Y1) * 0.5f : w.Y0) / 1000f);
-                        _workVisuals[i] = PieceSprite(w.Kind, c, 1f);          // la puerta de vía va abierta al tren: sin sólido que bloquee
+                        _workVisuals[i] = _recintoModelos && w.IsGate ? new GameObject("Puerta de obra (la dibuja el recinto de Teo)") : PieceSprite(w.Kind, c, 1f);          // la puerta de vía va abierta al tren: sin sólido que bloquee
                         if (w.Kind == PieceKind.Puerta || w.Kind == PieceKind.Nido)   // bloquean a la horda: un tramo corto de muro
                         {
                             float half = w.Kind == PieceKind.Puerta ? 1.2f : 0.8f;
@@ -2665,7 +2667,7 @@ namespace TBD.View
                     var a = new Vector3(WorkOrigin.x + w.X0 / 1000f, 0f, WorkOrigin.y + w.Y0 / 1000f);
                     var b = new Vector3(WorkOrigin.x + w.X1 / 1000f, 0f, WorkOrigin.y + w.Y1 / 1000f);
                     Push(CmdType.BuildWall, Obras.HeightMm(w.Kind), new Unity.Mathematics.float2(a.x, a.z), new Unity.Mathematics.float2(b.x, b.z));
-                    _workVisuals[i] = WallVisual(a, b, Level.WallHalf * 0.5f, Obras.HeightMm(w.Kind) / 1000f, w.Kind == PieceKind.Sacos ? _mWall : _mRoof);
+                    _workVisuals[i] = _recintoModelos ? new GameObject("Tramo de obra (lo dibuja el recinto de Teo)") : WallVisual(a, b, Level.WallHalf * 0.5f, Obras.HeightMm(w.Kind) / 1000f, w.Kind == PieceKind.Sacos ? _mWall : _mRoof);
                     _workBuilt[i] = true;
                 }
                 else if (!w.Built && _workVisuals[i] == null)

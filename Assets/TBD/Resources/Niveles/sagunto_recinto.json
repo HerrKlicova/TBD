@@ -1,0 +1,507 @@
+{
+ "recinto": [
+  [
+   70,
+   44
+  ],
+  [
+   84.5,
+   44
+  ],
+  [
+   156,
+   44
+  ],
+  [
+   156,
+   85
+  ],
+  [
+   84.5,
+   85
+  ],
+  [
+   70,
+   85
+  ]
+ ],
+ "material_por_lado": [
+  "H",
+  "S",
+  "S",
+  "S",
+  "H",
+  "H"
+ ],
+ "puertas": [
+  {
+   "id": "via_oeste",
+   "tipo": "via",
+   "pos": [
+    70,
+    64.5
+   ],
+   "yaw": 270,
+   "hueco": [
+    62.0,
+    67.0
+   ],
+   "hueco_muro": [
+    61.1,
+    67.9
+   ],
+   "malla": "Defensas/puerta_via/SM_PuertaVia_v1_ChapaOndulada",
+   "col": "Defensas/colision/SM_PuertaVia_Col",
+   "nota": "5 m (D-N151); la vía pasa por ella",
+   "lado": 5
+  },
+  {
+   "id": "via_este",
+   "tipo": "via",
+   "pos": [
+    156,
+    64.5
+   ],
+   "yaw": 90,
+   "hueco": [
+    62.0,
+    67.0
+   ],
+   "hueco_muro": [
+    61.1,
+    67.9
+   ],
+   "malla": "Defensas/puerta_via/SM_PuertaVia_v4_Blindada",
+   "col": "Defensas/colision/SM_PuertaVia_Col",
+   "nota": "solo visual en el MVP, cerrada; Z SIN VERIFICAR (la misma que la oeste)",
+   "lado": 2
+  },
+  {
+   "id": "vehiculos_sur",
+   "tipo": "vehiculos",
+   "pos": [
+    99,
+    44
+   ],
+   "yaw": 180,
+   "hueco": [
+    95.0,
+    103.0
+   ],
+   "hueco_muro": [
+    94.1,
+    103.9
+   ],
+   "malla": "Defensas/muro/SM_PuertaVehiculos_v2_Tablones",
+   "col": "Defensas/colision/SM_PuertaVehiculos_Col",
+   "nota": "E4, D-N111",
+   "lado": 1
+  }
+ ],
+ "piezas": [
+  {
+   "malla": "SM_HescoEsquina_v1_Geotextil_e0_Sano",
+   "x": 70,
+   "z": 44,
+   "yaw": 270,
+   "largo": 0,
+   "escala_x": 0,
+   "espejo": false,
+   "lado": 0,
+   "material": "Hesco",
+   "ruta": "Defensas/hesco/SM_HescoEsquina_v1_Geotextil_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroHesco_v1_Geotextil_e0_Sano",
+   "x": 77.78,
+   "z": 44.0,
+   "yaw": 180.0,
+   "largo": 10.0,
+   "escala_x": 1.0,
+   "espejo": false,
+   "lado": 0,
+   "material": "Hesco",
+   "ruta": "Defensas/muro/SM_MuroHesco_v1_Geotextil_e0_Sano"
+  },
+  {
+   "malla": "SM_HescoCorto2_v3_RemateSacos_e0_Sano",
+   "x": 83.64,
+   "z": 44.0,
+   "yaw": 180.0,
+   "largo": 2.22,
+   "escala_x": 1.0,
+   "espejo": false,
+   "lado": 0,
+   "material": "Hesco",
+   "ruta": "Defensas/hesco/SM_HescoCorto2_v3_RemateSacos_e0_Sano"
+  },
+  {
+   "malla": "SM_SacosRemate_v4_Red_e0_Sano",
+   "x": 94.1,
+   "z": 44.0,
+   "yaw": 180.0,
+   "largo": 0,
+   "escala_x": 0,
+   "espejo": false,
+   "lado": 1,
+   "material": "Sacos",
+   "ruta": "Defensas/sacos/SM_SacosRemate_v4_Red_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroSacos_v3_Tablon_e0_Sano",
+   "x": 87.35,
+   "z": 44.0,
+   "yaw": 180.0,
+   "largo": 5.7,
+   "escala_x": 0.712,
+   "espejo": false,
+   "lado": 1,
+   "material": "Sacos",
+   "ruta": "Defensas/muro/SM_MuroSacos_v3_Tablon_e0_Sano"
+  },
+  {
+   "malla": "SM_SacosRemateEspejo_v0_Recto_e0_Sano",
+   "x": 103.9,
+   "z": 44.0,
+   "yaw": 180.0,
+   "largo": 0,
+   "escala_x": 0,
+   "espejo": true,
+   "lado": 1,
+   "material": "Sacos",
+   "ruta": "Defensas/sacos/SM_SacosRemateEspejo_v0_Recto_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroSacos_v1_Talud_e0_Sano",
+   "x": 111.492,
+   "z": 44.0,
+   "yaw": 180.0,
+   "largo": 7.383,
+   "escala_x": 0.923,
+   "espejo": false,
+   "lado": 1,
+   "material": "Sacos",
+   "ruta": "Defensas/muro/SM_MuroSacos_v1_Talud_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroSacos_v1_Talud_e0_Sano",
+   "x": 118.875,
+   "z": 44.0,
+   "yaw": 180.0,
+   "largo": 7.383,
+   "escala_x": 0.923,
+   "espejo": false,
+   "lado": 1,
+   "material": "Sacos",
+   "ruta": "Defensas/muro/SM_MuroSacos_v1_Talud_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroSacos_v1_Talud_e0_Sano",
+   "x": 126.258,
+   "z": 44.0,
+   "yaw": 180.0,
+   "largo": 7.383,
+   "escala_x": 0.923,
+   "espejo": false,
+   "lado": 1,
+   "material": "Sacos",
+   "ruta": "Defensas/muro/SM_MuroSacos_v1_Talud_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroSacos_v1_Talud_e0_Sano",
+   "x": 133.642,
+   "z": 44.0,
+   "yaw": 180.0,
+   "largo": 7.383,
+   "escala_x": 0.923,
+   "espejo": false,
+   "lado": 1,
+   "material": "Sacos",
+   "ruta": "Defensas/muro/SM_MuroSacos_v1_Talud_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroSacos_v1_Talud_e0_Sano",
+   "x": 141.025,
+   "z": 44.0,
+   "yaw": 180.0,
+   "largo": 7.383,
+   "escala_x": 0.923,
+   "espejo": false,
+   "lado": 1,
+   "material": "Sacos",
+   "ruta": "Defensas/muro/SM_MuroSacos_v1_Talud_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroSacos_v1_Talud_e0_Sano",
+   "x": 148.408,
+   "z": 44.0,
+   "yaw": 180.0,
+   "largo": 7.383,
+   "escala_x": 0.923,
+   "espejo": false,
+   "lado": 1,
+   "material": "Sacos",
+   "ruta": "Defensas/muro/SM_MuroSacos_v1_Talud_e0_Sano"
+  },
+  {
+   "malla": "SM_SacosEsquina_v4_Red_e0_Sano",
+   "x": 156,
+   "z": 44,
+   "yaw": 180,
+   "largo": 0,
+   "escala_x": 0,
+   "espejo": false,
+   "lado": 2,
+   "material": "Sacos",
+   "ruta": "Defensas/sacos/SM_SacosEsquina_v4_Red_e0_Sano"
+  },
+  {
+   "malla": "SM_SacosRemate_v2_Irregular_e0_Sano",
+   "x": 156.0,
+   "z": 61.1,
+   "yaw": 90.0,
+   "largo": 0,
+   "escala_x": 0,
+   "espejo": false,
+   "lado": 2,
+   "material": "Sacos",
+   "ruta": "Defensas/sacos/SM_SacosRemate_v2_Irregular_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroSacos_v0_Recto_e0_Sano",
+   "x": 156.0,
+   "z": 52.55,
+   "yaw": 90.0,
+   "largo": 9.3,
+   "escala_x": 1.163,
+   "espejo": false,
+   "lado": 2,
+   "material": "Sacos",
+   "ruta": "Defensas/muro/SM_MuroSacos_v0_Recto_e0_Sano"
+  },
+  {
+   "malla": "SM_SacosRemateEspejo_v0_Recto_e0_Sano",
+   "x": 156.0,
+   "z": 67.9,
+   "yaw": 90.0,
+   "largo": 0,
+   "escala_x": 0,
+   "espejo": true,
+   "lado": 2,
+   "material": "Sacos",
+   "ruta": "Defensas/sacos/SM_SacosRemateEspejo_v0_Recto_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroSacos_v2_Irregular_e0_Sano",
+   "x": 156.0,
+   "z": 76.45,
+   "yaw": 90.0,
+   "largo": 9.3,
+   "escala_x": 1.162,
+   "espejo": false,
+   "lado": 2,
+   "material": "Sacos",
+   "ruta": "Defensas/muro/SM_MuroSacos_v2_Irregular_e0_Sano"
+  },
+  {
+   "malla": "SM_SacosEsquina_v3_Tablon_e0_Sano",
+   "x": 156,
+   "z": 85,
+   "yaw": 90,
+   "largo": 0,
+   "escala_x": 0,
+   "espejo": false,
+   "lado": 3,
+   "material": "Sacos",
+   "ruta": "Defensas/sacos/SM_SacosEsquina_v3_Tablon_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroSacos_v2_Irregular_e0_Sano",
+   "x": 147.875,
+   "z": 85.0,
+   "yaw": 0.0,
+   "largo": 8.45,
+   "escala_x": 1.056,
+   "espejo": false,
+   "lado": 3,
+   "material": "Sacos",
+   "ruta": "Defensas/muro/SM_MuroSacos_v2_Irregular_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroSacos_v2_Irregular_e0_Sano",
+   "x": 139.425,
+   "z": 85.0,
+   "yaw": 0.0,
+   "largo": 8.45,
+   "escala_x": 1.056,
+   "espejo": false,
+   "lado": 3,
+   "material": "Sacos",
+   "ruta": "Defensas/muro/SM_MuroSacos_v2_Irregular_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroSacos_v1_Talud_e0_Sano",
+   "x": 130.975,
+   "z": 85.0,
+   "yaw": 0.0,
+   "largo": 8.45,
+   "escala_x": 1.056,
+   "espejo": false,
+   "lado": 3,
+   "material": "Sacos",
+   "ruta": "Defensas/muro/SM_MuroSacos_v1_Talud_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroSacos_v1_Talud_e0_Sano",
+   "x": 122.525,
+   "z": 85.0,
+   "yaw": 0.0,
+   "largo": 8.45,
+   "escala_x": 1.056,
+   "espejo": false,
+   "lado": 3,
+   "material": "Sacos",
+   "ruta": "Defensas/muro/SM_MuroSacos_v1_Talud_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroSacos_v0_Recto_e0_Sano",
+   "x": 114.075,
+   "z": 85.0,
+   "yaw": 0.0,
+   "largo": 8.45,
+   "escala_x": 1.056,
+   "espejo": false,
+   "lado": 3,
+   "material": "Sacos",
+   "ruta": "Defensas/muro/SM_MuroSacos_v0_Recto_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroSacos_v0_Recto_e0_Sano",
+   "x": 105.625,
+   "z": 85.0,
+   "yaw": 0.0,
+   "largo": 8.45,
+   "escala_x": 1.056,
+   "espejo": false,
+   "lado": 3,
+   "material": "Sacos",
+   "ruta": "Defensas/muro/SM_MuroSacos_v0_Recto_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroSacos_v4_Red_e0_Sano",
+   "x": 97.175,
+   "z": 85.0,
+   "yaw": 0.0,
+   "largo": 8.45,
+   "escala_x": 1.056,
+   "espejo": false,
+   "lado": 3,
+   "material": "Sacos",
+   "ruta": "Defensas/muro/SM_MuroSacos_v4_Red_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroSacos_v4_Red_e0_Sano",
+   "x": 88.725,
+   "z": 85.0,
+   "yaw": 0.0,
+   "largo": 8.45,
+   "escala_x": 1.056,
+   "espejo": false,
+   "lado": 3,
+   "material": "Sacos",
+   "ruta": "Defensas/muro/SM_MuroSacos_v4_Red_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroHesco_v2_Escalonado_e0_Sano",
+   "x": 79.5,
+   "z": 85.0,
+   "yaw": 0.0,
+   "largo": 10.0,
+   "escala_x": 1.0,
+   "espejo": false,
+   "lado": 4,
+   "material": "Hesco",
+   "ruta": "Defensas/muro/SM_MuroHesco_v2_Escalonado_e0_Sano"
+  },
+  {
+   "malla": "SM_HescoCorto2_v4_Red_e0_Sano",
+   "x": 73.64,
+   "z": 85.0,
+   "yaw": 0.0,
+   "largo": 2.22,
+   "escala_x": 1.0,
+   "espejo": false,
+   "lado": 4,
+   "material": "Hesco",
+   "ruta": "Defensas/hesco/SM_HescoCorto2_v4_Red_e0_Sano"
+  },
+  {
+   "malla": "SM_HescoEsquina_v1_Geotextil_e0_Sano",
+   "x": 70,
+   "z": 85,
+   "yaw": 0,
+   "largo": 0,
+   "escala_x": 0,
+   "espejo": false,
+   "lado": 5,
+   "material": "Hesco",
+   "ruta": "Defensas/hesco/SM_HescoEsquina_v1_Geotextil_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroHesco_v3_RemateSacos_e0_Sano",
+   "x": 70.0,
+   "z": 77.22,
+   "yaw": 270.0,
+   "largo": 10.0,
+   "escala_x": 1.0,
+   "espejo": false,
+   "lado": 5,
+   "material": "Hesco",
+   "ruta": "Defensas/muro/SM_MuroHesco_v3_RemateSacos_e0_Sano"
+  },
+  {
+   "malla": "SM_HescoCorto4_v3_RemateSacos_e0_Sano",
+   "x": 70.0,
+   "z": 70.06,
+   "yaw": 270.0,
+   "largo": 4.44,
+   "escala_x": 1.0,
+   "espejo": false,
+   "lado": 5,
+   "material": "Hesco",
+   "ruta": "Defensas/hesco/SM_HescoCorto4_v3_RemateSacos_e0_Sano"
+  },
+  {
+   "malla": "SM_MuroHesco_v0_MallaLimpia_e0_Sano",
+   "x": 70.0,
+   "z": 56.1,
+   "yaw": 270.0,
+   "largo": 10.0,
+   "escala_x": 1.0,
+   "espejo": false,
+   "lado": 5,
+   "material": "Hesco",
+   "ruta": "Defensas/muro/SM_MuroHesco_v0_MallaLimpia_e0_Sano"
+  },
+  {
+   "malla": "SM_HescoCorto4_v0_MallaLimpia_e0_Sano",
+   "x": 70.0,
+   "z": 48.94,
+   "yaw": 270.0,
+   "largo": 4.44,
+   "escala_x": 1.0,
+   "espejo": false,
+   "lado": 5,
+   "material": "Hesco",
+   "ruta": "Defensas/hesco/SM_HescoCorto4_v0_MallaLimpia_e0_Sano"
+  }
+ ],
+ "postes_catenaria_fuera": {
+  "bucle": "PrototypeBootstrap.cs:1377 (cada 50 m, Z 60,9)",
+  "saltar_x": [
+   60,
+   110
+  ],
+  "nota": "Álvaro 9-nov: el de X 110 cae dentro del fuerte junto al tren y el de X 60 en la calle del paso a nivel; los de fuera se quedan"
+ }
+}
