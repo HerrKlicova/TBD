@@ -1805,8 +1805,7 @@ namespace TBD.View
                 for (int i = 0; i < 14; i++)
                     PlaceVariant("naranjo", new Vector3(80f + i * 5f + (row == 1 ? 2.5f : 0f), 0f, 131f + row * 4f), (i * 53 + row * 17) % 360, root);
             // colisión: solo edificio y almacén (cuatro segmentos de 2 m de grosor cada uno cubren el solar completo)
-            foreach (float z in new[] { 75.5f, 77.5f, 79.5f, 81.5f, 83.3f })                    // huella de 20 x 9 m del edificio de Teo
-                Push(CmdType.BuildWall, 11000, new Unity.Mathematics.float2(96.5f, z), new Unity.Mathematics.float2(115.5f, z));
+            Push(CmdType.BuildBox, 11000, new Unity.Mathematics.float2(96.5f, 75.2f), new Unity.Mathematics.float2(115.5f, 83.6f));   // D-N181: la huella del edificio de Teo, una sola caja (antes 5 BuildWall paralelos con huecos de ~1,4 m por los que se colaban)
             foreach (float z in new[] { 50.8f, 52.8f, 54.8f, 56.8f })
                 Push(CmdType.BuildWall, 5000, new Unity.Mathematics.float2(127.5f, z), new Unity.Mathematics.float2(142.5f, z));
         }
