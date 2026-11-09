@@ -26,6 +26,8 @@ namespace TBD.Sim.Tests
                 bool notAtSag = wa.LastAmbush.Tick < 0;
                 wa.SetSchedule(sv, TrenPreparar.Envio(wa, sv, nl, null)); for (int g = 0; g < 6000 && wa.LastAmbush.Tick < 0; g++) wa.Step();
                 var am = wa.LastAmbush; int em = 0; foreach (var e in wa.Intel) if (e.Id == "EM-1") em++;
+                string emN = null; foreach (var e in wa.Intel) if (e.Id == "EM-1") emN = e.Vars[5];
+                check(!wa.LastAmbush.OnScreen && am.Repelled && !am.Surrounded && emN == "300", $"emboscada fuera de pantalla con la guarnición de Nules: se rechaza ({am.AmmoU} u del almacén) y EM-1 dice unos {emN}");
                 check(!before && !day1 && act && !met0 && notAtSag && am.Node == nl && am.Zombies == 300 && am.Service == sv && am.InApartado && em == 1,
                       $"emboscada: nada el día 1 ni en Sagunto; el día 2 el tren que llega a Nules recibe un sondeo de {am.Zombies} (apartado: {am.InApartado}) y deja una sola EM-1 ({em}); el objetivo se ve desde las 06:00 del día 2 ({act}) y no está cumplido de salida");
                 wa.SetSchedule(sv, TrenPreparar.Envio(wa, sv, sg, null)); for (int g = 0; g < 3000; g++) wa.Step();
@@ -35,6 +37,18 @@ namespace TBD.Sim.Tests
                 wa.Stock[nl, (int)Res.Municion] = NetWorld.ObjAmmoU; bool ammoOnly = wa.ObjAmmo && !wa.ObjMet;
                 wa.Embarque.Lista.Add(new Pasajero { Tipo = PasajeroTipo.Peloton, Id = 77, Service = sv, Node = nl, Estado = PasajeroEstado.EnEstacion });
                 check(ammoOnly && wa.ObjTroops && wa.ObjMet, "objetivo del día 2: con 20 u solo no basta; con un pelotón bajado en Nules y 20 u, cumplido");
+                {   // sin guarnición ni escolta: D-N180, el tren rodeado se pierde con su carga en 10 min de juego
+                    var wb = NetScenario.Inicio(); int sb = TrenPreparar.Nodo(wb, "Sagunto"), nb = TrenPreparar.Nodo(wb, "Nules"); wb.GarrisonMil[nb] = 0; wb.AmbushArrivals = 1;
+                    int tv = -1; for (int g = 0; g < NetConst.DayTicks && tv < 0; g++) { tv = TrenPreparar.TrenEn(wb, sb); if (tv < 0) wb.Step(); }
+                    while (wb.Tick < NetConst.DayTicks + NetConst.Hours(7)) wb.Step();
+                    var carga = new int[NetConst.ResCount]; carga[(int)Res.Municion] = 20;
+                    wb.SetSchedule(tv, TrenPreparar.Envio(wb, tv, nb, carga)); for (int g = 0; g < 6000 && wb.LastAmbush.Tick < 0; g++) wb.Step();
+                    var ab = wb.LastAmbush; bool alive = !wb.Services[tv].Destroyed;
+                    for (long g = 0; g < NetWorld.SurroundLossTicks + 2; g++) wb.Step();
+                    check(ab.Surrounded && !ab.Repelled && alive && wb.Services[tv].Destroyed && wb.LastAmbush.TrainLost, $"emboscada sin nadie en Nules: rodeado, se pierde a los 10 min de juego ({NetWorld.SurroundLossTicks} ticks)");
+                }
+                int cs = TrenPreparar.Nodo(wa, "Castellón"); var sched = TrenPreparar.Envio(wa, sv, cs, null);
+                check(wa.Cercada(cs) && !wa.Cercada(nl) && (sched == null || wa.SetSchedule(sv, sched) == ScheduleResult.Cercada), "D-N184: Castellón cercada: no se le puede poner horario");
             }
             {   // D-N183 (Lucía, 9-nov): Castellón es del jugador desde el inicio
                 var wi = NetScenario.Inicio(); int cas = Id(wi, "Castellón");

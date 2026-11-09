@@ -639,6 +639,12 @@ namespace TBD.Net
         /// El horario tiene que incluir el nodo donde está el tren (de ahí sale: es su parada actual); dos paradas seguidas, contando el cierre, no pueden ser el mismo nodo.
         /// Si no vale, no cambia nada.
         /// </summary>
+        /// <summary>D-N184 (Eugenio, 9-nov): estación propia pero cercada (Castellón en el MVP). El cerco es de vista y no ataca, pero no se le puede poner horario
+        /// (SetSchedule devuelve Cercada) hasta romperlo, que es para después del MVP. La vista lo lee para pintar el cerco y bloquear el botón. −1 = ninguna.
+        /// Lo pone NetScenario.Inicio; no se guarda.</summary>
+        public int CercoNodo = -1;
+        public bool Cercada(int node) { return node >= 0 && node == CercoNodo; }
+
         public ScheduleResult SetSchedule(int service, int[] data)
         {
             if (service < 0 || service >= Services.Count) return ScheduleResult.TrenInexistente;
@@ -651,6 +657,7 @@ namespace TBD.Net
             {
                 int node = data[k * stride], at = data[k * stride + 1];
                 if (node < 0 || node >= Graph.Nodes.Count || at < 0 || at >= NetConst.DayTicks) return ScheduleResult.HorarioInvalido;
+                if (node == CercoNodo) return ScheduleResult.Cercada;
                 if (n > 1 && node == data[((k + 1) % n) * stride]) return ScheduleResult.HorarioInvalido;
                 for (int r = 0; r < NetConst.ResCount; r++) if (Math.Abs(data[k * stride + 2 + r]) > MaxScheduleTransfer) return ScheduleResult.HorarioInvalido;
                 if (newIndex < 0 && node == cur) newIndex = k;
@@ -1109,6 +1116,7 @@ namespace TBD.Net
             AdvanceWorks();
             AdvanceRepairs();
             AdvanceTaller();
+            AmbushStep();                    // emboscada del segundo tren: D-N180 fuera de pantalla
             if (ActiveZoneNode >= 0 && ActiveZoneNode < Director.AttentionTicks.Length) { Director.AttentionTicks[ActiveZoneNode]++; Director.LastSeenTick[ActiveZoneNode] = Tick; }   // memoria de atención
             if (Encounter.Active && Tick >= Encounter.ExpireTick) ResolveAmbush(Encounter.Service, Encounter.Taken, true);   // nadie respondió: la horda se dispersa y el tren pierde carga
             if (DirectorEnabled && Tick % NetConst.HourTicks == 0) Director.Hourly(this);       // una vez por hora de juego
@@ -1266,24 +1274,61 @@ namespace TBD.Net
         public bool ObjAmmo { get { return ObjNode >= 0 && Stock[ObjNode, (int)Res.Municion] >= ObjAmmoU; } }
         public bool ObjMet { get { return ObjTroops && ObjAmmo; } }
 
-        /// <summary>Emboscada (plan de 30 min, línea 6): el primer tren que llega a AmbushNode entre el amanecer del día 2 y las 22:00 de ese día recibe un sondeo de la
-        /// Colmena de AmbushZombies (unos 300) sobre la estación y el tren. Una sola vez por partida: queda la entrada EM-1 del informe (que va en el guardado), así que al
-        /// cargar no se repite. La red no mueve masa ni resuelve el combate: lo da en LastAmbush para que la zona cree los 300 (Iker/Marcos) y diga el aviso del apartado.
-        /// −1 = sin emboscada. Lo pone NetScenario.Inicio; no se guarda.</summary>
-        public int AmbushNode = -1, AmbushZombies = 300;
-        public struct AmbushEvent { public int Node, Service, Zombies; public long Tick; public bool OnScreen, InApartado; }
-        /// <summary>La última emboscada (Tick = −1: ninguna en esta sesión). InApartado: el tren entró al andén (no se quedó a las puertas); en Nules eso es el apartado
-        /// y toca el aviso «Saca el tren del apartado: con asedio, espera fuera de la puerta oeste.» Lo lee la vista; no entra en el hash.</summary>
-        public AmbushEvent LastAmbush = new AmbushEvent { Tick = -1, Node = -1, Service = -1 };
+        /// <summary>Emboscada del segundo tren (plan de 30 min; Lucía, 9-nov 08:10): cuando llega a AmbushNode el SEGUNDO tren de la partida (cuenta desde el principio) y es el
+        /// día 2 (de 06:00 a 22:00), un sondeo de la Colmena de AmbushZombies (unos 300) ataca la estación y el tren. Una sola vez por partida: queda la entrada EM-1 del
+        /// informe (va en el guardado), así que al cargar no se repite. La red no mueve masa. En pantalla manda la zona: LastAmbush le dice que cree los 300 y, con InApartado,
+        /// que dé el aviso de la D-N177. Fuera de pantalla se resuelve con las reglas de siempre (ver ResolveAmbushOffscreen). −1 = sin emboscada. Lo pone NetScenario.Inicio;
+        /// no se guarda (tampoco AmbushArrivals: al cargar a media partida se vuelve a contar desde 0).</summary>
+        public int AmbushNode = -1, AmbushZombies = 300, AmbushArrivals;
+        public struct AmbushEvent { public int Node, Service, Zombies, AmmoU; public long Tick, LossTick; public bool OnScreen, InApartado, Repelled, Surrounded, TrainLost; }
+        /// <summary>La última emboscada (Tick = −1: ninguna en esta sesión). Fuera de pantalla: Repelled (con escolta o con tropa propia en la estación se rechaza y se gastan
+        /// AmmoU u), Surrounded (sin nadie: D-N180, se pierde en LossTick si sigue allí) y TrainLost. Lo lee la vista; no entra en el hash.</summary>
+        public AmbushEvent LastAmbush = new AmbushEvent { Tick = -1, Node = -1, Service = -1, LossTick = -1 };
         public bool AmbushDone { get { foreach (var e in Intel) if (e.Id == "EM-1") return true; return false; } }
+        /// <summary>D-N180 en la red: un tren rodeado sin escolta se pierde con su carga en 10 minutos de juego como mucho.</summary>
+        public static readonly long SurroundLossTicks = NetConst.HourTicks / 6;
 
         void TryAmbush(TrainService s, int node)
         {
             if (AmbushNode < 0 || node != AmbushNode || AmbushZombies <= 0) return;
-            if (Tick < NetConst.DayTicks + NetConst.Hours(6) || Tick >= NetConst.DayTicks + NetConst.Hours(22) || NodeLost[node] || AmbushDone) return;
+            AmbushArrivals++;
+            if (AmbushArrivals < 2 || Tick < NetConst.DayTicks + NetConst.Hours(6) || Tick >= NetConst.DayTicks + NetConst.Hours(22) || NodeLost[node] || AmbushDone) return;
             int si = Services.IndexOf(s);
-            LastAmbush = new AmbushEvent { Node = node, Service = si, Zombies = AmbushZombies, Tick = Tick, OnScreen = node == ActiveZoneNode, InApartado = s.GateNode != node };
-            Intel.Add(new IntelEntry { Tick = Tick, Id = "EM-1", Vars = new[] { "nodo", Graph.Nodes[node].Name, "tren", "Tren " + s.Train.Name, "n", AmbushZombies.ToString() } });
+            LastAmbush = new AmbushEvent { Node = node, Service = si, Zombies = AmbushZombies, Tick = Tick, LossTick = -1, OnScreen = node == ActiveZoneNode, InApartado = s.GateNode != node };
+            int n100 = Math.Max(100, (AmbushZombies + 50) / 100 * 100);
+            Intel.Add(new IntelEntry { Tick = Tick, Id = "EM-1", Vars = new[] { "nodo", Graph.Nodes[node].Name, "tren", "Tren " + s.Train.Name, "n", n100.ToString() } });   // «Emboscada en {nodo}: unos {n} zombis atacan el {tren}.»
+            if (!LastAmbush.OnScreen) ResolveAmbushOffscreen(s, si, node);
+        }
+
+        /// <summary>Fuera de pantalla, sin reglas nuevas (Lucía, 08:10). Con escolta (un pelotón o un vehículo a bordo) o con tropa propia en la estación (guarnición o pelotones
+        /// bajados: el tren no está rodeado, D-N180, como mide NightSim con la guarnición de Nules) se rechaza: se gasta techo(zombis ÷ eficacia de la zona) u de munición, de la
+        /// carga del tren si lleva escolta y del almacén si no; nadie tiene bajas (con unos 300). Sin nadie, el tren queda rodeado y se pierde con su carga en 10 min de juego
+        /// salvo que salga antes o que el jugador entre en la zona (entonces manda la zona).</summary>
+        void ResolveAmbushOffscreen(TrainService s, int si, int node)
+        {
+            bool escort = EscortSoldiers(si) > 0;
+            int def = GarrisonMil[node] / 1000 + Embarque.AtStation(node, PasajeroTipo.Peloton).Count * GateSoldiersPerPlatoon;
+            if (escort || def > 0)
+            {
+                int zpu = ZoneZombiesPerUNode != null && node < ZoneZombiesPerUNode.Length && ZoneZombiesPerUNode[node] > 0 ? ZoneZombiesPerUNode[node] : ZoneZombiesPerU;
+                int need = (int)((AmbushZombies + zpu - 1) / Math.Max(1, zpu)), m = (int)Res.Municion, got;
+                if (escort) { got = Math.Min(need, Math.Max(0, s.Cargo[m])); s.Cargo[m] -= got; } else { got = Math.Min(need, Math.Max(0, Stock[node, m])); Stock[node, m] -= got; }
+                LastAmbush.Repelled = true; LastAmbush.AmmoU = got;
+            }
+            else { LastAmbush.Surrounded = true; LastAmbush.LossTick = Tick + SurroundLossTicks; }
+        }
+
+        void AmbushStep()
+        {
+            if (LastAmbush.LossTick < 0 || Tick < LastAmbush.LossTick) return;
+            int si = LastAmbush.Service, node = LastAmbush.Node; LastAmbush.LossTick = -1;
+            if (si < 0 || si >= Services.Count || node == ActiveZoneNode) return;          // el jugador ha entrado: manda la zona
+            var s = Services[si];
+            if (s.Destroyed || !TrainAtNode(s, node) || !s.AtStop || EscortSoldiers(si) > 0) return;     // ya se fue (o le han subido tropa)
+            s.Destroyed = true; s.Hp = 0; s.Held = true; s.GateNode = -1; s.GateSinceTick = -1;
+            Array.Clear(s.Cargo, 0, s.Cargo.Length); s.Train.CargoTonnes = 0;
+            for (int i = Embarque.Lista.Count - 1; i >= 0; i--) if (Embarque.Lista[i].Service == si && Embarque.Lista[i].Estado == PasajeroEstado.ABordo) Embarque.Lista.RemoveAt(i);
+            LastAmbush.TrainLost = true;
         }
 
         // ---------------------------------------------------------------- D-N152: el tren espera a las puertas
@@ -1939,6 +1984,7 @@ namespace TBD.Net
             // Recinto de 308,69 u (Álvaro, con el que Hugo calcula H0 = 1400). La Colmena la tiene en su historia desde el día 0 (no cuenta como recién ganada).
             // En el MVP no sufre la gran horda («Castellón cerrada»): el director no la asedia (Director.CerradaNodo).
             { int cas = Id("Castellón"); w.Stations.Founded[cas] = true; w.GarrisonMil[cas] = 26_000; w.ZoneWallE4[cas] = 3_086_900; Stock("Castellón", 0, 30, 0, 26, 0); w.FoodExemptNode = cas; w.Field.ClearStaticAt(58, 63); w.Director.CerradaNodo = cas; w.Director.ColSeedHistory(w); }
+            w.CercoNodo = Id("Castellón");      // D-N184: suya pero cercada; sin trenes hasta después del MVP
             w.ObjNode = Id("Nules"); w.AmbushNode = Id("Nules");      // partida de 30 min (Lucía, 9-nov 08:00): objetivo del día 2 y emboscada de unos 300 al llegar el tren
             w.Director.SinAsedioNodo = Id("Nules"); w.Director.SinAsedioHasta = NetConst.DayTicks + NetConst.Hours(8);     // D-N156: Nules sin asedio la 1.ª noche (hasta las 08:00 del día siguiente)
             w.Director.ZoneHordes.Add(new HiveDirector.ZoneHorde { Node = Id("Nules"), FromDay = 1, Zombies = 2200 }); w.GarrisonMil[Id("Nules")] = 12_000; w.ZoneWallE4[Id("Nules")] = 1_322_400;   // guarnición de 12 y recinto de 132,24 u (Álvaro, nules-nivel.md §14: HESCO en los cruces de andén del oeste; antes 124,3)   // horda propia de Nules desde la 2.ª noche: 2200 en normal (Lucía, 9-nov 00:56, medida en NightSim con la D-N180; difícil 2440 cuando la red tenga dificultad); Castellón, sin noche en el MVP
