@@ -1284,7 +1284,7 @@ namespace TBD.Net
         public int AmbushNode = -1, AmbushZombies = 300, AmbushArrivals;
         public struct AmbushEvent { public int Node, Service, Zombies, AmmoU; public long Tick, LossTick, HoldUntil; public bool OnScreen, InApartado, Repelled, Surrounded, TrainLost; }
         /// <summary>La última emboscada (Tick = −1: ninguna en esta sesión). El tren queda a las puertas hasta HoldUntil (o hasta AmbushEnd). Fuera de pantalla: Repelled (con escolta:
-        /// se gastan AmmoU u de la carga) o Surrounded (sin escolta: D-N180, se pierde en LossTick). InApartado queda siempre en false (la emboscada es en la vía). No entra en el hash.</summary>
+        /// la escolta gasta AmmoU u de su dotación; la carga no se toca) o Surrounded (sin escolta: D-N180, se pierde en LossTick). InApartado queda siempre en false (la emboscada es en la vía). No entra en el hash.</summary>
         public AmbushEvent LastAmbush = new AmbushEvent { Tick = -1, Node = -1, Service = -1, LossTick = -1, HoldUntil = -1 };
         public bool AmbushDone { get { foreach (var e in Intel) if (e.Id == "EM-1") return true; return false; } }
         /// <summary>D-N180 en la red: un tren rodeado sin escolta se pierde con su carga en 10 minutos de juego como mucho.</summary>
@@ -1317,17 +1317,16 @@ namespace TBD.Net
             if (trainLost && LastAmbush.Service >= 0 && LastAmbush.Service < Services.Count) LoseAmbushedTrain(LastAmbush.Service);
         }
 
-        /// <summary>Fuera de pantalla, sin reglas nuevas (Lucía, 08:10). Con escolta (un pelotón o un vehículo a bordo) se rechaza: se gasta techo(zombis ÷ eficacia de la zona) u de
-        /// munición de la carga del tren, nadie tiene bajas y el tren entra. Sin escolta, el tren queda rodeado (la guarnición está lejos) y se pierde con su carga en 10 min de juego
+        /// <summary>Fuera de pantalla, sin reglas nuevas (Lucía, 08:10 y 3b2ee1d). Con escolta (un pelotón o un vehículo a bordo) se rechaza: la escolta gasta techo(zombis ÷ eficacia
+        /// de la zona) u de su propia dotación (AmmoU, informativo), la carga llega entera, nadie tiene bajas y el tren entra. Sin escolta, el tren queda rodeado (la guarnición está lejos) y se pierde con su carga en 10 min de juego
         /// (D-N180) salvo que el jugador entre en la zona (entonces manda la zona). En NightSim, con 300: sin escolta se pierde el 87 %, con un pelotón el 0 %.</summary>
         void ResolveAmbushOffscreen(TrainService s, int si, int node)
         {
             if (EscortSoldiers(si) > 0)
             {
                 int zpu = ZoneZombiesPerUNode != null && node < ZoneZombiesPerUNode.Length && ZoneZombiesPerUNode[node] > 0 ? ZoneZombiesPerUNode[node] : ZoneZombiesPerU;
-                int need = (int)((AmbushZombies + zpu - 1) / Math.Max(1, zpu)), m = (int)Res.Municion;
-                int got = Math.Min(need, Math.Max(0, s.Cargo[m])); s.Cargo[m] -= got;
-                LastAmbush.Repelled = true; LastAmbush.AmmoU = got; LastAmbush.HoldUntil = Tick;
+                int need = (int)((AmbushZombies + zpu - 1) / Math.Max(1, zpu));
+                LastAmbush.Repelled = true; LastAmbush.AmmoU = need; LastAmbush.HoldUntil = Tick;      // Lucía (3b2ee1d): la escolta dispara con su propia dotación; la carga llega entera
             }
             else { LastAmbush.Surrounded = true; LastAmbush.LossTick = Tick + SurroundLossTicks; LastAmbush.HoldUntil = LastAmbush.LossTick + 1; }      // retenido hasta que AmbushStep lo resuelva
         }
@@ -1361,7 +1360,7 @@ namespace TBD.Net
         /// <summary>Plazas de tren (andenes) del MVP (Lucía, 8-nov): Sagunto 2 y Nules 1. Bétera no es nodo de la red. Las demás estaciones no tienen zona en el MVP
         /// y no limitan (0 = sin límite): un tren a Castellón o a Valencia entra siempre que no estén sitiadas.</summary>
         public static readonly string[] SlotNames = { "Sagunto", "Nules" };
-        public static readonly int[] SlotCounts = { 2, 1 };
+        public static readonly int[] SlotCounts = { 2, 2 };      // Nules 2 (Lucía 3b2ee1d): la vía principal y el apartado
 
         /// <summary>Plazas de tren de la estación (0 = sin límite). Sale de la topología, no del estado.</summary>
         public int TrainSlots(int node)

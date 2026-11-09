@@ -65,21 +65,21 @@ namespace TBD.Sim.Tests
             check(!p.AtGate(sp, nul) && sp.AtStop && sp.StopIndex == 1, "acabado el asedio, sigue y llega a Castellón");
 
             // --- plazas de andén: 2 en las principales y 1 en las demás
-            check(p.TrainSlots(sag) == 2 && p.TrainSlots(nul) == 1 && p.TrainSlots(val) == 0 && p.TrainSlots(cas) == 0 && p.TrainSlots(Id(p, "Teruel")) == 0 && p.FreeSlots(cas) == int.MaxValue,
-                "plazas (Lucía): Sagunto 2 y Nules 1; las demás, sin límite (0)");
-            var q = World(); var q1 = Svc(q, 903, sag, 1, nul, 5); var q2 = Svc(q, 904, sag, 2, nul, 6);
+            check(p.TrainSlots(sag) == 2 && p.TrainSlots(nul) == 2 && p.TrainSlots(val) == 0 && p.TrainSlots(cas) == 0 && p.TrainSlots(Id(p, "Teruel")) == 0 && p.FreeSlots(cas) == int.MaxValue,
+                "plazas (Lucía): Sagunto 2 y Nules 2 (3b2ee1d: vía principal y apartado); las demás, sin límite (0)");
+            var q = World(); var q0 = Svc(q, 902, sag, 0.5, nul, 4); var q1 = Svc(q, 903, sag, 1, nul, 5); var q2 = Svc(q, 904, sag, 2, nul, 6);
             Run(q, 3);
-            check(q1.AtStop && !q.AtGate(q1, nul) && q2.AtStop && q.AtGate(q2, nul), "dos trenes a Nules: el primero entra y el segundo espera a las puertas");
-            check(q.GateReason(1) != null && q.GateReason(1).Contains("andén"), $"«{q.GateReason(1)}»");
+            check(q0.AtStop && !q.AtGate(q0, nul) && q1.AtStop && !q.AtGate(q1, nul) && q2.AtStop && q.AtGate(q2, nul), "tres trenes a Nules: entran dos y el tercero espera a las puertas");
+            check(q.GateReason(2) != null && q.GateReason(2).Contains("andén"), $"«{q.GateReason(2)}»");
             Run(q, 2.5);
-            check(!q.AtGate(q2, nul) && q2.AtStop && q.TrainAtNode(q2, nul) && q1.StopIndex == 0, "sale el primero (05:00) y entra el segundo");
-            check(q.MoveCargo(1, nul, new[] { 0, 0, 0, 0, 0 }) == 0 && q.FreeSlots(nul) == 0, "dentro, ya puede cargar y descargar, y ocupa el andén");
+            check(!q.AtGate(q2, nul) && q2.AtStop && q.TrainAtNode(q2, nul) && q0.StopIndex == 0, "sale el primero (04:00) y entra el tercero");
+            check(q.MoveCargo(2, nul, new[] { 0, 0, 0, 0, 0 }) == 0 && q.FreeSlots(nul) == (q.TrainAtNode(q1, nul) ? 0 : 1), "dentro, ya puede cargar y descargar, y ocupa el andén");
             // --- por orden de llegada: con Nules sitiada llegan antes el 2 y luego el 1; al acabar entra el 2 (el 1 sigue a las puertas, 1 plaza)
-            var o = World(); var o1 = Svc(o, 910, sag, 3, nul, 22); var o2 = Svc(o, 911, sag, 1, nul, 22); o.ActiveZoneNode = nul;
+            var o = World(); var oa = Svc(o, 909, nul, 22, sag, 23); var o1 = Svc(o, 910, sag, 3, nul, 22); var o2 = Svc(o, 911, sag, 1, nul, 22); o.ActiveZoneNode = nul;     // oa ocupa una de las dos plazas
             Siege(o, nul, true); Run(o, 4);
-            check(o.AtGate(o1, nul) && o.AtGate(o2, nul) && o2.GateSinceTick < o1.GateSinceTick && o.TrainsAtGate(nul)[0] == 1, "dos trenes a las puertas de Nules; TrainsAtGate los da por orden de llegada");
+            check(o.AtGate(o1, nul) && o.AtGate(o2, nul) && o2.GateSinceTick < o1.GateSinceTick && o.TrainsAtGate(nul)[0] == 2, "dos trenes a las puertas de Nules; TrainsAtGate los da por orden de llegada");
             Siege(o, nul, false); Run(o, 0.5);
-            check(!o.AtGate(o2, nul) && o.AtGate(o1, nul) && o.GateReason(0).Contains("andén"), "acaba el asedio: entra el que llegó antes aunque tenga índice mayor, y el otro espera andén");
+            check(!o.AtGate(o2, nul) && o.AtGate(o1, nul) && o.GateReason(1).Contains("andén"), "acaba el asedio: entra el que llegó antes aunque tenga índice mayor, y el otro espera andén");
             var r = World(); Svc(r, 905, nul, 1, sag, 5); Svc(r, 906, nul, 2, sag, 6); Run(r, 3);
             check(!r.AtGate(r.Services[0], sag) && !r.AtGate(r.Services[1], sag), "en Sagunto caben los dos");
 
