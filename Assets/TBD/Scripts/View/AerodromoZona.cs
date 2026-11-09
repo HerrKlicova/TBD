@@ -14,7 +14,16 @@ namespace TBD.View
     public static class AerodromoZona
     {
         public sealed class Result { public Transform Root; public int Placed, Faldon; public readonly List<string> Missing = new List<string>(); public readonly Dictionary<string, Vector3> Claros = new Dictionary<string, Vector3>();
-            public readonly List<GameObject> P1Reposo = new List<GameObject>(), P1Rearme = new List<GameObject>(); public bool Rearmando; }
+            public readonly List<GameObject> P1Reposo = new List<GameObject>(), P1Rearme = new List<GameObject>(); public bool Rearmando;
+            public readonly List<Hangar> Hangares = new List<Hangar>(); public bool CubiertaVisible = true; }
+
+        /// <summary>Hangar abierto de Teo (nucleo-zonas a2144e5): raíz con muros, suelo e interior; hijos Cubierta (se apaga al acercar la cámara), Porton_O y
+        /// Porton_E (entregados abiertos: cerrar = 16 m hacia el centro). Puestos de NH90 en (±10; 0; +1) locales con yaw 0, morro a +Z (hacia el portón).</summary>
+        public sealed class Hangar { public GameObject Go; public GameObject Cubierta; public Transform PortonO, PortonE; public Vector3 PosO, PosE; public Vector3 Centro; public float Yaw; public bool Abierto = true; }
+
+        public static readonly string[] HangarUso = { "Taller", "Almacen", "Refugio", "Castigado", "Fortificado" };
+        /// <summary>Por debajo de este tamaño ortográfico la cubierta de los hangares se apaga para ver los NH90 por dentro.</summary>
+        public static float OrthoSinCubierta = 32f;
         static readonly Dictionary<string, Material> Mats = new Dictionary<string, Material>();
         static Material _ground, _concrete, _apron, _mark, _missing;
 
@@ -32,7 +41,7 @@ namespace TBD.View
             var csv = BalanceSource.Read("betera_instancias.csv");
             if (csv != null) { try { n.UsarInstancias(csv); } catch (System.Exception e) { Debug.LogWarning("[BETERA] betera_instancias.csv: " + e.Message + " (uso las piezas del JSON)"); n = AerodromoNivel.FromJson(json); } }
             var res = Build(root, n);
-            Debug.Log("[BETERA] zona montada: " + res.Placed + " piezas (" + res.Faldon + " de faldón), " + res.Missing.Count + " sin modelo" + (csv != null ? " · instancias del CSV" : " · piezas del JSON")
+            Debug.Log("[BETERA] zona montada: " + res.Placed + " piezas (" + res.Faldon + " de faldón), " + res.Missing.Count + " sin modelo, " + res.Hangares.Count + " hangares abiertos" + (csv != null ? " · instancias del CSV" : " · piezas del JSON")
                 + " · zona X " + n.ZonaX0 + "…" + n.ZonaX1 + ", Z " + n.ZonaZ0 + "…" + n.ZonaZ1);
             foreach (var m in res.Missing) Debug.Log("[BETERA] sin modelo: " + m);
             Centro = new Vector3((n.ZonaX0 + n.ZonaX1) * 0.5f, 0f, (n.ZonaZ0 + n.ZonaZ1) * 0.5f);
@@ -60,7 +69,11 @@ namespace TBD.View
             foreach (var c in n.Piezas)
             {
                 // la valla, con el kit de defensas de Teo por vida (valla_betera: e0 sana … e4 brecha); la variante 1 de la valla vieja era «sobre muro bajo»
-                var go = c.Archivo != null ? ModelEn(c.Ruta, c.Archivo + "_LOD1", piezas)
+                // hangar: el abierto de Teo si está importado (se entra y se ven los NH90); si no, el cerrado de antes
+                int kh = c.Variante >= 0 ? c.Variante % 5 : EstacionDato.VariantOf(c.X, c.Z, 5);
+                var hangar = c.Malla == "SM_Hangar" || c.Carpeta == "hangar" ? ModelEn("Betera/hangar_abierto", "SM_HangarAbierto_v" + kh + "_" + HangarUso[kh] + "_LOD1", piezas) : null;
+                var go = hangar != null ? hangar
+                       : c.Archivo != null ? ModelEn(c.Ruta, c.Archivo + "_LOD1", piezas)
                        : c.Carpeta == "valla_base" ? ModelEn("Defensas/valla_betera", RecintoPlan.VallaBetera(VidaValla, c.Variante == 1) + "_LOD1", piezas) ?? Model(c.Carpeta, c.Malla + "_v" + c.Variante + "_LOD1", piezas)
                                                    : Model(c.Carpeta, c.Malla + "_v" + c.Variante + "_LOD1", piezas);
                 if (go == null) { go = Placeholder(piezas, c.Pieza); res.Missing.Add(c.Pieza + (c.Archivo != null ? " [" + c.Ruta + "/" + c.Archivo + "]" : "") + " (" + c.X + ", " + c.Z + ")"); }
@@ -68,6 +81,19 @@ namespace TBD.View
                 go.transform.localRotation = Quaternion.Euler(0f, c.Yaw, 0f) * go.transform.localRotation;
                 if (c.EscalaX != 0f && c.EscalaX != 1f) { var sc = go.transform.localScale; go.transform.localScale = new Vector3(sc.x * c.EscalaX, sc.y, sc.z); }
                 res.Placed++; if (c.Faldon) res.Faldon++;
+                if (hangar != null)
+                {
+                    var h = new Hangar { Go = hangar, Centro = new Vector3(c.X, 0f, c.Z), Yaw = c.Yaw };
+                    foreach (var t in hangar.GetComponentsInChildren<Transform>(true))
+                    {
+                        if (t.name.StartsWith("Cubierta")) h.Cubierta ??= t.gameObject;
+                        else if (t.name.StartsWith("Porton_O")) h.PortonO ??= t;
+                        else if (t.name.StartsWith("Porton_E")) h.PortonE ??= t;
+                    }
+                    if (h.PortonO != null) h.PosO = h.PortonO.position; if (h.PortonE != null) h.PosE = h.PortonE.position;
+                    if (h.Cubierta == null) Debug.LogWarning("[BETERA] " + hangar.name + " sin hijo Cubierta");
+                    res.Hangares.Add(h);
+                }
             }
             // rearme de Teo: en P1, las dos mallas (reposo y rearme) y se enciende una u otra; en P2 y P3, la del sitio
             var rearme = new GameObject("Rearme").transform; rearme.SetParent(root, false);
@@ -82,7 +108,43 @@ namespace TBD.View
             return res;
         }
 
-        static GameObject Vehiculo(Transform parent, RearmeBetera.Sitio st, int v, Result res)
+/// <summary>Apaga o enciende la cubierta de todos los hangares abiertos.</summary>
+        public static void SetCubierta(Result res, bool visible)
+        {
+            if (res == null || res.CubiertaVisible == visible) return;
+            res.CubiertaVisible = visible;
+            foreach (var h in res.Hangares) if (h.Cubierta != null) h.Cubierta.SetActive(visible);
+        }
+
+        /// <summary>Cada fotograma desde la vista: sin cubierta al acercar la cámara (ortho por debajo de OrthoSinCubierta) o con un hangar seleccionado.</summary>
+        public static void CubiertaPorCamara(Result res, float ortho, bool hangarSeleccionado = false) { SetCubierta(res, !(hangarSeleccionado || ortho < OrthoSinCubierta)); }
+
+        /// <summary>Abre o cierra los portones de un hangar (se entrega abierto; cerrar = cada hoja 16 m hacia el centro, en el eje X del hangar).</summary>
+        public static void SetPortones(Hangar h, bool abierto)
+        {
+            if (h == null || h.Abierto == abierto) return;
+            h.Abierto = abierto;
+            var root = h.Go.transform.parent; var c = root != null ? root.TransformPoint(h.Centro) : h.Centro;
+            var eje = (root != null ? root.rotation : Quaternion.identity) * Quaternion.Euler(0f, h.Yaw, 0f) * Vector3.right;
+            Mover(h.PortonO, h.PosO); Mover(h.PortonE, h.PosE);
+            void Mover(Transform t, Vector3 abiertoPos)
+            {
+                if (t == null) return;
+                float lado = Mathf.Sign(Vector3.Dot(abiertoPos - c, eje));
+                t.position = abierto ? abiertoPos : abiertoPos - eje * (16f * lado);
+            }
+        }
+
+        /// <summary>Puesto i (0 oeste, 1 este) de un NH90 en el hangar, en coordenadas de mundo, y su yaw (morro hacia el portón).</summary>
+        public static Vector3 PuestoNH90(Hangar h, int i, out float yaw)
+        {
+            var root = h.Go.transform.parent; var q = Quaternion.Euler(0f, h.Yaw, 0f);
+            var local = h.Centro + q * new Vector3(i == 0 ? -10f : 10f, 0f, 1f);
+            yaw = h.Yaw + (root != null ? root.eulerAngles.y : 0f);
+            return root != null ? root.TransformPoint(local) : local;
+        }
+
+                static GameObject Vehiculo(Transform parent, RearmeBetera.Sitio st, int v, Result res)
         {
             string f = RearmeBetera.Archivo(st.EsCamion, v);
             var go = ModelEn("Betera/rearme", f + "_LOD1", parent);

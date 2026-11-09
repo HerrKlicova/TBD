@@ -181,6 +181,9 @@ namespace TBD.Net
         }
 
         public static string Archivo(int estado) { return "SM_AcopioViveres_v" + estado + "_" + Estados[estado]; }
+        /// <summary>Acopios de carga de Teo (nucleo-zonas a2144e5): SM_Acopio{Municion,Combustible,Materiales} con la misma huella (10 × 6 m), el mismo origen y esta
+        /// misma regla; solo cambia el nombre. recurso = «Viveres», «Municion», «Combustible» o «Materiales».</summary>
+        public static string Archivo(string recurso, int estado) { return "SM_Acopio" + recurso + "_v" + estado + "_" + Estados[estado]; }
 
         /// <summary>Lee la capacidad de referencia de Nules del bloque «viveres.capacidad_ref_u» de existencias_red.json.</summary>
         public static bool LeerCapacidad(string json, string id = "nules")
@@ -192,12 +195,15 @@ namespace TBD.Net
         }
 
         /// <summary>Las pilas del CSV de Álvaro (grupo «viveres»): x, y, z y yaw.</summary>
-        public static List<float[]> Pilas(string csv)
+        public static List<float[]> Pilas(string csv) { return Pilas(csv, "viveres"); }
+
+        /// <summary>Las filas del CSV de un grupo (x, y, z y yaw).</summary>
+        public static List<float[]> Pilas(string csv, string grupo)
         {
             var r = new List<float[]>();
             foreach (var raw in csv.Replace("\r", "").Split('\n'))
             {
-                var c = raw.Split(';'); if (c.Length < 7 || c[0] != "viveres") continue;
+                var c = raw.Split(';'); if (c.Length < 7 || c[0] != grupo) continue;
                 var ci = System.Globalization.CultureInfo.InvariantCulture;
                 r.Add(new[] { float.Parse(c[3], ci), float.Parse(c[4], ci), float.Parse(c[5], ci), float.Parse(c[6], ci) });
             }
