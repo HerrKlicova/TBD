@@ -58,15 +58,23 @@ namespace TBD.EditorTools
             if (!AssetDatabase.IsValidFolder(dir)) AssetDatabase.CreateFolder("Assets/TBD/Resources", "Variantes");
             int n = 0;
             n += Variante(dir + "/V_Lit_Recorte.mat", "Universal Render Pipeline/Lit", m => { m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON"); });
-            n += Variante(dir + "/V_Lit_Emision.mat", "Universal Render Pipeline/Lit", m => { m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", Color.black); });
-            n += Variante(dir + "/V_Lit_Recorte_Emision.mat", "Universal Render Pipeline/Lit", m => { m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON"); m.EnableKeyword("_EMISSION"); });
+            n += Variante(dir + "/V_Lit_Emision.mat", "Universal Render Pipeline/Lit", m => { m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", new Color(0.02f, 0.02f, 0.02f)); });
+            n += Variante(dir + "/V_Lit_Recorte_Emision.mat", "Universal Render Pipeline/Lit", m => { m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON"); m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", new Color(0.02f, 0.02f, 0.02f)); });
             n += Variante(dir + "/V_Unlit_Recorte.mat", "Universal Render Pipeline/Unlit", m => { m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON"); });
             if (n > 0) { AssetDatabase.SaveAssets(); Debug.Log("[TBD] " + n + " materiales de variantes creados en " + dir + " (recorte por alfa y emisión en la build)"); }
         }
 
         static int Variante(string path, string shader, System.Action<Material> conf)
         {
-            if (AssetDatabase.LoadAssetAtPath<Material>(path) != null) return 0;
+            // I-Noche90: con _EmissionColor en negro, la validación de URP quita _EMISSION del .mat al importarlo y la variante de emisión no entraba en la build
+            // (el ambiente extra del suelo no se veía). Ahora el color es gris oscuro y, si el .mat ya existe, se vuelve a configurar y se guarda.
+            var ya = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (ya != null)
+            {
+                conf(ya); EditorUtility.SetDirty(ya);
+                Debug.Log("[TBD] Variante " + path + ": " + string.Join(" ", ya.shaderKeywords));
+                return 1;
+            }
             var sh = Shader.Find(shader); if (sh == null) { Debug.LogWarning("[TBD] Shader no encontrado para la variante: " + shader); return 0; }
             var m = new Material(sh); conf(m);
             AssetDatabase.CreateAsset(m, path);
