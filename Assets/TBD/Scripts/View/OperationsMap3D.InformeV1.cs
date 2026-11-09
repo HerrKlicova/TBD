@@ -14,7 +14,7 @@ namespace TBD.View
     /// Los textos son los de Lucía (docs/informe-textos.md, 08-11) y están TODOS en InformeTextos, abajo: cambiarlos solo ahí.
     /// Una línea que se queda vacía no se muestra (regla de Lucía). Lo que la red todavía no da se deja fuera (no se inventa):
     ///   - memoria de tráfico y de atención (sección 3): falta que la red las exponga; ver Pendiente en InformeTextos.
-    ///   - tipo de vehículo (Dragón, VAMTAC): Pasajero solo dice Vehiculo; sale «n vehículos».
+    ///   - tipo de vehículo (Dragón, VAMTAC): Pasajero solo dice Vehiculo; la parte opcional no sale (Lucía, 09-11).
     ///   - pelotones en casa: la guarnición de Sagunto no está en Embarque.Lista; sale «guarnición» (Lucía, añadidos 08-11).
     /// </summary>
     public sealed partial class OperationsMap3D
@@ -450,8 +450,8 @@ namespace TBD.View
             var sb = new System.Text.StringBuilder(est).Append(": ");
             if (pel > 0) sb.Append(pel).Append(pel == 1 ? " pelotón" : " pelotones");
             else if (casa) sb.Append("guarnición");                                       // Lucía, añadidos 08-11: hasta que la red exponga los pelotones de casa
-            if (veh > 0) sb.Append(pel > 0 || casa ? ", " : "").Append(veh).Append(veh == 1 ? " vehículo" : " vehículos");
-            sb.Append(". Munición ").Append(mun).Append(" u");
+            // {, Dragón}{, n VAMTAC}: la red no da el tipo de vehículo (Pasajero solo dice Vehiculo), así que esa parte queda vacía y no sale (Lucía, 09-11). veh queda para cuando Nacho lo exponga.
+            sb.Append(pel > 0 || casa ? ". " : "").Append("Munición ").Append(mun).Append(" u");
             if (viv > 0) sb.Append(". Víveres ").Append(viv).Append(" u");
             return sb.Append('.').ToString();
         }
