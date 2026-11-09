@@ -1161,10 +1161,10 @@ namespace TBD.View
                 string n = r.name;
                 if (!(n.StartsWith("Trozo de suelo") || n.StartsWith("Suelo") || n.StartsWith("Calle") || n.StartsWith("Vía") || n.StartsWith("Balasto") || n.StartsWith("Decal") || n.StartsWith("Grieta") || n.StartsWith("Rodada") || n.StartsWith("Paso a nivel"))) continue;
                 if (n.StartsWith("Decal") && r.bounds.max.y > 0.2f) continue;            // solo los decals del suelo (no la placa, el reloj, las pintadas ni la línea del andén)
-                foreach (var m in r.sharedMaterials) if (m != null && hechos.Add(m)) { EmisionSuelo(m, noche); if (detalle && !n.StartsWith("Trozo")) nombres.Append(" | " + n + " kw=" + m.IsKeywordEnabled("_EMISSION") + " e(lin)=" + m.GetVector("_EmissionColor").x.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "/" + m.GetVector("_EmissionColor").z.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + " sh=" + (m.shader != null ? m.shader.name : "null") + " gi=" + m.globalIlluminationFlags); }
+                foreach (var m in r.sharedMaterials) if (m != null && hechos.Add(m)) { EmisionSuelo(m, noche, n.StartsWith("Balasto")); if (detalle && !n.StartsWith("Trozo")) nombres.Append(" | " + n + " kw=" + m.IsKeywordEnabled("_EMISSION") + " e(lin)=" + m.GetVector("_EmissionColor").x.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "/" + m.GetVector("_EmissionColor").z.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + " sh=" + (m.shader != null ? m.shader.name : "null") + " gi=" + m.globalIlluminationFlags); }
             }
             if (detalle) Debug.Log("[SOMBRA] ambientesuelo piezas (sin los trozos):" + nombres);
-            if (noche) Debug.Log("[SOMBRA] ambientesuelo K=" + AmbienteSueloK.ToString(System.Globalization.CultureInfo.InvariantCulture) + " · " + hechos.Count + " materiales del suelo · ΔA lineal=("
+            if (noche) Debug.Log("[SOMBRA] ambientesuelo K=" + AmbienteSueloK.ToString(System.Globalization.CultureInfo.InvariantCulture) + " balasto KB=" + AmbienteBalastoK.ToString(System.Globalization.CultureInfo.InvariantCulture) + " · " + hechos.Count + " materiales del suelo · ΔA lineal=("
                 + (_ambNocheLin.r * AmbienteSueloK).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "; " + (_ambNocheLin.g * AmbienteSueloK).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "; "
                 + (_ambNocheLin.b * AmbienteSueloK).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + ") (los trozos que llegan después se suman solos)");
         }
@@ -1172,10 +1172,11 @@ namespace TBD.View
         // -sinborde apaga el desplazamiento por el borde de la pantalla; también lo apagan las banderas de QA con encuadre fijo: -barrido, -capdirecta y -focus
         static readonly bool SinBorde = TieneArg("-sinborde") || TieneArg("-barrido") || TieneArg("-capdirecta") || TieneArg("-focus");
         static bool TieneArg(string b) { return System.Array.IndexOf(System.Environment.GetCommandLineArgs(), b) >= 0; }
-        static readonly float AmbienteSueloK = LeerFloat("-ambientesuelo", 3.0f);   // K cerrado el 09-11 con la I-Noche94 (Bruno): sombra del tren en el balasto L* 9,5 (K=0) → 12,5 (K=1,5) → ~15,5 previsto con 3,0 (ventana de Sara 14–18)
+        static readonly float AmbienteSueloK = LeerFloat("-ambientesuelo", 0.5f);    // qa50: con 0 el suelo libre da 25,1, con 1,5 da 31,5 (objetivo 24–28) → 0,5 (~27, SIN VERIFICAR)
+        static readonly float AmbienteBalastoK = LeerFloat("-ambientebalasto", 1.5f); // ambiente propio del balasto para la sombra del tren (14–18); valor de partida SIN VERIFICAR, se barre con Sara
         Color _ambNocheLin = new Color(0.061f, 0.071f, 0.123f);
 
-        void EmisionSuelo(Material m, bool noche)
+        void EmisionSuelo(Material m, bool noche, bool balasto = false)
         {
             if (!m.HasProperty("_EmissionColor") || !m.HasProperty("_BaseMap")) return;
             m.EnableKeyword("_EMISSION");
@@ -1183,7 +1184,12 @@ namespace TBD.View
             var bm = m.GetTexture("_BaseMap");
             m.SetTexture("_EmissionMap", bm);
             var bc = m.HasProperty("_BaseColor") ? m.GetColor("_BaseColor").linear : Color.white;
-            var e = noche && AmbienteSueloK > 0f ? new Color(_ambNocheLin.r * bc.r, _ambNocheLin.g * bc.g, _ambNocheLin.b * bc.b) * AmbienteSueloK : Color.black;
+            // qa50 (I-Noche95, K=3): suelo libre 36,3 (24–28) y sombra 21,7; con K=1,5 (I-Noche94) el suelo ya da 31,5. No hay un K que cumpla las dos cosas, así que
+            // manda el suelo (Lucía 09:25): K bajo para todo, y el balasto (donde cae la sombra del tren) con su propio ambiente, sin multiplicar por su _BaseColor oscuro
+            // (por eso recibía 0,021 frente a 0,183 de los decals). -ambientebalasto KB lo ajusta.
+            var e = !noche ? Color.black
+                  : balasto ? (AmbienteBalastoK > 0f ? _ambNocheLin * AmbienteBalastoK : Color.black)
+                  : AmbienteSueloK > 0f ? new Color(_ambNocheLin.r * bc.r, _ambNocheLin.g * bc.g, _ambNocheLin.b * bc.b) * AmbienteSueloK : Color.black;
             m.SetVector("_EmissionColor", new Vector4(e.r, e.g, e.b, 1f));     // SetVector, sin conversión: SetColor toma el color en gamma y lo pasa a lineal, y ΔA≈0,02 llegaba al shader como ≈0,002 (por eso K no cambiaba nada)
         }
 
