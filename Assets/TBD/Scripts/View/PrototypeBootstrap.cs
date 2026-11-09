@@ -930,6 +930,22 @@ namespace TBD.View
 
         Vignette _vignette;
 
+        /// <summary>
+        /// Fuerza de la sombra de la luna de noche (Lucía, decisiones-noche 09-11 02:01; Sara, qa47 resultado-tren-dn157.md). Con 0,85 (la del día) la sombra del tren
+        /// en el balasto sale en L* 3,4 y los zombis pegados (L* 0–2) desaparecen en ella. Objetivo: sombra en pantalla con L* ≥ 10 (la entrada 181c30 de la paleta,
+        /// L* 10,8) y siempre más oscura que el balasto iluminado (L* 20–26), para que se siga leyendo como sombra. La horda NO cambia (D-N80).
+        /// 0,65 es una ESTIMACIÓN (Bruno, desde la nube: con la medida de Sara, la sombra deja pasar ~10 % de la luna y hace falta ~33 %); SIN MEDIR en la build.
+        /// Es global: aclara igual todas las sombras de la luna (muro, casas, tren), así que un zombi a la sombra del muro también se separa.
+        /// -sombranoche 0.55 (o el valor que sea) la cambia sin compilar, para que Marcos barra 0,55 / 0,65 / 0,75 y Sara mida.
+        /// </summary>
+        static readonly float SombraNoche = LeerSombraNoche();
+        static float LeerSombraNoche()
+        {
+            var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-sombranoche");
+            if (i >= 0 && i + 1 < a.Length && float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)) return Mathf.Clamp01(v);
+            return 0.65f;
+        }
+
         void ApplyGrade(int index)
         {
             _gradeIndex = index;
@@ -943,6 +959,7 @@ namespace TBD.View
                     _grade.postExposure.Override(0f);
                     _grade.saturation.Override(4f);
                     SetLight(new Color(1f, 0.97f, 0.92f), 1.2f, new Color(0.30f, 0.36f, 0.52f), 40f);   // sol a 40° de día (Lucía, D-N61: 35-45°)
+                    if (_sun != null) _sun.shadowStrength = 0.85f;
                     SetFloodlights(0f);
                     break;
                 case 1:  // atardecer naranja
@@ -950,6 +967,7 @@ namespace TBD.View
                     _grade.postExposure.Override(0.1f);
                     _grade.saturation.Override(10f);
                     SetLight(new Color(1f, 0.97f, 0.92f), 1.2f, new Color(0.30f, 0.36f, 0.52f), 15f);   // al atardecer 15°: sombras largas (10-20°)
+                    if (_sun != null) _sun.shadowStrength = 0.85f;
                     SetFloodlights(12f);
                     break;
                 default: // noche: el azul viene de la luna y del ambiente (#283440 a #404460) sobre el albedo ocre de siempre; la gradación
@@ -961,6 +979,7 @@ namespace TBD.View
                     _grade.postExposure.Override(-0.45f);
                     _grade.saturation.Override(-30f);
                     SetLight(new Color(0.75f, 0.80f, 1.0f), 0.45f, new Color(0.03f, 0.045f, 0.10f), 50f);
+                    if (_sun != null) _sun.shadowStrength = SombraNoche;   // sombra más clara de noche (Lucía 09-11 02:01): ver SombraNoche
                     SetFloodlights(90f);
                     break;
             }
