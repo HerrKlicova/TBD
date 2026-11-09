@@ -54,7 +54,7 @@ namespace TBD.Sim.Tests
             check(NetSave.NetVersion >= 5, "la versión de la red es 5 o más (5: hordas de zona)");
             check(sag >= 0 && !w.NodeLost[sag], "");
             var e = NetScenario.Inicio(); long wu = e.WallU(nul);
-            check(wu == 124, $"el recinto de Nules en Inicio: {wu} u (Lucía: 124,3)");
+            check(wu == 132, $"el recinto de Nules en Inicio: {wu} u (Álvaro, §14: 132,24)");
             var f3 = NetScenario.Inicio(); To(f3, D + NetConst.Hours(19) + 1); Land(f3, nul, 50); f3.Stock[nul, (int)Res.Municion] = 5; To(f3, 2 * D + NetConst.Hours(6) + 1);
             check(!f3.LastZoneSiege.Lost && f3.LastZoneSiege.Killed == 5 * 300 && f3.GarrisonMil[nul] == 12000 - (2200 - 1500) * 4, $"con el pelotón y 5 u: abate 1500 (300 por u), quedan 700 en pie, el muro baja {f3.LastZoneSiege.DamageU} u y la guarnición pierde 2,8: aguanta con {f3.GarrisonMil[nul] / 1000.0:0.00}");
             var f2 = NetScenario.Inicio(); To(f2, D + NetConst.Hours(19) + 1); Land(f2, nul, 50); f2.Stock[nul, (int)Res.Municion] = 2; To(f2, 2 * D + NetConst.Hours(6) + 1);
