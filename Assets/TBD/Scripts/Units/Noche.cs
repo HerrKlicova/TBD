@@ -31,6 +31,9 @@ namespace TBD.Units
     public struct NightParams
     {
         public int ClockX;                    // 1 s real = ClockX s de juego
+        /// <summary>Reloj único (opción 1 de Sara, Lucía b4c2fe5; D-N186): la noche va con el reloj de la red, 1 tick = 24/7 s de juego (1.050 por hora).
+        /// Con true, ClockX solo sirve para conversiones aproximadas que aún no pasan por NightGame.TicksForGameSeconds. CSV: noche_reloj_red (0/1).</summary>
+        public bool NetClock;
         public int StartHour, EndHour;
         public int ScalePermil;               // palanca única de dificultad (D-N74)
         public WaveSpec[] Waves;
@@ -74,6 +77,7 @@ namespace TBD.Units
         {
             var d = Default();
             d.ClockX = (int)t.TryValue("noche_reloj_x", d.ClockX);
+            d.NetClock = t.TryValue("noche_reloj_red", d.NetClock ? 1 : 0) != 0;
             d.StartHour = (int)t.TryValue("noche_hora_inicio", d.StartHour);
             d.EndHour = (int)t.TryValue("noche_hora_fin", d.EndHour);
             d.ScalePermil = (int)t.TryValue("noche_escala_oleadas_permil", d.ScalePermil);
@@ -201,12 +205,19 @@ namespace TBD.Units
         /// <summary>Un tick con la vida propia: equivale a Step(StationHp &gt; 0, TrainHp &gt; 0, spawns). Llama antes a Attack con los zombis pegados.</summary>
         public void Step(List<SpawnPoint> spawns) { Step(StationHp > 0, TrainHp > 0, spawns); }
 
-        public int TotalTicks { get { return (int)((long)((P.EndHour - P.StartHour + 24) % 24) * 3600 * IMath.TickRate / P.ClockX); } }
-        public int WaveStartTick(int w) { return (int)((long)P.Waves[w].StartMinute * 60 * IMath.TickRate / P.ClockX); }
+        /// <summary>Ticks de red por hora de juego (NetConst.HourTicks; lo comprueba una prueba). Con P.NetClock la noche usa este reloj.</summary>
+        public const int NetHourTicks = 1050;
+        /// <summary>Reloj único: tick de red en el que empezó esta noche (las 22:00 de ese día). −1 = noche con reloj propio (pruebas antiguas, herramientas).
+        /// La red la avanza un paso por tick desde Begin, así que Tick = tick de red − StartNetTick (tras el paso de ese tick: + 1).</summary>
+        public long StartNetTick = -1;
+        public int TotalTicks { get { int h = (P.EndHour - P.StartHour + 24) % 24; return P.NetClock ? h * NetHourTicks : (int)((long)h * 3600 * IMath.TickRate / P.ClockX); } }
+        public int WaveStartTick(int w) { return P.NetClock ? P.Waves[w].StartMinute * NetHourTicks / 60 : (int)((long)P.Waves[w].StartMinute * 60 * IMath.TickRate / P.ClockX); }
+        /// <summary>Ticks de esta noche para s segundos de juego (redondeo al más cercano, mínimo 0). Con reloj de la red: s × 7 / 24; si no, s × 30 / ClockX (por abajo, como antes).</summary>
+        public long TicksForGameSeconds(long s) { if (s <= 0) return 0; return P.NetClock ? (s * 7 + 12) / 24 : s * IMath.TickRate / Math.Max(1, P.ClockX); }
         public int WaveDurationTicks(int w) { return P.Waves[w].ArrivalSeconds * IMath.TickRate; }
         public int WaveTotal(int w) { return (int)((long)P.Waves[w].Zombies * P.ScalePermil / 1000); }
         /// <summary>Segundos de juego desde las 22:00.</summary>
-        public int GameSeconds { get { return (int)((long)Tick * P.ClockX / IMath.TickRate); } }
+        public int GameSeconds { get { return P.NetClock ? (int)((long)Tick * 24 / 7) : (int)((long)Tick * P.ClockX / IMath.TickRate); } }
         public int Hour { get { return (P.StartHour + GameSeconds / 3600) % 24; } }
         public int Minute { get { return GameSeconds / 60 % 60; } }
         public int TicksLeft { get { return Math.Max(0, TotalTicks - Tick); } }
@@ -256,6 +267,19 @@ namespace TBD.Units
             }
         }
 
+        /// <summary>Reloj único: la primera noche empieza en el tick de red «startNetTick» (las 22:00). Solo antes de dar ningún paso. Devuelve false si ya había empezado.</summary>
+        public bool Begin(long startNetTick)
+        {
+            if (StartNetTick >= 0 || Tick != 0 || State != NightState.Jugando) return false;
+            StartNetTick = startNetTick; return true;
+        }
+        /// <summary>Reloj único: la noche siguiente, que empieza en el tick de red «startNetTick».</summary>
+        public bool BeginNextNight(NightParams next, long startNetTick)
+        {
+            if (!BeginNextNight(next)) return false;
+            StartNetTick = startNetTick; return true;
+        }
+
         /// <summary>Empieza la noche siguiente (mundo continuo): reloj a las 22:00, oleadas a cero y el mismo generador. Solo tras cerrar una noche.</summary>
         public bool BeginNextNight(NightParams next)
         {
@@ -291,6 +315,7 @@ namespace TBD.Units
         public ulong Hash()
         {
             ulong h = IMath.Mix(0x20E0 ^ (ulong)(uint)Tick) + IMath.Mix(0x20E1 ^ Rng.S) + IMath.Mix(0x20E2 ^ (ulong)State ^ ((ulong)(uint)(DefeatTick + 1) << 8)) + IMath.Mix(0x20E3 ^ (ulong)(uint)P.ScalePermil ^ ((ulong)(uint)P.ClockX << 20)) + IMath.Mix(0x20E4 ^ (ulong)(uint)NightIndex ^ ((ulong)(uint)NightsSurvived << 20) ^ ((ulong)(uint)Report.CloseTick << 40)) + IMath.Mix(0x20E5 ^ (ulong)(uint)StationHp ^ ((ulong)(uint)TrainHp << 24)) + IMath.Mix(0x20E7 ^ (ulong)(uint)WallPermil ^ ((ulong)(uint)Report.IntegrityPermil << 20) ^ ((ulong)(uint)Report.WallPermil << 40)) + (_stationRem != 0 || _trainRem != 0 ? IMath.Mix(0x20E6 ^ (ulong)(uint)_stationRem ^ ((ulong)(uint)_trainRem << 16)) : 0UL);
+            if (StartNetTick >= 0) h += IMath.Mix(0x20E8UL ^ ((ulong)StartNetTick << 8) ^ (P.NetClock ? 1UL : 0UL));          // reloj único (las noches con reloj propio no cambian de hash)
             for (int i = 0; i < Spawned.Length; i++) { h += IMath.Mix((ulong)(uint)Spawned[i] + ((ulong)i << 40) + 17); for (int e = 0; e < SpawnedEntry[i].Length; e++) h += IMath.Mix((ulong)(uint)SpawnedEntry[i][e] + ((ulong)i << 40) + ((ulong)e << 52) + 19); }
             return h;
         }
@@ -301,6 +326,7 @@ namespace TBD.Units
             w.Int(NightIndex); w.Int(NightsSurvived); w.Int(Report.Night); w.Int(Report.CloseTick); w.Int(Report.Spawned); w.Bool(Report.StationAlive); w.Bool(Report.TrainAlive);
             w.Int(StationHp); w.Int(TrainHp); w.Int(_stationRem); w.Int(_trainRem); w.Int(WallPermil); w.Int(Report.IntegrityPermil); w.Int(Report.WallPermil);
             w.Int(Spawned.Length); for (int i = 0; i < Spawned.Length; i++) { w.Int(Spawned[i]); for (int e = 0; e < SpawnedEntry[i].Length; e++) w.Int(SpawnedEntry[i][e]); }
+            w.Long(StartNetTick);                                                   // reloj único
         }
 
         public void LoadState(SaveReader r)
@@ -310,6 +336,7 @@ namespace TBD.Units
             StationHp = r.Int(); TrainHp = r.Int(); _stationRem = r.Int(); _trainRem = r.Int(); WallPermil = r.Int(); int ri = r.Int(), rw = r.Int(); Report.IntegrityPermil = ri; Report.WallPermil = rw;
             int n = r.Int(); if (n != Spawned.Length) throw new SaveException(SaveError.Corrupt, "otro número de oleadas");
             for (int i = 0; i < n; i++) { Spawned[i] = r.Int(); for (int e = 0; e < SpawnedEntry[i].Length; e++) SpawnedEntry[i][e] = r.Int(); }
+            StartNetTick = r.Long();
         }
     }
 }

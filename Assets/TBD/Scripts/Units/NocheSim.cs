@@ -161,7 +161,7 @@ namespace TBD.Units
         }
     }
 
-    public sealed class NightSim
+    public sealed class NightSim : TBD.Net.INocheZona
     {
         sealed class Zomb { public int X, Y; public bool Alive = true; public int TX, TY; public byte Goal; public bool HitTrain, Aggro; }   // Goal (D-N148): 0 sin decidir, 1 infantería, 2 vehículo, 3 obrero, 4 tren
 
@@ -224,7 +224,7 @@ namespace TBD.Units
             if (root == null) throw new FormatException("noche_sagunto.json no es un objeto");
             if (difficulty == null) difficulty = (string)root["dificultad_por_defecto"];
             var np = NightParams.Default();
-            np.ClockX = (int)(long)root["reloj_x"]; np.ScalePermil = 1000;      // los totales del JSON ya llevan la escala de la dificultad
+            np.ClockX = (int)(long)root["reloj_x"]; np.ScalePermil = 1000; np.NetClock = root.TryGetValue("reloj_red", out var rr) && rr is bool rb && rb;      // reloj único (D-N186): true = la noche va con el reloj de la red      // los totales del JSON ya llevan la escala de la dificultad
             var waves = (List<object>)((Dictionary<string, object>)root["oleadas"])[difficulty];
             np.Waves = new WaveSpec[waves.Count];
             for (int i = 0; i < waves.Count; i++)
@@ -358,6 +358,24 @@ namespace TBD.Units
         public int TrainPeakAttackers, TrainTouched;
         public bool Unfinished { get { return Night.State == NightState.Jugando; } }
 
+        // ---------------------------------------------------------------- reloj único (D-N186): la red avanza esta noche
+        /// <summary>Parámetros de la noche siguiente (los pone quien monta la partida); null = repetir los de ahora.</summary>
+        public NightParams? NextNightParams;
+        /// <summary>INocheZona: la red llega a las 22:00. La primera noche empieza si aún no ha dado pasos; las siguientes, solo tras cerrar la anterior con victoria.
+        /// Si la anterior sigue en marcha (D-N164: no se gana al amanecer, hay que acabar con la horda), sigue esa y no empieza otra.</summary>
+        public void ComienzaNoche(int noche, long startNetTick)
+        {
+            if (Night.StartNetTick < 0 && Night.Tick == 0) { if (Night.Begin(startNetTick)) ContactTick = -1; return; }
+            if (Night.State == NightState.Victoria && Night.BeginNextNight(NextNightParams ?? Night.P, startNetTick)) ContactTick = -1;
+        }
+        /// <summary>INocheZona: un paso por tick de red, solo con la noche empezada por la red.</summary>
+        public void PasoNoche() { if (Night.StartNetTick >= 0) Step(); }
+        /// <summary>Tick de la noche del primer contacto de la horda con la estación (pila en el muro o un zombi dentro del recinto); −1 si aún no. Se pone a −1 al empezar cada noche.
+        /// Sale del estado de la simulación (determinista). No se guarda: tras cargar a mitad de noche puede volver a avisar una vez.</summary>
+        public int ContactTick = -1;
+        public bool PrimerContacto { get { return ContactTick >= 0 && ContactTick == Night.Tick && Night.StartNetTick >= 0; } }
+        public ulong HashNoche() { return Hash(); }
+
         public void Step()
         {
             if (Night.State != NightState.Jugando) return;
@@ -377,6 +395,7 @@ namespace TBD.Units
                 var z = _z[i]; if (!z.Alive) continue;
                 int tx = SP.StationX, ty = SP.StationY;
                 bool inside = InFort(z.X, z.Y);
+                if (inside && ContactTick < 0) ContactTick = Night.Tick;                  // primer contacto de la noche (×1 automático, Lucía D-N186)
                 if (inside)
                 {
                     // D-N148 (Lucía): dentro del recinto ataca lo vivo más cercano (infantería, después vehículos parados, después obreros) y solo va al tren si no queda nadie en 30 m
@@ -411,6 +430,7 @@ namespace TBD.Units
                 }      // los que cruzan el hueco no son pila
             }
             if (SP.ClimbPermilS > 0 && WallHp > 0 && pile > SP.ClimbPileZ) pile -= ClimbStep(pile - SP.ClimbPileZ);
+            if (pile > 0 && ContactTick < 0) ContactTick = Night.Tick;
             if (pile > PeakPile) PeakPile = pile;
             if (cur != null && pile > cur.PeakPile) cur.PeakPile = pile;
             LastPile = pile;
@@ -504,7 +524,7 @@ namespace TBD.Units
         public bool Nh90FromAirfield; public int AirfieldM = 40000, Nh90CruiseKmh = 260, Nh90PrepS = 20, Nh90LandS = 20, Nh90RearmS = 30;   // Lucía (8-nov): 20 s de preparar y despegar, 20 s de tomar tierra, 30 s de rearme
         /// <summary>D-N173: claro de 25 × 25 m (Lucía) donde se posa para desembarcar; centro SUPUESTO dentro del recinto, al este del edificio; crucero 260 km/h verificado por Paula y tiempo de bajar (D-N166).</summary>
         public int LandingX = 140000, LandingY = 76000, EmbarqueDropS = 10;
-        public int AirfieldTripTicks() { long gameS = (long)AirfieldM * 3600 / 1000 / Math.Max(1, Nh90CruiseKmh); return (int)Math.Max(1, gameS * IMath.TickRate / Math.Max(1, Night.P.ClockX)); }
+        public int AirfieldTripTicks() { long gameS = (long)AirfieldM * 3600 / 1000 / Math.Max(1, Nh90CruiseKmh); return (int)Math.Max(1, Night.TicksForGameSeconds(gameS)); }
         /// <summary>D-N173: el NH90 empieza en el aeródromo. «etaTick» ≥ 0: llega a la zona en ese tick (la ETA del mapa); −1: despega solo cuando hay horda y tarda el viaje.</summary>
         public void Nh90StartAtAirfield(int etaTick = -1) { Nh90FromAirfield = true; foreach (var v in Vehicles) if (v.Kind == NightVehKind.Nh90) { v.AtAirfield = true; v.Airborne = false; v.AwayUntil = etaTick; } }
 
@@ -579,15 +599,15 @@ namespace TBD.Units
         int _menTick = -1;
 
         /// <summary>D-N180 (Lucía, 9-nov): un tren sin escolta rodeado (horda en contacto y ningún soldado propio a SurroundReachMm o menos del tren) se pierde
-        /// en SurroundLossGameMin minutos de juego como mucho: pierde al menos TrainHp / ese tiempo por tick (10 min de juego son 175 ticks a ×103). 0 = apagado.</summary>
-        public int SurroundLossGameMin = 10, SurroundReachMm = 60000;
+        /// en SurroundLossGameMin minutos de juego como mucho: pierde al menos TrainHp / ese tiempo por tick (100 min de juego son 1.750 ticks con el reloj de la red). 0 = apagado.</summary>
+        public int SurroundLossGameMin = 100, SurroundReachMm = 60000;      // Lucía (9-nov 22:28): 100 min de juego (~1 min real) para poder reaccionar; antes 10
         public int SurroundedTicks;
         void SurroundedTrain(int atTrain)
         {
             if (SurroundLossGameMin <= 0 || atTrain <= 0 || Night.TrainHp <= 0) return;
             var r = Night.P.TrainRect; long reach2 = (long)SurroundReachMm * SurroundReachMm;
             foreach (var p in Units.Platoons) { if (p.Aboard != 0) continue; foreach (var m in p.Men) { if (!m.Alive) continue; long dx = Math.Max(0, Math.Max(r.X0 - m.X, m.X - r.X1)), dy = Math.Max(0, Math.Max(r.Y0 - m.Y, m.Y - r.Y1)); if (dx * dx + dy * dy <= reach2) return; } }
-            long lossTicks = Math.Max(1L, (long)SurroundLossGameMin * 60 * IMath.TickRate / Math.Max(1, Night.P.ClockX));
+            long lossTicks = Math.Max(1L, Night.TicksForGameSeconds((long)SurroundLossGameMin * 60));
             int floor = (int)((Night.P.TrainHp + lossTicks - 1) / lossTicks);
             SurroundedTicks++;
             Night.DamageTrain(floor - Night.LastDmgTrain);
@@ -781,7 +801,7 @@ namespace TBD.Units
         {
             if (RebuildTicks > 0) return RebuildTicks;
             var g = Segments[seg]; long mh = g.ObraMh > 0 ? g.ObraMh : 2000L * g.LenMm / 10000;
-            long t = mh * 3600L * IMath.TickRate / 1000 / Math.Max(1, Night.P.ClockX) / (2L * Math.Max(1, sappers));
+            long t = Night.P.NetClock ? Night.TicksForGameSeconds(mh * 3600L / 1000) / (2L * Math.Max(1, sappers)) : mh * 3600L * IMath.TickRate / 1000 / Math.Max(1, Night.P.ClockX) / (2L * Math.Max(1, sappers));
             return (int)Math.Max(1, t);
         }
         /// <summary>Reconstruir cuesta el precio de la pieza (Hugo, §1); sin precio, sacos a 2 u cada 10 m.</summary>

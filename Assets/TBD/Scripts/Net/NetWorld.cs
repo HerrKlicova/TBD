@@ -34,6 +34,23 @@ namespace TBD.Net
     }
 
     // ================================================================== órdenes
+    /// <summary>
+    /// Reloj único (opción 1 de Sara, Lucía b4c2fe5; D-N186): la noche de una zona que avanza la red. La implementa NightSim. NetWorld.Step la llama en orden de nodo,
+    /// justo después de las órdenes: ComienzaNoche en el tick de las 22:00 de los días de su plan, y PasoNoche en cada tick (la zona decide si su noche está en marcha).
+    /// Nadie más avanza una noche: ni la zona en pantalla ni un reloj de Unity.
+    /// </summary>
+    public interface INocheZona
+    {
+        /// <summary>Empieza la noche «noche» (1 = la primera de la partida) en el tick de red «startNetTick».</summary>
+        void ComienzaNoche(int noche, long startNetTick);
+        /// <summary>Un paso de la noche (si está en marcha).</summary>
+        void PasoNoche();
+        /// <summary>Hash del estado de la noche, para la prueba de desincronización.</summary>
+        ulong HashNoche();
+        /// <summary>true solo en el tick del primer contacto de la horda con la estación en esta noche.</summary>
+        bool PrimerContacto { get; }
+    }
+
     public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, SpendMaterials = 22, TrainCargo = 23, LoseNode = 24, TrainLost = 25 }
 
     public struct NetCommand
@@ -1108,12 +1125,56 @@ namespace TBD.Net
             ActiveZoneSinceTick = -1;
         }
 
+        // ---------------------------------------------------------------- reloj único de la noche (D-N186)
+        /// <summary>Noches de las zonas, por nodo (orden de nodo = orden de paso). Las registra la sesión (Iker) o la prueba; no se guardan aquí (cada noche guarda su estado).</summary>
+        public readonly SortedDictionary<int, INocheZona> NochesZona = new SortedDictionary<int, INocheZona>();
+        /// <summary>Plan de noches del escenario (lo pone Inicio, no se guarda): por nodo, desde qué día y hasta qué día (incluidos; −1 = sin fin) tiene noche.
+        /// Sagunto: del día 1 en adelante; Nules: solo el día 2 (Defiende Nules).</summary>
+        public readonly List<NightPlanEntry> NightPlan = new List<NightPlanEntry>();
+        public struct NightPlanEntry { public int Node, FromDay, ToDay; }
+        /// <summary>Hora de inicio de la noche, en horas de juego (22:00).</summary>
+        public const int NightStartHour = 22;
+        /// <summary>Día de juego (1 = el primero) del tick t.</summary>
+        public static int DayOf(long t) { return (int)(t / NetConst.DayTicks) + 1; }
+        /// <summary>Tick de red de las 22:00 del día «day» (1 = el primero).</summary>
+        public static long NightStartTick(int day) { return (long)(day - 1) * NetConst.DayTicks + (long)NightStartHour * NetConst.HourTicks; }
+        /// <summary>¿Tiene el nodo noche el día «day» según el plan?</summary>
+        public bool HasNight(int node, int day) { foreach (var e in NightPlan) if (e.Node == node && day >= e.FromDay && (e.ToDay < 0 || day <= e.ToDay)) return true; return false; }
+        /// <summary>Número de la noche del nodo el día «day» (1 = su primera noche): los días con noche del plan hasta ese día. Sale del plan y del reloj, sin estado.</summary>
+        public int NightNumber(int node, int day) { int n = 0; for (int d = 1; d <= day; d++) if (HasNight(node, d)) n++; return n; }
+
+        /// <summary>×1 automático (Lucía, D-N186): el primer contacto de una horda con una estación propia en cada noche baja la velocidad a ×1. Se puede desactivar en Opciones
+        /// (configuración de la sesión, igual en los dos jugadores; no se guarda).</summary>
+        public bool AutoSlowOnContact = true;
+        /// <summary>Último primer contacto: nodo y tick de red (−1 si ninguno). Para el aviso de la vista; no entra en el hash (la velocidad, que sí entra, ya lo recoge).</summary>
+        public int ContactNode = -1; public long ContactAtTick = -1;
+
+        void StepNights()
+        {
+            if (NochesZona.Count == 0) return;
+            if (Tick % NetConst.DayTicks == (long)NightStartHour * NetConst.HourTicks)
+            {
+                int day = DayOf(Tick);
+                foreach (var kv in NochesZona)
+                    if (HasNight(kv.Key, day))
+                        kv.Value.ComienzaNoche(NightNumber(kv.Key, day), Tick);
+            }
+            foreach (var kv in NochesZona)
+            {
+                kv.Value.PasoNoche();
+                if (!kv.Value.PrimerContacto) continue;
+                ContactNode = kv.Key; ContactAtTick = Tick;                       // el aviso «Ataque en {estación}: velocidad ×1.» lo pinta la vista (Iker)
+                if (AutoSlowOnContact && Speed > 1) Speed = 1;
+            }
+        }
+
         // ---------------------------------------------------------------- un tick
         public void Step()
         {
             Injections.Clear(); Retirements.Clear(); LostThisTick = 0; RetiredThisTick = 0;
             ApplyCommands();                 // en cada tick, no al ritmo de los fotogramas (QA Q5)
             if (Paused) return;
+            StepNights();                    // reloj único: las noches de las zonas van con este tick (D-N186)
             for (int s = 0; s < Services.Count; s++) StepService(Services[s]);
             AdvanceWorks();
             AdvanceRepairs();
@@ -1289,7 +1350,7 @@ namespace TBD.Net
         public AmbushEvent LastAmbush = new AmbushEvent { Tick = -1, Node = -1, Service = -1, LossTick = -1, HoldUntil = -1 };
         public bool AmbushDone { get { foreach (var e in Intel) if (e.Id == "EM-1") return true; return false; } }
         /// <summary>D-N180 en la red: un tren rodeado sin escolta se pierde con su carga en 10 minutos de juego como mucho.</summary>
-        public static readonly long SurroundLossTicks = NetConst.HourTicks / 6;
+        public static readonly long SurroundLossTicks = NetConst.HourTicks * 100 / 60;      // D-N180 con 100 min de juego (Lucía, 9-nov 22:28; ~58 s reales); antes 10 min
         /// <summary>Punto de la emboscada en la zona de Nules de la opción A, que es el terreno de Sagunto (Lucía, 5b8406d; medida de Nacho en NightSim, 9-nov 10:35): el tren espera
         /// fuera de la PUERTA ESTE, de X 160 a 224 m sobre la vía (Z 62,9–66,1), y los 300 salen de la franja oscura del borde este (X 236–256 m, Z 44–85 m) en 30 s. La escolta, en
         /// (192; 60). Sin escolta el tren se pierde siempre (D-N180: la guarnición está en el lado oeste); con un pelotón se salva siempre.</summary>
@@ -1822,6 +1883,7 @@ namespace TBD.Net
             r.Control = Mix((ulong)Tick) + Mix(0xC0FFEEUL ^ ((ulong)(uint)Speed << 1) ^ (Paused ? 1UL : 0UL))
                       + Mix(0x2041EUL ^ ((ulong)(uint)(ActiveZoneCell + 1) << 48) ^ ((ulong)(uint)(ActiveZoneNode + 1) << 8) ^ ((ulong)(uint)ActiveZoneTaken << 24) ^ ((ulong)(ActiveZoneSinceTick + 1) << 40));
             r.Field = Field.Hash();
+            foreach (var kv in NochesZona) r.Control += Mix(0x2E10C0UL ^ ((ulong)(uint)kv.Key << 40)) + kv.Value.HashNoche();     // reloj único: las noches de las zonas (sin noches registradas, el hash no cambia)
             ulong h = 0;
             foreach (var s in Services)
             {
@@ -2030,6 +2092,8 @@ namespace TBD.Net
             // En el MVP no sufre la gran horda («Castellón cerrada»): el director no la asedia (Director.CerradaNodo).
             { int cas = Id("Castellón"); w.Stations.Founded[cas] = true; w.GarrisonMil[cas] = 26_000; w.ZoneWallE4[cas] = 3_086_900; Stock("Castellón", 0, 30, 0, 26, 0); w.FoodExemptNode = cas; w.Field.ClearStaticAt(58, 63); w.Director.CerradaNodo = cas; w.Director.ColSeedHistory(w); }
             w.CercoNodo = Id("Castellón");      // D-N184: suya pero cercada; sin trenes hasta después del MVP
+            // Reloj único (D-N186): plan de noches de las zonas. Sagunto, todas las noches; Nules, la del día 2 (Defiende Nules), la única que tiene definida el escenario.
+            w.NightPlan.Add(new NetWorld.NightPlanEntry { Node = Id("Sagunto"), FromDay = 1, ToDay = -1 }); w.NightPlan.Add(new NetWorld.NightPlanEntry { Node = Id("Nules"), FromDay = 2, ToDay = 2 });
             w.ObjNode = Id("Nules"); w.AmbushNode = Id("Nules");      // partida de 30 min (Lucía, 9-nov 08:00): objetivo del día 2 y emboscada de unos 300 al llegar el tren
             w.Director.SinAsedioNodo = Id("Nules"); w.Director.SinAsedioHasta = NetConst.DayTicks + NetConst.Hours(8);     // D-N156: Nules sin asedio la 1.ª noche (hasta las 08:00 del día siguiente)
             w.Director.ZoneHordes.Add(new HiveDirector.ZoneHorde { Node = Id("Nules"), FromDay = 1, Zombies = 2200 }); w.GarrisonMil[Id("Nules")] = 12_000; w.ZoneWallE4[Id("Nules")] = 1_322_400;   // guarnición de 12 y recinto de 132,24 u (Álvaro, nules-nivel.md §14: HESCO en los cruces de andén del oeste; antes 124,3)   // horda propia de Nules desde la 2.ª noche: 2200 en normal (Lucía, 9-nov 00:56, medida en NightSim con la D-N180; difícil 2440 cuando la red tenga dificultad); Castellón, sin noche en el MVP

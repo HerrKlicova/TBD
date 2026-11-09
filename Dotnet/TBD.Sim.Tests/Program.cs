@@ -153,6 +153,7 @@ namespace TBD.Sim.Tests
                 Console.WriteLine($"traza de referencia regenerada: {tr.Rows.Count} filas, entran {tr.Rows[tr.Rows.Count - 1].Spawned}"); return 0;
             }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_INFORME") == "1") { InformeRedTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
+            if (Environment.GetEnvironmentVariable("TBD_ONLY_RELOJ") == "1") { RelojUnicoTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_RODEADO") == "1") { TrenRodeadoTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_COLMENA") == "1") { ColmenaEstadosTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_ZONA") == "1") { ZonaHordaTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
@@ -210,6 +211,7 @@ namespace TBD.Sim.Tests
             ZonaHordaTests.Run(Check);
             ColmenaEstadosTests.Run(Check);
             TrenRodeadoTests.Run(Check);
+            RelojUnicoTests.Run(Check);
             InformeRedTests.Run(Check);
             GoldenTests.Run(Check);
             Console.WriteLine($"\nResumen: {_pass} correctas, {_fail} fallos");

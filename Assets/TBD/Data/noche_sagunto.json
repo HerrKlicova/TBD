@@ -1,6 +1,7 @@
 {
   "_nota": "D-N74 (Hugo): la noche de Sagunto. Generado por docs/economia/unidades/unidades.py; no editar a mano. Las cifras de unidades están en csv/balance_unidades.csv.",
   "reloj_x": 103,
+  "reloj_red": true,
   "hora_inicio": "22:00",
   "hora_fin": "06:00",
   "duracion_s_reales": 279,
