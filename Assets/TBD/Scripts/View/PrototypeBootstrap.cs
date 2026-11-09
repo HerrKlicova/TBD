@@ -1016,6 +1016,7 @@ namespace TBD.View
             }
             int ip = System.Array.IndexOf(args, "-picar");
             if (ip >= 0 && ip + 1 < args.Length) StartCoroutine(Picar(args[ip + 1]));
+            Debug.Log("[SOMBRA] materiales de variantes en la build (recorte por alfa): " + (Resources.Load<Material>("Variantes/V_Lit_Recorte") != null ? "SÍ" : "NO, el recorte por alfa puede faltar"));
             var lp = LightmapSettings.lightProbes;
             Debug.Log("[SOMBRA] sondas de luz en la escena: " + (lp != null ? lp.count.ToString() : "ninguna") + " · mapas de luz: " + LightmapSettings.lightmaps.Length + " · modo ambiente: " + RenderSettings.ambientMode + " · reflejo: " + RenderSettings.defaultReflectionMode);
             bool trozo = false; var ic = System.Globalization.CultureInfo.InvariantCulture;

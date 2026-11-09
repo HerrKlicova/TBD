@@ -43,6 +43,34 @@ namespace TBD.EditorTools
                 added++;
             }
             if (added > 0) { so.ApplyModifiedProperties(); AssetDatabase.SaveAssets(); Debug.Log("[TBD] " + added + " shaders añadidos a Always Included Shaders"); }
+            AsegurarVariantes();
+        }
+
+        /// <summary>
+        /// Bruno, 09-11 (qa47, sombra del tren): los materiales del juego se crean en tiempo de ejecución y activan palabras clave (_ALPHATEST_ON, _EMISSION). Son
+        /// «shader_feature»: Unity solo compila esas variantes si algún material de la compilación las usa, y el proyecto no tenía ningún .mat. Sin la variante, el recorte
+        /// por alfa no existe en la build: los téxeles transparentes de la vía en el suelo por trozos (y los de los decals) salían NEGROS y opacos (090a10, solo el reflejo
+        /// del cielo). Era la «sombra del tren» que no cambiaba con la luna, el ambiente ni la sonda (I-Noche80 a 86). Estos materiales en Resources fuerzan las variantes.
+        /// </summary>
+        static void AsegurarVariantes()
+        {
+            const string dir = "Assets/TBD/Resources/Variantes";
+            if (!AssetDatabase.IsValidFolder(dir)) AssetDatabase.CreateFolder("Assets/TBD/Resources", "Variantes");
+            int n = 0;
+            n += Variante(dir + "/V_Lit_Recorte.mat", "Universal Render Pipeline/Lit", m => { m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON"); });
+            n += Variante(dir + "/V_Lit_Emision.mat", "Universal Render Pipeline/Lit", m => { m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", Color.black); });
+            n += Variante(dir + "/V_Lit_Recorte_Emision.mat", "Universal Render Pipeline/Lit", m => { m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON"); m.EnableKeyword("_EMISSION"); });
+            n += Variante(dir + "/V_Unlit_Recorte.mat", "Universal Render Pipeline/Unlit", m => { m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.5f); m.EnableKeyword("_ALPHATEST_ON"); });
+            if (n > 0) { AssetDatabase.SaveAssets(); Debug.Log("[TBD] " + n + " materiales de variantes creados en " + dir + " (recorte por alfa y emisión en la build)"); }
+        }
+
+        static int Variante(string path, string shader, System.Action<Material> conf)
+        {
+            if (AssetDatabase.LoadAssetAtPath<Material>(path) != null) return 0;
+            var sh = Shader.Find(shader); if (sh == null) { Debug.LogWarning("[TBD] Shader no encontrado para la variante: " + shader); return 0; }
+            var m = new Material(sh); conf(m);
+            AssetDatabase.CreateAsset(m, path);
+            return 1;
         }
     }
 }
