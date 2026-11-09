@@ -316,6 +316,7 @@ namespace TBD.View
         {
             if (_zoneNode < 0 || _leaving) return;
             _leaving = true;
+            Sfx.Play("zoom_salir_mapa", Vector3.zero, 0.8f, 0.5f);                      // Nuria: barrido de zoom hacia el mapa (sonido-vivo.md)
             int alive = _zombieQuery.CalculateEntityCount();
             if (NightRun.Active && _nightInit && _ng != null && _ng.State != TBD.Units.NightState.Derrota && !_seguirTrasNoche) { SaveNightSession(); alive = 0; }      // S2: tras caer la estación no se guarda su noche      // noche persistente: los zombis pasan a NightSim, no a la mancha del mapa
             var ammo = _worldA.EntityManager.GetComponentData<ZoneAmmo>(_rootA);

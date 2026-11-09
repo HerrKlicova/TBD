@@ -41,6 +41,7 @@ namespace TBD.View
             if (_ng.P.TrainNotDefeat && _ng.TrainHp <= 0 && !_trenPerdidoAvisado)      // Lucía (da2d050): en Nules perder el tren no es derrota; aviso y se sigue
             {
                 _trenPerdidoAvisado = true; string tn = "tren"; int si = -1; for (int k = 0; k < w.Services.Count; k++) { var sv = w.Services[k]; if (sv.AtStop && sv.Stops.Count > 0 && sv.Stops[sv.StopIndex].Node == _zoneNode) { tn = sv.Train.Name; si = k; break; } }
+                TrenPerdidoSonido();                                                      // Nuria (sonido-vivo.md)
                 if (si >= 0) NetSession.Push(NetCmdType.TrainLost, si, 0);   // Nacho (49e7ddf1): la red quita el tren, su carga y su tropa
                 HintMsg($"Se ha perdido el {tn} con su carga.", false); _bannerText = $"Se ha perdido el {tn} con su carga."; _bannerUntil = Time.unscaledTime + 5f;   // Sara/Eugenio: que se vea (rótulo de 5 s además del aviso) Debug.Log($"[NOCHE] se ha perdido el {tn} con su carga (la noche sigue)");
             }

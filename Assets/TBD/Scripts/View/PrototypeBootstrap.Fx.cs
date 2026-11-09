@@ -85,6 +85,7 @@ namespace TBD.View
             bool attack = _ng.State == NightState.Jugando && (_pileNearStation > 0 || _nearTrain > 0);
             if (attack && !_alarmOn && Time.unscaledTime - _alarmT > 20f) { _alarmT = Time.unscaledTime; Sfx.Play("alarma_ataque", Vector3.zero, 0.6f, 1f); }
             _alarmOn = attack;
+            SonidoVivo();                                                                // Nuria (sonido-vivo.md): horda lejana y NH90 en la zona
         }
 
         // ---- QA29 (Bruno): barrido de 5 gradaciones en el MISMO fotograma (partida en pausa), una captura directa (_full) por variante, con frameCount, tiempo y media de la imagen en el log

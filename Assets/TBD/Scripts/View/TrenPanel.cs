@@ -201,6 +201,8 @@ namespace TBD.View
                 NetSession.PushPayload(NetCmdType.SetSchedule, Viaje, TrenPreparar.Aparcar(W, Viaje)); _aparcadoT = Time.unscaledTime;
                 string nombre = W.Graph.Nodes[meta].Name;
                 if (_descargando) { Debug.Log("[TREN] vuelve a " + nombre + " y se aparca"); Viaje = -1; _descargando = false; return; }
+                if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Union") Sfx.Play("tren_llegada", Vector3.zero, 0.3f, 10f);   // Nuria: llegada en el mapa, 2D y baja (como el pitido de salida)
+                else Sfx.PlayAt("tren_llegada", TrenAnden.AndenZonaSon, 0.9f, 10f);          // en la zona, en el andén
                 _llegado = true; _avisoAmbar = false; _aviso = Puertas.EnPuertas(W, Viaje, meta) ? "Tren a las puertas de " + nombre : "Tren en " + nombre; _avisoHasta = Time.unscaledTime + 5f;     // D-N152: sitiada o sin andén (regla de Nacho)
                 Debug.Log($"[TREN] llega a {nombre} y se aparca (carga {sv.CargoTotal()} u, {W.Embarque.CountAboard(Viaje, PasajeroTipo.Peloton)} pelotón, {W.Embarque.CountAboard(Viaje, PasajeroTipo.Vehiculo)} vehículo)");
                 if (meta == Casa) TutorialHud.Senal(TutorialGuion.Senales.TrenEnSagunto);
@@ -652,6 +654,7 @@ namespace TBD.View
         readonly Dictionary<int, bool> _antes = new Dictionary<int, bool>();
         static readonly bool _demo = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-salidademo") >= 0; bool _demoHecho;   // -salidademo: una salida a los 10 s de entrar en la zona
         readonly List<SalidaTren> _salidas = new List<SalidaTren>(); readonly List<SonidoSalida> _sonSal = new List<SonidoSalida>();
+        public static Vector3 AndenZonaSon => AndenZona;   // Nuria: la llegada del tren suena en el andén
         static readonly Vector3 AndenZona = new Vector3(143f, 1f, 64.5f), CabezaZona = new Vector3(163f, 2f, 64.5f);
         void SalidasALaVista()
         {
