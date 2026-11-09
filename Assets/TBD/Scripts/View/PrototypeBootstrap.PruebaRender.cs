@@ -71,5 +71,62 @@ namespace TBD.View
                     + " drawcalls=" + (dc.Valid ? dc.LastValue : -1) + " batches=" + (bt.Valid ? bt.LastValue : -1) + " setpass=" + (sp.Valid ? sp.LastValue : -1));
             }
         }
+        // ---- QA del suelo por trozos (Eugenio 09-11: «al mover la cámara se va cargando suelo»): -barrido V T mueve el foco de la cámara a V m/s
+        // (por defecto 40) durante T s (por defecto 20) de ida y vuelta en X por el mapa, cuando ha terminado la precarga. Cada segundo escribe una línea
+        // [BARRIDO] con el foco, los trozos cargados y pendientes y los «huecos»: trozos que tocan lo que se ve (aprox.: círculo de radio ortho×aspecto×1,2)
+        // y aún no están. Al final, un resumen con el máximo de huecos y los segundos con algún hueco. Solo presentación: no toca la simulación.
+        static readonly float BarridoV = LeerBarrido(0, 40f), BarridoT = LeerBarrido(1, 20f);
+        static float LeerBarrido(int k, float porDefecto)
+        {
+            var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-barrido");
+            if (i < 0) return k == 0 ? 0f : porDefecto;
+            return i + 1 + k < a.Length && float.TryParse(a[i + 1 + k], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) && v > 0f ? v : porDefecto;
+        }
+
+        int HuecosSuelo()
+        {
+            if (_worldCam == null || _chunkRoot == null) return -1;
+            float r = _worldCam.orthographicSize * Mathf.Max(1f, _worldCam.aspect) * 1.2f + ChunkM * 0.5f;
+            int cols = (MapW + ChunkM - 1) / ChunkM, rows = (MapH + ChunkM - 1) / ChunkM, n = 0;
+            for (int j = 0; j < rows; j++)
+                for (int i = 0; i < cols; i++)
+                {
+                    float cx = MapX0 + i * ChunkM + ChunkM * 0.5f, cz = MapZ0 + j * ChunkM + ChunkM * 0.5f;
+                    if ((cx - _focus.x) * (cx - _focus.x) + (cz - _focus.z) * (cz - _focus.z) < r * r && !_chunks.ContainsKey(ChunkKey(i, j))) n++;
+                }
+            return n;
+        }
+
+        void BarridoIniciar()
+        {
+            if (BarridoV <= 0f) return;
+            StartCoroutine(Barrido());
+        }
+
+        System.Collections.IEnumerator Barrido()
+        {
+            float t0 = Time.realtimeSinceStartup;
+            while ((_chunkPrecarga || _chunkRoot == null) && Time.realtimeSinceStartup - t0 < 60f) yield return null;
+            yield return new WaitForSecondsRealtime(3f);
+            float xMin = MapX0 + 60f, xMax = MapX0 + MapW - 60f, dir = 1f, t = 0f, tLog = 0f;
+            int maxHuecos = 0, segConHuecos = 0, huecosSeg = 0;
+            Debug.Log("[BARRIDO] empieza: " + BarridoV.ToString("0.#") + " m/s durante " + BarridoT.ToString("0.#") + " s desde " + _focus.ToString("0") + " (X " + xMin.ToString("0") + "…" + xMax.ToString("0") + ")");
+            while (t < BarridoT)
+            {
+                float dt = Time.unscaledDeltaTime; t += dt; tLog += dt;
+                float x = _focus.x + dir * BarridoV * dt;
+                if (x > xMax) { x = xMax; dir = -1f; } else if (x < xMin) { x = xMin; dir = 1f; }
+                _focus = new Vector3(x, 0f, _focus.z);
+                int h = HuecosSuelo(); if (h > huecosSeg) huecosSeg = h;
+                if (tLog >= 1f)
+                {
+                    Debug.Log("[BARRIDO] t=" + t.ToString("0.0") + " foco=" + _focus.ToString("0") + " trozos=" + _chunks.Count + " pendientes=" + _chunkPending.Count + " huecos=" + huecosSeg + " fps=" + _fps.ToString("0"));
+                    if (huecosSeg > maxHuecos) maxHuecos = huecosSeg; if (huecosSeg > 0) segConHuecos++;
+                    huecosSeg = 0; tLog = 0f;
+                }
+                yield return null;
+            }
+            Debug.Log("[BARRIDO] fin: máximo de huecos a la vista " + maxHuecos + ", segundos con algún hueco " + segConHuecos + " de " + Mathf.RoundToInt(BarridoT) + ", trozos cargados " + _chunks.Count);
+        }
     }
 }
