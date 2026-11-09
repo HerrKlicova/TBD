@@ -251,7 +251,7 @@ namespace TBD.View
         void Update()
         {
             if (_cap4Pendiente && (_m == null || _m.Estado != EstadoTutorial.Activo)) ArrancarCap4();
-            if (_m == null || IntroVista.Mostrando) return;     // mientras sale la intro, el tutorial espera
+            if (_m == null || IntroVista.Mostrando || SceneManager.GetActiveScene().name == "Menu") return;     // mientras sale la intro o en el menú, el tutorial espera
             _m.Avanzar(Time.unscaledDeltaTime);
             // tren en Nules: lo mira en la red (servicio parado en Nules) una vez enviado
             if (Activo && _m.Hecho(TutorialGuion.Senales.TrenEnviado) && !_m.Hecho(TutorialGuion.Senales.TrenEnNules) && NetSession.A != null)
@@ -478,7 +478,7 @@ namespace TBD.View
 
         void OnGUI()
         {
-            if (IntroVista.Mostrando) return;
+            if (IntroVista.Mostrando || SceneManager.GetActiveScene().name == "Menu") return;      // en el menú no se ve el tutorial (Eugenio, 9-nov)
             GUI.depth = -100;                 // por encima del resto de la interfaz
             if (_m == null) { Styles(); Avisos(); return; }      // sin tutorial también salen los avisos y el objetivo del día 2 (partida de 30 min)
             Styles(); MapTargets(); Avisos();
@@ -490,8 +490,8 @@ namespace TBD.View
                 float w = Mathf.Min(640f, Screen.width * 0.42f), pad = _txt.fontSize * 0.8f, x = 8f, y = Ancla();
                 if (p.Linea)
                 {
-                    float lh = _line.fontSize * 2f;
-                    GUI.DrawTexture(new Rect(x, y, w, lh), _panel); GUI.Label(new Rect(x + pad, y + lh * 0.18f, w - 2 * pad, lh), Escrito(_maq, _m.Texto), _line);
+                    var lst = new GUIStyle(_line) { wordWrap = true }; float lh = Mathf.Max(_line.fontSize * 2f, lst.CalcHeight(new GUIContent(_m.Texto), w - 2 * pad) + _line.fontSize * 0.8f);   // S2 qa (1.9 cortado): altura según el texto
+                    GUI.DrawTexture(new Rect(x, y, w, lh), _panel); GUI.Label(new Rect(x + pad, y + _line.fontSize * 0.35f, w - 2 * pad, lh), Escrito(_maq, _m.Texto), lst);
                     y += lh + 6;
                 }
                 else

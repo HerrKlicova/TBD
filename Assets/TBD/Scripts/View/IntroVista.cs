@@ -53,9 +53,18 @@ namespace TBD.View
             sonidos.Clear();
         }
 
+        bool _pregunta;      // Lucía (5d21d64): tras la intro, «¿Quieres hacer el tutorial?» Sí / No (foco en Sí)
         void Update()
         {
             if (_hecho) return;
+            if (_pregunta)
+            {
+                var k2 = UnityEngine.InputSystem.Keyboard.current;
+                if (TutorialHud.Auto) Responder(true);
+                else if (k2 != null && (k2.enterKey.wasPressedThisFrame || k2.numpadEnterKey.wasPressedThisFrame || k2.sKey.wasPressedThisFrame)) Responder(true);
+                else if (k2 != null && (k2.escapeKey.wasPressedThisFrame || k2.nKey.wasPressedThisFrame)) Responder(false);
+                return;
+            }
             var kb = UnityEngine.InputSystem.Keyboard.current; var ms = UnityEngine.InputSystem.Mouse.current;
             if (kb != null && kb.escapeKey.wasPressedThisFrame) { _seq.Saltar(); Debug.Log($"[TUTORIAL] intro saltada a los {_seq.T:0.0} s"); }
             else if ((kb != null && kb.spaceKey.wasPressedThisFrame) || (ms != null && ms.leftButton.wasPressedThisFrame)) _seq.Siguiente(_snd);
@@ -67,7 +76,15 @@ namespace TBD.View
                 if (_seq.Maquina.Visibles > 0 && !_seq.Maquina.Completa && _seq.Maquina.Visibles >= _seq.Maquina.Texto.Length / 2) TutorialHud.CapturaAuto($"intro_{_seq.Indice + 1}_escribiendo");
                 if (_seq.Maquina.Completa && _seq.Alfa >= 1f) TutorialHud.CapturaAuto($"intro_{_seq.Indice + 1}");
             }
-            if (_seq.Acabada) Acabar();
+            if (_seq.Acabada) { _pregunta = true; Debug.Log("[TUTORIAL] intro acabada: pregunta del tutorial"); }
+        }
+
+        void Responder(bool si)
+        {
+            _pregunta = false; Sfx.Play("sfx_ui_clic");
+            foreach (var k in new[] { "tbd.tutorial.visto", "tbd.tutorial.visto.saltado" }) { if (si) PlayerPrefs.DeleteKey(k); else PlayerPrefs.SetInt(k, 1); }
+            PlayerPrefs.Save(); Debug.Log("[TUTORIAL] ¿tutorial?: " + (si ? "sí" : "no"));
+            Acabar();
         }
 
         void Acabar()
@@ -114,7 +131,20 @@ namespace TBD.View
             _txt.richText = true;
             GUI.Label(r, conHueco, _txt);
             GUI.color = prev;
+            if (_pregunta)
+            {
+                float u = Mathf.Max(10, Screen.height / 54f), pw = u * 30f, ph = u * 11f; var pr = new Rect((Screen.width - pw) * 0.5f, (Screen.height - ph) * 0.5f, pw, ph);
+                var po = GUI.color; GUI.color = new Color(0.07f, 0.08f, 0.05f, 0.95f); GUI.DrawTexture(pr, Texture2D.whiteTexture); GUI.color = po;
+                var qs = new GUIStyle(_txt) { fontSize = Mathf.RoundToInt(u * 2.0f) }; GUI.Label(new Rect(pr.x, pr.y + u, pw, u * 4f), "¿Quieres hacer el tutorial?", qs);
+                var bs = new GUIStyle(GUI.skin.button) { fontSize = Mathf.RoundToInt(u * 1.8f), fontStyle = FontStyle.Bold };
+                GUI.SetNextControlName("tut_si"); if (GUI.Button(new Rect(pr.x + u * 3f, pr.yMax - u * 5f, u * 10f, u * 3.2f), "Sí", bs)) Responder(true);
+                if (GUI.Button(new Rect(pr.xMax - u * 13f, pr.yMax - u * 5f, u * 10f, u * 3.2f), "No", bs)) Responder(false);
+                GUI.FocusControl("tut_si");
+                return;
+            }
             GUI.Label(new Rect(0, 0, Screen.width - 24, Screen.height - 18), "Clic o Espacio: seguir · Esc: saltar", _hint);
+            { float u = Mathf.Max(10, Screen.height / 54f); var bs = new GUIStyle(GUI.skin.button) { fontSize = Mathf.RoundToInt(u * 1.2f) };
+              if (GUI.Button(new Rect(Screen.width - u * 9f, u * 1.2f, u * 7.5f, u * 2.4f), "Saltar", bs)) { _seq.Saltar(); Debug.Log($"[TUTORIAL] intro saltada con el botón a los {_seq.T:0.0} s"); } }
         }
     }
 }

@@ -19,9 +19,17 @@ namespace TBD.View
         void BuildBrumaBorde()
         {
             if (!BrumaOn) return;
-            const int n = 64;
-            var tex = new Texture2D(n, 1, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
-            for (int i = 0; i < n; i++) { float t = i / (float)(n - 1); float a = Mathf.SmoothStep(1f, 0f, t); tex.SetPixel(i, 0, new Color(0.02f, 0.025f, 0.04f, a)); }   // opaco en el borde, transparente hacia dentro
+            // Lucía (a073ff8): degradado suave en los 28 m (0 % dentro → 80 % en el borde), sin negro: bruma del suelo de noche oscurecido (L* ≈ 9, croma ≤ 5),
+            // y el borde de dentro irregular (±4 m de ruido a lo largo de la franja). u = 0 es el borde exterior; v recorre la franja.
+            const int n = 64, m = 128; const float maxA = 0.8f, ruidoM = 4f;
+            var tex = new Texture2D(n, m, TextureFormat.RGBA32, false) { wrapModeU = TextureWrapMode.Clamp, wrapModeV = TextureWrapMode.Repeat, filterMode = FilterMode.Bilinear };
+            var col = new Color(0.098f, 0.098f, 0.086f);      // sRGB ≈ L* 9, croma ≈ 2
+            for (int j = 0; j < m; j++)
+            {
+                float v = j / (float)m; float ruido = (Mathf.PerlinNoise(v * 9f, 3.7f) - 0.5f) * 2f * 0.6f + (Mathf.PerlinNoise(v * 23f, 8.1f) - 0.5f) * 2f * 0.4f;
+                float dentro = 1f - (Mathf.Clamp(ruido, -1f, 1f) + 1f) * ruidoM / BrumaAnchoM;      // borde de dentro entre 20 y 28 m (24 ± 4), nunca más allá del quad: sin línea
+                for (int i = 0; i < n; i++) { float t = i / (float)(n - 1); float x = Mathf.Clamp01(t / dentro); float a = maxA * (1f - x * x * (3f - 2f * x)); tex.SetPixel(i, j, new Color(col.r, col.g, col.b, a)); }
+            }
             tex.Apply();
             var sh = Shader.Find("Sprites/Default");
             var mat = new Material(sh) { mainTexture = tex, renderQueue = 2990 };

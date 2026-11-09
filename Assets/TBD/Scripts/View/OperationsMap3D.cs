@@ -722,6 +722,7 @@ namespace TBD.View
             foreach (var st in new[] { _label, _small, _title }) { st.clipping = TextClipping.Overflow; st.wordWrap = false; st.padding = new RectOffset(2, 2, 2, 6); st.overflow = new RectOffset(0, 0, 0, 8); }   // la altura del rectángulo no recorta el texto (nombres cortados por abajo)
         }
 
+        static readonly bool DepuracionMapa = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-depuracion") >= 0;
         long _emSonado = -1; long _trenParadoAvisado = -1; long _recordatorioLog = -1;
         /// <summary>Lucía (13365b8): el día 2, de 15:00 a 22:00, si aún no ha salido ningún tren hacia Nules.</summary>
         bool RecordatorioNules(out int nul)
@@ -750,9 +751,13 @@ namespace TBD.View
                 Debug.Log($"[MAPA] Hay un tren parado en {_a.Graph.Nodes[nn].Name}. Sácalo antes de la noche o puede perderse.");
             }
         }
+        readonly List<Rect> _rotulos = new List<Rect>();
+        /// <summary>Baja el rótulo hasta que no pisa a otro de este fotograma (S3 de Eugenio: «12Costaña», Caminreal y Calamocha).</summary>
+        Rect SinPisar(Rect r) { for (int k = 0; k < 6; k++) { bool pisa = false; foreach (var o in _rotulos) if (o.Overlaps(r)) { pisa = true; break; } if (!pisa) break; r.y += r.height; } _rotulos.Add(r); return r; }
         void OnGUI()
         {
             if (_a == null) return;
+            _rotulos.Clear();
             EnsureStyles();
             var g = _a.Graph;
             foreach (var n in g.Nodes)
@@ -761,7 +766,7 @@ namespace TBD.View
                 if (sp.z <= 0) continue;
                 int px = IconPx(32);
                 DrawIcon(new Rect(sp.x - px * 0.5f, Screen.height - sp.y - px * 1.1f, px, px), "estaciones/vm_estacion_" + StateName(n.State) + "_32");
-                GUI.Label(new Rect(sp.x + px * 0.5f + 4, Screen.height - sp.y - 10, 220, _small.fontSize * 2.2f), n.Name, _small);
+                GUI.Label(SinPisar(new Rect(sp.x + px * 0.5f + 4, Screen.height - sp.y - 10, _small.CalcSize(new GUIContent(n.Name)).x + 4f, _small.fontSize * 1.4f)), n.Name, _small);   // S3: los nombres no se pisan
                 if (n.Id == _a.Director.CerradaNodo)       // D-N184: al pasar el ratón por Castellón
                 {
                     var mp = Event.current.mousePosition; if ((mp - new Vector2(sp.x, Screen.height - sp.y - px * 0.6f)).magnitude < px * 1.2f)
@@ -777,7 +782,7 @@ namespace TBD.View
                 var sv = _a.Services[i];
                 string tn = _a.Encounter.Active && _a.Encounter.Service == i ? "bajo_ataque" : sv.Ambushed ? "bajo_ataque" : sv.Train.State == RailTrainState.EnMarcha ? "en_marcha" : sv.Train.State == RailTrainState.Detenido ? "detenido" : "detenido";
                 DrawIcon(new Rect(sp.x - tp * 0.5f, Screen.height - sp.y - tp * 1.6f, tp, tp), "trenes/vm_tren_" + tn + "_32");
-                GUI.Label(new Rect(sp.x - 30, Screen.height - sp.y - 26 - _small.fontSize * 0.8f, 160, _small.fontSize * 2.2f), "<b><color=#FFF0A0>" + _a.Services[i].Train.Name + "</color></b>", _small);
+                { string tl = "<b><color=#FFF0A0>" + _a.Services[i].Train.Name + "</color></b>"; GUI.Label(SinPisar(new Rect(sp.x - 30, Screen.height - sp.y - 26 - _small.fontSize * 0.8f, _small.CalcSize(new GUIContent(tl)).x + 4f, _small.fontSize * 1.4f)), tl, _small); }
                 string se = tn == "bajo_ataque" ? null : Puertas.SinEscolta(_a, i);       // D-N177: ámbar en el icono; el rojo es solo el de bajo ataque
                 if (se != null) GUI.Label(new Rect(sp.x - 30, Screen.height - sp.y - 26 + _small.fontSize * 1.2f, 260, _small.fontSize * 2.2f), "<color=#E08C30>" + se + "</color>", _small);
             }
@@ -796,9 +801,9 @@ namespace TBD.View
             string speed = _a.Paused ? "<color=#E8C040>PAUSA</color>" : "x" + _a.Speed;
             GUI.Label(new Rect(16, y, pw, 40), $"Día {_a.Tick / NetConst.DayTicks + 1} · {NetConst.Clock(_a.Tick)} · {speed}", _title); y += _title.fontSize * 1.6f;
             string sync = NetSession.Check ? (NetSession.Desync ? "<color=#E04030>DESINCRONIZACIÓN</color>" : "<color=#70C070>Desincronización: correcta</color>") : "<color=#999999>prueba apagada</color>";
-            GUI.Label(new Rect(16, y, pw, 30), sync + "  ·  <color=#B0A890>relieve de sustitución (no son datos reales)</color>", _small); y += _small.fontSize * 1.7f;
+            if (DepuracionMapa || NetSession.Desync) { GUI.Label(new Rect(16, y, pw, 30), sync + "  ·  <color=#B0A890>relieve de sustitución (no son datos reales)</color>", _small); y += _small.fontSize * 1.7f; }   // S3 (Eugenio): solo con -depuracion o si hay desincronización
             string scaleTxt = _dist >= 10 ? $"{_dist:0} km" : $"{_dist * 1000:0} m";
-            GUI.Label(new Rect(16, y, pw, 30), $"Distancia de cámara: {scaleTxt}", _small); y += _small.fontSize * 1.7f;
+            if (DepuracionMapa) { GUI.Label(new Rect(16, y, pw, 30), $"Distancia de cámara: {scaleTxt}", _small); y += _small.fontSize * 1.7f; }
             int shown = 0;
             var zws = _a.UndefendedWarnings();
             SonarAvisos(zws);
@@ -896,7 +901,7 @@ namespace TBD.View
             for (int i = 0; i < _a.Services.Count; i++)
             {
                 var sv = _a.Services[i];
-                GUI.Label(new Rect(x0 + 8, y, 130, p + 4), "<b>" + sv.Train.Name + "</b>", _small);
+                GUI.Label(new Rect(x0 + 8, y, Mathf.Max(130f, _small.CalcSize(new GUIContent("<b>" + sv.Train.Name + "</b>")).x + 8f), p + 4), "<b>" + sv.Train.Name + "</b>", _small);   // S3: «2 Montaña» entero
                 float x = x0 + 136;
                 for (int r = 0; r < NetConst.ResCount && r < ic.Length; r++)
                 {

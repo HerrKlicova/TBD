@@ -603,6 +603,8 @@ namespace TBD.View
             foreach (var c in t.GetComponentsInChildren<Transform>(true)) if (c.name == name) return c; return null;
         }
 
+        /// <summary>Altura del suelo bajo el soldado para la vista: la cota del pelotón (EyeMm − 1,6 m). La azotea del ala oeste (4,75 m) solo encima de su planta (X 83–92, Z 71,8–80,8); la banqueta (0,4–0,7 m), siempre.</summary>
+        static float CotaVista(Platoon pl, int x, int y) { float c = (pl.EyeMm - UnitsWorld.EyeInfantryMm) / 1000f; if (c <= 0f) return 0f; if (c < 1.5f) return c; return x >= 83000 && x <= 92000 && y >= 71800 && y <= 80800 ? c : 0f; }
         void UpdateNightSoldiers()
         {
             float dt = Time.unscaledDeltaTime; foreach (var pl in _uw.Platoons)
@@ -610,7 +612,7 @@ namespace TBD.View
                 {
                     if (!_views.TryGetValue(m.Id, out var sv)) { sv = MakeView(m, pl.Men.Count > 0 && pl.Men[0] == m); _views[m.Id] = sv; if (sv == null) continue; }
                     if (sv == null) continue;
-                    var go = sv.Go; var tgt = new Vector3(m.X / 1000f, 0f, m.Y / 1000f);
+                    var go = sv.Go; var tgt = new Vector3(m.X / 1000f, CotaVista(pl, m.X, m.Y), m.Y / 1000f);   // S2 (Eugenio): los de la azotea se dibujan en el tejado
                     go.transform.position = Vector3.Lerp(go.transform.position, tgt, 1f - Mathf.Exp(-14f * dt));
                     float yaw = 90f - m.Heading * 360f / 65536f; go.transform.rotation = Quaternion.Slerp(go.transform.rotation, Quaternion.Euler(0f, yaw, 0f), 1f - Mathf.Exp(-12f * dt));
                     int st = !m.Alive ? 3 : m.Firing ? 2 : m.Moving ? 1 : 0;

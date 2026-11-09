@@ -59,9 +59,25 @@ namespace TBD.View
         }
 
         static bool Auto { get { var a = System.Environment.GetCommandLineArgs(); return System.Array.IndexOf(a, "-menu-auto") >= 0 || System.Array.IndexOf(a, "-tutorial-auto") >= 0 || System.Array.IndexOf(a, "-dia2-auto") >= 0 || System.Array.IndexOf(a, "-dia2-auto-sinescolta") >= 0 || System.Array.IndexOf(a, "-dia2-auto-tren-aparcado") >= 0; } }
-        void StartGame() { Sfx.Play("sfx_ui_clic"); Sfx.StopLoop("mus_menu"); NetSession.Reset(); NightRun.Active = true; if (Auto) SceneManager.LoadScene("Union"); else IntroVista.Antes(() => SceneManager.LoadScene("Union")); }
+        bool _confirmar;      // Lucía (5d21d64): con partida guardada, «Nueva partida» pide confirmar que se borra
+        void StartGame() { if (!Auto && NetSession.HasSave && !_confirmar) { _confirmar = true; Sfx.Play("sfx_ui_clic"); return; } _confirmar = false; Sfx.Play("sfx_ui_clic"); Sfx.StopLoop("mus_menu"); NetSession.Reset(); NightRun.Active = true; if (Auto) SceneManager.LoadScene("Union"); else { NuevaPartidaDesdeCero(); IntroVista.Antes(() => SceneManager.LoadScene("Union")); } }
+        /// <summary>Eugenio (9-nov): cada «Empezar» es una partida nueva con su intro y su tutorial (los dos se pueden saltar); no quedan apagados para siempre tras verlos o saltarlos una vez.</summary>
+        void ConfirmarNueva()
+        {
+            Styles(); float W = Screen.width, H = Screen.height, u = Mathf.Max(10, H / 54f);
+            GUI.DrawTexture(new Rect(0, 0, W, H), _bg); var r = new Rect(W * 0.5f - u * 18f, H * 0.5f - u * 6f, u * 36f, u * 12f); GUI.DrawTexture(r, _panel);
+            GUI.Label(new Rect(r.x + u, r.y + u, r.width - 2 * u, u * 5f), "Hay una partida guardada. Si empiezas una nueva, se borrará.", _txt);
+            if (GUI.Button(new Rect(r.x + u * 2f, r.yMax - u * 4.5f, u * 14f, u * 3.2f), "Empezar nueva", _btn)) { try { System.IO.File.Delete(NetSession.SavePath); } catch (System.Exception) { } Debug.Log("[MENÚ] partida guardada borrada: nueva partida"); StartGame(); }
+            if (GUI.Button(new Rect(r.xMax - u * 16f, r.yMax - u * 4.5f, u * 14f, u * 3.2f), "Cancelar", _btn)) { _confirmar = false; Sfx.Play("sfx_ui_clic"); }
+        }
+        static void NuevaPartidaDesdeCero()
+        {
+            foreach (var k in new[] { "tbd.intro.vista", "tbd.tutorial.visto", "tbd.tutorial.visto.saltado", "tbd.tutorial4.visto", "tbd.tutorial4.visto.saltado", "tbd.suelta.c90" }) PlayerPrefs.DeleteKey(k);
+            PlayerPrefs.Save(); Debug.Log("[TUTORIAL] partida nueva: intro y tutorial otra vez");
+        }
         void ContinueGame()
         {
+            foreach (var k in new[] { "tbd.tutorial.visto", "tbd.tutorial.visto.saltado" }) PlayerPrefs.SetInt(k, 1); PlayerPrefs.Save();   // Lucía: «Continuar» sin intro ni tutorial
             try { NetSession.LoadGame(); NightRun.Active = false; SceneManager.LoadScene("Union"); }
             catch (System.Exception e) { _msg = "No se pudo cargar la partida: " + e.Message; }
         }
@@ -131,6 +147,7 @@ namespace TBD.View
 
         void OnGUI()
         {
+            if (_confirmar) { ConfirmarNueva(); return; }
             if (KitMenu()) return;
             Styles(); _t += Time.unscaledDeltaTime;
             GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _bg);
