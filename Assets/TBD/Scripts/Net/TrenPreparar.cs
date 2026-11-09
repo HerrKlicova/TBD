@@ -220,7 +220,21 @@ namespace TBD.Net
         public static string Motivo(NetWorld w, int service) { return w == null ? null : w.GateReason(service); }
 
         /// <summary>D-N177: lo decide la red de Nacho (sin tropa ni vehículos a bordo y una estación sitiada en el camino hasta la próxima parada).</summary>
-        public static string SinEscolta(NetWorld w, int service) { return w == null ? null : w.EscortWarning(service); }
+        public static string SinEscolta(NetWorld w, int service)
+        {
+            if (w == null) return null;
+            var txt = w.EscortWarning(service); if (txt == null) return null;
+            // Lucía (9-nov), con la tabla de Hugo: solo si en el sitio donde va a esperar el tren se pierde. Fuera de la puerta oeste de Nules se salva (88 %): sin aviso.
+            var sv = w.Services[service];
+            int n = sv.GateNode >= 0 ? sv.GateNode : sv.StopIndex >= 0 && sv.StopIndex < sv.Stops.Count ? sv.Stops[sv.StopIndex].Node : -1;
+            return n >= 0 && !SePierde(w, service, n) ? null : txt;
+        }
+
+        /// <summary>Estaciones donde un tren sin escolta que espera fuera (a las puertas) se salva según NightSim (Hugo: Nules fuera de la puerta oeste 88 %; Sagunto puerta este 100 %). Igual que InformeTextos.SeSalvaFuera de Bruno.</summary>
+        public static readonly string[] SeSalvaFuera = { "Sagunto", "Nules" };
+
+        /// <summary>¿Se pierde el tren que va a esperar a las puertas de ese nodo? Con asedio espera fuera: se salva en las estaciones medidas de SeSalvaFuera; en las demás, sí sale el aviso (misma regla que TrenSePierde del informe).</summary>
+        public static bool SePierde(NetWorld w, int service, int node) { return node < 0 || node >= w.Graph.Nodes.Count || System.Array.IndexOf(SeSalvaFuera, w.Graph.Nodes[node].Name) < 0; }
 
         public const string TextoApartado = "Saca el tren del apartado: con asedio, espera fuera de la puerta oeste.";
 
