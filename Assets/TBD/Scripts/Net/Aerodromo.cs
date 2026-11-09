@@ -228,14 +228,47 @@ namespace TBD.Net
         public sealed class Lista { public string[] Pelotones = new string[0]; public string[] Vehiculos = new string[0]; public int NH90; }
 
         /// <summary>Un pelotón de la zona: tipo, nombre visible y sitio de partida (mm) con su rumbo.</summary>
-        public struct Puesto { public PlatoonKind Tipo; public string Nombre; public int X, Y, Rumbo; public Formation Formacion; }
+        public struct Puesto { public PlatoonKind Tipo; public string Nombre; public int X, Y, Rumbo; public Formation Formacion; public int CotaMm; }   // CotaMm: suelo bajo el pelotón (azotea, banqueta)
         /// <summary>Un vehículo de la zona: tipo (dragon, vamtac), nombre visible y sitio (m) con su rumbo.</summary>
         public struct Coche { public string Tipo, Nombre; public float X, Z, Yaw; }
 
         // los cinco sitios de partida de Sagunto (los de siempre, hacia la puerta oeste), en el orden del plantel
         static readonly int[,] SitioPel = { { 88000, 54000 }, { 94000, 64000 }, { 98000, 57000 }, { 98000, 72000 }, { 88000, 76000 } };
         static readonly float[] SitioVehX = { 99f, 88f, 80f, 72f };
-        const int Oeste = 32768;
+        const int Oeste = 32768, Norte = 16384, Sur = 49152;
+
+        /// <summary>
+        /// D-N183 y reglas de Lucía (decisiones-noche 09-11 07:40): cada estación arranca con SU guarnición, colocada en sus puertas y muros. Puestos de Álvaro,
+        /// docs/niveles/guarnicion_puestos_v1.json (9-nov 07:55): x, y en mm de la zona; rumbo bam16 (0 este, 16384 norte); vehículos en m con yaw de Unity (0 norte).
+        /// El orden de cada lista es el del plantel de De(). Lo que pase de la tabla (el pelotón del capítulo 3 del tutorial en Nules) usa los sitios viejos.
+        /// </summary>
+        struct PuestoDato { public string Tipo; public int X, Y, Rumbo, CotaMm; public Formation F; public PuestoDato(string t, int x, int y, int r, Formation f, int cotaMm = 0) { Tipo = t; X = x; Y = y; Rumbo = r; F = f; CotaMm = cotaMm; } }
+        static readonly Dictionary<string, PuestoDato[]> PuestosPel = new Dictionary<string, PuestoDato[]>
+        {
+            { "Sagunto", new[] {
+                new PuestoDato("fusileros", 71500, 58000, Oeste, Formation.Linea, 400),        // banqueta oeste, al sur de la puerta de vía
+                new PuestoDato("ametralladores", 71500, 71000, Oeste, Formation.Linea, 400),   // banqueta oeste, al norte de la puerta de vía
+                new PuestoDato("granaderos", 99000, 69000, Oeste, Formation.Cuna),        // reserva en el andén, delante del edificio de viajeros
+                new PuestoDato("tiradores", 84500, 74300, Oeste, Formation.Linea, 4750),  // v1.1 (Lucía 07:41): azotea del ala oeste, a 4,75 m
+                new PuestoDato("zapadores", 71500, 50000, Oeste, Formation.Linea, 400) } },    // ala sur
+            { "Nules", new[] {
+                new PuestoDato("fusileros", 87000, 56200, Oeste, Formation.Linea, 680),        // HESCO del muro oeste entre las dos puertas
+                new PuestoDato("ametralladores", 115000, 81000, Sur, Formation.Linea) } }, // junto al edificio, cubriendo el apartado
+            { "Castellón", new[] {
+                new PuestoDato("fusileros", 72500, 60000, Oeste, Formation.Linea),        // borde oeste de la losa sobre la boca (mitad sur)
+                new PuestoDato("ametralladores", 72500, 69000, Oeste, Formation.Linea),   // v1.1: ametralladores en la mitad norte de la boca
+                new PuestoDato("fusileros", 114500, 81000, Oeste, Formation.Cuna) } },    // reserva junto al vestíbulo
+            { "Bétera", new[] {
+                new PuestoDato("fusileros", 120000, 84000, Norte, Formation.Cuna),        // embarque del NH90 de P1
+                new PuestoDato("fusileros", 31000, 85000, Norte, Formation.Cuna),         // embarque del NH90 de P2
+                new PuestoDato("fusileros", 36000, 20000, Sur, Formation.Linea) } },      // guarnición en el vial X 36
+        };
+        static readonly Dictionary<string, Coche[]> PuestosVeh = new Dictionary<string, Coche[]>
+        {
+            { "Sagunto", new[] { new Coche { Tipo = "dragon", X = 99f, Z = 51f, Yaw = 180f }, new Coche { Tipo = "vamtac", X = 91.5f, Z = 51f, Yaw = 180f }, new Coche { Tipo = "vamtac", X = 106.5f, Z = 51f, Yaw = 180f } } },   // dentro de la puerta sur
+            { "Castellón", new[] { new Coche { Tipo = "vamtac", X = 70f, Z = 29f, Yaw = 270f } } },     // dentro de la puerta de vehículos (64; 29)
+        };
+        static string Clave(string estacion) { return estacion == "betera" ? "Bétera" : estacion ?? ""; }
 
         /// <summary>
         /// D-N173: los pelotones que salen en la zona de esa estación, con su sitio (el de los cinco de Sagunto, por orden). Sin plantel, la lista va vacía:
@@ -249,6 +282,7 @@ namespace TBD.Net
                 var k = Tipo(l.Pelotones[i]); cuenta[k] = cuenta.TryGetValue(k, out var c) ? c + 1 : 1;
                 int si = i % SitioPel.GetLength(0);
                 string nombre = Nombre(k); if (Array.FindAll(l.Pelotones, x => Tipo(x) == k).Length > 1) nombre += " " + cuenta[k];
+                if (PuestosPel.TryGetValue(Clave(estacion), out var tabla) && i < tabla.Length) { var t = tabla[i]; r.Add(new Puesto { Tipo = k, Nombre = nombre, X = t.X, Y = t.Y, Rumbo = t.Rumbo, Formacion = t.F, CotaMm = t.CotaMm }); continue; }
                 r.Add(new Puesto { Tipo = k, Nombre = nombre, X = SitioPel[si, 0], Y = SitioPel[si, 1], Rumbo = Oeste, Formacion = i < 2 ? Formation.Linea : Formation.Cuna });
             }
             return r;
@@ -262,6 +296,7 @@ namespace TBD.Net
             {
                 string t = l.Vehiculos[i];
                 string nombre = t == "dragon" ? "Dragón" : "VAMTAC " + (++nv);
+                if (PuestosVeh.TryGetValue(Clave(estacion), out var tabla) && i < tabla.Length) { var c = tabla[i]; r.Add(new Coche { Tipo = t, Nombre = nombre, X = c.X, Z = c.Z, Yaw = c.Yaw }); continue; }
                 r.Add(new Coche { Tipo = t, Nombre = nombre, X = SitioVehX[i % SitioVehX.Length], Z = 53f, Yaw = 180f });
             }
             return r;
@@ -281,7 +316,8 @@ namespace TBD.Net
                 case "Sagunto": return new Lista { Pelotones = new[] { "fusileros", "ametralladores", "granaderos", "tiradores", "zapadores" }, Vehiculos = new[] { "dragon", "vamtac", "vamtac" }, NH90 = 0 };
                 case "Nules": return tutorial ? new Lista { Pelotones = new[] { "fusileros", "ametralladores", "fusileros" } } : new Lista { Pelotones = new[] { "fusileros", "ametralladores" } };   // Hugo (nules.json, 9-nov): la guarnición de 12 (fusileros + ametralladores); con el tutorial, más el pelotón del capítulo 3
                 case "betera": case "Bétera": return new Lista { Pelotones = new[] { "fusileros", "fusileros", "fusileros" }, NH90 = 2 };   // 2 de embarque y 1 de guarnición
-                default: return new Lista();      // Castellón (infestada) y el resto: sin plantel propio
+                case "Castellón": return new Lista { Pelotones = new[] { "fusileros", "ametralladores", "fusileros" }, Vehiculos = new[] { "vamtac" } };   // D-N183: propia al empezar; 2 fusileros y 1 ametralladores (Lucía 07:41) y 1 VAMTAC
+                default: return new Lista();      // el resto: sin plantel propio
             }
         }
     }

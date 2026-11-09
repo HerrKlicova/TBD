@@ -3,7 +3,7 @@
   "nombre": "Castellón",
   "tamano": "principal",
   "funcion": "combustible",
-  "estado_inicial": "infestada",
+  "estado_inicial": "propia",
   "nota": "Álvaro, 7-nov (castellon-nivel.md §6). Coordenadas locales de la zona de 256 × 128 m. Las variantes se eligen por hash de la posición (aquí, sha1 mod 5 de ilustración; la función real la decide Nacho). Recinto heredado de los supervivientes: C1 resiste y C2–C4 están ocupados.",
   "vias": [
     [

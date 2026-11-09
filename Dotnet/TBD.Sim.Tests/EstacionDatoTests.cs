@@ -11,7 +11,7 @@ namespace TBD.Sim.Tests
         {
             Console.WriteLine("[18c] Dato por estación (estacion_castellon.json)");
             var d = EstacionDato.FromJson(File.ReadAllText(Path.Combine(BalanceTests.DataDirPublic(), "estacion_castellon.json")));
-            check(d.Id == "castellon" && d.Nombre == "Castellón" && d.Tamano == EstacionTamano.Principal && d.EstadoInicial == EstacionInicio.Infestada && d.Funcion == "combustible",
+            check(d.Id == "castellon" && d.Nombre == "Castellón" && d.Tamano == EstacionTamano.Principal && d.EstadoInicial == EstacionInicio.Propia && d.Funcion == "combustible",
                 $"cabecera y campos de Lucía: {d}");
             check(d.Piezas.Count == 150 && d.Vias.Count == 8 && d.Andenes.Count == 2 && d.Puertas.Count == 6 && d.Recinto != null && d.Recinto.Length == 10,
                 $"150 piezas (v0.4 con el mobiliario urbano, estación subterránea), 8 vías, 2 andenes, 6 puertas y un recinto de 5 vértices → {d.Piezas.Count}, {d.Vias.Count}, {d.Andenes.Count}, {d.Puertas.Count}, {(d.Recinto == null ? 0 : d.Recinto.Length / 2)}");

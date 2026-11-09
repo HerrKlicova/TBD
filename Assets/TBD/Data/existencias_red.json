@@ -45,7 +45,8 @@
     "hambre_perdida_dia": 0.05,
     "en_zona_de_noche": "no cuentan",
     "no_consumen_en_mvp": [
-      "betera"
+      "betera",
+      "castellon"
     ]
   },
   "unidad": "u",
@@ -60,6 +61,12 @@
     "durante_ataque": "no se repone de la reserva; la munición que llega en tren entra al almacén aunque pase del tope",
     "entre_ataques": "el jugador puede reponer a mano desde la reserva hasta el tope",
     "dotaciones": "la de los pelotones y vehículos (unas 10 u) va con ellos, no con el almacén"
+  },
+  "visual": {
+    "_nota": "referencias SOLO visuales para Iker (Hugo, 8-nov 21:05); no son topes",
+    "carga_ref_u_por_plataforma": 20,
+    "danado_bajo_permil": 700,
+    "destrozado_bajo_permil": 300
   },
   "estaciones": [
     {
@@ -100,18 +107,18 @@
       "id": "castellon",
       "reserva": {
         "municion_u": 0,
-        "combustible_u": 300,
+        "combustible_u": 30,
         "materiales_u": 0,
         "viveres_u": 0
       },
-      "personas": 0,
+      "personas": 26,
       "tope_zona": {
         "municion_u": 47,
         "combustible_u": 30,
         "materiales_u": 40
       },
       "se_repone": true,
-      "nota": "hereda el depósito de 300 u de combustible"
+      "nota": "D-N183 (9-nov): propia desde el inicio, guarnición 3 pelotones + 1 VAMTAC (26 personas). 0 u de munición en reserva para que no se pueda llevar a Sagunto por tren (la dotación de unas 10 u va con la tropa); 30 u de combustible = tope de zona (el depósito de 300 era el premio de reconquistarla); sin víveres y sin consumo en el MVP, como Bétera"
     }
   ]
 }
