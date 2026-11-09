@@ -180,7 +180,7 @@ namespace TBD.View
             }
             if (_ng.State == NightState.Derrota && !_endDismissed) return;            // derrota: el mundo se para
             _spawns.Clear();
-            if (!TutorialHud.HordaEnEspera) { var st0 = _ng.State; _ng.Attack(_pileNearStation, _nearTrain); _ng.ZombiesAlive = _zomCounted ? _zomPos.Count : -1; _ng.Step(_spawns); if (st0 == NightState.Jugando && _ng.State != NightState.Jugando) NightEnded(); if (_ng.State == NightState.Derrota) return; }   // D-N136: NightGame gana al acabar con la horda (WinOnClear, misma regla que NightSim)
+            if (!TutorialHud.HordaEnEspera) { var st0 = _ng.State; _ng.Attack(_pileNearStation, _nearTrain); SurroundedTrainZona(_nearTrain); _ng.ZombiesAlive = _zomCounted ? _zomPos.Count : -1; _ng.Step(_spawns); if (st0 == NightState.Jugando && _ng.State != NightState.Jugando) NightEnded(); if (_ng.State == NightState.Derrota) return; }   // D-N136: NightGame gana al acabar con la horda (WinOnClear, misma regla que NightSim)
             playing = _ng.State == NightState.Jugando;
 
             // oleadas: líneas de registro y rótulo
@@ -319,6 +319,21 @@ namespace TBD.View
         /// <summary>D-N148 (Nacho): a los zombis que han pasado el muro (dentro del recinto) les pone su objetivo con ClimberTargets.Pick, la misma regla que NightSim:
         /// lo vivo más cercano a menos de 30 m (infantería, vehículos parados, obreros) y, si no hay nadie, el tren. En los dos mundos, con las mismas listas.
         /// Los de fuera siguen el campo de flujo (HasGoal = 0).</summary>
+        /// <summary>D-N180 (2), copia de NightSim.TrainReachableFromInside: el tren existe y está dentro del recinto.</summary>
+        bool TrainReachableZona() { var r = _ng.P.TrainRect; return _ng.TrainHp > 0 && r.X1 > (int)(Level.FortX0 * 1000f) && r.X0 < (int)(Level.FortX1 * 1000f) && r.Y1 > (int)(Level.FortY0 * 1000f) && r.Y0 < (int)(Level.FortY1 * 1000f); }
+
+        /// <summary>D-N180 (1), copia de NightSim.SurroundedTrain: un tren rodeado sin tropa a 60 m pierde al menos TrainHp / (10 min de juego) por tick. Va dentro del tick (determinista).</summary>
+        void SurroundedTrainZona(int atTrain)
+        {
+            const int lossGameMin = 10; const long reachMm = 60000;
+            if (atTrain <= 0 || _ng.TrainHp <= 0 || _uw == null) return;
+            var r = _ng.P.TrainRect; long reach2 = reachMm * reachMm;
+            foreach (var p in _uw.Platoons) { if (p.Aboard != 0) continue; foreach (var m in p.Men) { if (!m.Alive) continue; long dx = System.Math.Max(0, System.Math.Max(r.X0 - m.X, m.X - r.X1)), dy = System.Math.Max(0, System.Math.Max(r.Y0 - m.Y, m.Y - r.Y1)); if (dx * dx + dy * dy <= reach2) return; } }
+            long lossTicks = System.Math.Max(1L, (long)lossGameMin * 60 * IMath.TickRate / System.Math.Max(1, _ng.P.ClockX));
+            int floor = (int)((_ng.P.TrainHp + lossTicks - 1) / lossTicks);
+            _ng.DamageTrain(floor - _ng.LastDmgTrain);
+        }
+
         void ClimberGoals()
         {
             _cgMen.Clear(); _cgVeh.Clear();
@@ -366,7 +381,8 @@ namespace TBD.View
                             else if (z.HasGoal != 0) { z.HasGoal = 0; zs[i] = z; dirty = true; }
                             continue;
                         }
-                        int tx, ty; ClimberTargets.Pick((int)(x * 1000f), (int)(y * 1000f), _cgMen, _cgVeh, _cgWork, NightSim.ClimberSeekMm, tr, out tx, out ty);
+                        int tx, ty; int cg = ClimberTargets.Pick((int)(x * 1000f), (int)(y * 1000f), _cgMen, _cgVeh, _cgWork, NightSim.ClimberSeekMm, tr, out tx, out ty);
+                        if (cg == 4 && !TrainReachableZona()) { var sr = _ng.P.StationRect; tx = System.Math.Max(sr.X0, System.Math.Min(sr.X1, (int)(x * 1000f))); ty = System.Math.Max(sr.Y0, System.Math.Min(sr.Y1, (int)(y * 1000f))); }   // D-N180 (2), como NightSim.RetargetClimber
                         z.Goal = new float2(tx / 1000f, ty / 1000f); z.HasGoal = 1; zs[i] = z; dirty = true;
                     }
                     if (dirty) q.CopyFromComponentDataArray(zs);
