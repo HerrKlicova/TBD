@@ -121,7 +121,8 @@ namespace TBD.View
             _paletteMix = 0f;                                          // D-N129 (Lucia y Bruno): el mundo no pasa por el cuantizador; la paleta queda solo en los albedos y la interfaz
             { var ca2 = System.Environment.GetCommandLineArgs(); for (int i2 = 0; i2 + 1 < ca2.Length; i2++) if (ca2[i2] == "-luz") NightLightPass(ca2[i2 + 1]); }
             PruebaRenderIniciar(); BarridoIniciar();                                     // -pruebarender N (Lucía 09-11): zombis solo de vista para medir el render
-            if (!resume) { _bannerText = "22:00. El tren se detiene en Sagunto.\nAguanta hasta el amanecer."; _bannerUntil = Time.unscaledTime + 5f; }
+            { string est = string.IsNullOrEmpty(_estacionZona) ? "Sagunto" : _estacionZona; int np = 0; foreach (var pl in _uw.Platoons) if (pl.AliveCount() > 0) np++;   // Lucía (7db76ef): título de entrada, 3 s, en hueso
+              _bannerText = NetSession.A != null && _zoneNode >= 0 && _zoneNode == NetSession.A.Director.CerradaNodo ? est + " · cercada" : $"{est} · {np} pelotones"; _bannerUntil = Time.unscaledTime + 3f; Debug.Log("[NOCHE] título: " + _bannerText); }
             NearWall(Vector2.zero); Debug.Log($"[NOCHE] muros_obras={_wallSegs.Count}");
             Debug.Log($"[NOCHE] reloj_x={_ng.P.ClockX} municion_u={_uw.StockShots / (float)WeaponCatalog.ShotsPerU:0.#} materiales_u=40 combustible_u=30 almacen_combustible_u=16");
             if (_sel.Count == 0 && _uw.Platoons.Count > 0) _sel.Add(_uw.Platoons[0].Id);

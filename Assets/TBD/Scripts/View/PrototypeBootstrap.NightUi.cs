@@ -87,7 +87,7 @@ namespace TBD.View
             if (Time.unscaledTime < _bannerUntil)                                           // rótulo de inicio / oleada
             {
                 var parts = _bannerText.Split('\n'); UiNocheKit.Slice("ui_rotulo_inicio", new Rect(210, 64, 220, 64));
-                UiNocheKit.Texto(320, 76, parts[0], UiNocheKit.Crema, 11, TextAnchor.UpperCenter);
+                UiNocheKit.Texto(320, 76, parts[0], parts.Length > 1 ? UiNocheKit.Crema : UiNocheKit.Hueso, 11, TextAnchor.UpperCenter);   // el título de entrada (una línea) en hueso d4d0cc (Lucía)
                 if (parts.Length > 1) UiNocheKit.Texto(320, 100, parts[1], UiNocheKit.Beige, 9, TextAnchor.UpperCenter);
             }
             bool lost = _ng.State == NightState.Derrota, won = _ng.State == NightState.Victoria && !_reportClosed;
