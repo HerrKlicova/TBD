@@ -288,6 +288,17 @@ namespace TBD.View
             _rootB = SimWorldSetup.Populate(_worldB.EntityManager, zombies, siege, seed, _combat, shots, hasTrain, kind, !_netZone, trainX);
             if (_netZone) BuildSaguntoAmbience();
             if (_netZone) BuildBrumaBorde();   // D-N182: la horda sale de la oscuridad del borde, no aparece a la vista
+            if (TieneArg("-verbetera")) VerBetera();   // Bruno 09-11 (F0): prueba de vista de la zona de Bétera, sin sim, a 2 km al este de Sagunto
+        }
+
+        /// <summary>-verbetera: monta Bétera (AerodromoZona.Montar) a 2 km al este de la zona, con la cámara encima, para ver las piezas de Teo en la build
+        /// antes de que Marcos le ponga la sim. La zona de Sagunto sigue debajo (sim, hordas y muros siguen allí). Solo vista.</summary>
+        void VerBetera()
+        {
+            var r = new GameObject("Zona de Bétera (prueba de vista)").transform; r.position = new Vector3(2000f, 0f, 0f);
+            var res = AerodromoZona.Montar(r);
+            if (res == null) return;
+            _focus = r.position + AerodromoZona.Centro; _targetOrtho = 60f;
         }
 
         void OnDestroy()
