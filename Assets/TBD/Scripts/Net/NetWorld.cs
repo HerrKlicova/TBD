@@ -1527,7 +1527,7 @@ namespace TBD.Net
 
         /// <summary>
         /// Memoria de atención para el informe (§3): el nodo que el jugador mira hoy (Director.AttentionNode, −1 si ninguno) y los nodos suyos que lleva más de 6 h sin mirar
-        /// (Director.Neglected). La línea «{zona}: la Colmena se aparta de donde miramos y crece donde no» tiene sentido con Foco ≥ 0 y alguno olvidado. Solo lectura.
+        /// (Director.Neglected, el de más Colmena alrededor primero). {zona} = olvidados[0] (Lucía, 9-nov 01:21). Solo lectura.
         /// </summary>
         public void IntelAttention(out int foco, out List<int> olvidados) { foco = Director.AttentionNode(this); olvidados = Director.Neglected(this); }
 

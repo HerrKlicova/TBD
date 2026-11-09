@@ -296,13 +296,23 @@ namespace TBD.Net
 
         /// <summary>
         /// Informe (memoria de atención, informe-textos.md §3): los nodos del jugador que llevan más de AttentionHours sin mirar (los que la Colmena prefiere, ×AttentionMil),
-        /// por orden de nodo. Vacía si el peso de atención está apagado. Solo lectura.
+        /// el de más Colmena alrededor primero (radio NeglectRadiusCells; empate: nodo). Vacía si el peso de atención está apagado. Solo lectura.
         /// </summary>
+        public const int NeglectRadiusCells = 6;
+        static long MassNear(NetWorld w, int n, int r)
+        {
+            var nd = w.Graph.Nodes[n]; long m = 0;
+            for (int y = nd.YMeters - r; y <= nd.YMeters + r; y++) for (int x = nd.XMeters - r; x <= nd.XMeters + r; x++) m += w.Field.At(x, y);
+            return m;
+        }
+
         public List<int> Neglected(NetWorld w)
         {
             var l = new List<int>(); if (IgnoreAttention || P.AttentionMil == 1000) return l;
             long lim = NetConst.Hours(P.AttentionHours);
             for (int n = 0; n < w.Graph.Nodes.Count && n < LastSeenTick.Length; n++) if (Held(w, n) && w.Tick - LastSeenTick[n] > lim) l.Add(n);
+            var mass = new long[w.Graph.Nodes.Count]; foreach (int n in l) mass[n] = MassNear(w, n, NeglectRadiusCells);
+            l.Sort((a, b) => mass[a] != mass[b] ? mass[b].CompareTo(mass[a]) : a.CompareTo(b));      // Lucía (9-nov 01:21): {zona} es el olvidado donde más ha crecido = el primero
             return l;
         }
 
