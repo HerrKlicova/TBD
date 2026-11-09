@@ -465,6 +465,8 @@ namespace TBD.Sim.Tests
                 check(libre, "la puerta de vía doble del oeste queda libre (Z 60,8–68,2)");
                 var swc = esq.Find(p => Math.Abs(p.X - 85) < 0.01f && Math.Abs(p.Z - 40) < 0.01f); check(Math.Abs(swc.Yaw - 270) < 0.01f, "la esquina suroeste gira 270 (recinto al noreste)");
                 float u = RecintoPlan.UltimoCosteLineal, up = RecintoPlan.CostePuertas(BalanceSource.Read("estacion_nules.json"));
+                check(Math.Abs(u + up - 132.24f) < 0.05f, $"Nules (Álvaro §14, Lucía 9-nov): 90,24 u de muro + 42 u de puertas = 132,24 u ({u + up:0.00})");
+                check(plan.Exists(p => p.Malla.Contains("Hesco") && p.Largo > 0 && Math.Abs(p.X - 85) < 0.01f && p.Z > 69f && p.Z < 80.3f) && plan.Exists(p => p.Malla.Contains("Hesco") && p.Largo > 0 && Math.Abs(p.X - 85) < 0.01f && p.Z > 52.4f && p.Z < 60.8f) && !plan.Exists(p => p.Largo > 0 && Math.Abs(p.X - 85) < 0.01f && p.Z > 52.5f && p.Z < 80.1f && p.Material == MaterialMuro.Sacos), "el oeste va en HESCO de Z 52,4 a 80,21 (andenes), a los dos lados de la puerta doble");
                 check(up == 42f, $"puertas de Nules: 2 de vía dobles (12), 1 de vía (8) y 1 de vehículos (10) = {up} u");
                 check(u + up >= 110 && u + up <= 140, $"coste del recinto (Hugo: HESCO al este con alas de 15 m y sacos en el resto): muros {u:0.0} u + puertas {up} u = {u + up:0.0} u (entre 110 y 140)");
                 check(plan.Exists(p => p.Malla.Contains("Hesco") && Math.Abs(p.Z - 40) < 0.01f && p.X > 173 && p.X < 188) && plan.Exists(p => p.Malla.StartsWith("SM_MuroSacos_") && Math.Abs(p.Z - 40) < 0.01f && p.X < 173), "alas de HESCO de 15 m en el sur junto al este; el resto del sur, sacos");

@@ -169,8 +169,24 @@ namespace TBD.Net
                 { float x = maxX - AlaHescoM; if (x > Math.Min(a0[0], b0[0]) && x < Math.Max(a0[0], b0[0])) lista.Add(new[] { x, a0[1] }); }
             }
             poly = lista.ToArray();
+            // Álvaro (nules-nivel.md §14, 9-nov; Lucía acepta 132,24 u): HESCO en el muro oeste sobre los andenes, de Z 52,4 a Z 80,21 (los sacos de 1,2 m solo asomaban
+            // 0,52 m sobre el andén de 0,68 m); la puerta doble del oeste lo corta como siempre. Se parte el lado oeste con vértices alineados en esas dos Z.
+            float minX = float.MaxValue; foreach (var p in poly) minX = Math.Min(minX, p[0]);
+            float[] oesteZ = { 52.4f, 80.21f }; lista = new List<float[]>();
+            for (int i = 0; i < poly.Length; i++)
+            {
+                var a0 = poly[i]; var b0 = poly[(i + 1) % poly.Length]; lista.Add(a0);
+                if (Math.Abs(a0[0] - minX) < 1e-3f && Math.Abs(b0[0] - minX) < 1e-3f)
+                {
+                    var zs = new List<float>(); foreach (var z in oesteZ) if (z > Math.Min(a0[1], b0[1]) + 1e-3f && z < Math.Max(a0[1], b0[1]) - 1e-3f) zs.Add(z);
+                    zs.Sort(); if (b0[1] < a0[1]) zs.Reverse(); foreach (var z in zs) lista.Add(new[] { minX, z });
+                }
+            }
+            poly = lista.ToArray();
             Func<int, bool> edif = i => { var a = poly[i]; var b = poly[(i + 1) % poly.Length]; return (a[1] > 96f + 1e-3f || b[1] > 96f + 1e-3f); };   // los tres lados que rodean el edificio
-            Func<int, MaterialMuro> mat = i => { var a = poly[i]; var b = poly[(i + 1) % poly.Length]; return Math.Min(a[0], b[0]) >= maxX - AlaHescoM - 1e-3f ? MaterialMuro.Hesco : MaterialMuro.Sacos; };
+            Func<int, MaterialMuro> mat = i => { var a = poly[i]; var b = poly[(i + 1) % poly.Length];
+                if (Math.Abs(a[0] - minX) < 1e-3f && Math.Abs(b[0] - minX) < 1e-3f && Math.Min(a[1], b[1]) >= oesteZ[0] - 1e-3f && Math.Max(a[1], b[1]) <= oesteZ[1] + 1e-3f) return MaterialMuro.Hesco;
+                return Math.Min(a[0], b[0]) >= maxX - AlaHescoM - 1e-3f ? MaterialMuro.Hesco : MaterialMuro.Sacos; };
             // puertas: cada una corta el lado donde cae
             var huecos = new Dictionary<int, List<Hueco>>();
             foreach (var o in (List<object>)root["puertas"])
