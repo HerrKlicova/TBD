@@ -197,7 +197,7 @@ namespace TBD.View
         public static string EtaTexto() { return W != null && Viaje >= 0 && Viaje < W.Services.Count && !W.Services[Viaje].AtStop ? TrenPreparar.HhMm(TrenPreparar.EtaEnMarcha(W, Viaje)) : "—"; }
 
         /// <summary>Llegadas: aparcar y avisar. La llaman el mapa (TrenPanel) y la zona (TrenAnden), así que funciona en las dos vistas.</summary>
-        static float _reintentoT; static string _descPend; static int _descPendSv = -1; static long _descPendTick;
+        static float _reintentoT; static int _cercoBajadoSv = -1; static string _descPend; static int _descPendSv = -1; static long _descPendTick;
         public static void Vigilar()
         {
             if (W == null) return;
@@ -210,6 +210,9 @@ namespace TBD.View
             if (Viaje < 0 || Viaje >= W.Services.Count) return;
             var sv = W.Services[Viaje];
             int meta = _descargando ? Origen : Destino;
+            if (_cercoBajadoSv == Viaje && sv.GateNode != meta) _cercoBajadoSv = -1;
+            if (!_descargando && meta >= 0 && sv.GateNode == meta && W.Cercada(meta) && _cercoBajadoSv != Viaje && W.Embarque.CountAboard(Viaje, PasajeroTipo.Peloton) > 0)      // D-N196 (Lucía 20c3245): ante el cerco del destino, la tropa baja sola y ataca
+            { _cercoBajadoSv = Viaje; Embarque.BajarTodo(Viaje, meta); _aviso = $"El {sv.Train.Name} ha llegado al cerco de {W.Graph.Nodes[meta].Name}. La tropa baja y ataca."; _avisoHasta = Time.unscaledTime + 6f; _avisoAmbar = true; Debug.Log("[TREN] " + _aviso); }
             if (_llegado && !_descargando && meta != Casa && sv.AtStop && sv.CargoTotal() > 0 && sv.GateNode != meta && W.TrainAtNode(sv, meta) && Time.unscaledTime > _reintentoT) { _reintentoT = Time.unscaledTime + 1f; Debug.Log("[TREN] entra al andén de " + W.Graph.Nodes[meta].Name + " y descarga lo que llevaba"); DescargarSinPanel(); }   // a las puertas la red no deja bajar la carga (D-N152): se baja al entrar
             if (sv.AtStop && sv.Stops.Count > 1 && sv.Stops[sv.StopIndex].Node == meta && sv.DepartedDay.Count > 0 && Time.unscaledTime > _aparcadoT + 1f)
             {
@@ -677,7 +680,7 @@ namespace TBD.View
                     }
                     else if (t > 60f) { Debug.LogError("[SOCORRO] no hay tren en Sagunto"); _socPaso = 99; } break;
                 case 3: if (t > 2f && !Embarque.Ocupado) { string no = PorQueNoLlega(_sv1, cas); PonerDestino(cas); Enviar(_sv1); Debug.Log($"[SOCORRO] tren a Castellón: {(no ?? "sale")}"); _socT0 = Time.unscaledTime; _socPaso++; } break;
-                case 4: { var sv = W.Services[_sv1]; if (sv.GateNode == cas || (sv.AtStop && sv.Stops[sv.StopIndex].Node == cas)) { Debug.Log($"[SOCORRO] el tren llega {(sv.GateNode == cas ? "a las puertas" : "al andén")} de Castellón ({NetConst.Clock(W.Tick)}); a bordo {W.Embarque.CountAboard(_sv1, PasajeroTipo.Peloton)} pelotón; en la estación {W.Embarque.AtStation(cas, PasajeroTipo.Peloton).Count}; cerco {W.CercoZombies}"); if (W.Embarque.CountAboard(_sv1, PasajeroTipo.Peloton) > 0) { Embarque.BajarTodo(_sv1, cas); Debug.Log("[SOCORRO] baja la tropa a las puertas (D-N152/166)"); } var mz = FindObjectOfType<OperationsMap3D>(); if (mz != null) mz.EnterZone(cas); _socT0 = Time.unscaledTime; _socPaso++; }   // a las puertas el tren está parado pero no «en la parada»
+                case 4: { var sv = W.Services[_sv1]; if (sv.GateNode == cas || (sv.AtStop && sv.Stops[sv.StopIndex].Node == cas)) { Debug.Log($"[SOCORRO] el tren llega {(sv.GateNode == cas ? "a las puertas" : "al andén")} de Castellón ({NetConst.Clock(W.Tick)}); a bordo {W.Embarque.CountAboard(_sv1, PasajeroTipo.Peloton)} pelotón; en la estación {W.Embarque.AtStation(cas, PasajeroTipo.Peloton).Count}; cerco {W.CercoZombies}"); var mz = FindObjectOfType<OperationsMap3D>(); if (mz != null) mz.EnterZone(cas); _socT0 = Time.unscaledTime; _socPaso++; }   // a las puertas el tren está parado pero no «en la parada»
                           else if (t > 400f) { var sv2 = W.Services[_sv1]; Debug.LogWarning($"[SOCORRO] el tren no llega a Castellón ({NetConst.Clock(W.Tick)}): en marcha {!sv2.AtStop}, puertas {sv2.GateNode}, parada {sv2.Stops[sv2.StopIndex].Node}, estado {sv2.Train.State}"); _socPaso = 99; } } break;
                 case 5: if (t > 180f) { Debug.Log($"[SOCORRO] fin: cerco {W.CercoZombies}, cercada {W.Cercada(cas)}"); var pb = FindObjectOfType<PrototypeBootstrap>(); if (pb != null) pb.LeaveToMap(); _socT0 = Time.unscaledTime; _socPaso++; } break;
                 case 6: if (t > 5f) { Debug.Log("[SOCORRO] fin de la corrida"); Application.Quit(0); _socPaso++; } break;
