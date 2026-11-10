@@ -19,8 +19,10 @@ namespace TBD.View
         /// de Sagunto. Sin tren (perdido), el sólido sale del mapa. Los dos mundos igual (A y B).</summary>
         void SolidoDelTren()
         {
-            if (_ng == null) return; if (_ng.P.TrainRect.X1 == _rectTrenSagunto) return;   // Sagunto: el sólido de siempre (no coincide con el rectángulo por defecto y no se toca)
-            float x = _ng.TrainHp > 0 ? _ng.P.TrainRect.X1 / 1000f - Level.TrainFront : 900f;
+            if (_ng == null) return;
+            float x;
+            if (_ng.P.TrainRect.X1 == _rectTrenSagunto) { if (float.IsNaN(_trenSolidoX)) return; x = _ng.TrainHp > 0 ? Level.TrainNightX : 900f; }   // en el andén: el sólido de siempre; si se movió fuera (Nules a las puertas y luego al andén, S1 qa52 128), vuelve
+            else x = _ng.TrainHp > 0 ? _ng.P.TrainRect.X1 / 1000f - Level.TrainFront : 900f;
             if (x == _trenSolidoX) return;
             foreach (var wld in new[] { _worldA, _worldB })
             {
