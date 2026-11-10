@@ -658,27 +658,29 @@ namespace TBD.View
         int _sv1 = -1;
         /// <summary>QA (Marcos): -socorro-auto. Día 3 (CercoSocorroAbierto): tren de socorro de Sagunto a Castellón con 2 pelotones y 20 u, a las puertas,
         /// baja la tropa, entra en la zona de Castellón (combate con -nightbot) y sale a los 180 s. Todo al log con [SOCORRO].</summary>
+        int _socPaso; float _socT0 = -1f;
         void AutoSocorro()
         {
-            float t = AutoT(); int sag = Casa, cas = Nodo("Castellón");
-            if (_autoPaso == 0 && !_dia2ZonaHecha && SceneManager.GetActiveScene().name == "SampleScene") { _dia2ZonaHecha = true; Dia2Volver = true; Debug.Log("[SOCORRO] empieza en la zona de Sagunto: vuelvo al mapa"); }
-            switch (_autoPaso)
+            if (_socT0 < 0) _socT0 = Time.unscaledTime; float t = Time.unscaledTime - _socT0; bool conDia2 = Arg("-dia2-auto"); int sag = Casa, cas = Nodo("Castellón");
+            if (!conDia2 && _socPaso == 0 && !_dia2ZonaHecha && SceneManager.GetActiveScene().name == "SampleScene") { _dia2ZonaHecha = true; Dia2Volver = true; Debug.Log("[SOCORRO] empieza en la zona de Sagunto: vuelvo al mapa"); }
+            switch (_socPaso)
             {
-                case 0: if (t > 3f) { NetSession.Turbo = 40; NetSession.Push(NetCmdType.SetSpeed, 4, 0); Debug.Log("[SOCORRO] avanzo la red al día 3"); _autoPaso++; } break;
-                case 1: if (W.Tick >= 2L * NetConst.DayTicks + NetConst.Hours(7)) { NetSession.Turbo = 1; Debug.Log($"[SOCORRO] día 3, {NetConst.Clock(W.Tick)}; socorro abierto {W.CercoSocorroAbierto}; cerco {W.CercoZombies}"); _autoT0 = Time.unscaledTime; _autoPaso++; } break;
-                case 2: if (t > 2f && TrenPreparar.TrenEn(W, sag) >= 0 && !Embarque.Ocupado)
+                case 0: if (conDia2) { if (W.Tick >= 2L * NetConst.DayTicks + NetConst.Hours(7)) { Debug.Log("[SOCORRO] -dia2-auto acabado: empieza el socorro"); _socT0 = Time.unscaledTime; _socPaso = 2; } break; } if (t > 3f) { NetSession.Turbo = 40; NetSession.Push(NetCmdType.SetSpeed, 4, 0); Debug.Log("[SOCORRO] avanzo la red al día 3"); _socPaso++; } break;
+                case 1: if (W.Tick >= 2L * NetConst.DayTicks + NetConst.Hours(7)) { NetSession.Turbo = 1; Debug.Log($"[SOCORRO] día 3, {NetConst.Clock(W.Tick)}; socorro abierto {W.CercoSocorroAbierto}; cerco {W.CercoZombies}"); _socT0 = Time.unscaledTime; _socPaso++; } break;
+                case 2: if (SceneManager.GetActiveScene().name == "SampleScene") { var pz = FindObjectOfType<PrototypeBootstrap>(); if (pz != null && t > 2f) { Debug.Log("[SOCORRO] salgo de la zona al mapa"); pz.LeaveToMap(); _socT0 = Time.unscaledTime; } break; }
+                        if (t > 2f && TrenPreparar.TrenEn(W, sag) >= 0 && !Embarque.Ocupado)
                     {
                         _sv1 = TrenPreparar.TrenEn(W, sag); AbrirPreparar(sag); Cargar((int)Res.Municion, 20);
                         var ses = (W != null ? PrototypeBootstrap.SesionDe(W.Embarque.HomeNode) : null) ?? NightRun.Session; int n = 0;
                         if (ses != null && ses.Uw != null) foreach (var p in ses.Uw.Platoons) { if (n >= 2) break; if (p.Aboard != 0 || p.AliveCount() == 0 || p.EyeMm > UnitsWorld.EyeInfantryMm + 1000) continue; Embarque.Subir(_sv1, PasajeroTipo.Peloton, p.Id, sag); n++; }
-                        Debug.Log($"[SOCORRO] suben {n} pelotones y 20 u al tren {W.Services[_sv1].Train.Name}"); _autoT0 = Time.unscaledTime; _autoPaso++;
+                        Debug.Log($"[SOCORRO] suben {n} pelotones y 20 u al tren {W.Services[_sv1].Train.Name}"); _socT0 = Time.unscaledTime; _socPaso++;
                     }
-                    else if (t > 60f) { Debug.LogError("[SOCORRO] no hay tren en Sagunto"); _autoPaso = 99; } break;
-                case 3: if (t > 2f && !Embarque.Ocupado) { string no = PorQueNoLlega(_sv1, cas); PonerDestino(cas); Enviar(_sv1); Debug.Log($"[SOCORRO] tren a Castellón: {(no ?? "sale")}"); _autoT0 = Time.unscaledTime; _autoPaso++; } break;
-                case 4: { var sv = W.Services[_sv1]; if (sv.GateNode == cas || (sv.AtStop && sv.Stops[sv.StopIndex].Node == cas)) { Debug.Log($"[SOCORRO] el tren llega {(sv.GateNode == cas ? "a las puertas" : "al andén")} de Castellón ({NetConst.Clock(W.Tick)}); a bordo {W.Embarque.CountAboard(_sv1, PasajeroTipo.Peloton)} pelotón; en la estación {W.Embarque.AtStation(cas, PasajeroTipo.Peloton).Count}; cerco {W.CercoZombies}"); var mz = FindObjectOfType<OperationsMap3D>(); if (mz != null) mz.EnterZone(cas); _autoT0 = Time.unscaledTime; _autoPaso++; }   // a las puertas el tren está parado pero no «en la parada»
-                          else if (t > 400f) { var sv2 = W.Services[_sv1]; Debug.LogWarning($"[SOCORRO] el tren no llega a Castellón ({NetConst.Clock(W.Tick)}): en marcha {!sv2.AtStop}, puertas {sv2.GateNode}, parada {sv2.Stops[sv2.StopIndex].Node}, estado {sv2.Train.State}"); _autoPaso = 99; } } break;
-                case 5: if (t > 180f) { Debug.Log($"[SOCORRO] fin: cerco {W.CercoZombies}, cercada {W.Cercada(cas)}"); var pb = FindObjectOfType<PrototypeBootstrap>(); if (pb != null) pb.LeaveToMap(); _autoT0 = Time.unscaledTime; _autoPaso++; } break;
-                case 6: if (t > 5f) { Debug.Log("[SOCORRO] fin de la corrida"); Application.Quit(0); _autoPaso++; } break;
+                    else if (t > 60f) { Debug.LogError("[SOCORRO] no hay tren en Sagunto"); _socPaso = 99; } break;
+                case 3: if (t > 2f && !Embarque.Ocupado) { string no = PorQueNoLlega(_sv1, cas); PonerDestino(cas); Enviar(_sv1); Debug.Log($"[SOCORRO] tren a Castellón: {(no ?? "sale")}"); _socT0 = Time.unscaledTime; _socPaso++; } break;
+                case 4: { var sv = W.Services[_sv1]; if (sv.GateNode == cas || (sv.AtStop && sv.Stops[sv.StopIndex].Node == cas)) { Debug.Log($"[SOCORRO] el tren llega {(sv.GateNode == cas ? "a las puertas" : "al andén")} de Castellón ({NetConst.Clock(W.Tick)}); a bordo {W.Embarque.CountAboard(_sv1, PasajeroTipo.Peloton)} pelotón; en la estación {W.Embarque.AtStation(cas, PasajeroTipo.Peloton).Count}; cerco {W.CercoZombies}"); var mz = FindObjectOfType<OperationsMap3D>(); if (mz != null) mz.EnterZone(cas); _socT0 = Time.unscaledTime; _socPaso++; }   // a las puertas el tren está parado pero no «en la parada»
+                          else if (t > 400f) { var sv2 = W.Services[_sv1]; Debug.LogWarning($"[SOCORRO] el tren no llega a Castellón ({NetConst.Clock(W.Tick)}): en marcha {!sv2.AtStop}, puertas {sv2.GateNode}, parada {sv2.Stops[sv2.StopIndex].Node}, estado {sv2.Train.State}"); _socPaso = 99; } } break;
+                case 5: if (t > 180f) { Debug.Log($"[SOCORRO] fin: cerco {W.CercoZombies}, cercada {W.Cercada(cas)}"); var pb = FindObjectOfType<PrototypeBootstrap>(); if (pb != null) pb.LeaveToMap(); _socT0 = Time.unscaledTime; _socPaso++; } break;
+                case 6: if (t > 5f) { Debug.Log("[SOCORRO] fin de la corrida"); Application.Quit(0); _socPaso++; } break;
             }
         }
         void AutoDia2()
