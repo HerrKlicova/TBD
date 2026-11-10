@@ -643,6 +643,7 @@ namespace TBD.View
         /// </summary>
         /// <summary>-dia2-auto: la zona de Sagunto, al ver esto, vuelve al mapa en cuanto crea su sesión (así hay pelotón que embarcar). Se apaga al usarse.</summary>
         public static bool Dia2Volver; static bool _dia2ZonaHecha;
+        int _sv1 = -1;
         void AutoDia2()
         {
             float t = AutoT(); int sag = Casa, nul = Nodo("Nules"); long dia2 = NetConst.DayTicks; bool escolta = !Arg("-dia2-auto-sinescolta");
@@ -651,10 +652,10 @@ namespace TBD.View
             {
                 case 0: if (t > 3f) { NetSession.Turbo = 40; NetSession.Push(NetCmdType.SetSpeed, 4, 0); Debug.Log("[DIA2] avanzo la red al día 2"); _autoPaso++; } break;
                 case 1: if (W.Tick >= dia2 + NetConst.Hours(6.5)) { NetSession.Turbo = 1; Debug.Log($"[DIA2] día 2, {NetConst.Clock(W.Tick)}"); _autoT0 = Time.unscaledTime; _autoPaso++; } break;
-                case 2: if (t > 2f && TrenPreparar.TrenEn(W, sag) >= 0 && !Embarque.Ocupado) { AbrirPreparar(sag); PonerDestino(nul); Enviar(); Debug.Log("[DIA2] primer tren a Nules"); _autoT0 = Time.unscaledTime; _autoPaso++; } else if (t > 30f) { Debug.LogError("[DIA2] no hay tren en Sagunto"); _autoPaso = 99; } break;
+                case 2: if (t > 2f && TrenPreparar.TrenEn(W, sag) >= 0 && !Embarque.Ocupado) { _sv1 = TrenPreparar.TrenEn(W, sag); AbrirPreparar(sag); PonerDestino(nul); Enviar(); Debug.Log("[DIA2] primer tren a Nules"); _autoT0 = Time.unscaledTime; _autoPaso++; } else if (t > 30f) { Debug.LogError("[DIA2] no hay tren en Sagunto"); _autoPaso = 99; } break;
                 case 3: if (TrenPreparar.TrenEn(W, nul) >= 0 && !Embarque.Ocupado) { AbrirPreparar(nul); PonerDestino(sag); Enviar(); Debug.Log("[DIA2] el primer tren vuelve a Sagunto (deja libre el andén de Nules)"); _autoT0 = Time.unscaledTime; _autoPaso++; }
                         else if (t > 60f) { Debug.LogWarning("[DIA2] el primer tren no ha llegado a Nules"); _autoT0 = Time.unscaledTime; _autoPaso++; } break;
-                case 4: if (t > 4f && TrenPreparar.TrenEn(W, sag) >= 0 && !Embarque.Ocupado)
+                case 4: if (t > 4f && TrenPreparar.TrenEn(W, sag) >= 0 && (_sv1 < 0 || TrenPreparar.TrenEn(W, sag) == _sv1) && !Embarque.Ocupado)      // Nacho (115): espera al primer tren; con otro en el andén el pelotón subía a ese y el segundo viaje salía sin él
                     {
                         AbrirPreparar(sag); Cargar((int)Res.Municion, 25); int sv = TrenPreparar.TrenEn(W, sag); var ses = (W != null ? PrototypeBootstrap.SesionDe(W.Embarque.HomeNode) : null) ?? NightRun.Session;   // 25: la emboscada rechazada gasta ~1 u de la carga y el objetivo pide 20 en el almacén
                         if (!escolta) Debug.Log("[DIA2] sin escolta (-dia2-auto-sinescolta)");
@@ -663,7 +664,7 @@ namespace TBD.View
                         _autoT0 = Time.unscaledTime; _autoPaso++;
                     }
                     else if (t > 30f) { Debug.LogError("[DIA2] no hay segundo tren en Sagunto"); _autoPaso = 99; } break;
-                case 5: if (t > 2f && !Embarque.Ocupado) { PonerDestino(nul); Enviar(); Debug.Log($"[DIA2] segundo tren a Nules {(escolta ? "con pelotón" : "sin escolta")} y 25 u"); _autoPaso++; if (Arg("-dia2-auto-enzona")) { var mz2 = FindObjectOfType<OperationsMap3D>(); if (mz2 != null) { mz2.EnterZone(nul); Debug.Log("[DIA2] -dia2-auto-enzona: entro en Nules antes de que llegue el tren (emboscada en pantalla)"); } } } break;
+                case 5: if (t > 2f && !Embarque.Ocupado) { PonerDestino(nul); Enviar(_sv1); if (W.Embarque.CountAboard(_sv1 >= 0 ? _sv1 : TrenPreparar.TrenEn(W, sag), PasajeroTipo.Peloton) == 0 && escolta) Debug.LogWarning("[DIA2] el segundo tren sale SIN pelotón a bordo"); Debug.Log($"[DIA2] segundo tren a Nules {(escolta ? "con pelotón" : "sin escolta")} y 25 u"); _autoPaso++; if (Arg("-dia2-auto-enzona")) { var mz2 = FindObjectOfType<OperationsMap3D>(); if (mz2 != null) { mz2.EnterZone(nul); Debug.Log("[DIA2] -dia2-auto-enzona: entro en Nules antes de que llegue el tren (emboscada en pantalla)"); } } } break;
                 case 6: if (W.LastAmbush.Tick >= 0 && (!Arg("-dia2-auto-enzona") || !W.LastAmbush.OnScreen || W.LastAmbush.Repelled || W.LastAmbush.TrainLost || t > 240f)) { var e = W.LastAmbush; Debug.Log($"[DIA2] emboscada: nodo {W.Graph.Nodes[e.Node].Name}, {e.Zombies} zombis, en pantalla {e.OnScreen}, rechazada {e.Repelled}, cercado {e.Surrounded}"); NetSession.Turbo = 20; _autoPaso++; if (Arg("-dia2-auto-enzona")) { var pb = FindObjectOfType<PrototypeBootstrap>(); if (pb != null) { Debug.Log("[DIA2] -dia2-auto-enzona: vuelvo al mapa tras la emboscada"); NetSession.Turbo = 1; pb.LeaveToMap(); } } }
                         else if (W.Tick >= dia2 + NetConst.Hours(20)) { Debug.LogWarning("[DIA2] sin emboscada a las 20:00"); NetSession.Turbo = 20; _autoPaso++; } break;
                 case 7: if (W.LastAmbush.TrainLost || (W.LastAmbush.Surrounded && !W.LastAmbush.Repelled)) { Debug.Log("[DIA2] el tren está cercado o perdido en la emboscada: no hay descarga"); _autoPaso++; }

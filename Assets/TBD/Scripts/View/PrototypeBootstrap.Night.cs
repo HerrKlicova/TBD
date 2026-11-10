@@ -105,7 +105,7 @@ namespace TBD.View
             }
             else _pname.Clear();
             // D-N173 (Iker): cada estación saca su propio plantel (Plantel.Pelotones); Sagunto, los cinco de siempre en los mismos sitios
-            if (!resume) foreach (var pp in TBD.Net.Plantel.Pelotones(_estacionZona, TutorialHud.Activo)) { var pl = _uw.AddPlatoon(pp.Tipo, pp.X, pp.Y, pp.Rumbo, pp.Formacion); if (pp.CotaMm > 0) pl.EyeMm = UnitsWorld.EyeInfantryMm + pp.CotaMm; _pname[pl.Id] = pp.Nombre; }   // D-N183: puestos de cada estación (Álvaro v1.1); en alto (azotea, banqueta), la boca sube con el suelo
+            if (!resume) foreach (var pp in TBD.Net.Plantel.Pelotones(_estacionZona, TutorialHud.Activo)) { var pl = _uw.AddPlatoon(pp.Tipo, pp.X, pp.Y, pp.Rumbo, pp.Formacion); if (pp.CotaMm > 0) pl.EyeMm = UnitsWorld.EyeInfantryMm + pp.CotaMm; if (pp.Hombres > 0) while (pl.Men.Count > pp.Hombres) pl.Men.RemoveAt(pl.Men.Count - 1); _pname[pl.Id] = pp.Nombre; }   // D-N183: puestos de cada estación (Álvaro v1.1); en alto (azotea, banqueta), la boca sube con el suelo
             Debug.Log($"[NOCHE] plantel de {_estacionZona}: {_pname.Count} pelotones"); if (_estacionZona == "Nules") TutorialHud.Senal(TutorialGuion.Senales.ZonaNules);   // 3.3 (Lucía 7e4b903)
             _escolta.Clear();
             {   // tropa bajada del tren en esta estación (Embarque.AtStation): sale junto al tren y el bot no la manda al muro (Hugo/Nacho, 9-nov)
@@ -195,6 +195,7 @@ namespace TBD.View
         void NightTick()
         {
             if (!_nightOn || _ng == null) return;
+            RecogerEntregaAerea();                                                     // D-N190: munición que deja un NH90 en esta zona
             bool playing = _ng.State == NightState.Jugando;
             if (_ng.Tick - _gateTk >= 30)    // las puertas de SagunteStart nacen construidas con la noche inactiva: SyncWorks no les hace el muro. Aqui, una sola vez por pieza (idempotente), por la cola como el resto de ordenes (Nacho)
             {

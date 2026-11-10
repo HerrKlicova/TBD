@@ -72,6 +72,7 @@ namespace TBD.View
                     string dest = w.Graph.Nodes[ev.Destino].Name; a.Destinos.TryGetValue(dest, out var d);
                     Llegadas.Enqueue(new Llegada { Aero = x.Id, Nombre = x.Nombre, Nodo = ev.Destino, RumboLlegada = d != null ? d.RumboLlegada : 0, ConPeloton = x.Peloton >= 0 });
                     Aviso($"{x.Nombre} llega a {dest}"); TutorialHud.Senal(TutorialGuion.Senales.NH90Llega);
+                    if (x.CargaMilliU > 0) { int u = x.CargaMilliU / 1000; x.CargaMilliU = 0; PrototypeBootstrap.EntregaAerea(ev.Destino, u); Aviso($"{x.Nombre} deja {u} u de munición en {dest}"); }      // D-N190
                     Debug.Log($"[AERO] {x.Nombre} entra en la zona de {dest} (rumbo de llegada {(d != null ? d.RumboLlegada : 0)}°, {(x.Peloton >= 0 ? "con" : "sin")} pelotón)");
                 }
                 if (ev.Nuevo == AeronaveEstado.EnBase) { Aviso($"{x.Nombre} listo en Bétera"); Debug.Log($"[AERO] {x.Nombre} rearmado en Bétera (munición {a.MunicionMilliU / 1000f:0.0} u, combustible {a.CombustibleMilliU / 1000f:0.0} u)"); }

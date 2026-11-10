@@ -21,6 +21,42 @@ namespace TBD.View
         /// <summary>¿Van las noches con el reloj de la red? En partida (NightRun.Active con red), no en el tutorial (su noche empieza al momento) ni con -reloj-propio (pruebas viejas).</summary>
         public static bool RelojUnicoActivo { get { return NightRun.Active && NetSession.A != null && !TutorialHud.Activo && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-reloj-propio") < 0; } }
         static NetWorld _registradoEn;
+        static readonly Dictionary<int, NightParams> _base = new Dictionary<int, NightParams>(); static string _dif = "normal"; static int _diaAjustado = -1;
+        /// <summary>D-N190: un NH90 deja «u» de munición en «nodo»: a la reserva de la red (orden AirSupply, A y B en el mismo tick) y, si su noche está en marcha,
+        /// al almacén de esa noche (tope 47 u): en la zona abierta (la recoge NightTick) o en las dos copias de la red (fuera de Step: A y B iguales).</summary>
+        public static void EntregaAerea(int nodo, int u)
+        {
+            if (u <= 0 || nodo < 0 || NetSession.A == null) return;
+            NetSession.Push(NetCmdType.AirSupply, nodo, u);
+            int tope = 47 * WeaponCatalog.ShotsPerU, add = u * WeaponCatalog.ShotsPerU;
+            foreach (var w in new[] { NetSession.A, NetSession.B }) { if (w == null || (w == NetSession.B && w == NetSession.A)) continue; if (w.NochesZona.TryGetValue(nodo, out var z) && z is NightSim ns && ns.Night.StartNetTick >= 0) ns.Units.StockShots = System.Math.Min(tope, ns.Units.StockShots + add); }
+            if (NightRun.Session != null && NightRun.Session.Node == nodo && !NightRun.Session.Away) _entregaZona += add;
+            Debug.Log($"[AERO] D-N190: {u} u de munición a {NetSession.A.Graph.Nodes[nodo].Name}");
+        }
+        static int _entregaZona;
+        void RecogerEntregaAerea() { if (_entregaZona <= 0 || _uw == null) return; if (_ng != null && (_ng.StartNetTick >= 0 || !_ng.P.NetClock)) _uw.StockShots = System.Math.Min(47 * WeaponCatalog.ShotsPerU, _uw.StockShots + _entregaZona); _entregaZona = 0; }
+        /// <summary>Parámetros de la noche «n» de una estación (n = 1 la primera). D-N191 (Lucía; Hugo con medida de Nacho): la noche 3 de Sagunto tiene 5250 / 6700 / 8150 zombis
+        /// (fácil / normal / difícil) frente a 4480 / 5250 / 6550 de la primera; la 2.ª repite la primera.</summary>
+        public static NightParams ParamsNoche(int nodo, string est, int n, NightParams actual)
+        {
+            if (!_base.TryGetValue(nodo, out var b)) b = actual;
+            var p = b;
+            if (est == "Sagunto" && n >= 3) { int obj = _dif == "facil" ? 5250 : _dif == "dificil" ? 8150 : 6700, ini = _dif == "facil" ? 4480 : _dif == "dificil" ? 6550 : 5250; p.ScalePermil = (int)((long)b.ScalePermil * obj / ini); }
+            return p;
+        }
+        /// <summary>Una vez por día de red, antes de las 22:00: la noche siguiente de cada noche registrada (A y B, fuera de Step) y la de la zona abierta.</summary>
+        public static void AjustarNochesSiguientes()
+        {
+            var a = NetSession.A; if (a == null || a.NochesZona.Count == 0 && NightRun.Session == null) return;
+            int dia = NetWorld.DayOf(a.Tick); if (dia == _diaAjustado) return; _diaAjustado = dia;
+            foreach (var w in new[] { a, NetSession.B })
+            {
+                if (w == null || (w == NetSession.B && w == a)) continue;
+                foreach (var kv in w.NochesZona) if (kv.Value is NightSim ns) ns.NextNightParams = ParamsNoche(kv.Key, w.Graph.Nodes[kv.Key].Name, w.NightNumber(kv.Key, dia), ns.Night.P);
+            }
+            foreach (var ses in new List<NightSession>(NightRun.Aparcadas.Values) { NightRun.Session })
+                if (ses != null && ses.Node >= 0 && ses.Ng != null) ses.Next = ParamsNoche(ses.Node, a.Graph.Nodes[ses.Node].Name, a.NightNumber(ses.Node, dia), ses.Ng.P);
+        }
         /// <summary>Una vez por mundo de red (partida nueva o cargada): registra las noches iniciales. Si ya hay una noche con reloj propio en marcha (tutorial que sigue), no toca nada.</summary>
         public static void AsegurarNochesRed()
         {
@@ -43,10 +79,10 @@ namespace TBD.View
             var w = NetSession.A; if (_tickRedZona < 0 || _tickRedZona > w.Tick) _tickRedZona = w.Tick;
             if (TurboN > 1 && NetSession.Turbo < TurboN) NetSession.Turbo = TurboN;      // corridas por lotes (-turbo N): la red corre N veces y la zona la sigue
             int tope = 8 * System.Math.Max(1, TurboN) * System.Math.Max(1, NetSession.Turbo);
-            long debe = w.Tick - _tickRedZona;
-            if (debe > 20 * tope) { Debug.LogWarning($"[RELOJ] la zona va {debe} ticks detrás de la red: salta {debe - tope}"); _tickRedZona = w.Tick - tope; }
             int n = 0;
             while (_tickRedZona < w.Tick && n < tope) { _tickRedZona++; StepSimulation(); n++; }
+            bool frena = w.Tick - _tickRedZona > tope;      // Nacho: sin saltar ticks; si la zona no da abasto, la red espera
+            if (frena != NetSession.Frenada) { NetSession.Frenada = frena; if (frena) Debug.Log($"[RELOJ] la red espera a la zona ({w.Tick - _tickRedZona} ticks de retraso)"); }
             return n;
         }
         /// <summary>La pausa de la zona (Esc) pausa la red, para que la red no siga sin la zona.</summary>
@@ -56,7 +92,7 @@ namespace TBD.View
             if (_paused && !_pausaRedPuesta) { if (!w.Paused) NetSession.Push(NetCmdType.Pause, 0, 0); _pausaRedPuesta = true; }
             else if (!_paused && _pausaRedPuesta) { if (w.Paused) NetSession.Push(NetCmdType.Resume, 0, 0); _pausaRedPuesta = false; }
         }
-        void SoltarPausaRed() { if (_pausaRedPuesta && NetSession.A != null && NetSession.A.Paused) NetSession.Push(NetCmdType.Resume, 0, 0); _pausaRedPuesta = false; }
+        void SoltarPausaRed() { NetSession.Frenada = false; if (_pausaRedPuesta && NetSession.A != null && NetSession.A.Paused) NetSession.Push(NetCmdType.Resume, 0, 0); _pausaRedPuesta = false; }
         /// <summary>Con la zona en pantalla, la zona pone el arranque de las 22:00 (Begin con el tick de red de las 22:00) si el plan de la red tiene noche ese día;
         /// tras una victoria, la noche siguiente (BeginNextNight). Lo mismo que hace NightSim.ComienzaNoche fuera de pantalla.</summary>
         void ArranqueRedZona()
@@ -143,11 +179,11 @@ namespace TBD.View
                 var jp = sj.Night.P; var np = jp;
                 if (tn != null) { np = NightParams.FromCsv(tn); np.Waves = jp.Waves; np.Entries = jp.Entries; np.ClockX = jp.ClockX; np.ScalePermil = jp.ScalePermil; np.TrainNotDefeat = jp.TrainNotDefeat; if (sj.JsonForce != null) np.TrainRect = jp.TrainRect; }   // como InitNight (sin tren al empezar: el rectángulo del JSON)
                 np.EndHour = (np.StartHour + 23) % 24; np.NetClock = true;                // D-N164; reloj de la red
-                var ng = new NightGame(np, 77u + SemillaQA);
+                var ng = new NightGame(np, 77u + SemillaQA); _base[nodo] = np; _dif = key; _diaAjustado = -1;
                 int reservaU = a.Stock[nodo, (int)Res.Municion];
                 var uw = new UnitsWorld(1234u + SemillaQA) { StockShots = System.Math.Min(47, System.Math.Max(0, reservaU)) * WeaponCatalog.ShotsPerU };   // Hugo: min(tope 47, reserva); a las 22:00 se vuelve a mirar
                 var s = new NightSession { Node = nodo };
-                foreach (var pp in Plantel.Pelotones(est, false)) { var pl = uw.AddPlatoon(pp.Tipo, pp.X, pp.Y, pp.Rumbo, pp.Formacion); if (pp.CotaMm > 0) pl.EyeMm = UnitsWorld.EyeInfantryMm + pp.CotaMm; s.PName[pl.Id] = pp.Nombre; }
+                foreach (var pp in Plantel.Pelotones(est, false)) { var pl = uw.AddPlatoon(pp.Tipo, pp.X, pp.Y, pp.Rumbo, pp.Formacion); if (pp.CotaMm > 0) pl.EyeMm = UnitsWorld.EyeInfantryMm + pp.CotaMm; if (pp.Hombres > 0) while (pl.Men.Count > pp.Hombres) pl.Men.RemoveAt(pl.Men.Count - 1); s.PName[pl.Id] = pp.Nombre; }
                 if (est == "Sagunto" && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinazotea") < 0)
                     for (int az = 0; az < 2; az++) { var pa = uw.AddPlatoon(PlatoonKind.Tiradores, 84500, 74300 + 4000 * az, 32768, Formation.Cuna); pa.EyeMm = 6350; s.PName[pa.Id] = "Tiradores " + (az == 0 ? "azotea 1" : "azotea 2"); }
                 var sp = sj.SP;

@@ -131,6 +131,8 @@ namespace TBD.View
                 }
                 if (ev.type == EventType.MouseUp) _dragSlider = false;
                 if (GUI.Button(R(x + 130, y + 118, 18, 16), GUIContent.none, GUIStyle.none)) { _full = !_full; Screen.fullScreen = _full; }
+                GUI.Label(R(x, y + 134, 260, 14), "×1 al primer ataque de cada noche: " + (NetSession.AutoX1 ? "sí" : "no") + "  (clic para cambiar)", _small);      // D-N186 (Lucía): se puede desactivar
+                if (GUI.Button(R(x, y + 134, 260, 14), GUIContent.none, GUIStyle.none)) NetSession.AutoX1 = !NetSession.AutoX1;
                 if (GUI.Button(R(x + 102, y + 148, 90, 18), GUIContent.none, GUIStyle.none)) { PlayerPrefs.Save(); _page = Page.Principal; }
                 if (GUI.Button(R(x + 200, y + 148, 90, 18), GUIContent.none, GUIStyle.none)) _page = Page.Principal;
             }
@@ -195,6 +197,8 @@ namespace TBD.View
                     GUI.Label(new Rect(r.x + u, r.y + u * 1.0f + u * 3.6f * 3f, u * 14f, u * 2f), "Pantalla completa", _txt);
                     bool nf = GUI.Toggle(new Rect(r.x + u * 17f, r.y + u * 1.0f + u * 3.6f * 3f, u * 16f, u * 2f), _full, "  sí");
                     if (nf != _full) { _full = nf; Screen.fullScreen = nf; }
+                    bool nx = GUI.Toggle(new Rect(r.x + u, r.y + u * 1.0f + u * 3.6f * 3.6f, u * 32f, u * 2f), NetSession.AutoX1, "  ×1 al primer ataque de cada noche");      // D-N186
+                    if (nx != NetSession.AutoX1) NetSession.AutoX1 = nx;
                     if (GUI.Button(new Rect(x, r.yMax + u, bw, bh), "VOLVER", _btn)) _page = Page.Principal;
                     break;
                 }

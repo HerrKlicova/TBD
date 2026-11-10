@@ -80,6 +80,7 @@ namespace TBD.View
             {
                 _embEnCurso = false; w.AmbushEnd(perdido); if (NetSession.B != null) NetSession.B.AmbushEnd(perdido);   // en los dos mundos: con solo A, desincronización (qa52)
                 Debug.Log($"[EMBOSCADA] fin en la zona: {(perdido ? "tren perdido" : "rechazada")} (zombis {_zomPos.Count})");
+                if (_puestoEnviado.HasValue && _escolta.Count > 0) { foreach (var id in _escolta) { if (_bot != null) _bot.Busy.Remove(id); _uw.Move(id, _puestoEnviado.Value.x, _puestoEnviado.Value.y, 32768); } Debug.Log($"[EMBOSCADA] la escolta ({_escolta.Count} pelotón(es)) entra en el recinto: ({_puestoEnviado.Value.x / 1000f:0.0}; {_puestoEnviado.Value.y / 1000f:0.0})"); }   // Nacho: dentro se gana el 99,5 %, fuera el 6 %
                 HintMsg(perdido ? "El tren ha caído en la emboscada." : "Emboscada rechazada: el tren entra.", perdido);
             }
         }

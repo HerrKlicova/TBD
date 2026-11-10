@@ -507,7 +507,7 @@ namespace TBD.View
             if (NightRun.Active && !_nightInit && _zoneNode >= 0 && _worldA != null && _worldA.IsCreated && !_cutting) InitNight();
             if (_nightOn) NightUpdate();
 
-            if (ZonaConRelojRed) { PausaZonaEnRed(); if (!TutorialHud.PidePausa) PasosZonaRed(); else _tickRedZona = NetSession.A.Tick; }      // reloj único (D-N186): un paso de zona por tick de red
+            if (ZonaConRelojRed) { PausaZonaEnRed(); if (!TutorialHud.PidePausa) PasosZonaRed(); else NetSession.Frenada = true; }      // reloj único (D-N186): un paso de zona por tick de red
             else if (!_paused && !TutorialHud.PidePausa && !(NightRun.Active && !_nightInit))      // la noche no corre ticks hasta que InitNight los pueda contar (el turbo y la velocidad del equipo no cambian el tick de arranque)
             {
                 _acc += Time.unscaledDeltaTime * TurboN;

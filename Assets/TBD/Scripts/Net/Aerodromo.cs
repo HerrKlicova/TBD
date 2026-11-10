@@ -23,6 +23,7 @@ namespace TBD.Net
         public float Quedan;                   // segundos reales que le quedan a la fase actual
         public int Peloton = -1;               // pelotón de embarque a bordo (índice en AerodromoEstado.Pelotones), −1 sin pelotón
         public int MunicionPm = 1000;          // ‰ de munición a bordo
+        public int CargaMilliU;                // D-N190: munición de carga (para el almacén del destino), cargada en Bétera al salir
     }
 
     public sealed class AerodromoDestino { public string Nombre; public double Km; public int RumboLlegada; }
@@ -32,6 +33,7 @@ namespace TBD.Net
         public const double NH90Kmh = 260.0;                   // SIN VERIFICAR (Paula); Hugo lo usa así
         public const float PrepararS = 20f, TomarTierraS = 20f, RearmeS = 30f;
         public const int CombustiblePorSalidaMilliU = 3000, MunicionPorRearmeMilliU = 1800;
+        public const int CargaPorVueloMilliU = 3000;           // D-N190 (Lucía; cifras de Hugo, curva de Nacho): cada vuelo lleva 3 u desde Bétera
         public const int VolverPm = 300;                       // vuelve solo al bajar del 30 %
 
         public string Id = "betera", Nombre = "Base «Jaime I» de Bétera";
@@ -150,6 +152,7 @@ namespace TBD.Net
             a.Peloton = -1;
             if (conPeloton) for (int i = 0; i < Pelotones.Count; i++) if (PelotonEnBase[i]) { PelotonEnBase[i] = false; a.Peloton = i; break; }
             CombustibleMilliU -= CombustiblePorSalidaMilliU;
+            a.CargaMilliU = Math.Min(CargaPorVueloMilliU, Math.Max(0, MunicionMilliU)); MunicionMilliU -= a.CargaMilliU;      // D-N190: se carga en Bétera, de su reserva
             a.Estado = AeronaveEstado.Preparando; a.Quedan = PrepararS; a.Destino = nodoDestino; DestinoNombre[aero] = destino;
             return null;
         }
@@ -228,7 +231,7 @@ namespace TBD.Net
         public sealed class Lista { public string[] Pelotones = new string[0]; public string[] Vehiculos = new string[0]; public int NH90; }
 
         /// <summary>Un pelotón de la zona: tipo, nombre visible y sitio de partida (mm) con su rumbo.</summary>
-        public struct Puesto { public PlatoonKind Tipo; public string Nombre; public int X, Y, Rumbo; public Formation Formacion; public int CotaMm; }   // CotaMm: suelo bajo el pelotón (azotea, banqueta)
+        public struct Puesto { public PlatoonKind Tipo; public string Nombre; public int X, Y, Rumbo; public Formation Formacion; public int CotaMm, Hombres; }   // Hombres: 0 = el pelotón entero; «fusileros:4» en De() saca 4 (D-N192, Lucía)   // CotaMm: suelo bajo el pelotón (azotea, banqueta)
         /// <summary>Un vehículo de la zona: tipo (dragon, vamtac), nombre visible y sitio (m) con su rumbo.</summary>
         public struct Coche { public string Tipo, Nombre; public float X, Z, Yaw; }
 
@@ -254,6 +257,7 @@ namespace TBD.Net
             { "Nules", new[] {
                 new PuestoDato("fusileros", 71500, 58500, Oeste, Formation.Linea, 400),        // v1.2 (Nules opción A): banqueta oeste
                 new PuestoDato("ametralladores", 84500, 76300, Oeste, Formation.Linea, 4750),  // v1.2: azotea del ala oeste
+                new PuestoDato("fusileros", 71500, 68500, Oeste, Formation.Linea, 400),        // D-N192 (Lucía, 10-nov): 4 fusileros más en la banqueta del flanco de la vía (al norte de la puerta de vía)
                 new PuestoDato("fusileros", 71500, 72000, Oeste, Formation.Linea, 400) } }, // v1.2 tutorial_extra: el pelotón del capítulo 3
             { "Castellón", new[] {
                 new PuestoDato("fusileros", 72500, 60000, Oeste, Formation.Linea),        // borde oeste de la losa sobre la boca (mitad sur)
@@ -280,11 +284,12 @@ namespace TBD.Net
             var r = new List<Puesto>(); var l = De(estacion, tutorial); var cuenta = new Dictionary<PlatoonKind, int>();
             for (int i = 0; i < l.Pelotones.Length; i++)
             {
+                int hom = 0; { int dp = l.Pelotones[i].IndexOf(':'); if (dp > 0) int.TryParse(l.Pelotones[i].Substring(dp + 1), out hom); }
                 var k = Tipo(l.Pelotones[i]); cuenta[k] = cuenta.TryGetValue(k, out var c) ? c + 1 : 1;
                 int si = i % SitioPel.GetLength(0);
                 string nombre = Nombre(k); if (Array.FindAll(l.Pelotones, x => Tipo(x) == k).Length > 1) nombre += " " + cuenta[k];
-                if (PuestosPel.TryGetValue(Clave(estacion), out var tabla) && i < tabla.Length) { var t = tabla[i]; r.Add(new Puesto { Tipo = k, Nombre = nombre, X = t.X, Y = t.Y, Rumbo = t.Rumbo, Formacion = t.F, CotaMm = t.CotaMm }); continue; }
-                r.Add(new Puesto { Tipo = k, Nombre = nombre, X = SitioPel[si, 0], Y = SitioPel[si, 1], Rumbo = Oeste, Formacion = i < 2 ? Formation.Linea : Formation.Cuna });
+                if (PuestosPel.TryGetValue(Clave(estacion), out var tabla) && i < tabla.Length) { var t = tabla[i]; r.Add(new Puesto { Tipo = k, Nombre = nombre, X = t.X, Y = t.Y, Rumbo = t.Rumbo, Formacion = t.F, CotaMm = t.CotaMm, Hombres = hom }); continue; }
+                r.Add(new Puesto { Tipo = k, Nombre = nombre, X = SitioPel[si, 0], Y = SitioPel[si, 1], Rumbo = Oeste, Formacion = i < 2 ? Formation.Linea : Formation.Cuna, Hombres = hom });
             }
             return r;
         }
@@ -305,6 +310,7 @@ namespace TBD.Net
 
         public static PlatoonKind Tipo(string s)
         {
+            int dp = s.IndexOf(':'); if (dp > 0) s = s.Substring(0, dp);
             switch (s) { case "ametralladores": return PlatoonKind.Ametralladores; case "granaderos": return PlatoonKind.Granaderos; case "tiradores": return PlatoonKind.Tiradores; case "zapadores": return PlatoonKind.Zapadores; default: return PlatoonKind.Fusileros; }
         }
 
@@ -315,7 +321,7 @@ namespace TBD.Net
             switch (estacion)
             {
                 case "Sagunto": return new Lista { Pelotones = new[] { "fusileros", "ametralladores", "granaderos", "tiradores", "zapadores" }, Vehiculos = new[] { "dragon", "vamtac", "vamtac" }, NH90 = 0 };
-                case "Nules": return tutorial ? new Lista { Pelotones = new[] { "fusileros", "ametralladores", "fusileros" } } : new Lista { Pelotones = new[] { "fusileros", "ametralladores" } };   // Hugo (nules.json, 9-nov): la guarnición de 12 (fusileros + ametralladores); con el tutorial, más el pelotón del capítulo 3
+                case "Nules": return tutorial ? new Lista { Pelotones = new[] { "fusileros", "ametralladores", "fusileros:4", "fusileros" } } : new Lista { Pelotones = new[] { "fusileros", "ametralladores", "fusileros:4" } };   // D-N192 (Lucía, 10-nov): guarnición de 16 (+4 fusileros en la banqueta de la vía); Nacho mide la cifra definitiva   // Hugo (nules.json, 9-nov): la guarnición de 12 (fusileros + ametralladores); con el tutorial, más el pelotón del capítulo 3
                 case "betera": case "Bétera": return new Lista { Pelotones = new[] { "fusileros", "fusileros", "fusileros" }, NH90 = 2 };   // 2 de embarque y 1 de guarnición
                 case "Castellón": return new Lista { Pelotones = new[] { "fusileros", "ametralladores", "fusileros" }, Vehiculos = new[] { "vamtac" } };   // D-N183: propia al empezar; 2 fusileros y 1 ametralladores (Lucía 07:41) y 1 VAMTAC
                 default: return new Lista();      // el resto: sin plantel propio

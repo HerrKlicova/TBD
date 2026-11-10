@@ -28,7 +28,7 @@ namespace TBD.View
         float _acc;
 
         /// <summary>Descarta la sesion de red (nueva partida o repetir la noche).</summary>
-        public static void Reset() { PrototypeBootstrap.ClearNightSession(); if (_instance != null) Destroy(_instance.gameObject); _instance = null; A = null; B = null; Desync = false; _atardecerDia = -1; AmanecerDia = -1; }
+        public static void Reset() { Frenada = false; PrototypeBootstrap.ClearNightSession(); if (_instance != null) Destroy(_instance.gameObject); _instance = null; A = null; B = null; Desync = false; _atardecerDia = -1; AmanecerDia = -1; }
 
         public static string SavePath { get { return System.IO.Path.Combine(Application.persistentDataPath, "partida.tbd"); } }
         public static bool HasSave { get { return System.IO.File.Exists(SavePath); } }
@@ -52,6 +52,22 @@ namespace TBD.View
         // Eugenio (I-Noche110): «Volver a empezar» tras perderlo todo vuelve al último amanecer (punto de control), no al principio de la campaña
         static long _ultimoTickReloj = -1;
         public static string AvisoNoche; public static float AvisoNocheHasta;
+        /// <summary>Reloj único (Nacho): la zona va por detrás de la red; la red espera a que la alcance (no se saltan ticks).</summary>
+        public static bool Frenada;
+        /// <summary>Opciones: ×1 automático al primer ataque de cada noche (D-N186). Se guarda en PlayerPrefs; se pone igual en A y B fuera de Step.</summary>
+        public static bool AutoX1 { get { if (_autoX1 < 0) _autoX1 = PlayerPrefs.GetInt("tbd.autox1", 1); return _autoX1 == 1; } set { _autoX1 = value ? 1 : 0; PlayerPrefs.SetInt("tbd.autox1", _autoX1); } }
+        static int _autoX1 = -1; static long _ultimoContacto = -1;
+        /// <summary>Aviso del primer contacto de la horda (Lucía, D-N186): «Ataque en {estación}: velocidad ×1.» (sin ×1 si la opción está apagada).</summary>
+        static void AvisoContacto()
+        {
+            if (A == null) return;
+            bool x1 = AutoX1; if (A.AutoSlowOnContact != x1) { A.AutoSlowOnContact = x1; if (B != null) B.AutoSlowOnContact = x1; }
+            if (A.ContactAtTick < 0) { _ultimoContacto = -1; return; }
+            if (A.ContactAtTick == _ultimoContacto) return;
+            bool nuevo = _ultimoContacto >= 0 || A.Tick - A.ContactAtTick < 60; _ultimoContacto = A.ContactAtTick; if (!nuevo) return;
+            string n = A.ContactNode >= 0 && A.ContactNode < A.Graph.Nodes.Count ? A.Graph.Nodes[A.ContactNode].Name : "?";
+            AvisoNoche = x1 ? $"Ataque en {n}: velocidad ×1." : $"Ataque en {n}."; AvisoNocheHasta = Time.unscaledTime + 6f; Debug.Log("[AVISO] " + AvisoNoche + $" (tick {A.ContactAtTick})");
+        }
         /// <summary>Al dar las 06:00 se guarda el punto de control del amanecer; al dar las 22:00 la red baja a ×1 con un aviso (Nacho, reloj único de la noche).</summary>
         void RelojDelDia()
         {
@@ -159,10 +175,10 @@ namespace TBD.View
         void Update()
         {
             AudioListener.pause = (PrototypeBootstrap.ZonaPausada && SceneManager.GetActiveScene().name == "SampleScene") || (A != null && A.Paused && SceneManager.GetActiveScene().name == "Union");   // al pausar, silencio (Nuria, revisión del 9-nov): pausa de la zona o del mapa
-            AvisoLog(); GuardarAtardecer(); RelojDelDia();
+            AvisoLog(); GuardarAtardecer(); RelojDelDia(); AvisoContacto(); PrototypeBootstrap.AjustarNochesSiguientes();
             var kb5 = UnityEngine.InputSystem.Keyboard.current;
             if (kb5 != null && kb5.f5Key.wasPressedThisFrame) { bool ok = SaveGame(); Debug.Log(ok ? "[TBD] Partida guardada en " + SavePath : "[TBD] No hay partida que guardar"); }   // F5: guardado rapido
-            if (SaltarHasta > A.Tick)
+            if (SaltarHasta > A.Tick && !Frenada)
             {
                 int n = (int)System.Math.Min(SaltarHasta - A.Tick, 2500L);
                 for (int i = 0; i < n; i++) { A.Step(); if (Check) B.Step(); if (A.Paused) break; }
@@ -170,6 +186,7 @@ namespace TBD.View
                 if (A.Tick >= SaltarHasta) { SaltarHasta = -1; _acc = 0f; Debug.Log($"[TBD] amanece: día {A.Tick / NetConst.DayTicks + 1}, {NetConst.Clock(A.Tick)}"); GuardarAmanecer(); }
                 return;
             }
+            if (Frenada) { _acc = 0f; return; }
             _acc += Mathf.Min(Time.unscaledDeltaTime, 0.25f);
             const float step = 1f / NetConst.TickRate;
             while (_acc >= step)

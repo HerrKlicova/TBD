@@ -43,11 +43,12 @@
   "fuerza": {
     "pelotones": [
       "fusileros",
-      "ametralladores"
+      "ametralladores",
+      "fusileros:4"
     ],
     "vehiculos": [],
     "helicopteros": [],
-    "_nota": "guarnición = 12 personas (sim_economia.py, guarnicion 12): fusileros (8) + ametralladores (4). Caso B: + 1 pelotón de fusileros que lleve el jugador en ese tren."
+    "_nota": "D-N192 (Lucía, 10-nov): guarnición = 16 (+4 fusileros en la banqueta de la vía; cifra definitiva de Nacho pendiente). Antes: guarnición = 12 personas (sim_economia.py, guarnicion 12): fusileros (8) + ametralladores (4). Caso B: + 1 pelotón de fusileros que lleve el jugador en ese tren."
   },
   "oleadas": {
     "facil": [
