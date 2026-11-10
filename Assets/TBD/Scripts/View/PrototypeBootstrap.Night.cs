@@ -505,7 +505,7 @@ namespace TBD.View
         bool _endDismissed, _reportClosed; bool _seguirTrasNoche;
         bool _esperandoNoche; Vector2Int? _puestoEnviado;
         /// <summary>¿Es de día en la red (06:00–21:59) y la zona no está en el tutorial? De día la noche de la zona no avanza (parche hasta el reloj único de Nacho).</summary>
-        bool DiaEnLaRed() { var w = NetSession.A; if (w == null || TutorialHud.Activo || !NightRun.Active || _zoneNode < 0) return false; long h = w.Tick % NetConst.DayTicks; return h >= NetConst.Hours(6) && h < NetConst.Hours(22); }
+        bool DiaEnLaRed() { var w = NetSession.A; if (w == null || TutorialHud.Activo || !NightRun.Active || _zoneNode < 0 || !RelojUnicoActivo) return false;      // Marcos (qa52 119): con reloj propio (-zona) la noche no se congela al llegar las 06:00 de la red long h = w.Tick % NetConst.DayTicks; return h >= NetConst.Hours(6) && h < NetConst.Hours(22); }
         /// <summary>Las 22:00 de la red con la zona abierta de día: la noche arranca con lo que hay ahora (munición del almacén, tren en la estación y su sitio).</summary>
         void IniciaNocheZona()
         {
