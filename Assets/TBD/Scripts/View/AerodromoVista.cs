@@ -50,9 +50,11 @@ namespace TBD.View
         public static void Reiniciar() { _a = null; Llegadas.Clear(); }
 
         /// <summary>La zona: el NH90 ha bajado del 30 % de munición (D-N173). Vuelve solo a Bétera con su ETA.</summary>
-        public static bool VolverARearmar(int aero) { bool ok = Estado != null && Estado.Volver(aero); if (ok) Debug.Log($"[AERO] {Estado.Aeronaves[aero].Nombre} vuelve a Bétera a rearmar (ETA {AerodromoEstado.Mmss(Estado.Eta(aero))})"); return ok; }
+        public static bool VolverARearmar(int aero) { bool ok = Estado != null && aero >= 0 && aero < Estado.Aeronaves.Count && Estado.Aeronaves[aero].Estado == AeronaveEstado.EnZona; if (ok) NetSession.Push(NetCmdType.AirReturn, aero, 0);      // F1 (Nacho): la orden va a la red (w.Air)
+            if (ok) Debug.Log($"[AERO] {Estado.Aeronaves[aero].Nombre} vuelve a Bétera a rearmar (ETA {AerodromoEstado.Mmss(Estado.Eta(aero))})"); return ok; }
         /// <summary>La zona: el pelotón del NH90 ya está en tierra.</summary>
-        public static void PelotonEnTierra(int aero) { Estado?.PelotonBajado(aero); TutorialHud.Senal(TutorialGuion.Senales.NH90Descargado); }
+        public static void PelotonEnTierra(int aero) { if (Estado != null) NetSession.Push(NetCmdType.AirDrop, aero, 0);      // F1: a la red
+            TutorialHud.Senal(TutorialGuion.Senales.NH90Descargado); }
 
         /// <summary>«0:12» al primer NH90 en camino (para el «{eta}» del tutorial).</summary>
         public static string EtaTexto()
@@ -62,10 +64,38 @@ namespace TBD.View
             return "—";
         }
 
+        public struct SucesoRed { public int Aero; public AeronaveEstado Nuevo; public int Destino; public int Carga; }
+        static readonly List<SucesoRed> _suc = new List<SucesoRed>();
+        /// <summary>F1 (Nacho): copia w.Air (fases, destino, pelotón, munición, existencias) en el modelo de la vista y da los cambios de fase. Quedan = ticks que le quedan
+        /// a la fase, en segundos a la velocidad actual. Carga: u que dejó al llegar (la carga de la ida, que la red ya ha llevado al almacén).</summary>
+        static List<SucesoRed> Sincronizar(AerodromoEstado a, NetWorld w)
+        {
+            _suc.Clear(); if (w == null || w.Air == null) return _suc;
+            var air = w.Air; float tps = NetConst.TickRate * Mathf.Max(1, w.Speed);
+            for (int i = 0; i < a.Aeronaves.Count && i < air.Craft.Count; i++)
+            {
+                var x = a.Aeronaves[i]; var c = air.Craft[i]; var nuevo = (AeronaveEstado)(byte)c.Phase;
+                if (nuevo != x.Estado) _suc.Add(new SucesoRed { Aero = i, Nuevo = nuevo, Destino = c.DestNode, Carga = nuevo == AeronaveEstado.EnZona ? x.CargaMilliU / 1000 : 0 });
+                x.Estado = nuevo; x.Destino = c.DestNode; x.Peloton = c.Platoon; x.MunicionPm = c.AmmoPm; x.CargaMilliU = c.CargoMilliU;
+                x.Quedan = c.PhaseEndTick < 0 ? 0f : Mathf.Max(0f, (c.PhaseEndTick - w.Tick) / tps);
+            }
+            a.MunicionMilliU = air.AmmoMilliU; a.CombustibleMilliU = air.FuelMilliU;
+            for (int p = 0; p < a.PelotonEnBase.Count && p < air.PlatoonAt.Length; p++) a.PelotonEnBase[p] = air.PlatoonAt[p] == AirWing.AtBase;
+            return _suc;
+        }
+        /// <summary>F1: manda el NH90 por la red (AirSend). Devuelve el motivo si no puede salir (null si la orden sale).</summary>
+        public static string EnviarRed(int aero, int nodo, bool conPeloton)
+        {
+            var w = NetSession.A; var a = Estado; if (w == null || w.Air == null || a == null) return "Sin red";
+            string no = w.Air.WhyNot(w.Graph, aero, nodo); if (no != null) return no;
+            NetSession.Push(NetCmdType.AirSend, aero | (conPeloton ? 256 : 0), nodo);
+            return null;
+        }
+
         void Update()
         {
             var a = Estado; var w = NetSession.A; if (a == null) return;
-            foreach (var ev in a.Avanzar(Time.unscaledDeltaTime))
+            foreach (var ev in Sincronizar(a, w))      // F1 (Nacho): el estado sale de la red (w.Air); AerodromoEstado queda como modelo de la vista
             {
                 var x = a.Aeronaves[ev.Aero];
                 if (ev.Nuevo == AeronaveEstado.EnZona && w != null && ev.Destino >= 0)
@@ -73,7 +103,7 @@ namespace TBD.View
                     string dest = w.Graph.Nodes[ev.Destino].Name; a.Destinos.TryGetValue(dest, out var d);
                     Llegadas.Enqueue(new Llegada { Aero = x.Id, Nombre = x.Nombre, Nodo = ev.Destino, RumboLlegada = d != null ? d.RumboLlegada : 0, ConPeloton = x.Peloton >= 0 });
                     Aviso($"{x.Nombre} llega a {dest}"); TutorialHud.Senal(TutorialGuion.Senales.NH90Llega);
-                    if (x.CargaMilliU > 0) { int u = x.CargaMilliU / 1000; x.CargaMilliU = 0; PrototypeBootstrap.EntregaAerea(ev.Destino, u); Aviso($"{x.Nombre} deja {u} u de munición en {dest}"); }      // D-N190
+                    if (ev.Carga > 0) { PrototypeBootstrap.EntregaAerea(ev.Destino, ev.Carga); Aviso($"{x.Nombre} deja {ev.Carga} u de munición en {dest}"); }      // D-N190: la red ya la ha dejado (AirDeliver); la vista avisa y la zona abierta la suma
                     Debug.Log($"[AERO] {x.Nombre} entra en la zona de {dest} (rumbo de llegada {(d != null ? d.RumboLlegada : 0)}°, {(x.Peloton >= 0 ? "con" : "sin")} pelotón)");
                 }
                 if (ev.Nuevo == AeronaveEstado.EnBase) { Aviso($"{x.Nombre} listo en Bétera"); Debug.Log($"[AERO] {x.Nombre} rearmado en Bétera (munición {a.MunicionMilliU / 1000f:0.0} u, combustible {a.CombustibleMilliU / 1000f:0.0} u)"); }
@@ -207,7 +237,7 @@ namespace TBD.View
             if (Boton(new Rect(x0, yy + u * 0.3f, ww, lh * 1.1f), porque == null ? "Enviar" : porque, porque == null, TutorialGuion.Resaltes.BotonEnviar))
             {
                 int node = TrenPreparar.Nodo(w, _destino); bool con = _conPeloton && libres > 0;
-                if (a.Enviar(s.Id, _destino, node, con) == null)
+                if (EnviarRed(s.Id, node, con) == null)
                 {
                     Debug.Log($"[AERO] {s.Nombre} sale hacia {_destino} {(con ? "con" : "sin")} pelotón (ETA {AerodromoEstado.Mmss(a.Eta(s.Id))}; combustible {a.CombustibleMilliU / 1000f:0.0} u)");
                     if (con) TutorialHud.Senal(TutorialGuion.Senales.NH90ConPeloton);

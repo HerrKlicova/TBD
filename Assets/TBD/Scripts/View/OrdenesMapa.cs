@@ -94,7 +94,7 @@ namespace TBD.View
             if (!a.Destinos.ContainsKey(nom)) { Aviso($"El NH90 no tiene ruta a {nom}", Gui(p)); return; }
             string no = a.PorQueNo(Id, nom); if (no != null) { Aviso(no, Gui(p)); return; }
             bool con = AerodromoVista.PelotonesLibres() > 0;
-            if (a.Enviar(Id, nom, nodo, con) == null)
+            if (AerodromoVista.EnviarRed(Id, nodo, con) == null)      // F1: la orden va a la red
             {
                 Debug.Log($"[AERO] {a.Aeronaves[Id].Nombre} sale hacia {nom} {(con ? "con" : "sin")} pelotón (orden en el mapa)");
                 if (con) TutorialHud.Senal(TutorialGuion.Senales.NH90ConPeloton); TutorialHud.Senal(TutorialGuion.Senales.NH90Enviado);

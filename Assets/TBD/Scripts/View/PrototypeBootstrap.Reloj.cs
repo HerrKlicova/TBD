@@ -24,14 +24,11 @@ namespace TBD.View
         static readonly Dictionary<int, NightParams> _base = new Dictionary<int, NightParams>(); static string _dif = "normal"; static int _diaAjustado = -1;
         /// <summary>D-N190: un NH90 deja «u» de munición en «nodo»: a la reserva de la red (orden AirSupply, A y B en el mismo tick) y, si su noche está en marcha,
         /// al almacén de esa noche (tope 47 u): en la zona abierta (la recoge NightTick) o en las dos copias de la red (fuera de Step: A y B iguales).</summary>
-        public static void EntregaAerea(int nodo, int u)
+        public static void EntregaAerea(int nodo, int u)      // F1 (Nacho): la red ya lo ha dejado en la reserva y en la noche registrada (AirDeliver); aquí solo la zona abierta
         {
-            if (u <= 0 || nodo < 0 || NetSession.A == null) return;
-            NetSession.Push(NetCmdType.AirSupply, nodo, u);
-            int tope = 47 * WeaponCatalog.ShotsPerU, add = u * WeaponCatalog.ShotsPerU;
-            foreach (var w in new[] { NetSession.A, NetSession.B }) { if (w == null || (w == NetSession.B && w == NetSession.A)) continue; if (w.NochesZona.TryGetValue(nodo, out var z) && z is NightSim ns && ns.Night.StartNetTick >= 0) ns.Units.StockShots = System.Math.Min(tope, ns.Units.StockShots + add); }
-            if (NightRun.Session != null && NightRun.Session.Node == nodo && !NightRun.Session.Away) _entregaZona += add;
-            Debug.Log($"[AERO] D-N190: {u} u de munición a {NetSession.A.Graph.Nodes[nodo].Name}");
+            if (u <= 0 || nodo < 0) return;
+            if (NightRun.Session != null && NightRun.Session.Node == nodo && !NightRun.Session.Away) _entregaZona += u * WeaponCatalog.ShotsPerU;
+            Debug.Log($"[AERO] D-N190: {u} u de munición en el nodo {nodo}");
         }
         static int _entregaZona;
         void RecogerEntregaAerea() { if (_entregaZona <= 0 || _uw == null) return; if (_ng != null && (_ng.StartNetTick >= 0 || !_ng.P.NetClock)) _uw.StockShots = System.Math.Min(47 * WeaponCatalog.ShotsPerU, _uw.StockShots + _entregaZona); _entregaZona = 0; }
