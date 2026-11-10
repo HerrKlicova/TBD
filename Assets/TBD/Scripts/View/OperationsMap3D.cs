@@ -468,7 +468,14 @@ namespace TBD.View
                 float d = Vector3.Distance(new Vector3(_focus.x, 0, _focus.z), MapToWorldFlat(n.XMeters, n.YMeters));
                 if (d < bd) { bd = d; best = i; }
             }
+            var ae = AerodromoVista.Estado;      // F0: Bétera (no es nodo de la red) se entra acercándose a su H; la zona de la red debajo es la de casa (Marcos, marcos/f0-zona)
+            if (ae != null && _a.Embarque.HomeNode >= 0)
+            {
+                float db = Vector3.Distance(new Vector3(_focus.x, 0, _focus.z), MapToWorldFlat(ae.MapX, ae.MapY));
+                if (db < 1.5f && db < bd) { ZonaBetera.Activa = true; Debug.Log("[MAPA] entro en Bétera"); EnterZone(_a.Embarque.HomeNode); return; }
+            }
             if (best < 0) return;
+            ZonaBetera.Activa = false;
             EnterZone(best);
         }
 

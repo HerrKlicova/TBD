@@ -145,7 +145,7 @@ namespace TBD.View
             Debug.Log("[BETERA] vuelvo al mapa" + (SeleccionGlobal.Vacia ? "" : " con " + SeleccionGlobal.Texto()));
             Sfx.Play("zoom_salir_mapa", Vector3.zero, 0.8f, 0.5f);
             yield return NetSession.CaptureTransition();
-            SceneManager.LoadScene("Union");
+            LeaveToMap();      // Iker (reloj único): por LeaveToMap, para que la noche de la zona de debajo vuelva a la red (SaveNightSession) y se desmaterialice
         }
 
         void GuiBetera()

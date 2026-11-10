@@ -38,6 +38,12 @@ namespace TBD.View
         void Update()
         {
             if (!EnMapa || W == null) return;
+            if (!SeleccionGlobal.Vacia)      // F0: lo seleccionado en la zona (NH90 en Bétera, tren en el andén) sigue seleccionado en el mapa (Marcos, marcos/f0-zona)
+            {
+                if (SeleccionGlobal.Tren >= 0 && SeleccionGlobal.Tren < W.Services.Count) Seleccionar(Sel.Tren, SeleccionGlobal.Tren, "seleccionado en la zona");
+                else if (SeleccionGlobal.NH90.Count > 0) Seleccionar(Sel.NH90, SeleccionGlobal.NH90[0], "seleccionado en Bétera");
+                SeleccionGlobal.Limpiar();
+            }
             var ms = UnityEngine.InputSystem.Mouse.current; var kb = UnityEngine.InputSystem.Keyboard.current; if (ms == null) return;
             if (kb != null && kb.escapeKey.wasPressedThisFrame && Tipo != Sel.Nada) { Seleccionar(Sel.Nada, -1, "Esc"); }
             Vector2 p = ms.position.ReadValue();
