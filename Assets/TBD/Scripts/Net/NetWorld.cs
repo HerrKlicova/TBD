@@ -53,7 +53,7 @@ namespace TBD.Net
         bool PrimerContacto { get; }
     }
 
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, SpendMaterials = 22, TrainCargo = 23, LoseNode = 24, TrainLost = 25, AirSupply = 26 /* sin uso desde F1 (la carga la deja AirWing al llegar); el número queda reservado */, AirSend = 27, AirReturn = 28, AirDrop = 29, AirPickup = 30, AirAmmo = 31 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, SpendMaterials = 22, TrainCargo = 23, LoseNode = 24, TrainLost = 25, AirSupply = 26 /* sin uso desde F1 (la carga la deja AirWing al llegar); el número queda reservado */, AirSend = 27, AirReturn = 28, AirDrop = 29, AirPickup = 30, AirAmmo = 31, CercoBajas = 32 }
 
     public struct NetCommand
     {
@@ -462,6 +462,7 @@ namespace TBD.Net
             w.Ints(new[] { Director.ColState, Director.ColDaysBelow, Director.ColIntroDone ? 1 : 0 }); w.Long(Director.ColSignalMil); w.Ints(Director.ColHeld);      // NetVersion 6: estados de la Colmena (D-N160)
             if (Traffic != null) Traffic.SaveStreaks(w); else for (int q = 0; q < 4; q++) w.Ints(new int[0]);      // NetVersion 7: rachas de la memoria de tráfico (informe)
             w.Bool(Air != null); if (Air != null) Air.SaveState(w);      // NetVersion 8: los NH90 de Bétera (F1)
+            w.Int(CercoNodo); w.Int(CercoZombies);                       // NetVersion 9: el cerco (D-N188)
         }
 
         public void LoadState(SaveReader r)
@@ -519,6 +520,7 @@ namespace TBD.Net
             if (Traffic != null) Traffic.LoadStreaks(r); else for (int q = 0; q < 4; q++) { var e7 = r.Ints(); if (e7 == null || e7.Length != 0) throw new SaveException(SaveError.TopologyMismatch, "rachas sin memoria de tráfico"); }
             bool hasAir = r.Bool();      // NetVersion 8 (F1): una partida vieja no lo tiene y el aire empieza como en Inicio
             if (hasAir) { if (Air == null) throw new SaveException(SaveError.TopologyMismatch, "aeródromo guardado en un mundo sin aeródromo"); Air.LoadState(r); }
+            { int cn = r.Int(), cz = r.Int(); if (cn != -2) { CercoNodo = cn; CercoZombies = cz; } }      // NetVersion 9 (D-N188); −2 = partida vieja: se queda el cerco del escenario
             Injections.Clear(); Retirements.Clear(); LostThisTick = 0; RetiredThisTick = 0;      // datos de QA del tick: empiezan limpios
         }
 
@@ -587,6 +589,7 @@ namespace TBD.Net
                     case NetCmdType.AirReturn: if (Air != null) Air.Return(this, c.Arg); break;
                     case NetCmdType.AirDrop: if (Air != null) Air.Drop(c.Arg); break;
                     case NetCmdType.AirPickup: if (Air != null) Air.Pickup(c.Arg, c.Arg2); break;      // Arg = aparato, Arg2 = pelotón
+                    case NetCmdType.CercoBajas: CercoBajas(c.Arg, c.Arg2); break;      // D-N188: Arg = nodo, Arg2 = zombis del cerco abatidos (la zona)
                     case NetCmdType.AirAmmo: if (Air != null) Air.SetAmmo(c.Arg, c.Arg2); break;      // Arg = aparato, Arg2 = ‰ que le queda (la zona)
                     case NetCmdType.SpendMaterials: SpendMaterials(c.Arg, c.Arg2); break;      // Arg = nodo, Arg2 = u (D-N163: lo que gastan reparar y reconstruir en la zona)
                     case NetCmdType.AssignWorkers: AssignWorkers(c.Arg, c.Arg2); break;                    // Arg = nodo, Arg2 = obreros
@@ -670,9 +673,22 @@ namespace TBD.Net
         /// </summary>
         /// <summary>D-N184 (Eugenio, 9-nov): estación propia pero cercada (Castellón en el MVP). El cerco es de vista y no ataca, pero no se le puede poner horario
         /// (SetSchedule devuelve Cercada) hasta romperlo, que es para después del MVP. La vista lo lee para pintar el cerco y bloquear el botón. −1 = ninguna.
-        /// Lo pone NetScenario.Inicio; no se guarda.</summary>
+        /// Lo pone NetScenario.Inicio; se guarda con el cerco (NetVersion 9).</summary>
         public int CercoNodo = -1;
         public bool Cercada(int node) { return node >= 0 && node == CercoNodo; }
+        /// <summary>D-N188 (Lucía 591c781; Hugo y Nacho, 200 semillas: 82 % con 2 pelotones y 17 u): zombis del cerco de CercoNodo. Empieza en CercoTope; se rompe por debajo
+        /// de CercoRompe (CercoNodo pasa a −1 y ya se puede poner horario); si no se rompe, se rehace CercoRegenDia por día hasta el tope. El socorro no se abre antes del
+        /// día CercoSocorroDia (lo comprueba la vista con CercoSocorroAbierto). Las bajas las informa la zona con la orden CercoBajas. Va en el hash y en el guardado (NetVersion 9).</summary>
+        public int CercoZombies, CercoTope = 4400, CercoRompe = 500, CercoRegenDia = 150, CercoSocorroDia = 3;
+        public bool CercoSocorroAbierto { get { return CercoNodo >= 0 && DayOf(Tick) >= CercoSocorroDia; } }
+        /// <summary>La zona informa de «n» bajas en el cerco de «node». Por debajo de CercoRompe, el cerco se rompe.</summary>
+        public void CercoBajas(int node, int n)
+        {
+            if (node < 0 || node != CercoNodo || n <= 0) return;
+            CercoZombies = Math.Max(0, CercoZombies - n);
+            if (CercoZombies < CercoRompe) { CercoNodo = -1; CercoZombies = 0; }
+        }
+        void CercoDia() { if (CercoNodo >= 0 && CercoZombies < CercoTope) CercoZombies = Math.Min(CercoTope, CercoZombies + CercoRegenDia); }
 
         public ScheduleResult SetSchedule(int service, int[] data)
         {
@@ -1216,7 +1232,7 @@ namespace TBD.Net
             }
             Tick++;
             if (Tick % ProductionState.HourTicks == 0) ProduceHour(); // producción de la hora (1/24 del día), hasta el tope del almacén (Produccion.cs)
-            if (Tick % NetConst.DayTicks == 0) { ConsumeFood(); WearAndMaintain(); }     // D-N176: primero los víveres (Hugo), luego el mantenimiento     // mantenimiento diario de lo construido (Hugo, 1 %)
+            if (Tick % NetConst.DayTicks == 0) { ConsumeFood(); WearAndMaintain(); CercoDia(); }     // D-N176: primero los víveres (Hugo), luego el mantenimiento     // mantenimiento diario de lo construido (Hugo, 1 %)
             if (Tick % NetConst.DayTicks == 0 && Traffic != null)
                 Traffic.Decay((e, slot) => Intel.Add(new IntelEntry { Tick = Tick, Id = "TR-5", Vars = new[] { "tramo", EdgeName(Graph.Edges[e]) } }));
             if (Tick % NetConst.FieldEvery == 0)
@@ -1492,6 +1508,7 @@ namespace TBD.Net
         /// <summary>Zombis del asedio en el nodo (para el combate a las puertas): la masa que el director ha llevado hasta allí, menos la que ha perdido, en zombis.</summary>
         public int SiegeZombies(int node)
         {
+            if (node >= 0 && node == CercoNodo) return CercoZombies;      // D-N188: el cerco de Castellón tiene su cuenta propia
             long m = 0;
             foreach (var pl in Director.Active) if (pl.Kind == HiveDirector.PlanKind.Asedio && pl.Node == node) m += Math.Max(0, pl.Moved - pl.Lost);
             if (m == 0) m = Graph.Nodes[node].HordeDensity;              // sin plan (densidad de asedio): lo que haya encima
@@ -1904,7 +1921,8 @@ namespace TBD.Net
             r.Control = Mix((ulong)Tick) + Mix(0xC0FFEEUL ^ ((ulong)(uint)Speed << 1) ^ (Paused ? 1UL : 0UL))
                       + Mix(0x2041EUL ^ ((ulong)(uint)(ActiveZoneCell + 1) << 48) ^ ((ulong)(uint)(ActiveZoneNode + 1) << 8) ^ ((ulong)(uint)ActiveZoneTaken << 24) ^ ((ulong)(ActiveZoneSinceTick + 1) << 40));
             r.Field = Field.Hash();
-            if (Air != null) r.Control += Air.Hash();      // F1: sin usar el aire suma 0
+            if (Air != null) r.Control += Air.Hash();
+            if (CercoNodo >= 0 && CercoZombies != CercoTope) r.Control += Mix(0xCE2C0UL ^ ((ulong)(uint)CercoNodo << 40) ^ (ulong)(uint)CercoZombies);      // D-N188: el cerco entero no cambia el hash      // F1: sin usar el aire suma 0
             foreach (var kv in NochesZona) r.Control += Mix(0x2E10C0UL ^ ((ulong)(uint)kv.Key << 40)) + kv.Value.HashNoche();     // reloj único: las noches de las zonas (sin noches registradas, el hash no cambia)
             ulong h = 0;
             foreach (var s in Services)
@@ -2113,7 +2131,7 @@ namespace TBD.Net
             // Recinto de 308,69 u (Álvaro, con el que Hugo calcula H0 = 1400). La Colmena la tiene en su historia desde el día 0 (no cuenta como recién ganada).
             // En el MVP no sufre la gran horda («Castellón cerrada»): el director no la asedia (Director.CerradaNodo).
             { int cas = Id("Castellón"); w.Stations.Founded[cas] = true; w.GarrisonMil[cas] = 26_000; w.ZoneWallE4[cas] = 3_086_900; Stock("Castellón", 0, 30, 0, 26, 0); w.FoodExemptNode = cas; w.Field.ClearStaticAt(58, 63); w.Director.CerradaNodo = cas; w.Director.ColSeedHistory(w); }
-            w.CercoNodo = Id("Castellón");      // D-N184: suya pero cercada; sin trenes hasta después del MVP
+            w.CercoNodo = Id("Castellón"); w.CercoZombies = w.CercoTope;      // D-N184: suya pero cercada; D-N188: cerco de 4400, se rompe por debajo de 500, socorro desde el día 3
             // Reloj único (D-N186): plan de noches de las zonas. Sagunto, todas las noches; Nules, la del día 2 (Defiende Nules), la única que tiene definida el escenario.
             w.NightPlan.Add(new NetWorld.NightPlanEntry { Node = Id("Sagunto"), FromDay = 1, ToDay = -1 }); w.NightPlan.Add(new NetWorld.NightPlanEntry { Node = Id("Nules"), FromDay = 2, ToDay = 2 });
             w.Air = AirWing.Betera(w.Graph);                                     // F1 (Nacho): los NH90 de Bétera viven en la red

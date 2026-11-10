@@ -60,6 +60,23 @@ namespace TBD.Sim.Tests
             check(c1.Phase == AirPhase.Volviendo, "AirReturn: el NH90 2 vuelve desde el punto libre");
             while (c1.Phase != AirPhase.EnBase && a.Tick < vuelta + 10000) { a.Step(); b.Step(); if (a.Hash() != b.Hash()) same = false; }
             check(c1.Phase == AirPhase.EnBase && same, "el NH90 2 está en la base y A y B siguen iguales");
+            {   // D-N188: el cerco de Castellón en la red
+                var w = NetScenario.Inicio(); int cas = TrenPreparar.Nodo(w, "Castellón"); ulong h0 = w.Hash();
+                check(w.Cercada(cas) && w.CercoZombies == 4400 && w.SiegeZombies(cas) == 4400, $"D-N188: Castellón empieza cercada por {w.CercoZombies} zombis");
+                check(!w.CercoSocorroAbierto, "el socorro no se abre el día 1");
+                Cmd(w, NetCmdType.CercoBajas, cas, 1000); w.Step();
+                check(w.CercoZombies == 3400 && w.Hash() != h0, "la zona informa de 1000 bajas: quedan 3400 y el hash lo recoge");
+                while (w.Tick % NetConst.DayTicks != 0) w.Step();
+                check(w.CercoZombies == 3550, $"al cambiar de día se rehace 150 ({w.CercoZombies})");
+                var bytes = NetSave.Save(w); var r = NetScenario.Inicio(); NetSave.Load(bytes, r);
+                check(r.CercoZombies == 3550 && r.Hash() == w.Hash(), "guardar y cargar conserva el cerco");
+                while (w.Tick < 2L * NetConst.DayTicks + 10) w.Step();
+                check(w.CercoSocorroAbierto, $"el día 3 ({NetConst.Clock(w.Tick)}) el socorro ya se puede abrir");
+                Cmd(w, NetCmdType.CercoBajas, cas, w.CercoZombies - 499); w.Step();
+                check(!w.Cercada(cas) && w.CercoZombies == 0, "por debajo de 500 el cerco se rompe: Castellón deja de estar cercada (ya admite horario)");
+                int z0 = w.CercoZombies; while (w.Tick % NetConst.DayTicks != 0) w.Step(); w.Step();
+                check(w.CercoZombies == z0, "roto, ya no se rehace");
+            }
             {   // turbo: a ×4 la red da 4 pasos por fotograma, los mismos ticks: el vuelo dura los mismos ticks
                 var w = NetScenario.Inicio(); Cmd(w, NetCmdType.SetSpeed, 4); w.Step(); long s = w.Tick; Cmd(w, NetCmdType.AirSend, 0, sag); int g = 0; while (w.Air.Craft[0].Phase != AirPhase.EnZona && g++ < 3000) w.Step();
                 check(w.Tick - s == AirWing.PrepTicks + ft + 1, $"con ×4 la salida dura los mismos ticks ({w.Tick - s}): una cuarta parte del tiempo real");

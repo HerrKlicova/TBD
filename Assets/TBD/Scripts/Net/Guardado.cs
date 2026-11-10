@@ -201,7 +201,7 @@ namespace TBD.Net
     {
         public const uint Magic = 0x53444254;           // «TBDS»
         public const ushort FormatVersion = 1;          // contenedor: cabecera, secciones y suma de comprobación
-        public const ushort NetVersion = 8;             // sección NET: el estado de NetWorld. 8 = los NH90 de Bétera en la red (F1). 2 = producción de las estaciones (remanentes y pérdidas al final); 3 = pasajeros de los trenes (D-N166); 4 = reloj ×103 y víveres (D-N161, D-N176); 5 = nodos perdidos y último asedio de zona (hordas de zona, Lucía 8-nov); 6 = estados de la Colmena (D-N160); 7 = rachas de la memoria de tráfico (informe)
+        public const ushort NetVersion = 9;             // sección NET: el estado de NetWorld. 8 = los NH90 de Bétera en la red (F1); 9 = el cerco de Castellón (D-N188). 2 = producción de las estaciones (remanentes y pérdidas al final); 3 = pasajeros de los trenes (D-N166); 4 = reloj ×103 y víveres (D-N161, D-N176); 5 = nodos perdidos y último asedio de zona (hordas de zona, Lucía 8-nov); 6 = estados de la Colmena (D-N160); 7 = rachas de la memoria de tráfico (informe)
         public const ushort MinNetVersion = 1;          // la más antigua que sabe leer (con las migraciones registradas)
         public static readonly uint NetTag = SaveSection.Tag("NET\0");
 
@@ -218,6 +218,7 @@ namespace TBD.Net
             { 5, MigrateNet5To6 },
             { 6, MigrateNet6To7 },
             { 7, MigrateNet7To8 },
+            { 8, MigrateNet8To9 },
         };
 
         /// <summary>1 → 2: la producción (Produccion.cs) añade remanentes y pérdidas al final; en una partida vieja valen 0. El número de nodos sale de
@@ -240,6 +241,8 @@ namespace TBD.Net
         static byte[] MigrateNet6To7(byte[] v6) { var w = new SaveWriter(); w.Raw(v6); for (int q = 0; q < 4; q++) w.Ints(new int[0]); return w.ToArray(); }   // sin rachas: el informe dice «el tren pasa siempre hacia las…» hasta que se rehagan
         /// <summary>7 → 8 (F1): sin estado de Bétera guardado; al cargar, los NH90 quedan en la base como en Inicio.</summary>
         static byte[] MigrateNet7To8(byte[] v7) { var w = new SaveWriter(); w.Raw(v7); w.Bool(false); return w.ToArray(); }
+        /// <summary>8 → 9 (D-N188): sin cerco guardado (−2); al cargar se queda el del escenario.</summary>
+        static byte[] MigrateNet8To9(byte[] v8) { var w = new SaveWriter(); w.Raw(v8); w.Int(-2); w.Int(0); return w.ToArray(); }
         static byte[] MigrateNet4To5(byte[] v4) { var w = new SaveWriter(); w.Raw(v4); w.Ints(new int[0]); w.Ints(new int[0]); w.Ints(new int[0]); w.Ints(new[] { 0, 0, 0 }); for (int i = 0; i < 6; i++) w.Long(0); return w.ToArray(); }
 
         /// <summary>Recorre la cabecera de la sección NET v1 (el orden de NetWorld.SaveState) hasta la atracción por nodo y devuelve su longitud.</summary>
