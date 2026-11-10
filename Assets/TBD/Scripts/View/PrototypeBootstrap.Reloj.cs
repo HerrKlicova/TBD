@@ -92,6 +92,18 @@ namespace TBD.View
             if (_paused && !_pausaRedPuesta) { if (!w.Paused) NetSession.Push(NetCmdType.Pause, 0, 0); _pausaRedPuesta = true; }
             else if (!_paused && _pausaRedPuesta) { if (w.Paused) NetSession.Push(NetCmdType.Resume, 0, 0); _pausaRedPuesta = false; }
         }
+        /// <summary>Zona abierta de día con el reloj único: la noche aún no ha empezado; la zona enseña la hora de la red y su luz, nunca la de su noche.</summary>
+        bool DiaZonaRed { get { return _ng != null && _ng.P.NetClock && _ng.StartNetTick < 0 && NetSession.A != null; } }
+        int _reservaVista = -1;
+        /// <summary>De día, el almacén de la zona sigue a la reserva de la red (tope 47 u): lo que descarga un tren entra al momento; lo que se gasta en la emboscada no vuelve.</summary>
+        void AlmacenDeDia()
+        {
+            var w = NetSession.A; if (w == null || _zoneNode < 0 || _uw == null) return;
+            int res = System.Math.Max(0, w.Stock[_zoneNode, (int)Res.Municion]);
+            if (_reservaVista < 0) { _uw.StockShots = System.Math.Min(47, res) * WeaponCatalog.ShotsPerU; _reservaVista = res; return; }
+            if (res > _reservaVista) _uw.StockShots = System.Math.Min(47 * WeaponCatalog.ShotsPerU, _uw.StockShots + (res - _reservaVista) * WeaponCatalog.ShotsPerU);
+            _reservaVista = res;
+        }
         void SoltarPausaRed() { NetSession.Frenada = false; if (_pausaRedPuesta && NetSession.A != null && NetSession.A.Paused) NetSession.Push(NetCmdType.Resume, 0, 0); _pausaRedPuesta = false; }
         /// <summary>Con la zona en pantalla, la zona pone el arranque de las 22:00 (Begin con el tick de red de las 22:00) si el plan de la red tiene noche ese día;
         /// tras una victoria, la noche siguiente (BeginNextNight). Lo mismo que hace NightSim.ComienzaNoche fuera de pantalla.</summary>
@@ -160,6 +172,11 @@ namespace TBD.View
         {
             var a = NetSession.A; if (a == null || !NightRun.Active) return;
             NightRun.Session = null; NightRun.Aparcadas.Clear();
+            var lectorAntes = BalanceSource.Reader;      // Marcos (qa52, 115): se devuelve al acabar; si no, lo que se lee después de Data/ falla (estacion_betera.json)
+            try { RegistrarNochesIniciales(a); } finally { BalanceSource.Reader = lectorAntes; }
+        }
+        static void RegistrarNochesIniciales(NetWorld a)
+        {
             BalanceSource.Reader = f => { var pth = System.IO.Path.Combine(Application.streamingAssetsPath, "Noche", f); return System.IO.File.Exists(pth) ? System.IO.File.ReadAllText(pth) : null; };
             string dir = System.IO.Path.Combine(Application.streamingAssetsPath, "Noche");
             CsvTable tn = null;

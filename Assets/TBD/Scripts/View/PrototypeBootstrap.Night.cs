@@ -212,7 +212,7 @@ namespace TBD.View
             if (_ng.State == NightState.Derrota && !_endDismissed) return;            // derrota: el mundo se para
             _spawns.Clear();
             bool diaRed;
-            if (_ng.P.NetClock) { if (_ng.StartNetTick < 0 || _ng.State == NightState.Victoria) ArranqueRedZona(); diaRed = _ng.StartNetTick < 0; }   // reloj único: la zona arranca su noche a las 22:00 de la red (Begin) y no avanza antes
+            if (_ng.P.NetClock) { if (_ng.StartNetTick < 0 || _ng.State == NightState.Victoria) ArranqueRedZona(); diaRed = _ng.StartNetTick < 0; if (diaRed) AlmacenDeDia(); else _reservaVista = -1; }   // reloj único: la zona arranca su noche a las 22:00 de la red (Begin) y no avanza antes
             else { diaRed = DiaEnLaRed(); if (!diaRed && _esperandoNoche) IniciaNocheZona(); }      // S1 qa52 (Marcos): noche con reloj propio, parche de día
             if (!TutorialHud.HordaEnEspera && !diaRed) { var st0 = _ng.State; _ng.Attack(_pileNearStation, _nearTrain); SurroundedTrainZona(_nearTrain); _ng.ZombiesAlive = _zomCounted ? _zomPos.Count : -1; _ng.Step(_spawns); if (st0 == NightState.Jugando && _ng.State != NightState.Jugando) NightEnded(); if (_ng.State == NightState.Derrota) return; }   // D-N136: NightGame gana al acabar con la horda (WinOnClear, misma regla que NightSim)
             playing = _ng.State == NightState.Jugando;
@@ -443,7 +443,7 @@ namespace TBD.View
             int w = -1; for (int i = 0; i < _ng.P.Waves.Length; i++) if (_ng.Tick >= _ng.WaveStartTick(i)) w = i; return w;
         }
 
-        string TimeStr() { return $"{_ng.Hour:00}:{_ng.Minute:00}"; }
+        string TimeStr() { if (DiaZonaRed) return NetConst.Clock(NetSession.A.Tick); return $"{_ng.Hour:00}:{_ng.Minute:00}"; }      // reloj único: de día, la hora de la red
 
         void SpawnZombies(List<SpawnPoint> pts)
         {
@@ -740,6 +740,7 @@ namespace TBD.View
             while (_blood.Count > 0 && Time.unscaledTime > _blood.Peek().t) { var o = _blood.Dequeue(); if (o.go != null) Destroy(o.go); }
             // la luz sigue a la hora: de noche hasta las 05:30, luego el alba
             int minutes = _ng.GameSeconds / 60; int want = minutes < 7 * 60 + 30 ? 2 : (minutes < 8 * 60 ? 1 : 0);
+            if (DiaZonaRed) { long hm = NetSession.A.Tick % NetConst.DayTicks * 60 / NetConst.HourTicks; want = hm < 6 * 60 || hm >= 21 * 60 ? 2 : (hm < 7 * 60 || hm >= 20 * 60 ? 1 : 0); }      // reloj único: de día, la luz de la hora de la red (Marcos, qa52)
             if (want != _gradeIndex && !_nightGradeLock) ApplyGrade(want);
         }
         bool _nightGradeLock;
