@@ -188,6 +188,9 @@ namespace TBD.View
             var w1 = new SaveWriter(); s.Night.SaveState(w1); var ng = new NightGame(s.Night.P, 0); ng.LoadState(new SaveReader(w1.ToArray()));
             var w2 = new SaveWriter(); s.Units.SaveState(w2); var uw = new UnitsWorld(0); uw.LoadState(new SaveReader(w2.ToArray()));
             foreach (var o in s.Units.Obstacles) uw.Obstacles.Add(o);
+            foreach (var lb in s.Units.LosBlockers) uw.LosBlockers.Add(lb);      // la línea de visión (Álvaro) y la altura de la boca no van en SaveState
+            uw.GrenadeDeconflict = s.Units.GrenadeDeconflict;
+            for (int i = 0; i < uw.Platoons.Count && i < s.Units.Platoons.Count; i++) uw.Platoons[i].EyeMm = s.Units.Platoons[i].EyeMm;      // azoteas y banquetas (D-N174/D-N183)
             var c = new NightSim(ng, uw, s.SP, s.WallHp) { NextNightParams = s.NextNightParams };
             var z = new List<Target>(); s.ExportZombies(z); foreach (var t in z) c.ImportZombie(t.X, t.Y);
             foreach (var v in s.Vehicles) { var nv = NightVehicle.Make(v.Name, v.Kind, v.X, v.Y); foreach (var f in typeof(NightVehicle).GetFields()) if (!f.IsInitOnly && !f.IsLiteral) f.SetValue(nv, f.GetValue(v)); c.Vehicles.Add(nv); }      // todos los campos públicos (munición, recarga, NH90…)
