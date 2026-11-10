@@ -329,3 +329,211 @@ namespace TBD.Net
         }
     }
 }
+
+namespace TBD.Net
+{
+    /// <summary>
+    /// F1 paso 2 del plan del núcleo (Nacho): el NH90 dentro de NetWorld. Todo en enteros y en ticks de red, con órdenes de la cola (AirSend, AirReturn,
+    /// AirDrop, AirPickup, AirAmmo), en el hash y en el guardado. Sustituye a AerodromoEstado.Avanzar (segundos reales con float), que no es determinista.
+    /// Tiempos (Lucía, 10-nov): preparar 600 ticks, tomar tierra 600, rearme 900; a ×4 duran la cuarta parte, como todo. Vuelo a 260 km/h de juego
+    /// (≈ 248 m por tick). Coste (Hugo): 3 u de combustible por salida, 1,8 u de munición por rearme, 3 u de carga por vuelo (D-N190) que se dejan en el
+    /// almacén del destino al llegar. Vuelta automática al bajar del 30 % de munición: la decide la red.
+    /// El hash solo cuenta lo que se aparta del estado inicial (aparatos en la base, existencias de partida): sin usar el aire, el hash de la red no cambia.
+    /// </summary>
+    public enum AirPhase : byte { EnBase, Preparando, Ida, EnZona, Volviendo, TomandoTierra, Rearmando }
+
+    public sealed class AirCraft
+    {
+        public int Id;
+        public AirPhase Phase;
+        public int DestNode = -1;                  // nodo de destino, o −1 si va a un punto libre
+        public int DestXMm, DestYMm;               // destino en mm del mapa de operaciones (también para un nodo)
+        public long PhaseStartTick, PhaseEndTick;  // fase actual; EnBase y EnZona no acaban solas (PhaseEndTick = −1)
+        public int FlightTicks;                    // ticks de vuelo de la salida actual (ida y vuelta iguales)
+        public int Platoon = -1;                   // pelotón de embarque a bordo (índice en AirWing.PlatoonAt), −1 sin pelotón
+        public int AmmoPm = 1000;                  // ‰ de munición a bordo
+        public int CargoMilliU;                    // carga de munición para el almacén del destino (D-N190)
+    }
+
+    public sealed class AirWing
+    {
+        public const int PrepTicks = 600, LandTicks = 600, RearmTicks = 900;
+        public const long SpeedMmPerHour = 260_000_000;                 // 260 km/h (SIN VERIFICAR, Paula)
+        public const int MmPerCell = 3_500_000;                         // una casilla del mapa de operaciones ≈ 3,5 km (Bétera–Sagunto 18,1 km en 5,4 casillas)
+        public const int FuelPerSortieMilliU = 3000, AmmoPerRearmMilliU = 1800, CargoPerSortieMilliU = 3000, ReturnPm = 300;
+        public const int AtBase = -1, Aboard = -2;                      // PlatoonAt: en la base, a bordo; ≥ 0 = en ese nodo; ≤ −3 = en un punto libre (−3 − aparato)
+
+        public int BaseXMm, BaseYMm;
+        public int AmmoMilliU, FuelMilliU;
+        readonly int _ammo0, _fuel0;
+        public readonly List<AirCraft> Craft = new List<AirCraft>();
+        public readonly int[] PlatoonAt;                                // dónde está cada pelotón de embarque
+        /// <summary>Distancias publicadas (estacion_betera.json, «destinos»): nodo → mm. Si un nodo no está, se usa la distancia en casillas.</summary>
+        public readonly SortedDictionary<int, int> RouteMm = new SortedDictionary<int, int>();
+        /// <summary>Último aviso de la red para la vista (no entra en el hash): por qué no se cumplió una orden.</summary>
+        public string LastRefusal;
+
+        public AirWing(int baseXMm, int baseYMm, int aircraft, int platoons, int ammoMilliU, int fuelMilliU)
+        {
+            BaseXMm = baseXMm; BaseYMm = baseYMm; AmmoMilliU = _ammo0 = ammoMilliU; FuelMilliU = _fuel0 = fuelMilliU;
+            for (int i = 0; i < aircraft; i++) Craft.Add(new AirCraft { Id = i, PhaseEndTick = -1 });
+            PlatoonAt = new int[platoons]; for (int i = 0; i < platoons; i++) PlatoonAt[i] = AtBase;
+        }
+
+        /// <summary>Bétera del prototipo (estacion_betera.json: mapa_xy 48;75, 2 NH90, 2 pelotones de embarque, 50 u de munición y 70 de combustible; Sagunto 18,1 km, Nules 37,4 km).</summary>
+        public static AirWing Betera(RailGraph g)
+        {
+            var a = new AirWing(48 * MmPerCell, 75 * MmPerCell, 2, 2, 50_000, 70_000);
+            foreach (var n in g.Nodes) { if (n.Name == "Sagunto") a.RouteMm[n.Id] = 18_100_000; else if (n.Name == "Nules") a.RouteMm[n.Id] = 37_400_000; }
+            return a;
+        }
+
+        public int DistanceMm(RailGraph g, int node, int xMm, int yMm)
+        {
+            if (node >= 0 && RouteMm.TryGetValue(node, out var d)) return d;
+            long dx = xMm - BaseXMm, dy = yMm - BaseYMm; return (int)IMath.Isqrt(dx * dx + dy * dy);
+        }
+        public static int TicksFor(int mm) { return (int)(((long)mm * NetConst.HourTicks + SpeedMmPerHour - 1) / SpeedMmPerHour); }
+
+        /// <summary>Por qué no puede salir (null si puede). Lo usa la vista para el botón y la red al aplicar la orden.</summary>
+        public string WhyNot(RailGraph g, int craft, int node)
+        {
+            if (craft < 0 || craft >= Craft.Count) return "No hay aparato";
+            if (Craft[craft].Phase != AirPhase.EnBase) return "No está en la base";
+            if (node >= g.Nodes.Count) return "Destino no válido";
+            if (FuelMilliU < FuelPerSortieMilliU) return "No queda combustible";
+            return null;
+        }
+
+        public void Send(NetWorld w, int craft, int node, int xMm, int yMm, bool withPlatoon)
+        {
+            var why = WhyNot(w.Graph, craft, node); if (why != null) { LastRefusal = why; return; }
+            var a = Craft[craft];
+            if (node >= 0) { xMm = w.Graph.Nodes[node].XMeters * MmPerCell; yMm = w.Graph.Nodes[node].YMeters * MmPerCell; }
+            a.DestNode = node; a.DestXMm = xMm; a.DestYMm = yMm; a.FlightTicks = Math.Max(1, TicksFor(DistanceMm(w.Graph, node, xMm, yMm)));
+            a.Platoon = -1;
+            if (withPlatoon) for (int p = 0; p < PlatoonAt.Length; p++) if (PlatoonAt[p] == AtBase) { PlatoonAt[p] = Aboard; a.Platoon = p; break; }
+            FuelMilliU -= FuelPerSortieMilliU;
+            a.CargoMilliU = Math.Min(CargoPerSortieMilliU, Math.Max(0, AmmoMilliU)); AmmoMilliU -= a.CargoMilliU;
+            Enter(a, AirPhase.Preparando, w.Tick, PrepTicks);
+        }
+
+        public void Return(NetWorld w, int craft)
+        {
+            if (craft < 0 || craft >= Craft.Count) return;
+            var a = Craft[craft];
+            if (a.Phase == AirPhase.EnZona) Enter(a, AirPhase.Volviendo, w.Tick, a.FlightTicks);
+            else if (a.Phase == AirPhase.Ida) { long hecho = w.Tick - a.PhaseStartTick; Enter(a, AirPhase.Volviendo, w.Tick, (int)Math.Max(1, hecho)); }      // da la vuelta en el aire: tarda lo que llevaba
+            else if (a.Phase == AirPhase.Preparando) { Enter(a, AirPhase.EnBase, w.Tick, -1); FuelMilliU += FuelPerSortieMilliU; AmmoMilliU += a.CargoMilliU; a.CargoMilliU = 0; if (a.Platoon >= 0) { PlatoonAt[a.Platoon] = AtBase; a.Platoon = -1; } }
+        }
+
+        /// <summary>Desembarca el pelotón en el destino. La zona comprueba antes que no hay zombis a menos de 30 m (si los hay, no emite la orden).</summary>
+        public void Drop(int craft)
+        {
+            if (craft < 0 || craft >= Craft.Count) return;
+            var a = Craft[craft]; if (a.Phase != AirPhase.EnZona || a.Platoon < 0) { LastRefusal = "No hay pelotón a bordo en la zona"; return; }
+            PlatoonAt[a.Platoon] = a.DestNode >= 0 ? a.DestNode : -3 - a.Id; a.Platoon = -1;
+        }
+
+        public void Pickup(int craft, int platoon)
+        {
+            if (craft < 0 || craft >= Craft.Count || platoon < 0 || platoon >= PlatoonAt.Length) return;
+            var a = Craft[craft]; int aqui = a.DestNode >= 0 ? a.DestNode : -3 - a.Id;
+            if (a.Phase != AirPhase.EnZona || a.Platoon >= 0 || PlatoonAt[platoon] != aqui) { LastRefusal = "El pelotón no está donde el aparato"; return; }
+            PlatoonAt[platoon] = Aboard; a.Platoon = platoon;
+        }
+
+        /// <summary>La zona informa de la munición que le queda al aparato (‰). Solo baja: la munición se repone en Bétera.</summary>
+        public void SetAmmo(int craft, int pm) { if (craft >= 0 && craft < Craft.Count) Craft[craft].AmmoPm = Math.Max(0, Math.Min(Craft[craft].AmmoPm, pm)); }
+
+        static void Enter(AirCraft a, AirPhase p, long tick, int ticks) { a.Phase = p; a.PhaseStartTick = tick; a.PhaseEndTick = ticks < 0 ? -1 : tick + ticks; }
+
+        /// <summary>Un tick de red (después de las órdenes y de las noches).</summary>
+        public void Step(NetWorld w)
+        {
+            foreach (var a in Craft)
+            {
+                if (a.Phase == AirPhase.EnZona && a.AmmoPm < ReturnPm) Enter(a, AirPhase.Volviendo, w.Tick, a.FlightTicks);      // D-N173: vuelve solo a rearmar
+                while (a.PhaseEndTick >= 0 && w.Tick >= a.PhaseEndTick)
+                {
+                    long t = a.PhaseEndTick;
+                    switch (a.Phase)
+                    {
+                        case AirPhase.Preparando: Enter(a, AirPhase.Ida, t, a.FlightTicks); break;
+                        case AirPhase.Ida:
+                            Enter(a, AirPhase.EnZona, t, -1);
+                            if (a.DestNode >= 0 && a.CargoMilliU > 0)                                                          // D-N190: la carga al almacén del destino
+                            { w.AirDeliver(a.DestNode, a.CargoMilliU / 1000); a.CargoMilliU %= 1000; }                        // lo que no llega a 1 u vuelve a Bétera
+                            break;                                                                                            // punto libre: estacionario; la carga vuelve con él
+                        case AirPhase.Volviendo: Enter(a, AirPhase.TomandoTierra, t, LandTicks); break;
+                        case AirPhase.TomandoTierra:
+                            Enter(a, AirPhase.Rearmando, t, RearmTicks);
+                            if (a.Platoon >= 0) { PlatoonAt[a.Platoon] = AtBase; a.Platoon = -1; }
+                            AmmoMilliU += a.CargoMilliU; a.CargoMilliU = 0;                                                   // la carga que no se dejó vuelve al almacén de Bétera
+                            break;
+                        case AirPhase.Rearmando:
+                            int falta = (1000 - a.AmmoPm) * AmmoPerRearmMilliU / 1000, pone = Math.Min(falta, AmmoMilliU);
+                            AmmoMilliU -= pone; a.AmmoPm += falta > 0 ? (1000 - a.AmmoPm) * pone / falta : 0;
+                            Enter(a, AirPhase.EnBase, t, -1); a.DestNode = -1; break;
+                    }
+                }
+            }
+        }
+
+        /// <summary>Posición en el mapa (mm), para la vista: interpolada en Ida y Volviendo, en el destino en EnZona y en la base el resto.</summary>
+        public void Position(AirCraft a, long tick, out int xMm, out int yMm)
+        {
+            long num = 0, den = 1;
+            if (a.Phase == AirPhase.Ida || a.Phase == AirPhase.Volviendo) { den = Math.Max(1, a.PhaseEndTick - a.PhaseStartTick); num = Math.Min(den, Math.Max(0, tick - a.PhaseStartTick)); if (a.Phase == AirPhase.Volviendo) num = den - num; }
+            else if (a.Phase == AirPhase.EnZona) num = den;
+            xMm = (int)(BaseXMm + (a.DestXMm - BaseXMm) * num / den); yMm = (int)(BaseYMm + (a.DestYMm - BaseYMm) * num / den);
+        }
+
+        /// <summary>Ticks hasta el siguiente hito (llegada a la zona, o listo en la base). −1 si no hay.</summary>
+        public long Eta(AirCraft a, long tick)
+        {
+            long q = a.PhaseEndTick < 0 ? 0 : Math.Max(0, a.PhaseEndTick - tick);
+            switch (a.Phase)
+            {
+                case AirPhase.Preparando: return q + a.FlightTicks;
+                case AirPhase.Ida: return q;
+                case AirPhase.Volviendo: return q + LandTicks + RearmTicks;
+                case AirPhase.TomandoTierra: return q + RearmTicks;
+                case AirPhase.Rearmando: return q;
+                default: return -1;
+            }
+        }
+
+        public ulong Hash()
+        {
+            ulong h = 0;
+            if (AmmoMilliU != _ammo0) h += NetWorld.Mix(0xA1A0UL ^ ((ulong)(uint)AmmoMilliU << 16));
+            if (FuelMilliU != _fuel0) h += NetWorld.Mix(0xA1F0UL ^ ((ulong)(uint)FuelMilliU << 16));
+            foreach (var a in Craft)
+            {
+                if (a.Phase == AirPhase.EnBase && a.AmmoPm == 1000 && a.Platoon < 0 && a.CargoMilliU == 0 && a.PhaseStartTick == 0) continue;
+                h += NetWorld.Mix(((ulong)(uint)a.Id << 56) ^ ((ulong)a.Phase << 48) ^ ((ulong)(uint)(a.DestNode + 1) << 32) ^ (ulong)(uint)a.AmmoPm);
+                h += NetWorld.Mix(((ulong)(uint)a.Id << 60) ^ (ulong)a.PhaseEndTick ^ ((ulong)(uint)a.FlightTicks << 40) ^ 0xA15EUL);
+                h += NetWorld.Mix(((ulong)(uint)a.Id << 58) ^ ((ulong)(uint)a.DestXMm << 24) ^ (ulong)(uint)a.DestYMm ^ ((ulong)(uint)(a.Platoon + 1) << 52) ^ ((ulong)(uint)a.CargoMilliU << 12));
+            }
+            for (int p = 0; p < PlatoonAt.Length; p++) if (PlatoonAt[p] != AtBase) h += NetWorld.Mix(0xA1B0UL ^ ((ulong)(uint)p << 40) ^ (ulong)(uint)(PlatoonAt[p] + 1000));
+            return h;
+        }
+
+        public void SaveState(SaveWriter w)
+        {
+            w.Int(AmmoMilliU); w.Int(FuelMilliU); w.Int(Craft.Count);
+            foreach (var a in Craft) { w.Byte((byte)a.Phase); w.Int(a.DestNode); w.Int(a.DestXMm); w.Int(a.DestYMm); w.Long(a.PhaseStartTick); w.Long(a.PhaseEndTick); w.Int(a.FlightTicks); w.Int(a.Platoon); w.Int(a.AmmoPm); w.Int(a.CargoMilliU); }
+            w.Ints(PlatoonAt);
+        }
+
+        public void LoadState(SaveReader r)
+        {
+            AmmoMilliU = r.Int(); FuelMilliU = r.Int(); int n = r.Int();
+            if (n != Craft.Count) throw new SaveException(SaveError.TopologyMismatch, "aparatos de Bétera");
+            foreach (var a in Craft) { a.Phase = (AirPhase)r.Byte(); a.DestNode = r.Int(); a.DestXMm = r.Int(); a.DestYMm = r.Int(); a.PhaseStartTick = r.Long(); a.PhaseEndTick = r.Long(); a.FlightTicks = r.Int(); a.Platoon = r.Int(); a.AmmoPm = r.Int(); a.CargoMilliU = r.Int(); }
+            var pa = r.Ints(); if (pa == null || pa.Length != PlatoonAt.Length) throw new SaveException(SaveError.TopologyMismatch, "pelotones de Bétera");
+            Array.Copy(pa, PlatoonAt, pa.Length);
+        }
+    }
+}

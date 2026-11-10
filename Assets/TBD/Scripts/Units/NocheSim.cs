@@ -375,6 +375,8 @@ namespace TBD.Units
         public int ContactTick = -1;
         public bool PrimerContacto { get { return ContactTick >= 0 && ContactTick == Night.Tick && Night.StartNetTick >= 0; } }
         public ulong HashNoche() { return Hash(); }
+        /// <summary>INocheZona (F1): munición de un NH90 al almacén de la noche en marcha, con el tope de 47 u de la zona.</summary>
+        public void EntregaMunicion(int u) { if (u > 0 && Night.StartNetTick >= 0) Units.StockShots = System.Math.Min(47 * WeaponCatalog.ShotsPerU, Units.StockShots + u * WeaponCatalog.ShotsPerU); }
 
         public void Step()
         {
