@@ -124,12 +124,12 @@ namespace TBD.View
             foreach (var pl in w.Director.Active)
             {
                 if (pl.Kind != TBD.Net.HiveDirector.PlanKind.Asedio || pl.Node != _zoneNode) continue;
-                long key = pl.StartTick * 1000L + pl.Node; if (!_asedioVisto.Add(key)) continue;
+                long key = NetWorld.DayOf(w.Tick) * 1000L + pl.Node; if (!_asedioVisto.Add(key)) continue;      // una vez por día y estación (el director puede rehacer el plan)
                 var tr = _ng.P.TrainRect; int dentroX = _puestoEnviado.HasValue ? _puestoEnviado.Value.x : (_ng.P.StationRect.X0 + _ng.P.StationRect.X1) / 2, dentroY = _puestoEnviado.HasValue ? _puestoEnviado.Value.y : _ng.P.StationRect.Y0 - 3000;
                 int n = 0;
                 foreach (var p in _uw.Platoons)
                 {
-                    if (p.AliveCount() == 0 || p.Aboard != 0) continue;
+                    if (p.AliveCount() == 0 || p.Aboard != 0 || _escolta.IndexOf(p.Id) < 0) continue;      // solo la tropa bajada del tren (la guarnición ya está dentro)
                     long dx = p.AX < tr.X0 ? tr.X0 - p.AX : p.AX > tr.X1 ? p.AX - tr.X1 : 0, dy = p.AY < tr.Y0 ? tr.Y0 - p.AY : p.AY > tr.Y1 ? p.AY - tr.Y1 : 0;
                     if (dx * dx + dy * dy > 40000L * 40000L) continue;
                     if (_bot != null) _bot.Busy.Remove(p.Id);
