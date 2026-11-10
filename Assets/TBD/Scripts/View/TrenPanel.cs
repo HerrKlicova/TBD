@@ -251,6 +251,7 @@ namespace TBD.View
             if (Arg("-trenpanel-auto")) AutoIdaVuelta();
             if (Arg("-refuerzos-auto")) AutoRefuerzos();
             if (Arg("-dia2-auto") || Arg("-dia2-auto-sinescolta") || Arg("-dia2-auto-tren-aparcado") || Arg("-dia2-auto-enzona")) AutoDia2();
+            if (Arg("-socorro-auto")) AutoSocorro();
         }
 
         /// <summary>Cámara pegada al tren seguido (D-N170). Se suelta si el jugador toca la cámara o si el tren para.</summary>
@@ -655,6 +656,30 @@ namespace TBD.View
         /// <summary>-dia2-auto: la zona de Sagunto, al ver esto, vuelve al mapa en cuanto crea su sesión (así hay pelotón que embarcar). Se apaga al usarse.</summary>
         public static bool Dia2Volver; static bool _dia2ZonaHecha;
         int _sv1 = -1;
+        /// <summary>QA (Marcos): -socorro-auto. Día 3 (CercoSocorroAbierto): tren de socorro de Sagunto a Castellón con 2 pelotones y 20 u, a las puertas,
+        /// baja la tropa, entra en la zona de Castellón (combate con -nightbot) y sale a los 180 s. Todo al log con [SOCORRO].</summary>
+        void AutoSocorro()
+        {
+            float t = AutoT(); int sag = Casa, cas = Nodo("Castellón");
+            switch (_autoPaso)
+            {
+                case 0: if (t > 3f) { NetSession.Turbo = 40; NetSession.Push(NetCmdType.SetSpeed, 4, 0); Debug.Log("[SOCORRO] avanzo la red al día 3"); _autoPaso++; } break;
+                case 1: if (W.Tick >= 2L * NetConst.DayTicks + NetConst.Hours(7)) { NetSession.Turbo = 1; Debug.Log($"[SOCORRO] día 3, {NetConst.Clock(W.Tick)}; socorro abierto {W.CercoSocorroAbierto}; cerco {W.CercoZombies}"); _autoT0 = Time.unscaledTime; _autoPaso++; } break;
+                case 2: if (t > 2f && TrenPreparar.TrenEn(W, sag) >= 0 && !Embarque.Ocupado)
+                    {
+                        _sv1 = TrenPreparar.TrenEn(W, sag); AbrirPreparar(sag); Cargar((int)Res.Municion, 20);
+                        var ses = (W != null ? PrototypeBootstrap.SesionDe(W.Embarque.HomeNode) : null) ?? NightRun.Session; int n = 0;
+                        if (ses != null && ses.Uw != null) foreach (var p in ses.Uw.Platoons) { if (n >= 2) break; if (p.Aboard != 0 || p.AliveCount() == 0 || p.EyeMm > UnitsWorld.EyeInfantryMm + 1000) continue; Embarque.Subir(_sv1, PasajeroTipo.Peloton, p.Id, sag); n++; }
+                        Debug.Log($"[SOCORRO] suben {n} pelotones y 20 u al tren {W.Services[_sv1].Train.Name}"); _autoT0 = Time.unscaledTime; _autoPaso++;
+                    }
+                    else if (t > 60f) { Debug.LogError("[SOCORRO] no hay tren en Sagunto"); _autoPaso = 99; } break;
+                case 3: if (t > 2f && !Embarque.Ocupado) { string no = PorQueNoLlega(_sv1, cas); PonerDestino(cas); Enviar(_sv1); Debug.Log($"[SOCORRO] tren a Castellón: {(no ?? "sale")}"); _autoT0 = Time.unscaledTime; _autoPaso++; } break;
+                case 4: { var sv = W.Services[_sv1]; if (sv.AtStop && (sv.GateNode == cas || sv.Stops[sv.StopIndex].Node == cas)) { Debug.Log($"[SOCORRO] el tren llega {(sv.GateNode == cas ? "a las puertas" : "al andén")} de Castellón ({NetConst.Clock(W.Tick)}); a bordo {W.Embarque.CountAboard(_sv1, PasajeroTipo.Peloton)} pelotón; en la estación {W.Embarque.AtStation(cas, PasajeroTipo.Peloton).Count}; cerco {W.CercoZombies}"); var mz = FindObjectOfType<OperationsMap3D>(); if (mz != null) mz.EnterZone(cas); _autoT0 = Time.unscaledTime; _autoPaso++; }
+                          else if (t > 240f) { Debug.LogWarning($"[SOCORRO] el tren no llega a Castellón: {PorQueNoLlega(_sv1, cas)}"); _autoPaso = 99; } } break;
+                case 5: if (t > 180f) { Debug.Log($"[SOCORRO] fin: cerco {W.CercoZombies}, cercada {W.Cercada(cas)}"); var pb = FindObjectOfType<PrototypeBootstrap>(); if (pb != null) pb.LeaveToMap(); _autoT0 = Time.unscaledTime; _autoPaso++; } break;
+                case 6: if (t > 5f) { Debug.Log("[SOCORRO] fin de la corrida"); Application.Quit(0); _autoPaso++; } break;
+            }
+        }
         void AutoDia2()
         {
             float t = AutoT(); int sag = Casa, nul = Nodo("Nules"); long dia2 = NetConst.DayTicks; bool escolta = !Arg("-dia2-auto-sinescolta");

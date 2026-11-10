@@ -251,7 +251,7 @@ namespace TBD.View
                 _zoneNode = NetSession.PendingZoneNode;
                 NetSession.PendingZoneNode = -1;
                 zombies = net.ZoneSpawnPermil * NetWorld.ZombiesPerPermil;      // D-N188 (Nacho): la celda más el cerco (Castellón: 440 ‰ con 4400 zombis)
-                siege = net.ZoneSpawnPermil >= NetWorld.SiegeAt;
+                siege = net.ZoneSpawnPermil >= NetWorld.SiegeAt || net.Cercada(NetSession.PendingZoneNode >= 0 ? NetSession.PendingZoneNode : _zoneNode);      // la estación cercada: el cerco en anillo alrededor del recinto
                 seed = (uint)(_zoneNode * 7919 + net.ActiveZoneSinceTick * 31 + 1);    // semilla del nodo y del tick (D-N07)
                 _orthoSize = 70f;                                                       // vuelo de cámara: de lejos a cerca
                 _targetOrtho = 26f;                                                     // D-N73: zoom por defecto a ortho 26 (minimo 6, maximo 70)
