@@ -19,7 +19,7 @@ namespace TBD.View
         public static readonly string[] EstacionesConNoche = { "Sagunto", "Nules" };
 
         /// <summary>¿Van las noches con el reloj de la red? En partida (NightRun.Active con red), no en el tutorial (su noche empieza al momento) ni con -reloj-propio (pruebas viejas).</summary>
-        public static bool RelojUnicoActivo { get { return NightRun.Active && NetSession.A != null && !TutorialHud.Activo && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-reloj-propio") < 0; } }
+        public static bool RelojUnicoActivo { get { return NightRun.Active && NetSession.A != null && !TutorialHud.Activo && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-reloj-propio") < 0 && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-zona") < 0; } }      // Marcos (qa52): las corridas de QA con -zona van con su reloj propio (la noche empieza al entrar)
         static NetWorld _registradoEn;
         static readonly Dictionary<int, NightParams> _base = new Dictionary<int, NightParams>(); static string _dif = "normal"; static int _diaAjustado = -1;
         /// <summary>D-N190: un NH90 deja «u» de munición en «nodo»: a la reserva de la red (orden AirSupply, A y B en el mismo tick) y, si su noche está en marcha,
