@@ -54,6 +54,9 @@ namespace TBD.View
         public static string AvisoNoche; public static float AvisoNocheHasta;
         /// <summary>Reloj único (Nacho): la zona va por detrás de la red; la red espera a que la alcance (no se saltan ticks).</summary>
         public static bool Frenada;
+        static float _capturaT;
+        /// <summary>Para el diagnóstico del mapa: segundos desde la captura del fundido (−1 si no hay).</summary>
+        public static float FundidoEdad { get { return TransitionFrame != null ? Time.realtimeSinceStartup - _capturaT : -1f; } }
         /// <summary>Opciones: ×1 automático al primer ataque de cada noche (D-N186). Se guarda en PlayerPrefs; se pone igual en A y B fuera de Step.</summary>
         public static bool AutoX1 { get { if (_autoX1 < 0) _autoX1 = PlayerPrefs.GetInt("tbd.autox1", 1); return _autoX1 == 1; } set { _autoX1 = value ? 1 : 0; PlayerPrefs.SetInt("tbd.autox1", _autoX1); } }
         static int _autoX1 = -1; static long _ultimoContacto = -1;
@@ -175,6 +178,7 @@ namespace TBD.View
         void Update()
         {
             AudioListener.pause = (PrototypeBootstrap.ZonaPausada && SceneManager.GetActiveScene().name == "SampleScene") || (A != null && A.Paused && SceneManager.GetActiveScene().name == "Union");   // al pausar, silencio (Nuria, revisión del 9-nov): pausa de la zona o del mapa
+            if (TransitionFrame != null && Time.realtimeSinceStartup - _capturaT > 5f) { Destroy(TransitionFrame); TransitionFrame = null; Debug.Log("[TBD] fundido caducado: se quita"); }      // aunque nadie llame a DrawFade
             AvisoLog(); GuardarAtardecer(); RelojDelDia(); AvisoContacto(); PrototypeBootstrap.AjustarNochesSiguientes();
             var kb5 = UnityEngine.InputSystem.Keyboard.current;
             if (kb5 != null && kb5.f5Key.wasPressedThisFrame) { bool ok = SaveGame(); Debug.Log(ok ? "[TBD] Partida guardada en " + SavePath : "[TBD] No hay partida que guardar"); }   // F5: guardado rapido
@@ -207,13 +211,14 @@ namespace TBD.View
         {
             yield return new WaitForEndOfFrame();
             if (TransitionFrame != null) Destroy(TransitionFrame);
-            TransitionFrame = ScreenCapture.CaptureScreenshotAsTexture();
+            TransitionFrame = ScreenCapture.CaptureScreenshotAsTexture(); _capturaT = Time.realtimeSinceStartup;
         }
 
         /// <summary>Dibuja el último fotograma de la escena anterior desvaneciéndose (llamar desde OnGUI). Devuelve false al acabar.</summary>
         public static bool DrawFade(float since, float duration = 0.6f)
         {
             if (TransitionFrame == null) return false;
+            since = Mathf.Max(since, Time.realtimeSinceStartup - _capturaT - 1.5f);      // S1 qa52 126 (Marcos): el fundido se quedaba puesto (negro); como mucho dura 1,5 s más que la carga
             float a = 1f - Mathf.Clamp01(since / duration);
             if (a <= 0f) { Destroy(TransitionFrame); TransitionFrame = null; return false; }
             var prev = GUI.color;
