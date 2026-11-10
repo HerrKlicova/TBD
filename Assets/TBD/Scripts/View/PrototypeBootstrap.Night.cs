@@ -259,7 +259,7 @@ namespace TBD.View
                 { for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; bool inside = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; uint zid = _zomId[ci]; if (inside) { if (_insideIds.Add(zid)) { _climbSec++; _entTot++; float dW = zp.x - Level.FortX0, dE = Level.FortX1 - zp.x, dS = zp.y - Level.FortY0, dN = Level.FortY1 - zp.y; float mn = Mathf.Min(Mathf.Min(dW, dE), Mathf.Min(dS, dN)); _entSide[mn == dW ? 0 : mn == dS ? 1 : mn == dE ? 2 : 3]++; } } else _insideIds.Remove(zid); }
                   { var tr = _ng.P.TrainRect; float r = _ng.P.AttackReachMm / 1000f; float tx0 = tr.X0 / 1000f - r, tx1 = tr.X1 / 1000f + r, ty0 = tr.Y0 / 1000f - r, ty1 = tr.Y1 / 1000f + r; int tin = 0, tout = 0; for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; if (zp.x < tx0 || zp.x > tx1 || zp.y < ty0 || zp.y > ty1) continue; bool insideF = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; if (insideF) tin++; else tout++; } _trainIn = tin; _trainOut = tout; } }
                 _allT.Clear(); for (int i = 0; i < _zomPos.Count; i++) _allT.Add(new Target { Id = (int)_zomId[i], X = (int)(_zomPos[i].x * 1000f), Y = (int)(_zomPos[i].y * 1000f) });
-                _ng.CountAttackers(_allT, AimsStationZona, out _pileNearStation, out _nearTrain); if (_pileNearStation > _pilaMaxVista) _pilaMaxVista = _pileNearStation; TutorialHud.ComprobarC90(_uw, _allT, (cx, cy) => cx > (int)(Level.FortX0 * 1000f) + 1000 && cx < (int)(Level.FortX1 * 1000f) - 1000 && cy > (int)(Level.FortY0 * 1000f) + 1000 && cy < (int)(Level.FortY1 * 1000f) - 1000);
+                _ng.CountAttackers(_allT, AimsStationZona, out _pileNearStation, out _nearTrain); { var trr = _ng.P.TrainRect; float tcx = (trr.X0 + trr.X1) / 2000f, tcy = (trr.Y0 + trr.Y1) / 2000f; bool trenFuera = tcx < Level.FortX0 || tcx > Level.FortX1 || tcy < Level.FortY0 || tcy > Level.FortY1; _nearTrain = trenFuera ? _trainOut : _trainIn + _trainOut; }   // Nacho (S1 qa52 128): alrededor del TrainRect real, no del punto fijo del andén (con el tren aparcado fuera daba 0) if (_pileNearStation > _pilaMaxVista) _pilaMaxVista = _pileNearStation; TutorialHud.ComprobarC90(_uw, _allT, (cx, cy) => cx > (int)(Level.FortX0 * 1000f) + 1000 && cx < (int)(Level.FortX1 * 1000f) - 1000 && cy > (int)(Level.FortY0 * 1000f) + 1000 && cy < (int)(Level.FortY1 * 1000f) - 1000);
                 if (_rutaCap3.Pendientes > 0)
                     foreach (var rid in _rutaCap3.Ids) { var rp = _uw.Find(rid); if (rp == null) continue; if (_rutaCap3.Seguir(rid, rp.AX, rp.AY, out var rtx, out var rty, out var rh, out var ra)) { if (ra) _uw.AttackMove(rid, rtx, rty, rh); else _uw.Move(rid, rtx, rty, rh); } }
                 if (TutorialHud.Activo)
@@ -369,11 +369,11 @@ namespace TBD.View
         /// <summary>D-N180 (1), copia de NightSim.SurroundedTrain: un tren rodeado sin tropa a 60 m pierde al menos TrainHp / (10 min de juego) por tick. Va dentro del tick (determinista).</summary>
         void SurroundedTrainZona(int atTrain)
         {
-            const int lossGameMin = 10; const long reachMm = 60000;
+            const long reachMm = 60000;      // D-N180: el tren rodeado sin tropa a menos de 60 m cae en 100 min de juego
             if (atTrain <= 0 || _ng.TrainHp <= 0 || _uw == null) return;
             var r = _ng.P.TrainRect; long reach2 = reachMm * reachMm;
             foreach (var p in _uw.Platoons) { if (p.Aboard != 0) continue; foreach (var m in p.Men) { if (!m.Alive) continue; long dx = System.Math.Max(0, System.Math.Max(r.X0 - m.X, m.X - r.X1)), dy = System.Math.Max(0, System.Math.Max(r.Y0 - m.Y, m.Y - r.Y1)); if (dx * dx + dy * dy <= reach2) return; } }
-            long lossTicks = System.Math.Max(1L, (long)lossGameMin * 60 * IMath.TickRate / System.Math.Max(1, _ng.P.ClockX));
+            long lossTicks = System.Math.Max(1L, _ng.TicksForGameSeconds(100L * 60));      // Nacho: 100 min (D-N180); con el reloj de la red, 1750 ticks
             int floor = (int)((_ng.P.TrainHp + lossTicks - 1) / lossTicks);
             _ng.DamageTrain(floor - _ng.LastDmgTrain);
         }

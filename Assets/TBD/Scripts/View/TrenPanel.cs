@@ -559,6 +559,7 @@ namespace TBD.View
                 GUI.Label(new Rect(x0 + ww * 0.56f + lh * 1.45f, yy + u * 0.3f, lh * 1.6f, lh), $"<b>{_carga[res]}</b>", _s);
                 if (Boton(new Rect(x0 + ww * 0.56f + lh * 2.9f, yy, lh * 1.3f, lh * 0.9f), "+10")) Cargar(res, 10);
                 yy += lh;
+                if (res == (int)Res.Municion && _destinoP >= 0 && _destinoP < W.Graph.Nodes.Count && W.Graph.Nodes[_destinoP].Name == "Castellón" && _carga[res] < 17) { GUI.Label(new Rect(x0, yy, ww, lh), "<color=#e08c30>El socorro de Castellón necesita al menos 17 u de munición.</color>", _s); yy += lh; }      // D-N188 (Lucía, 1c378ba): aviso, no bloqueo
             }
             if (Boton(new Rect(x0, yy, ww * 0.5f, lh * 0.9f), Ui3.Activa ? "Sin carga" : (_sinCarga ? "✓ " : "") + "Sin carga", total == 0, null, _sinCarga && total == 0)) { _sinCarga = true; TutorialHud.Senal(TutorialGuion.Senales.SinCarga); }
             yy += lh * 1.4f;
