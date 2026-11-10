@@ -40,7 +40,11 @@ namespace TBD.View
         void MontarBetera()
         {
             _beteraRoot = new GameObject("Zona de Bétera").transform; _beteraRoot.position = BeteraOrigen;
-            _beteraZona = AerodromoZona.Montar(_beteraRoot); _betera = _beteraZona;
+            // la noche (Night.cs, Reloj.cs) deja BalanceSource.Reader en StreamingAssets/Noche: Bétera se lee de Data (qa52 I-Noche115/118: «falta estacion_betera.json»)
+            var lectorAntes = BalanceSource.Reader;
+            BalanceSource.Reader = f => { var pth = System.IO.Path.Combine(BalanceBootstrap.Folder, f); return System.IO.File.Exists(pth) ? System.IO.File.ReadAllText(pth) : null; };
+            try { _beteraZona = AerodromoZona.Montar(_beteraRoot); } finally { BalanceSource.Reader = lectorAntes; }
+            _betera = _beteraZona;
             if (_beteraZona == null) { Debug.LogWarning("[BETERA] no se ha podido montar la zona"); return; }
             _enBetera = true;
             _focus = BeteraOrigen + AerodromoZona.Centro; _targetOrtho = 45f;
