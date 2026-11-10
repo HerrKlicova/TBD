@@ -122,7 +122,9 @@ namespace TBD.View
             }
             if (!resume && _estacionZona == "Sagunto" && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinazotea") < 0)      // D-N174 (Lucia, Alvaro 10.15): 2 pelotones de tiradores libres en el ala oeste del edificio de viajeros, boca a 6,35 m
                 for (int az = 0; az < 2; az++) { var pa = _uw.AddPlatoon(PlatoonKind.Tiradores, 84500, 74300 + 4000 * az, west, Formation.Cuna); pa.EyeMm = 6350; _pname[pa.Id] = "Tiradores " + (az == 0 ? "azotea 1" : "azotea 2"); }
-            foreach (var wld in new[] { _worldA, _worldB })                          // sin los zombis iniciales de la zona: solo las oleadas
+            bool cercoAqui = NetSession.A != null && NetSession.A.Cercada(_zoneNode);      // D-N188: en la estación cercada los zombis iniciales SON el cerco (se quedan; sus abatidos van a CercoBajas)
+            if (cercoAqui) Debug.Log($"[CERCO] {_estacionZona} cercada: {NetSession.A.CercoZombies} zombis del cerco en la zona");
+            if (!cercoAqui) foreach (var wld in new[] { _worldA, _worldB })                          // sin los zombis iniciales de la zona: solo las oleadas
             {
                 if (wld == null || !wld.IsCreated) continue;
                 using (var q = wld.EntityManager.CreateEntityQuery(typeof(Zombie))) wld.EntityManager.DestroyEntity(q);
