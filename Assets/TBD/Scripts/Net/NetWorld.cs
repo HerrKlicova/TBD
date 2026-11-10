@@ -53,7 +53,7 @@ namespace TBD.Net
         bool PrimerContacto { get; }
     }
 
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, SpendMaterials = 22, TrainCargo = 23, LoseNode = 24, TrainLost = 25, AirSupply = 26, AirSend = 27, AirReturn = 28, AirDrop = 29, AirPickup = 30, AirAmmo = 31 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, SpendMaterials = 22, TrainCargo = 23, LoseNode = 24, TrainLost = 25, AirSupply = 26 /* sin uso desde F1 (la carga la deja AirWing al llegar); el número queda reservado */, AirSend = 27, AirReturn = 28, AirDrop = 29, AirPickup = 30, AirAmmo = 31 }
 
     public struct NetCommand
     {
@@ -588,7 +588,6 @@ namespace TBD.Net
                     case NetCmdType.AirDrop: if (Air != null) Air.Drop(c.Arg); break;
                     case NetCmdType.AirPickup: if (Air != null) Air.Pickup(c.Arg, c.Arg2); break;      // Arg = aparato, Arg2 = pelotón
                     case NetCmdType.AirAmmo: if (Air != null) Air.SetAmmo(c.Arg, c.Arg2); break;      // Arg = aparato, Arg2 = ‰ que le queda (la zona)
-                    case NetCmdType.AirSupply: if (c.Arg >= 0 && c.Arg < Graph.Nodes.Count && c.Arg2 > 0) Stock[c.Arg, (int)Res.Municion] += c.Arg2; break;      // D-N190: Arg = nodo, Arg2 = u que deja un NH90 (Iker)
                     case NetCmdType.SpendMaterials: SpendMaterials(c.Arg, c.Arg2); break;      // Arg = nodo, Arg2 = u (D-N163: lo que gastan reparar y reconstruir en la zona)
                     case NetCmdType.AssignWorkers: AssignWorkers(c.Arg, c.Arg2); break;                    // Arg = nodo, Arg2 = obreros
                     case NetCmdType.HaltAtSite: HaltAtSite(c.Arg, c.Arg2); break;                           // Arg = emplazamiento (-1 cancela), Arg2 = servicio
