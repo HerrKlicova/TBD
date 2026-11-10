@@ -197,6 +197,7 @@ namespace TBD.View
         void NightTick()
         {
             if (!_nightOn || _ng == null) return;
+            if ((_ng.Tick % 30) == 0) EnviarCercoBajas(25);
             RecogerEntregaAerea(); if ((_ng.Tick & 15) == 0) EscoltaAlAsedio();                                                     // D-N190: munición que deja un NH90 en esta zona
             bool playing = _ng.State == NightState.Jugando;
             if (_ng.Tick - _gateTk >= 30)    // las puertas de SagunteStart nacen construidas con la noche inactiva: SyncWorks no les hace el muro. Aqui, una sola vez por pieza (idempotente), por la cola como el resto de ordenes (Nacho)
@@ -477,7 +478,7 @@ namespace TBD.View
                 {
                     var zs = q.ToComponentDataArray<Zombie>(Allocator.Temp); var es = q.ToEntityArray(Allocator.Temp);
                     for (int i = 0; i < zs.Length; i++)
-                        if (_killSet.Contains(zs[i].SimId)) { em.DestroyEntity(es[i]); if (wld == _worldA) { _nightKills++; _naMuertos[zs[i].SimId] = new Vector2(zs[i].Pos.x, zs[i].Pos.z); BloodAt(zs[i].Pos); if (UnityEngine.Random.Range(0, 10) == 0) Sfx.PlayAt("zombi_caida", new Vector3(zs[i].Pos.x, 0.3f, zs[i].Pos.z), 0.3f, 0.25f); } }
+                        if (_killSet.Contains(zs[i].SimId)) { em.DestroyEntity(es[i]); if (wld == _worldA) { _nightKills++; _cercoPend++; _naMuertos[zs[i].SimId] = new Vector2(zs[i].Pos.x, zs[i].Pos.z); BloodAt(zs[i].Pos); if (UnityEngine.Random.Range(0, 10) == 0) Sfx.PlayAt("zombi_caida", new Vector3(zs[i].Pos.x, 0.3f, zs[i].Pos.z), 0.3f, 0.25f); } }
                     zs.Dispose(); es.Dispose();
                 }
             }

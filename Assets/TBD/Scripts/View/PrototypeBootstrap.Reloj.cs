@@ -156,7 +156,17 @@ namespace TBD.View
                 Debug.Log($"[NOCHE] asedio anunciado en {_estacionZona}: {pasan} soldado(s) de la escolta completan la guarnición ({(norte != null ? _pname.TryGetValue(norte.Id, out var nn) ? nn : "norte" : "-")} {norte?.AliveCount()}, {(sur != null ? _pname.TryGetValue(sur.Id, out var ns) ? ns : "sur" : "-")} {sur?.AliveCount()}); {n} pelotón(es) a la banqueta ({dentroX / 1000f:0.0}; {dentroY / 1000f:0.0})");
             }
         }
-        void SoltarPausaRed() { NetSession.Frenada = false; if (_pausaRedPuesta && NetSession.A != null && NetSession.A.Paused) NetSession.Push(NetCmdType.Resume, 0, 0); _pausaRedPuesta = false; }
+        int _cercoPend;
+        /// <summary>D-N188 (Nacho): los zombis abatidos en la zona de una estación cercada bajan el cerco de la red (orden CercoBajas, en lotes de «minimo»; al salir, lo que quede).</summary>
+        void EnviarCercoBajas(int minimo)
+        {
+            var w = NetSession.A; if (w == null || _zoneNode < 0 || !w.Cercada(_zoneNode)) { _cercoPend = 0; return; }
+            if (_cercoPend < minimo || _cercoPend <= 0) return;
+            NetSession.Push(NetCmdType.CercoBajas, _zoneNode, 0, _cercoPend);      // Push(tipo, arg, retardo, arg2)
+            Debug.Log($"[CERCO] {_cercoPend} abatidos en {_estacionZona}: cerco {w.CercoZombies} → {System.Math.Max(0, w.CercoZombies - _cercoPend)} (se rompe por debajo de {w.CercoRompe})");
+            _cercoPend = 0;
+        }
+        void SoltarPausaRed() { EnviarCercoBajas(1); NetSession.Frenada = false; if (_pausaRedPuesta && NetSession.A != null && NetSession.A.Paused) NetSession.Push(NetCmdType.Resume, 0, 0); _pausaRedPuesta = false; }
         /// <summary>Con la zona en pantalla, la zona pone el arranque de las 22:00 (Begin con el tick de red de las 22:00) si el plan de la red tiene noche ese día;
         /// tras una victoria, la noche siguiente (BeginNextNight). Lo mismo que hace NightSim.ComienzaNoche fuera de pantalla.</summary>
         void ArranqueRedZona()
