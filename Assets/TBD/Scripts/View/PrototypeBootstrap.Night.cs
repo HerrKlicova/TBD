@@ -195,7 +195,7 @@ namespace TBD.View
         void NightTick()
         {
             if (!_nightOn || _ng == null) return;
-            RecogerEntregaAerea();                                                     // D-N190: munición que deja un NH90 en esta zona
+            RecogerEntregaAerea(); if ((_ng.Tick & 15) == 0) EscoltaAlAsedio();                                                     // D-N190: munición que deja un NH90 en esta zona
             bool playing = _ng.State == NightState.Jugando;
             if (_ng.Tick - _gateTk >= 30)    // las puertas de SagunteStart nacen construidas con la noche inactiva: SyncWorks no les hace el muro. Aqui, una sola vez por pieza (idempotente), por la cola como el resto de ordenes (Nacho)
             {

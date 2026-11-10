@@ -114,6 +114,30 @@ namespace TBD.View
             var o = GUI.color; GUI.color = new Color(0.07f, 0.08f, 0.05f, 0.9f); GUI.DrawTexture(r, _avisoPx); GUI.color = o;
             GUI.Label(r, "<color=#e08c30>" + NetSession.AvisoNoche + "</color>", _avisoSt);
         }
+        readonly HashSet<long> _asedioVisto = new HashSet<long>();
+        /// <summary>Regla de Hugo y Nacho (aprobada por Lucía, decisiones-noche): al anunciarse el asedio de esta estación, los pelotones propios a menos de 40 m del tren
+        /// descargado entran andando por la puerta (Move al puesto de dentro, sin teletransporte) y pasan a la guarnición (el bot ya puede usarlos). Los que el jugador haya
+        /// llevado lejos se quedan fuera. Nules: con la escolta fuera se gana el 6 %; dentro, el 99,5 % (I-113).</summary>
+        void EscoltaAlAsedio()
+        {
+            var w = NetSession.A; if (w == null || w.Director == null || _zoneNode < 0 || _uw == null || _ng == null) return;
+            foreach (var pl in w.Director.Active)
+            {
+                if (pl.Kind != TBD.Net.HiveDirector.PlanKind.Asedio || pl.Node != _zoneNode) continue;
+                long key = pl.StartTick * 1000L + pl.Node; if (!_asedioVisto.Add(key)) continue;
+                var tr = _ng.P.TrainRect; int dentroX = _puestoEnviado.HasValue ? _puestoEnviado.Value.x : (_ng.P.StationRect.X0 + _ng.P.StationRect.X1) / 2, dentroY = _puestoEnviado.HasValue ? _puestoEnviado.Value.y : _ng.P.StationRect.Y0 - 3000;
+                int n = 0;
+                foreach (var p in _uw.Platoons)
+                {
+                    if (p.AliveCount() == 0 || p.Aboard != 0) continue;
+                    long dx = p.AX < tr.X0 ? tr.X0 - p.AX : p.AX > tr.X1 ? p.AX - tr.X1 : 0, dy = p.AY < tr.Y0 ? tr.Y0 - p.AY : p.AY > tr.Y1 ? p.AY - tr.Y1 : 0;
+                    if (dx * dx + dy * dy > 40000L * 40000L) continue;
+                    if (_bot != null) _bot.Busy.Remove(p.Id);
+                    _uw.Move(p.Id, dentroX + 3000 * n, dentroY, 32768); n++;
+                }
+                if (n > 0) Debug.Log($"[NOCHE] asedio anunciado en {_estacionZona}: {n} pelotón(es) junto al tren entran andando al recinto ({dentroX / 1000f:0.0}; {dentroY / 1000f:0.0})");
+            }
+        }
         void SoltarPausaRed() { NetSession.Frenada = false; if (_pausaRedPuesta && NetSession.A != null && NetSession.A.Paused) NetSession.Push(NetCmdType.Resume, 0, 0); _pausaRedPuesta = false; }
         /// <summary>Con la zona en pantalla, la zona pone el arranque de las 22:00 (Begin con el tick de red de las 22:00) si el plan de la red tiene noche ese día;
         /// tras una victoria, la noche siguiente (BeginNextNight). Lo mismo que hace NightSim.ComienzaNoche fuera de pantalla.</summary>
