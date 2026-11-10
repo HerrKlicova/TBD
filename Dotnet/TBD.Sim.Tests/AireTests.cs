@@ -77,6 +77,24 @@ namespace TBD.Sim.Tests
                 int z0 = w.CercoZombies; while (w.Tick % NetConst.DayTicks != 0) w.Step(); w.Step();
                 check(w.CercoZombies == z0, "roto, ya no se rehace");
             }
+            {   // D-N188: el socorro (preguntas de Iker, I-Noche135)
+                var w = NetScenario.Inicio(); int cas = TrenPreparar.Nodo(w, "Castellón"), sg = TrenPreparar.Nodo(w, "Sagunto");
+                int sv = -1; for (int k = 0; k < w.Services.Count; k++) if (w.Services[k].AtStop && w.Services[k].Stops.Count > 0 && w.Services[k].Stops[w.Services[k].StopIndex].Node == sg) { sv = k; break; }
+                int stride = 2 + NetConst.ResCount; var data = new int[2 * stride]; data[0] = sg; data[1] = (int)NetConst.Hours(9); data[stride] = cas; data[stride + 1] = (int)NetConst.Hours(14);
+                check(sv >= 0 && w.SetSchedule(sv, (int[])data.Clone()) == ScheduleResult.Cercada, "día 1: un horario con parada en Castellón se rechaza (Cercada)");
+                while (w.Tick < 2L * NetConst.DayTicks + NetConst.Hours(6)) w.Step();
+                sv = -1; for (int k = 0; k < w.Services.Count; k++) if (w.Services[k].AtStop && w.Services[k].Stops.Count > 0 && w.Services[k].Stops[w.Services[k].StopIndex].Node == sg && !w.Services[k].Ambushed) { sv = k; break; }
+                var rr = sv >= 0 ? w.SetSchedule(sv, (int[])data.Clone()) : ScheduleResult.TrenInexistente;
+                check(rr != ScheduleResult.Cercada, $"día 3: el socorro ya admite Castellón ({rr})");
+                check(w.Besieged(cas), "el cerco sitia: el tren de socorro espera a las puertas y solo baja la tropa (D-N166)");
+                Cmd(w, NetCmdType.Materialize, cas); w.Step();
+                int fieldBefore = 0; foreach (var d in w.Field.D) fieldBefore += d; foreach (var d in w.Field.S) fieldBefore += d;
+                check(w.ActiveZoneNode == cas && w.ZoneSpawnPermil == w.ActiveZoneTaken + 440, $"al entrar en Castellón la zona saca la celda más el cerco ({w.ZoneSpawnPermil} ‰, 440 del cerco)");
+                Cmd(w, NetCmdType.CercoBajas, cas, 400); w.Step();
+                Cmd(w, NetCmdType.Dematerialize, cas, w.ActiveZoneTaken + 400); w.Step();
+                int fieldAfter = 0; foreach (var d in w.Field.D) fieldAfter += d; foreach (var d in w.Field.S) fieldAfter += d;
+                check(w.CercoZombies == 4000 && Math.Abs(fieldAfter - fieldBefore - w.ActiveZoneTaken) <= 50, $"al salir, los 4000 del cerco siguen siendo cerco y no vuelven a la mancha (mancha {fieldBefore} → {fieldAfter})");
+            }
             {   // turbo: a ×4 la red da 4 pasos por fotograma, los mismos ticks: el vuelo dura los mismos ticks
                 var w = NetScenario.Inicio(); Cmd(w, NetCmdType.SetSpeed, 4); w.Step(); long s = w.Tick; Cmd(w, NetCmdType.AirSend, 0, sag); int g = 0; while (w.Air.Craft[0].Phase != AirPhase.EnZona && g++ < 3000) w.Step();
                 check(w.Tick - s == AirWing.PrepTicks + ft + 1, $"con ×4 la salida dura los mismos ticks ({w.Tick - s}): una cuarta parte del tiempo real");

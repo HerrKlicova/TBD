@@ -702,7 +702,7 @@ namespace TBD.Net
             {
                 int node = data[k * stride], at = data[k * stride + 1];
                 if (node < 0 || node >= Graph.Nodes.Count || at < 0 || at >= NetConst.DayTicks) return ScheduleResult.HorarioInvalido;
-                if (node == CercoNodo) return ScheduleResult.Cercada;
+                if (node == CercoNodo && !CercoSocorroAbierto) return ScheduleResult.Cercada;      // D-N188: desde el día 3 se puede mandar el socorro (el tren espera a las puertas)
                 if (n > 1 && node == data[((k + 1) % n) * stride]) return ScheduleResult.HorarioInvalido;
                 for (int r = 0; r < NetConst.ResCount; r++) if (Math.Abs(data[k * stride + 2 + r]) > MaxScheduleTransfer) return ScheduleResult.HorarioInvalido;
                 if (newIndex < 0 && node == cur) newIndex = k;
@@ -1110,6 +1110,9 @@ namespace TBD.Net
         /// La horda de la celda del nodo pasa a la zona: la densidad sale de la mancha (masa conservada: vuelve al desmaterializar).
         /// La zona la recibe como ActiveZoneTaken × 10 zombis. Si ya hay otra zona activa, se ignora (MVP: una sola zona).
         /// </summary>
+        /// <summary>D-N188: lo que la zona tiene que sacar al entrar (‰, 10 zombis cada uno): la celda tomada y, en el nodo cercado, el cerco (CercoZombies).
+        /// El cerco no sale de la mancha: lo lleva CercoZombies, que la zona rebaja con CercoBajas; al salir, Dematerialize no lo devuelve a la mancha.</summary>
+        public int ZoneSpawnPermil { get { return ActiveZoneTaken + (ActiveZoneNode >= 0 && ActiveZoneNode == CercoNodo ? CercoZombies / ZombiesPerPermil : 0); } }
         void Materialize(int node)
         {
             if (ActiveZoneNode >= 0 || node < 0 || node >= Graph.Nodes.Count) return;
@@ -1138,6 +1141,7 @@ namespace TBD.Net
         {
             if (node != ActiveZoneNode) return;
             int i = ActiveZoneCell;
+            if (node == CercoNodo) returnPermil -= Math.Min(Math.Max(0, returnPermil), CercoZombies / ZombiesPerPermil);      // D-N188: los supervivientes del cerco siguen siendo el cerco (ya rebajado por CercoBajas); no vuelven a la mancha
             LostThisTick += Math.Max(0, ActiveZoneTaken - Math.Max(0, returnPermil));
             LostTotal += Math.Max(0, ActiveZoneTaken - Math.Max(0, returnPermil));
             Director.OnZoneLoss(this, node, Math.Max(0, ActiveZoneTaken - Math.Max(0, returnPermil)));      // estado de manada «asedio»: pierde más del 50 % y se retira   // las bajas de la zona salen de la masa; si vuelve más de lo que salió (refuerzos) cuenta como inyectado
@@ -1349,7 +1353,7 @@ namespace TBD.Net
             }
             else if (GatesEnabled && t.Leg != legBefore && t.State == RailTrainState.EnMarcha && t.Leg < t.Route.Count && Besieged(t.Route[t.Leg]))
             {
-                t.OffsetMm = 0; t.Stop(); s.GateNode = t.Route[t.Leg]; s.GateSinceTick = Tick; s.GateHorde = SiegeZombies(s.GateNode);          // D-N152: estación de paso sitiada: se queda a sus puertas hasta que acabe el asedio
+                t.OffsetMm = 0; t.Stop(); s.GateNode = t.Route[t.Leg]; s.GateSinceTick = Tick; s.GateHorde = GateHordeFor(s.GateNode);          // D-N152: estación de paso sitiada: se queda a sus puertas hasta que acabe el asedio
             }
             if (t.State == RailTrainState.Llegado)
             {
@@ -1357,7 +1361,7 @@ namespace TBD.Net
                 if (s.HaltAt >= 0 && node == s.HaltAt) s.HaltAt = -1;     // llegó a su parada: ya está en el nodo
                 MakeNoise(node);
                 s.AtStop = true;
-                if (GatesEnabled && (Besieged(node) || FreeSlots(node, s) <= 0)) { s.GateNode = node; s.GateSinceTick = Tick; s.GateHorde = Besieged(node) ? SiegeZombies(node) : 0; }   // D-N152: sitiada o sin andén libre: a las puertas
+                if (GatesEnabled && (Besieged(node) || FreeSlots(node, s) <= 0)) { s.GateNode = node; s.GateSinceTick = Tick; s.GateHorde = Besieged(node) ? GateHordeFor(node) : 0; }   // D-N152: sitiada o sin andén libre: a las puertas
                 TryAmbush(s, node);
             }
         }

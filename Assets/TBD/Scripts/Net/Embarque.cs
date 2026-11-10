@@ -74,7 +74,9 @@ namespace TBD.Net
         public readonly EmbarqueState Embarque = new EmbarqueState();
 
         /// <summary>¿Está sitiada la estación? (D-N166: entonces solo baja la tropa). Misma regla que pausa las obras.</summary>
-        public bool Besieged(int node) { return node >= 0 && node < Graph.Nodes.Count && WorkPaused(node); }
+        public bool Besieged(int node) { return node >= 0 && node < Graph.Nodes.Count && (WorkPaused(node) || node == CercoNodo); }      // D-N188: el cerco también sitia (el socorro espera a las puertas y solo baja la tropa)
+        /// <summary>Zombis para el combate a las puertas (D-N177). El cerco (D-N188) no se resuelve con la fórmula: se combate en la zona, que informa con CercoBajas.</summary>
+        int GateHordeFor(int node) { return node == CercoNodo ? 0 : SiegeZombies(node); }
 
         /// <summary>Por qué no puede subir (texto para el panel), o null si puede. «node» es la estación donde está el tren.</summary>
         public string LoadBlockReason(int service, PasajeroTipo t, int id, int node)
