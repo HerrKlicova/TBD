@@ -47,11 +47,13 @@ namespace TBD.Net
         void PasoNoche();
         /// <summary>Hash del estado de la noche, para la prueba de desincronización.</summary>
         ulong HashNoche();
+        /// <summary>F1 (Nacho): «u» de munición que deja un NH90 en el almacén de la noche, si está en marcha (tope 47 u). Dentro de NetWorld.Step: A y B en el mismo tick.</summary>
+        void EntregaMunicion(int u);
         /// <summary>true solo en el tick del primer contacto de la horda con la estación en esta noche.</summary>
         bool PrimerContacto { get; }
     }
 
-    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, SpendMaterials = 22, TrainCargo = 23, LoseNode = 24, TrainLost = 25, AirSupply = 26 }
+    public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, SpendMaterials = 22, TrainCargo = 23, LoseNode = 24, TrainLost = 25, AirSupply = 26, AirSend = 27, AirReturn = 28, AirDrop = 29, AirPickup = 30, AirAmmo = 31 }
 
     public struct NetCommand
     {
@@ -459,6 +461,7 @@ namespace TBD.Net
             var zs = LastZoneSiege; w.Ints(new[] { zs.Node, zs.Lost ? 1 : 0, zs.OnScreen ? 1 : 0 }); w.Long(zs.Zombies); w.Long(zs.Killed); w.Long(zs.SpentU); w.Long(zs.DamageU); w.Long(zs.Casualties); w.Long(zs.Tick);
             w.Ints(new[] { Director.ColState, Director.ColDaysBelow, Director.ColIntroDone ? 1 : 0 }); w.Long(Director.ColSignalMil); w.Ints(Director.ColHeld);      // NetVersion 6: estados de la Colmena (D-N160)
             if (Traffic != null) Traffic.SaveStreaks(w); else for (int q = 0; q < 4; q++) w.Ints(new int[0]);      // NetVersion 7: rachas de la memoria de tráfico (informe)
+            w.Bool(Air != null); if (Air != null) Air.SaveState(w);      // NetVersion 8: los NH90 de Bétera (F1)
         }
 
         public void LoadState(SaveReader r)
@@ -514,6 +517,8 @@ namespace TBD.Net
             var ch = r.Ints(); if (ch == null || ch.Length != Director.ColHeld.Length) throw new SaveException(SaveError.Corrupt, "historia de la Colmena no válida");
             Array.Copy(ch, Director.ColHeld, ch.Length);
             if (Traffic != null) Traffic.LoadStreaks(r); else for (int q = 0; q < 4; q++) { var e7 = r.Ints(); if (e7 == null || e7.Length != 0) throw new SaveException(SaveError.TopologyMismatch, "rachas sin memoria de tráfico"); }
+            bool hasAir = r.Bool();      // NetVersion 8 (F1): una partida vieja no lo tiene y el aire empieza como en Inicio
+            if (hasAir) { if (Air == null) throw new SaveException(SaveError.TopologyMismatch, "aeródromo guardado en un mundo sin aeródromo"); Air.LoadState(r); }
             Injections.Clear(); Retirements.Clear(); LostThisTick = 0; RetiredThisTick = 0;      // datos de QA del tick: empiezan limpios
         }
 
@@ -578,6 +583,11 @@ namespace TBD.Net
                     case NetCmdType.ResolveAmbush: ResolveAmbush(c.Arg & 0xFF, c.Arg2, false, c.Arg >> 8); break;       // Arg = servicio | (munición gastada en u) << 8
                     case NetCmdType.Dematerialize: Dematerialize(c.Arg, c.Arg2); break;
                     case NetCmdType.ConsumeAmmo: ConsumeAmmo(c.Arg, c.Arg2); break;
+                    case NetCmdType.AirSend: if (Air != null) Air.Send(this, c.Arg & 0xFF, c.Arg2, c.Payload != null && c.Payload.Length == 2 ? c.Payload[0] : 0, c.Payload != null && c.Payload.Length == 2 ? c.Payload[1] : 0, (c.Arg >> 8 & 1) != 0); break;   // F1: Arg = aparato | conPelotón << 8, Arg2 = nodo (−1 = punto libre, Payload = [x, y] en mm)
+                    case NetCmdType.AirReturn: if (Air != null) Air.Return(this, c.Arg); break;
+                    case NetCmdType.AirDrop: if (Air != null) Air.Drop(c.Arg); break;
+                    case NetCmdType.AirPickup: if (Air != null) Air.Pickup(c.Arg, c.Arg2); break;      // Arg = aparato, Arg2 = pelotón
+                    case NetCmdType.AirAmmo: if (Air != null) Air.SetAmmo(c.Arg, c.Arg2); break;      // Arg = aparato, Arg2 = ‰ que le queda (la zona)
                     case NetCmdType.AirSupply: if (c.Arg >= 0 && c.Arg < Graph.Nodes.Count && c.Arg2 > 0) Stock[c.Arg, (int)Res.Municion] += c.Arg2; break;      // D-N190: Arg = nodo, Arg2 = u que deja un NH90 (Iker)
                     case NetCmdType.SpendMaterials: SpendMaterials(c.Arg, c.Arg2); break;      // Arg = nodo, Arg2 = u (D-N163: lo que gastan reparar y reconstruir en la zona)
                     case NetCmdType.AssignWorkers: AssignWorkers(c.Arg, c.Arg2); break;                    // Arg = nodo, Arg2 = obreros
@@ -1150,6 +1160,16 @@ namespace TBD.Net
         /// <summary>Último primer contacto: nodo y tick de red (−1 si ninguno). Para el aviso de la vista; no entra en el hash (la velocidad, que sí entra, ya lo recoge).</summary>
         public int ContactNode = -1; public long ContactAtTick = -1;
 
+        /// <summary>F1 (Nacho): los NH90 y los pelotones de embarque de Bétera. null en escenarios sin aeródromo. Lo crea Inicio.</summary>
+        public AirWing Air;
+        /// <summary>Un NH90 llega a «node» con «u» de munición de carga (D-N190): a la reserva de la red y, si la noche de ese nodo está en marcha, a su almacén.</summary>
+        public void AirDeliver(int node, int u)
+        {
+            if (u <= 0 || node < 0 || node >= Graph.Nodes.Count) return;
+            Stock[node, (int)Res.Municion] += u;
+            if (NochesZona.TryGetValue(node, out var z)) z.EntregaMunicion(u);
+        }
+
         void StepNights()
         {
             if (NochesZona.Count == 0) return;
@@ -1176,6 +1196,7 @@ namespace TBD.Net
             ApplyCommands();                 // en cada tick, no al ritmo de los fotogramas (QA Q5)
             if (Paused) return;
             StepNights();                    // reloj único: las noches de las zonas van con este tick (D-N186)
+            if (Air != null) Air.Step(this); // F1: los NH90 de Bétera, en ticks de red
             for (int s = 0; s < Services.Count; s++) StepService(Services[s]);
             AdvanceWorks();
             AdvanceRepairs();
@@ -1884,6 +1905,7 @@ namespace TBD.Net
             r.Control = Mix((ulong)Tick) + Mix(0xC0FFEEUL ^ ((ulong)(uint)Speed << 1) ^ (Paused ? 1UL : 0UL))
                       + Mix(0x2041EUL ^ ((ulong)(uint)(ActiveZoneCell + 1) << 48) ^ ((ulong)(uint)(ActiveZoneNode + 1) << 8) ^ ((ulong)(uint)ActiveZoneTaken << 24) ^ ((ulong)(ActiveZoneSinceTick + 1) << 40));
             r.Field = Field.Hash();
+            if (Air != null) r.Control += Air.Hash();      // F1: sin usar el aire suma 0
             foreach (var kv in NochesZona) r.Control += Mix(0x2E10C0UL ^ ((ulong)(uint)kv.Key << 40)) + kv.Value.HashNoche();     // reloj único: las noches de las zonas (sin noches registradas, el hash no cambia)
             ulong h = 0;
             foreach (var s in Services)
@@ -2095,6 +2117,7 @@ namespace TBD.Net
             w.CercoNodo = Id("Castellón");      // D-N184: suya pero cercada; sin trenes hasta después del MVP
             // Reloj único (D-N186): plan de noches de las zonas. Sagunto, todas las noches; Nules, la del día 2 (Defiende Nules), la única que tiene definida el escenario.
             w.NightPlan.Add(new NetWorld.NightPlanEntry { Node = Id("Sagunto"), FromDay = 1, ToDay = -1 }); w.NightPlan.Add(new NetWorld.NightPlanEntry { Node = Id("Nules"), FromDay = 2, ToDay = 2 });
+            w.Air = AirWing.Betera(w.Graph);                                     // F1 (Nacho): los NH90 de Bétera viven en la red
             w.ObjNode = Id("Nules"); w.AmbushNode = Id("Nules");      // partida de 30 min (Lucía, 9-nov 08:00): objetivo del día 2 y emboscada de unos 300 al llegar el tren
             w.Director.SinAsedioNodo = Id("Nules"); w.Director.SinAsedioHasta = NetConst.DayTicks + NetConst.Hours(8);     // D-N156: Nules sin asedio la 1.ª noche (hasta las 08:00 del día siguiente)
             w.Director.ZoneHordes.Add(new HiveDirector.ZoneHorde { Node = Id("Nules"), FromDay = 1, Zombies = 2200 }); w.GarrisonMil[Id("Nules")] = 12_000; w.ZoneWallE4[Id("Nules")] = 1_322_400;   // guarnición de 12 y recinto de 132,24 u (Álvaro, nules-nivel.md §14: HESCO en los cruces de andén del oeste; antes 124,3)   // horda propia de Nules desde la 2.ª noche: 2200 en normal (Lucía, 9-nov 00:56, medida en NightSim con la D-N180; difícil 2440 cuando la red tenga dificultad); Castellón, sin noche en el MVP
