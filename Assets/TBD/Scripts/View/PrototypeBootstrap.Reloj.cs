@@ -123,16 +123,37 @@ namespace TBD.View
                 if (pl.Kind != TBD.Net.HiveDirector.PlanKind.Asedio || pl.Node != _zoneNode) continue;
                 long key = NetWorld.DayOf(w.Tick) * 1000L + pl.Node; if (!_asedioVisto.Add(key)) continue;      // una vez por día y estación (el director puede rehacer el plan)
                 var tr = _ng.P.TrainRect; int dentroX = _puestoEnviado.HasValue ? _puestoEnviado.Value.x : (_ng.P.StationRect.X0 + _ng.P.StationRect.X1) / 2, dentroY = _puestoEnviado.HasValue ? _puestoEnviado.Value.y : _ng.P.StationRect.Y0 - 3000;
-                int n = 0;
+                var cerca = new List<Platoon>();
                 foreach (var p in _uw.Platoons)
                 {
                     if (p.AliveCount() == 0 || p.Aboard != 0 || _escolta.IndexOf(p.Id) < 0) continue;      // solo la tropa bajada del tren (la guarnición ya está dentro)
                     long dx = p.AX < tr.X0 ? tr.X0 - p.AX : p.AX > tr.X1 ? p.AX - tr.X1 : 0, dy = p.AY < tr.Y0 ? tr.Y0 - p.AY : p.AY > tr.Y1 ? p.AY - tr.Y1 : 0;
-                    if (dx * dx + dy * dy > 40000L * 40000L) continue;
-                    if (_bot != null) _bot.Busy.Remove(p.Id);
-                    _uw.Move(p.Id, dentroX + 3000 * n, dentroY, 32768); n++;
+                    if (dx * dx + dy * dy <= 40000L * 40000L) cerca.Add(p);
                 }
-                if (n > 0) Debug.Log($"[NOCHE] asedio anunciado en {_estacionZona}: {n} pelotón(es) junto al tren entran andando al recinto ({dentroX / 1000f:0.0}; {dentroY / 1000f:0.0})");
+                if (cerca.Count == 0) continue;
+                // D-N192 (Lucía): los supervivientes pasan a la guarnición; primero completan a 8 los puestos de los extremos norte y sur (sin azoteas), el resto a la banqueta
+                Platoon norte = null, sur = null;
+                foreach (var g in _uw.Platoons)
+                {
+                    if (_escolta.IndexOf(g.Id) >= 0 || g.AliveCount() == 0 || g.Aboard != 0 || g.EyeMm > UnitsWorld.EyeInfantryMm + 1000) continue;
+                    if (norte == null || g.AY > norte.AY) norte = g; if (sur == null || g.AY < sur.AY) sur = g;
+                }
+                int pasan = 0;
+                foreach (var dest in new[] { norte, sur })
+                {
+                    if (dest == null) continue;
+                    foreach (var e in cerca)
+                        for (int k = e.Men.Count - 1; k >= 0 && dest.AliveCount() < 8; k--)
+                            if (e.Men[k].Alive) { dest.Men.Add(e.Men[k]); e.Men.RemoveAt(k); pasan++; }      // andan a su sitio en el pelotón (MoveMen): sin teletransporte
+                }
+                int n = 0;
+                foreach (var e in cerca)
+                {
+                    if (_bot != null) _bot.Busy.Remove(e.Id);
+                    if (e.AliveCount() == 0) continue;
+                    _uw.Move(e.Id, dentroX + 3000 * n, dentroY, 32768); n++;      // lo que sobra, a la banqueta
+                }
+                Debug.Log($"[NOCHE] asedio anunciado en {_estacionZona}: {pasan} soldado(s) de la escolta completan la guarnición ({(norte != null ? _pname.TryGetValue(norte.Id, out var nn) ? nn : "norte" : "-")} {norte?.AliveCount()}, {(sur != null ? _pname.TryGetValue(sur.Id, out var ns) ? ns : "sur" : "-")} {sur?.AliveCount()}); {n} pelotón(es) a la banqueta ({dentroX / 1000f:0.0}; {dentroY / 1000f:0.0})");
             }
         }
         void SoltarPausaRed() { NetSession.Frenada = false; if (_pausaRedPuesta && NetSession.A != null && NetSession.A.Paused) NetSession.Push(NetCmdType.Resume, 0, 0); _pausaRedPuesta = false; }
