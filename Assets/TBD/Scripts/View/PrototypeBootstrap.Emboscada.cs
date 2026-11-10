@@ -14,6 +14,7 @@ namespace TBD.View
     /// </summary>
     public partial class PrototypeBootstrap
     {
+        static readonly bool _socorroSalir = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-socorro-auto") >= 0;
         long _emboscadaVista = -1; bool _trenPerdidoAvisado; float _trenSolidoX = float.NaN; static readonly int _rectTrenSagunto = NightParams.Default().TrainRect.X1;
         /// <summary>El sólido ECS del tren (muro mientras está parado) va donde lo pone la noche: en Nules A, fuera de la puerta este (TrainRect de nules.json), no en el andén
         /// de Sagunto. Sin tren (perdido), el sólido sale del mapa. Los dos mundos igual (A y B).</summary>
@@ -37,6 +38,7 @@ namespace TBD.View
 
         void EmboscadaEnZona(List<SpawnPoint> spawns)
         {
+            if (_socorroSalir && NetSession.A != null && _nightInit && _zoneNode >= 0 && NetSession.A.Graph.Nodes[_zoneNode].Name != "Castellón" && NetSession.A.Tick >= 2L * NetConst.DayTicks + NetConst.Hours(7) && Time.timeSinceLevelLoad > 4f) { Debug.Log("[SOCORRO] día 3: salgo de la zona al mapa para el socorro"); LeaveToMap(); return; }   // -socorro-auto
             if (TrenPanel.Dia2Volver && _nightInit && Time.timeSinceLevelLoad > 4f) { TrenPanel.Dia2Volver = false; Debug.Log("[DIA2] sesión de zona creada; vuelvo al mapa"); LeaveToMap(); return; }   // -dia2-auto
             var w = NetSession.A; if (w == null || _ng == null) return;
             SolidoDelTren();
