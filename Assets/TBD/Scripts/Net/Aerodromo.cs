@@ -257,7 +257,8 @@ namespace TBD.Net
             { "Nules", new[] {
                 new PuestoDato("fusileros", 71500, 58500, Oeste, Formation.Linea, 400),        // v1.2 (Nules opción A): banqueta oeste
                 new PuestoDato("ametralladores", 84500, 76300, Oeste, Formation.Linea, 4750),  // v1.2: azotea del ala oeste
-                new PuestoDato("fusileros", 118000, 80500, 0, Formation.Linea),          // D-N194 (Lucía 27a1745; antes 124; 75,5): los 4 fusileros junto a la esquina NE del edificio, mirando al este (la D-N192 los completa a 8 con la escolta)
+                new PuestoDato("fusileros", 71500, 70500, Oeste, Formation.Linea, 400),        // D-N194 (Lucía, 10-nov 11:23; medida de Nacho): NORTE de la puerta oeste, 8
+                new PuestoDato("fusileros", 118000, 80500, 0, Formation.Linea),          // D-N194: ESTE, junto a la esquina NE, 4
                 new PuestoDato("fusileros", 71500, 72000, Oeste, Formation.Linea, 400) } }, // v1.2 tutorial_extra: el pelotón del capítulo 3
             { "Castellón", new[] {
                 new PuestoDato("fusileros", 72500, 60000, Oeste, Formation.Linea),        // borde oeste de la losa sobre la boca (mitad sur)
@@ -321,7 +322,7 @@ namespace TBD.Net
             switch (estacion)
             {
                 case "Sagunto": return new Lista { Pelotones = new[] { "fusileros", "ametralladores", "granaderos", "tiradores", "zapadores" }, Vehiculos = new[] { "dragon", "vamtac", "vamtac" }, NH90 = 0 };
-                case "Nules": return tutorial ? new Lista { Pelotones = new[] { "fusileros", "ametralladores", "fusileros:4", "fusileros" } } : new Lista { Pelotones = new[] { "fusileros", "ametralladores", "fusileros:4" } };   // D-N192 (Lucía, 10-nov): guarnición de 16 (+4 fusileros en la banqueta de la vía); Nacho mide la cifra definitiva   // Hugo (nules.json, 9-nov): la guarnición de 12 (fusileros + ametralladores); con el tutorial, más el pelotón del capítulo 3
+                case "Nules": return tutorial ? new Lista { Pelotones = new[] { "fusileros", "ametralladores", "fusileros", "fusileros:4", "fusileros" } } : new Lista { Pelotones = new[] { "fusileros", "ametralladores", "fusileros", "fusileros:4" } };   // D-N194: 20 fusileros (sur 8, norte 8, este 4) + 4 ametralladores en la azotea   // D-N192 (Lucía, 10-nov): guarnición de 16 (+4 fusileros en la banqueta de la vía); Nacho mide la cifra definitiva   // Hugo (nules.json, 9-nov): la guarnición de 12 (fusileros + ametralladores); con el tutorial, más el pelotón del capítulo 3
                 case "betera": case "Bétera": return new Lista { Pelotones = new[] { "fusileros", "fusileros", "fusileros" }, NH90 = 2 };   // 2 de embarque y 1 de guarnición
                 case "Castellón": return new Lista { Pelotones = new[] { "fusileros", "ametralladores", "fusileros" }, Vehiculos = new[] { "vamtac" } };   // D-N183: propia al empezar; 2 fusileros y 1 ametralladores (Lucía 07:41) y 1 VAMTAC
                 default: return new Lista();      // el resto: sin plantel propio

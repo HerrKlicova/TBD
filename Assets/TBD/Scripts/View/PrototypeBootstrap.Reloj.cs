@@ -143,7 +143,7 @@ namespace TBD.View
                 if (cerca.Count == 0) continue;
                 // D-N194 (Lucía 8a80d2a): orden de llenado explícito. Sur de la puerta oeste hasta 8, norte hasta 8, puesto este hasta 4 y el resto a la banqueta.
                 // Cada puesto es el pelotón de la guarnición más cercano a su sitio (no «el de la Y más alta»: el puesto este ganaría y pasaría del muro).
-                Platoon sur = Cercano(71500, 58500, 15000), norte = Cercano(71500, 68500, 15000), este = Cercano(118000, 80500, 15000);
+                Platoon sur = Cercano(71500, 58500, 15000), norte = Cercano(71500, 70500, 15000), este = Cercano(118000, 80500, 15000);
                 int pasan = 0;
                 foreach (var (dest, tope) in new[] { (sur, 8), (norte, 8), (este, 4) })
                 {
@@ -157,7 +157,7 @@ namespace TBD.View
                 {
                     if (_bot != null) _bot.Busy.Remove(e.Id);
                     if (e.AliveCount() == 0) continue;
-                    _uw.Move(e.Id, 71500, 81500 + 3000 * n, 32768); n++;      // lo que sobra, a la banqueta (Álvaro, Plantel v1.7: 71,5; 81,5)
+                    _uw.Move(e.Id, 71500 + 3000 * n, 64500, 32768); n++;      // lo que sobra, a la banqueta (Lucía, D-N194: 71,5; 64,5)
                 }
                 Debug.Log($"[NOCHE] asedio anunciado en {_estacionZona}: {pasan} soldado(s) de la escolta completan la guarnición (sur {sur?.AliveCount()}, norte {norte?.AliveCount()}, este {este?.AliveCount()}); {n} pelotón(es) a la banqueta ({dentroX / 1000f:0.0}; {dentroY / 1000f:0.0})");
             }

@@ -41,14 +41,10 @@
     "nota": "CASO DE REFERENCIA: el objetivo «Lleva munición a Nules» tras la 1.ª noche se cumple al descargar 20 u o más (Lucía, 8-nov); materiales 20 u, supuesto mío. La reserva de Nules empieza con 0 u de munición (existencias_red.json); el almacén toma min(tope 47/30/40, reserva). Recinto de partida 132,24 u ya construido (90,24 de muro + 42 de puertas; Álvaro 9-nov, nules-nivel.md §14: 20,41 m del muro oeste pasan de sacos a HESCO)."
   },
   "fuerza": {
-    "pelotones": [
-      "fusileros",
-      "ametralladores",
-      "fusileros:4"
-    ],
+    "pelotones": ["fusileros", "ametralladores", "fusileros", "fusileros:4"],
     "vehiculos": [],
     "helicopteros": [],
-    "_nota": "D-N192 (Lucía, 10-nov): guarnición = 16 (+4 fusileros en la banqueta de la vía; cifra definitiva de Nacho pendiente). Antes: guarnición = 12 personas (sim_economia.py, guarnicion 12): fusileros (8) + ametralladores (4). Caso B: + 1 pelotón de fusileros que lleve el jugador en ese tren."
+    "_nota": "D-N194 (Lucía, 10-nov 11:23): 20 fusileros (sur 8, norte 8, este 4 en 118; 80,5) + 4 ametralladores en la azotea. Antes, D-N192: guarnición = 16 (+4 fusileros en la banqueta de la vía; cifra definitiva de Nacho pendiente). Antes: guarnición = 12 personas (sim_economia.py, guarnicion 12): fusileros (8) + ametralladores (4). Caso B: + 1 pelotón de fusileros que lleve el jugador en ese tren."
   },
   "oleadas": {
     "facil": [
