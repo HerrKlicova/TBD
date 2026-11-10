@@ -753,7 +753,7 @@ namespace TBD.View
         bool Propia(int n) { return !_a.NodeLost[n] && (_a.Stations.Founded[n] || n == _a.Embarque.HomeNode); }
         int PelotonesEn(RailNode nd) { int c = Plantel.De(nd.Name).Pelotones.Length + (nd.Name == "Sagunto" ? 2 : 0); return c + _a.Embarque.AtStation(nd.Id, PasajeroTipo.Peloton).Count; }
         bool Atacada(int n) { if (_a.Besieged(n)) return true; foreach (var p in _a.Director.Active) if (p.Kind == HiveDirector.PlanKind.Asedio && p.Started && p.Node == n) return true; return false; }
-        void MarcaEstacion(RailNode nd, Vector3 sp, bool todosNombres = false)
+        void MarcaEstacion(RailNode nd, Vector3 sp, bool todosNombres = false, int trenes = 0)
         {
             if (_disco == null) { _disco = Circulo(true); _anillo = Circulo(false); }
             int n = nd.Id; bool perdida = _a.NodeLost[n], propia = Propia(n), cerco = n == _a.Director.CerradaNodo;
@@ -767,6 +767,7 @@ namespace TBD.View
             if (propia && Atacada(n) && Mathf.Repeat(Time.unscaledTime, 1f) < 0.6f) Dibuja(_anillo, R(px * 2.1f), CRojo);   // atacada: anillo rojo que parpadea
             var mp = Event.current.mousePosition; bool encima = (mp - c).magnitude < Mathf.Max(px, 14f);
             string nombre = cerco ? nd.Name + " · cercada" : propia ? nd.Name + " · " + PelotonesEn(nd) : nd.Name;
+            if (trenes > 0) nombre += trenes == 1 ? " · 1 tren" : " · " + trenes + " trenes";      // D-N185: lejos, los trenes parados van en el rótulo
             if (Ui3.Activa) _rotulos.Add(R(px));      // D-N185: los rótulos tampoco pisan el disco de la estación
             if (importante || encima || (Ui3.Activa && (cerco || todosNombres)))      // D-N185 (-ui3): la cercada siempre con nombre y, de cerca, todas
             {
@@ -785,6 +786,18 @@ namespace TBD.View
         readonly List<int> _estNodo = new List<int>(); readonly List<Vector3> _estSp = new List<Vector3>(); readonly List<int> _estPrio = new List<int>();
         readonly List<int> _grupo = new List<int>(); bool[] _enGrupo;
         GUIStyle _cuenta;
+        int[] _trenesEst = new int[8]; bool[] _trenOculto = new bool[8];
+        /// <summary>Dónde va el rótulo de Bétera este fotograma (lo dibuja AerodromoVista). Con -ui3 se reserva aquí, para que no lo pisen los trenes ni las estaciones.</summary>
+        public static Rect RotuloBetera; public static bool RotuloBeteraOk; public static Vector2 TamRotuloBetera = new Vector2(180f, 26f);
+        public static readonly Color FondoRotulo = CFondoRotulo;
+        void RotuloBeteraReserva()
+        {
+            RotuloBeteraOk = false; var ae = AerodromoVista.Estado; if (ae == null) return;
+            var sp = _cam.WorldToScreenPoint(MapToWorld(ae.MapX, ae.MapY, 0f)); if (sp.z <= 0) return;
+            int px = IconPx(32); var r = new Rect(sp.x - px * 0.6f, Screen.height - sp.y - px * 1.2f, px * 1.2f, px * 1.3f);
+            _rotulos.Add(r);
+            RotuloBetera = SinPisar(new Rect(r.xMax + 4f, r.y + px * 0.3f, TamRotuloBetera.x + 10f, TamRotuloBetera.y)); RotuloBeteraOk = true;
+        }
 
         /// <summary>Prioridad del rótulo: 0 atacada o cercada, 1 propia, 2 perdida, 3 el resto. Las de prioridad más alta reservan su sitio antes.</summary>
         int PrioridadEst(int n) { if (n == _a.Director.CerradaNodo || (Propia(n) && Atacada(n))) return 0; if (Propia(n)) return 1; if (_a.NodeLost[n]) return 2; return 3; }
@@ -803,6 +816,21 @@ namespace TBD.View
                 if (nivel == 2 && pr == 3 && (mp - c).magnitude > 18f) continue;          // lejos: solo lo tuyo
                 _estNodo.Add(i); _estSp.Add(sp); _estPrio.Add(pr);
             }
+            // lejos: los trenes parados junto a una estación no se dibujan; se cuentan en su rótulo (captura de Marcos a 300 km, I-Noche115)
+            if (_trenesEst.Length < _estNodo.Count) _trenesEst = new int[Mathf.Max(8, _estNodo.Count * 2)];
+            for (int k = 0; k < _estNodo.Count; k++) _trenesEst[k] = 0;
+            if (_trenOculto.Length < _trains.Count) _trenOculto = new bool[Mathf.Max(8, _trains.Count * 2)];
+            for (int i = 0; i < _trains.Count; i++)
+            {
+                _trenOculto[i] = false;
+                if (nivel < 2 || i >= _a.Services.Count) continue;
+                var sv = _a.Services[i];
+                if (sv.Train.State == RailTrainState.EnMarcha || sv.Ambushed || (_a.Encounter.Active && _a.Encounter.Service == i)) continue;
+                var ts = _cam.WorldToScreenPoint(_trains[i].position); if (ts.z <= 0) continue;
+                int mejor = -1; float md = IconPx(32) * 1.6f;
+                for (int k = 0; k < _estNodo.Count; k++) { float d = ((Vector2)_estSp[k] - (Vector2)ts).magnitude; if (d < md) { md = d; mejor = k; } }
+                if (mejor >= 0) { _trenOculto[i] = true; _trenesEst[mejor]++; }
+            }
             // agrupación: propias tranquilas (ni atacadas ni cercadas) que en pantalla quedan a menos de 1,6 discos
             if (_enGrupo == null || _enGrupo.Length < _estNodo.Count) _enGrupo = new bool[Mathf.Max(8, _estNodo.Count * 2)];
             for (int k = 0; k < _estNodo.Count; k++) _enGrupo[k] = false;
@@ -820,7 +848,8 @@ namespace TBD.View
             // el resto, por prioridad (atacadas y cercada primero), para que sus rótulos reserven sitio antes
             for (int pr = 0; pr <= 3; pr++)
                 for (int k = 0; k < _estNodo.Count; k++)
-                    if (!_enGrupo[k] && _estPrio[k] == pr) MarcaEstacion(g.Nodes[_estNodo[k]], _estSp[k], nivel == 0);
+                    if (!_enGrupo[k] && _estPrio[k] == pr) MarcaEstacion(g.Nodes[_estNodo[k]], _estSp[k], nivel == 0, _trenesEst[k]);
+            RotuloBeteraReserva();      // después de las estaciones, antes que los trenes
         }
 
         /// <summary>Varias estaciones propias juntas en pantalla: un disco hueso con el número y «Sagunto +2»; al pasar el ratón, la tarjeta con cada una.</summary>
@@ -837,6 +866,8 @@ namespace TBD.View
             GUI.Label(r, grupo.Count.ToString(), _cuenta);
             _rotulos.Add(r);
             string nombre = _a.Graph.Nodes[g_Nodo(cabeza)].Name + " +" + (grupo.Count - 1);
+            int tg = 0; foreach (var k in grupo) tg += _trenesEst[k];
+            if (tg > 0) nombre += tg == 1 ? " · 1 tren" : " · " + tg + " trenes";
             var lr = SinPisar(new Rect(r.xMax + 4f, c.y - _small.fontSize * 0.7f, _small.CalcSize(new GUIContent(nombre)).x + 4f, _small.fontSize * 1.4f));
             Dibuja(Texture2D.whiteTexture, new Rect(lr.x - 3f, lr.y, lr.width + 6f, lr.height), CFondoRotulo);
             GUI.Label(lr, nombre, _small);
@@ -906,13 +937,17 @@ namespace TBD.View
             {
                 var sp = _cam.WorldToScreenPoint(_trains[i].position + Vector3.up * 0.8f * Mathf.Clamp(_dist / 230f, 0.0015f, 2f));
                 if (sp.z <= 0) continue;
+                if (Ui3.Activa && i < _trenOculto.Length && _trenOculto[i]) continue;     // D-N185: lejos, parado en una estación: va contado en su rótulo
                 int tp = IconPx(32);
                 var sv = _a.Services[i];
                 string tn = _a.Encounter.Active && _a.Encounter.Service == i ? "bajo_ataque" : sv.Ambushed ? "bajo_ataque" : sv.Train.State == RailTrainState.EnMarcha ? "en_marcha" : sv.Train.State == RailTrainState.Detenido ? "detenido" : "detenido";
                 if (Ui3.Activa && tn != "bajo_ataque")      // D-N185: siluetas de Bruno (IconosMapa); el tren bajo ataque sigue con su icono rojo
                     GUI.DrawTexture(new Rect(sp.x - tp * 0.5f, Screen.height - sp.y - tp * 1.6f, tp, tp), IconosMapa.Textura(tn == "en_marcha" ? IconosMapa.Icono.TrenMarcha : IconosMapa.Icono.TrenParado, tp >= 24 ? 32 : 16));
                 else DrawIcon(new Rect(sp.x - tp * 0.5f, Screen.height - sp.y - tp * 1.6f, tp, tp), "trenes/vm_tren_" + tn + "_32");
-                if (Ui3.Activa)      // D-N185: nombre del tren a la derecha del icono, sobre fondo y en hueso; si choca con otro rótulo, baja (1 Costa y 2 Montaña en Sagunto)
+                bool nombreTren = !Ui3.Activa || NivelZoom < 2 || new Rect(sp.x - tp * 0.5f, Screen.height - sp.y - tp * 1.6f, tp, tp).Contains(Event.current.mousePosition);
+                if (Ui3.Activa && NivelZoom == 2) _rotulos.Add(new Rect(sp.x - tp * 0.5f, Screen.height - sp.y - tp * 1.6f, tp, tp));
+                if (Ui3.Activa && !nombreTren) { }      // lejos: el nombre del tren en marcha, solo al pasar el ratón
+                else if (Ui3.Activa)      // D-N185: nombre del tren a la derecha del icono, sobre fondo y en hueso; si choca con otro rótulo, baja (1 Costa y 2 Montaña en Sagunto)
                 {
                     string tl = "<b>" + _a.Services[i].Train.Name + "</b>";
                     var ic = new Rect(sp.x - tp * 0.5f, Screen.height - sp.y - tp * 1.6f, tp, tp);
