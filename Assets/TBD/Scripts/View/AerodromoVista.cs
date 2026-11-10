@@ -20,6 +20,7 @@ namespace TBD.View
 
         static AerodromoVista _i;
         static AerodromoEstado _a;
+        GUIStyle _sLinea;      // D-N185: rótulo de Bétera en una línea
         public static AerodromoEstado Estado { get { if (_a == null) Cargar(); return _a; } }
         public static readonly Queue<Llegada> Llegadas = new Queue<Llegada>();   // la zona las saca al entrar o mientras está en ella
         static string _aviso; static float _avisoHasta;
@@ -134,7 +135,13 @@ namespace TBD.View
                     TutorialHud.Objetivo(TutorialGuion.Resaltes.NodoBetera, r);
                     GUI.DrawTexture(new Rect(r.x + px * 0.25f, r.y + px * 0.3f, px * 0.7f, px * 0.7f), _btnHot);
                     GUI.Label(new Rect(r.x + px * 0.36f, r.y + px * 0.28f, px, px), "<b><color=#1c200c>H</color></b>", _s);
-                    GUI.Label(new Rect(r.xMax + 4, r.y + px * 0.3f, u * 16, u * 2.2f), "Bétera (base aérea)", _s);
+                    if (Ui3.Activa && OperationsMap3D.RotuloBeteraOk)      // D-N185: con -ui3, en el sitio que reserva el mapa y sobre fondo (no lo pisan los trenes)
+                    {
+                        var t = new GUIContent("Bétera (base aérea)"); var tam = _s.CalcSize(t); OperationsMap3D.TamRotuloBetera = new Vector2(tam.x, tam.y);
+                        var lr = OperationsMap3D.RotuloBetera; var o = GUI.color; GUI.color = OperationsMap3D.FondoRotulo; GUI.DrawTexture(lr, Texture2D.whiteTexture); GUI.color = o;
+                        GUI.Label(new Rect(lr.x + 5f, lr.y, tam.x + 4f, lr.height), t, _sLinea ?? (_sLinea = new GUIStyle(_s) { wordWrap = false }));
+                    }
+                    else GUI.Label(new Rect(r.xMax + 4, r.y + px * 0.3f, u * 16, u * 2.2f), "Bétera (base aérea)", _s);
                     if (GUI.Button(r, GUIContent.none, GUIStyle.none))
                     {
                         var ev = Event.current;
