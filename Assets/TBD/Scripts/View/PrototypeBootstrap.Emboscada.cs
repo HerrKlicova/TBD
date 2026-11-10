@@ -45,8 +45,8 @@ namespace TBD.View
             if ((_ng.Tick % 30) == 0 && _uw != null && _zoneNode >= 0 && NetSession.A != null && _zoneNode != NetSession.A.Embarque.HomeNode)      // S1 qa52: la tropa que baja del tren con la zona abierta también sale (junto al tren) y pelea
                 foreach (var pid in NetSession.A.Embarque.AtStation(_zoneNode, PasajeroTipo.Peloton))
                 {
-                    if (!_embVistos.Add(pid)) continue; var tr = _ng.P.TrainRect; int ex = (tr.X0 + tr.X1) / 2 + 6000 * _escolta.Count, ey = tr.Y0 - 2900;
-                    var pe = _uw.AddPlatoon(PlatoonKind.Fusileros, ex, ey, 32768, Formation.Linea); _pname[pe.Id] = "Escolta " + (_escolta.Count + 1); _escolta.Add(pe.Id); if (_bot != null) _bot.Busy.Add(pe.Id);
+                    if (!_embVistos.Add(pid)) continue; var tr = _ng.P.TrainRect; int ex = (tr.X0 + tr.X1) / 2 + 6000 * _escolta.Count, ey = tr.Y0 - 2900; bool cerco = NetSession.A.Cercada(_zoneNode); if (cerco) { ex = 176000 + 12000 * _escolta.Count; ey = 60000; }      // D-N196 (Lucía; Nacho): el socorro se queda junto al tren, a la altura de la puerta este, en Aguantar
+                    var pe = _uw.AddPlatoon(PlatoonKind.Fusileros, ex, ey, 32768, Formation.Linea); _pname[pe.Id] = (cerco ? "Socorro " : "Escolta ") + (_escolta.Count + 1); _escolta.Add(pe.Id); if (_bot != null) _bot.Busy.Add(pe.Id); if (cerco) _uw.Hold(pe.Id);
                     Debug.Log($"[NOCHE] baja la escolta del tren en {_estacionZona}: pelotón en ({ex / 1000f:0.0}; {ey / 1000f:0.0})");
                 }
             if (_ng.P.TrainNotDefeat && _ng.TrainHp <= 0 && !_trenPerdidoAvisado)      // Lucía (da2d050): en Nules perder el tren no es derrota; aviso y se sigue
