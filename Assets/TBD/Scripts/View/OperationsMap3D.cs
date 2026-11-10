@@ -121,7 +121,7 @@ namespace TBD.View
                 // vuelta de una zona: la cámara aparece sobre ese nodo a 2,5 km (por encima del umbral de entrada: histéresis)
                 var n = _a.Graph.Nodes[NetSession.ReturnFromNode];
                 _focus = MapToWorldFlat(n.XMeters, n.YMeters);
-                _dist = _targetDist = 6f;      // S1 qa52 121-123 (Marcos): a 2,5 km la cámara quedaba pegada al relieve (pantalla negra); a 6 km se ve la estación y no se vuelve a entrar (umbral 2 km)
+                _dist = _targetDist = 40f;      // Marcos (qa52 127): al volver de la zona, a 40 km (a 6 km una celda del mapa llena la pantalla); no se vuelve a entrar (umbral 2 km)
                 _pitch = 50f;
                 NetSession.ReturnFromNode = -1;
             }
