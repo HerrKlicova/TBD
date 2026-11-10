@@ -144,8 +144,8 @@ namespace TBD.View
             _beteraSaliendo = true; ZonaBetera.Activa = false;
             Debug.Log("[BETERA] vuelvo al mapa" + (SeleccionGlobal.Vacia ? "" : " con " + SeleccionGlobal.Texto()));
             Sfx.Play("zoom_salir_mapa", Vector3.zero, 0.8f, 0.5f);
-            yield return NetSession.CaptureTransition();
-            LeaveToMap();      // Iker (reloj único): por LeaveToMap, para que la noche de la zona de debajo vuelva a la red (SaveNightSession) y se desmaterialice
+            if (_zoneNode >= 0) LeaveToMap();      // Iker (reloj único): con zona de debajo, por LeaveToMap, para que su noche vuelva a la red (SaveNightSession)
+            else { yield return NetSession.CaptureTransition(); SceneManager.LoadScene("Union"); }      // Marcos (qa52, 117): sin zona, LeaveToMap no hace nada
         }
 
         void GuiBetera()
