@@ -126,7 +126,7 @@ namespace TBD.View
             float u = _s.fontSize;
             // el nodo: icono y nombre, con clic
             var sp = cam.WorldToScreenPoint(op.MapToWorld(a.MapX, a.MapY, 0f));
-            if (sp.z > 0)
+            if (sp.z > 0 && !TrenPanel.PanelAbierto)      // S2 qa52 118 (Marcos): con «Preparar tren» abierto, la H y su rótulo no se pintan encima del panel
             {
                 int px = 32 * Mathf.Max(1, Mathf.RoundToInt(Screen.height / 540f));
                 var r = new Rect(sp.x - px * 0.6f, Screen.height - sp.y - px * 1.2f, px * 1.2f, px * 1.3f);
