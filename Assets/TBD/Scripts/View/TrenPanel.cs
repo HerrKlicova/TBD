@@ -197,11 +197,16 @@ namespace TBD.View
         public static string EtaTexto() { return W != null && Viaje >= 0 && Viaje < W.Services.Count && !W.Services[Viaje].AtStop ? TrenPreparar.HhMm(TrenPreparar.EtaEnMarcha(W, Viaje)) : "—"; }
 
         /// <summary>Llegadas: aparcar y avisar. La llaman el mapa (TrenPanel) y la zona (TrenAnden), así que funciona en las dos vistas.</summary>
-        static float _reintentoT;
+        static float _reintentoT; static string _descPend; static int _descPendSv = -1; static long _descPendTick;
         public static void Vigilar()
         {
             if (W == null) return;
             Embarque.Step();
+            if (_descPend != null && _descPendSv >= 0 && _descPendSv < W.Services.Count)
+            {
+                if (W.Services[_descPendSv].Cargo[(int)Res.Municion] == 0) { _aviso = _descPend; _avisoHasta = Time.unscaledTime + 5f; _avisoAmbar = false; Debug.Log("[TREN] " + _descPend); _descPend = null; }
+                else if (W.Tick > _descPendTick + 60) { Debug.Log("[TREN] la carga no ha bajado (el tren está bajo ataque): sigue a bordo"); _descPend = null; }
+            }
             if (Viaje < 0 || Viaje >= W.Services.Count) return;
             var sv = W.Services[Viaje];
             int meta = _descargando ? Origen : Destino;
@@ -345,7 +350,7 @@ namespace TBD.View
             for (int r = 0; r < NetConst.ResCount; r++) { delta[r] = -sv.Cargo[r]; hay |= sv.Cargo[r] > 0; }   // Lucía (decisiones 09-11, andén ocupado): a las puertas también baja la carga, como la tropa
             bool sitiada = W.Besieged(Destino) || (W.LastAmbush.Service == Viaje && W.LastAmbush.Tick >= 0 && !W.LastAmbush.Repelled && !W.LastAmbush.TrainLost && W.LastAmbush.HoldUntil > W.Tick);   // D-N166: con ataque la carga no baja (la red la deja a bordo)
             if (sitiada && sv.CargoTotal() > 0) { _aviso = $"{W.Graph.Nodes[Destino].Name} bajo ataque: la carga baja cuando acabe."; _avisoHasta = Time.unscaledTime + 5f; Debug.Log("[TREN] " + _aviso); }
-            else if (sv.Cargo[(int)Res.Municion] > 0) { int u = sv.Cargo[(int)Res.Municion], antes = W.Stock[Destino, (int)Res.Municion], alm = System.Math.Max(0, System.Math.Min(u, 47 - antes)); _aviso = $"Descargado en {W.Graph.Nodes[Destino].Name}: {alm} u al almacén, {u - alm} u a la reserva."; _avisoHasta = Time.unscaledTime + 5f; _avisoAmbar = false; Debug.Log("[TREN] " + _aviso); }   // Hugo y Lucía: el almacén de la zona llega hasta su tope (47 u); el resto, reserva
+            else if (sv.Cargo[(int)Res.Municion] > 0) { int u = sv.Cargo[(int)Res.Municion], antes = W.Stock[Destino, (int)Res.Municion], alm = System.Math.Max(0, System.Math.Min(u, 47 - antes)); _descPend = $"Descargado en {W.Graph.Nodes[Destino].Name}: {alm} u al almacén, {u - alm} u a la reserva."; _descPendSv = Viaje; _descPendTick = W.Tick; }   // el aviso sale cuando la red la baja de verdad (Marcos, qa52: salía dos veces)
             if (hay) { var c = NetWorld.CmdCargo(W.Tick, Viaje, Destino, delta); NetSession.A.Push(c); if (NetSession.B != null) NetSession.B.Push(c); }
             Embarque.BajarTodo(Viaje, Destino); _descargadoAqui = true;
             Debug.Log("[TREN] descarga en " + W.Graph.Nodes[Destino].Name + " (el tren se queda)");
