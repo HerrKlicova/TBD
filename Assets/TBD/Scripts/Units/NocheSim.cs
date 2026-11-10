@@ -617,7 +617,7 @@ namespace TBD.Units
 
         /// <summary>D-N181: ¿va a por la estación el zombi de _targets[i]? Fuera del recinto, sí (en Nules el edificio es un tramo del muro norte: el que empuja desde
         /// fuera ataca el edificio). Dentro, solo con Goal 5 (D-N180). D181On = false vuelve a contar a todos (solo pruebas y medidas).</summary>
-        bool AimsStation(int i) { if (!D181On) return true; var z = _z[_targets[i].Id]; return !InFort(z.X, z.Y) || z.Goal == 5; }
+        bool AimsStation(int i) { if (!D181On) return true; var z = _z[_targets[i].Id]; return InFort(z.X, z.Y) && z.Goal == 5; }      // D-N193 (Lucía, 10-nov): al edificio solo le cuenta quien está DENTRO del recinto y lo tiene de objetivo (la pila de fuera del muro norte, a 1,4 m de la huella, no)
         public bool D181On = true;
         /// <summary>D-N180 (2): si el tren ya no está (destruido) o está fuera del recinto, el que ha trepado y no tiene a nadie cerca va al edificio de viajeros
         /// (Goal 5) en lugar de quedarse empujando contra el muro hacia el tren de fuera: la noche siempre acaba.</summary>

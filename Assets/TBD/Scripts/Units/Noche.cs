@@ -59,7 +59,7 @@ namespace TBD.Units
             return new NightParams
             {
                 ClockX = 28, StartHour = 22, EndHour = 6, ScalePermil = 850, FrontPct = 55, FrontTimePct = 25,
-                StationHp = 60000, TrainHp = 120000, AttackReachMm = 1500, StationRect = new RectMm(98000, 75000, 114000, 83000), TrainRect = new RectMm(81000, 62900, 145000, 66100), StationDmgPerZombieS = 20, TrainDmgPerZombieS = 20, ContactRadiusMm = 900, ContactDmgPerTick = 2, WinOnClear = true,
+                StationHp = 60000, TrainHp = 120000, AttackReachMm = 1500, StationRect = new RectMm(96500, 75200, 115500, 83600), TrainRect = new RectMm(81000, 62900, 145000, 66100), StationDmgPerZombieS = 20, TrainDmgPerZombieS = 20, ContactRadiusMm = 900, ContactDmgPerTick = 2, WinOnClear = true,
                 // D-N136 (Lucía y Hugo, 7-nov 13:50): una sola horda de 4.700 (escala 1000) a las 22:00, que entra durante 180 s (D-N136b) por las cuatro entradas (30/30/20/20)
                 Waves = new[] { new WaveSpec { StartMinute = 0, Zombies = 8600, ArrivalSeconds = 180, EntryCount = new[] { 50, 30, 20, 0 } } },
                 // Álvaro (sagunto-nivel.md §9.5), zona de 256 × 128 m: (X, Z) en metros → (X, Y) en mm
