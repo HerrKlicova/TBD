@@ -288,10 +288,12 @@ namespace TBD.View
             if (_carga[r] > 0) { _sinCarga = false; TutorialHud.Senal(TutorialGuion.Senales.CargaPuesta); if (r == (int)Res.Materiales) TutorialHud.Senal(TutorialGuion.Senales.MaterialesPuestos); }
             if (r == (int)Res.Municion && _carga[r] > 0 && _origenP == Casa) TutorialHud.Viaje.MunicionPuesta();
         }
+        /// <summary>D-N188 (Nacho, nacho/cerco-socorro): desde el día 3 el socorro puede ir a la estación cercada; el tren se queda a las puertas y baja la tropa (D-N152/166).</summary>
+        public static bool SocorroAbierto(NetWorld w, int nodo) { return w != null && w.Cercada(nodo) && w.CercoSocorroAbierto; }
         public const string AvisoCerco = "Castellón está cercada. Ningún tren puede llegar hasta que se rompa el cerco.";   // D-N184 (Lucía)
         void PonerDestino(int node)
         {
-            if (W != null && node >= 0 && node == W.Director.CerradaNodo) { _aviso = AvisoCerco; _avisoHasta = Time.unscaledTime + 5f; _avisoAmbar = true; return; }
+            if (W != null && node >= 0 && node == W.Director.CerradaNodo && !SocorroAbierto(W, node)) { _aviso = AvisoCerco; _avisoHasta = Time.unscaledTime + 5f; _avisoAmbar = true; return; }
             _destinoP = node;
             if (node == Nodo("Nules")) { TutorialHud.Senal(TutorialGuion.Senales.DestinoNules); if (_origenP == Casa) TutorialHud.Viaje.DestinoNules(); }
             if (node == Casa) TutorialHud.Senal(TutorialGuion.Senales.DestinoSagunto);
@@ -307,7 +309,7 @@ namespace TBD.View
             int org = s.GateNode >= 0 ? s.GateNode : s.Stops[s.StopIndex].Node;
             if (org == nodo) return $"{s.Train.Name} ya está en {nom}";
             if (w.NodeLost[nodo]) return $"{nom} está perdida";
-            if (nodo == w.Director.CerradaNodo) return AvisoCerco;
+            if (nodo == w.Director.CerradaNodo && !SocorroAbierto(w, nodo)) return AvisoCerco;
             if (Embarque.Ocupado) return "Espera a que acabe el embarque";
             if (TrenPreparar.Envio(w, sv, nodo, new int[NetConst.ResCount]) == null) return $"No hay vía libre hasta {nom}";
             return null;
@@ -608,8 +610,8 @@ namespace TBD.View
             int otro = casa ? Nodo("Nules") : Casa, cas = Nodo("Castellón");
             if (Boton(new Rect(x0 + ww * 0.28f, yy, ww * 0.3f, lh * 0.9f), (_destinoP == otro ? "✓ " : "") + W.Graph.Nodes[otro].Name, true, otro == Casa ? TutorialGuion.Resaltes.NodoSagunto : TutorialGuion.Resaltes.NodoNules)) PonerDestino(otro);
             bool casCerco = cas >= 0 && cas == W.Director.CerradaNodo, casOk = cas >= 0 && W.Stations.Founded[cas];
-            if (Boton(new Rect(x0 + ww * 0.62f, yy, ww * 0.38f, lh * 0.9f), casCerco ? "Castellón (cercada)" : casOk ? (_destinoP == cas ? "✓ " : "") + "Castellón" : "Castellón (infestada)", casOk || casCerco))
-            { if (casCerco) { _aviso = AvisoCerco; _avisoHasta = Time.unscaledTime + 5f; _avisoAmbar = true; Debug.Log("[TREN] " + _aviso); } else PonerDestino(cas); }   // D-N184
+            if (Boton(new Rect(x0 + ww * 0.62f, yy, ww * 0.38f, lh * 0.9f), casCerco ? (SocorroAbierto(W, cas) ? (_destinoP == cas ? "✓ " : "") + "Socorro a Castellón" : "Castellón (cercada)") : casOk ? (_destinoP == cas ? "✓ " : "") + "Castellón" : "Castellón (infestada)", casOk || casCerco))
+            { if (casCerco && !SocorroAbierto(W, cas)) { _aviso = AvisoCerco; _avisoHasta = Time.unscaledTime + 5f; _avisoAmbar = true; Debug.Log("[TREN] " + _aviso); } else PonerDestino(cas); }   // D-N184
             yy += lh;
             string etaTxt = _destinoP >= 0 ? TrenPreparar.HhMm(TrenPreparar.EtaDesdeParada(W, sv, _destinoP)) : "—";
             var etaR = new Rect(x0, yy, ww, lh); GUI.Label(etaR, $"ETA: <b>{etaTxt}</b>  · ahora: {NetConst.Clock(W.Tick)}" + (_destinoP >= 0 ? $"  · {W.Graph.Nodes[_destinoP].Name}: {W.Graph.Nodes[_destinoP].State}" : ""), _s);
