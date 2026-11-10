@@ -41,6 +41,7 @@ namespace TBD.View
         int PasosZonaRed()
         {
             var w = NetSession.A; if (_tickRedZona < 0 || _tickRedZona > w.Tick) _tickRedZona = w.Tick;
+            if (TurboN > 1 && NetSession.Turbo < TurboN) NetSession.Turbo = TurboN;      // corridas por lotes (-turbo N): la red corre N veces y la zona la sigue
             int tope = 8 * System.Math.Max(1, TurboN) * System.Math.Max(1, NetSession.Turbo);
             long debe = w.Tick - _tickRedZona;
             if (debe > 20 * tope) { Debug.LogWarning($"[RELOJ] la zona va {debe} ticks detrás de la red: salta {debe - tope}"); _tickRedZona = w.Tick - tope; }

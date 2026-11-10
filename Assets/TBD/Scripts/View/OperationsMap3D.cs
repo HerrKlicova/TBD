@@ -125,6 +125,7 @@ namespace TBD.View
                 _pitch = 50f;
                 NetSession.ReturnFromNode = -1;
             }
+            { var ck = System.Environment.GetCommandLineArgs(); int ik = System.Array.IndexOf(ck, "-mapa-km"); if (ik >= 0 && ik + 1 < ck.Length && float.TryParse(ck[ik + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var km) && km > 0f) { _dist = _targetDist = Mathf.Clamp(km, 0.3f, 600f); _armed = true; Debug.Log($"[MAPA] -mapa-km: cámara a {_dist:0.#} km"); } }   // QA (Marcos): capturas -ui3 a 150 y 300 km
         }
 
         /// <summary>QA: -trenpanel-auto y -refuerzos-auto se juegan en el mapa (TrenPanel solo vive en Union); con ellas no se entra directo en la noche.</summary>
