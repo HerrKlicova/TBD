@@ -257,7 +257,7 @@ namespace TBD.Net
             { "Nules", new[] {
                 new PuestoDato("fusileros", 71500, 58500, Oeste, Formation.Linea, 400),        // v1.2 (Nules opción A): banqueta oeste
                 new PuestoDato("ametralladores", 84500, 76300, Oeste, Formation.Linea, 4750),  // v1.2: azotea del ala oeste
-                new PuestoDato("fusileros", 71500, 68500, Oeste, Formation.Linea, 400),        // D-N192 (Lucía, 10-nov): 4 fusileros más en la banqueta del flanco de la vía (al norte de la puerta de vía)
+                new PuestoDato("fusileros", 124000, 75500, 0, Formation.Linea),          // D-N194 (Lucía d27276b; Álvaro 7597be0, Plantel v1.4): los 4 fusileros en la fachada este del edificio, mirando al este (la D-N192 los completa a 8 con la escolta)
                 new PuestoDato("fusileros", 71500, 72000, Oeste, Formation.Linea, 400) } }, // v1.2 tutorial_extra: el pelotón del capítulo 3
             { "Castellón", new[] {
                 new PuestoDato("fusileros", 72500, 60000, Oeste, Formation.Linea),        // borde oeste de la losa sobre la boca (mitad sur)
