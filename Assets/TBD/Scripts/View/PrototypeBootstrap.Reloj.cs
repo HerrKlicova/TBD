@@ -251,6 +251,7 @@ namespace TBD.View
                 var jp = sj.Night.P; var np = jp;
                 if (tn != null) { np = NightParams.FromCsv(tn); np.Waves = jp.Waves; np.Entries = jp.Entries; np.ClockX = jp.ClockX; np.ScalePermil = jp.ScalePermil; np.TrainNotDefeat = jp.TrainNotDefeat; if (sj.JsonForce != null) np.TrainRect = jp.TrainRect; }   // como InitNight (sin tren al empezar: el rectángulo del JSON)
                 np.EndHour = (np.StartHour + 23) % 24; np.NetClock = true;                // D-N164; reloj de la red
+                np.StationRect = new RectMm(96500, 75200, 115500, 83600);              // Nacho (1f2e7b07): el edificio = la caja sólida de la zona (si no, un zombi en la fachada este no cuenta como atacante); la zona reanuda esta noche, así que va aquí también
                 var ng = new NightGame(np, 77u + SemillaQA); _base[nodo] = np; _dif = key; _diaAjustado = -1;
                 int reservaU = a.Stock[nodo, (int)Res.Municion];
                 var uw = new UnitsWorld(1234u + SemillaQA) { StockShots = System.Math.Min(47, System.Math.Max(0, reservaU)) * WeaponCatalog.ShotsPerU };   // Hugo: min(tope 47, reserva); a las 22:00 se vuelve a mirar
