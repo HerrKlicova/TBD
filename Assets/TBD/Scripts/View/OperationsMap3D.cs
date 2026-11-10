@@ -90,7 +90,7 @@ namespace TBD.View
             return p;
         }
 
-        float _mapT0;
+        float _mapT0, _diagMapaT;
         void Update_NightReturn()
         {
             var s = NightRun.Session; if (s == null || !s.Away || _entering) return;
@@ -429,6 +429,7 @@ namespace TBD.View
 
         void Update()
         {
+            if (Time.realtimeSinceStartup - _mapT0 < 12f && Time.realtimeSinceStartup >= _diagMapaT) { _diagMapaT = Time.realtimeSinceStartup + 2f; Debug.Log($"[MAPA-DIAG] t={Time.realtimeSinceStartup - _mapT0:0.0} dist={_dist:0.0} foco={_focus} zona_red={_a.ActiveZoneNode} pausa={_a.Paused} vel={_a.Speed} frenada={NetSession.Frenada} tick={_a.Tick} cam={(Camera.main != null ? Camera.main.name + " " + Camera.main.enabled + " " + Camera.main.transform.position : "ninguna")} entrando={_entering} fps={1f / Mathf.Max(0.0001f, Time.unscaledDeltaTime):0}"); }   // S1 qa52 121 (Marcos): mapa negro tras M
             NetSession.Frenada = false; PrototypeBootstrap.AsegurarNochesRed();          // reloj único (en el mapa la red no espera a ninguna zona): las noches de Sagunto y Nules en la red (A y B), una vez por partida
             SonidosColmena();
             SonidosRed();                                 // Nuria (sonido-vivo.md): estación atacada y tren perdido fuera de pantalla
