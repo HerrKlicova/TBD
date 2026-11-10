@@ -104,6 +104,16 @@ namespace TBD.View
             if (res > _reservaVista) _uw.StockShots = System.Math.Min(47 * WeaponCatalog.ShotsPerU, _uw.StockShots + (res - _reservaVista) * WeaponCatalog.ShotsPerU);
             _reservaVista = res;
         }
+        GUIStyle _avisoSt; Texture2D _avisoPx;
+        /// <summary>El aviso de NetSession (primer contacto de la horda, ×1) en la zona, igual que en el mapa: arriba al centro, ámbar sobre oscuro.</summary>
+        void AvisoNocheZona()
+        {
+            if (Time.unscaledTime >= NetSession.AvisoNocheHasta || string.IsNullOrEmpty(NetSession.AvisoNoche)) return;
+            if (_avisoSt == null) { _avisoSt = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(14, Screen.height / 42), richText = true, alignment = TextAnchor.MiddleCenter }; _avisoPx = new Texture2D(1, 1); _avisoPx.SetPixel(0, 0, Color.white); _avisoPx.Apply(); }
+            var sz = _avisoSt.CalcSize(new GUIContent(NetSession.AvisoNoche)); var r = new Rect((Screen.width - sz.x) * 0.5f - 8f, Screen.height * 0.12f, sz.x + 16f, sz.y + 8f);
+            var o = GUI.color; GUI.color = new Color(0.07f, 0.08f, 0.05f, 0.9f); GUI.DrawTexture(r, _avisoPx); GUI.color = o;
+            GUI.Label(r, "<color=#e08c30>" + NetSession.AvisoNoche + "</color>", _avisoSt);
+        }
         void SoltarPausaRed() { NetSession.Frenada = false; if (_pausaRedPuesta && NetSession.A != null && NetSession.A.Paused) NetSession.Push(NetCmdType.Resume, 0, 0); _pausaRedPuesta = false; }
         /// <summary>Con la zona en pantalla, la zona pone el arranque de las 22:00 (Begin con el tick de red de las 22:00) si el plan de la red tiene noche ese día;
         /// tras una victoria, la noche siguiente (BeginNextNight). Lo mismo que hace NightSim.ComienzaNoche fuera de pantalla.</summary>

@@ -1320,6 +1320,7 @@ namespace TBD.View
             GuiBetera();
             BuildOverlay();
             if (_nightOn) NightGUI();
+            AvisoNocheZona();      // D-N186: el aviso «Ataque en X: velocidad ×1» también dentro de la zona
             if (_nightOn && !_debugHud) { NetSession.DrawFade(Time.realtimeSinceStartup - _fadeStart); return; }
             if (Time.unscaledTime < _outHintUntil && _zoneNode >= 0)
             {
