@@ -443,6 +443,7 @@ namespace TBD.View
             int w = -1; for (int i = 0; i < _ng.P.Waves.Length; i++) if (_ng.Tick >= _ng.WaveStartTick(i)) w = i; return w;
         }
 
+        string ZombisSueltos() { if (_zomPos.Count == 0 || _zomPos.Count > 8) return ""; var sb = new System.Text.StringBuilder(" en"); foreach (var q in _zomPos) sb.Append($" ({q.x:0.0};{q.y:0.0})"); return sb.ToString(); }
         string TimeStr() { if (DiaZonaRed) return NetConst.Clock(NetSession.A.Tick); return $"{_ng.Hour:00}:{_ng.Minute:00}"; }      // reloj único: de día, la hora de la red
 
         void SpawnZombies(List<SpawnPoint> pts)
@@ -675,7 +676,7 @@ namespace TBD.View
             }
             { var cl = System.Environment.GetCommandLineArgs(); for (int li = 0; li + 1 < cl.Length; li++) if (cl[li] == "-leaveat" && float.TryParse(cl[li + 1], out var lt) && Time.realtimeSinceStartup - _nightT0 >= lt && !_leaving && !NightRun.LeftOnce && _nightInit && _ng != null && _ng.State == NightState.Jugando) { NightRun.LeftOnce = true; Debug.Log("[NOCHE] prueba: -leaveat, salgo al mapa tick " + _ng.Tick); LeaveToMap(); } }   // QA: sale al mapa a los N s reales
             if (!_nightOn) return;
-            if (Keyboard.current == null && Time.realtimeSinceStartup - _fpsLogT > 20f) { _fpsLogT = Time.realtimeSinceStartup; Debug.Log($"[NOCHE-FPS] hora={TimeStr()} estado={_ng.State} zombis={_zomPos.Count} abatidos={_nightKills} tren_hp={_ng.TrainHp} estacion_hp={_ng.StationHp} (batch)"); }      // corridas por lotes: sin teclado no llegaba a la línea de abajo
+            if (Keyboard.current == null && Time.realtimeSinceStartup - _fpsLogT > 20f) { _fpsLogT = Time.realtimeSinceStartup; Debug.Log($"[NOCHE-FPS] hora={TimeStr()} estado={_ng.State} zombis={_zomPos.Count} abatidos={_nightKills} tren_hp={_ng.TrainHp} estacion_hp={_ng.StationHp} (batch){ZombisSueltos()}"); }      // corridas por lotes: sin teclado no llegaba a la línea de abajo
             var kb = Keyboard.current; var mouse = Mouse.current; if (kb == null || mouse == null) return;
             if (kb.f12Key.wasPressedThisFrame) _debugHud = !_debugHud;   // F2 pasa a ser la formacion cuña (F1-F4)
             NightDemoFlags();
