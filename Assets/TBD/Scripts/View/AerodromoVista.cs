@@ -65,7 +65,7 @@ namespace TBD.View
         }
 
         public struct SucesoRed { public int Aero; public AeronaveEstado Nuevo; public int Destino; public int Carga; }
-        static readonly List<SucesoRed> _suc = new List<SucesoRed>();
+        static readonly List<SucesoRed> _suc = new List<SucesoRed>(); static bool _aireAuto;
         /// <summary>F1 (Nacho): copia w.Air (fases, destino, pelotón, munición, existencias) en el modelo de la vista y da los cambios de fase. Quedan = ticks que le quedan
         /// a la fase, en segundos a la velocidad actual. Carga: u que dejó al llegar (la carga de la ida, que la red ya ha llevado al almacén).</summary>
         static List<SucesoRed> Sincronizar(AerodromoEstado a, NetWorld w)
@@ -88,13 +88,14 @@ namespace TBD.View
         {
             var w = NetSession.A; var a = Estado; if (w == null || w.Air == null || a == null) return "Sin red";
             string no = w.Air.WhyNot(w.Graph, aero, nodo); if (no != null) return no;
-            NetSession.Push(NetCmdType.AirSend, aero | (conPeloton ? 256 : 0), nodo);
+            NetSession.Push(NetCmdType.AirSend, aero | (conPeloton ? 256 : 0), 0, nodo);      // Push(tipo, arg, retardo, arg2)
             return null;
         }
 
         void Update()
         {
             var a = Estado; var w = NetSession.A; if (a == null) return;
+            if (!_aireAuto && w != null && w.Air != null && System.Array.IndexOf(Environment.GetCommandLineArgs(), "-aire-auto") >= 0 && w.Tick >= NetConst.DayTicks + NetConst.Hours(7)) { _aireAuto = true; int nul = TrenPreparar.Nodo(w, "Nules"); Debug.Log("[AERO] -aire-auto: NH90 1 a Nules con pelotón: " + (EnviarRed(0, nul, true) ?? "orden dada")); }   // QA (F1): el NH90 por la red
             foreach (var ev in Sincronizar(a, w))      // F1 (Nacho): el estado sale de la red (w.Air); AerodromoEstado queda como modelo de la vista
             {
                 var x = a.Aeronaves[ev.Aero];
