@@ -115,6 +115,16 @@ namespace TBD.View
         /// <summary>Regla de Hugo y Nacho (aprobada por Lucía, decisiones-noche): al anunciarse el asedio de esta estación, los pelotones propios a menos de 40 m del tren
         /// descargado entran andando por la puerta (Move al puesto de dentro, sin teletransporte) y pasan a la guarnición (el bot ya puede usarlos). Los que el jugador haya
         /// llevado lejos se quedan fuera. Nules: con la escolta fuera se gana el 6 %; dentro, el 99,5 % (I-113).</summary>
+        Platoon Cercano(int x, int y, int radioMm)
+        {
+            Platoon best = null; long bd = (long)radioMm * radioMm;
+            foreach (var g in _uw.Platoons)
+            {
+                if (_escolta.IndexOf(g.Id) >= 0 || g.Aboard != 0 || g.EyeMm > UnitsWorld.EyeInfantryMm + 1000) continue;
+                long dx = g.AX - x, dy = g.AY - y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = g; }
+            }
+            return best;
+        }
         void EscoltaAlAsedio()
         {
             var w = NetSession.A; if (w == null || w.Director == null || _zoneNode < 0 || _uw == null || _ng == null) return;
@@ -131,19 +141,15 @@ namespace TBD.View
                     if (dx * dx + dy * dy <= 40000L * 40000L) cerca.Add(p);
                 }
                 if (cerca.Count == 0) continue;
-                // D-N192 (Lucía): los supervivientes pasan a la guarnición; primero completan a 8 los puestos de los extremos norte y sur (sin azoteas), el resto a la banqueta
-                Platoon norte = null, sur = null;
-                foreach (var g in _uw.Platoons)
-                {
-                    if (_escolta.IndexOf(g.Id) >= 0 || g.AliveCount() == 0 || g.Aboard != 0 || g.EyeMm > UnitsWorld.EyeInfantryMm + 1000) continue;
-                    if (norte == null || g.AY > norte.AY) norte = g; if (sur == null || g.AY < sur.AY) sur = g;
-                }
+                // D-N194 (Lucía 8a80d2a): orden de llenado explícito. Sur de la puerta oeste hasta 8, norte hasta 8, puesto este hasta 4 y el resto a la banqueta.
+                // Cada puesto es el pelotón de la guarnición más cercano a su sitio (no «el de la Y más alta»: el puesto este ganaría y pasaría del muro).
+                Platoon sur = Cercano(71500, 58500, 15000), norte = Cercano(71500, 68500, 15000), este = Cercano(118000, 80500, 15000);
                 int pasan = 0;
-                foreach (var dest in new[] { norte, sur })
+                foreach (var (dest, tope) in new[] { (sur, 8), (norte, 8), (este, 4) })
                 {
                     if (dest == null) continue;
                     foreach (var e in cerca)
-                        for (int k = e.Men.Count - 1; k >= 0 && dest.AliveCount() < 8; k--)
+                        for (int k = e.Men.Count - 1; k >= 0 && dest.AliveCount() < tope; k--)
                             if (e.Men[k].Alive) { dest.Men.Add(e.Men[k]); e.Men.RemoveAt(k); pasan++; }      // andan a su sitio en el pelotón (MoveMen): sin teletransporte
                 }
                 int n = 0;
@@ -151,9 +157,9 @@ namespace TBD.View
                 {
                     if (_bot != null) _bot.Busy.Remove(e.Id);
                     if (e.AliveCount() == 0) continue;
-                    _uw.Move(e.Id, dentroX + 3000 * n, dentroY, 32768); n++;      // lo que sobra, a la banqueta
+                    _uw.Move(e.Id, 71500, 81500 + 3000 * n, 32768); n++;      // lo que sobra, a la banqueta (Álvaro, Plantel v1.7: 71,5; 81,5)
                 }
-                Debug.Log($"[NOCHE] asedio anunciado en {_estacionZona}: {pasan} soldado(s) de la escolta completan la guarnición ({(norte != null ? _pname.TryGetValue(norte.Id, out var nn) ? nn : "norte" : "-")} {norte?.AliveCount()}, {(sur != null ? _pname.TryGetValue(sur.Id, out var ns) ? ns : "sur" : "-")} {sur?.AliveCount()}); {n} pelotón(es) a la banqueta ({dentroX / 1000f:0.0}; {dentroY / 1000f:0.0})");
+                Debug.Log($"[NOCHE] asedio anunciado en {_estacionZona}: {pasan} soldado(s) de la escolta completan la guarnición (sur {sur?.AliveCount()}, norte {norte?.AliveCount()}, este {este?.AliveCount()}); {n} pelotón(es) a la banqueta ({dentroX / 1000f:0.0}; {dentroY / 1000f:0.0})");
             }
         }
         int _cercoPend;
