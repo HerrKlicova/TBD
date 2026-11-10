@@ -367,7 +367,7 @@ namespace TBD.View
         /// Los de fuera siguen el campo de flujo (HasGoal = 0).</summary>
         /// <summary>D-N180 (2), copia de NightSim.TrainReachableFromInside: el tren existe y está dentro del recinto.</summary>
         /// <summary>D-N181 (Lucía; la misma regla que NightSim): fuera del recinto el zombi cuenta siempre para el edificio; dentro, solo si su objetivo es la estación (D-N180).</summary>
-        bool AimsStationZona(int i) { if (i < 0 || i >= _zomPos.Count) return true; var p = _zomPos[i]; bool dentro = p.x > Level.FortX0 && p.x < Level.FortX1 && p.y > Level.FortY0 && p.y < Level.FortY1; return !dentro || _aimStation.Contains((int)_zomId[i]); }
+        bool AimsStationZona(int i) { if (i < 0 || i >= _zomPos.Count) return true; var p = _zomPos[i]; bool dentro = p.x > Level.FortX0 && p.x < Level.FortX1 && p.y > Level.FortY0 && p.y < Level.FortY1; return dentro && _aimStation.Contains((int)_zomId[i]); }      // D-N193: solo los de dentro del recinto que van a por la estación
 
         bool TrainReachableZona() { var r = _ng.P.TrainRect; return _ng.TrainHp > 0 && r.X1 > (int)(Level.FortX0 * 1000f) && r.X0 < (int)(Level.FortX1 * 1000f) && r.Y1 > (int)(Level.FortY0 * 1000f) && r.Y0 < (int)(Level.FortY1 * 1000f); }
 
