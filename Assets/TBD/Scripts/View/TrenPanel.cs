@@ -661,6 +661,7 @@ namespace TBD.View
         void AutoSocorro()
         {
             float t = AutoT(); int sag = Casa, cas = Nodo("Castellón");
+            if (_autoPaso == 0 && !_dia2ZonaHecha && SceneManager.GetActiveScene().name == "SampleScene") { _dia2ZonaHecha = true; Dia2Volver = true; Debug.Log("[SOCORRO] empieza en la zona de Sagunto: vuelvo al mapa"); }
             switch (_autoPaso)
             {
                 case 0: if (t > 3f) { NetSession.Turbo = 40; NetSession.Push(NetCmdType.SetSpeed, 4, 0); Debug.Log("[SOCORRO] avanzo la red al día 3"); _autoPaso++; } break;

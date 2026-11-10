@@ -58,7 +58,7 @@ namespace TBD.View
             return nv;
         }
 
-        static bool Auto { get { var a = System.Environment.GetCommandLineArgs(); return System.Array.IndexOf(a, "-menu-auto") >= 0 || System.Array.IndexOf(a, "-tutorial-auto") >= 0 || System.Array.IndexOf(a, "-dia2-auto") >= 0 || System.Array.IndexOf(a, "-dia2-auto-sinescolta") >= 0 || System.Array.IndexOf(a, "-dia2-auto-tren-aparcado") >= 0 || System.Array.IndexOf(a, "-dia2-auto-enzona") >= 0; } }
+        static bool Auto { get { var a = System.Environment.GetCommandLineArgs(); return System.Array.IndexOf(a, "-menu-auto") >= 0 || System.Array.IndexOf(a, "-tutorial-auto") >= 0 || System.Array.IndexOf(a, "-dia2-auto") >= 0 || System.Array.IndexOf(a, "-socorro-auto") >= 0 || System.Array.IndexOf(a, "-dia2-auto-sinescolta") >= 0 || System.Array.IndexOf(a, "-dia2-auto-tren-aparcado") >= 0 || System.Array.IndexOf(a, "-dia2-auto-enzona") >= 0; } }
         bool _confirmar;      // Lucía (5d21d64): con partida guardada, «Nueva partida» pide confirmar que se borra
         void StartGame() { if (!Auto && NetSession.HasSave && !_confirmar) { _confirmar = true; Sfx.Play("sfx_ui_clic"); return; } _confirmar = false; Sfx.Play("sfx_ui_clic"); Sfx.StopLoop("mus_menu"); NetSession.Reset(); NightRun.Active = true; if (Auto) SceneManager.LoadScene("Union"); else { NuevaPartidaDesdeCero(); IntroVista.Antes(() => SceneManager.LoadScene("Union")); } }
         /// <summary>Eugenio (9-nov): cada «Empezar» es una partida nueva con su intro y su tutorial (los dos se pueden saltar); no quedan apagados para siempre tras verlos o saltarlos una vez.</summary>
