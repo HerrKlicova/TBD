@@ -19,7 +19,7 @@ namespace TBD.Mundo
         Red R { get { return _m != null ? _m.Red : _propia; } }
         int _tren = 0, _linea = -1, _tick; float _acc; bool _lineaPedida;
         readonly List<PointMm> _trazo = new List<PointMm>(); bool _modo, _arrastrando; string _causa; bool _valida; Vector3 _finPrevia;
-        GameObject _previa; int _tramosDibujados;
+        GameObject _previa; int _tramosDibujados; string _rechazoVisto;
         readonly List<GameObject> _detalle = new List<GameObject>(), _simbolo = new List<GameObject>(); float _anchoSimbolo = -1f;
         readonly List<Transform> _vagones = new List<Transform>(); Vector3[] _posAnt, _posAct; Quaternion[] _rotAnt, _rotAct;
         Material _mBalasto, _mCarril, _mTren, _mPaleta;
@@ -28,7 +28,12 @@ namespace TBD.Mundo
         static readonly string[] VariantePaso = { "v0_Teja", "v1_FocosDobles", "v2_Abandonado", "v3_Militar", "v4_Catenaria" };
 
         /// <summary>La vista de Marcos le pasa el Mundo común: desde ahí, RedVista no simula ni crea nada por su cuenta.</summary>
-        public void UsarMundo(Mundo m) { _m = m; _propia = null; Debug.Log("[RED] usando el Mundo común (Mundo.Red)"); }
+        public void UsarMundo(Mundo m)
+        {
+            _m = m; _propia = null;
+            m.MontarRedHito1();      // idempotente: si el escenario ya la montó, no hace nada (I-Mundo6: sin esto no había estaciones y el trazo se rechazaba en silencio)
+            Debug.Log($"[RED] usando el Mundo común (Mundo.Red): {m.Red.Via.Estaciones.Count} estaciones, {m.Red.Trenes.Count} tren, {m.Red.Via.Carreteras.Count} trozos de carretera");
+        }
 
         void Start()
         {
@@ -64,6 +69,8 @@ namespace TBD.Mundo
             }
             else if (_m.Tick != _tick) { GuardarAnterior(); _tick = _m.Tick; LeerTren(); _acc = 0f; }
             else _acc += Time.deltaTime;
+            if (R.UltimoRechazo != null && R.UltimoRechazo != _rechazoVisto) { _rechazoVisto = R.UltimoRechazo; _causa = R.UltimoRechazo; Debug.Log("[RED] la red rechaza: " + R.UltimoRechazo); }
+            if (R.Via.Tramos.Count > _tramosDibujados) { var tn = R.Via.Tramos[R.Via.Tramos.Count - 1]; Debug.Log($"[RED] vía trazada: tramo {tn.Id}, {tn.Piezas?.Length ?? 0} piezas, {tn.LongMm / 1000} m, {R.Via.PasosNivel.Count} pasos a nivel"); }
             LineaSiUnidas();
             DibujarTramos(); Simbolo();
             InterpolarTren(_acc * 30f);
