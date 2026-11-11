@@ -503,7 +503,7 @@ namespace TBD.View
             UpdateVegLod();
             UpdateBrumaBorde();
             HandleInput();
-            UpdateBetera(); UpdateSeleccionTren();
+            UpdateBetera(); UpdateSeleccionTren(); UpdateTrenesPlazas();
             UpdatePuertasVeh();              // puerta de vehículos E4 con sus hojas, cada fotograma (anima el giro): abierta de día, cerrada en el asedio (D-N198; Teo, 11-nov)
             if (_betera != null) AerodromoZona.CubiertaPorCamara(_betera, _orthoSize);
             if (NightRun.Active && !_nightInit && _zoneNode >= 0 && _worldA != null && _worldA.IsCreated && !_cutting) InitNight();
@@ -1320,7 +1320,7 @@ namespace TBD.View
 
         void OnGUI()
         {
-            GuiBetera();
+            GuiBetera(); GuiTrenesPlazas();
             BuildOverlay();
             if (_nightOn) NightGUI();
             AvisoNocheZona();      // D-N186: el aviso «Ataque en X: velocidad ×1» también dentro de la zona
