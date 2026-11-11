@@ -565,7 +565,7 @@ namespace TBD.View
                 GUI.Label(new Rect(x0 + ww * 0.56f + lh * 1.45f, yy + u * 0.3f, lh * 1.6f, lh), $"<b>{_carga[res]}</b>", _s);
                 if (Boton(new Rect(x0 + ww * 0.56f + lh * 2.9f, yy, lh * 1.3f, lh * 0.9f), "+10")) Cargar(res, 10);
                 yy += lh;
-                if (res == (int)Res.Municion && _destinoP >= 0 && _destinoP < W.Graph.Nodes.Count && W.Graph.Nodes[_destinoP].Name == "Castellón" && _carga[res] < 17) { GUI.Label(new Rect(x0, yy, ww, lh), "<color=#e08c30>El socorro de Castellón necesita al menos 17 u de munición.</color>", _s); yy += lh; }      // D-N188 (Lucía, 1c378ba): aviso, no bloqueo
+                if (res == (int)Res.Municion && AvisoSocorro() != null) { GUI.Label(new Rect(x0, yy, ww, lh), "<color=#e08c30>" + AvisoSocorro() + "</color>", _s); yy += lh; }      // D-N188 (Lucía, 1c378ba): aviso, no bloqueo
             }
             if (Boton(new Rect(x0, yy, ww * 0.5f, lh * 0.9f), Ui3.Activa ? "Sin carga" : (_sinCarga ? "✓ " : "") + "Sin carga", total == 0, null, _sinCarga && total == 0)) { _sinCarga = true; TutorialHud.Senal(TutorialGuion.Senales.SinCarga); }
             yy += lh * 1.4f;
@@ -661,7 +661,9 @@ namespace TBD.View
         int _sv1 = -1;
         /// <summary>QA (Marcos): -socorro-auto. Día 3 (CercoSocorroAbierto): tren de socorro de Sagunto a Castellón con 2 pelotones y 20 u, a las puertas,
         /// baja la tropa, entra en la zona de Castellón (combate con -nightbot) y sale a los 180 s. Todo al log con [SOCORRO].</summary>
-        int _socPaso; float _socT0 = -1f;
+        int _socPaso, _socN; float _socT0 = -1f;
+        /// <summary>D-N188: el aviso ámbar del panel (no bloquea) si el destino es Castellón y llevan menos de 17 u; null si no toca.</summary>
+        string AvisoSocorro() { return W != null && _destinoP >= 0 && _destinoP < W.Graph.Nodes.Count && W.Graph.Nodes[_destinoP].Name == "Castellón" && _carga[(int)Res.Municion] < 17 ? "El socorro de Castellón necesita al menos 17 u de munición." : null; }
         void AutoSocorro()
         {
             if (_socT0 < 0) _socT0 = Time.unscaledTime; float t = Time.unscaledTime - _socT0; bool conDia2 = Arg("-dia2-auto"); int sag = Casa, cas = Nodo("Castellón");
@@ -673,13 +675,24 @@ namespace TBD.View
                 case 2: if (SceneManager.GetActiveScene().name == "SampleScene") { var pz = FindObjectOfType<PrototypeBootstrap>(); if (pz != null && t > 2f) { Debug.Log("[SOCORRO] salgo de la zona al mapa"); pz.LeaveToMap(); _socT0 = Time.unscaledTime; } break; }
                         if (t > 2f && TrenPreparar.TrenEn(W, sag) >= 0 && !Embarque.Ocupado)
                     {
-                        _sv1 = TrenPreparar.TrenEn(W, sag); AbrirPreparar(sag); Cargar((int)Res.Municion, 20);
-                        var ses = (W != null ? PrototypeBootstrap.SesionDe(W.Embarque.HomeNode) : null) ?? NightRun.Session; int n = 0;
-                        if (ses != null && ses.Uw != null) foreach (var p in ses.Uw.Platoons) { if (n >= 2) break; if (p.Aboard != 0 || p.AliveCount() == 0 || p.EyeMm > UnitsWorld.EyeInfantryMm + 1000) continue; Embarque.Subir(_sv1, PasajeroTipo.Peloton, p.Id, sag); n++; }
-                        Debug.Log($"[SOCORRO] suben {n} pelotones y 20 u al tren {W.Services[_sv1].Train.Name}"); _socT0 = Time.unscaledTime; _socPaso++;
+                        // I-Noche159 (qa53 de Marcos): 2 pelotones (D-N196), el aviso de las 17 u se comprueba con 10 u y luego con 17 (D-N188), y el tren no sale hasta tener la tropa a bordo
+                        _sv1 = TrenPreparar.TrenEn(W, sag); AbrirPreparar(sag); PonerDestino(cas);
+                        Cargar((int)Res.Municion, 10); Debug.Log($"[SOCORRO] con 10 u, aviso: {AvisoSocorro() ?? "ninguno"}");
+                        Cargar((int)Res.Municion, 7); Debug.Log($"[SOCORRO] con {_carga[(int)Res.Municion]} u, aviso: {AvisoSocorro() ?? "ninguno"}");
+                        var ses = (W != null ? PrototypeBootstrap.SesionDe(W.Embarque.HomeNode) : null) ?? NightRun.Session; _socN = 0;
+                        if (ses != null && ses.Uw != null) foreach (var p in ses.Uw.Platoons) { if (_socN >= 2) break; if (p.Aboard != 0 || p.AliveCount() == 0 || p.EyeMm > UnitsWorld.EyeInfantryMm + 3000) continue; Embarque.Subir(_sv1, PasajeroTipo.Peloton, p.Id, sag); _socN++; }      // fuera solo las azoteas (las banquetas sí valen)
+                        Debug.Log($"[SOCORRO] suben {_socN} pelotones y {_carga[(int)Res.Municion]} u al tren {W.Services[_sv1].Train.Name}"); _socT0 = Time.unscaledTime; _socPaso++;
                     }
                     else if (t > 60f) { Debug.LogError("[SOCORRO] no hay tren en Sagunto"); _socPaso = 99; } break;
-                case 3: if (t > 2f && !Embarque.Ocupado) { string no = PorQueNoLlega(_sv1, cas); PonerDestino(cas); Enviar(_sv1); Debug.Log($"[SOCORRO] tren a Castellón: {(no ?? "sale")}"); _socT0 = Time.unscaledTime; _socPaso++; } break;
+                case 3:
+                    {
+                        int abordo = W.Embarque.CountAboard(_sv1, PasajeroTipo.Peloton);
+                        if (t <= 2f || Embarque.Ocupado || (abordo < _socN && t < 20f)) break;      // la orden de subir se aplica en el tick siguiente de la red: se espera a verla
+                        for (int k = 0; k < W.Graph.Nodes.Count; k++) if (k != cas && k != sag && W.Besieged(k) && (W.Graph.Nodes[k].Name == "Nules" || W.Graph.Nodes[k].Name == "Almenara"))
+                            Debug.LogWarning($"[SOCORRO] {W.Graph.Nodes[k].Name} está sitiada en la ruta: el tren se parará a sus puertas. Para el socorro, correr con -dia2-auto -nightbot -socorro-auto (Nules tiene que aguantar la noche 2)");
+                        string no = PorQueNoLlega(_sv1, cas); PonerDestino(cas); Enviar(_sv1); Debug.Log($"[SOCORRO] tren a Castellón con {abordo} pelotón(es) a bordo: {(no ?? "sale")}"); _socT0 = Time.unscaledTime; _socPaso++;
+                    }
+                    break;
                 case 4: { var sv = W.Services[_sv1]; if (sv.GateNode == cas || (sv.AtStop && sv.Stops[sv.StopIndex].Node == cas)) { Debug.Log($"[SOCORRO] el tren llega {(sv.GateNode == cas ? "a las puertas" : "al andén")} de Castellón ({NetConst.Clock(W.Tick)}); a bordo {W.Embarque.CountAboard(_sv1, PasajeroTipo.Peloton)} pelotón; en la estación {W.Embarque.AtStation(cas, PasajeroTipo.Peloton).Count}; cerco {W.CercoZombies}"); var mz = FindObjectOfType<OperationsMap3D>(); if (mz != null) mz.EnterZone(cas); _socT0 = Time.unscaledTime; _socPaso++; }   // a las puertas el tren está parado pero no «en la parada»
                           else if (t > 400f) { var sv2 = W.Services[_sv1]; Debug.LogWarning($"[SOCORRO] el tren no llega a Castellón ({NetConst.Clock(W.Tick)}): en marcha {!sv2.AtStop}, puertas {sv2.GateNode}, parada {sv2.Stops[sv2.StopIndex].Node}, estado {sv2.Train.State}"); _socPaso = 99; } } break;
                 case 5: if (t > 180f) { Debug.Log($"[SOCORRO] fin: cerco {W.CercoZombies}, cercada {W.Cercada(cas)}"); var pb = FindObjectOfType<PrototypeBootstrap>(); if (pb != null) pb.LeaveToMap(); _socT0 = Time.unscaledTime; _socPaso++; } break;
