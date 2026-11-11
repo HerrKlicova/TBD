@@ -1,0 +1,30 @@
+{
+ "muestras": 2049,
+ "metros_por_muestra": 1.0,
+ "lado_m": 2048.0,
+ "h_min_m": -10.0,
+ "h_max_m": 118.0,
+ "nivel_del_mar_m": 0.0,
+ "raw": "alturas_2049_u16le.raw: uint16 little endian, fila 0 = Z 0 (sur), columna 0 = X 0 (oeste); h = HMIN + v/65535·(HMAX−HMIN)",
+ "png": "alturas_2049_u16.png y usos_2049.png: norte ARRIBA (fila 0 = Z 2048)",
+ "usos": {
+  "0": "mar",
+  "1": "playa",
+  "2": "marjal",
+  "3": "huerta",
+  "4": "secano",
+  "5": "monte",
+  "6": "cauce",
+  "7": "carretera",
+  "8": "explanada_estacion",
+  "9": "caserio",
+  "10": "naranjal"
+ },
+ "cotas_explanada_m": {
+  "A": 9.66,
+  "B": 6.87,
+  "caserio": 5.62
+ },
+ "generador": "docs/niveles/herramientas/terreno_hito1.py",
+ "semilla": 20261111
+}
