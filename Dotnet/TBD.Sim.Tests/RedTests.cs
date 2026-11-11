@@ -21,6 +21,15 @@ namespace TBD.Sim.Tests
         public static void Run(Action<bool, string> check)
         {
             Console.WriteLine("[50] Núcleo v2: red construida, tren y línea automática (Hito 1)");
+            // almacén: lo que el pelotón saca de B (Nacho, recarga a 25 m de B)
+            {
+                var r = Hito1(out int a, out int b);
+                check(r.EstacionPorNombre("Caserío") == b && r.EstacionPorNombre("Z") == -1, "la estación del frente se encuentra por su nombre");
+                r.Meter(b, Red.Municion, 3);
+                int s1 = r.Sacar(b, Red.Municion, 2), s2 = r.Sacar(b, Red.Municion, 5), s3 = r.Sacar(b, Red.Municion, 1);
+                check(s1 == 2 && s2 == 1 && s3 == 0 && r.Existencias(b, Red.Municion) == 0, $"Sacar da solo lo que hay: {s1}, {s2}, {s3}");
+                check(r.Sacar(99, Red.Municion, 1) == 0 && r.Existencias(-1, Red.Municion) == 0, "una estación que no existe no da nada");
+            }
             // trazado
             {
                 var r = Hito1(out int a, out int b);

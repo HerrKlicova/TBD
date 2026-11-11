@@ -47,6 +47,14 @@ namespace TBD.Mundo
         public string UltimoRechazo;
 
         public int AddEstacion(string nombre, int x, int y) { int e = Via.AddEstacion(nombre, x, y); Almacen.Add(new int[Recursos]); return e; }
+        /// <summary>Índice de la estación con ese nombre («A», «B»…), o −1.</summary>
+        public int EstacionPorNombre(string nombre) { for (int i = 0; i < Via.Estaciones.Count; i++) if (Via.Estaciones[i].Nombre == nombre) return i; return -1; }
+        /// <summary>Unidades del recurso (Municion, Material…) en el almacén de la estación; 0 si no existe.</summary>
+        public int Existencias(int estacion, int recurso) { return estacion < 0 || estacion >= Almacen.Count || recurso < 0 || recurso >= Recursos ? 0 : Almacen[estacion][recurso]; }
+        /// <summary>Saca hasta «n» unidades del almacén y devuelve las que ha sacado de verdad (0 si no hay). Determinista: llamarla solo desde el paso de la simulación.</summary>
+        public int Sacar(int estacion, int recurso, int n) { int hay = Existencias(estacion, recurso); int k = n <= 0 ? 0 : (n < hay ? n : hay); if (k > 0) Almacen[estacion][recurso] -= k; return k; }
+        /// <summary>Mete unidades en el almacén (por ejemplo, el material que produce el frente).</summary>
+        public void Meter(int estacion, int recurso, int n) { if (n > 0 && estacion >= 0 && estacion < Almacen.Count && recurso >= 0 && recurso < Recursos) Almacen[estacion][recurso] += n; }
         public int NuevoTren(string nombre, int estacion) { var t = new Tren { Id = Trenes.Count, Nombre = nombre, Nodo = Via.Estaciones[estacion].Nodo, Estado = EstadoTren.Parado }; Trenes.Add(t); return t.Id; }
 
         /// <summary>D-N209: trazo libre del jugador → piezas del kit. (Via.Trazar, la curva libre, queda para pruebas.)</summary>
