@@ -24,6 +24,9 @@ namespace TBD.Units
         /// los de arriba saltan el muro sin romperlo. Aquí: con más de ClimbPileZ zombis pegados al muro, saltan dentro ClimbPermilS ‰ por segundo de los que sobran
         /// (los últimos en llegar). ClimbPermilS = 0: no trepan.</summary>
         public int ClimbPileZ, ClimbPermilS;
+        /// <summary>Lucía (11-nov, I-Noche175): tope de la pila por metro de tramo (zombis con cuerpo: en 3,2 m de puerta no caben 60). Lo que sobra pasa a los tramos vecinos del
+        /// mismo lado (la mitad a cada lado, en cascada). Solo reparte el daño; la pila total y la trepada no cambian. 0 = sin tope (como hasta ahora).</summary>
+        public int PileMaxPerM;
         public int GateGapMm;                           // hueco de la vía en el muro oeste (en la zona de Unity la puerta de vía no tiene sólido: 3.200). 0 = recinto cerrado (lo medido hasta ahora)
 
         public static NightSimParams Default()
@@ -45,7 +48,7 @@ namespace TBD.Units
             Func<string, int, int> g = (k, d) => o.ContainsKey(k) && o[k] is long ? (int)(long)o[k] : d;
             p.FortX0 = g("FortX0", p.FortX0); p.FortX1 = g("FortX1", p.FortX1); p.FortY0 = g("FortY0", p.FortY0); p.FortY1 = g("FortY1", p.FortY1); p.StationX = g("StationX", p.StationX); p.StationY = g("StationY", p.StationY);
             p.WallHp = g("WallHp", p.WallHp); p.WallDmgPerZombieS = g("WallDmgPerZombieS", p.WallDmgPerZombieS); p.StationHp = g("StationHp", p.StationHp); p.StationDmgPerZombieS = g("StationDmgPerZombieS", p.StationDmgPerZombieS);
-            p.ZombieSpeedMmS = g("ZombieSpeedMmS", p.ZombieSpeedMmS); p.ContactRadiusMm = g("ContactRadiusMm", p.ContactRadiusMm); p.ContactCasualtyPmPerS = g("ContactCasualtyPmPerS", p.ContactCasualtyPmPerS); p.PileRadiusMm = g("PileRadiusMm", p.PileRadiusMm); p.GateGapMm = g("GateGapMm", p.GateGapMm); p.ClimbPileZ = g("ClimbPileZ", p.ClimbPileZ); p.ClimbPermilS = g("ClimbPermilS", p.ClimbPermilS);
+            p.ZombieSpeedMmS = g("ZombieSpeedMmS", p.ZombieSpeedMmS); p.ContactRadiusMm = g("ContactRadiusMm", p.ContactRadiusMm); p.ContactCasualtyPmPerS = g("ContactCasualtyPmPerS", p.ContactCasualtyPmPerS); p.PileRadiusMm = g("PileRadiusMm", p.PileRadiusMm); p.GateGapMm = g("GateGapMm", p.GateGapMm); p.PileMaxPerM = g("PileMaxPerM", p.PileMaxPerM); p.ClimbPileZ = g("ClimbPileZ", p.ClimbPileZ); p.ClimbPermilS = g("ClimbPermilS", p.ClimbPermilS);
             return p;
         }
     }
@@ -384,7 +387,7 @@ namespace TBD.Units
         {
             if (Night.State != NightState.Jugando) return;
             // 1) la noche: reloj, oleadas y fin de partida (gana la derrota)
-            Night.WallPermil = SP.WallHp > 0 ? (int)((long)WallHp * 1000 / SP.WallHp) : 0;
+            Night.WallPermil = SP.WallHp > 0 ? (int)((long)WallHp * 1000 / SP.WallHp) : 0; Night.WallHpAbs = WallHp;
             Night.ZombiesAlive = AliveZombies();                               // D-N136: victoria al acabar con la horda
             Night.Step(_spawns);
             var cur = Current();
@@ -449,6 +452,7 @@ namespace TBD.Units
             if (Segments == null) { if (WallHp > 0 && pile > 0) { _wallRem += pile * SP.WallDmgPerZombieS; int dmg = _wallRem / IMath.TickRate; _wallRem %= IMath.TickRate; WallHp = Math.Max(0, WallHp - dmg); } }
             else
             {
+                if (SP.PileMaxPerM > 0) SpreadPile(_segPile);
                 DamageSegments(_segPile);
                 SumSegments();
             }
@@ -847,6 +851,21 @@ namespace TBD.Units
         void EndJob(WallJob j, Platoon p) { if (p != null && j.Working) p.HoldFire = j.PrevHoldFire; if (Bot != null) Bot.Busy.Remove(j.Platoon); WallJobs.RemoveAt(0); }
 
         /// <summary>Daño de la pila a los tramos (D-N163, ×1; D-N165 (b) con PileSpreadPermil). «pile» = zombis pegados a cada tramo. Apunta las brechas en WallEvents.</summary>
+        /// <summary>PileMaxPerM: cada tramo intacto admite LenMm × PileMaxPerM / 1000 zombis (al menos 1); el exceso va la mitad hacia A0 y la mitad hacia A1 por los tramos
+        /// del mismo lado, en cascada, sin pasar de un tramo caído; lo que no cabe se queda en el de origen. Entero y determinista (por índice).</summary>
+        void SpreadPile(int[] pile)
+        {
+            int n = Segments.Count;
+            for (int i = 0; i < n; i++)
+            {
+                var g = Segments[i]; if (g.Hp <= 0) continue; int cap = Math.Max(1, (int)((long)g.LenMm * SP.PileMaxPerM / 1000)); int ex = pile[i] - cap; if (ex <= 0) continue;
+                pile[i] = cap; int left = ex / 2, right = ex - left;
+                for (int j = i - 1; j >= 0 && left > 0; j--) { var h = Segments[j]; if (h.Side != g.Side || h.Hp <= 0) break; int c = Math.Max(1, (int)((long)h.LenMm * SP.PileMaxPerM / 1000)); int put = Math.Min(left, Math.Max(0, c - pile[j])); pile[j] += put; left -= put; }
+                for (int j = i + 1; j < n && right > 0; j++) { var h = Segments[j]; if (h.Side != g.Side || h.Hp <= 0) break; int c = Math.Max(1, (int)((long)h.LenMm * SP.PileMaxPerM / 1000)); int put = Math.Min(right, Math.Max(0, c - pile[j])); pile[j] += put; right -= put; }
+                pile[i] += left + right;
+            }
+        }
+
         void DamageSegments(int[] pile)
         {
             // D-N163: el daño de la pila va al tramo que toca cada zombi (los que trepan ya no cuentan)
