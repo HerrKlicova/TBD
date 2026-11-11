@@ -175,12 +175,20 @@ namespace TBD.View
         void TramosGUI()
         {
             if (!_tramos || !_segsInit || _worldCam == null) return;
+            // Eugenio (I-Noche178, tutorial 2.3): el tramo dañado del oeste se resalta solo (anillo del tutorial y línea gruesa), no una línea fina alrededor de todo el recinto
+            Seg marca = null; foreach (var s in _segs) if (!s.IsGate && Lado(s.A) == "oeste" && (marca == null || (s.Open ? 0f : s.Hp / s.Max) < (marca.Open ? 0f : marca.Hp / marca.Max))) marca = s;
+            if (marca != null && Event.current.type == EventType.Repaint)
+            {
+                var ma = ToGui(new Vector3(marca.A.x, 0.3f, marca.A.y)); var mb = ToGui(new Vector3(marca.B.x, 0.3f, marca.B.y));
+                var rr = Rect.MinMaxRect(Mathf.Min(ma.x, mb.x) - 14f, Mathf.Min(ma.y, mb.y) - 14f, Mathf.Max(ma.x, mb.x) + 14f, Mathf.Max(ma.y, mb.y) + 14f);
+                TutorialHud.Objetivo(TutorialGuion.Resaltes.TramoDanado, rr);
+            }
             foreach (var s in _segs)
             {
                 float f = s.Open ? 0f : s.Hp / s.Max; var a = ToGui(new Vector3(s.A.x, 0.3f, s.A.y)); var b = ToGui(new Vector3(s.B.x, 0.3f, s.B.y));
                 if (!_obras && !s.Open && f >= 0.7f) continue;                                                        // sano: sin marca; solo se ve en modo obras
                 Color c = s.Open ? SgRojo : f >= 0.7f ? OvHueso : SgAmbar; float al = s.Open ? 0.75f : (f < 0.3f ? 0.55f + 0.4f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 4f)) : 0.9f);
-                OvLine(a, b, s.Open ? 5f : 3f, c, al); if (s == _segSel) OvLine(a + Vector2.up * 5f, b + Vector2.up * 5f, 2f, OvHueso, 1f);
+                OvLine(a, b, s.Open ? 5f : (s == marca && f < 0.999f ? 6f : f >= 0.7f ? 1.5f : 3f), c, al); if (s == _segSel) OvLine(a + Vector2.up * 5f, b + Vector2.up * 5f, 2f, OvHueso, 1f);
             }
             if (!_obras) return;
             float k = Screen.height / 1080f; OvEnsure(); var r = new Rect(Screen.width - 330f * k, Screen.height - 410f * k, 316f * k, 210f * k);
