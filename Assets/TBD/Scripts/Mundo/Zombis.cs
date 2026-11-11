@@ -57,6 +57,7 @@ namespace TBD.Mundo
         readonly List<int> _caminoI = new List<int>(), _replanTick = new List<int>(), _caminoMetaX = new List<int>(), _caminoMetaY = new List<int>();
         public IRng Rng;
         int _nextId;
+        public long SinCamino;      // búsquedas sin camino (diagnóstico, fuera del hash)
 
         public ZombisMundo(uint seed) { Rng = new IRng(seed ^ 0x2B0A1u); }
 
@@ -154,12 +155,19 @@ namespace TBD.Mundo
             ax = z.MetaX; ay = z.MetaY;
             if (rej.LineaLibre(z.X, z.Y, z.MetaX, z.MetaY)) { _caminos[i].Clear(); return; }
             var cam = _caminos[i];
-            bool rehacer = cam.Count == 0 || D2(_caminoMetaX[i], _caminoMetaY[i], z.MetaX, z.MetaY) > 3000L * 3000 || (z.Estado == EstadoZombi.Persigue && tick - _replanTick[i] >= P.ReplanCadaTicks);
+            bool metaMovida = D2(_caminoMetaX[i], _caminoMetaY[i], z.MetaX, z.MetaY) > 3000L * 3000;
+            bool rehacer = (cam.Count == 0 && (metaMovida || tick - _replanTick[i] >= 4 * P.ReplanCadaTicks)) || (cam.Count > 0 && metaMovida) || (z.Estado == EstadoZombi.Persigue && tick - _replanTick[i] >= P.ReplanCadaTicks);
             if (rehacer)
             {
                 _replanTick[i] = tick; _caminoMetaX[i] = z.MetaX; _caminoMetaY[i] = z.MetaY; _caminoI[i] = 0;
-                if (!rej.BuscarCamino(z.X, z.Y, z.MetaX, z.MetaY, cam)) { cam.Clear(); return; }
+                if (!rej.BuscarCamino(z.X, z.Y, z.MetaX, z.MetaY, cam))
+                {
+                    cam.Clear(); SinCamino++;
+                    if (z.Estado != EstadoZombi.Persigue) { z.Estado = EstadoZombi.Quieto; z.Espera = P.EsperaMinTicks; }      // no hay paso: se queda donde está (sin buscar cada tick)
+                    return;
+                }
             }
+            if (cam.Count == 0) return;      // sin camino hace poco: recto y deslizándose, sin volver a buscar hasta que toque
             int k = _caminoI[i];
             while (k < cam.Count - 1 && D2(z.X, z.Y, cam[k].X, cam[k].Y) <= 600L * 600) k++;     // punto alcanzado: al siguiente
             _caminoI[i] = k;

@@ -16,8 +16,8 @@ namespace TBD.Mundo
         public static Orden Parse(string s) { var p = s.Split(';'); return new Orden { Tick = int.Parse(p[0]), Jugador = int.Parse(p[1]), Tipo = (TipoOrden)ushort.Parse(p[2]), A = int.Parse(p[3]), B = int.Parse(p[4]), C = int.Parse(p[5]), D = int.Parse(p[6]) }; }
     }
 
-    /// <summary>Un caso de la casa del caserío: rectángulo en mm y altura (para la línea de visión).</summary>
-    public struct Casa { public RectMm R; public int AlturaMm; }
+    /// <summary>Un obstáculo fijo del nivel (edificio, tapia, arbolado): rectángulo en mm, altura, y si tapa el paso y la vista (obstaculos_hito1.csv de Álvaro).</summary>
+    public struct Casa { public RectMm R; public int AlturaMm; public bool TapaPaso, TapaVision; public string Id; }
 
     /// <summary>
     /// LA simulación del núcleo v2 (Hito 1; contrato de Nacho aceptado por Iker, 11-11). Un solo mundo para todos: el que se mira y el que no (D-N207: el nivel de
@@ -38,6 +38,12 @@ namespace TBD.Mundo
         public int AlcanceFuegoMm = 60000;                  // como la zona y NightSim (D-N186): blancos a 60 m de un pelotón
         public int ContactoMm = 900, ContactoDanioTick = 2;  // NightParams de la noche (noche_contacto_mm, noche_contacto_danio_tick)
         public int Abatidos, BajasPropias;
+        /// <summary>Retirada sola sin munición (Hugo y Lucía, 11-11: «sin la línea el pelotón se queda seco a mitad del caserío pero sin morir entero»): un pelotón que no puede
+        /// disparar ni una vez vuelve a pie a «PuntoRetirada» (B) en lugar de quedarse a que lo maten. Al reabastecerse allí, el jugador lo vuelve a mandar.</summary>
+        public bool RetiradaSinMunicion = true; public string PuntoRetirada = "B";
+        readonly HashSet<int> _retirandose = new HashSet<int>();
+        /// <summary>Medidas para Hugo (fuera del hash): distancia de cada abatido a su pelotón (mm) y tick de cada baja propia.</summary>
+        public readonly List<int> DistAbatidoMm = new List<int>(), TickBaja = new List<int>();
         readonly List<Orden> _cola = new List<Orden>();      // ordenadas por (Tick, Jugador, llegada)
         readonly List<Orden> _aplicadas = new List<Orden>(); // la grabación
         readonly List<Target> _blancos = new List<Target>();
@@ -55,10 +61,10 @@ namespace TBD.Mundo
         public void PonerCasas(IList<Casa> casas)
         {
             Casas.Clear(); Casas.AddRange(casas);
-            var rects = new List<RectMm>(); foreach (var c in casas) rects.Add(c.R);
+            var rects = new List<RectMm>(); foreach (var c in casas) if (c.TapaPaso) rects.Add(c.R);
             Rejilla.PonerObstaculos(rects);
             Unidades.Obstacles.Clear(); Unidades.Obstacles.AddRange(rects);
-            Unidades.LosBlockers.Clear(); foreach (var c in casas) Unidades.LosBlockers.Add(new UnitsWorld.LosBlocker { R = c.R, HeightMm = c.AlturaMm });
+            Unidades.LosBlockers.Clear(); foreach (var c in casas) if (c.TapaVision) Unidades.LosBlockers.Add(new UnitsWorld.LosBlocker { R = c.R, HeightMm = c.AlturaMm });
         }
 
         /// <summary>Mete una orden. Se aplica al empezar su tick; si llega tarde (tick pasado), se aplica en el siguiente (en el cooperativo no pasa: lockstep).</summary>
@@ -102,17 +108,49 @@ namespace TBD.Mundo
             _blancos.Clear();
             var zs = Zombis.Lista;
             for (int i = 0; i < zs.Count; i++) if (zs[i].Vivo && CercaDePeloton(zs[i].X, zs[i].Y)) _blancos.Add(new Target { Id = i, X = zs[i].X, Y = zs[i].Y });
+            long t0 = Prof ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;
             Unidades.Step(_blancos, _res);
-            foreach (var h in _res.Hits) if (Zombis.Abatir(h.TargetId)) { Abatidos++; Unidades.NoteKill(h.Platoon); }
+            if (Prof) { long t1 = System.Diagnostics.Stopwatch.GetTimestamp(); ProfUnidades += t1 - t0; t0 = t1; }
+            foreach (var h in _res.Hits)
+            {
+                if (h.TargetId < 0 || h.TargetId >= zs.Count || !zs[h.TargetId].Vivo) continue;
+                var pl = Unidades.Find(h.Platoon); if (pl != null) DistAbatidoMm.Add(IMath.Dist(zs[h.TargetId].X - pl.AX, zs[h.TargetId].Y - pl.AY));
+                Zombis.Abatir(h.TargetId); Abatidos++; Unidades.NoteKill(h.Platoon);
+            }
             // zombis: vista, oído, deambular y andar
             Zombis.Step(Unidades, Rejilla, _res.Shots, Tick);
+            if (Prof) { long t1 = System.Diagnostics.Stopwatch.GetTimestamp(); ProfZombis += t1 - t0; t0 = t1; }
             // contacto con los soldados
             _blancos.Clear();
             for (int i = 0; i < zs.Count; i++) if (zs[i].Vivo && CercaDePeloton(zs[i].X, zs[i].Y)) _blancos.Add(new Target { Id = i, X = zs[i].X, Y = zs[i].Y });
-            BajasPropias += Unidades.ZombieContact(_blancos, ContactoMm, ContactoDanioTick, _contacto);
+            int caidos = Unidades.ZombieContact(_blancos, ContactoMm, ContactoDanioTick, _contacto); BajasPropias += caidos; for (int k = 0; k < caidos; k++) TickBaja.Add(Tick);
+            if (RetiradaSinMunicion) Retiradas();
             Tick++;
         }
 
+        int CosteMinimo(Platoon p)
+        {
+            int min = int.MaxValue;
+            foreach (var m in p.Men) { if (!m.Alive) continue; if (m.W0 >= 0) min = Math.Min(min, WeaponCatalog.Table[m.W0].CostShots); if (m.W1 >= 0) min = Math.Min(min, WeaponCatalog.Table[m.W1].CostShots); }
+            return min == int.MaxValue ? 1 : Math.Max(1, min);
+        }
+
+        void Retiradas()
+        {
+            if (!Puntos.TryGetValue(PuntoRetirada, out var b)) return;
+            foreach (var p in Unidades.Platoons)
+            {
+                if (p.Aboard != 0 || p.AliveCount() == 0) continue;
+                bool seco = p.AmmoShots < CosteMinimo(p);
+                if (seco && !_retirandose.Contains(p.Id)) { _retirandose.Add(p.Id); Unidades.Move(p.Id, b.X, b.Y); }
+                else if (!seco && _retirandose.Contains(p.Id)) _retirandose.Remove(p.Id);
+            }
+        }
+        ulong HashRetiradas() { ulong h = RetiradaSinMunicion ? 0x5E7UL : 0; foreach (int id in _retirandose) h += IMath.Mix(0x5E70UL ^ (ulong)(uint)id); return h; }
+        public bool SeRetira(int peloton) { return _retirandose.Contains(peloton); }
+
+        /// <summary>Medida de coste (fuera del hash): ticks de Stopwatch en el fuego de UnitsWorld y en los zombis.</summary>
+        public static bool Prof; public static long ProfUnidades, ProfZombis;
         public StepResult UltimoFuego { get { return _res; } }
 
         // ---- hash por sistema (Sara, plan-hito1 §3: «desync=True@tick · difiere: <sistemas>»)
@@ -121,7 +159,7 @@ namespace TBD.Mundo
         {
             var l = new List<KeyValuePair<string, ulong>>
             {
-                new KeyValuePair<string, ulong>("reloj", IMath.Mix(0x4D0D0UL ^ (ulong)(uint)Tick ^ ((ulong)(uint)Abatidos << 32) ^ ((ulong)(uint)BajasPropias << 52))),
+                new KeyValuePair<string, ulong>("reloj", IMath.Mix(0x4D0D0UL ^ (ulong)(uint)Tick ^ ((ulong)(uint)Abatidos << 32) ^ ((ulong)(uint)BajasPropias << 52)) + HashRetiradas()),
                 new KeyValuePair<string, ulong>("unidades", Unidades.Hash()),
                 new KeyValuePair<string, ulong>("zombis", Zombis.Hash()),
             };
@@ -163,33 +201,56 @@ namespace TBD.Mundo
             var l = new List<Orden>(); for (int i = 1; i < lineas.Length; i++) l.Add(Orden.Parse(lineas[i].Trim())); return l;
         }
 
-        // ---- escenario del Hito 1: el caserío
+        // ---- escenario del Hito 1: el caserío (datos de Álvaro, Assets/StreamingAssets/Hito1/, alvaro/hito1-terreno f864a1e6)
         public const string EscenarioCaserio = "caserio";
-        public const int CaserioX = 1400000, CaserioY = 1000000;      // centro del caserío (provisional hasta el CSV de posiciones de Álvaro)
+        public const string ArchivoPosiciones = "posiciones_hito1.csv", ArchivoObstaculos = "obstaculos_hito1.csv";
+        /// <summary>Lector de los CSV del Hito 1 (nombre → texto). Unity lo apunta a StreamingAssets/Hito1; las pruebas, a la carpeta del repositorio.</summary>
+        public static Func<string, string> Lector;
+        /// <summary>Puntos con nombre de posiciones_hito1.csv (A, B, caserio, deposito_material, peloton_inicio, puente_carretera), en mm (X este, Y = Z de Unity, norte).</summary>
+        public readonly Dictionary<string, PointMm> Puntos = new Dictionary<string, PointMm>();
+        public static int CaserioX = 1090000, CaserioY = 1530000;
 
-        /// <summary>Terreno de 2 × 2 km con un caserío de 8 casas y «zombis» zombis repartidos por ellas, y un pelotón de fusileros a 150 m al oeste mirando al este.
-        /// Posiciones provisionales hasta que Álvaro suba el CSV del terreno.</summary>
-        public static Mundo Caserio(uint semilla, int zombis = 100)
+        static int Mm(string s) { return (int)Math.Round(double.Parse(s, System.Globalization.CultureInfo.InvariantCulture) * 1000.0); }
+        static string[] Campos(string linea) { var l = new List<string>(); var sb = new StringBuilder(); bool q = false; foreach (char c in linea) { if (c == '"') q = !q; else if (c == ';' && !q) { l.Add(sb.ToString()); sb.Clear(); } else sb.Append(c); } l.Add(sb.ToString()); return l.ToArray(); }
+
+        /// <summary>Obstáculos de obstaculos_hito1.csv (mismo esquema que sagunto_obstaculos_v1.csv): «caja» = rectángulo; «seg» = tramo engordado con medio_grosor.</summary>
+        public static List<Casa> ObstaculosDeCsv(string csv)
         {
-            var m = new Mundo(semilla, 2000000, 2000000);
-            var casas = new List<Casa>();
-            int[] cx = { -30000, -8000, 14000, 34000, -26000, -2000, 20000, 40000 }, cy = { -18000, -22000, -17000, -20000, 16000, 20000, 15000, 19000 };
-            for (int k = 0; k < cx.Length; k++)
+            var l = new List<Casa>(); if (string.IsNullOrEmpty(csv)) return l;
+            var lineas = csv.Split('\n');
+            for (int k = 1; k < lineas.Length; k++)
             {
-                int w = 10000 + (k % 3) * 2000, h = 8000 + (k % 2) * 2000, x = CaserioX + cx[k], y = CaserioY + cy[k];
-                casas.Add(new Casa { R = new RectMm(x - w / 2, y - h / 2, x + w / 2, y + h / 2), AlturaMm = 6000 + (k % 2) * 3000 });
+                var t = lineas[k].Trim(); if (t.Length == 0 || t.StartsWith("#")) continue; var f = Campos(t); if (f.Length < 11) continue;
+                int x0 = int.Parse(f[3]), y0 = int.Parse(f[4]), x1 = int.Parse(f[5]), y1 = int.Parse(f[6]), g = int.Parse(f[7]), h = int.Parse(f[8]);
+                var r = new RectMm(Math.Min(x0, x1) - g, Math.Min(y0, y1) - g, Math.Max(x0, x1) + g, Math.Max(y0, y1) + g);
+                l.Add(new Casa { Id = f[0], R = r, AlturaMm = h, TapaVision = f[9].Trim() == "si", TapaPaso = f[10].Trim() == "si" });
             }
-            m.PonerCasas(casas);
-            var rng = new IRng(semilla ^ 0xCA5E1u);
-            for (int i = 0; i < zombis; i++)
+            return l;
+        }
+
+        /// <summary>El Hito 1: terreno de 2048 × 2048 m con los obstáculos de Álvaro, sus 100 zombis (cada uno con su sitio en el caserío donde empieza) y un pelotón
+        /// de fusileros en la salida de B (peloton_inicio). Lee los CSV con «Lector»; si falta alguno, lanza una excepción (sin datos no hay caserío).</summary>
+        public static Mundo Caserio(uint semilla)
+        {
+            string pos = Lector != null ? Lector(ArchivoPosiciones) : null, obs = Lector != null ? Lector(ArchivoObstaculos) : null;
+            if (pos == null || obs == null) throw new InvalidOperationException("Mundo.Caserio: faltan " + ArchivoPosiciones + " u " + ArchivoObstaculos + " (Mundo.Lector)");
+            var m = new Mundo(semilla, 2048000, 2048000);
+            m.PonerCasas(ObstaculosDeCsv(obs));
+            int yawPeloton = 0; bool hayPeloton = false;
+            var lineas = pos.Split('\n');
+            for (int k = 1; k < lineas.Length; k++)
             {
-                var c = casas[i % casas.Count].R; int hx = (c.X0 + c.X1) / 2, hy = (c.Y0 + c.Y1) / 2;
-                int puertaY = hy < CaserioY ? c.Y1 + 2500 : c.Y0 - 2500;                       // la «puerta» da a la calle del medio
-                int x = hx, y = puertaY;
-                for (int intento = 0; intento < 20; intento++) { int px = hx + rng.Below(14001) - 7000, py = puertaY + rng.Below(6001) - 3000; if (m.Rejilla.Libre(px, py)) { x = px; y = py; break; } }
-                m.Zombis.Anadir(x, y, hx, puertaY);
+                var t = lineas[k].Trim(); if (t.Length == 0) continue; var f = Campos(t); if (f.Length < 6) continue;
+                int x = Mm(f[2]), y = Mm(f[4]);
+                if (f[1] == "zombi") m.Zombis.Anadir(x, y, x, y);
+                else { m.Puntos[f[0]] = new PointMm(x, y); if (f[1] == "peloton") { hayPeloton = true; yawPeloton = (int)Math.Round(double.Parse(f[5], System.Globalization.CultureInfo.InvariantCulture)); } }
             }
-            m.Unidades.AddPlatoon(PlatoonKind.Fusileros, CaserioX - 150000, CaserioY, 0);   // rumbo 0 = +X (este)
+            if (m.Puntos.TryGetValue("caserio", out var cs)) { CaserioX = cs.X; CaserioY = cs.Y; }
+            if (hayPeloton)
+            {
+                var pi = m.Puntos["peloton_inicio"]; int rumbo = (int)((long)(90 - yawPeloton) * 65536 / 360) & 0xFFFF;     // Unity: yaw 0 = +Z (norte), 90 = +X; aquí rumbo 0 = +X
+                m.Unidades.AddPlatoon(PlatoonKind.Fusileros, pi.X, pi.Y, rumbo);
+            }
             return m;
         }
     }
