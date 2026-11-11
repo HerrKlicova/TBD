@@ -137,6 +137,7 @@ namespace TBD.View
             }
             // el muro total del HUD: vida de los tramos del oeste (el resto del recinto sigue como un solo bloque)
             if (_wallMax > 0f) { float sumH = SegTotal(false), sumM = SegTotal(true); if (sumM > 0f) _ng.WallPermil = Mathf.RoundToInt(1000f * sumH / sumM); }
+            _ng.WallHpAbs = (long)SegTotal(false);      // Nacho (pila-metro): la regla de los rezagados mira la vida absoluta (el ‰ del perímetro no se mueve con una sola puerta)
         }
 
         /// <summary>Tiempo de reconstruir (Hugo): ticks = obra_h x 3600 / reloj_x / (2 x zapadores vivos) x 30, con obra_h = 0,4 obrero.h por metro de tramo (D-N44).</summary>
