@@ -27,6 +27,8 @@ namespace TBD.Units
         /// <summary>Lucía (11-nov, I-Noche175): tope de la pila por metro de tramo (zombis con cuerpo: en 3,2 m de puerta no caben 60). Lo que sobra pasa a los tramos vecinos del
         /// mismo lado (la mitad a cada lado, en cascada). Solo reparte el daño; la pila total y la trepada no cambian. 0 = sin tope (como hasta ahora).</summary>
         public int PileMaxPerM;
+        /// <summary>Calibración contra la zona (Lucía, 11-nov): UnitsWorld.HitScalePm y BlastScalePm de NightSim (0 = 1000, sin cambio). Ver UnitsWorld.</summary>
+        public int FireHitScalePm, BlastScalePm;
         public int GateGapMm;                           // hueco de la vía en el muro oeste (en la zona de Unity la puerta de vía no tiene sólido: 3.200). 0 = recinto cerrado (lo medido hasta ahora)
 
         public static NightSimParams Default()
@@ -48,7 +50,7 @@ namespace TBD.Units
             Func<string, int, int> g = (k, d) => o.ContainsKey(k) && o[k] is long ? (int)(long)o[k] : d;
             p.FortX0 = g("FortX0", p.FortX0); p.FortX1 = g("FortX1", p.FortX1); p.FortY0 = g("FortY0", p.FortY0); p.FortY1 = g("FortY1", p.FortY1); p.StationX = g("StationX", p.StationX); p.StationY = g("StationY", p.StationY);
             p.WallHp = g("WallHp", p.WallHp); p.WallDmgPerZombieS = g("WallDmgPerZombieS", p.WallDmgPerZombieS); p.StationHp = g("StationHp", p.StationHp); p.StationDmgPerZombieS = g("StationDmgPerZombieS", p.StationDmgPerZombieS);
-            p.ZombieSpeedMmS = g("ZombieSpeedMmS", p.ZombieSpeedMmS); p.ContactRadiusMm = g("ContactRadiusMm", p.ContactRadiusMm); p.ContactCasualtyPmPerS = g("ContactCasualtyPmPerS", p.ContactCasualtyPmPerS); p.PileRadiusMm = g("PileRadiusMm", p.PileRadiusMm); p.GateGapMm = g("GateGapMm", p.GateGapMm); p.PileMaxPerM = g("PileMaxPerM", p.PileMaxPerM); p.ClimbPileZ = g("ClimbPileZ", p.ClimbPileZ); p.ClimbPermilS = g("ClimbPermilS", p.ClimbPermilS);
+            p.ZombieSpeedMmS = g("ZombieSpeedMmS", p.ZombieSpeedMmS); p.ContactRadiusMm = g("ContactRadiusMm", p.ContactRadiusMm); p.ContactCasualtyPmPerS = g("ContactCasualtyPmPerS", p.ContactCasualtyPmPerS); p.PileRadiusMm = g("PileRadiusMm", p.PileRadiusMm); p.GateGapMm = g("GateGapMm", p.GateGapMm); p.PileMaxPerM = g("PileMaxPerM", p.PileMaxPerM); p.FireHitScalePm = g("FireHitScalePm", p.FireHitScalePm); p.BlastScalePm = g("BlastScalePm", p.BlastScalePm); p.ClimbPileZ = g("ClimbPileZ", p.ClimbPileZ); p.ClimbPermilS = g("ClimbPermilS", p.ClimbPermilS);
             return p;
         }
     }
@@ -465,10 +467,11 @@ namespace TBD.Units
             // 4) los pelotones disparan; los impactos abaten
             _targets.Clear(); _ids.Clear();
             for (int i = 0; i < _z.Count; i++) if (_z[i].Alive && NearPlatoon(_z[i].X, _z[i].Y)) { _targets.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); }
-            if (Bot != null) Bot.Step(Units, _targets, Night.Tick);          // el bot da sus órdenes antes del fuego, con la misma API que el jugador
+            if (Bot != null) { _botZ.Clear(); for (int i = 0; i < _z.Count; i++) if (_z[i].Alive) _botZ.Add(new Target { Id = i, X = _z[i].X, Y = _z[i].Y }); Bot.Step(Units, _botZ, Night.Tick); }   // el bot ve a TODOS los vivos (I-Noche179: con el radio de 60 m no veía a los de dentro lejos de los pelotones); el radio es solo para disparar          // el bot da sus órdenes antes del fuego, con la misma API que el jugador
             else if (AutoPlatoonResupply && Night.Tick % 15 == 0) ResupplyBot();   // fuera de pantalla: la misma recarga automática al 30 % que hace la zona cada 15 ticks
             int before = TotalAmmo();
-            Units.Step(_targets, _res);
+{ int h0 = Units.HitScalePm, b0 = Units.BlastScalePm; if (SP.FireHitScalePm > 0) Units.HitScalePm = SP.FireHitScalePm; if (SP.BlastScalePm > 0) Units.BlastScalePm = SP.BlastScalePm;   // calibración solo de NightSim: el UnitsWorld puede ser el de la zona (fuera de pantalla)
+              Units.Step(_targets, _res); Units.HitScalePm = h0; Units.BlastScalePm = b0; }
             if (Dx != null) foreach (var ev in _res.Shots) { var dp = Units.Find(ev.Platoon); var a = DxRow((dp != null ? dp.Kind.ToString() : "?") + "/" + ev.Weapon); a[0] += WeaponCatalog.Table[(int)ev.Weapon].CostShots * 1000L; a[4]++; }
             if (Dx != null) foreach (var b in _res.Blasts) { var dp = Units.Find(b.Platoon); var r = DxRow("BL " + (dp != null ? dp.Kind.ToString() : "?") + "/" + b.Weapon); r[0]++; r[1] += b.Hits; r[2] += b.InRadius; r[3] += b.InRadius >= 6 ? 1 : 0; }
             foreach (var h in _res.Hits)
@@ -855,6 +858,7 @@ namespace TBD.Units
         /// <summary>Daño de la pila a los tramos (D-N163, ×1; D-N165 (b) con PileSpreadPermil). «pile» = zombis pegados a cada tramo. Apunta las brechas en WallEvents.</summary>
         /// <summary>PileMaxPerM: cada tramo intacto admite LenMm × PileMaxPerM / 1000 zombis (al menos 1); el exceso va la mitad hacia A0 y la mitad hacia A1 por los tramos
         /// del mismo lado, en cascada, sin pasar de un tramo caído; lo que no cabe se queda en el de origen. Entero y determinista (por índice).</summary>
+        readonly List<Target> _botZ = new List<Target>();
         void SpreadPile(int[] pile)
         {
             int n = Segments.Count;
