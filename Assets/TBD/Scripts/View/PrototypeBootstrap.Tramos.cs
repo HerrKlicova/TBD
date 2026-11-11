@@ -89,7 +89,7 @@ namespace TBD.View
                 Debug.Log($"[NOCHE] {g.Name}: vida {g.Max:0} y {g.HeightMm / 1000f:0.0} m (como sus vecinos)");
             }
             Push(CmdType.ClearFort);
-            bool alturaReal = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-tramos-altura-real") >= 0;      // I-Noche173: con la altura real (sacos 1,2 m) la pila trepa y la noche 2 de Nules se pierde (4/4); por defecto, 2,5 m como antes, hasta que decidan Nacho y Lucía
+            bool alturaReal = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-tramos-altura-real") >= 0;      // Lucía (11-11, opción a): la zona trepa contra 2,5 m y la LOS usa la altura real; con la altura real (sacos 1,2 m) la pila trepa y Nules N2 se perdía 4/4. La (b), igualar la trepada, después del 19
             foreach (var s in _segs) Push(CmdType.BuildSeg, s.Id * 10000 + (alturaReal ? s.HeightMm : 2500), new Unity.Mathematics.float2(s.A.x, s.A.y), new Unity.Mathematics.float2(s.B.x, s.B.y));
             foreach (var s in _segs) if (s.IsVehGate && !NocheEnMarcha) { s.Open = true; s.DeDia = true; Push(CmdType.SetSegment, s.Id * 10 + 1); }      // de día las puertas abiertas (D-N202)
             int no = 0, ne = 0, ns = 0, nn = 0; foreach (var s in _segs) { var l = Lado(s.A); if (l == "oeste") no++; else if (l == "este") ne++; else if (l == "sur") ns++; else nn++; }
