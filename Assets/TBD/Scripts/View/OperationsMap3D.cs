@@ -91,8 +91,28 @@ namespace TBD.View
         }
 
         float _mapT0, _diagMapaT;
+        // QA (I-Noche157): -mapa-capturas 40,150,300 = al entrar en el mapa, una captura a cada distancia de cámara (km), 4 s después de llegar a ella (Captures/qa/mapa_<km>km_<n>.png)
+        int _capI = -1, _capEntrada = -1, _capVisita; float _capT; readonly List<float> _capKm = new List<float>();
+        void Update_CapturasMapa()
+        {
+            float now = Time.realtimeSinceStartup;
+            if (_capEntrada != (int)(_mapT0 * 1000f))
+            {
+                _capEntrada = (int)(_mapT0 * 1000f); _capI = -2; _capKm.Clear();
+                var cl = System.Environment.GetCommandLineArgs(); int ik = System.Array.IndexOf(cl, "-mapa-capturas");
+                if (ik >= 0 && ik + 1 < cl.Length) foreach (var s in cl[ik + 1].Split(',')) if (float.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var km) && km > 0f) _capKm.Add(Mathf.Clamp(km, 0.3f, 600f));
+                if (_capKm.Count > 0) { _capI = 0; _capVisita++; _targetDist = _capKm[0]; _capT = now + 6f; }
+            }
+            if (_capI < 0 || now < _capT) return;
+            string dir = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Captures", "qa")); Directory.CreateDirectory(dir);
+            string f = Path.Combine(dir, $"mapa_{_capKm[_capI]:0.#}km_{_capVisita}.png"); ScreenCapture.CaptureScreenshot(f);
+            Debug.Log($"[MAPA] captura a {_capKm[_capI]:0.#} km (cámara {_dist:0.#} km): {f}");
+            _capI++; if (_capI >= _capKm.Count) { _capI = -2; return; }
+            _targetDist = _capKm[_capI]; _capT = now + 4f;
+        }
         void Update_NightReturn()
         {
+            Update_CapturasMapa();
             var s = NightRun.Session; if (s == null || !s.Away || _entering) return;
             var cl = System.Environment.GetCommandLineArgs(); for (int i = 0; i + 1 < cl.Length; i++) if (cl[i] == "-returnafter" && float.TryParse(cl[i + 1], out var rt) && Time.realtimeSinceStartup - _mapT0 >= rt) { Debug.Log("[NOCHE] prueba: -returnafter, vuelvo a Sagunto"); EnterZone(0); }
         }

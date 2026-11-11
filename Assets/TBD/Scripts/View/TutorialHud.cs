@@ -127,6 +127,7 @@ namespace TBD.View
             if (_i != null && _i._m != null) _i._m.Senal(s);
         }
         static float _contactoT = -1f;
+        string _autoRealPaso;
         public const float Cap3TrasContacto = 60f;      // Lucía: 60 s reales después del primer contacto con el muro
         static bool PorTiempo { get { return _contactoT >= 0 && Time.unscaledTime - _contactoT >= Cap3TrasContacto; } }
         static float _tarjetaObjT = -1f; static bool _tarjetaObjCerrada;      // objetivo del día 2, v2
@@ -282,7 +283,11 @@ namespace TBD.View
                 if (Auto && _m.EnPaso >= 2.5f && p.Cierre == Cierre.Senal)
                 {
                     CapturaAuto("paso_" + p.Id.Replace('.', '_'));
-                    if (_m.EnPaso >= 3f) foreach (var s in p.Senales) { Debug.Log($"[TUTORIAL] auto: {p.Id} → {s}"); _m.Senal(s); if (_m.Actual != p) break; }
+                    // I-Noche157: la corrida automática ya no fuerza las señales que da la propia zona (horda que avanza, ataque rechazado): espera a la de verdad
+                    // (hasta 600 s; el paso puede cerrarse antes solo, por su tiempo). Así la corrida comprueba que «Ataque rechazado» sale solo sin zombis.
+                    bool real = false; foreach (var s in p.Senales) if (s == TutorialGuion.Senales.AtaqueRechazado || s == TutorialGuion.Senales.HordaAvanza) real = true;
+                    if (real && _m.EnPaso < 600f) { if (_autoRealPaso != p.Id) { _autoRealPaso = p.Id; Debug.Log($"[TUTORIAL] auto: {p.Id} espera la señal real de la zona ({string.Join(", ", p.Senales)})"); } }
+                    else if (_m.EnPaso >= 3f) foreach (var s in p.Senales) { Debug.Log($"[TUTORIAL] auto: {p.Id} → {s}{(real ? " (forzada a los 600 s)" : "")}"); _m.Senal(s); if (_m.Actual != p) break; }
                 }
                 else if (Auto && p.Cierre == Cierre.Segundos && _m.EnPaso >= Mathf.Min(2.5f, p.Segundos - 0.3f)) CapturaAuto("paso_" + p.Id.Replace('.', '_'));
             }
