@@ -455,15 +455,29 @@ namespace TBD.Units
             dy = IMath.DivR((long)fwd * s - (long)right * c, IMath.One);
         }
 
-        static void ComputeSlots(Platoon p)
+        void ComputeSlots(Platoon p)
         {
             int n = p.AliveCount(), k = 0;
             for (int i = 0; i < p.Men.Count; i++)
             {
                 var m = p.Men[i]; if (!m.Alive) continue;
                 int dx, dy; Slot(p.Form, k, n, p.SpacingMm, p.Heading, out dx, out dy);
+                if (Obstacles.Count > 0) FitSlot(p.AX, p.AY, ref dx, ref dy);      // Eugenio (I-Noche178): la formación no se parte a los dos lados de un muro
                 m.SlotX = p.AX + dx; m.SlotY = p.AY + dy; k++;
             }
+        }
+
+        /// <summary>El puesto de la formación se queda del lado del ancla: si cae dentro de un obstáculo o con un muro entre él y el ancla, se acerca al ancla
+        /// (3/4, 1/2, 1/4 de la distancia) hasta que esté libre y a la vista; si no hay hueco, en el ancla. Enteros: determinista.</summary>
+        void FitSlot(int ax, int ay, ref int dx, ref int dy)
+        {
+            if (!Blocked(ax + dx, ay + dy) && !SegmentBlocked(ax, ay, ax + dx, ay + dy)) return;
+            for (int f = 3; f >= 1; f--)
+            {
+                int tx = dx * f / 4, ty = dy * f / 4;
+                if (!Blocked(ax + tx, ay + ty) && !SegmentBlocked(ax, ay, ax + tx, ay + ty)) { dx = tx; dy = ty; return; }
+            }
+            dx = 0; dy = 0;
         }
 
         // ------------------------------------------------------------ un tick
@@ -528,7 +542,7 @@ namespace TBD.Units
                 if (p.Route == null) p.Route = new List<PointMm>(); p.Route.Clear();
                 if (!SegmentBlocked(p.AX, p.AY, p.TX, p.TY) || !NavFor(p.AX, p.AY, p.TX, p.TY).FindPath(p.AX, p.AY, p.TX, p.TY, p.Route) || p.Route.Count == 0)
                 { p.Route.Clear(); p.Route.Add(new PointMm(p.TX, p.TY)); }
-                else p.Route[p.Route.Count - 1] = new PointMm(p.TX, p.TY);            // el destino exacto de la orden (los soldados lo ajustan con Slide)
+                else if (!Blocked(p.TX, p.TY)) p.Route[p.Route.Count - 1] = new PointMm(p.TX, p.TY);   // destino dentro de un obstáculo (clic sobre el muro): se queda en la celda libre más cercana            // el destino exacto de la orden (los soldados lo ajustan con Slide)
             }
             while (p.RouteI < p.Route.Count - 1 && IMath.Dist(p.Route[p.RouteI].X - p.AX, p.Route[p.RouteI].Y - p.AY) <= 1200) p.RouteI++;   // punto de paso alcanzado: al siguiente sin frenar
             int i = Math.Min(p.RouteI, p.Route.Count - 1);
