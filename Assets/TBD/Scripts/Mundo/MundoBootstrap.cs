@@ -38,7 +38,7 @@ namespace TBD.Mundo
             var ter = MontarTerrenoAlvaro();
             if (ter == null) { MontarTerreno(); MontarEstacion("Sagunto", new Vector3(700f, 0f, 1000f)); MontarEstacion("Nules", new Vector3(1450f, 0f, 760f)); MontarCaserio(new Vector3(1150f, 0f, 1350f)); MontarPeloton(new Vector3(760f, 0f, 980f)); }
             else MontarDesdeCsv(ter);
-            gameObject.AddComponent<RedVista>();      // Iker: la red del Hito 1 (vía por piezas, tren y línea), leyendo Mundo.Red
+            var rv = gameObject.AddComponent<RedVista>(); if (_sim != null) rv.UsarMundo(_sim.M);      // Iker: la red del Hito 1 lee Mundo.Red del Mundo común (antes de su Start)
             var sol = new GameObject("Sol").AddComponent<Light>(); sol.type = LightType.Directional; sol.transform.rotation = Quaternion.Euler(50f, 30f, 0f); sol.intensity = 1.2f; sol.shadows = LightShadows.Soft;
             RenderSettings.ambientMode = AmbientMode.Flat; RenderSettings.ambientLight = new Color(0.45f, 0.43f, 0.40f);
             Debug.Log($"[MUNDO] prototipo de zum: {Lado:0} × {Lado:0} m, altura {AlturaMin}–{AlturaMax} m, iconos por encima de {AlturaIconos} m");

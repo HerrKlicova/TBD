@@ -65,6 +65,23 @@ namespace TBD.Sim.Tests
                     check(nc >= 2 && res.Ok && r.Via.PasosNivel.Count == 1 && pn.AnguloGrados == 60 && IMath.Dist(pn.P.X - 1_174_000, pn.P.Y - 1_006_000) < 15_000, $"A–B corta la carretera vieja una vez: paso a nivel de {pn.AnguloGrados}° en ({pn.P.X / 1000}; {pn.P.Y / 1000}) ({nc} trozos de carretera sin el puente; vía de {(res.Ok ? r.Via.Tramos[0].LongMm / 1000 : 0)} m)");
                 }
             }
+            // el escenario del caserío de Nacho con la red montada (MontarRedHito1): A y B de Puntos, carreteras, Tren 1 y 20 cajas en A
+            {
+                var lectorAntes = TBD.Mundo.Mundo.Lector;
+                string raiz = null; foreach (var c in new[] { "../../Assets/StreamingAssets/Hito1", "../../../../../Assets/StreamingAssets/Hito1" }) if (System.IO.Directory.Exists(c)) { raiz = c; break; }
+                if (raiz == null) check(true, "(sin StreamingAssets/Hito1: prueba del caserío con red omitida)");
+                else
+                {
+                    TBD.Mundo.Mundo.Lector = f => { var q = System.IO.Path.Combine(raiz, f); return System.IO.File.Exists(q) ? System.IO.File.ReadAllText(q) : null; };
+                    var m = TBD.Mundo.Mundo.Caserio(5); m.MontarRedHito1();
+                    check(m.Red.Via.Estaciones.Count == 2 && m.Red.Trenes.Count == 1 && m.Red.Almacen[0][Red.Municion] == 20 && m.Red.Via.Carreteras.Count >= 2, $"MontarRedHito1: estaciones A y B, Tren 1, 20 cajas en A y {m.Red.Via.Carreteras.Count} trozos de carretera");
+                    var a0 = m.Puntos["A"]; var b0 = m.Puntos["B"];
+                    m.Encolar(new Orden { Tick = 1, Jugador = 1, Tipo = OrdenesRed.PuntoVia, A = a0.X, B = a0.Y }); m.Encolar(new Orden { Tick = 1, Jugador = 1, Tipo = OrdenesRed.PuntoVia, A = b0.X, B = b0.Y }); m.Encolar(new Orden { Tick = 2, Jugador = 1, Tipo = OrdenesRed.TrazarVia });
+                    for (int t = 0; t < 10; t++) m.Step();
+                    check(m.Red.Via.Tramos.Count == 1 && m.Red.Via.PasosNivel.Count == 1 && m.Red.Via.PasosNivel[0].AnguloGrados == 60, $"en el caserío, la vía A–B se traza por órdenes y cruza la carretera con el paso a nivel de 60° ({m.Red.Via.Tramos.Count} tramo, {m.Red.Via.PasosNivel.Count} paso)");
+                    TBD.Mundo.Mundo.Lector = lectorAntes;
+                }
+            }
             // tren solo: acelera, llega y para en el andén
             {
                 var r = Hito1(out int a, out int b); r.TrazarVia(Curva());

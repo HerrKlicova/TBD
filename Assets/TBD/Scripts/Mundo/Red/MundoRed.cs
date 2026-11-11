@@ -42,6 +42,16 @@ namespace TBD.Mundo
             }
         }
 
+        /// <summary>La red del Hito 1 en el escenario del caserío: estaciones A y B de Mundo.Puntos, carreteras de Álvaro (Lector, carreteras_hito1.csv),
+        /// «Tren 1» en A y 20 cajas de munición en A. Determinista: la llama el escenario (Mundo.Caserio) igual en los dos jugadores. Sin A o B, no hace nada.</summary>
+        public void MontarRedHito1()
+        {
+            if (Red.Via.Estaciones.Count > 0 || !Puntos.TryGetValue("A", out var a) || !Puntos.TryGetValue("B", out var b)) return;
+            int ea = Red.AddEstacion("A", a.X, a.Y); Red.AddEstacion("B", b.X, b.Y);
+            var csv = Lector != null ? Lector("carreteras_hito1.csv") : null; if (csv != null) Red.Via.CargarCarreterasCsv(csv);
+            Red.NuevoTren("Tren 1", ea); Red.Almacen[ea][Red.Municion] = 20;
+        }
+
         partial void StepRed() { Red.Step(Tick); }
 
         partial void HashRedPorSistema(List<KeyValuePair<string, ulong>> l)
