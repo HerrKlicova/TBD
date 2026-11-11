@@ -54,9 +54,11 @@ namespace TBD.Mundo
         public ParamsZombis P = ParamsZombis.PorDefecto();
         public readonly List<ZombiMundo> Lista = new List<ZombiMundo>();
         readonly List<List<PointMm>> _caminos = new List<List<PointMm>>();
-        readonly List<int> _caminoI = new List<int>(), _replanTick = new List<int>(), _caminoMetaX = new List<int>(), _caminoMetaY = new List<int>();
+        readonly List<int> _caminoI = new List<int>(), _replanTick = new List<int>(), _caminoMetaX = new List<int>(), _caminoMetaY = new List<int>(), _atasco = new List<int>(), _mejorD = new List<int>(), _apX = new List<int>(), _apY = new List<int>();
         public IRng Rng;
         int _nextId;
+        public long SinCamino, Atascos;
+        public string Traza(int i) { var c = _caminos[i]; int k = _caminoI[i]; return $"cam {c.Count} k {k} punto {(k < c.Count ? c[k].X + ";" + c[k].Y : "-")} atasco {_atasco[i]} replan {_replanTick[i]}"; }      // búsquedas sin camino (diagnóstico, fuera del hash)
 
         public ZombisMundo(uint seed) { Rng = new IRng(seed ^ 0x2B0A1u); }
 
@@ -66,7 +68,7 @@ namespace TBD.Mundo
         {
             var z = new ZombiMundo { Id = _nextId++, X = x, Y = y, CasaX = casaX, CasaY = casaY, MetaX = x, MetaY = y, Estado = EstadoZombi.Quieto, Vivo = true, Objetivo = -1 };
             z.Espera = P.EsperaMinTicks + Rng.Below(Math.Max(1, P.EsperaMaxTicks - P.EsperaMinTicks));
-            Lista.Add(z); _caminos.Add(new List<PointMm>()); _caminoI.Add(0); _replanTick.Add(-1000); _caminoMetaX.Add(int.MinValue); _caminoMetaY.Add(int.MinValue);
+            Lista.Add(z); _caminos.Add(new List<PointMm>()); _caminoI.Add(0); _replanTick.Add(-1000); _caminoMetaX.Add(int.MinValue); _caminoMetaY.Add(int.MinValue); _atasco.Add(0); _mejorD.Add(int.MaxValue); _apX.Add(int.MinValue); _apY.Add(int.MinValue);
             return z.Id;
         }
 
@@ -118,7 +120,7 @@ namespace TBD.Mundo
                         {
                             int r = P.CasaRadioMm, dx = Rng.Below(2 * r + 1) - r, dy = Rng.Below(2 * r + 1) - r;
                             if ((long)dx * dx + (long)dy * dy > (long)r * r) continue;
-                            int nx = z.CasaX + dx, ny = z.CasaY + dy; if (!rej.Libre(nx, ny)) continue;
+                            int nx = z.CasaX + dx, ny = z.CasaY + dy; if (!rej.Libre(nx, ny) || !rej.LineaLibre(z.CasaX, z.CasaY, nx, ny)) continue;      // solo a donde se ve desde su sitio: no rodea tapias para deambular
                             z.MetaX = nx; z.MetaY = ny; z.Estado = EstadoZombi.Deambula; break;
                         }
                         if (z.Estado == EstadoZombi.Quieto) z.Espera = P.EsperaMinTicks;
@@ -141,6 +143,13 @@ namespace TBD.Mundo
                     {
                         int ax, ay; Apuntar(i, ref z, rej, tick, out ax, out ay);
                         Andar(ref z, rej, ax, ay, paso);
+                        // atasco por avance (como VehicleNav): si en 1 s no se ha acercado 0,3 m a su punto, rehace el camino desde donde está
+                        int dap = IMath.Dist(ax - z.X, ay - z.Y);
+                        if (dap < _mejorD[i] - 300 || _apX[i] != ax || _apY[i] != ay) { _mejorD[i] = dap; _atasco[i] = tick; _apX[i] = ax; _apY[i] = ay; }
+                        else if (tick - _atasco[i] >= IMath.TickRate)
+                        {
+                            _caminos[i].Clear(); _replanTick[i] = -1000; _caminoMetaX[i] = int.MinValue; _mejorD[i] = int.MaxValue; _atasco[i] = tick; Atascos++;
+                        }
                     }
                 }
                 Lista[i] = z;
@@ -154,29 +163,36 @@ namespace TBD.Mundo
             ax = z.MetaX; ay = z.MetaY;
             if (rej.LineaLibre(z.X, z.Y, z.MetaX, z.MetaY)) { _caminos[i].Clear(); return; }
             var cam = _caminos[i];
-            bool rehacer = cam.Count == 0 || D2(_caminoMetaX[i], _caminoMetaY[i], z.MetaX, z.MetaY) > 3000L * 3000 || (z.Estado == EstadoZombi.Persigue && tick - _replanTick[i] >= P.ReplanCadaTicks);
+            bool metaMovida = D2(_caminoMetaX[i], _caminoMetaY[i], z.MetaX, z.MetaY) > 3000L * 3000;
+            bool rehacer = (cam.Count == 0 && (metaMovida || tick - _replanTick[i] >= 4 * P.ReplanCadaTicks)) || (cam.Count > 0 && metaMovida) || (z.Estado == EstadoZombi.Persigue && tick - _replanTick[i] >= P.ReplanCadaTicks);
             if (rehacer)
             {
                 _replanTick[i] = tick; _caminoMetaX[i] = z.MetaX; _caminoMetaY[i] = z.MetaY; _caminoI[i] = 0;
-                if (!rej.BuscarCamino(z.X, z.Y, z.MetaX, z.MetaY, cam)) { cam.Clear(); return; }
+                if (!rej.BuscarCamino(z.X, z.Y, z.MetaX, z.MetaY, cam) && !rej.BuscarCamino(z.X, z.Y, z.MetaX, z.MetaY, cam, 200000))      // primero en una caja de 64 m; si no, de 200 m (rodear un cercado)
+                {
+                    cam.Clear(); SinCamino++;
+                    if (z.Estado != EstadoZombi.Persigue) { z.Estado = EstadoZombi.Quieto; z.Espera = P.EsperaMinTicks; }      // no hay paso: se queda donde está (sin buscar cada tick)
+                    return;
+                }
             }
+            if (cam.Count == 0) return;      // sin camino hace poco: recto y deslizándose, sin volver a buscar hasta que toque
             int k = _caminoI[i];
             while (k < cam.Count - 1 && D2(z.X, z.Y, cam[k].X, cam[k].Y) <= 600L * 600) k++;     // punto alcanzado: al siguiente
             _caminoI[i] = k;
             if (k < cam.Count) { ax = cam[k].X; ay = cam[k].Y; }
         }
 
-        static void Andar(ref ZombiMundo z, RejillaTrozos rej, int ax, int ay, int paso)
+        static bool Andar(ref ZombiMundo z, RejillaTrozos rej, int ax, int ay, int paso)
         {
-            int dx = ax - z.X, dy = ay - z.Y; int d = IMath.Dist(dx, dy); if (d <= 0 || paso <= 0) return;
+            int dx = ax - z.X, dy = ay - z.Y; int d = IMath.Dist(dx, dy); if (d <= 0 || paso <= 0) return true;
             if (paso > d) paso = d;
             int sx = (int)((long)dx * paso / d), sy = (int)((long)dy * paso / d);
             int nx = z.X + sx, ny = z.Y + sy;
-            if (rej.Libre(nx, ny)) { z.X = nx; z.Y = ny; }
+            if (rej.Libre(nx, ny) || !rej.Libre(z.X, z.Y)) { z.X = nx; z.Y = ny; }      // si ya está metido en un obstáculo (empujado), puede salir
             else if (sx != 0 && rej.Libre(z.X + Math.Sign(sx) * paso, z.Y)) z.X += Math.Sign(sx) * paso;      // deslizarse por el muro
             else if (sy != 0 && rej.Libre(z.X, z.Y + Math.Sign(sy) * paso)) z.Y += Math.Sign(sy) * paso;
-            else return;
-            z.Rumbo = IMath.Atan2(dy, dx) & 0xFFFF; z.Andando = true;
+            else return false;
+            z.Rumbo = IMath.Atan2(dy, dx) & 0xFFFF; z.Andando = true; return true;
         }
 
         // separación: cubos de 1 m; dos zombis a menos de 2 cuerpos se apartan la mitad del solape cada uno (si el sitio está libre)

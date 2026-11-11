@@ -10,7 +10,7 @@ namespace TBD.Sim.Tests
     {
         static bool NadieEnCasa(TBD.Mundo.Mundo m)
         {
-            foreach (var z in m.Zombis.Lista) if (z.Vivo) foreach (var c in m.Casas) if (z.X > c.R.X0 && z.X < c.R.X1 && z.Y > c.R.Y0 && z.Y < c.R.Y1) return false;
+            foreach (var z in m.Zombis.Lista) if (z.Vivo) foreach (var c in m.Casas) if (c.TapaPaso && z.X > c.R.X0 && z.X < c.R.X1 && z.Y > c.R.Y0 && z.Y < c.R.Y1) return false;
             return true;
         }
 
@@ -18,6 +18,7 @@ namespace TBD.Sim.Tests
         {
             Console.WriteLine("\n[50] Núcleo v2: Mundo, rejilla por trozos y zombis del caserío");
 
+            if (TBD.Mundo.Mundo.Lector == null) { string dir = System.IO.Path.Combine(BalanceTests.DataDirPublic(), "..", "..", "StreamingAssets", "Hito1"); TBD.Mundo.Mundo.Lector = f => { var pth = System.IO.Path.Combine(dir, f); return System.IO.File.Exists(pth) ? System.IO.File.ReadAllText(pth) : null; }; }
             // --- rejilla por trozos
             var rej = new RejillaTrozos(2000000, 2000000, 350);
             rej.PonerObstaculos(new List<RectMm> { new RectMm(1000000, 990000, 1002000, 1010000) });      // un muro de 2 × 20 m
@@ -33,7 +34,7 @@ namespace TBD.Sim.Tests
 
             // --- el caserío quieto: nadie atraviesa casas y deambulan cerca de su casa
             var m = TBD.Mundo.Mundo.Caserio(7);
-            check(m.Zombis.Lista.Count == 100 && m.Unidades.Platoons.Count == 1, $"caserío: 100 zombis y un pelotón ({m.Unidades.Platoons[0].Men.Count} soldados)");
+            check(m.Zombis.Lista.Count == 100 && m.Unidades.Platoons.Count == 1, $"caserío de Álvaro: 100 zombis y un pelotón ({m.Unidades.Platoons[0].Men.Count} soldados)");
             bool fuera = NadieEnCasa(m); int lejos = 0;
             for (int t = 0; t < 30 * 120; t++) { m.Step(); if (!NadieEnCasa(m)) fuera = false; }
             foreach (var z in m.Zombis.Lista) { long dx = z.X - z.CasaX, dy = z.Y - z.CasaY; if (dx * dx + dy * dy > 20000L * 20000) lejos++; }
@@ -81,6 +82,53 @@ namespace TBD.Sim.Tests
             // --- la red de Iker entra por los parciales: sin ella, su hash es 0 y sus órdenes no rompen nada
             var n = TBD.Mundo.Mundo.Caserio(3); int ns0 = n.HashPorSistema().Count; n.Encolar(new Orden { Tick = 0, Jugador = 1, Tipo = TipoOrden.RedPrimera }); n.Step();
             check(ns0 == 3 && n.Grabacion.Count == 1, "las órdenes de la red (tipo ≥ 100) se aceptan y se graban aunque la red aún no esté");
+        }
+
+        /// <summary>TBD_K_REPORT=1 (Hugo, cifras del Hito 1): el pelotón de B contra los 100 del caserío, N semillas (TBD_K_N, 200), con munición sin límite
+        /// (TBD_K_MUNI vacío) o con TBD_K_MUNI disparos por soldado. TBD_K_HIT = lista de ‰ de puntería (UnitsWorld.HitScalePm) a probar, «1000» por defecto.
+        /// k = disparos (cartuchos) gastados entre abatidos. Distancia media del abatido a su pelotón y minuto de cada baja.</summary>
+        public static void KReport()
+        {
+            if (TBD.Mundo.Mundo.Lector == null) { string dir = System.IO.Path.Combine(BalanceTests.DataDirPublic(), "..", "..", "StreamingAssets", "Hito1"); TBD.Mundo.Mundo.Lector = f => { var pth = System.IO.Path.Combine(dir, f); return System.IO.File.Exists(pth) ? System.IO.File.ReadAllText(pth) : null; }; }
+            int n = int.TryParse(Environment.GetEnvironmentVariable("TBD_K_N"), out var nn) ? nn : 200; int maxT = 30 * 60 * (int.TryParse(Environment.GetEnvironmentVariable("TBD_K_MIN"), out var mn) ? mn : 15);
+            int muni = int.TryParse(Environment.GetEnvironmentVariable("TBD_K_MUNI"), out var mu) ? mu : -1;
+            bool detalle = Environment.GetEnvironmentVariable("TBD_K_DET") == "1";
+            foreach (var hs in (Environment.GetEnvironmentVariable("TBD_K_HIT") ?? "1000").Split(','))
+            {
+                int hit = int.Parse(hs);
+                var ks = new List<double>(); var bajas = new List<int>(); var tiempos = new List<int>(); var dist = new List<int>(); var minBaja = new int[16];
+                int limpios = 0, aniquilados = 0, retiradas = 0; long disT = 0, abT = 0, vivosT = 0;
+                for (int s = 1; s <= n; s++)
+                {
+                    var m = TBD.Mundo.Mundo.Caserio((uint)s); var p = m.Unidades.Platoons[0]; m.Unidades.HitScalePm = hit;
+                    if (muni >= 0) { p.AmmoCap = p.AmmoShots = muni * p.Men.Count; m.Unidades.StockShots = 0; }
+                    m.Encolar(new Orden { Tick = 0, Jugador = 1, Tipo = TipoOrden.AtacarMoviendo, A = p.Id, B = TBD.Mundo.Mundo.CaserioX, C = TBD.Mundo.Mundo.CaserioY, D = -1 });
+                    int disparos = 0; bool seRetiro = false;
+                    while (m.Tick < maxT && m.Zombis.Vivos > 0 && p.AliveCount() > 0)
+                    {
+                        if (muni < 0) p.AmmoShots = p.AmmoCap;
+                        m.Step(); foreach (var ev in m.UltimoFuego.Shots) disparos += WeaponCatalog.Table[(int)ev.Weapon].CostShots;
+                        if (m.SeRetira(p.Id)) seRetiro = true;
+                        if (Environment.GetEnvironmentVariable("TBD_K_Z") is string zs && zs.Length > 0 && m.Tick > 20000 && m.Tick % 15 == 0 && m.Tick < 21000) { int zi = int.Parse(zs); var zz = m.Zombis.Lista[zi]; Console.WriteLine($"  t {m.Tick} z{zi} ({zz.X};{zz.Y}) {zz.Estado} meta ({zz.MetaX};{zz.MetaY}) {m.Zombis.Traza(zi)} and {zz.Andando}"); }
+                    }
+                    bool limpio = m.Zombis.Vivos == 0; if (limpio) limpios++; if (p.AliveCount() == 0) aniquilados++; if (seRetiro) retiradas++;
+                    if (m.Abatidos > 0) ks.Add((double)disparos / m.Abatidos);
+                    bajas.Add(m.BajasPropias); tiempos.Add(m.Tick); disT += disparos; abT += m.Abatidos; vivosT += m.Zombis.Vivos; dist.AddRange(m.DistAbatidoMm);
+                    foreach (int tb in m.TickBaja) minBaja[Math.Min(15, tb / 1800)]++;
+                    if (Environment.GetEnvironmentVariable("TBD_K_DBG") == "1") { Console.WriteLine($"  pelotón ({p.AX};{p.AY}) mov {p.Moving} atk {p.AttackMove} T ({p.TX};{p.TY}) vivos {p.AliveCount()} muni {p.AmmoShots}"); foreach (var z in m.Zombis.Lista) if (z.Vivo) Console.WriteLine($"   z{z.Id} ({z.X};{z.Y}) {z.Estado} meta ({z.MetaX};{z.MetaY}) d {IMath.Dist(z.X - p.AX, z.Y - p.AY) / 1000} m camino {m.Rejilla.BuscarCamino(z.X, z.Y, z.MetaX, z.MetaY, new List<PointMm>(), 200000)} libre {m.Rejilla.Libre(z.X, z.Y)} exp {m.Rejilla.UltimosExpandidos}"); }
+                    if (detalle) Console.WriteLine($"{hit};{s};{m.Abatidos};{disparos};{(m.Abatidos > 0 ? (double)disparos / m.Abatidos : 0):0.00};{m.BajasPropias};{(limpio ? 1 : 0)};{(seRetiro ? 1 : 0)};{m.Tick}");
+                }
+                ks.Sort(); bajas.Sort(); tiempos.Sort(); dist.Sort();
+                Func<List<double>, double, double> pd = (l, q) => l.Count == 0 ? double.NaN : l[Math.Min(l.Count - 1, (int)(q * l.Count))];
+                Func<List<int>, double, int> pi = (l, q) => l.Count == 0 ? 0 : l[Math.Min(l.Count - 1, (int)(q * l.Count))];
+                long dsum = 0; foreach (int d in dist) dsum += d;
+                var sbm = new System.Text.StringBuilder(); for (int k = 0; k < 16; k++) if (minBaja[k] > 0) sbm.Append($" min{k}:{minBaja[k]}");
+                Console.WriteLine($"# puntería {hit} ‰ · munición {(muni < 0 ? "sin límite" : muni + " por soldado")} · {n} semillas · tope {maxT / 1800} min");
+                Console.WriteLine($"#   k (disparos por abatido): p10 {pd(ks, 0.1):0.0}, p50 {pd(ks, 0.5):0.0}, p90 {pd(ks, 0.9):0.0}; global {(double)disT / Math.Max(1, abT):0.0}");
+                Console.WriteLine($"#   abatido a {dsum / Math.Max(1, dist.Count) / 1000.0:0.0} m de media (p10 {pi(dist, 0.1) / 1000.0:0}, p50 {pi(dist, 0.5) / 1000.0:0}, p90 {pi(dist, 0.9) / 1000.0:0} m)");
+                Console.WriteLine($"#   bajas p10 {pi(bajas, 0.1)}, p50 {pi(bajas, 0.5)}, p90 {pi(bajas, 0.9)}; por minuto:{(sbm.Length > 0 ? sbm.ToString() : " ninguna")}");
+                Console.WriteLine($"#   caserío limpio {limpios}/{n}; quedan vivos de media {(double)vivosT / n:0.0}; se retira {retiradas}/{n}; aniquilado {aniquilados}/{n}; tiempo p50 {pi(tiempos, 0.5) / 30} s");
+            }
         }
     }
 }
