@@ -92,7 +92,7 @@ namespace TBD.Mundo
                     float antes = _alturaObj; _alturaObj = Mathf.Clamp(_alturaObj * Mathf.Pow(0.8f, notches), AlturaMin, AlturaMax);
                 }
                 if (ms.leftButton.wasPressedThisFrame && Suelo(ms.position.ReadValue(), out var q)) _seleccionado = Vector3.Distance(q, Centro()) < Mathf.Max(15f, _altura * 0.05f);
-                if (ms.rightButton.wasPressedThisFrame && _seleccionado && Suelo(ms.position.ReadValue(), out var d)) _destino = d;
+                if (ms.rightButton.wasPressedThisFrame && _seleccionado && Suelo(ms.position.ReadValue(), out var d)) { _destino = d; _sim?.Mover((int)(d.x * 1000f), (int)(d.z * 1000f)); }
             }
             _foco.x = Mathf.Clamp(_foco.x, 0f, Lado); _foco.z = Mathf.Clamp(_foco.z, 0f, Lado); _foco = EnSuelo(_foco);
             _altura = Mathf.Lerp(_altura, _alturaObj, 1f - Mathf.Exp(-10f * dt));
@@ -101,7 +101,7 @@ namespace TBD.Mundo
             bool iconos = _altura > AlturaIconos;
             foreach (var sd in _soldados) sd.gameObject.SetActive(!iconos);
             for (int i = 0; i < _zombis.Count; i++) if (_zombis[i].vivo) _zombis[i].t.gameObject.SetActive(!iconos);
-            MoverRelleno(Time.deltaTime);
+            if (_sim != null) DibujarSim(Time.unscaledDeltaTime); else MoverRelleno(Time.deltaTime);
             _fpsN++; _fpsT += Time.unscaledDeltaTime; if (_fpsT >= 2f) { _fps = _fpsN / _fpsT; if (_fpsLog) Debug.Log($"[MUNDO-FPS] altura {_altura:0} m · {_fps:0} fps"); _fpsN = 0; _fpsT = 0f; }
         }
 
@@ -253,6 +253,42 @@ namespace TBD.Mundo
             }
         }
 
+
+        // ------------------------------------------------------------------ simulación de Nacho: solo se lee (lockstep)
+        MundoVista _sim;
+        void DibujarSim(float dt)
+        {
+            _sim.Avanzar(dt); var M = _sim.M; float k = 1f - Mathf.Exp(-25f * dt);
+            if (M.Unidades.Platoons.Count > 0)
+            {
+                var men = M.Unidades.Platoons[0].Men;
+                for (int i = 0; i < _soldados.Count && i < men.Count; i++)
+                {
+                    var m = men[i]; var t = _soldados[i]; if (!m.Alive) { t.gameObject.SetActive(false); continue; }
+                    var objetivo = EnSuelo(new Vector3(m.X / 1000f, 0f, m.Y / 1000f)); t.position = Vector3.Lerp(t.position, objetivo, k);
+                    float rumbo = m.Heading / 65536f * 360f; t.rotation = Quaternion.Euler(0f, 90f - rumbo, 0f);
+                }
+            }
+            var zs = M.Zombis.Lista;
+            for (int i = 0; i < _zombis.Count && i < zs.Count; i++)
+            {
+                var z = zs[i]; var zt = _zombis[i];
+                if (!z.Vivo) { if (zt.vivo) { zt.t.gameObject.SetActive(false); _zombis[i] = (zt.t, Vector3.zero, false); } continue; }
+                var objetivo = EnSuelo(new Vector3(z.X / 1000f, 0f, z.Y / 1000f)); zt.t.position = Vector3.Lerp(zt.t.position, objetivo, k);
+                zt.t.rotation = Quaternion.Euler(0f, 90f - z.Rumbo / 65536f * 360f, 0f);
+            }
+            var fuego = M.UltimoFuego;
+            if (fuego != null && M.Unidades.Platoons.Count > 0) foreach (var sh in fuego.Shots)
+            {
+                var men = M.Unidades.Platoons[0].Men; Vector3 a = Centro();
+                foreach (var mm in men) if (mm.Id == sh.Man) { a = EnSuelo(new Vector3(mm.X / 1000f, 0f, mm.Y / 1000f)); break; }
+                var b = EnSuelo(new Vector3(sh.AimX / 1000f, 0f, sh.AimY / 1000f)) + Vector3.up * 1f;
+                _trazadoras.Add((a + Vector3.up * 1.4f, b, Time.time + 0.08f));
+            }
+            _trazadoras.RemoveAll(x => x.hasta < Time.time);
+        }
+        void OnApplicationQuit() { _sim?.Cerrar(); }
+
         // ------------------------------------------------------------------ terreno y posiciones de Álvaro (StreamingAssets/Hito1)
         float[,] _alt;      // alturas en metros, [z, x], 1 m por muestra (Álvaro)
         float Alt(float x, float z)
@@ -305,7 +341,7 @@ namespace TBD.Mundo
             string dir = System.IO.Path.Combine(Application.streamingAssetsPath, "Hito1");
             var pos = System.IO.Path.Combine(dir, "posiciones_hito1.csv"); var obs = System.IO.Path.Combine(dir, "obstaculos_hito1.csv");
             float F(string v) { return float.Parse(v, System.Globalization.CultureInfo.InvariantCulture); }
-            var rz = new GameObject("Zombis (relleno)").transform; int nz = 0; Vector3 pel = new Vector3(1290f, 0f, 1610f);
+            var rz = new GameObject("Zombis").transform; int nz = 0; Vector3 pel = new Vector3(1290f, 0f, 1610f); var zsim = new List<(int, int)>(); var casas = new List<Casa>();
             if (System.IO.File.Exists(pos)) foreach (var l in System.IO.File.ReadAllLines(pos))
             {
                 var c = l.Split(';'); if (c.Length < 8 || c[0] == "id") continue;
@@ -315,7 +351,7 @@ namespace TBD.Mundo
                 else if (c[1] == "zombi")
                 {
                     var z = Modelo("Zombi/camisa_283440", "SM_zombi_cercano_LOD1", rz) ?? Caja("Zombi", Vector3.zero, new Vector3(0.6f, 1.8f, 0.6f), Plano(new Color32(0x1c, 0x18, 0x12, 255)), rz);
-                    z.transform.position = p; z.transform.rotation = Quaternion.Euler(0f, F(c[5]), 0f); _zombis.Add((z.transform, Vector3.zero, true)); nz++;
+                    z.transform.position = p; z.transform.rotation = Quaternion.Euler(0f, F(c[5]), 0f); _zombis.Add((z.transform, Vector3.zero, true)); nz++; zsim.Add(((int)(p.x * 1000f), (int)(p.z * 1000f)));
                 }
             }
             int ned = 0, nnar = 0, ntap = 0; var rc = new GameObject("Caserío y naranjales (obstáculos de Álvaro)").transform; var naranjo = Resources.Load<GameObject>("Models/Sagunto/naranjo/SM_naranjo_LOD1");
@@ -325,7 +361,7 @@ namespace TBD.Mundo
                 var c = l.Split(';'); if (c.Length < 9 || c[0] == "id") continue;
                 float x0 = F(c[3]) / 1000f, z0 = F(c[4]) / 1000f, x1 = F(c[5]) / 1000f, z1 = F(c[6]) / 1000f, alto = F(c[8]) / 1000f, gr = Mathf.Max(0.4f, F(c[7]) / 1000f * 2f);
                 var centro = EnSuelo(new Vector3((x0 + x1) * 0.5f, 0f, (z0 + z1) * 0.5f)); string tipo = c[1], nota = c[c.Length - 1];
-                if (tipo == "edificio") { Caja("Edificio " + c[0] + " " + nota, centro + Vector3.up * alto * 0.5f, new Vector3(Mathf.Max(1f, Mathf.Abs(x1 - x0)), alto, Mathf.Max(1f, Mathf.Abs(z1 - z0))), mEd, rc); ned++; }
+                if (tipo == "edificio") { casas.Add(new Casa { R = new TBD.Net.RectMm((int)(Mathf.Min(x0, x1) * 1000f), (int)(Mathf.Min(z0, z1) * 1000f), (int)(Mathf.Max(x0, x1) * 1000f), (int)(Mathf.Max(z0, z1) * 1000f)), AlturaMm = (int)(alto * 1000f) }); Caja("Edificio " + c[0] + " " + nota, centro + Vector3.up * alto * 0.5f, new Vector3(Mathf.Max(1f, Mathf.Abs(x1 - x0)), alto, Mathf.Max(1f, Mathf.Abs(z1 - z0))), mEd, rc); ned++; }
                 else if (c[2] == "segmento" || c[2] == "seg")
                 {
                     var d = new Vector3(x1 - x0, 0f, z1 - z0); if (d.sqrMagnitude < 0.01f) continue;
@@ -341,7 +377,12 @@ namespace TBD.Mundo
                     }
                 }
             }
-            MontarPeloton(pel);
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-relleno") < 0)
+            {
+                _sim = new MundoVista(20261111u, casas, zsim, (int)(pel.x * 1000f), (int)(pel.z * 1000f), 32768);     // rumbo 32768 = sur (hacia el caserío desde B)
+                int nm = _sim.M.Unidades.Platoons[0].Men.Count; MontarPeloton(pel); while (_soldados.Count > nm) { Destroy(_soldados[_soldados.Count - 1].gameObject); _soldados.RemoveAt(_soldados.Count - 1); }
+            }
+            else MontarPeloton(pel);
             _foco = EnSuelo(new Vector3(1180f, 0f, 1040f));
             Debug.Log($"[MUNDO] posiciones de Álvaro: {nz} zombis, {ned} edificios, {ntap} tapias, {nnar} naranjos, pelotón en ({pel.x:0}; {pel.z:0})");
         }
