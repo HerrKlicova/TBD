@@ -2063,9 +2063,10 @@ namespace TBD.Net
         ///   peatonal, 2 nidos y 3 focos.
         /// Coste total ≈ 122,6 u (el muro de sacos del sur pierde 8 m = 1,6 u; la puerta suma 10 u y la peatonal se quita, −6 u). No se descuenta del almacén: el stock del día 1 no se toca.
         /// </summary>
-        public static void SagunteStart(NetWorld w)
+        /// <summary>D-N201 (Lucía): Nules usa el mismo recinto (mismos tramos, sólidos y puertas) que Sagunto, que es con el que NightSim midió su noche.</summary>
+        public static void SagunteStart(NetWorld w, string estacion = "Sagunto")
         {
-            int sag = -1; foreach (var n in w.Graph.Nodes) if (n.Name == "Sagunto") sag = n.Id;
+            int sag = -1; foreach (var n in w.Graph.Nodes) if (n.Name == estacion) sag = n.Id;
             if (sag < 0) return;
             var P = w.Works.P;
             const int Plenty = 1_000_000;                                    // existencias: las que haga falta, el muro de partida no se paga
@@ -2135,6 +2136,7 @@ namespace TBD.Net
             Stock("Nules", 0, 0, 0, 0, 0);       // Hugo (existencias_red.json): 0 en todo; la guarnición lleva su dotación
             w.Stations.P.Sites = new[] { "Castellón" };
             w.Stations.Founded[Id("Nules")] = true;
+            if (saguntoWalls) SagunteStart(w, "Nules");      // D-N201 (Lucía): Nules empieza con el recinto de Sagunto (tramos, sólidos y puertas; E4 abierta), el que midió NightSim
             // D-N183 (Lucía, 9-nov, con Eugenio): Castellón es del jugador desde el principio, con su guarnición de 3 pelotones y 1 VAMTAC (26 personas; la colocación es de la zona:
             // estacion_castellon.json). Sin la guarnición zombi pegada a la estación. Hugo (existencias_red.json): 0 u de munición, 30 de combustible, 26 personas y sin consumo de víveres.
             // Recinto de 308,69 u (Álvaro, con el que Hugo calcula H0 = 1400). La Colmena la tiene en su historia desde el día 0 (no cuenta como recién ganada).
