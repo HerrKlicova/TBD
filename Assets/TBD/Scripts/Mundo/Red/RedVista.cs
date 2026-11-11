@@ -51,7 +51,18 @@ namespace TBD.Mundo
             }
             MontarTren();
             { var ca = System.Environment.GetCommandLineArgs(); int fi = System.Array.IndexOf(ca, "-redfoco"); if (fi >= 0 && fi + 1 < ca.Length) { var f = ca[fi + 1].Split(','); if (f.Length == 2 && float.TryParse(f[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var fx) && float.TryParse(f[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var fz)) _mb.Enfocar(fx, fz); } }      // QA: -redfoco x,z
-            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-redauto") >= 0) { _trazo.Clear(); _trazo.Add(Pos("A")); _trazo.Add(Pos("B")); MandarTrazo(); _trazo.Clear(); Debug.Log("[RED] -redauto: vía A–B pedida"); }
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-redauto") >= 0) { _trazo.Clear(); var pa = Pos("A"); var pb = Pos("B");
+                var args = System.Environment.GetCommandLineArgs(); int ic = System.Array.IndexOf(args, "-redcurva");
+                if (ic >= 0)
+                {   // prueba visual de las curvas de Teo: arco A→B desviado N m por el centro (Bézier cuadrática, 12 puntos); -redcurva [N], 250 por defecto, negativo al otro lado
+                    long desv = 250_000; if (ic + 1 < args.Length && int.TryParse(args[ic + 1], out int dm)) desv = dm * 1000L;
+                    long mx = (pa.X + pb.X) / 2, my = (pa.Y + pb.Y) / 2, dx = pb.X - pa.X, dy = pb.Y - pa.Y; long l = System.Math.Max(1, IMath.Dist((int)dx, (int)dy));
+                    long cx = mx - dy * desv / l, cy = my + dx * desv / l;
+                    for (int k = 0; k <= 12; k++) { long t = k, u = 12 - k; _trazo.Add(new PointMm((int)((u * u * pa.X + 2 * u * t * cx + t * t * pb.X) / 144), (int)((u * u * pa.Y + 2 * u * t * cy + t * t * pb.Y) / 144))); }
+                    Debug.Log($"[RED] -redcurva: arco por ({cx / 1000}; {cy / 1000}) m");
+                }
+                else { _trazo.Add(pa); _trazo.Add(pb); }
+                MandarTrazo(); _trazo.Clear(); Debug.Log("[RED] -redauto: vía A–B pedida"); }
             Debug.Log("[RED] vista de la red lista: T para trazar vía (arrastrar con el botón izquierdo), Esc cancela");
         }
 
@@ -71,7 +82,8 @@ namespace TBD.Mundo
             else if (_m.Tick != _tick) { GuardarAnterior(); _tick = _m.Tick; LeerTren(); _acc = 0f; }
             else _acc += Time.deltaTime;
             if (R.UltimoRechazo != null && R.UltimoRechazo != _rechazoVisto) { _rechazoVisto = R.UltimoRechazo; _causa = R.UltimoRechazo; Debug.Log("[RED] la red rechaza: " + R.UltimoRechazo); }
-            if (R.Via.Tramos.Count > _tramosDibujados) { var tn = R.Via.Tramos[R.Via.Tramos.Count - 1]; Debug.Log($"[RED] vía trazada: tramo {tn.Id}, {tn.Piezas?.Length ?? 0} piezas, {tn.LongMm / 1000} m, {R.Via.PasosNivel.Count} pasos a nivel"); }
+            if (R.Via.Tramos.Count > _tramosDibujados) { var tn = R.Via.Tramos[R.Via.Tramos.Count - 1]; Debug.Log($"[RED] vía trazada: tramo {tn.Id}, {tn.Piezas?.Length ?? 0} piezas, {tn.LongMm / 1000} m, {R.Via.PasosNivel.Count} pasos a nivel");
+                if (tn.Piezas != null) { long qx = R.Via.Nodos[tn.A].X, qy = R.Via.Nodos[tn.A].Y; int qr = tn.RumboIni, nc = 0; string donde = ""; foreach (var pz in tn.Piezas) { if (Via.RadioMm(pz) > 0) { nc++; if (donde == "" ) donde = $" · primera curva ({pz}) en ({qx / 1000}; {qy / 1000}) m"; } Via.Avanzar(pz, ref qx, ref qy, ref qr); } Debug.Log($"[RED] curvas: {nc} de {tn.Piezas.Length}{donde}"); } }
             LineaSiUnidas();
             DibujarTramos(); Simbolo();
             InterpolarTren(_acc * 30f);
