@@ -104,6 +104,13 @@ namespace TBD.View
                 if (s.Clock == null) { var go = new GameObject("NightClock"); DontDestroyOnLoad(go); s.Clock = go.AddComponent<NightClock>(); } s.Clock.S = s;      // noche con reloj propio (sin red: pruebas)
             }
             Debug.Log($"[NOCHE] salgo al mapa con la noche {(s.Clock == null ? "en la red" : "con reloj propio")}: {sim.ZombiesAlive} zombis pasan a NightSim, hora {_ng.Hour:00}:{_ng.Minute:00}, empezada {(_ng.StartNetTick >= 0 ? "en el tick " + _ng.StartNetTick : "no (espera a las 22:00)")}");
+            if (_zomPos.Count > 0 && _zomPos.Count <= 400)      // Nacho (I-Noche167): dónde se quedan los zombis que no mueren (celdas de 10 m, las 12 más llenas)
+            {
+                var celdas = new Dictionary<int, int>(); foreach (var zp in _zomPos) { int k = Mathf.FloorToInt(zp.x / 10f) * 1000 + Mathf.FloorToInt(zp.y / 10f); celdas[k] = celdas.TryGetValue(k, out var c0) ? c0 + 1 : 1; }
+                var orden = new List<KeyValuePair<int, int>>(celdas); orden.Sort((p1, p2) => p2.Value != p1.Value ? p2.Value.CompareTo(p1.Value) : p1.Key.CompareTo(p2.Key));
+                var sb = new System.Text.StringBuilder(); for (int oi = 0; oi < orden.Count && oi < 12; oi++) sb.Append($" ({orden[oi].Key / 1000 * 10}–{orden[oi].Key / 1000 * 10 + 10}; {orden[oi].Key % 1000 * 10}–{orden[oi].Key % 1000 * 10 + 10})×{orden[oi].Value}");
+                Debug.Log($"[NOCHE] diagnóstico: {_zomPos.Count} zombis vivos al salir, por celdas de 10 m (X; Z):{sb}");
+            }
         }
 
         /// <summary>Al volver a la zona: recrea los zombis en ECS desde NightSim, devuelve el muro, los vehiculos y los contadores, y quita el reloj de fondo.</summary>
