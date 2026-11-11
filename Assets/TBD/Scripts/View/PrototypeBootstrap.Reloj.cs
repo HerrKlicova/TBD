@@ -295,6 +295,14 @@ namespace TBD.View
                     try { NightVehicle.ApplyParams(nv, vjson); } catch (System.Exception) { }
                     nv.Shots = nv.MaxShots; origen.Vehicles.Add(nv);
                 }
+                // I-Noche157: la noche aparcada también tiene línea de visión (como LosInit en la zona). El inventario de sólidos es el de Sagunto; Nules usa el suyo si existe y, si no, va sin regla
+                if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinlos") < 0)
+                {
+                    string losCsv = est == "Sagunto" ? "sagunto_obstaculos_v1.csv" : est.ToLowerInvariant() + "_obstaculos_v1.csv";
+                    try { string csv = BalanceSource.Read(losCsv); if (!string.IsNullOrEmpty(csv)) origen.EnableLineOfSight(true, NightSim.LosSceneFromCsv(csv)); }
+                    catch (System.Exception e) { Debug.LogWarning($"[RELOJ] línea de visión de {est}: {losCsv} ({e.Message})"); }
+                    Debug.Log($"[RELOJ] línea de visión de {est}: {uw.LosBlockers.Count} sólidos ({losCsv})");
+                }
                 if (bot) { origen.Bot = NightBot.FromParams(sp); foreach (var kv in s.PName) if (kv.Value.StartsWith("Tiradores azotea")) origen.Bot.Busy.Add(kv.Key); }
                 s.WallMax = Mathf.Max(1200000, NightSimParams.Default().WallHp); s.WallHp = s.WallMax;      // la vida del muro de la zona (NightTick); fuera, la de NightSim
                 RegistrarNoche(nodo, origen, s); s.Bot = s.Sim.Bot;

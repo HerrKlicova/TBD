@@ -57,10 +57,19 @@ namespace TBD.View
         {
             bool dragon = folder == "dragon"; v.HalfW = dragon ? 1.5f : 1.1f; v.HalfL = dragon ? 4.0f : 2.5f;
             go.transform.position = Vector3.zero; go.transform.rotation = Quaternion.identity;
-            var rs = go.GetComponentsInChildren<Renderer>(); if (rs.Length == 0) return;
-            var b = rs[0].bounds; for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds);
-            if (b.extents.x > 0.5f && b.extents.x < 4f && b.extents.z > 1f && b.extents.z < 8f) { v.HalfW = b.extents.x; v.HalfL = b.extents.z; }
-            Debug.Log($"[VEH] silueta de {v.Name}: {v.HalfW * 2f:0.0} × {v.HalfL * 2f:0.0} m ({(rs.Length > 0 ? "medida con " + rs.Length + " renderers, caja " + (b.extents.x * 2f).ToString("0.0") + " × " + (b.extents.z * 2f).ToString("0.0") : "a mano")})");
+            // I-Noche157: solo la malla del vehículo (fuera sombras, anillo de selección, luces y efectos), y como mucho un 10 % sobre las medidas a mano;
+            // antes la caja salía con la sombra y el anillo (Dragón 4,3 × 10,8 frente a 3 × 8; VAMTAC 3,1 × 8,5 frente a 2,2 × 5)
+            float hw0 = v.HalfW, hl0 = v.HalfL; int usados = 0; Bounds b = default;
+            foreach (var r in go.GetComponentsInChildren<Renderer>())
+            {
+                if (!(r is MeshRenderer) && !(r is SkinnedMeshRenderer)) continue;
+                string n = r.name.ToLowerInvariant();
+                if (n.Contains("sombra") || n.Contains("shadow") || n.Contains("anillo") || n.Contains("ring") || n.Contains("sel") || n.Contains("luz") || n.Contains("light") || n.Contains("fx") || n.Contains("halo") || n.Contains("blob")) continue;
+                if (usados == 0) b = r.bounds; else b.Encapsulate(r.bounds); usados++;
+            }
+            bool vale = usados > 0 && b.extents.x > hw0 * 0.6f && b.extents.x < hw0 * 1.1f && b.extents.z > hl0 * 0.6f && b.extents.z < hl0 * 1.1f;
+            if (vale) { v.HalfW = b.extents.x; v.HalfL = b.extents.z; }
+            Debug.Log($"[VEH] silueta de {v.Name}: {v.HalfW * 2f:0.0} × {v.HalfL * 2f:0.0} m ({(vale ? "medida con " + usados + " mallas" : "a mano; caja de " + usados + " mallas " + (b.extents.x * 2f).ToString("0.0") + " × " + (b.extents.z * 2f).ToString("0.0"))})");
         }
 
         /// <summary>Punto de la silueta del vehículo (ensanchada «skin» m) más cercano a p. Devuelve true si p estaba dentro (y q es el borde más cercano por donde sacarlo).</summary>
