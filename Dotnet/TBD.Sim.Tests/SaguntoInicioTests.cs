@@ -126,7 +126,7 @@ namespace TBD.Sim.Tests
                     if (p.X0 == 43_000 && p.X1 == 43_000) { east++; if (p.GateMode == 2) eastLocked++; }
                 }
             check(west == 1, "la puerta de vía del oeste está en el muro oeste, justo sobre la vía (y de -1,6 a +1,6 m), en automático");
-            check(east == 1 && eastLocked == 1, "el muro este cruza la vía y la regla de PlanWall le pone su puerta de vía; queda bloqueada cerrada (la vía acaba dentro del fuerte)");
+            check(east == 1 && eastLocked == 0, "el muro este cruza la vía y la regla de PlanWall le pone su puerta de vía; D-N202 (adenda): ya no empieza bloqueada");
             bool trackFree = true;
             foreach (var p in l) if (p.IsWall && Math.Min(Math.Abs((long)p.Y0), Math.Abs((long)p.Y1)) < P.TrackHalfMm && Math.Max(Math.Abs((long)p.Y0), Math.Abs((long)p.Y1)) < P.TrackHalfMm) trackFree = false;
             check(trackFree, "ningún muro tapa la vía");

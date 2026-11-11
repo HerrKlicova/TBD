@@ -78,7 +78,7 @@ namespace TBD.Sim.Tests
             {   // plan del escenario: Nules solo el día 2; numeración de noches por el plan
                 var w = NetScenario.Inicio(); int sag = TrenPreparar.Nodo(w, "Sagunto"), nul = TrenPreparar.Nodo(w, "Nules");
                 check(w.HasNight(sag, 1) && w.HasNight(sag, 5) && !w.HasNight(nul, 1) && w.HasNight(nul, 2) && !w.HasNight(nul, 3), "plan de Inicio: Sagunto todas las noches; Nules solo la del día 2 (Defiende Nules)");
-                check(w.NightNumber(sag, 3) == 3 && w.NightNumber(nul, 2) == 1, $"numeración: el día 3 es la noche {w.NightNumber(sag, 3)} de Sagunto y el día 2 la {w.NightNumber(nul, 2)} de Nules");
+                check(w.NightNumber(sag, 3) == 2 && !w.HasNight(sag, 2) && w.NightNumber(nul, 2) == 1, $"D-N203 (adenda): una zona por noche; numeración: el día 3 es la noche {w.NightNumber(sag, 3)} de Sagunto y el día 2 la {w.NightNumber(nul, 2)} de Nules");
                 check(NetWorld.NightStartTick(2) == NetConst.DayTicks + 22L * NetConst.HourTicks, "las 22:00 del día 2 son DayTicks + 22 h");
             }
         }
