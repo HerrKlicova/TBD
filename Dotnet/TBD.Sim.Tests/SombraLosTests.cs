@@ -28,6 +28,19 @@ namespace TBD.Sim.Tests
             Console.WriteLine("\n[34] Sombra de la zona: línea de visión (D-N174) y horda que persigue a la tropa (D-N175)");
             List<NightSim.WallSegment> pieces; var sh = Shadow(out pieces);
 
+            // --- Lucía (11-nov): la puerta cerrada es un tramo más (vida por metro y altura del muro vecino)
+            int gates = 0; bool gateOk = true;
+            for (int i = 0; i < pieces.Count; i++)
+            {
+                var g = pieces[i]; if (!g.IsGate) continue; gates++;
+                NightSim.WallSegment nb = null; foreach (var w in pieces) if (!w.IsGate && w.Side == g.Side && (Math.Abs(w.A1 - g.A0) <= NightSim.GateNeighbourMm || Math.Abs(w.A0 - g.A1) <= NightSim.GateNeighbourMm)) { nb = w; break; }
+                if (nb == null) continue;
+                long gm = (long)g.HpMax * 1000 / g.LenMm, wm = (long)nb.HpMax * 1000 / nb.LenMm;
+                Console.WriteLine($"    puerta lado {g.Side} [{g.A0};{g.A1}] vida {g.HpMax} ({gm}/m), altura {g.HeightMm}; vecino {wm}/m, altura {nb.HeightMm}");
+                if (g.HeightMm < nb.HeightMm || Math.Abs(gm - wm) * 2 > wm) gateOk = false;
+            }
+            check(gates > 0 && gateOk, $"la puerta cerrada es un tramo más: vida por metro y altura del muro que la rodea ({gates} puertas)");
+
             // --- el inventario
             var scene = NightSim.LosSceneFromCsv(Csv);
             check(scene.Count == 2 && scene[0].HeightMm == 11000 && !scene[0].OwnWall && scene[0].R.X0 == 96500 && scene[0].R.Y1 == 83800,
