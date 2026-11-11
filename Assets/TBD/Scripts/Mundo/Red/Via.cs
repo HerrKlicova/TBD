@@ -41,6 +41,9 @@ namespace TBD.Mundo
             }
         }
 
+        /// <summary>Pose final de una pieza desde (x, y, rumbo): la que usa la vista para colocar el FBX siguiente. La misma cuenta que la simulación.</summary>
+        public static void Avanzar(Pieza p, ref long x, ref long y, ref int rumbo) { PuntosPieza(p, ref x, ref y, ref rumbo, null); }
+
         /// <summary>D-N209: ajusta en vivo una cadena de piezas al trazo libre del jugador (nunca elige piezas). Avance voraz: en cada paso, la pieza cuyo extremo queda
         /// más cerca del punto del trazo que toca (un arco por delante), con un pequeño premio a la recta. Para al llegar al final del trazo. Determinista.</summary>
         public static List<Pieza> AjustarTrazo(IList<PointMm> trazo, int x0, int y0, int rumboIni, out int restoMm)
