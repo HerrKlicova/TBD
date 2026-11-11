@@ -552,11 +552,12 @@ namespace TBD.View
             _hashLog.WriteLine(h.Tick + ";" + h.Value.ToString("X16") + ";" + (_ng != null ? _ng.Hash().ToString("X16") : "0") + ";" + (_uw != null ? _uw.Hash().ToString("X16") : "0")); if ((h.Tick & 255) == 0) _hashLog.Flush();
         }
 
+        int _zonaTk;
         void StepSimulation()
         {
             ZonaPausada = _paused || TutorialHud.PidePausa;      // de día y de noche (Nuria, 9-nov)
             FpsLog();
-            if (_nightOn) { if ((_ng.Tick % 15) == 0) UpdateStats(true); NightTick(); if ((_ng.Tick & 15) == 0) SyncWorks(); }
+            if (_nightOn) { _zonaTk++; if ((_zonaTk % 15) == 0) UpdateStats(true); NightTick(); if ((_zonaTk & 15) == 1) SyncWorks(); }      // por los ticks de la zona, no los de la noche: con la horda en espera (tutorial) el tick de la noche se para y, al volver con un tick que no es múltiplo de 16, no se montaban los muros (Eugenio, I-Noche151)
             _groupA.Update();
             HashLogLine();
             if (_checkEnabled)
