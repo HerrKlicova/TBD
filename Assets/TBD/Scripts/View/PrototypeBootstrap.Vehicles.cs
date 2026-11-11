@@ -22,6 +22,7 @@ namespace TBD.View
             public Transform[] WheelsFront, WheelsAll; public Quaternion[] WheelInit; public Transform Turret, Gun, RotorMain, RotorTail, Disc; public Quaternion TurretInit, GunInit, RotorMainInit, RotorTailInit;
             public float FireAt; public int FireTick; public float Ammo = 1f; public GameObject Shadow; public int State;                  // helicóptero: 0 en tierra, 1 despegando, 2 en vuelo, 3 aterrizando
             public float StateT; public float SpinMainDeg, SpinTailDeg; public VehicleNav Nav = new VehicleNav(); public bool Parked, ReturnToRearm; public bool Fire = true; public int ResupT = -1; public float ResupU;
+            public float HalfW = 1.1f, HalfL = 2.5f;      // silueta en planta (m, medio ancho y medio largo, rumbo 0 = +Z); la mide MakeVeh con los renderers del modelo
         }
         readonly List<Veh> _vehs = new List<Veh>(); Veh _selVeh; readonly List<TargetHit> _vehHits = new List<TargetHit>(); readonly List<Vector2> _zomPos = new List<Vector2>(); readonly List<uint> _zomId = new List<uint>();
         readonly Dictionary<string, Material> _vehMats = new Dictionary<string, Material>();
@@ -45,8 +46,30 @@ namespace TBD.View
                 var sh = GameObject.CreatePrimitive(PrimitiveType.Quad); Destroy(sh.GetComponent<Collider>()); sh.name = "Sombra " + name; sh.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
                 var sm = new Material(Shader.Find("Universal Render Pipeline/Unlit")); sm.SetColor("_BaseColor", new Color(0.05f, 0.06f, 0.03f, 1f)); sh.GetComponent<MeshRenderer>().sharedMaterial = sm; sh.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; v.Shadow = sh;
             }
+            if (!heli) MeasureFootprint(v, go, folder);
             go.transform.position = new Vector3(pos.x, 0f, pos.y); go.transform.rotation = Quaternion.Euler(0f, headingDeg, 0f);
             _vehs.Add(v); return v;
+        }
+
+        /// <summary>Eugenio (I-Noche153): silueta en planta del vehículo para los zombis (lo rodean por fuera y no se meten dentro). Se mide con los renderers del modelo a rumbo 0;
+        /// si no hay renderers, las medidas a mano del Dragón (3 × 8 m) y del VAMTAC (2,2 × 5 m).</summary>
+        static void MeasureFootprint(Veh v, GameObject go, string folder)
+        {
+            bool dragon = folder == "dragon"; v.HalfW = dragon ? 1.5f : 1.1f; v.HalfL = dragon ? 4.0f : 2.5f;
+            go.transform.position = Vector3.zero; go.transform.rotation = Quaternion.identity;
+            var rs = go.GetComponentsInChildren<Renderer>(); if (rs.Length == 0) return;
+            var b = rs[0].bounds; for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds);
+            if (b.extents.x > 0.5f && b.extents.x < 4f && b.extents.z > 1f && b.extents.z < 8f) { v.HalfW = b.extents.x; v.HalfL = b.extents.z; }
+        }
+
+        /// <summary>Punto de la silueta del vehículo (ensanchada «skin» m) más cercano a p. Devuelve true si p estaba dentro (y q es el borde más cercano por donde sacarlo).</summary>
+        static bool VehEdge(Veh v, Vector2 p, float skin, out Vector2 q)
+        {
+            float hr = v.Heading * Mathf.Deg2Rad; var f = new Vector2(Mathf.Sin(hr), Mathf.Cos(hr)); var r = new Vector2(f.y, -f.x);
+            var d = p - v.Pos; float lf = Vector2.Dot(d, f), lr = Vector2.Dot(d, r), hl = v.HalfL + skin, hw = v.HalfW + skin;
+            if (Mathf.Abs(lf) >= hl || Mathf.Abs(lr) >= hw) { q = v.Pos + f * Mathf.Clamp(lf, -hl, hl) + r * Mathf.Clamp(lr, -hw, hw); return false; }
+            if (hl - Mathf.Abs(lf) < hw - Mathf.Abs(lr)) lf = lf < 0f ? -hl : hl; else lr = lr < 0f ? -hw : hw;
+            q = v.Pos + f * lf + r * lr; return true;
         }
 
         static Transform Find(Transform root, string name) { foreach (var c in root.GetComponentsInChildren<Transform>(true)) if (c.name == name) return c; return null; }
