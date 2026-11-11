@@ -546,7 +546,7 @@ namespace TBD.View
         /// <summary>«Seguir» (D-N91): abre la noche siguiente con las mismas oleadas a +10 % y reinicia los contadores del parte; el mundo no se detuvo.</summary>
         void NextNight()
         {
-            _reportClosed = true; _seguirTrasNoche = true; if (!(_ng != null && _ng.P.NetClock)) ClearNightSession(); LeaveToMap(); return;   // reloj único: la noche ganada vuelve a la red y la siguiente empieza a las 22:00 (BeginNextNight)   // Lucía b4c2fe5: sin salto al amanecer (rompe el tiempo real)   // Eugenio (I-Noche110): sin el cartel viejo arriba del mapa   // Lucía (3f1764c): «Seguir» lleva al mapa y la red salta a las 06:00 del día siguiente
+            _reportClosed = true; _seguirTrasNoche = true; LeaveToMap(); return;      // Eugenio (I-Noche153): la noche ganada se conserva también con reloj propio (tutorial); si se borraba, el mapa volvía a entrar y empezaba otra horda   // reloj único: la noche ganada vuelve a la red y la siguiente empieza a las 22:00 (BeginNextNight)   // Lucía b4c2fe5: sin salto al amanecer (rompe el tiempo real)   // Eugenio (I-Noche110): sin el cartel viejo arriba del mapa   // Lucía (3f1764c): «Seguir» lleva al mapa y la red salta a las 06:00 del día siguiente
             var np = _ng.P; np.ScalePermil = np.ScalePermil * 11 / 10;
             if (_ng.BeginNextNight(np)) { _reportClosed = false; _lastWave = -1; _nightKills = 0; _nightShotsSpent = 0; _nightLost = 0; _bannerText = $"{TimeStr()}. Noche {_ng.NightIndex + 1}.\nAguanta hasta el amanecer."; _bannerUntil = Time.unscaledTime + 4f; }
             else _reportClosed = true;

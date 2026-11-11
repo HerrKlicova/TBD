@@ -336,7 +336,7 @@ namespace TBD.View
             Sfx.Play("zoom_salir_mapa", Vector3.zero, 0.8f, 0.5f);                      // Nuria: barrido de zoom hacia el mapa (sonido-vivo.md)
             int alive = _zombieQuery.CalculateEntityCount();
             SoltarPausaRed();
-            if (NightRun.Active && _nightInit && _ng != null && _ng.State != TBD.Units.NightState.Derrota && (!_seguirTrasNoche || (_ng.P.NetClock && _ng.State == TBD.Units.NightState.Victoria))) { SaveNightSession(); alive = 0; }   // reloj único: la noche ganada también vuelve a la red      // S2: tras caer la estación no se guarda su noche      // noche persistente: los zombis pasan a NightSim, no a la mancha del mapa
+            if (NightRun.Active && _nightInit && _ng != null && _ng.State != TBD.Units.NightState.Derrota && (!_seguirTrasNoche || _ng.State == TBD.Units.NightState.Victoria)) { SaveNightSession(); alive = 0; }   // reloj único: la noche ganada también vuelve a la red      // S2: tras caer la estación no se guarda su noche      // noche persistente: los zombis pasan a NightSim, no a la mancha del mapa
             var ammo = _worldA.EntityManager.GetComponentData<ZoneAmmo>(_rootA);
             int usedUnits = (int)((ammo.ShotsFired + _combat.ShotsPerUnit - 1) / _combat.ShotsPerUnit);   // redondeo hacia arriba: una caja empezada se gasta
             if (_ambush)

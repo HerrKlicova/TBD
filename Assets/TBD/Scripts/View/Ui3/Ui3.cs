@@ -17,7 +17,7 @@ namespace TBD.View
     public sealed class Ui3 : MonoBehaviour
     {
         /// <summary>¿Interfaz v3 encendida? (bandera -ui3). El resto del código la mira para no pintar la pieza vieja que sustituye.</summary>
-        public static readonly bool Activa = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-ui3") >= 0;
+        public static readonly bool Activa = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-ui-vieja") < 0;      // D-N185: la interfaz nueva va por defecto (Eugenio, I-Noche153: sin -ui3 el mapa alejado seguía con las etiquetas pisadas); -ui-vieja vuelve a la de antes
 
         static Ui3 _yo;
         UIDocument _doc;

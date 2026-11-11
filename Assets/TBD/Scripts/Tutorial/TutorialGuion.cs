@@ -86,6 +86,7 @@ namespace TBD.Tutorial
             var p16c = S("1.6c", "Disparan solos, como la tropa. Con G decides si tienen fuego libre o si esperan tu orden.", R(Resaltes.FuegoVehiculos), Senales.FuegoVehiculos); p16c.SoloSi = Senales.HayVehiculos;
             var p11 = S("1.1", "Mueve la cámara con W A S D. Acércate y aléjate con la rueda.", R(Resaltes.BarraAtajos), Senales.CamaraMovida, Senales.RuedaUsada);
             p11.Todas = true;
+            var p110 = T("1.10", "Ataque rechazado. Esta noche vendrán muchos más.", 4); p110.SoloSi = Senales.AtaqueRechazado;      // Eugenio (I-Noche153): solo si de verdad no queda horda; si 1.9 acaba por tiempo, no sale
             var p19 = S("1.9", "Vigila la vida del muro arriba. Si un tramo cae, entran.", R(Resaltes.BarraMuro), Senales.AtaqueRechazado); p19.Linea = true; p19.Segundos = 90f;   // red de seguridad (Nacho)
             // red de seguridad (Lucía/coordinador, 9-nov): ningún paso de los capítulos 1 y 2 se queda esperando su señal más de 10 s
             var p14 = S("1.4", "Selecciona un pelotón: clic en él, en su tarjeta o con su número (1 a 5). Para coger varios, arrastra un recuadro.", R(Resaltes.TarjetasPeloton), Senales.PelotonSeleccionado); p14.Segundos = TopeS;
@@ -110,7 +111,7 @@ namespace TBD.Tutorial
                     p17,
                     p18,
                     p19,
-                    T("1.10", "Ataque rechazado. Esta noche vendrán muchos más.", 4),
+                    p110,
                 }
             };
         }
