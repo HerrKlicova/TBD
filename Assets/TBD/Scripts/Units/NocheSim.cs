@@ -718,7 +718,7 @@ namespace TBD.Units
 
         // ================================================================ D-N163 (Lucía, construccion-reparar.md §8): el muro por tramos, Repair y Rebuild
         /// <summary>Un tramo del muro: un trozo de un lado del recinto (Side 0 oeste, 1 este, 2 sur, 3 norte; A0-A1 a lo largo, en mm). Hp 0 = brecha: ya no detiene.</summary>
-        public sealed class WallSegment { public int Side, A0, A1, Hp, HpMax, Rem, PriceU, ObraMh, HeightMm; public int LenMm { get { return A1 - A0; } } }
+        public sealed class WallSegment { public bool IsGate; public int Side, A0, A1, Hp, HpMax, Rem, PriceU, ObraMh, HeightMm; public int LenMm { get { return A1 - A0; } } }
         public enum WallJobKind : byte { Reparar = 0, Reconstruir = 1 }
         public sealed class WallJob { public WallJobKind Kind; public int Seg, Platoon, WorkTicks, TotalTicks; public bool Ordered, Working, PrevHoldFire; }   // TotalTicks: reconstruir, ticks totales con los zapadores de este tick (para la barra de avance: WorkTicks / TotalTicks); solo lectura, fuera del hash
         /// <summary>Tramos (null = el muro de un solo bloque de siempre, sin cambio de hash). Se activa con EnableSegments.</summary>
@@ -1063,11 +1063,34 @@ namespace TBD.Units
                 if (!(p.IsWall || p.IsGate)) continue;
                 int x0 = p.X0 + originX, x1 = p.X1 + originX, y0 = p.Y0 + originY, y1 = p.Y1 + originY; int side, a0, a1;
                 if (x0 == x1) { side = x0 < originX ? 0 : 1; a0 = Math.Min(y0, y1); a1 = Math.Max(y0, y1); } else { side = y0 < originY ? 2 : 3; a0 = Math.Min(x0, x1); a1 = Math.Max(x0, x1); }
-                list.Add(new WallSegment { Side = side, A0 = a0, A1 = a1, HpMax = (int)((long)p.CostE4 * vidaPorU / 10000), Hp = -1, PriceU = (p.CostE4 + 9999) / 10000, HeightMm = TBD.Net.Obras.HeightMm(p.Kind) });   // D-N174: altura de la pieza para la línea de visión
+                list.Add(new WallSegment { Side = side, A0 = a0, A1 = a1, HpMax = (int)((long)p.CostE4 * vidaPorU / 10000), Hp = -1, PriceU = (p.CostE4 + 9999) / 10000, HeightMm = TBD.Net.Obras.HeightMm(p.Kind), IsGate = p.IsGate });   // D-N174: altura de la pieza para la línea de visión
             }
             list.Sort((a, b) => a.Side != b.Side ? a.Side.CompareTo(b.Side) : a.A0.CompareTo(b.A0));
+            GateAsWall(list);
             return list;
         }
+
+        /// <summary>Lucía (11-nov, Nules N2 de la I-Noche169): la puerta cerrada es un tramo más, con la misma vida por metro, la misma altura (pila y trepa) y la misma brecha que el muro
+        /// que la rodea. Toma los tramos vecinos del mismo lado (el que acaba donde empieza la puerta y el que empieza donde acaba; si solo hay uno, ese) y copia su vida por mm
+        /// y su altura. Una puerta sin vecinos (lado sin muro) se queda como estaba. Común a NightSim y a la zona (la sombra sale de PiecesFromWorks).</summary>
+        public static void GateAsWall(List<WallSegment> list)
+        {
+            for (int i = 0; i < list.Count; i++)
+            {
+                var g = list[i]; if (!g.IsGate) continue;
+                long hpPerM = 0; int h = 0, n = 0;
+                for (int j = 0; j < list.Count; j++)
+                {
+                    var w = list[j]; if (j == i || w.IsGate || w.Side != g.Side || w.LenMm <= 0) continue;
+                    if (Math.Abs(w.A1 - g.A0) > GateNeighbourMm && Math.Abs(w.A0 - g.A1) > GateNeighbourMm) continue;
+                    hpPerM += (long)w.HpMax * 1000 / w.LenMm; h = Math.Max(h, w.HeightMm); n++;
+                }
+                if (n == 0) continue;
+                g.HpMax = (int)(hpPerM / n * g.LenMm / 1000); g.HeightMm = h; if (g.Hp > g.HpMax) g.Hp = g.HpMax;
+            }
+        }
+        /// <summary>Distancia máxima entre el extremo de la puerta y el del tramo para contarlo como vecino (las piezas de Obras no siempre casan al mm).</summary>
+        public const int GateNeighbourMm = 600;
 
         public ulong Hash()
         {
