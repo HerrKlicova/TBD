@@ -16,7 +16,7 @@ namespace TBD.Mundo
     {
         public readonly Mundo M; readonly float _escala = 0.001f; float _acc; public const float Dt = 1f / 30f;
         readonly StreamWriter _hash; readonly List<Orden> _reproducir; readonly string[] _refHash; int _ri; public string Desync;
-        readonly bool _grabar; readonly string _dirCap;
+        readonly bool _grabar; readonly string _dirCap; bool _sinRef;
         public int Peloton => M.Unidades.Platoons.Count > 0 ? M.Unidades.Platoons[0].Id : -1;
 
         public MundoVista(uint semilla, IList<Casa> casas, IList<(int x, int y)> zombis, int pelX, int pelY, int pelRumbo)
@@ -25,12 +25,18 @@ namespace TBD.Mundo
             foreach (var z in zombis) M.Zombis.Anadir(z.x, z.y, z.x, z.y);
             M.Unidades.AddPlatoon(PlatoonKind.Fusileros, pelX, pelY, pelRumbo);
             var ca = System.Environment.GetCommandLineArgs(); _dirCap = Path.Combine(Path.GetDirectoryName(Application.dataPath) ?? ".", "Captures"); Directory.CreateDirectory(_dirCap);
-            if (System.Array.IndexOf(ca, "-hashlog") >= 0) _hash = new StreamWriter(Path.Combine(_dirCap, "mundo_hash.txt"), false);
+            int ih = System.Array.IndexOf(ca, "-hashlog");
+            if (ih >= 0)      // Sara: ruta opcional (dos instancias en la misma carpeta no deben escribir el mismo fichero)
+            {
+                string ruta = ih + 1 < ca.Length && !ca[ih + 1].StartsWith("-") ? ca[ih + 1] : Path.Combine(_dirCap, "mundo_hash.txt");
+                var d = Path.GetDirectoryName(Path.GetFullPath(ruta)); if (!string.IsNullOrEmpty(d)) Directory.CreateDirectory(d);
+                _hash = new StreamWriter(ruta, false); Debug.Log("[MUNDO] -hashlog → " + Path.GetFullPath(ruta));
+            }
             _grabar = System.Array.IndexOf(ca, "-grabar") >= 0;
             for (int i = 0; i + 1 < ca.Length; i++) if (ca[i] == "-reproducir" && File.Exists(ca[i + 1]))
             {
                 _reproducir = Mundo.OrdenesDe(File.ReadAllText(ca[i + 1]), out _, out _);
-                var refp = Path.Combine(Path.GetDirectoryName(ca[i + 1]) ?? ".", "mundo_hash_ref.txt"); if (File.Exists(refp)) _refHash = File.ReadAllLines(refp);
+                var refp = Path.Combine(Path.GetDirectoryName(ca[i + 1]) ?? ".", "mundo_hash_ref.txt"); if (File.Exists(refp)) _refHash = File.ReadAllLines(refp); else { _sinRef = true; Debug.Log("[MUNDO] desync=SIN_REFERENCIA: no hay " + refp); }
                 Debug.Log($"[MUNDO] reproduzco {_reproducir.Count} órdenes de {ca[i + 1]}" + (_refHash != null ? $" y comparo con {_refHash.Length} líneas de hash" : ""));
             }
             Debug.Log($"[MUNDO] simulación de Nacho: {M.Zombis.Lista.Count} zombis, {casas.Count} casas, pelotón {Peloton}");
@@ -61,7 +67,7 @@ namespace TBD.Mundo
         {
             _hash?.Flush(); _hash?.Dispose();
             if (_grabar) { File.WriteAllText(Path.Combine(_dirCap, "mundo_grabacion.txt"), M.GrabacionTexto(Mundo.EscenarioCaserio)); Debug.Log("[MUNDO] grabación guardada: " + Path.Combine(_dirCap, "mundo_grabacion.txt")); }
-            Debug.Log($"[MUNDO] fin: tick {M.Tick}, abatidos {M.Abatidos}, bajas {M.BajasPropias}, hash {M.Hash():x16}" + (Desync != null ? " · " + Desync : (_refHash != null ? " · desync=False" : "")));
+            Debug.Log($"[MUNDO] fin: tick {M.Tick}, abatidos {M.Abatidos}, bajas {M.BajasPropias}, hash {M.Hash():x16}" + (Desync != null ? " · " + Desync : _refHash != null ? " · desync=False" : _sinRef ? " · desync=SIN_REFERENCIA" : ""));
         }
     }
 }
