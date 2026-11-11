@@ -389,6 +389,12 @@ namespace TBD.Units
             Night.Step(_spawns);
             var cur = Current();
             foreach (var s in _spawns) { _z.Add(new Zomb { X = s.X, Y = s.Y }); Spawned++; if (cur != null) cur.Spawned++; }
+            if (Night.Retirada && !Shadow)      // D-N202: los rezagados se van andando al borde oeste y salen del mapa (no cuentan como abatidos)
+            {
+                int vr = SP.ZombieSpeedMmS / IMath.TickRate;
+                for (int i = 0; i < _z.Count; i++) { var z = _z[i]; if (!z.Alive) continue; z.Aggro = false; z.X -= vr; if (z.X < 0) z.Alive = false; }
+                Night.ZombiesAlive = AliveZombies();
+            }
             // 2) los zombis: caminan hacia el edificio; el muro los detiene; se cuenta la pila
             int pile = 0, speed = SP.ZombieSpeedMmS / IMath.TickRate;
             WallEvents.Clear();
@@ -397,6 +403,7 @@ namespace TBD.Units
             for (int i = 0; i < _z.Count; i++)
             {
                 var z = _z[i]; if (!z.Alive) continue;
+                if (Night.Retirada && !Shadow) continue;      // D-N202: en retirada ya no van al edificio
                 int tx = SP.StationX, ty = SP.StationY;
                 bool inside = InFort(z.X, z.Y);
                 if (inside && ContactTick < 0) ContactTick = Night.Tick;                  // primer contacto de la noche (×1 automático, Lucía D-N186)

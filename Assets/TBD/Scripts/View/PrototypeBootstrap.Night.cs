@@ -223,6 +223,8 @@ namespace TBD.View
             if (_ng.P.NetClock) { if (_ng.StartNetTick < 0 || _ng.State == NightState.Victoria) ArranqueRedZona(); diaRed = _ng.StartNetTick < 0; if (diaRed) AlmacenDeDia(); else _reservaVista = -1; }   // reloj único: la zona arranca su noche a las 22:00 de la red (Begin) y no avanza antes
             else { diaRed = DiaEnLaRed(); if (!diaRed && _esperandoNoche) IniciaNocheZona(); }      // S1 qa52 (Marcos): noche con reloj propio, parche de día
             if (!TutorialHud.HordaEnEspera && !diaRed) { var st0 = _ng.State; _ng.Attack(_pileNearStation, _nearTrain); SurroundedTrainZona(_nearTrain); _ng.ZombiesAlive = _zomCounted ? _zomPos.Count : -1; _ng.Step(_spawns); if (st0 == NightState.Jugando && _ng.State != NightState.Jugando) NightEnded(); if (_ng.State == NightState.Derrota) return; }   // D-N136: NightGame gana al acabar con la horda (WinOnClear, misma regla que NightSim)
+            if (_ng.Retirada && !_retiradaPedida) { _retiradaPedida = true; Push(CmdType.Retirada); string est = string.IsNullOrEmpty(_estacionZona) ? "Sagunto" : _estacionZona; string av = NightGame.AvisoRetirada(est); HintMsg(av, false); _bannerText = av; _bannerUntil = Time.unscaledTime + 4f; Debug.Log($"[NOCHE] D-N202: {av} (tick {_ng.Tick}, {_zomPos.Count} zombis, horda {_ng.HordaTotal})"); }
+            if (!_ng.Retirada) _retiradaPedida = false;
             playing = _ng.State == NightState.Jugando;
 
             // oleadas: líneas de registro y rótulo
@@ -559,7 +561,7 @@ namespace TBD.View
               if (!win && _enPie.Count > 0) _endReason = $"<color=#982420>{est} ha caído.</color>\n{Lista(_enPie)} {(_enPie.Count > 1 ? "siguen" : "sigue")} en pie.";   // S2 de la qa50 (Lucía, 7705049): no acaba la partida
               if (est == "Nules") _endReason += "\nFin de la partida de prueba. Puedes seguir en el mundo."; }   // D-N136/D-N146
         }
-        bool _endDismissed, _reportClosed; bool _seguirTrasNoche;
+        bool _endDismissed, _reportClosed; bool _seguirTrasNoche; bool _retiradaPedida;
         bool _esperandoNoche; Vector2Int? _puestoEnviado;
         /// <summary>¿Es de día en la red (06:00–21:59) y la zona no está en el tutorial? De día la noche de la zona no avanza (parche hasta el reloj único de Nacho).</summary>
         bool DiaEnLaRed() { var w = NetSession.A; if (w == null || TutorialHud.Activo || !NightRun.Active || _zoneNode < 0 || !RelojUnicoActivo) return false; long h = w.Tick % NetConst.DayTicks; return h >= NetConst.Hours(6) && h < NetConst.Hours(22); }      // Marcos (qa52 119): con reloj propio (-zona) la noche no se congela al llegar las 06:00 de la red

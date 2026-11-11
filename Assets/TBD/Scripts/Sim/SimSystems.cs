@@ -194,6 +194,13 @@ namespace TBD.Sim
                     em.SetComponentData(root, info);
                     break;
                 }
+                case CmdType.Retirada:
+                {
+                    var info = em.GetComponentData<ZoneInfo>(root);
+                    info.Retirada = true; info.ForceFlow = true;
+                    em.SetComponentData(root, info);
+                    break;
+                }
                 case CmdType.ClearFort:
                 {
                     var solids = em.GetBuffer<Solid>(root); var ground = em.GetBuffer<CellGround>(root);
@@ -358,7 +365,7 @@ namespace TBD.Sim
 
             var train = SystemAPI.GetSingleton<TrainState>();
             float gx = train.X >= SimConst.WorldW ? Level.TrainNightX : train.X;   // tren perdido (sólido sacado del mapa, Nules A): la horda va al andén del fuerte, no al borde este (qa50 I-Noche103)
-            int2 gc = Level.CellOf(new float2(gx, Level.TrackY));
+            int2 gc = info.Retirada ? Level.CellOf(new float2(0.5f, Level.TrackY)) : Level.CellOf(new float2(gx, Level.TrackY));      // D-N202: en retirada, al borde oeste
             int goal = gc.y * SimConst.GridW + gc.x;
             info.GoalCell = goal;
             info.ForceFlow = false;
@@ -473,7 +480,8 @@ namespace TBD.Sim
             // retirar abatidos
             var zEnts = zq.ToEntityArray(Allocator.Temp);
             var dead = new NativeList<Entity>(Allocator.Temp);
-            for (int i = 0; i < zombies.Length; i++) if (zombies[i].State == ZState.Dead) dead.Add(zEnts[i]);
+            bool retirada = em.GetComponentData<ZoneInfo>(root).Retirada;
+            for (int i = 0; i < zombies.Length; i++) if (zombies[i].State == ZState.Dead || (retirada && zombies[i].Pos.x < 3f)) dead.Add(zEnts[i]);      // D-N202: los que llegan al borde salen
             if (dead.Length > 0) em.DestroyEntity(dead.AsArray());
 
             // los soldados caídos se levantan como zombis (en orden de SimId)
@@ -597,7 +605,7 @@ namespace TBD.Sim
             var train = SystemAPI.GetSingleton<TrainState>();
             sum += HashMath.OfFloat(train.X, 21) + HashMath.OfFloat(train.Speed, 22) + HashMath.Mix((ulong)(uint)train.Dir + 0x1234567UL);
             var info = SystemAPI.GetSingleton<ZoneInfo>();
-            sum += HashMath.Mix((info.GateOpen ? 1UL : 2UL) ^ (info.HasTrain ? 4UL : 0UL) ^ ((ulong)(uint)info.GoalCell << 8) ^ 0xFEEDUL);
+            sum += HashMath.Mix((info.GateOpen ? 1UL : 2UL) ^ (info.HasTrain ? 4UL : 0UL) ^ (info.Retirada ? 16UL : 0UL) ^ ((ulong)(uint)info.GoalCell << 8) ^ 0xFEEDUL);
             sum += HashMath.Mix(((ulong)clock.NextSimId << 1) ^ 0xBEEF00UL);
             foreach (var sr in SystemAPI.Query<RefRO<Soldier>>()) sum += HashMath.OfSoldier(sr.ValueRO);
             sum += HashMath.OfAmmo(SystemAPI.GetSingleton<ZoneAmmo>());

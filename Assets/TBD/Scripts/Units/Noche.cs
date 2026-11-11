@@ -116,6 +116,25 @@ namespace TBD.Units
         /// <summary>true si la última victoria fue por acabar con la horda (D-N136) y no por llegar al amanecer.</summary>
         public bool WonByClear;
         int _lastSpawnTick = -1;
+        /// <summary>D-N202 (Lucía, red de seguridad): los rezagados se retiran. Si pasan 20 min de juego sin daño (edificio, tren o muro) y quedan menos del 5 % de la horda,
+        /// se dan la vuelta y se van andando al borde (la zona y NightSim los mueven; se les puede disparar). La noche se gana cuando el último sale o muere.
+        /// No entra en el hash ni en el guardado: al cargar se vuelve a contar desde ese tick.</summary>
+        public bool Retirada; public int RetiradaTick = -1;
+        int _lastDmgTick, _lastStHp = int.MaxValue, _lastTrHp = int.MaxValue, _lastWall = int.MaxValue;
+        public const int RetiradaPct = 5;
+        public int RetiradaSinDanoTicks { get { return P.NetClock ? NetHourTicks / 3 : (int)((long)20 * 60 * IMath.TickRate / Math.Max(1, P.ClockX)); } }
+        public int HordaTotal { get { int t = 0; for (int w = 0; w < P.Waves.Length; w++) t += WaveTotal(w); return t; } }
+        void MirarRetirada()
+        {
+            if (StationHp < _lastStHp || TrainHp < _lastTrHp || WallPermil < _lastWall) _lastDmgTick = Tick;
+            _lastStHp = StationHp; _lastTrHp = TrainHp; _lastWall = WallPermil;
+            if (Retirada || State != NightState.Jugando || !AllSpawned || ZombiesAlive <= 0) return;
+            if ((long)ZombiesAlive * 100 >= (long)HordaTotal * RetiradaPct) return;
+            if (Tick - Math.Max(_lastDmgTick, _lastSpawnTick) < RetiradaSinDanoTicks) return;
+            Retirada = true; RetiradaTick = Tick;
+        }
+        /// <summary>Aviso común (zona y NightBot): «Los últimos zombis se retiran de {estación}.»</summary>
+        public static string AvisoRetirada(string estacion) { return "Los últimos zombis se retiran de " + estacion + "."; }
         /// <summary>¿Han entrado ya todos los zombis de todas las oleadas?</summary>
         public bool AllSpawned { get { for (int w = 0; w < Spawned.Length; w++) if (Spawned[w] < WaveTotal(w)) return false; return true; } }
         /// <summary>Recuento del último tick (D-N133). Hoy valen 1 o 0; con varios frentes, las estaciones principales vivas y los trenes vivos. No entran en el hash: son entradas del tick.</summary>
@@ -257,6 +276,7 @@ namespace TBD.Units
                 for (int k = 0; k < due; k++) spawns.Add(Place(w, front));
                 if (due > 0) { Spawned[w] += due; _lastSpawnTick = Tick; }
             }
+            MirarRetirada();
             // fin de partida: la derrota tiene prioridad sobre la victoria en el mismo tick
             if (!stationAlive || (!trainAlive && !P.TrainNotDefeat)) { State = NightState.Derrota; DefeatTick = Tick; EndedByStation = !stationAlive; EndedByTrain = !trainAlive && !P.TrainNotDefeat; }
             else if (P.WinOnClear && ZombiesAlive == 0 && Tick > _lastSpawnTick && AllSpawned)      // D-N164 (Lucía, 8-nov): solo se gana acabando con la horda; a las 06:00 la que queda sigue atacando
@@ -285,6 +305,7 @@ namespace TBD.Units
         {
             if (State != NightState.Victoria) return false;
             P = next; Tick = 0; State = NightState.Jugando; NightIndex++; DefeatTick = -1; EndedByStation = EndedByTrain = false; WonByClear = false; _lastSpawnTick = -1;
+            Retirada = false; RetiradaTick = -1; _lastDmgTick = 0; _lastStHp = _lastTrHp = _lastWall = int.MaxValue;
             if (Spawned.Length != next.Waves.Length) throw new ArgumentException("otro número de oleadas: crea un NightGame nuevo");
             for (int w = 0; w < Spawned.Length; w++) { Spawned[w] = 0; for (int e = 0; e < SpawnedEntry[w].Length; e++) SpawnedEntry[w][e] = 0; }
             return true;
@@ -337,6 +358,7 @@ namespace TBD.Units
             int n = r.Int(); if (n != Spawned.Length) throw new SaveException(SaveError.Corrupt, "otro número de oleadas");
             for (int i = 0; i < n; i++) { Spawned[i] = r.Int(); for (int e = 0; e < SpawnedEntry[i].Length; e++) SpawnedEntry[i][e] = r.Int(); }
             StartNetTick = r.Long();
+            Retirada = false; RetiradaTick = -1; _lastDmgTick = Tick; _lastStHp = _lastTrHp = _lastWall = int.MaxValue;      // D-N202: no se guarda; se vuelve a contar
         }
     }
 }
