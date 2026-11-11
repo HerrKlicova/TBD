@@ -52,7 +52,8 @@ namespace TBD.View
             if (ng.State == NightState.Derrota) txt = "<b>" + ng.DefeatHeadline() + "</b> Entra para ver el parte.";
             else if (ng.State == NightState.Victoria) txt = "<b>Sagunto aguanta.</b> Entra para ver el parte.";
             else txt = $"Sagunto en combate · {ng.Hour:00}:{ng.Minute:00} · zombis {s.Sim.ZombiesAlive} · muro {Mathf.RoundToInt(100f * s.Sim.WallHp / Mathf.Max(1, s.Sim.SP.WallHp))} %";
-            _st.fontSize = Mathf.Max(13, Screen.height / 55); float w = Screen.width * 0.5f, h = _st.fontSize * 2.2f;
+            _st.fontSize = Mathf.Max(13, Screen.height / 55); float w = Mathf.Min(Screen.width * 0.5f, Screen.width - 2f * (Mathf.Min(460f, Screen.width * 0.38f) + 16f)), h = _st.fontSize * 2.2f;      // QA53: sin pisar el panel de avisos de la izquierda (ancho pw del mapa)
+            w = Mathf.Max(w, _st.CalcSize(new GUIContent(txt)).x + 24f);
             var r = new Rect((Screen.width - w) * 0.5f, Ui3.Activa ? 64f : 10f, w, h);      // D-N185: con -ui3, debajo de la franja de arriba (no encima del objetivo)
             var old = GUI.color; GUI.color = new Color(0.06f, 0.07f, 0.1f, 0.82f); GUI.DrawTexture(r, _px); GUI.color = old;
             _st.normal.textColor = ng.State == NightState.Jugando ? new Color(0.83f, 0.82f, 0.8f) : new Color(0.88f, 0.55f, 0.19f);

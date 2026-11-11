@@ -92,6 +92,7 @@ namespace TBD.View
 
         float _mapT0, _diagMapaT;
         // QA (I-Noche157): -mapa-capturas 40,150,300 = al entrar en el mapa, una captura a cada distancia de cámara (km), 4 s después de llegar a ella (Captures/qa/mapa_<km>km_<n>.png)
+        GUIStyle _smallWrap;
         int _capI = -1, _capEntrada = -1, _capVisita; float _capT; readonly List<float> _capKm = new List<float>();
         void Update_CapturasMapa()
         {
@@ -1036,9 +1037,12 @@ namespace TBD.View
                         if (nn < 0 || nn == _a.Embarque.HomeNode || _a.NodeLost[nn]) continue;
                         int zp = IconPx(16); shown++;
                         string txt = $"Hay un tren parado en {_a.Graph.Nodes[nn].Name}. Sácalo antes de la noche o puede perderse.";
-                        var rr = new Rect(20, y - 2, pw - 20, Mathf.Max(_small.fontSize * 1.5f, zp + 4));
+                        // I-Noche158 (QA53): el texto se parte en líneas dentro del panel; antes se salía por la derecha y lo tapaba la barra «Sagunto en combate»
+                        if (_smallWrap == null || _smallWrap.fontSize != _small.fontSize) _smallWrap = new GUIStyle(_small) { wordWrap = true };
+                        float tw = pw - 20 - zp - 12, th = _smallWrap.CalcHeight(new GUIContent(txt), tw);
+                        var rr = new Rect(20, y - 2, pw - 20, Mathf.Max(th + 4, zp + 4));
                         DrawIcon(new Rect(20, y - 2, zp, zp), "alertas/vm_alertas_" + AlertIcon(AlertKind.NodoAsediado) + "_16");
-                        GUI.Label(new Rect(20 + zp + 6, y, pw - 20 - zp, 30), "<color=#E08C30>" + txt + "</color>", _small); y += rr.height;
+                        GUI.Label(new Rect(20 + zp + 6, y, tw, th), "<color=#E08C30>" + txt + "</color>", _smallWrap); y += rr.height;
                         var ev = Event.current; if (ev.type == EventType.MouseDown && ev.button == 0 && ev.clickCount == 2 && rr.Contains(ev.mousePosition)) { ev.Use(); EnterZone(nn); }
                     }
             }
