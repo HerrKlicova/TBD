@@ -130,6 +130,8 @@ namespace TBD.Mundo
 
         static PointMm Mm(Vector3 p) { return new PointMm(Mathf.RoundToInt(p.x * 1000f), Mathf.RoundToInt(p.z * 1000f)); }
         Vector3 AMundo(PointMm p, float sobre = 0f) { float x = p.X / 1000f, z = p.Y / 1000f; return new Vector3(x, _mb.AlturaSuelo(x, z) + sobre, z); }
+        /// <summary>Giro para un FBX de Teo (su +X de Blender llega a Unity como −X): el del rumbo más media vuelta.</summary>
+        static Quaternion GiroTeo(int rumbo) { return Giro((rumbo + IMath.Turn / 2) & 0xFFFF); }
         static Quaternion Giro(int rumbo) { return Quaternion.Euler(0f, -rumbo * 360f / IMath.Turn, 0f); }      // rumbo 0 = +X; en Unity el yaw positivo gira +X hacia −Z
 
         /// <summary>Vista previa: la cadena de piezas sobre una copia de la vía (la simulación no se toca hasta soltar).</summary>
@@ -213,10 +215,12 @@ namespace TBD.Mundo
                 string tipo = pz == Via.Pieza.Recta10 ? "Recta10" : pz == Via.Pieza.Recta2_5 ? "Recta2" : "CurvaR" + (Via.RadioMm(pz) / 1000);
                 string var = VarianteVia[(int)(IMath.Mix((ulong)(t.Id * 1000 + i) ^ 0xBEEFUL) % (ulong)VarianteVia.Length)];
                 var pre = Resources.Load<GameObject>($"Models/Red/SM_Via_{tipo}_{var}_LOD1"); if (pre == null) continue;
-                bool alReves = Via.GiroBam(pz) > 0;      // izquierda (antihorario): la curva de Teo, desde el final y girada 180°
+                // Comprobado en la captura del cruce (Mundo-I2): el FBX importado mira a −X de Unity (Blender→Unity gira 180° en vertical), así que se suma media vuelta;
+                // y la curva de Teo, vista así, gira a la IZQUIERDA respecto a su avance (nuestra Izq). Nuestra Der = la misma curva desde el final, girada otros 180°.
+                bool alReves = Via.GiroBam(pz) < 0;
                 var go = Instantiate(pre, padre);
-                if (!alReves) { go.transform.position = AMundo(new PointMm((int)x0, (int)y0)); go.transform.rotation = Giro(r0); }
-                else { go.transform.position = AMundo(new PointMm((int)x, (int)y)); go.transform.rotation = Giro((ru + IMath.Turn / 2) & 0xFFFF); }
+                if (!alReves) { go.transform.position = AMundo(new PointMm((int)x0, (int)y0)); go.transform.rotation = GiroTeo(r0); }
+                else { go.transform.position = AMundo(new PointMm((int)x, (int)y)); go.transform.rotation = GiroTeo((ru + IMath.Turn / 2) & 0xFFFF); }
                 Pintar(go);
             }
             return true;
@@ -229,7 +233,7 @@ namespace TBD.Mundo
             var pre = Resources.Load<GameObject>($"Models/Red/SM_PasoNivel_{pn.AnguloGrados}_{var}_LOD1"); if (pre == null) { Debug.Log($"[RED] falta SM_PasoNivel_{pn.AnguloGrados}_{var} en Resources/Models/Red"); return; }
             int largo = pn.AnguloGrados >= 60 ? 20_000 : 30_000;
             var a = R.Via.Posicion(t.Id, Mathf.Max(0, pn.OffMm - largo / 2), out int rumbo);
-            var go = Instantiate(pre, padre); go.transform.position = AMundo(a); go.transform.rotation = Giro(rumbo); Pintar(go);
+            var go = Instantiate(pre, padre); go.transform.position = AMundo(a); go.transform.rotation = GiroTeo(rumbo); Pintar(go);
         }
 
         void Pintar(GameObject go) { foreach (var r in go.GetComponentsInChildren<Renderer>()) { var ms = r.sharedMaterials; for (int k = 0; k < ms.Length; k++) ms[k] = _mPaleta; r.sharedMaterials = ms; } }
