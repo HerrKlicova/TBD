@@ -350,7 +350,8 @@ namespace TBD.View
                 v.Target = tgt; v.HasTarget = true;
                 TutorialHud.Senal(TBD.Tutorial.TutorialGuion.Senales.VehiculoMovido);   // 1.6b
                 if (_nav != null) { v.Nav.SetGoal(_nav, Mm(v.Pos.x), Mm(v.Pos.y), Mm(tgt.x), Mm(tgt.y), OthersOf(v)); v.HasTarget = v.Nav.HasGoal; }
-                Debug.Log($"[VEH] orden a {v.Name}: de ({v.Pos.x:0.0}; {v.Pos.y:0.0}) a ({tgt.x:0.0}; {tgt.y:0.0}), camino {(v.HasTarget ? "sí" : "NO")}");      // I-Noche162: el VAMTAC de -vehdemo no se movía      // A* por la rejilla (Nacho): rodea el muro, entra y sale por E4
+                Debug.Log($"[VEH] orden a {v.Name}: de ({v.Pos.x:0.0}; {v.Pos.y:0.0}) a ({tgt.x:0.0}; {tgt.y:0.0}), camino {(v.HasTarget ? "sí" : "NO")}");
+                if (!v.HasTarget && _nav != null) Debug.Log($"[VEH] sin camino: salida libre {_nav.FreeAt(Mm(v.Pos.x), Mm(v.Pos.y))}, destino libre {_nav.FreeAt(Mm(tgt.x), Mm(tgt.y))}, E4 (99; 44) {_nav.FreeAt(99000, 44000)}, (99; 47) {_nav.FreeAt(99000, 47000)}, (99; 41) {_nav.FreeAt(99000, 41000)}, obstáculos {_navObs.Count}, otros vehículos {OthersOf(v).Count}");      // I-Noche162: el VAMTAC de -vehdemo no se movía      // A* por la rejilla (Nacho): rodea el muro, entra y sale por E4
             }
             Sfx.Play("ui_orden", Vector3.zero, 0.6f, 0.05f);
         }
