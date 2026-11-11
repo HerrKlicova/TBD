@@ -81,6 +81,20 @@ namespace TBD.Sim.Tests
                 a.Step(); b.Step();
                 check(a.ZoneSpawnPermil == b.ZoneSpawnPermil && a.Hash() == b.Hash(), $"Castellón: al volver a entrar, A y B sacan lo mismo ({a.ZoneSpawnPermil} ‰)");
             }
+            Console.WriteLine("\n[44b] NightBot: remate de los que quedan dentro del recinto (I-Noche174, fachada este de Nules)");
+            {
+                var bot = new NightBot(70_000, 44_000, 156_000, 85_000, 106_000, 79_000); var uw = new UnitsWorld(5);
+                var oeste = uw.AddPlatoon(PlatoonKind.Fusileros, 73_000, 60_000, 0); var esc = uw.AddPlatoon(PlatoonKind.Fusileros, 150_000, 50_000, 0); bot.Busy.Add(esc.Id);
+                var dentro = new List<Target> { new Target { Id = 1, X = 115_800, Y = 76_000 }, new Target { Id = 2, X = 115_800, Y = 78_000 }, new Target { Id = 3, X = 115_900, Y = 80_000 } };
+                bot.Step(uw, dentro, 0);
+                check(oeste.AttackMove && Math.Abs(oeste.TX - 115_800) < 7_000 && Math.Abs(oeste.TY - 78_000) < 7_000 && !esc.Moving && bot.InsideSweeps == 1,
+                    $"con el muro tranquilo, el pelotón libre va a por los 3 de la fachada este (destino {oeste.TX / 1000};{oeste.TY / 1000}); la escolta ocupada no se mueve");
+                var bot2 = new NightBot(70_000, 44_000, 156_000, 85_000, 106_000, 79_000); bot2.InsideStandOffMm = 0; var uw2 = new UnitsWorld(5); var o2 = uw2.AddPlatoon(PlatoonKind.Fusileros, 73_000, 60_000, 0);
+                bot2.Step(uw2, dentro, 0); check(!o2.Moving, "con InsideStandOffMm = 0, como antes: sin amenaza de fuera nadie se mueve");
+                var pila = new List<Target>(dentro); for (int i = 0; i < 40; i++) pila.Add(new Target { Id = 100 + i, X = 69_000, Y = 60_000 + i * 100 });
+                var bot3 = new NightBot(70_000, 44_000, 156_000, 85_000, 106_000, 79_000); var uw3 = new UnitsWorld(5); var o3 = uw3.AddPlatoon(PlatoonKind.Fusileros, 73_000, 60_000, 0);
+                bot3.Step(uw3, pila, 0); check(bot3.InsideSweeps == 0, "con pila en el muro (amenaza de fuera), el muro manda: no hay remate");
+            }
         }
     }
 }
