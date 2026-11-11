@@ -144,6 +144,7 @@ namespace TBD.Sim.Tests
                 Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos");
                 return _fail == 0 ? 0 : 1;
             }
+            if (Environment.GetEnvironmentVariable("TBD_ONLY_MUNDO") == "1") { MundoTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_LOS") == "1") { LosTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
             if (Environment.GetEnvironmentVariable("TBD_REGEN_TRAZA") == "1")      // la referencia de la traza (traza_nightsim_o1.csv) con la noche_sagunto.json actual; una línea en decisiones-noche.md al regenerarla
             {
@@ -207,6 +208,7 @@ namespace TBD.Sim.Tests
             EmbarqueTests.Run(Check);
             TutorialTests.Run(Check);
             LosTests.Run(Check);
+            MundoTests.Run(Check);
             TramosZonaTests.Run(Check);
             SombraLosTests.Run(Check);
             ViveresTests.Run(Check);

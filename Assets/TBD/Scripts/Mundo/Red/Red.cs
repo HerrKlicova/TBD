@@ -15,10 +15,10 @@ namespace TBD.Mundo
         public int Id; public string Nombre;
         public int Nodo;                                   // nodo donde está parado (−1 en marcha)
         public List<Via.Paso> Ruta = new List<Via.Paso>(); public int PasoI, OffMm;
-        public int VelMmT, VmaxMmT = 600, AccMmT2 = 1;      // 600 mm/tick = 18 m/s (65 km/h); 1 mm/tick² ≈ 0,9 m/s²
+        public int VelMmT, VmaxMmT = 370, AccMmT2 = 1;      // Hugo (cifras-hito1): 40 km/h = 370 mm/tick; 1 mm/tick² ≈ 0,9 m/s²
         public EstadoTren Estado;
         public int Linea = -1, Parada, EsperaT;
-        public readonly int[] Carga = new int[Red.Recursos]; public int Capacidad = 40;
+        public readonly int[] Carga = new int[Red.Recursos]; public int Capacidad = 6;      // Hugo: 6 huecos (2 vagones de 3); 1 hueco = 1 caja de munición (120 cartuchos) o 1 palé de material (100 m de vía)
         /// <summary>Distancia que queda hasta el final de la ruta (mm).</summary>
         public int Restante(Via v) { if (Ruta.Count == 0) return 0; long r = v.Tramos[Ruta[PasoI].Tramo].LongMm - OffMm; for (int i = PasoI + 1; i < Ruta.Count; i++) r += v.Tramos[Ruta[i].Tramo].LongMm; return (int)Math.Min(r, int.MaxValue); }
     }
@@ -33,9 +33,10 @@ namespace TBD.Mundo
     /// </summary>
     public sealed class Red
     {
-        public const int Recursos = 4;                     // munición, combustible, materiales, víveres (provisional: lo cierra la economía de Mundo)
-        public const int TicksPorU = 6;                    // carga o descarga: 1 u cada 0,2 s
-        public const int EsperaMinT = 90;                  // al menos 3 s parado en cada parada
+        public const int Recursos = 4;                     // 0 munición (cajas de 120 cartuchos), 1 combustible, 2 material de vía (palés de 100 m), 3 víveres; Hito 1: munición y material
+        public const int Municion = 0, Material = 2;
+        public const int TicksPorU = 450;                  // Hugo: 15 s por hueco cargado o descargado
+        public const int EsperaMinT = 90;                  // al menos 3 s parado en cada parada (además de la carga)
         public readonly Via Via = new Via();
         public readonly List<Tren> Trenes = new List<Tren>();
         public readonly List<Linea> Lineas = new List<Linea>();
@@ -109,14 +110,24 @@ namespace TBD.Mundo
         void Atender(Tren t)
         {
             t.EsperaT++;
-            var l = Lineas[t.Linea]; var p = l.Paradas[t.Parada]; int est = p.Estacion; var alm = Almacen[est];
-            bool trabajo = false;
-            if ((t.EsperaT % TicksPorU) == 0)
+            var l = Lineas[t.Linea]; var p = l.Paradas[t.Parada]; var alm = Almacen[p.Estacion];
+            int r = SiguienteTrabajo(t, p, alm, out bool descargar);
+            if (r >= 0 && (t.EsperaT % TicksPorU) == 0)      // cada hueco tarda TicksPorU (Hugo: 15 s): primero se descarga, luego se carga
             {
-                for (int r = 0; r < Recursos && !trabajo; r++) if (Pide(p.Descargar, r) && t.Carga[r] > 0 && (p.Descargar[r] < 0 || Hecho(t, r, false) < p.Descargar[r])) { t.Carga[r]--; alm[r]++; Marcar(t, r, false); trabajo = true; }
-                for (int r = 0; r < Recursos && !trabajo; r++) if (Pide(p.Cargar, r) && alm[r] > 0 && CargaTotal(t) < t.Capacidad && (p.Cargar[r] < 0 || Hecho(t, r, true) < p.Cargar[r])) { alm[r]--; t.Carga[r]++; Marcar(t, r, true); trabajo = true; }
-                if (!trabajo && t.EsperaT >= EsperaMinT) { LimpiarHechos(t); t.Parada = (t.Parada + 1) % l.Paradas.Count; IrAParada(t); }
+                if (descargar) { t.Carga[r]--; alm[r]++; Marcar(t, r, false); } else { alm[r]--; t.Carga[r]++; Marcar(t, r, true); }
+                r = SiguienteTrabajo(t, p, alm, out descargar);
             }
+            if (r < 0 && t.EsperaT >= EsperaMinT) { LimpiarHechos(t); t.Parada = (t.Parada + 1) % l.Paradas.Count; IrAParada(t); }
+        }
+
+        /// <summary>El recurso que toca mover ahora en esta parada (−1 si nada): descargar lo pedido que lleve, y luego cargar lo pedido que haya y quepa.</summary>
+        int SiguienteTrabajo(Tren t, ParadaLinea p, int[] alm, out bool descargar)
+        {
+            descargar = true;
+            for (int r = 0; r < Recursos; r++) if (Pide(p.Descargar, r) && t.Carga[r] > 0 && (p.Descargar[r] < 0 || Hecho(t, r, false) < p.Descargar[r])) return r;
+            descargar = false;
+            for (int r = 0; r < Recursos; r++) if (Pide(p.Cargar, r) && alm[r] > 0 && CargaTotal(t) < t.Capacidad && (p.Cargar[r] < 0 || Hecho(t, r, true) < p.Cargar[r])) return r;
+            return -1;
         }
 
         // lo cargado/descargado en esta parada (por tren y recurso), para no pasar de lo pedido

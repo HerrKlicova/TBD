@@ -40,20 +40,22 @@ namespace TBD.Sim.Tests
             {
                 var r = Hito1(out int a, out int b); r.TrazarVia(Curva());
                 int tr = r.NuevoTren("1 Costa", a);
-                int l = r.CrearLinea("Munición", new List<ParadaLinea> { new ParadaLinea { Estacion = a, Cargar = new[] { 10, 0, 0, 0 } }, new ParadaLinea { Estacion = b, Descargar = new[] { -1, 0, 0, 0 } } });
-                r.Almacen[a][0] = 30;
+                // la línea de Hugo (cifras-hito1): 4 cajas de A a B y vuelve con 2 palés de material
+                int l = r.CrearLinea("Munición", new List<ParadaLinea> { new ParadaLinea { Estacion = a, Cargar = new[] { 4, 0, 0, 0 }, Descargar = new[] { 0, 0, -1, 0 } }, new ParadaLinea { Estacion = b, Cargar = new[] { 0, 0, 2, 0 }, Descargar = new[] { -1, 0, 0, 0 } } });
+                r.Almacen[a][Red.Municion] = 12; r.Almacen[b][Red.Material] = 6;
                 check(r.AsignarTren(l, tr), "el tren se asigna a la línea");
-                int vmax = 0, tLlegada = -1, tVuelta = -1, vueltas = 0; bool enA = true;
-                for (int tick = 1; tick <= 30 * 60 * 30 && vueltas < 3; tick++)
+                int vmax = 0, tLlegada = -1, tVuelta = -1, vueltas = 0, tV1 = -1, tV2 = -1; bool enA = true;
+                for (int tick = 1; tick <= 30 * 60 * 40 && vueltas < 3; tick++)
                 {
                     r.Step(tick); var t = r.Trenes[tr];
                     if (t.VelMmT > vmax) vmax = t.VelMmT;
-                    if (t.Estado == EstadoTren.EnParada && t.EsperaT == 1) { int est = r.Via.Nodos[t.Nodo].Estacion; if (est == b && enA) { if (tLlegada < 0) tLlegada = tick; enA = false; } else if (est == a && !enA) { if (tVuelta < 0) tVuelta = tick; enA = true; vueltas++; } }
+                    if (t.Estado == EstadoTren.EnParada && t.EsperaT == 1) { int est = r.Via.Nodos[t.Nodo].Estacion; if (est == b && enA) { if (tLlegada < 0) tLlegada = tick; enA = false; } else if (est == a && !enA) { if (tVuelta < 0) tVuelta = tick; enA = true; vueltas++; if (vueltas == 1) tV1 = tick; if (vueltas == 2) tV2 = tick; } }
                 }
                 check(vmax == r.Trenes[tr].VmaxMmT, $"el tren llega a su velocidad máxima ({vmax} mm/tick)");
-                check(tLlegada > 0 && tLlegada < 30 * 300, $"llega a la segunda parada en {tLlegada / 30} s");
+                check(tLlegada > 0 && tLlegada < 30 * 300, $"llega a la segunda parada en {tLlegada / 30} s (40 km/h, 60 s de carga en A)");
                 check(vueltas == 3, $"la línea se repite sola: {vueltas} vueltas completas");
-                check(r.Almacen[a][0] == 0 && r.Almacen[b][0] == 30 && r.Trenes[tr].Carga[0] == 0, $"lleva la munición: Sagunto {r.Almacen[a][0]} u, Caserío {r.Almacen[b][0]} u, a bordo {r.Trenes[tr].Carga[0]} u (10 u por viaje, 3 viajes)");
+                int vuelta = tV2 - tV1; check(vuelta > 30 * 360 && vuelta < 30 * 480, $"una vuelta tarda {vuelta / 30} s (Hugo: ~405 s con 1250 m; esta vía mide 1502 m)");
+                check(r.Almacen[a][Red.Municion] == 0 && r.Almacen[b][Red.Municion] == 12 && r.Almacen[a][Red.Material] + r.Trenes[tr].Carga[Red.Material] == 6 && r.Almacen[b][Red.Material] == 0, $"lleva 4 cajas por viaje y vuelve con el material: cajas A {r.Almacen[a][0]} / B {r.Almacen[b][0]}, palés A {r.Almacen[a][2]} + {r.Trenes[tr].Carga[2]} a bordo (llega y aún no ha descargado) / B {r.Almacen[b][2]}");
             }
             // determinismo: dos mundos iguales con las mismas órdenes; guardado a mitad de viaje
             {
@@ -63,12 +65,37 @@ namespace TBD.Sim.Tests
                 check(iguales, "dos mundos con las mismas órdenes dan el mismo hash en cada tick (6000 ticks)");
                 var w = new SaveWriter(); r1.Save(w); var r3 = new Red(); r3.Load(new SaveReader(w.ToArray()));
                 check(r3.Hash() == r1.Hash(), "guardar y cargar a mitad de viaje da el mismo hash");
-                for (int tick = 6001; tick <= 12000; tick++) { r1.Step(tick); r3.Step(tick); }
-                check(r3.Hash() == r1.Hash() && r1.Almacen[1][0] == r3.Almacen[1][0], $"y sigue igual 6000 ticks después (Caserío: {r1.Almacen[1][0]} u en los dos)");
-                check(r1.Trenes[0].Carga[0] <= r1.Trenes[0].Capacidad, "el tren no pasa de su capacidad (40 u)");
+                for (int tick = 6001; tick <= 24000; tick++) { r1.Step(tick); r3.Step(tick); }
+                check(r3.Hash() == r1.Hash() && r1.Almacen[1][0] == r3.Almacen[1][0], $"y sigue igual 18000 ticks después (Caserío: {r1.Almacen[1][0]} u en los dos)");
+                check(r1.Trenes[0].Carga[0] <= 6 && r1.Almacen[1][0] > 0, $"el tren no pasa de sus 6 huecos (lleva {r1.Trenes[0].Carga[0]}; el caserío ha recibido {r1.Almacen[1][0]} cajas)");
                 var hs1 = new List<KeyValuePair<string, ulong>>(); r1.HashPorSistema(hs1); r1.Almacen[1][0]++; var hs2 = new List<KeyValuePair<string, ulong>>(); r1.HashPorSistema(hs2); r1.Almacen[1][0]--;
                 var dif = new List<string>(); for (int i = 0; i < hs1.Count; i++) if (hs1[i].Value != hs2[i].Value) dif.Add(hs1[i].Key);
                 check(hs1.Count == 4 && dif.Count == 1 && dif[0] == "red.almacen", $"el hash por sistema señala solo el sistema que cambia ({string.Join(", ", dif)})");
+            }
+            // dentro de Mundo (contrato de Nacho): la vía, la línea y el tren entran como órdenes; dos mundos con la misma grabación dan el mismo hash
+            {
+                TBD.Mundo.Mundo Montar()
+                {
+                    var m = new TBD.Mundo.Mundo(7u, 2_000_000, 2_000_000);
+                    m.Red.AddEstacion("A", 200_000, 1_000_000); m.Red.AddEstacion("B", 1_600_000, 1_300_000); m.Red.Almacen[0][0] = 12; m.Red.Almacen[1][2] = 6;
+                    foreach (var p in Curva()) m.Encolar(new Orden { Tick = 10, Jugador = 1, Tipo = OrdenesRed.PuntoVia, A = p.X, B = p.Y });
+                    m.Encolar(new Orden { Tick = 11, Jugador = 1, Tipo = OrdenesRed.TrazarVia });
+                    m.Encolar(new Orden { Tick = 12, Jugador = 2, Tipo = OrdenesRed.NuevoTren, A = 0 });
+                    m.Encolar(new Orden { Tick = 13, Jugador = 2, Tipo = OrdenesRed.NuevaLinea, A = 0, B = 1 });      // por defecto: 4 cajas y 2 palés (Hugo)
+                    m.Encolar(new Orden { Tick = 14, Jugador = 1, Tipo = OrdenesRed.AsignarTren, A = 0, B = 0 });
+                    return m;
+                }
+                var m1 = Montar(); var m2 = Montar(); bool igual = true; string difiere = "";
+                for (int t = 0; t < 30 * 60 * 25; t++)
+                {
+                    m1.Step(); m2.Step();
+                    if (m1.Hash() != m2.Hash()) { igual = false; var a1 = m1.HashPorSistema(); var a2 = m2.HashPorSistema(); for (int i = 0; i < a1.Count; i++) if (a1[i].Value != a2[i].Value) difiere += a1[i].Key + " "; break; }
+                }
+                check(m1.Red.Via.Tramos.Count == 1 && m1.Red.Trenes.Count == 1 && m1.Red.Lineas.Count == 1, "las órdenes de red de dos jugadores trazan la vía, crean el tren y la línea");
+                check(igual, $"dos Mundos con las mismas órdenes, mismo hash 25 minutos de juego{(igual ? "" : " (difiere: " + difiere + ")")}");
+                check(m1.Red.Almacen[1][0] == 12 && m1.Red.Almacen[0][2] == 6, $"la línea por defecto lleva las 12 cajas a B y trae los 6 palés a A en 25 minutos (cajas B {m1.Red.Almacen[1][0]}, palés A {m1.Red.Almacen[0][2]})");
+                var hs = m1.HashPorSistema(); var nombres = new List<string>(); foreach (var kv in hs) nombres.Add(kv.Key);
+                check(nombres.Contains("red.via") && nombres.Contains("red.trenes") && nombres.Contains("red.trazos") && nombres.Contains("unidades"), "el hash por sistema de Mundo incluye la red (" + string.Join(", ", nombres) + ")");
             }
             // sin vía: el tren con línea espera y no se mueve
             {
