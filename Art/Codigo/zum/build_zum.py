@@ -2,8 +2,9 @@
 
 Encargo de Lucía (docs/hito1-reparto.md): qué se ve en cada nivel del zum (mapa, comarca, pueblo y soldado), cómo se
 funde de uno a otro, los iconos de unidades y trenes en el mapa, el trazado de vía con vista previa (válido o inválido)
-y la calima de día adaptada. Son MAQUETAS de referencia para el prototipo de Marcos: el mundo (2 × 2 km de costa, A, B y
-el caserío) es inventado aquí hasta que llegue el terreno de Álvaro. Determinista: el mismo script da los mismos píxeles.
+y la calima de día adaptada. Son MAQUETAS de referencia para el prototipo de Marcos, dibujadas sobre el terreno del Hito 1
+de Álvaro (alturas, usos del suelo, posiciones y obstáculos de docs/hito1/terreno/; otra carpeta con ZUM_TERRENO=<ruta>).
+Determinista: el mismo script y los mismos datos dan los mismos píxeles.
 
 Uso: python build_zum.py <carpeta_salida>
 Salida: zum_0_regla.png (paleta, niveles y fundidos), zum_1_mapa.png, zum_2_comarca.png, zum_3_pueblo.png,
@@ -13,6 +14,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import sys
 from pathlib import Path
 
@@ -57,17 +59,6 @@ NIVELES = [
 ]
 FUNDIDO = 0.25   # cada cambio de nivel se funde a lo largo de ±25 % del umbral, con tramado Bayer (alfa binaria)
 
-# --- El mundo de la maqueta (2 × 2 km, x al este, y al sur, en metros) -------------------------------------------------
-W = 2000.0
-EST_A = (1460.0, 1610.0)        # estación A (sur, junto a la costa)
-EST_B = (1120.0, 520.0)         # estación B (puesto avanzado, norte)
-CASERIO = (760.0, 690.0)
-PELOTON = (815.0, 702.0)        # pelotón entrando en el caserío por el este
-VIA_HECHA = [EST_A, (1500, 1400), (1450, 1180), (1330, 980), (1250, 820)]          # tendida
-VIA_PREVIA = [(1250, 820), (1185, 690), (1120, 520)]                                 # vista previa válida hasta B
-VIA_MALA = [(1250, 820), (1150, 800), (1040, 735)]                                   # vista previa inválida (radio corto y casas)
-
-
 def ruido(x, y, s, semilla):
     """Ruido de valor suave determinista (x, y arrays en m, s = tamaño de celda)."""
     gx, gy = x / s, y / s
@@ -84,41 +75,110 @@ def ruido(x, y, s, semilla):
     return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy
 
 
-def campos(x, y):
-    """Altura (m), costa, cauce, carretera y huerta del mundo inventado."""
-    costa_x = 1760 + 60 * np.sin(y / 260.0) + 30 * ruido(x, y, 90, 3)
-    alt = 4 + 140 * np.clip((900 - x) / 900, 0, 1) ** 1.6 + 25 * ruido(x, y, 300, 1) + 8 * ruido(x, y, 70, 2)
-    cauce_y = 1290 + 90 * np.sin(x / 310.0) + 25 * ruido(x, y, 160, 4)
-    d_cauce = np.abs(y - cauce_y)
-    alt = alt - 6 * np.clip(1 - d_cauce / 60, 0, 1)
-    carretera_x = 1290 + 45 * np.sin(y / 420.0)
-    d_carr = np.abs(x - carretera_x)
-    return alt, costa_x, d_cauce, d_carr
+
+# --- El mundo: el terreno del Hito 1 de Álvaro (docs/hito1/terreno-hito1.md) -----------------------------------------
+# Las láminas usan x = X (este) e y = 2048 − Z (sur hacia abajo, norte arriba), igual que usos_2049.png.
+DATOS = Path(os.environ.get("ZUM_TERRENO", "/mnt/project-files/docs/hito1/terreno"))
+W = 2048.0
+USO = {"mar": 0, "playa": 1, "marjal": 2, "huerta": 3, "secano": 4, "monte": 5, "cauce": 6, "carretera": 7,
+       "explanada": 8, "caserio": 9, "naranjal": 10}
 
 
-def casas_caserio():
-    """Huellas del caserío (cx, cy, ancho, fondo, giro, estado 0..2) en m."""
-    r = []
-    rnd = np.random.RandomState(7)
-    for i in range(9):
-        a = i * 0.7 + rnd.uniform(-0.2, 0.2)
-        d = 18 + 9 * i ** 0.8
-        r.append((CASERIO[0] + d * math.cos(a), CASERIO[1] + d * math.sin(a), rnd.uniform(9, 15), rnd.uniform(7, 11),
-                  rnd.uniform(-0.3, 0.3), i % 3))
-    return r
+def _filas(nombre):
+    with open(DATOS / nombre, encoding="utf-8") as f:
+        cab = f.readline().strip().split(";")
+        for ln in f:
+            if ln.strip():
+                yield dict(zip(cab, ln.rstrip("\n").split(";")))
 
 
-CASAS = casas_caserio()
+def P_(x, z):
+    """Del sistema de Álvaro (X este, Z norte) a la lámina."""
+    return (float(x), W - float(z))
 
 
-def zombis(n=100):
-    rnd = np.random.RandomState(11)
-    a = rnd.uniform(0, 2 * math.pi, n)
-    d = np.abs(rnd.normal(0, 38, n)) + 4
-    return np.stack([CASERIO[0] + d * np.cos(a), CASERIO[1] + d * np.sin(a)], 1)
+POS = {r["id"]: r for r in _filas("posiciones_hito1.csv")}
+EST_A = P_(POS["A"]["x_m"], POS["A"]["z_m"])                     # (1060, 1618)
+EST_B = P_(POS["B"]["x_m"], POS["B"]["z_m"])                     # (1300, 408)
+RECINTO = {"A": (EST_A, float(POS["A"]["ancho_m"]), float(POS["A"]["fondo_m"])),
+           "B": (EST_B, float(POS["B"]["ancho_m"]), float(POS["B"]["fondo_m"]))}
+CASERIO = P_(POS["caserio"]["x_m"], POS["caserio"]["z_m"])       # (1440, 568), terreno v2
+DEPOSITO = P_(POS["deposito_material"]["x_m"], POS["deposito_material"]["z_m"])
+PELOTON = (1440.0, 503.0)        # el pelotón ha bajado de B y entra por el portillo norte del caserío (X 1430–1450, Z 1538)
+ZOMBIS = np.array([P_(r["x_m"], r["z_m"]) for r in POS.values() if r["tipo"] == "zombi"])
+
+# Vía: sale de A hacia el norte por el eje del recinto, cruza la carretera vieja a nivel y entra en B por el sur.
+VIA_HECHA = [(EST_A[0], EST_A[1] + 40), (1060, 1560), (1078, 1480), (1170, 1050), (1255, 650)]   # tendida
+VIA_PREVIA = [(1255, 650), (1290, 520), (1300, 460), (1300, 438)]                      # válida hasta B
+VIA_MALA = [(1255, 650), (1320, 610), (1395, 585)]          # inválida: se mete en el caserío
+VIA_CERRADA = [(1255, 650), (1235, 570), (1258, 548), (1290, 560)]   # inválida: curva demasiado cerrada
+LIBRE = [(1255, 650), (1243, 570)]                                  # ratón libre desde la punta
+PUNTA = (1264, 617)                                                 # hasta dónde ha llegado la cuadrilla
 
 
-ZOMBIS = zombis()
+def largo(pts):
+    return sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(pts[:-1], pts[1:]))
+
+
+TOTAL = largo(VIA_HECHA + VIA_PREVIA[1:])                  # A–B por la vía (Álvaro: unos 1250 m)
+
+
+def pales(m):
+    return math.ceil(m / 100)          # un palé de material por cada 100 m (cifra de maqueta, SIN VERIFICAR: es de Hugo)
+
+
+def texto_via(m):
+    m = int(round(m, -1))
+    p = pales(m)
+    return f"{m} m · {p} palé" + ("" if p == 1 else "s")
+
+
+def _obst():
+    casas, tapias = [], []
+    for r in _filas("obstaculos_hito1.csv"):
+        x0, z0, x1, z1 = (int(r[k]) / 1000 for k in ("x0_mm", "z0_mm", "x1_mm", "z1_mm"))
+        if r["tipo"] == "edificio":
+            n = len(casas)
+            e = {"casa_ruina": 1 + n % 2}.get(r["nota"], 0)          # las casas en ruinas, hundidas o sin tejado
+            casas.append(((x0 + x1) / 2, W - (z0 + z1) / 2, x1 - x0, z1 - z0, 0.0, e))
+        elif r["tipo"] == "tapia":
+            tapias.append(((x0, W - z0), (x1, W - z1), 2 * int(r["medio_grosor_mm"]) / 1000))
+    return casas, tapias
+
+
+CASAS, TAPIAS = _obst()
+_T = {}
+
+
+def datos():
+    if not _T:
+        _T["usos"] = np.array(Image.open(DATOS / "usos_2049.png")).astype(np.int16)
+        _T["alt"] = np.array(Image.open(DATOS / "alturas_2049_u16.png")).astype(np.float32) * 128 / 65535 - 10
+    return _T
+
+
+def _hash(i, j, semilla):
+    v = (np.asarray(i).astype(np.int64) * 374761393 + np.asarray(j).astype(np.int64) * 668265263 + semilla * 1274126177) & 0xffffffff
+    v = ((v ^ (v >> 13)) * 1274126177) & 0xffffffff
+    return ((v ^ (v >> 16)) & 0xffff) / 65536.0
+
+
+def campos(x, y, jit=0.0):
+    """Altura (m, bilineal) y uso del suelo (más cercano, con el borde roto por ruido de ±jit m) en la ventana."""
+    t = datos()
+    fx, fy = np.clip(x, 0, W - 1e-3), np.clip(y, 0, W - 1e-3)
+    i0, j0 = np.floor(fx).astype(int), np.floor(fy).astype(int)
+    ax, ay = fx - i0, fy - j0
+    A = t["alt"]
+    alt = (A[j0, i0] * (1 - ax) * (1 - ay) + A[j0, i0 + 1] * ax * (1 - ay) + A[j0 + 1, i0] * (1 - ax) * ay
+           + A[j0 + 1, i0 + 1] * ax * ay)
+    if jit:
+        x = x + jit * (ruido(x, y, 2.5, 31) - 0.5) * 2
+        y = y + jit * (ruido(x, y, 2.5, 32) - 0.5) * 2
+    uso = t["usos"][np.clip(np.rint(y), 0, W).astype(int), np.clip(np.rint(x), 0, W).astype(int)]
+    fuera = (x < 0) | (x > W) | (y < 0) | (y > W)
+    return alt, uso, fuera
+
 
 # --- utilidades de dibujo ---------------------------------------------------------------------------------------------
 
@@ -270,83 +330,121 @@ F_T, F_N, F_P = fuente(22), fuente(14), fuente(12)
 
 
 def terreno_mapa(L):
-    """Mapa: el plano táctico oscuro de siempre (MapaTactico, D-N113), con la red construible encima."""
-    alt, costa_x, d_cauce, d_carr = campos(L.X, L.Y)
-    bandas = np.where(alt < 40, 0, np.where(alt < 90, 1, 2))
-    cols = [rgb("olive_shadow"), rgb("grey_brown"), rgb("olive_grey")]
-    for i, c in enumerate(cols):
+    """Mapa: el plano táctico oscuro de siempre (MapaTactico, D-N113) sobre el terreno de Álvaro, con la red encima."""
+    alt, uso, fuera = campos(L.X, L.Y)
+    bandas = np.where(alt < 15, 0, np.where(alt < 45, 1, 2))
+    for i, c in enumerate(("olive_shadow", "grey_brown", "olive_grey")):
         L.pon(bandas == i, c)
     # sombreado de ladera: la que mira al noroeste sube un escalón (tramado al 50 %)
     gx = np.gradient(alt, axis=1)
     gy = np.gradient(alt, axis=0)
-    luz = (-gx - gy) > 0.9 * L.mpp / 4
+    luz = (-gx - gy) > 0.25 * L.mpp
     L.pon(luz & (bandas == 0), "grey_brown", 0.5, True)
     L.pon(luz & (bandas == 1), "olive_grey", 0.5, True)
-    # curvas cada 20 m y maestras cada 100 m
-    for paso, c in ((20, "olive_dark"), (100, "concrete")):
+    # naranjales y marjal: tramas suaves sobre la banda baja
+    L.pon(uso == USO["naranjal"], "olive_dark", 0.35, True)
+    L.pon(uso == USO["marjal"], "slate", 0.35, True)
+    # curvas cada 5 m y maestras cada 25 m (como el plano de cotas de Álvaro)
+    for paso, c in ((5, "olive_dark"), (25, "concrete")):
         q = np.floor(alt / paso)
         borde = (q != np.roll(q, 1, 0)) | (q != np.roll(q, 1, 1))
-        L.pon(borde & (alt > 10), c)
-    # huerta en el llano: lindes de parcela
-    hu = (alt < 30) & (L.X < costa_x - 40)
-    u = (L.X * 0.96 + L.Y * 0.28)
-    v = (-L.X * 0.28 + L.Y * 0.96)
-    lindes = ((np.floor(u / 60) != np.floor((u - L.mpp) / 60)) | (np.floor(v / 110) != np.floor((v - L.mpp) / 110)))
-    L.pon(hu & lindes, "olive_dark", 0.35, True)
-    L.pon(d_carr < max(4, L.mpp), "concrete")
-    L.pon(d_cauce < max(10, L.mpp), "slate_dark")
-    L.pon(d_cauce < max(3, L.mpp * 0.6), "concrete")
-    L.pon(L.X >= costa_x, "navy")
-    borde_costa = (L.X >= costa_x) & (L.X - L.mpp < costa_x)
-    L.pon(borde_costa, "concrete_light")
+        L.pon(borde & (alt > 0.5) & (uso != USO["cauce"]), c)
+    L.pon(uso == USO["cauce"], "slate_dark")
+    L.pon(uso == USO["carretera"], "concrete")
+    L.pon(uso == USO["explanada"], "grey_brown")
+    L.pon(uso == USO["mar"], "navy")
+    mar = uso == USO["mar"]
+    L.pon(mar & ~np.roll(mar, 1, 1), "concrete_light")                 # línea de costa
     for (cx, cy, w, h, g, e) in CASAS:
         L.rect_m(cx, cy, w + 2, h + 2, g, "olive_grey")
+    L.pon(fuera, "olive_black")                                        # fuera del mundo
+    borde = fuera & ~(np.roll(fuera, 1, 1) & np.roll(fuera, -1, 1) & np.roll(fuera, 1, 0) & np.roll(fuera, -1, 0))
+    L.pon(borde, "concrete")
 
 
 def terreno_dia(L, detalle):
-    """Comarca, pueblo y soldado: el suelo de día de la zona (texturas de suelo de Sagunto), con más detalle cuanto más cerca."""
-    alt, costa_x, d_cauce, d_carr = campos(L.X, L.Y)
+    """Comarca, pueblo y soldado: el suelo de día por usos del suelo (texturas de suelo de Sagunto), con más detalle cuanto más cerca."""
+    alt, uso, fuera = campos(L.X, L.Y, jit=1.2 if L.mpp < 0.5 else 0.0)
     mota = ruido(L.X, L.Y, max(L.mpp * 2, 0.2), 9)
-    seca = alt >= 30
-    L.pon(np.ones_like(seca), "tan")                                   # apisonada
-    L.pon(seca & (mota > 0.55), "beige")                               # seca en los altos
-    L.pon(~seca & (mota > 0.62), "ochre_dark", 1.0)                    # motas
-    hu = (alt < 30) & (L.X < costa_x - 40)
-    u = (L.X * 0.96 + L.Y * 0.28)
-    v = (-L.X * 0.28 + L.Y * 0.96)
-    parcela = (np.floor(u / 60) * 7 + np.floor(v / 110) * 13) % 5
-    lindes = ((np.floor(u / 60) != np.floor((u - L.mpp) / 60)) | (np.floor(v / 110) != np.floor((v - L.mpp) / 110)))
-    naranjal = hu & (parcela <= 1)
-    labrada = hu & (parcela == 2)
+    mota2 = ruido(L.X, L.Y, max(L.mpp * 6, 0.6), 19)
+    es = {k: uso == v for k, v in USO.items()}
+    # base: tierra apisonada; secano y caserío más secos
+    L.pon(np.ones(uso.shape, bool), "tan")
+    mota_g = ruido(L.X, L.Y, max(L.mpp * 2, 1.2), 29)                 # tierra del caserío: manchas de metro, no sal y pimienta
+    L.pon(es["secano"] & (mota > 0.55), "beige")
+    L.pon(es["caserio"] & (mota_g > 0.74), "beige")
+    L.pon(es["caserio"] & (mota_g < 0.2), "ochre_dark", 0.5, True)
+    L.pon(es["huerta"] & (mota > 0.62), "ochre_dark")
+    # huerta: parcelas labradas (surcos), en barbecho o verdes, con lindes
+    u, v = L.X, L.Y
+    col = np.floor(u / 34)
+    desf = _hash(col, 0, 41) * 46                                        # cada franja de parcelas, con su desfase
+    fila = np.floor((v + desf) / 46)
+    parcela = (_hash(col, fila, 43) * 7).astype(int)                     # 0–1 labrada, 2 verde, 3–6 barbecho
+    lindes = (col != np.floor((u - L.mpp) / 34)) | (fila != np.floor((v + desf - L.mpp) / 46))
+    labrada = es["huerta"] & (parcela <= 1)
     L.pon(labrada, "brown")
-    surco = (np.floor(u / 2.4) % 2) == 0
-    L.pon(labrada & surco, "ochre_dark")
-    L.pon(naranjal, "ochre_dark")
-    # naranjos en marco de 5 m (copa de 2 m): se dibujan como manchas oliva con sombra al sureste
-    cu, cv = (u % 5) - 2.5, (v % 5) - 2.5
-    copa = naranjal & (np.hypot(cu, cv) < 1.3)
-    sombra = naranjal & (np.hypot(cu - 0.6, cv - 0.6) < 1.3) & ~copa
+    L.pon(labrada & ((np.floor(v / 2.4) % 2) == 0), "ochre_dark")
+    verde = es["huerta"] & (parcela == 2)
+    L.pon(verde, "olive_dark")
+    L.pon(verde & (mota > 0.6), "olive")
+    L.pon(es["huerta"] & lindes, "olive_grey")
+    # naranjal: hileras de este a oeste, marco de 5 × 4 m, copa de 2,6 m con sombra al sureste
+    L.pon(es["naranjal"], "ochre_dark")
+    cu, cv = (u % 5) - 2.5, (v % 4) - 2.0
+    copa = es["naranjal"] & (np.hypot(cu, cv) < 1.3)
+    sombra = es["naranjal"] & (np.hypot(cu - 0.6, cv - 0.6) < 1.3) & ~copa
     L.pon(sombra, "olive_shadow")
     L.pon(copa, "olive")
     L.pon(copa & (np.hypot(cu + 0.4, cv + 0.4) < 0.6), "olive_light")
-    L.pon(hu & lindes, "olive_grey")
-    # carretera vieja y cauce
-    L.pon(d_carr < 4.5, "concrete")
-    L.pon((d_carr < 4.5) & (mota > 0.7), "concrete_light")
-    L.pon((d_carr >= 4.5) & (d_carr < 5.5), "grey_brown")
-    L.pon(d_cauce < 12, "olive_grey")
-    L.pon(d_cauce < 4, "concrete")
-    L.pon((d_cauce >= 3.4) & (d_cauce < 4.0), "concrete_light")
-    L.pon(L.X >= costa_x - 25, "beige")                                 # playa
-    L.pon(L.X >= costa_x, "slate")
-    L.pon((L.X >= costa_x) & (mota > 0.75), "concrete")
-    if detalle >= 3:     # soldado: grietas y rodadas de las texturas de cerca
-        grieta = (np.abs(ruido(L.X, L.Y, 3.0, 21) - 0.5) < 0.005) & (alt >= 0)
-        L.pon(grieta & ~hu, "brown")
+    # secano y monte: matas y pinos sueltos
+    L.pon(es["monte"], "grey_brown")
+    L.pon(es["monte"] & (mota2 > 0.5), "olive_shadow")
+    L.pon(es["monte"] & (mota > 0.7), "olive")
+    L.pon(es["secano"] & (mota2 > 0.72), "olive_grey")
+    # marjal: carrizo con charcos
+    L.pon(es["marjal"], "olive")
+    L.pon(es["marjal"] & (mota2 > 0.55), "olive_grey")
+    L.pon(es["marjal"] & (mota2 < 0.22), "slate")
+    # cauce seco: lecho de grava con el borde claro
+    L.pon(es["cauce"], "olive_grey")
+    L.pon(es["cauce"] & (mota > 0.6), "concrete")
+    borde_c = es["cauce"] & ~(np.roll(es["cauce"], 2, 0) & np.roll(es["cauce"], -2, 0))
+    L.pon(borde_c, "concrete_light")
+    # carretera vieja con cuneta
+    cuneta = ~es["carretera"] & (np.roll(es["carretera"], 2, 1) | np.roll(es["carretera"], -2, 1))
+    L.pon(cuneta, "grey_brown")
+    L.pon(es["carretera"], "concrete")
+    L.pon(es["carretera"] & (mota > 0.7), "concrete_light")
+    # explanadas de las estaciones
+    L.pon(es["explanada"], "grey_brown")
+    L.pon(es["explanada"] & (mota > 0.6), "concrete")
+    # playa y mar
+    L.pon(es["playa"], "beige")
+    L.pon(es["mar"], "slate")
+    L.pon(es["mar"] & (mota > 0.75), "concrete")
+    if detalle >= 3:     # soldado: grietas de las texturas de cerca
+        grieta = np.abs(ruido(L.X, L.Y, 3.0, 21) - 0.5) < 0.0025
+        L.pon(grieta & ~es["huerta"] & ~es["naranjal"], "brown")
+    L.pon(fuera, "olive_black")
+
+
+def estaciones_dia(L):
+    """Recinto de cada estación (Álvaro): vía por el eje norte–sur, andén al este y el edificio al oeste."""
+    for (cx, cy), an, fo in RECINTO.values():
+        L.rect_m(cx, cy, an, fo, 0, "concrete")
+        L.rect_m(cx + 5, cy, 4, fo * 0.8, 0, "concrete_light")                     # andén
+        L.rect_m(cx - an / 2 + 7 + 1.5, cy + 1.5, 10, 16, 0, "grey_brown")        # sombra
+        L.rect_m(cx - an / 2 + 7, cy, 10, 16, 0, "rose")                          # edificio
+        L.rect_m(cx - an / 2 + 4.5, cy, 5, 16, 0, "tan")
+        via_dia(L, [(cx, cy - fo / 2), (cx, cy + fo / 2)])
 
 
 def casas_dia(L, im_d, detalle):
-    """Casas del caserío: tejado (terracota o hundido), sombra al sureste (sol del noroeste)."""
+    """Edificios y tapias del caserío (obstaculos_hito1.csv): tejado (terracota o hundido), sombra al sureste (sol del noroeste)."""
+    for (a, b, g) in TAPIAS:
+        L.linea([(a[0] + 0.5, a[1] + 0.5), (b[0] + 0.5, b[1] + 0.5)], "brown", g)        # sombra
+        L.linea([a, b], "concrete_light", g)
     for (cx, cy, w, h, g, e) in CASAS:
         L.rect_m(cx + 1.5, cy + 1.5, w, h, g, "grey_brown")               # sombra
         L.rect_m(cx, cy, w, h, g, "concrete_light" if e == 2 else "rose")
@@ -460,11 +558,11 @@ def envuelve(t, f, ancho, d):
 
 
 def lamina_mapa(out):
-    L = Lienzo(PW, PH, 1080, 1000, 1.25 * 2000 / PW)
+    L = Lienzo(PW, PH, 1150, 1010, 3.9)
     terreno_mapa(L)
     # horda del caserío: mancha roja tramada (MapaTactico.Mancha, D-N185)
     d = np.hypot(L.X - CASERIO[0], L.Y - CASERIO[1])
-    dens = np.clip(1 - d / 95, 0, 1)
+    dens = np.clip(1 - d / 85, 0, 1)
     L.pon(dens > 0.05, "red_bright", 0.85 * dens.max(), True) if False else None
     m = (dens > 0.05) & (BAYER[L.J % 4, L.I % 4] < np.clip((dens - 0.05) * 1.6, 0, 0.85))
     L.pon(m, "red_bright")
@@ -481,7 +579,7 @@ def lamina_mapa(out):
         px, py = P(x, y)
         pega(im, icono("estacion", 32), px, py)
         placa(dr, px + 20, py - 12, nom, F_P)
-    tx, ty = P(1450, 1180)
+    tx, ty = P(1157, 1110)
     pega(im, icono("tren", 32, relleno=LINEAS[0], girar=1), tx, ty)
     placa(dr, tx + 20, ty - 10, "L1 · 4 cajas por viaje · un viaje cada 7,2 min", F_P, tinta="cream")
     px, py = P(*PELOTON)
@@ -489,12 +587,12 @@ def lamina_mapa(out):
     placa(dr, px + 18, py + 6, "1.º pelotón · 52 %", F_P)
     cx, cy = P(*VIA_HECHA[-1])
     pega(im, icono("cuadrilla", 32), cx + 22, cy + 8)
-    zx, zy = P(*CASERIO)
-    pega(im, icono("deposito", 32), zx - 30, zy - 24)
+    zx, zy = P(*DEPOSITO)
+    pega(im, icono("deposito", 32), zx - 26, zy + 22)
     im = im.convert("RGB")
     lam = marco(im, "1 · MAPA", [
         "Qué se ve:",
-        "• El plano táctico oscuro de siempre (D-N113): bandas de altura, curvas cada 20 m y maestras cada 100, mar navy, costa en 94948c, lindes de la huerta.",
+        "• El plano táctico oscuro de siempre (D-N113): bandas de altura, curvas cada 5 m y maestras cada 25 (como el plano de Álvaro), mar navy, costa en 94948c, trama de naranjales y marjal. Fuera de los 2 × 2 km, olive_black con borde.",
         "• La red: vía tendida en hueso de 2 px; cada línea, en guiones de su color por fuera de la vía (L1 crema). Nunca rojo ni ámbar en una línea.",
         "• Iconos de 32 px de tamaño fijo en pantalla: estación (disco), tren de la línea teñido de su color y girado con el rumbo, pelotón, cuadrilla y depósito.",
         "• Placas: almacén en cajas, la línea como «4 cajas por viaje · un viaje cada 7,2 min» y la munición del pelotón. Nunca «por hora»: el reloj va a ×30 y el movimiento a 1:1 (D-N208). Las raciones, por día de juego.",
@@ -505,8 +603,9 @@ def lamina_mapa(out):
 
 
 def lamina_comarca(out):
-    L = Lienzo(PW, PH, 1040, 690, 1.0)
+    L = Lienzo(PW, PH, 1300, 560, 1.0)
     terreno_dia(L, 1)
+    estaciones_dia(L)
     casas_dia(L, None, 1)
     via_dia(L, VIA_HECHA)
     calima(L, 0.22)
@@ -527,11 +626,11 @@ def lamina_comarca(out):
     pega(im, icono("estacion", 32), bx, by)
     placa(dr, bx + 22, by - 12, "B · 18 cajas", F_P)
     # aspa ámbar en el punto que invalida (radio < 150 m y casas)
-    ax, ay = P(1040, 735)
+    ax, ay = P(1370, 593)
     aspa(dr, ax, ay)
-    placa(dr, ax - 120, ay + 14, "Curva demasiado cerrada", F_P, tinta="amber", borde="amber")
-    mx, my = P(1185, 690)
-    placa(dr, mx + 14, my - 4, "330 m · 4 palés", F_P, tinta="bone")
+    placa(dr, ax - 40, ay + 34, "Atraviesa el caserío", F_P, tinta="amber", borde="amber")
+    mx, my = P(*VIA_PREVIA[1])
+    placa(dr, mx + 14, my - 4, texto_via(largo(VIA_PREVIA)), F_P, tinta="bone")
     px, py = P(*PELOTON)
     pega(im, icono("soldado", 32), px + 20, py - 20)
     cx, cy = P(*VIA_HECHA[-1])
@@ -539,7 +638,7 @@ def lamina_comarca(out):
     im = im.convert("RGB")
     lam = marco(im, "2 · COMARCA", [
         "Qué se ve:",
-        "• El suelo de día ya cocido por trozos (huerta, naranjos, carretera, cauce, playa) y las casas como tejados con sombra. Sin modelos 3D todavía: huellas planas.",
+        "• El suelo de día por usos (huerta, naranjales en hileras, carretera vieja, explanadas de estación) y el caserío como tejados y tapias con sombra. Sin modelos 3D todavía: huellas planas.",
         "• La vía tendida con su balasto y sus raíles; las traviesas aún no.",
         "• Calima de día al 22 % (D-N197 adaptada): perspectiva aérea, no franja.",
         "• Unidades y trenes siguen como iconos de 32 px (un pelotón mide aquí menos de 10 px: no se leería).",
@@ -572,7 +671,7 @@ SOLDADOS = [(PELOTON[0] - 8 + 2.2 * i, PELOTON[1] - 2 + (i % 3) * 1.8) for i in 
 
 
 def lamina_pueblo(out):
-    L = Lienzo(PW, PH, CASERIO[0] + 22, CASERIO[1] + 4, 0.14)
+    L = Lienzo(PW, PH, 1442, 520, 0.14)
     terreno_dia(L, 2)
     casas_dia(L, None, 2)
     calima(L, 0.10)
@@ -592,15 +691,13 @@ def lamina_pueblo(out):
     # barra de munición del pelotón sobre el icono (hueso sobre olive_shadow; ámbar por debajo del 25 %)
     dr.rectangle([px - 16, py - 24, px + 16, py - 20], fill=tuple(int(v) for v in rgb("olive_shadow")))
     dr.rectangle([px - 16, py - 24, px - 16 + int(32 * 0.52), py - 20], fill=tuple(int(v) for v in rgb("bone")))
-    zx, zy = P(*CASERIO)
-    pega(im, icono("deposito", 16), zx, zy - 30)
     im = im.convert("RGB")
     lam = marco(im, "3 · PUEBLO", [
         "Qué se ve:",
         "• Los modelos 3D de Teo (casas en ruinas, vía, estación) y el suelo con las texturas de cerca. Es la vista de zona de ahora.",
         "• Cada soldado y cada zombi con cuerpo. Los zombis, en la banda de la horda (L* 9–13, 1c200c) sobre el suelo de día: ΔL* ≥ 8.",
         "• El pelotón con su anillo de selección y, encima, un icono de 16 px con la barra de munición (ámbar por debajo del 25 %). El icono se apaga del todo al pasar a SOLDADO.",
-        "• El depósito de material con su icono de 16 px hasta que se recoge.",
+        "• El pelotón entra por el portillo norte del caserío, con los cien zombis de Álvaro dentro de las tapias. El depósito de material (más al sur, fuera de esta ventana) lleva su icono de 16 px hasta que se recoge.",
         "• Calima al 10 %.",
         "Qué NO se ve: la mancha roja (aquí los zombis ya son individuos), las placas de almacén (pasan a la interfaz).",
     ], "pueblo")
@@ -608,13 +705,14 @@ def lamina_pueblo(out):
 
 
 def lamina_soldado(out):
-    cx, cy = SOLDADOS[3][0] - 4, SOLDADOS[3][1] - 2
+    cx, cy = PELOTON[0], PELOTON[1] + 3
     L = Lienzo(PW, PH, cx, cy, 0.05)
     terreno_dia(L, 3)
+    casas_dia(L, None, 3)
     for (x, y) in ZOMBIS:
         if abs(x - cx) < 20 and abs(y - cy) < 12:
             figura(L, x, y, 1.8, "olive_black", cabeza="grey_brown")
-    extra = [(cx - 13, cy - 3), (cx - 14.5, cy + 1.5), (cx - 12, cy + 4), (cx - 15.5, cy - 6.5), (cx - 11, cy - 7.5)]
+    extra = [(cx - 4, cy + 4.5), (cx + 1.5, cy + 6), (cx + 6, cy + 4), (cx - 7.5, cy + 6.5), (cx + 9, cy + 6.8)]
     for (x, y) in extra:
         figura(L, x, y, 1.8, "olive_black", cabeza="grey_brown")
     for (x, y) in SOLDADOS:
@@ -646,45 +744,47 @@ def lamina_trazado(out):
     cajas = []
     titulos = ["1 · Libre", "2 · Engancha a B", "3 · Válido", "4 · Inválido", "5 · Tendiéndose"]
     for k in range(5):
-        L = Lienzo(240, 200, 1160, 675, 1.6)
+        L = Lienzo(240, 200, 1280, 560, 1.8)
         terreno_dia(L, 1)
+        estaciones_dia(L)
         casas_dia(L, None, 1)
         via_dia(L, VIA_HECHA)
         calima(L, 0.22)
         if k == 0:
-            L.linea([(1250, 820), (1215, 740)], "bone", 1.0, guiones_m=6)
-            L.disco(1215, 740, 3, "bone", anillo=1)
+            L.linea(LIBRE, "bone", 1.0, guiones_m=6)
+            L.disco(*LIBRE[-1], 3, "bone", anillo=1)
         if k == 1:
-            L.linea([(1250, 820), (1185, 690), (1132, 548)], "bone", 1.0, guiones_m=6)
-            L.disco(*EST_B, 9, "bone", anillo=2)
+            L.linea(VIA_PREVIA[:-1] + [(1300, 448)], "bone", 1.0, guiones_m=6)
+            L.disco(*VIA_PREVIA[-1], 9, "bone", anillo=2)
         if k == 2:
             L.linea(VIA_PREVIA, "bone", 4.2, alfa=0.55, tramado=True)
             L.linea(VIA_PREVIA, "bone", 1.0, guiones_m=6)
         if k == 3:
-            invalido(L, VIA_MALA)
+            invalido(L, VIA_CERRADA)
         if k == 4:
-            via_dia(L, [(1250, 820), (1215, 750)])
-            L.linea([(1215, 750), (1185, 690), (1120, 520)], "bone", 4.2, alfa=0.3, tramado=True)
+            via_dia(L, [VIA_PREVIA[0], PUNTA])
+            L.linea([PUNTA] + VIA_PREVIA[1:], "bone", 4.2, alfa=0.3, tramado=True)
         im = L.imagen(2).convert("RGBA")
         dr = ImageDraw.Draw(im)
         if k == 3:
-            a, b = L.a_px(1040, 735)
+            a, b = L.a_px(*VIA_CERRADA[2])
             a, b = a * 2, b * 2
             aspa(dr, a, b)
-            placa(dr, a - 60, b + 14, "Pendiente excesiva", F_P, tinta="amber", borde="amber")
+            placa(dr, a - 150, b - 34, "Curva demasiado cerrada", F_P, tinta="amber", borde="amber")
         if k == 0:
-            a, b = L.a_px(1215, 740)
-            placa(dr, a * 2 + 12, b * 2 - 10, "90 m · 1 palé", F_P)
+            a, b = L.a_px(*LIBRE[-1])
+            placa(dr, a * 2 + 12, b * 2 - 10, texto_via(largo(LIBRE)), F_P)
         if k == 1:
-            a, b = L.a_px(*EST_B)
-            placa(dr, a * 2 + 22, b * 2 + 4, "1250 m · 13 palés", F_P)
+            a, b = L.a_px(*VIA_PREVIA[-1])
+            placa(dr, a * 2 - 150, b * 2 + 14, texto_via(TOTAL), F_P)
         if k == 2:
-            a, b = L.a_px(1185, 690)
-            placa(dr, a * 2 + 12, b * 2 - 10, "1250 m · 13 palés", F_P)
+            a, b = L.a_px(*VIA_PREVIA[1])
+            placa(dr, a * 2 + 12, b * 2 - 10, texto_via(TOTAL), F_P)
         if k == 4:
-            a, b = L.a_px(1215, 750)
+            a, b = L.a_px(*PUNTA)
             pega(im, icono("cuadrilla", 32), a * 2 + 18, b * 2)
-            placa(dr, a * 2 - 190, b * 2 + 18, "Tendiendo · 480 de 1250 m", F_P)
+            hecho = int(round(largo(VIA_HECHA) + largo([VIA_PREVIA[0], PUNTA]), -1))
+            placa(dr, a * 2 - 200, b * 2 + 18, f"Tendiendo · {hecho} de {int(round(TOTAL, -1))} m", F_P)
         cajas.append(im.convert("RGB"))
     W_ = sum(c.width for c in cajas) + 20 * 6
     out_im = Image.new("RGB", (W_, cajas[0].height + 200), tuple(int(v) for v in rgb("navy")))
@@ -718,7 +818,8 @@ def lamina_regla(out):
     altos = [1600, 1050, 900, 760, 420, 250, 200, 60, 20]
     x = 20
     for k, a in enumerate(altos):
-        cx, cy = 1000 + (CASERIO[0] - 1000) * min(1, (1600 - a) / 1400), 700
+        f = min(1, (1600 - a) / 1400)
+        cx, cy = 1150 + (PELOTON[0] - 1150) * f, 1010 + (PELOTON[1] - 1010) * f
         mpp = a * 2 / 160
         A = Lienzo(160, 160, cx, cy, mpp)
         terreno_mapa(A)
@@ -777,7 +878,7 @@ def lamina_regla(out):
         pal[nombre] = ["%02x%02x%02x" % tuple(int(t) for t in rgb(c)) for c in cols]
         y += 56
     # prueba de los colores de línea sobre los dos fondos (Lucía, 11-11): suelo de día y plano del mapa
-    for k, (fondo, cx, cy, mpp) in enumerate((("dia", 1040, 690, 1.0), ("mapa", 1080, 1000, 3.9))):
+    for k, (fondo, cx, cy, mpp) in enumerate((("dia", 1300, 600, 1.0), ("mapa", 1150, 1010, 3.9))):
         Lc = Lienzo(300, 150, cx, cy, mpp)
         (terreno_dia if fondo == "dia" else terreno_mapa)(*((Lc, 1) if fondo == "dia" else (Lc,)))
         if fondo == "dia":
