@@ -179,18 +179,46 @@ namespace TBD.View
         // ---- A* de vehiculos (Nacho: NavGrid y VehicleNav en Units/Vehiculos.cs). Obstaculos: muros del recinto (E4 abierta), edificio, tren y obras (sacos).
         NavGrid _nav; readonly List<RectMm> _navObs = new List<RectMm>(), _navDyn = new List<RectMm>(); bool _navBuilt; float _navT;
         static int Mm(float m) { return (int)(m * 1000f); }
+        int _navSegSig = -1;
+        /// <summary>Firma del estado de los tramos (abierto o cerrado): si cambia (puertas que se cierran con el asedio, brechas, reconstrucciones), la rejilla se rehace al momento.</summary>
+        int NavSegSig() { if (_segs.Count == 0) return 0; int h = _segs.Count; foreach (var s in _segs) h = h * 31 + (s.Open ? 1 : 2); return h; }
         void BuildNavIfNeeded()
         {
-            if (_ng == null) return; if (_navBuilt && Time.unscaledTime - _navT < 5f) return;
-            _navBuilt = true; _navT = Time.unscaledTime;
-            _navObs.Clear(); NavGrid.FortWalls(_navObs, 70000, 44000, 156000, 85000, 95000, 103000);
-            _navObs.Add(_ng.P.StationRect); _navObs.Add(_ng.P.TrainRect);
+            if (_ng == null) return; int sig = NavSegSig(); if (_navBuilt && sig == _navSegSig && Time.unscaledTime - _navT < 5f) return;
+            bool cambioTramos = _navBuilt && sig != _navSegSig;
+            _navBuilt = true; _navT = Time.unscaledTime; _navSegSig = sig;
+            _navObs.Clear();
             var pieces = NetSession.A != null && _zoneNode >= 0 ? NetSession.A.Works.At(_zoneNode) : null;                // sacos y obras construidas
-            if (pieces != null) foreach (var w in pieces) if (w.IsWall && w.Built) { int x0 = Mathf.Min(w.X0, w.X1) + Mm(WorkOrigin.x), x1 = Mathf.Max(w.X0, w.X1) + Mm(WorkOrigin.x), y0 = Mathf.Min(w.Y0, w.Y1) + Mm(WorkOrigin.y), y1 = Mathf.Max(w.Y0, w.Y1) + Mm(WorkOrigin.y); _navObs.Add(new RectMm(x0 - 500, y0 - 500, x1 + 500, y1 + 500)); }
+            // Nacho (I-Noche178, el VAMTAC frenado contra el muro): antes, siempre el recinto fijo de FortWalls (70–156 × 44–85, solo E4 abierta) más las obras. Con los tramos de la D-N202
+            // el muro real es otro (cuatro lados, puertas abiertas de día y cerradas con el asedio) y, si la salida no era E4, no había camino y el vehículo rehacía la ruta sin fin.
+            // Ahora: con tramos, los tramos CERRADOS (las puertas abiertas y las brechas no bloquean); sin tramos, las piezas de muro construidas y las puertas cerradas;
+            // sin ninguna obra, el recinto fijo de antes con los límites de Level.
+            bool hayTramos = _segs.Count > 0, hayObras = false;
+            if (hayTramos) foreach (var sg in _segs) { if (sg.Open) continue; _navObs.Add(SegRect(sg.A, sg.B)); }
+            if (pieces != null) for (int pi = 0; pi < pieces.Count; pi++)
+            {
+                var w = pieces[pi]; if (!w.Built || !(w.IsWall || w.IsGate)) continue; hayObras = true;
+                if (hayTramos) { bool enTramo = false; foreach (var sg in _segs) if (sg.Pieza == pi) { enTramo = true; break; } if (enTramo) continue; }      // ya va (o no, si está abierto) por su tramo
+                if (w.IsGate && !PuertaVehCerrada(pi)) continue;                                                             // puerta abierta: se pasa
+                var a = new Vector2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f); var b = new Vector2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f);
+                _navObs.Add(SegRect(a, b));
+            }
+            if (!hayTramos && !hayObras) NavGrid.FortWalls(_navObs, Mm(Level.FortX0), Mm(Level.FortY0), Mm(Level.FortX1), Mm(Level.FortY1), 95000, 103000);
+            _navObs.Add(_ng.P.StationRect); _navObs.Add(_ng.P.TrainRect);
             if (_nav == null) _nav = new NavGrid(0, 0, 510000, 480000, 1000);
             _nav.Build(_navObs, 2000);
             if (_uw != null) { _uw.Obstacles.Clear(); _uw.Obstacles.AddRange(_navObs); }                                  // la infanteria tambien rodea (D-N139)
+            if (cambioTramos) foreach (var o in _vehs)                                                                       // una puerta se cierra o se abre una brecha: los que van de camino recalculan
+            {
+                if (o.Heli || o.Go == null || !o.Nav.HasGoal) continue; int gx = o.Nav.GoalX, gy = o.Nav.GoalY;
+                o.Nav.SetGoal(_nav, Mm(o.Pos.x), Mm(o.Pos.y), gx, gy, OthersOf(o)); o.HasTarget = o.Nav.HasGoal;
+                if (!o.HasTarget) Debug.Log($"[VEH] {o.Name}: sin camino a ({gx / 1000f:0.0}; {gy / 1000f:0.0}) tras cambiar el muro (puerta cerrada o tramo reconstruido); se para");
+            }
+            int abiertos = 0; foreach (var sg in _segs) if (sg.Open) abiertos++;
+            Debug.Log($"[VEH] rejilla de paso: {_navObs.Count} obstáculos ({(hayTramos ? _segs.Count + " tramos, " + abiertos + " abiertos" : hayObras ? "obras sin tramos" : "recinto fijo")})");
         }
+        /// <summary>Un tramo (en metros de la zona) como rectángulo en mm con 1 m de grueso.</summary>
+        static RectMm SegRect(Vector2 a, Vector2 b) { int x0 = Mm(Mathf.Min(a.x, b.x)), x1 = Mm(Mathf.Max(a.x, b.x)), y0 = Mm(Mathf.Min(a.y, b.y)), y1 = Mm(Mathf.Max(a.y, b.y)); return new RectMm(x0 - 500, y0 - 500, x1 + 500, y1 + 500); }
         IList<RectMm> OthersOf(Veh me)
         {
             _navDyn.Clear(); foreach (var o in _vehs) { if (o == me || o.Go == null || o.Heli) continue; _navDyn.Add(new RectMm(Mm(o.Pos.x) - 2000, Mm(o.Pos.y) - 2000, Mm(o.Pos.x) + 2000, Mm(o.Pos.y) + 2000)); }
@@ -201,6 +229,7 @@ namespace TBD.View
         void GroundStep(Veh v, float dt)
         {
             float maxSpeed = 9f, accel = 4f, wheelbase = 4.5f, maxSteer = 35f;
+            if (v.HasTarget && _nav != null && v.Nav.HasGoal && NavSegSig() != _navSegSig) BuildNavIfNeeded();             // Nacho: el muro ha cambiado durante el viaje
             if (v.HasTarget && _nav != null && v.Nav.HasGoal) { if (v.Nav.Steer(_nav, Mm(v.Pos.x), Mm(v.Pos.y), out int ax, out int ay, OthersOf(v))) { v.Target = new Vector2(ax / 1000f, ay / 1000f); } else v.HasTarget = false; }
             float desired = 0f, steerCmd = 0f;
             if (v.HasTarget)

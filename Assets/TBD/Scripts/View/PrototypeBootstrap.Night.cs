@@ -40,7 +40,7 @@ namespace TBD.View
     {
         // ---------------------------------------------------------------- estado
         bool _nightOn, _nightInit; NightGame _ng; UnitsWorld _uw; readonly List<SpawnPoint> _spawns = new List<SpawnPoint>(); StepResult _res = new StepResult();
-        readonly List<Target> _tgt = new List<Target>(); readonly HashSet<uint> _killSet = new HashSet<uint>();
+        readonly List<Target> _tgt = new List<Target>(), _tgtTodos = new List<Target>(); readonly HashSet<uint> _killSet = new HashSet<uint>();
         int _nightKills, _nightLost, _nightShotsSpent; int _lastWave = -1; float _bannerUntil; string _bannerText = "";
         /// <summary>QA (Sara): las trazas no se sobrescriben entre corridas: «_normal_s3» con la dificultad y la semilla de -semilla (vacío sin -semilla).</summary>
         static string TrazaSufijo { get { var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-semilla"), d = System.Array.IndexOf(a, "-dificultad"); if (i < 0 || i + 1 >= a.Length) return ""; return "_" + (d >= 0 && d + 1 < a.Length ? a[d + 1] : "normal") + "_s" + a[i + 1]; } }
@@ -116,6 +116,10 @@ namespace TBD.View
                 if (sim != null && sim.JsonForce != null && sim.JsonForce.Count > 1) _puestoEnviado = new Vector2Int(sim.JsonForce[1].Value[0], sim.JsonForce[1].Value[1]);   // de noche, el pelotón enviado va donde lo midió NightSim (71,5; 70,5)
                 if (wz != null && _zoneNode >= 0) foreach (var pid in wz.Embarque.AtStation(_zoneNode, PasajeroTipo.Peloton)) { _embVistos.Add(pid); if (resume && !NightRun.Session.Emb.Add(pid)) continue; bool cercoE = wz.Cercada(_zoneNode); var pe = _uw.AddPlatoon(PlatoonKind.Fusileros, cercoE ? 176000 + 12000 * _escolta.Count : ex + 6000 * _escolta.Count, cercoE ? 60000 : ey, west, Formation.Linea); if (cercoE) _uw.Hold(pe.Id); _pname[pe.Id] = "Escolta " + (_escolta.Count + 1); _escolta.Add(pe.Id); }
                 string trenAqui = "ninguno"; if (wz != null) foreach (var sv in wz.Services) if (sv.AtStop && sv.Stops.Count > 0 && sv.Stops[sv.StopIndex].Node == _zoneNode) trenAqui = sv.Train.Name + (sv.GateNode == _zoneNode ? " (a las puertas)" : " (en el andén)");
+                // Eugenio (I-Noche178): el tren mandado a Nules llegaba «al andén» pero se dibujaba fuera de la puerta este (TrainRect de nules.json) hasta las 22:00.
+                // Si está en la parada y no a las puertas (sin asedio), va dentro desde que se entra en la zona, como hace IniciaNocheZona a las 22:00.
+                if (_ng.P.TrainNotDefeat && wz != null) foreach (var sv in wz.Services) if (sv.AtStop && sv.Stops.Count > 0 && sv.Stops[sv.StopIndex].Node == _zoneNode && sv.GateNode != _zoneNode)
+                { if (_ng.P.TrainRect.X1 != NightParams.Default().TrainRect.X1) { var pp = _ng.P; pp.TrainRect = NightParams.Default().TrainRect; _ng.P = pp; Debug.Log($"[NOCHE] {sv.Train.Name} en el andén de {_estacionZona}: dentro del recinto (no fuera de la puerta este)"); } break; }
                 if (DiaEnLaRed() && !(resume && _ng.State != NightState.Jugando)) { _esperandoNoche = true;      // D-N199: la noche ya acabada no vuelve a «empezar» a las 22:00
                   Debug.Log($"[NOCHE] {_estacionZona} de día ({NetConst.Clock(wz != null ? wz.Tick : 0)}): la noche empieza a las 22:00 de la red"); }
                 else if (trenAqui == "ninguno" && wz != null && _ng.P.TrainNotDefeat) { _ng.TrainHp = 0; _trenPerdidoAvisado = true; _nocheSinTren = true; Debug.Log("[NOCHE] sin tren en la estación: la noche empieza sin tren (TrainHp = 0)"); }   // Hugo: si no, la noche mataba un tren que no estaba (traza de la 104); con el arreglo de Marcos (Level.TrainNightX) la horda ya no se va a X 900
@@ -243,7 +247,7 @@ namespace TBD.View
             if (_spawns.Count > 0) SpawnZombies(_spawns);
 
             // soldados: objetivos = zombis a menos de 60 m de algún soldado
-            _tgt.Clear();
+            _tgt.Clear(); _tgtTodos.Clear();
             var emA = _worldA.EntityManager;
             using (var q = emA.CreateEntityQuery(typeof(Zombie)))
             {
@@ -261,7 +265,9 @@ namespace TBD.View
                         var pl = _uw.Platoons[pi]; float dx = z.Pos.x * 1000f - pl.AX, dy = z.Pos.z * 1000f - pl.AY;
                         if (dx * dx + dy * dy < 60000f * 60000f) near = true;
                     }
-                    if (near) _tgt.Add(new Target { Id = (int)z.SimId, X = (int)(z.Pos.x * 1000f), Y = (int)(z.Pos.z * 1000f) });
+                    var tz = new Target { Id = (int)z.SimId, X = (int)(z.Pos.x * 1000f), Y = (int)(z.Pos.z * 1000f) };
+                    if (near) _tgt.Add(tz);
+                    _tgtTodos.Add(tz);      // Nacho (I-Noche180): el bot ve a todos los vivos; el radio de 60 m es solo para disparar (UnitsWorld.Step)
                 }
                 zs.Dispose();
                 _zomCounted = true;
@@ -309,7 +315,7 @@ namespace TBD.View
                 if (_wallMax <= 0f) _wallMax = _wallHp = Mathf.Max(1200000, NightSimParams.Default().WallHp);
                 _wallHp = Mathf.Max(0f, _wallHp - wallPile * (NightSimParams.Default().WallDmgPerZombieS / 30f)); _ng.WallPermil = Mathf.RoundToInt(1000f * _wallHp / _wallMax);
             }
-            if (_bot != null) { NaResupAntes(); _bot.Step(_uw, _tgt, _ng.Tick); NaResupDespues(); }                          // -nightbot: el bot de Nacho decide como el jugador (ordenes, recarga al 30 %)
+            if (_bot != null) { NaResupAntes(); _bot.Step(_uw, _tgtTodos, _ng.Tick); NaResupDespues(); }                          // -nightbot: el bot de Nacho decide como el jugador (ordenes, recarga al 30 %)
             _res.Clear(); _uw.Step(_tgt, _res);
             _nightShotsSpent += _res.AmmoSpent;
             _contact.Clear(); _nightLost += _uw.ZombieContact(_tgt, 900, 2, _contact);
@@ -566,18 +572,24 @@ namespace TBD.View
         {
             var sbp = new System.Text.StringBuilder(); int enPila = 0;
             foreach (var sg in _segs) if (sg.Pile > 0) { enPila += sg.Pile; sbp.Append($" {sg.Name}×{sg.Pile} ({sg.Hp:0}/{sg.Max:0})"); }
-            int dentro = 0, fuera = 0; var celdas = new Dictionary<int, int>();
+            int dentro = 0, fuera = 0, dentroMuro = 0; var celdas = new Dictionary<int, int>(); var celdasD = new Dictionary<int, int>();
             foreach (var zp in _zomPos)
             {
                 bool inFort = zp.x > Level.FortX0 && zp.x < Level.FortX1 && zp.y > Level.FortY0 && zp.y < Level.FortY1;
-                if (inFort) { dentro++; continue; }
+                if (inFort)
+                {
+                    dentro++; float dm = Mathf.Min(Mathf.Min(zp.x - Level.FortX0, Level.FortX1 - zp.x), Mathf.Min(zp.y - Level.FortY0, Level.FortY1 - zp.y)); if (dm < 1f) dentroMuro++;
+                    int kd = Mathf.FloorToInt(zp.x / 10f) * 1000 + Mathf.FloorToInt(zp.y / 10f); celdasD[kd] = celdasD.TryGetValue(kd, out var cd0) ? cd0 + 1 : 1; continue;
+                }
                 float dx = Mathf.Max(Level.FortX0 - zp.x, 0f, zp.x - Level.FortX1), dy = Mathf.Max(Level.FortY0 - zp.y, 0f, zp.y - Level.FortY1);
                 if (dx * dx + dy * dy <= 25f) continue;
                 fuera++; int k = Mathf.FloorToInt(zp.x / 10f) * 1000 + Mathf.FloorToInt(zp.y / 10f); celdas[k] = celdas.TryGetValue(k, out var c0) ? c0 + 1 : 1;
             }
             var orden = new List<KeyValuePair<int, int>>(celdas); orden.Sort((p1, p2) => p2.Value != p1.Value ? p2.Value.CompareTo(p1.Value) : p1.Key.CompareTo(p2.Key));
             var sbc = new System.Text.StringBuilder(); for (int oi = 0; oi < orden.Count && oi < 5; oi++) sbc.Append($" ({orden[oi].Key / 1000 * 10}–{orden[oi].Key / 1000 * 10 + 10}; {orden[oi].Key % 1000 * 10}–{orden[oi].Key % 1000 * 10 + 10})×{orden[oi].Value}");
-            Debug.Log($"[REZAGADOS] tick {_ng.Tick}: {_zomPos.Count} vivos | en pila {enPila}:{(sbp.Length > 0 ? sbp.ToString() : " ninguno")} | dentro del recinto {dentro} | fuera a más de 5 m {fuera}:{(sbc.Length > 0 ? sbc.ToString() : " ninguno")}");
+            var ordD = new List<KeyValuePair<int, int>>(celdasD); ordD.Sort((p1, p2) => p2.Value != p1.Value ? p2.Value.CompareTo(p1.Value) : p1.Key.CompareTo(p2.Key));
+            var sbd = new System.Text.StringBuilder(); for (int oi = 0; oi < ordD.Count && oi < 5; oi++) sbd.Append($" ({ordD[oi].Key / 1000 * 10}–{ordD[oi].Key / 1000 * 10 + 10}; {ordD[oi].Key % 1000 * 10}–{ordD[oi].Key % 1000 * 10 + 10})×{ordD[oi].Value}");
+            Debug.Log($"[REZAGADOS] tick {_ng.Tick}: {_zomPos.Count} vivos | en pila {enPila}:{(sbp.Length > 0 ? sbp.ToString() : " ninguno")} | dentro del recinto {dentro} (a menos de 1 m del muro {dentroMuro}){sbd} | fuera a más de 5 m {fuera}:{(sbc.Length > 0 ? sbc.ToString() : " ninguno")}");
         }
         bool _endDismissed, _reportClosed; bool _seguirTrasNoche; bool _retiradaPedida;
         bool _esperandoNoche; Vector2Int? _puestoEnviado;
