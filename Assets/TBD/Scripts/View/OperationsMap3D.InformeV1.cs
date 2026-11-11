@@ -450,7 +450,7 @@ namespace TBD.View
         /// <summary>Estaciones donde el tren sin escolta que espera fuera de la puerta se salva (Hugo, tren-a-las-puertas.md 9-nov 01:45): Nules puerta oeste 88 %,
         /// Sagunto puerta este 100 %. Dentro (apartado) o en estaciones sin medir, se pierde.</summary>
         public static bool SeSalvaFuera(string estacion) { return estacion == "Nules" || estacion == "Sagunto"; }
-        public static int Eficacia(string estacion) { return estacion == "Sagunto" ? 400 : 300; }
+        public static int Eficacia(string estacion) { return NetWorld.Eficacia(estacion); }
         /// <summary>Color de la necesidad cuando la estación tiene menos munición que el mínimo: el ámbar de aviso (Lucía, 09-11, decisiones-noche.md).</summary>
         public const string ColorFalta = "e08c30";
         /// <summary>Las líneas de ataque en curso (amenaza y valoración) van en el rojo de ataque (Lucía, 09-11). El glifo de la Colmena sigue en hueso d4d0cc.</summary>
