@@ -14,12 +14,12 @@ namespace TBD.Mundo
     /// </summary>
     public sealed class MundoBootstrap : MonoBehaviour
     {
-        public const float Lado = 2000f;                    // metros
+        public const float Lado = 2048f;                    // metros (terreno de Álvaro, alvaro/hito1-terreno)
         const float AlturaMin = 12f, AlturaMax = 2800f;
         const float AlturaIconos = 260f;                    // por encima, las unidades se ven como símbolos (como en el mapa)
 
         Camera _cam, _pantalla; RenderTexture _rt;
-        Vector3 _foco = new Vector3(1000f, 0f, 1000f); float _altura = 1800f, _alturaObj = 1800f, _yaw = 0f;
+        Vector3 _foco = new Vector3(1180f, 0f, 1040f); float _altura = 1800f, _alturaObj = 1800f, _yaw = 0f;
         Texture2D _blanco;
 
         readonly List<Transform> _soldados = new List<Transform>();
@@ -34,12 +34,9 @@ namespace TBD.Mundo
             Application.targetFrameRate = 120;
             _blanco = Texture2D.whiteTexture;
             MontarCamaras();
-            MontarTerreno();
-            MontarEstacion("Sagunto", new Vector3(700f, 0f, 1000f));
-            MontarEstacion("Nules", new Vector3(1450f, 0f, 760f));
-            MontarVia(new Vector3(700f, 0f, 1000f), new Vector3(1450f, 0f, 760f));
-            MontarCaserio(new Vector3(1150f, 0f, 1350f));
-            MontarPeloton(new Vector3(760f, 0f, 980f));
+            Terrain ter = MontarTerrenoAlvaro();
+            if (ter == null) { MontarTerreno(); MontarEstacion("Sagunto", new Vector3(700f, 0f, 1000f)); MontarEstacion("Nules", new Vector3(1450f, 0f, 760f)); MontarCaserio(new Vector3(1150f, 0f, 1350f)); MontarPeloton(new Vector3(760f, 0f, 980f)); }
+            else MontarDesdeCsv(ter);
             var sol = new GameObject("Sol").AddComponent<Light>(); sol.type = LightType.Directional; sol.transform.rotation = Quaternion.Euler(50f, 30f, 0f); sol.intensity = 1.2f; sol.shadows = LightShadows.Soft;
             RenderSettings.ambientMode = AmbientMode.Flat; RenderSettings.ambientLight = new Color(0.45f, 0.43f, 0.40f);
             Debug.Log($"[MUNDO] prototipo de zum: {Lado:0} × {Lado:0} m, altura {AlturaMin}–{AlturaMax} m, iconos por encima de {AlturaIconos} m");
@@ -82,6 +79,8 @@ namespace TBD.Mundo
                 if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) pan -= right; if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) pan += right;
                 _foco += pan.normalized * _altura * 1.1f * dt;
                 if (kb.qKey.isPressed) _yaw -= 60f * dt; if (kb.eKey.isPressed) _yaw += 60f * dt;
+                if (kb.zKey.isPressed) _alturaObj = Mathf.Max(AlturaMin, _alturaObj * (1f - 1.5f * dt)); if (kb.xKey.isPressed) _alturaObj = Mathf.Min(AlturaMax, _alturaObj * (1f + 1.5f * dt));
+                if (kb.fKey.wasPressedThisFrame) _foco = Centro();      // F: ir al pelotón
             }
             if (ms != null)
             {
@@ -90,13 +89,13 @@ namespace TBD.Mundo
                 {
                     float notches = Mathf.Clamp(s / (Mathf.Abs(s) >= 10f ? 120f : 1f), -3f, 3f);
                     float antes = _alturaObj; _alturaObj = Mathf.Clamp(_alturaObj * Mathf.Pow(0.8f, notches), AlturaMin, AlturaMax);
-                    if (Suelo(ms.position.ReadValue(), out var p)) _foco = Vector3.Lerp(_foco, p, notches > 0f ? 1f - _alturaObj / antes : 0f);   // acercar hacia el cursor
                 }
                 if (ms.leftButton.wasPressedThisFrame && Suelo(ms.position.ReadValue(), out var q)) _seleccionado = Vector3.Distance(q, Centro()) < Mathf.Max(15f, _altura * 0.05f);
                 if (ms.rightButton.wasPressedThisFrame && _seleccionado && Suelo(ms.position.ReadValue(), out var d)) _destino = d;
             }
-            _foco.x = Mathf.Clamp(_foco.x, 0f, Lado); _foco.z = Mathf.Clamp(_foco.z, 0f, Lado);
+            _foco.x = Mathf.Clamp(_foco.x, 0f, Lado); _foco.z = Mathf.Clamp(_foco.z, 0f, Lado); _foco = EnSuelo(_foco);
             _altura = Mathf.Lerp(_altura, _alturaObj, 1f - Mathf.Exp(-10f * dt));
+            if (_altura > 900f) _yaw = Mathf.MoveTowardsAngle(_yaw, 0f, 90f * dt);      // Bruno (zum v1): al subir a comarca, el norte vuelve arriba
             ColocarCamara();
             bool iconos = _altura > AlturaIconos;
             foreach (var sd in _soldados) sd.gameObject.SetActive(!iconos);
@@ -107,7 +106,8 @@ namespace TBD.Mundo
         bool Suelo(Vector2 pantalla, out Vector3 p)
         {
             var v = new Vector3(pantalla.x / Screen.width, pantalla.y / Screen.height, 0f);
-            var ray = _cam.ViewportPointToRay(v); var plano = new Plane(Vector3.up, Vector3.zero);
+            var ray = _cam.ViewportPointToRay(v); var plano = new Plane(Vector3.up, new Vector3(0f, _foco.y, 0f));
+            if (_ter != null && _ter.GetComponent<TerrainCollider>() is TerrainCollider tc && tc.Raycast(ray, out var hit, 20000f)) { p = hit.point; return true; }
             if (plano.Raycast(ray, out float e)) { p = ray.GetPoint(e); return true; }
             p = Vector3.zero; return false;
         }
@@ -124,6 +124,7 @@ namespace TBD.Mundo
                 var puesto = _destino + perp * ((i - (_soldados.Count - 1) * 0.5f) * 2.2f);
                 var t = _soldados[i]; var dd = puesto - t.position; dd.y = 0f;
                 if (dd.magnitude > 0.2f) { t.position += dd.normalized * Mathf.Min(dd.magnitude, vel * dt); t.rotation = Quaternion.LookRotation(dd.normalized); }
+                t.position = EnSuelo(t.position);
             }
             for (int i = 0; i < _zombis.Count; i++)
             {
@@ -131,7 +132,7 @@ namespace TBD.Mundo
                 var aSold = c - z.t.position; aSold.y = 0f;
                 Vector3 v = aSold.magnitude < 60f ? aSold.normalized * 1.6f : z.vel;
                 if (aSold.magnitude >= 60f && _rng.NextDouble() < dt * 0.3) v = new Vector3((float)_rng.NextDouble() - 0.5f, 0f, (float)_rng.NextDouble() - 0.5f).normalized * 0.4f;
-                if (aSold.magnitude > 2f) z.t.position += v * dt;
+                if (aSold.magnitude > 2f) z.t.position = EnSuelo(z.t.position + v * dt);
                 if (v.sqrMagnitude > 0.01f) z.t.rotation = Quaternion.LookRotation(v.normalized);
                 _zombis[i] = (z.t, v, true);
             }
@@ -248,6 +249,99 @@ namespace TBD.Mundo
                 if (s == null) s = Caja("Soldado", Vector3.up * 0.9f, new Vector3(0.6f, 1.8f, 0.6f), Plano(new Color32(0x50, 0x54, 0x1c, 255)), raiz);
                 s.transform.position = c + new Vector3(i * 2.2f, 0f, 0f); _soldados.Add(s.transform);
             }
+        }
+
+        // ------------------------------------------------------------------ terreno y posiciones de Álvaro (StreamingAssets/Hito1)
+        Terrain _ter;
+        Vector3 EnSuelo(Vector3 p) { if (_ter != null) p.y = _ter.SampleHeight(p) + _ter.transform.position.y; return p; }
+
+        Terrain MontarTerrenoAlvaro()
+        {
+            string dir = System.IO.Path.Combine(Application.streamingAssetsPath, "Hito1"), raw = System.IO.Path.Combine(dir, "alturas_2049_u16le.raw");
+            if (!System.IO.File.Exists(raw)) { Debug.LogWarning("[MUNDO] falta " + raw + ": terreno de relleno"); return null; }
+            const int n = 2049; var bytes = System.IO.File.ReadAllBytes(raw); var h = new float[n, n];
+            for (int z = 0; z < n; z++) for (int x = 0; x < n; x++) { int i = (z * n + x) * 2; h[z, x] = (bytes[i] | (bytes[i + 1] << 8)) / 65535f; }   // fila 0 = Z 0 (sur); TerrainData es [z, x]
+            var td = new TerrainData { heightmapResolution = n }; td.size = new Vector3(2048f, 128f, 2048f); td.SetHeights(0, 0, h);
+            var usosPng = System.IO.Path.Combine(dir, "usos_2049.png"); Texture2D usos = null;
+            if (System.IO.File.Exists(usosPng)) { var u = new Texture2D(2, 2); if (u.LoadImage(System.IO.File.ReadAllBytes(usosPng))) usos = u; }
+            Color32[] paleta = { new Color32(0x2e, 0x44, 0x5c, 255), new Color32(0xc8, 0xb4, 0x8c, 255), new Color32(0x5c, 0x64, 0x48, 255), new Color32(0x6c, 0x74, 0x40, 255), new Color32(0x96, 0x88, 0x5c, 255),
+                                 new Color32(0x6c, 0x60, 0x44, 255), new Color32(0xa8, 0x98, 0x78, 255), new Color32(0x44, 0x44, 0x48, 255), new Color32(0x8c, 0x80, 0x64, 255), new Color32(0x7c, 0x6c, 0x54, 255), new Color32(0x4a, 0x5c, 0x2c, 255) };
+            var col = new Texture2D(2048, 2048, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            var px = new Color32[2048 * 2048];
+            Color32[] up = usos != null ? usos.GetPixels32() : null; int uw = usos != null ? usos.width : 0, uh = usos != null ? usos.height : 0;
+            for (int z = 0; z < 2048; z++) for (int x = 0; x < 2048; x++)
+            {
+                int id = 3; if (up != null) id = up[Mathf.Min(z, uh - 1) * uw + Mathf.Min(x, uw - 1)].r;      // LoadImage deja la fila 0 abajo (sur): coincide con Z
+                var c = paleta[Mathf.Clamp(id, 0, paleta.Length - 1)];
+                uint hh = (uint)(x * 73856093) ^ (uint)(z * 19349663); float k = 0.92f + ((hh >> 7) & 15u) / 15f * 0.12f;   // grano de 1 m
+                px[z * 2048 + x] = new Color32((byte)Mathf.Min(255f, c.r * k), (byte)Mathf.Min(255f, c.g * k), (byte)Mathf.Min(255f, c.b * k), 255);
+            }
+            col.SetPixels32(px); col.Apply();
+            var capa = new TerrainLayer { diffuseTexture = col, tileSize = new Vector2(2048f, 2048f) }; td.terrainLayers = new[] { capa };
+            var go = Terrain.CreateTerrainGameObject(td); go.name = "Terreno Hito 1 (Álvaro)"; go.transform.position = new Vector3(0f, -10f, 0f);
+            _ter = go.GetComponent<Terrain>(); _ter.heightmapPixelError = 4f; _ter.basemapDistance = 20000f;
+            var sh = Shader.Find("Universal Render Pipeline/Terrain/Lit"); if (sh != null) _ter.materialTemplate = new Material(sh);
+            var mar = GameObject.CreatePrimitive(PrimitiveType.Plane); mar.name = "Mar"; Destroy(mar.GetComponent<Collider>()); mar.transform.position = new Vector3(1024f, 0f, 1024f); mar.transform.localScale = new Vector3(600f, 1f, 600f);
+            mar.GetComponent<MeshRenderer>().sharedMaterial = Plano(new Color32(0x2e, 0x44, 0x5c, 255));
+            Debug.Log("[MUNDO] terreno de Álvaro: 2049² muestras, 2048 × 128 × 2048 m en Y = −10" + (usos != null ? ", con usos del suelo" : ", sin usos"));
+            return _ter;
+        }
+
+        void MontarDesdeCsv(Terrain ter)
+        {
+            string dir = System.IO.Path.Combine(Application.streamingAssetsPath, "Hito1");
+            var pos = System.IO.Path.Combine(dir, "posiciones_hito1.csv"); var obs = System.IO.Path.Combine(dir, "obstaculos_hito1.csv");
+            float F(string v) { return float.Parse(v, System.Globalization.CultureInfo.InvariantCulture); }
+            var rz = new GameObject("Zombis (relleno)").transform; int nz = 0; Vector3 pel = new Vector3(1290f, 0f, 1610f);
+            if (System.IO.File.Exists(pos)) foreach (var l in System.IO.File.ReadAllLines(pos))
+            {
+                var c = l.Split(';'); if (c.Length < 8 || c[0] == "id") continue;
+                var p = EnSuelo(new Vector3(F(c[2]), 0f, F(c[4])));
+                if (c[1] == "estacion") MontarEstacionCsv(c[0] == "A" ? "Estación A" : "Estación B", p, F(c[6]), F(c[7]));
+                else if (c[1] == "peloton") pel = p;
+                else if (c[1] == "zombi")
+                {
+                    var z = Modelo("Zombi/camisa_283440", "SM_zombi_cercano_LOD1", rz) ?? Caja("Zombi", Vector3.zero, new Vector3(0.6f, 1.8f, 0.6f), Plano(new Color32(0x1c, 0x18, 0x12, 255)), rz);
+                    z.transform.position = p; z.transform.rotation = Quaternion.Euler(0f, F(c[5]), 0f); _zombis.Add((z.transform, Vector3.zero, true)); nz++;
+                }
+            }
+            int ned = 0, nnar = 0, ntap = 0; var rc = new GameObject("Caserío y naranjales (obstáculos de Álvaro)").transform; var naranjo = Resources.Load<GameObject>("Models/Sagunto/naranjo/SM_naranjo_LOD1");
+            var mEd = Plano(new Color32(0xb8, 0x98, 0x78, 255)); var mTapia = Plano(new Color32(0x9c, 0x8c, 0x70, 255)); var mNar = Plano(new Color32(0x44, 0x5c, 0x2c, 255));
+            if (System.IO.File.Exists(obs)) foreach (var l in System.IO.File.ReadAllLines(obs))
+            {
+                var c = l.Split(';'); if (c.Length < 9 || c[0] == "id") continue;
+                float x0 = F(c[3]) / 1000f, z0 = F(c[4]) / 1000f, x1 = F(c[5]) / 1000f, z1 = F(c[6]) / 1000f, alto = F(c[8]) / 1000f, gr = Mathf.Max(0.4f, F(c[7]) / 1000f * 2f);
+                var centro = EnSuelo(new Vector3((x0 + x1) * 0.5f, 0f, (z0 + z1) * 0.5f)); string tipo = c[1], nota = c[c.Length - 1];
+                if (tipo == "edificio") { Caja("Edificio " + c[0] + " " + nota, centro + Vector3.up * alto * 0.5f, new Vector3(Mathf.Max(1f, Mathf.Abs(x1 - x0)), alto, Mathf.Max(1f, Mathf.Abs(z1 - z0))), mEd, rc); ned++; }
+                else if (c[2] == "segmento")
+                {
+                    var d = new Vector3(x1 - x0, 0f, z1 - z0); if (d.sqrMagnitude < 0.01f) continue;
+                    var t = Caja("Tapia " + c[0], centro + Vector3.up * alto * 0.5f, new Vector3(gr, alto, d.magnitude), mTapia, rc); t.transform.rotation = Quaternion.LookRotation(d.normalized); ntap++;
+                }
+                else if (tipo == "arbolado" || tipo.Contains("naranj") || nota.Contains("naranj"))
+                {
+                    for (float x = Mathf.Min(x0, x1) + 3f; x < Mathf.Max(x0, x1); x += 7f) for (float z = Mathf.Min(z0, z1) + 3f; z < Mathf.Max(z0, z1); z += 7f)
+                    {
+                        var p = EnSuelo(new Vector3(x, 0f, z));
+                        if (naranjo != null) { var g = Instantiate(naranjo, rc); g.transform.position = p; } else Caja("Naranjo", p + Vector3.up * 1.6f, new Vector3(3f, 3.2f, 3f), mNar, rc);
+                        nnar++;
+                    }
+                }
+            }
+            MontarPeloton(pel);
+            _foco = EnSuelo(new Vector3(1180f, 0f, 1040f));
+            Debug.Log($"[MUNDO] posiciones de Álvaro: {nz} zombis, {ned} edificios, {ntap} tapias, {nnar} naranjos, pelotón en ({pel.x:0}; {pel.z:0})");
+        }
+
+        void MontarEstacionCsv(string nombre, Vector3 pos, float ancho, float fondo)
+        {
+            var raiz = new GameObject(nombre).transform; raiz.position = pos; _estaciones.Add((nombre, pos));
+            var ed = Modelo("Sagunto/edificio_viajeros", "SM_edificio_viajeros_LOD1", raiz);
+            if (ed != null) { ed.transform.position = pos + new Vector3(ancho * 0.25f, 0f, 0f); ed.transform.rotation = Quaternion.Euler(0f, 90f, 0f); }
+            var muro = Plano(new Color32(0x94, 0x94, 0x8c, 255)); float hx = ancho * 0.5f, hz = fondo * 0.5f;
+            Caja("Muro N", pos + new Vector3(0f, 1.2f, hz), new Vector3(ancho, 2.4f, 0.6f), muro, raiz); Caja("Muro S", pos + new Vector3(0f, 1.2f, -hz), new Vector3(ancho, 2.4f, 0.6f), muro, raiz);
+            Caja("Muro O", pos + new Vector3(-hx, 1.2f, 0f), new Vector3(0.6f, 2.4f, fondo), muro, raiz); Caja("Muro E", pos + new Vector3(hx, 1.2f, 0f), new Vector3(0.6f, 2.4f, fondo), muro, raiz);
+            Caja("Andén", pos + new Vector3(-ancho * 0.15f, 0.45f, 0f), new Vector3(6f, 0.9f, fondo * 0.8f), Plano(new Color32(0x60, 0x5c, 0x48, 255)), raiz);
         }
 
         // ------------------------------------------------------------------ pantalla e iconos
