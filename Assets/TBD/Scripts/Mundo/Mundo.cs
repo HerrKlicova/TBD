@@ -38,6 +38,8 @@ namespace TBD.Mundo
         /// <summary>Combate del Hito 1 (Hugo y Lucía, 11-11; medido con 40 semillas en el caserío): puntería ×6 sobre la tabla de la noche (k ≈ 5,4 disparos por zombi)
         /// y 35 cartuchos por soldado (100 × k ÷ 16, redondeado a 5). Va en Mundo, no en balance_unidades.csv, para no mover la noche vieja.</summary>
         public const int PunteriaHito1Pm = 6000, CartuchosPorSoldado = 35;
+        /// <summary>Cartuchos por caja de munición del almacén (Hugo, 23:23: 3 cargadores de 35 = 105) y cajas con las que empieza B (Hugo: 1).</summary>
+        public const int CartuchosPorCaja = 105, CajasInicialesB = 1;
         public int AlcanceFuegoMm = 60000;                  // como la zona y NightSim (D-N186): blancos a 60 m de un pelotón
         public int ContactoMm = 900, ContactoDanioTick = 2;  // NightParams de la noche (noche_contacto_mm, noche_contacto_danio_tick)
         public int Abatidos, BajasPropias;
@@ -45,7 +47,7 @@ namespace TBD.Mundo
         /// disparar ni una vez vuelve a pie a «PuntoRetirada» (B) en lugar de quedarse a que lo maten. Al reabastecerse allí, el jugador lo vuelve a mandar.</summary>
         public bool RetiradaSinMunicion = true; public string PuntoRetirada = "B";
         /// <summary>Un pelotón a menos de esto de B se recarga solo del almacén (Unidades.StockShots; con la red de Iker será Red.Almacen de B), una vez por segundo.</summary>
-        public int RecargaRadioMm = 25000;
+        public int RecargaRadioMm = 40000;      // la explanada de B (70 × 120 m): la salida del pelotón está a 32 m del centro
         readonly HashSet<int> _retirandose = new HashSet<int>();
         /// <summary>Medidas para Hugo (fuera del hash): distancia de cada abatido a su pelotón (mm) y tick de cada baja propia.</summary>
         public readonly List<int> DistAbatidoMm = new List<int>(), TickBaja = new List<int>();
@@ -147,13 +149,26 @@ namespace TBD.Mundo
             {
                 if (p.Aboard != 0 || p.AliveCount() == 0) continue;
                 long dbx = p.AX - b.X, dby = p.AY - b.Y;
-                if (dbx * dbx + dby * dby <= (long)RecargaRadioMm * RecargaRadioMm && p.AmmoShots < p.AmmoCap && Unidades.StockShots > 0 && Tick % IMath.TickRate == 0) Unidades.Resupply(p.Id);      // en B se recarga del almacén
+                if (dbx * dbx + dby * dby <= (long)RecargaRadioMm * RecargaRadioMm && p.AmmoShots < p.AmmoCap && Tick % IMath.TickRate == 0) RecargarEnB(p);      // en B se recarga de las cajas del almacén de la red
                 bool seco = p.AmmoShots < CosteMinimo(p);
                 if (seco && !_retirandose.Contains(p.Id)) { _retirandose.Add(p.Id); Unidades.Move(p.Id, b.X, b.Y); }
                 else if (!seco && _retirandose.Contains(p.Id)) _retirandose.Remove(p.Id);
             }
         }
-        ulong HashRetiradas() { ulong h = RetiradaSinMunicion ? 0x5E7UL : 0; foreach (int id in _retirandose) h += IMath.Mix(0x5E70UL ^ (ulong)(uint)id); return h; }
+        /// <summary>La unión de los dos géneros (Iker, de8dabb5): el pelotón en B se recarga de las cajas de munición del almacén de B de la RED (Red.Sacar), que llena el tren
+        /// de la línea. Se abre una caja entera de CartuchosPorCaja; lo que sobra queda suelto en B para la siguiente recarga. Sin cajas en B, no hay recarga.</summary>
+        void RecargarEnB(Platoon p)
+        {
+            int b = Red.EstacionPorNombre(PuntoRetirada); if (b < 0) return;
+            int falta = p.AmmoCap - p.AmmoShots;
+            while (_sueltosB < falta && Red.Sacar(b, Red.Municion, 1) == 1) { _sueltosB += CartuchosPorCaja; CajasAbiertas++; }
+            int dar = Math.Min(falta, _sueltosB); if (dar <= 0) return;
+            _sueltosB -= dar; p.AmmoShots += dar;
+        }
+        int _sueltosB; public int CajasAbiertas;
+        public int SueltosEnB { get { return _sueltosB; } }
+
+        ulong HashRetiradas() { ulong h = (RetiradaSinMunicion ? 0x5E7UL : 0) + IMath.Mix(0x5E71UL ^ (ulong)(uint)_sueltosB ^ ((ulong)(uint)CajasAbiertas << 32)); foreach (int id in _retirandose) h += IMath.Mix(0x5E70UL ^ (ulong)(uint)id); return h; }
         public bool SeRetira(int peloton) { return _retirandose.Contains(peloton); }
 
         /// <summary>Medida de coste (fuera del hash): ticks de Stopwatch en el fuego de UnitsWorld y en los zombis.</summary>
@@ -278,6 +293,7 @@ namespace TBD.Mundo
                 var pl = m.Unidades.AddPlatoon(PlatoonKind.Fusileros, pi.X, pi.Y, rumbo); pl.AmmoCap = pl.AmmoShots = CartuchosPorSoldado * pl.Men.Count;
             }
             m.MontarRedHito1();      // Iker (MundoRed.cs): estaciones A y B desde Puntos, carreteras (carreteras_hito1.csv), «Tren 1» y 20 cajas en A
+            { int eb = m.Red.EstacionPorNombre("B"); if (eb >= 0) m.Red.Meter(eb, Red.Municion, CajasInicialesB); }
             return m;
         }
     }
