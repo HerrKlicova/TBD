@@ -41,6 +41,8 @@ namespace TBD.Mundo
         /// <summary>Retirada sola sin munición (Hugo y Lucía, 11-11: «sin la línea el pelotón se queda seco a mitad del caserío pero sin morir entero»): un pelotón que no puede
         /// disparar ni una vez vuelve a pie a «PuntoRetirada» (B) en lugar de quedarse a que lo maten. Al reabastecerse allí, el jugador lo vuelve a mandar.</summary>
         public bool RetiradaSinMunicion = true; public string PuntoRetirada = "B";
+        /// <summary>Un pelotón a menos de esto de B se recarga solo del almacén (Unidades.StockShots; con la red de Iker será Red.Almacen de B), una vez por segundo.</summary>
+        public int RecargaRadioMm = 25000;
         readonly HashSet<int> _retirandose = new HashSet<int>();
         /// <summary>Medidas para Hugo (fuera del hash): distancia de cada abatido a su pelotón (mm) y tick de cada baja propia.</summary>
         public readonly List<int> DistAbatidoMm = new List<int>(), TickBaja = new List<int>();
@@ -141,6 +143,8 @@ namespace TBD.Mundo
             foreach (var p in Unidades.Platoons)
             {
                 if (p.Aboard != 0 || p.AliveCount() == 0) continue;
+                long dbx = p.AX - b.X, dby = p.AY - b.Y;
+                if (dbx * dbx + dby * dby <= (long)RecargaRadioMm * RecargaRadioMm && p.AmmoShots < p.AmmoCap && Unidades.StockShots > 0 && Tick % IMath.TickRate == 0) Unidades.Resupply(p.Id);      // en B se recarga del almacén
                 bool seco = p.AmmoShots < CosteMinimo(p);
                 if (seco && !_retirandose.Contains(p.Id)) { _retirandose.Add(p.Id); Unidades.Move(p.Id, b.X, b.Y); }
                 else if (!seco && _retirandose.Contains(p.Id)) _retirandose.Remove(p.Id);

@@ -92,7 +92,9 @@ namespace TBD.Sim.Tests
             if (TBD.Mundo.Mundo.Lector == null) { string dir = System.IO.Path.Combine(BalanceTests.DataDirPublic(), "..", "..", "StreamingAssets", "Hito1"); TBD.Mundo.Mundo.Lector = f => { var pth = System.IO.Path.Combine(dir, f); return System.IO.File.Exists(pth) ? System.IO.File.ReadAllText(pth) : null; }; }
             int n = int.TryParse(Environment.GetEnvironmentVariable("TBD_K_N"), out var nn) ? nn : 200; int maxT = 30 * 60 * (int.TryParse(Environment.GetEnvironmentVariable("TBD_K_MIN"), out var mn) ? mn : 15);
             int muni = int.TryParse(Environment.GetEnvironmentVariable("TBD_K_MUNI"), out var mu) ? mu : -1;
-            bool detalle = Environment.GetEnvironmentVariable("TBD_K_DET") == "1";
+            bool detalle = Environment.GetEnvironmentVariable("TBD_K_DET") == "1", linea = Environment.GetEnvironmentVariable("TBD_K_LINEA") == "1";
+            int cajasB = int.TryParse(Environment.GetEnvironmentVariable("TBD_K_CAJAS"), out var cj) ? cj : 1;
+            int cargCaja = int.TryParse(Environment.GetEnvironmentVariable("TBD_K_CARG_CAJA"), out var cc) ? cc : 3;      // Hugo 23:23: la caja es de 3 cargadores
             foreach (var hs in (Environment.GetEnvironmentVariable("TBD_K_HIT") ?? "1000").Split(','))
             {
                 int hit = int.Parse(hs);
@@ -101,14 +103,21 @@ namespace TBD.Sim.Tests
                 for (int s = 1; s <= n; s++)
                 {
                     var m = TBD.Mundo.Mundo.Caserio((uint)s); var p = m.Unidades.Platoons[0]; m.Unidades.HitScalePm = hit;
-                    if (muni >= 0) { p.AmmoCap = p.AmmoShots = muni * p.Men.Count; m.Unidades.StockShots = 0; }
+                    if (muni >= 0) { p.AmmoCap = p.AmmoShots = muni * p.Men.Count; m.Unidades.StockShots = cajasB * cargCaja * muni; }
                     m.Encolar(new Orden { Tick = 0, Jugador = 1, Tipo = TipoOrden.AtacarMoviendo, A = p.Id, B = TBD.Mundo.Mundo.CaserioX, C = TBD.Mundo.Mundo.CaserioY, D = -1 });
-                    int disparos = 0; bool seRetiro = false;
+                    int disparos = 0; bool seRetiro = false, retirado = false;
                     while (m.Tick < maxT && m.Zombis.Vivos > 0 && p.AliveCount() > 0)
                     {
                         if (muni < 0) p.AmmoShots = p.AmmoCap;
                         m.Step(); foreach (var ev in m.UltimoFuego.Shots) disparos += WeaponCatalog.Table[(int)ev.Weapon].CostShots;
-                        if (m.SeRetira(p.Id)) seRetiro = true;
+                        if (m.SeRetira(p.Id)) { seRetiro = true; retirado = true; }
+                        if (muni >= 0 && linea && m.Tick == 4 * 1800) m.Unidades.StockShots += 4 * cargCaja * muni;      // el tren de la línea deja 4 cajas en B a los 4 min
+                        if (!retirado && !m.SeRetira(p.Id) && !p.Moving && m.Tick % 900 == 0 && m.Zombis.Vivos > 0)      // como haría el jugador: parado y sin nadie a tiro, va a por el zombi vivo más cercano
+                        {
+                            int bz = -1; long bd = long.MaxValue; for (int zi = 0; zi < m.Zombis.Lista.Count; zi++) { var zz = m.Zombis.Lista[zi]; if (!zz.Vivo) continue; long dx = zz.X - p.AX, dy = zz.Y - p.AY, d2 = dx * dx + dy * dy; if (d2 < bd) { bd = d2; bz = zi; } }
+                            if (bz >= 0 && bd > 40000L * 40000) m.Encolar(new Orden { Tick = m.Tick, Jugador = 1, Tipo = TipoOrden.AtacarMoviendo, A = p.Id, B = m.Zombis.Lista[bz].X, C = m.Zombis.Lista[bz].Y, D = -1 });
+                        }
+                        if (retirado && !m.SeRetira(p.Id) && p.AmmoShots * 10 >= p.AmmoCap * 9) { retirado = false; m.Encolar(new Orden { Tick = m.Tick, Jugador = 1, Tipo = TipoOrden.AtacarMoviendo, A = p.Id, B = TBD.Mundo.Mundo.CaserioX, C = TBD.Mundo.Mundo.CaserioY, D = -1 }); }      // recargado: vuelve al caserío
                         if (Environment.GetEnvironmentVariable("TBD_K_Z") is string zs && zs.Length > 0 && m.Tick > 20000 && m.Tick % 15 == 0 && m.Tick < 21000) { int zi = int.Parse(zs); var zz = m.Zombis.Lista[zi]; Console.WriteLine($"  t {m.Tick} z{zi} ({zz.X};{zz.Y}) {zz.Estado} meta ({zz.MetaX};{zz.MetaY}) {m.Zombis.Traza(zi)} and {zz.Andando}"); }
                     }
                     bool limpio = m.Zombis.Vivos == 0; if (limpio) limpios++; if (p.AliveCount() == 0) aniquilados++; if (seRetiro) retiradas++;
@@ -123,7 +132,7 @@ namespace TBD.Sim.Tests
                 Func<List<int>, double, int> pi = (l, q) => l.Count == 0 ? 0 : l[Math.Min(l.Count - 1, (int)(q * l.Count))];
                 long dsum = 0; foreach (int d in dist) dsum += d;
                 var sbm = new System.Text.StringBuilder(); for (int k = 0; k < 16; k++) if (minBaja[k] > 0) sbm.Append($" min{k}:{minBaja[k]}");
-                Console.WriteLine($"# puntería {hit} ‰ · munición {(muni < 0 ? "sin límite" : muni + " por soldado")} · {n} semillas · tope {maxT / 1800} min");
+                Console.WriteLine($"# puntería {hit} ‰ · munición {(muni < 0 ? "sin límite" : muni + " por soldado, " + cajasB + " caja(s) de " + cargCaja + " cargadores en B" + (linea ? ", línea con 4 cajas a los 4 min" : ", sin línea"))} · {n} semillas · tope {maxT / 1800} min");
                 Console.WriteLine($"#   k (disparos por abatido): p10 {pd(ks, 0.1):0.0}, p50 {pd(ks, 0.5):0.0}, p90 {pd(ks, 0.9):0.0}; global {(double)disT / Math.Max(1, abT):0.0}");
                 Console.WriteLine($"#   abatido a {dsum / Math.Max(1, dist.Count) / 1000.0:0.0} m de media (p10 {pi(dist, 0.1) / 1000.0:0}, p50 {pi(dist, 0.5) / 1000.0:0}, p90 {pi(dist, 0.9) / 1000.0:0} m)");
                 Console.WriteLine($"#   bajas p10 {pi(bajas, 0.1)}, p50 {pi(bajas, 0.5)}, p90 {pi(bajas, 0.9)}; por minuto:{(sbm.Length > 0 ? sbm.ToString() : " ninguna")}");
