@@ -309,7 +309,7 @@ namespace TBD.Mundo
                 var c = l.Split(';'); if (c.Length < 8 || c[0] == "id") continue;
                 var p = EnSuelo(new Vector3(F(c[2]), 0f, F(c[4])));
                 if (c[1] == "estacion") MontarEstacionCsv(c[0] == "A" ? "Estación A" : "Estación B", p, F(c[6]), F(c[7]));
-                else if (c[1] == "peloton") pel = p;
+                else if (c[1] == "peloton") pel = EnSuelo(p + new Vector3(0f, 0f, -10f));   // 10 m al sur: el punto de Álvaro cae sobre el muro sur de B
                 else if (c[1] == "zombi")
                 {
                     var z = Modelo("Zombi/camisa_283440", "SM_zombi_cercano_LOD1", rz) ?? Caja("Zombi", Vector3.zero, new Vector3(0.6f, 1.8f, 0.6f), Plano(new Color32(0x1c, 0x18, 0x12, 255)), rz);
