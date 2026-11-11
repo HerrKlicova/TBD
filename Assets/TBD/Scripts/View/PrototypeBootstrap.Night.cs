@@ -210,6 +210,8 @@ namespace TBD.View
                 {
                     var w = gp[gi]; if (!w.IsGate || !w.Built || _gateWalled.Contains(gi)) continue;
                     _gateWalled.Add(gi);
+                    // Eugenio (11-nov, 19:25): la puerta de vehículos (E4) empieza ABIERTA, para que los vehículos puedan salir del recinto; -e4cerrada = como antes
+                    if (w.IsVehGate && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-e4cerrada") < 0) { Debug.Log($"[NOCHE] puerta {w.Kind} abierta al empezar (los vehículos salen por ella): ({WorkOrigin.x + w.X0 / 1000f:0.0};{WorkOrigin.y + w.Y0 / 1000f:0.0}) -> ({WorkOrigin.x + w.X1 / 1000f:0.0};{WorkOrigin.y + w.Y1 / 1000f:0.0})"); continue; }
                     Push(CmdType.BuildWall, 2500, new Unity.Mathematics.float2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f), new Unity.Mathematics.float2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f));
                     Debug.Log($"[NOCHE] puerta {w.Kind} cerrada con muro: ({WorkOrigin.x + w.X0 / 1000f:0.0};{WorkOrigin.y + w.Y0 / 1000f:0.0}) -> ({WorkOrigin.x + w.X1 / 1000f:0.0};{WorkOrigin.y + w.Y1 / 1000f:0.0})");
                 }

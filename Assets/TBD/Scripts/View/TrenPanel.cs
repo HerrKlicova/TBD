@@ -626,7 +626,7 @@ namespace TBD.View
         }
 
         // ---------------------------------------------------------------- corridas automáticas
-        float _autoT0 = -1; int _autoPaso;
+        static float _autoT0 = -1; static int _autoPaso;      // I-Noche160: estáticos; el panel se crea de nuevo cada vez que se carga el mapa (Union) y la corrida volvía a empezar
         float AutoT() { if (_autoT0 < 0) _autoT0 = Time.unscaledTime; return Time.unscaledTime - _autoT0; }
 
         /// <summary>-trenpanel-auto: Sagunto → Nules con carga, un pelotón y un VAMTAC; descarga en Nules y vuelta.</summary>
@@ -658,10 +658,10 @@ namespace TBD.View
         /// </summary>
         /// <summary>-dia2-auto: la zona de Sagunto, al ver esto, vuelve al mapa en cuanto crea su sesión (así hay pelotón que embarcar). Se apaga al usarse.</summary>
         public static bool Dia2Volver; static bool _dia2ZonaHecha;
-        int _sv1 = -1;
+        static int _sv1 = -1;
         /// <summary>QA (Marcos): -socorro-auto. Día 3 (CercoSocorroAbierto): tren de socorro de Sagunto a Castellón con 2 pelotones y 20 u, a las puertas,
         /// baja la tropa, entra en la zona de Castellón (combate con -nightbot) y sale a los 180 s. Todo al log con [SOCORRO].</summary>
-        int _socPaso, _socN; float _socT0 = -1f;
+        static int _socPaso, _socN; static float _socT0 = -1f;
         /// <summary>D-N188: el aviso ámbar del panel (no bloquea) si el destino es Castellón y llevan menos de 17 u; null si no toca.</summary>
         string AvisoSocorro() { return W != null && _destinoP >= 0 && _destinoP < W.Graph.Nodes.Count && W.Graph.Nodes[_destinoP].Name == "Castellón" && _carga[(int)Res.Municion] < 17 ? "El socorro de Castellón necesita al menos 17 u de munición." : null; }
         void AutoSocorro()
@@ -680,7 +680,7 @@ namespace TBD.View
                         Cargar((int)Res.Municion, 10); Debug.Log($"[SOCORRO] con 10 u, aviso: {AvisoSocorro() ?? "ninguno"}");
                         Cargar((int)Res.Municion, 7); Debug.Log($"[SOCORRO] con {_carga[(int)Res.Municion]} u, aviso: {AvisoSocorro() ?? "ninguno"}");
                         var ses = (W != null ? PrototypeBootstrap.SesionDe(W.Embarque.HomeNode) : null) ?? NightRun.Session; _socN = 0;
-                        if (ses != null && ses.Uw != null) foreach (var p in ses.Uw.Platoons) { if (_socN >= 2) break; if (p.Aboard != 0 || p.AliveCount() == 0 || p.EyeMm > UnitsWorld.EyeInfantryMm + 3000) continue; Embarque.Subir(_sv1, PasajeroTipo.Peloton, p.Id, sag); _socN++; }      // fuera solo las azoteas (las banquetas sí valen)
+                        if (ses != null && ses.Uw != null) foreach (var p in ses.Uw.Platoons) { Debug.Log($"[SOCORRO] pelotón {p.Id} {(ses.PName.TryGetValue(p.Id, out var pn) ? pn : p.Kind.ToString())}: a bordo {p.Aboard}, vivos {p.AliveCount()}, boca {p.EyeMm} mm"); if (_socN >= 2) continue; if (p.Aboard != 0 || p.AliveCount() == 0 || p.EyeMm > UnitsWorld.EyeInfantryMm + 3000) continue; Embarque.Subir(_sv1, PasajeroTipo.Peloton, p.Id, sag); _socN++; }      // fuera solo las azoteas (las banquetas sí valen)
                         Debug.Log($"[SOCORRO] suben {_socN} pelotones y {_carga[(int)Res.Municion]} u al tren {W.Services[_sv1].Train.Name}"); _socT0 = Time.unscaledTime; _socPaso++;
                     }
                     else if (t > 60f) { Debug.LogError("[SOCORRO] no hay tren en Sagunto"); _socPaso = 99; } break;
