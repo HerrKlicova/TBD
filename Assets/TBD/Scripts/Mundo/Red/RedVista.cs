@@ -6,75 +6,102 @@ using UnityEngine.InputSystem;
 namespace TBD.Mundo
 {
     /// <summary>
-    /// Vista de la red del Hito 1 (Iker) sobre la escena del mundo de Marcos. Solo dibuja lo que dice Mundo.Red y le mete órdenes:
-    /// - T: modo trazar. Arrastrar con el botón izquierdo dibuja la vía; la cadena de piezas del kit se ajusta en vivo (D-N209). Vista previa en hueso si vale,
-    ///   en ámbar con un aspa y la causa si no (lámina 5 de Bruno). Al soltar, se traza. Esc cancela.
+    /// Vista de la red del Hito 1 (Iker) sobre la escena del mundo de Marcos. Solo dibuja lo que dice la red y mete órdenes:
+    /// - T: modo trazar. Arrastrar con el botón izquierdo dibuja la vía; la cadena de piezas del kit se ajusta en vivo (D-N209). Vista previa con TBD/ZumTrazado
+    ///   (Bruno): banda hueso si vale; ámbar con aspa y causa si no. Al soltar se manda la orden. Esc cancela.
     /// - Con A y B unidas, la línea por defecto (4 cajas a B y 2 palés de vuelta, Hugo) se crea sola y el tren la recorre.
-    /// La simulación va a 30 ticks/s (1:1, D-N208). Hasta que exista el Mundo común en la escena, RedVista lleva su propia Red (las mismas órdenes y el mismo código).
+    /// - Vía: piezas FBX de Teo (Resources/Models/Red) pieza a pieza; si faltan, una cinta. Por encima de 900 m (MAPA), símbolo hueso con grosor (lámina de Bruno).
+    /// Con el Mundo común (UsarMundo, lo llama la vista de Marcos), la red es Mundo.Red y todo va por Mundo.Encolar; sin él, RedVista lleva su propia Red.
     /// </summary>
     public sealed class RedVista : MonoBehaviour
     {
-        MundoBootstrap _mb; readonly Red _red = new Red();
-        int _a = -1, _b = -1, _tren = -1, _linea = -1; int _tick; float _acc;
-        readonly List<PointMm> _trazo = new List<PointMm>(); bool _modo, _arrastrando; LineRenderer _previa; string _causa; bool _valida; Vector3 _finPrevia;
-        readonly List<GameObject> _tramosGo = new List<GameObject>(); int _tramosDibujados;
-        Transform _trenGo; readonly List<Transform> _vagones = new List<Transform>(); Vector3[] _posAnt, _posAct; Quaternion[] _rotAnt, _rotAct;
-        Material _mBalasto, _mCarril, _mTren, _mPrevia;
-        static readonly Color Hueso = new Color32(0xe8, 0xdc, 0xc0, 0xff), Ambar = new Color32(0xe0, 0x8c, 0x30, 0xff);
+        MundoBootstrap _mb; Mundo _m; Red _propia;
+        Red R { get { return _m != null ? _m.Red : _propia; } }
+        int _tren = 0, _linea = -1, _tick; float _acc; bool _lineaPedida;
+        readonly List<PointMm> _trazo = new List<PointMm>(); bool _modo, _arrastrando; string _causa; bool _valida; Vector3 _finPrevia;
+        GameObject _previa; int _tramosDibujados;
+        readonly List<GameObject> _detalle = new List<GameObject>(), _simbolo = new List<GameObject>(); float _anchoSimbolo = -1f;
+        readonly List<Transform> _vagones = new List<Transform>(); Vector3[] _posAnt, _posAct; Quaternion[] _rotAnt, _rotAct;
+        Material _mBalasto, _mCarril, _mTren, _mPaleta;
         const float AlturaCarril = 0.72f;      // Teo: cabeza del carril a 0,72 m
+        static readonly string[] VarianteVia = { "v0_Hormigon", "v1_Madera", "v2_Maleza" };      // las de vía en servicio (v3 Obra y v4 Dañada son estados)
+        static readonly string[] VariantePaso = { "v0_Teja", "v1_FocosDobles", "v2_Abandonado", "v3_Militar", "v4_Catenaria" };
+
+        /// <summary>La vista de Marcos le pasa el Mundo común: desde ahí, RedVista no simula ni crea nada por su cuenta.</summary>
+        public void UsarMundo(Mundo m) { _m = m; _propia = null; Debug.Log("[RED] usando el Mundo común (Mundo.Red)"); }
 
         void Start()
         {
             _mb = GetComponent<MundoBootstrap>();
-            _mBalasto = Mat(new Color32(0x60, 0x5c, 0x48, 255)); _mCarril = Mat(new Color32(0x38, 0x38, 0x3c, 255)); _mTren = Mat(new Color32(0x4a, 0x55, 0x3a, 255));
-            _mPrevia = new Material(Shader.Find("Sprites/Default"));
-            // estaciones de Álvaro (posiciones_hito1.csv): A (1060; 430) y B (1300; 1640), en mm (X, Z del terreno = X, Y de la red)
-            _a = _red.AddEstacion("A", 1_060_000, 430_000); _b = _red.AddEstacion("B", 1_300_000, 1_640_000);
-            _red.Almacen[_a][Red.Municion] = 20;
-            try { var csv = System.IO.Path.Combine(Application.streamingAssetsPath, "Hito1", "carreteras_hito1.csv"); if (System.IO.File.Exists(csv)) Debug.Log($"[RED] carreteras de Álvaro: {_red.Via.CargarCarreterasCsv(System.IO.File.ReadAllText(csv))} trozos (sin el puente)"); }
-            catch (System.Exception e) { Debug.LogWarning("[RED] carreteras_hito1.csv: " + e.Message); }
-            _tren = _red.NuevoTren("Tren 1", _a);
-            var gp = new GameObject("Vía · vista previa"); _previa = gp.AddComponent<LineRenderer>(); _previa.material = _mPrevia; _previa.positionCount = 0; _previa.numCapVertices = 2;
+            _mBalasto = Lit(new Color32(0x60, 0x5c, 0x48, 255)); _mCarril = Lit(new Color32(0x38, 0x38, 0x3c, 255)); _mTren = Lit(new Color32(0x4a, 0x55, 0x3a, 255));
+            var pal = Resources.Load<Texture2D>("Models/Red/T_Paleta32"); _mPaleta = Lit(Color.white); if (pal != null) { _mPaleta.SetTexture("_BaseMap", pal); _mPaleta.mainTexture = pal; }
+            if (_m == null)
+            {
+                _propia = new Red();
+                int a = _propia.AddEstacion("A", 1_060_000, 430_000); _propia.AddEstacion("B", 1_300_000, 1_640_000);      // posiciones_hito1.csv de Álvaro
+                _propia.Almacen[a][Red.Municion] = 20;
+                try { var csv = System.IO.Path.Combine(Application.streamingAssetsPath, "Hito1", "carreteras_hito1.csv"); if (System.IO.File.Exists(csv)) Debug.Log($"[RED] carreteras de Álvaro: {_propia.Via.CargarCarreterasCsv(System.IO.File.ReadAllText(csv))} trozos (sin el puente)"); }
+                catch (System.Exception e) { Debug.LogWarning("[RED] carreteras_hito1.csv: " + e.Message); }
+                _propia.NuevoTren("Tren 1", a);
+            }
             MontarTren();
-            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-redauto") >= 0) { var r = _red.TrazarVia(new List<PointMm> { new PointMm(1_060_000, 430_000), new PointMm(1_300_000, 1_640_000) }); Debug.Log("[RED] -redauto: vía A–B " + (r.Ok ? "trazada" : "rechazada: " + r.Por)); }
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-redauto") >= 0) { _trazo.Clear(); _trazo.Add(Pos("A")); _trazo.Add(Pos("B")); MandarTrazo(); _trazo.Clear(); Debug.Log("[RED] -redauto: vía A–B pedida"); }
             Debug.Log("[RED] vista de la red lista: T para trazar vía (arrastrar con el botón izquierdo), Esc cancela");
         }
 
-        static Material Mat(Color c) { var m = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard")); m.color = c; return m; }
+        PointMm Pos(string est) { foreach (var e in R.Via.Estaciones) if (e.Nombre == est) { var n = R.Via.Nodos[e.Nodo]; return new PointMm(n.X, n.Y); } return new PointMm(0, 0); }
+        static Material Lit(Color c) { var m = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard")); m.color = c; return m; }
 
         void Update()
         {
+            if (R == null) return;
             Entrada();
-            // simulación a 30 ticks/s (1:1); -redx8 para probar
-            float x = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-redx8") >= 0 ? 8f : 1f;
-            _acc += Time.deltaTime * x; int pasos = 0;
-            while (_acc >= 1f / 30f && pasos < 40) { _acc -= 1f / 30f; pasos++; GuardarAnterior(); _red.Step(_tick++); LeerTren(); }
-            if (_linea < 0) LineaSiUnidas();
-            DibujarTramos();
+            if (_m == null)      // red propia: 30 ticks/s (1:1); -redx8 para probar
+            {
+                float x = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-redx8") >= 0 ? 8f : 1f;
+                _acc += Time.deltaTime * x; int pasos = 0;
+                while (_acc >= 1f / 30f && pasos < 40) { _acc -= 1f / 30f; pasos++; GuardarAnterior(); _propia.Step(_tick++); LeerTren(); }
+            }
+            else if (_m.Tick != _tick) { GuardarAnterior(); _tick = _m.Tick; LeerTren(); _acc = 0f; }
+            else _acc += Time.deltaTime;
+            LineaSiUnidas();
+            DibujarTramos(); Simbolo();
             InterpolarTren(_acc * 30f);
             Capturas();
         }
 
-        // QA: -redcapturas 20,60,120 = capturas a esos segundos reales (Captures/red_<s>s.png); -redfoco x,z,altura = coloca la cámara (lo hace MundoBootstrap con -altura)
-        readonly HashSet<float> _capHechas = new HashSet<float>();
-        void Capturas()
+        // ---------------------------------------------------------------- órdenes (por Mundo.Encolar si hay Mundo común)
+        void Mandar(TipoOrden t, int a = 0, int b = 0, int c = 0, int d = 0)
         {
-            var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-redcapturas"); if (i < 0 || i + 1 >= a.Length) return;
-            foreach (var t in a[i + 1].Split(','))
-                if (float.TryParse(t, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var s) && Time.realtimeSinceStartup >= s && _capHechas.Add(s))
-                {
-                    var dir = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(dir);
-                    var f = System.IO.Path.Combine(dir, $"red_{s:0}s.png"); ScreenCapture.CaptureScreenshot(f);
-                    var tr = _red.Trenes[_tren]; Debug.Log($"[RED] captura {f}: tren {tr.Estado}, parada {tr.Parada}, A {_red.Almacen[_a][0]} cajas, B {_red.Almacen[_b][0]} cajas, {_red.TextoLinea(_linea)}");
-                }
+            if (_m != null) { _m.Encolar(new Orden { Tick = _m.Tick + 1, Jugador = 1, Tipo = t, A = a, B = b, C = c, D = d }); return; }
+            switch (t)      // misma lógica que Mundo.AplicarRed, sobre la red propia
+            {
+                case OrdenesRed.NuevaLinea:
+                    {
+                        var cA = new int[Red.Recursos]; cA[Red.Municion] = 4; var dA = new int[Red.Recursos]; dA[Red.Material] = -1;
+                        var cB = new int[Red.Recursos]; cB[Red.Material] = 2; var dB = new int[Red.Recursos]; dB[Red.Municion] = -1;
+                        _propia.CrearLinea("Línea " + (_propia.Lineas.Count + 1), new List<ParadaLinea> { new ParadaLinea { Estacion = a, Cargar = cA, Descargar = dA }, new ParadaLinea { Estacion = b, Cargar = cB, Descargar = dB } });
+                        break;
+                    }
+                case OrdenesRed.AsignarTren: _propia.AsignarTren(a, b); break;
+            }
+        }
+
+        void MandarTrazo()
+        {
+            if (_trazo.Count < 2) return;
+            if (_m != null) { foreach (var p in _trazo) Mandar(OrdenesRed.PuntoVia, p.X, p.Y); Mandar(OrdenesRed.TrazarVia); Debug.Log($"[RED] trazo de {_trazo.Count} puntos mandado al Mundo"); return; }
+            var r = _propia.TrazarVia(_trazo);
+            Debug.Log(r.Ok ? $"[RED] vía trazada: tramo {r.Tramo}, {_propia.Via.Tramos[r.Tramo].Piezas.Length} piezas, {_propia.Via.Tramos[r.Tramo].LongMm / 1000} m, {_propia.Via.PasosNivel.Count} pasos a nivel" : "[RED] vía rechazada: " + r.Por);
+            if (!r.Ok) _causa = r.Por;
         }
 
         // ---------------------------------------------------------------- trazado (D-N209: trazo libre, piezas en vivo)
         void Entrada()
         {
             var kb = Keyboard.current; var ms = Mouse.current; if (kb == null || ms == null) return;
-            if (kb.tKey.wasPressedThisFrame) { _modo = !_modo; _trazo.Clear(); _previa.positionCount = 0; _causa = null; Debug.Log("[RED] modo trazar " + (_modo ? "activado" : "desactivado")); }
-            if (kb.escapeKey.wasPressedThisFrame && _modo) { _modo = false; _arrastrando = false; _trazo.Clear(); _previa.positionCount = 0; }
+            if (kb.tKey.wasPressedThisFrame) { _modo = !_modo; _trazo.Clear(); BorrarPrevia(); _causa = null; Debug.Log("[RED] modo trazar " + (_modo ? "activado" : "desactivado")); }
+            if (kb.escapeKey.wasPressedThisFrame && _modo) { _modo = false; _arrastrando = false; _trazo.Clear(); BorrarPrevia(); }
             MundoBootstrap.TrazandoVia = _modo;
             if (!_modo) return;
             var pos = ms.position.ReadValue();
@@ -87,40 +114,53 @@ namespace TBD.Mundo
             if (_arrastrando && ms.leftButton.wasReleasedThisFrame)
             {
                 _arrastrando = false;
-                if (_trazo.Count >= 2)
-                {
-                    var r = _red.TrazarVia(_trazo);
-                    Debug.Log(r.Ok ? $"[RED] vía trazada: tramo {r.Tramo}, {_red.Via.Tramos[r.Tramo].Piezas.Length} piezas, {_red.Via.Tramos[r.Tramo].LongMm / 1000} m, {_red.Via.PasosNivel.Count} pasos a nivel" : "[RED] vía rechazada: " + r.Por);
-                    if (r.Ok) { _previa.positionCount = 0; _causa = null; } else _causa = r.Por;
-                }
+                if (_trazo.Count >= 2 && _valida) { MandarTrazo(); BorrarPrevia(); _causa = null; }
+                else if (_trazo.Count >= 2) Debug.Log("[RED] vía no válida, no se manda: " + _causa);
                 _trazo.Clear();
             }
         }
 
         static PointMm Mm(Vector3 p) { return new PointMm(Mathf.RoundToInt(p.x * 1000f), Mathf.RoundToInt(p.z * 1000f)); }
         Vector3 AMundo(PointMm p, float sobre = 0f) { float x = p.X / 1000f, z = p.Y / 1000f; return new Vector3(x, _mb.AlturaSuelo(x, z) + sobre, z); }
+        static Quaternion Giro(int rumbo) { return Quaternion.Euler(0f, -rumbo * 360f / IMath.Turn, 0f); }      // rumbo 0 = +X; en Unity el yaw positivo gira +X hacia −Z
 
         /// <summary>Vista previa: la cadena de piezas sobre una copia de la vía (la simulación no se toca hasta soltar).</summary>
         void Previa()
         {
-            var copia = new Red(); var w = new TBD.Net.SaveWriter(); _red.Save(w); copia.Load(new TBD.Net.SaveReader(w.ToArray()));
+            var copia = new Red(); var w = new TBD.Net.SaveWriter(); R.Save(w); copia.Load(new TBD.Net.SaveReader(w.ToArray()));
             var r = copia.Via.TrazarLibre(_trazo);
             _valida = r.Ok; _causa = r.Ok ? null : r.Por;
-            List<PointMm> pts;
-            if (r.Ok) pts = new List<PointMm>(copia.Via.Tramos[r.Tramo].Puntos);
-            else { pts = new List<PointMm>(_trazo); }
-            float ancho = Mathf.Clamp(_mb.AlturaCamara * 0.006f, 1.5f, 25f);
-            _previa.startWidth = _previa.endWidth = ancho; _previa.startColor = _previa.endColor = _valida ? Hueso : Ambar;
-            _previa.positionCount = pts.Count; for (int i = 0; i < pts.Count; i++) _previa.SetPosition(i, AMundo(pts[i], 1.5f));
-            _finPrevia = AMundo(pts[pts.Count - 1], 1.5f);
+            var pts = r.Ok ? copia.Via.Tramos[r.Tramo].Puntos : _trazo.ToArray();
+            BorrarPrevia(); _previa = new GameObject("Vía · vista previa");
+            if (_valida)
+            {
+                Cinta(_previa.transform, pts, 0f, 3.6f, 0.9f, Trazado(ZumEstetica.Hueso, 0.55f, 0f), "Banda", true);
+                Cinta(_previa.transform, pts, 0f, 0.5f, 1.0f, Trazado(ZumEstetica.Hueso, 1f, 6f), "Eje", true);
+            }
+            else
+            {
+                Cinta(_previa.transform, pts, 0f, 6.6f, 0.9f, Trazado(ZumEstetica.Contorno, 1f, 0f), "Contorno", true);
+                Cinta(_previa.transform, pts, 0f, 6f, 1.0f, Trazado(ZumEstetica.Ambar, 1f, 0f), "Banda", true);
+            }
+            _finPrevia = AMundo(pts[pts.Length - 1], 1.5f);
         }
+
+        Material Trazado(Color c, float tramado, float guion)
+        {
+            var m = ZumEstetica.MaterialTrazado(c, tramado, guion);
+            if (m == null) { m = new Material(Shader.Find("Sprites/Default")); m.color = c; }      // sin el shader de Bruno, color plano
+            return m;
+        }
+
+        void BorrarPrevia() { if (_previa != null) Destroy(_previa); _previa = null; }
 
         void OnGUI()
         {
+            if (R == null) return;
             var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(13, Screen.height / 60), richText = true };
             float y = Screen.height - 70f;
-            if (_linea >= 0) GUI.Label(new Rect(16f, y - 26f, 900f, 28f), "<color=#e8dcc0>Línea A–B · " + _red.TextoLinea(_linea) + $" · tren: {_red.Trenes[_tren].Estado} · A {_red.Almacen[_a][0]} cajas · B {_red.Almacen[_b][0]} cajas</color>", st);
-            GUI.Label(new Rect(16f, y, 900f, 28f), _modo ? "<color=#e8dcc0>Trazar vía: arrastra desde una estación o una vía con el botón izquierdo · Esc cancela</color>" : "<color=#8c8a86>T: trazar vía</color>", st);
+            if (_linea >= 0 && _linea < R.Lineas.Count) GUI.Label(new Rect(16f, y - 26f, 1100f, 28f), "<color=#d4d0cc>Línea A–B · " + R.TextoLinea(_linea) + $" · A {R.Almacen[0][Red.Municion]} cajas · B {R.Almacen[1][Red.Municion]} cajas</color>", st);
+            GUI.Label(new Rect(16f, y, 900f, 28f), _modo ? "<color=#d4d0cc>Trazar vía: arrastra desde una estación o una vía con el botón izquierdo · Esc cancela</color>" : "<color=#8c8a86>T: trazar vía</color>", st);
             if (_modo && _causa != null && _mb.CamaraMundo != null)
             {
                 var sp = _mb.CamaraMundo.WorldToViewportPoint(_finPrevia);
@@ -131,52 +171,102 @@ namespace TBD.Mundo
         // ---------------------------------------------------------------- línea por defecto en cuanto A y B están unidas
         void LineaSiUnidas()
         {
-            if (_red.Via.Ruta(_red.Via.Estaciones[_a].Nodo, _red.Via.Estaciones[_b].Nodo) == null) return;
-            var cA = new int[Red.Recursos]; cA[Red.Municion] = 4; var dA = new int[Red.Recursos]; dA[Red.Material] = -1;
-            var cB = new int[Red.Recursos]; cB[Red.Material] = 2; var dB = new int[Red.Recursos]; dB[Red.Municion] = -1;
-            _linea = _red.CrearLinea("A–B", new List<ParadaLinea> { new ParadaLinea { Estacion = _a, Cargar = cA, Descargar = dA }, new ParadaLinea { Estacion = _b, Cargar = cB, Descargar = dB } });
-            _red.AsignarTren(_linea, _tren);
+            if (_linea < 0 && R.Lineas.Count > 0) { _linea = 0; Debug.Log("[RED] línea A–B en marcha"); }
+            if (_lineaPedida || R.Via.Estaciones.Count < 2) return;
+            if (R.Via.Ruta(R.Via.Estaciones[0].Nodo, R.Via.Estaciones[1].Nodo) == null) return;
+            _lineaPedida = true;
+            Mandar(OrdenesRed.NuevaLinea, 0, 1); Mandar(OrdenesRed.AsignarTren, R.Lineas.Count, _tren);
             Debug.Log("[RED] A y B unidas: línea por defecto (4 cajas a B, 2 palés de vuelta) y el tren sale");
         }
 
-        // ---------------------------------------------------------------- vía: balasto y dos carriles por tramo, siguiendo el terreno
+        // ---------------------------------------------------------------- vía: FBX de Teo pieza a pieza (o cinta) y, en MAPA, símbolo con grosor
         void DibujarTramos()
         {
-            while (_tramosDibujados < _red.Via.Tramos.Count)
+            while (_tramosDibujados < R.Via.Tramos.Count)
             {
-                var t = _red.Via.Tramos[_tramosDibujados++];
-                var go = new GameObject($"Vía · tramo {t.Id} ({t.Piezas?.Length ?? 0} piezas)");
-                Cinta(go.transform, t.Puntos, 0f, 3.4f, 0.25f, _mBalasto, "Balasto");
-                Cinta(go.transform, t.Puntos, -0.75f, 0.12f, AlturaCarril, _mCarril, "Carril izquierdo");
-                Cinta(go.transform, t.Puntos, 0.75f, 0.12f, AlturaCarril, _mCarril, "Carril derecho");
-                _tramosGo.Add(go);
+                var t = R.Via.Tramos[_tramosDibujados++];
+                var det = new GameObject($"Vía · tramo {t.Id} ({t.Piezas?.Length ?? 0} piezas)");
+                if (!MontarPiezas(det.transform, t)) { Cinta(det.transform, t.Puntos, 0f, 3.4f, 0.25f, _mBalasto, "Balasto", false); Cinta(det.transform, t.Puntos, -0.75f, 0.12f, AlturaCarril, _mCarril, "Carril izquierdo", false); Cinta(det.transform, t.Puntos, 0.75f, 0.12f, AlturaCarril, _mCarril, "Carril derecho", false); }
+                foreach (var pn in R.Via.PasosNivel) if (pn.Tramo == t.Id) MontarPasoNivel(det.transform, t, pn);
+                _detalle.Add(det); _anchoSimbolo = -1f;
             }
         }
 
-        void Cinta(Transform padre, PointMm[] pts, float desplaz, float ancho, float alto, Material m, string nombre)
+        /// <summary>Coloca el FBX de cada pieza desde el conector A del tramo. Teo: origen en el conector A, sale hacia +X; su curva gira a −Z en Unity (= nuestra Der).
+        /// Nuestra Izq es la misma curva recorrida al revés: se pone en el final de la pieza, girada 180°. Variante por instancia, con semilla determinista.</summary>
+        bool MontarPiezas(Transform padre, Via.Tramo t)
+        {
+            if (t.Piezas == null || t.Piezas.Length == 0) return false;
+            if (Resources.Load<GameObject>("Models/Red/SM_Via_Recta10_v0_Hormigon_LOD1") == null) return false;
+            long x = R.Via.Nodos[t.A].X, y = R.Via.Nodos[t.A].Y; int ru = t.RumboIni;
+            for (int i = 0; i < t.Piezas.Length; i++)
+            {
+                var pz = t.Piezas[i]; long x0 = x, y0 = y; int r0 = ru; Via.Avanzar(pz, ref x, ref y, ref ru);
+                string tipo = pz == Via.Pieza.Recta10 ? "Recta10" : pz == Via.Pieza.Recta2_5 ? "Recta2" : "CurvaR" + (Via.RadioMm(pz) / 1000);
+                string var = VarianteVia[(int)(IMath.Mix((ulong)(t.Id * 1000 + i) ^ 0xBEEFUL) % (ulong)VarianteVia.Length)];
+                var pre = Resources.Load<GameObject>($"Models/Red/SM_Via_{tipo}_{var}_LOD1"); if (pre == null) continue;
+                bool alReves = Via.GiroBam(pz) > 0;      // izquierda (antihorario): la curva de Teo, desde el final y girada 180°
+                var go = Instantiate(pre, padre);
+                if (!alReves) { go.transform.position = AMundo(new PointMm((int)x0, (int)y0)); go.transform.rotation = Giro(r0); }
+                else { go.transform.position = AMundo(new PointMm((int)x, (int)y)); go.transform.rotation = Giro((ru + IMath.Turn / 2) & 0xFFFF); }
+                Pintar(go);
+            }
+            return true;
+        }
+
+        /// <summary>Paso a nivel de Teo (SM_PasoNivel_&lt;ángulo&gt;): su vía va de A (0;0) a B (20 o 30; 0) con el cruce en el centro; se coloca centrado en el punto de cruce.</summary>
+        void MontarPasoNivel(Transform padre, Via.Tramo t, Via.PasoNivel pn)
+        {
+            string var = VariantePaso[(int)(IMath.Mix((ulong)(pn.Tramo * 77 + pn.OffMm) ^ 0xCAFEUL) % (ulong)VariantePaso.Length)];
+            var pre = Resources.Load<GameObject>($"Models/Red/SM_PasoNivel_{pn.AnguloGrados}_{var}_LOD1"); if (pre == null) { Debug.Log($"[RED] falta SM_PasoNivel_{pn.AnguloGrados}_{var} en Resources/Models/Red"); return; }
+            int largo = pn.AnguloGrados >= 60 ? 20_000 : 30_000;
+            var a = R.Via.Posicion(t.Id, Mathf.Max(0, pn.OffMm - largo / 2), out int rumbo);
+            var go = Instantiate(pre, padre); go.transform.position = AMundo(a); go.transform.rotation = Giro(rumbo); Pintar(go);
+        }
+
+        void Pintar(GameObject go) { foreach (var r in go.GetComponentsInChildren<Renderer>()) { var ms = r.sharedMaterials; for (int k = 0; k < ms.Length; k++) ms[k] = _mPaleta; r.sharedMaterials = ms; } }
+
+        /// <summary>MAPA (Bruno, 900 m o más): la vía como cinta hueso con grosor proporcional a la altura de la cámara; el detalle se apaga.</summary>
+        void Simbolo()
+        {
+            float alt = _mb.AlturaCamara; bool mapa = alt >= ZumEstetica.Mapa;
+            foreach (var d in _detalle) if (d != null) d.SetActive(!mapa);
+            float ancho = Mathf.Clamp(alt * 0.004f, 3f, 16f);
+            if (mapa && (_anchoSimbolo < 0f || Mathf.Abs(ancho - _anchoSimbolo) > _anchoSimbolo * 0.25f))
+            {
+                foreach (var s in _simbolo) if (s != null) Destroy(s); _simbolo.Clear(); _anchoSimbolo = ancho;
+                foreach (var t in R.Via.Tramos) { var g = new GameObject($"Vía · símbolo {t.Id}"); Cinta(g.transform, t.Puntos, 0f, ancho * 1.25f, 2f, Trazado(ZumEstetica.Contorno, 1f, 0f), "Contorno", true); Cinta(g.transform, t.Puntos, 0f, ancho, 2.2f, Trazado(ZumEstetica.Hueso, 1f, 0f), "Hueso", true); _simbolo.Add(g); }
+            }
+            foreach (var s in _simbolo) if (s != null) s.SetActive(mapa);
+        }
+
+        /// <summary>Cinta sobre el terreno a lo largo de una polilínea (uv.x = metros, como pide TBD/ZumTrazado).</summary>
+        void Cinta(Transform padre, PointMm[] pts, float desplaz, float ancho, float alto, Material m, string nombre, bool uvMetros)
         {
             var go = new GameObject(nombre); go.transform.SetParent(padre, false);
-            var verts = new List<Vector3>(); var tris = new List<int>();
+            var verts = new List<Vector3>(); var uv = new List<Vector2>(); var tris = new List<int>(); float s = 0f;
             for (int i = 0; i < pts.Length; i++)
             {
                 var p = AMundo(pts[i]); var a = AMundo(pts[Mathf.Max(0, i - 1)]); var b = AMundo(pts[Mathf.Min(pts.Length - 1, i + 1)]);
+                if (i > 0) s += Vector3.Distance(AMundo(pts[i - 1]), p);
                 var dir = (b - a); dir.y = 0f; dir = dir.sqrMagnitude > 1e-6f ? dir.normalized : Vector3.forward; var izq = new Vector3(-dir.z, 0f, dir.x);
                 var c = p + izq * desplaz;
                 verts.Add(c + izq * (ancho * 0.5f) + Vector3.up * alto); verts.Add(c - izq * (ancho * 0.5f) + Vector3.up * alto);
+                uv.Add(new Vector2(uvMetros ? s : 0f, 0f)); uv.Add(new Vector2(uvMetros ? s : 0f, 1f));
                 if (i > 0) { int k = verts.Count - 4; tris.AddRange(new[] { k, k + 2, k + 1, k + 1, k + 2, k + 3 }); }
             }
-            var mesh = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 }; mesh.SetVertices(verts); mesh.SetTriangles(tris, 0); mesh.RecalculateNormals(); mesh.RecalculateBounds();
+            var mesh = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 }; mesh.SetVertices(verts); mesh.SetUVs(0, uv); mesh.SetTriangles(tris, 0); mesh.RecalculateNormals(); mesh.RecalculateBounds();
             go.AddComponent<MeshFilter>().sharedMesh = mesh; go.AddComponent<MeshRenderer>().sharedMaterial = m;
         }
 
         // ---------------------------------------------------------------- tren: locomotora y dos vagones (2 × 3 huecos, Hugo), interpolado entre ticks
         void MontarTren()
         {
-            _trenGo = new GameObject("Tren 1").transform;
+            var raiz = new GameObject("Tren 1").transform;
             for (int i = 0; i < 3; i++)
             {
                 var v = GameObject.CreatePrimitive(PrimitiveType.Cube); Destroy(v.GetComponent<Collider>());
-                v.name = i == 0 ? "Locomotora" : "Vagón " + i; v.transform.SetParent(_trenGo, false); v.transform.localScale = new Vector3(3f, i == 0 ? 3.8f : 2.6f, i == 0 ? 16f : 13f);
+                v.name = i == 0 ? "Locomotora" : "Vagón " + i; v.transform.SetParent(raiz, false); v.transform.localScale = new Vector3(3f, i == 0 ? 3.8f : 2.6f, i == 0 ? 16f : 13f);
                 v.GetComponent<MeshRenderer>().sharedMaterial = _mTren; _vagones.Add(v.transform);
             }
             _posAnt = new Vector3[3]; _posAct = new Vector3[3]; _rotAnt = new Quaternion[3]; _rotAct = new Quaternion[3];
@@ -187,7 +277,8 @@ namespace TBD.Mundo
 
         void LeerTren()
         {
-            var t = _red.Trenes[_tren];
+            if (R.Trenes.Count <= _tren) return;
+            var t = R.Trenes[_tren];
             for (int i = 0; i < 3; i++)
             {
                 int atras = i == 0 ? 0 : 8_500 + (i - 1) * 14_000 + 6_500;      // centros de cada coche detrás de la cabeza
@@ -197,17 +288,17 @@ namespace TBD.Mundo
             }
         }
 
-        /// <summary>Punto de la ruta del tren «atras» mm por detrás de la cabeza (dentro del tramo actual; parado, en el nodo).</summary>
+        /// <summary>Punto de la ruta del tren «atras» mm por detrás de la cabeza (dentro del tramo actual; parado, junto al nodo).</summary>
         PointMm PosEnRuta(Tren t, int atras, out int rumbo)
         {
-            rumbo = 0;
+            rumbo = 0; var v = R.Via;
             if (t.Estado != EstadoTren.EnMarcha || t.Ruta.Count == 0)
             {
-                foreach (var tr in _red.Via.Tramos) if (tr.A == t.Nodo || tr.B == t.Nodo) { bool alA = tr.A == t.Nodo; var q = _red.Via.Posicion(tr.Id, alA ? Mathf.Min(tr.LongMm, atras) : Mathf.Max(0, tr.LongMm - atras), out rumbo); if (!alA) rumbo = (rumbo + IMath.Turn / 2) & 0xFFFF; return q; }
-                var n = _red.Via.Nodos[Mathf.Max(0, t.Nodo)]; return new PointMm(n.X, n.Y - atras);
+                foreach (var tr in v.Tramos) if (tr.A == t.Nodo || tr.B == t.Nodo) { bool alA = tr.A == t.Nodo; var q = v.Posicion(tr.Id, alA ? Mathf.Min(tr.LongMm, atras) : Mathf.Max(0, tr.LongMm - atras), out rumbo); if (!alA) rumbo = (rumbo + IMath.Turn / 2) & 0xFFFF; return q; }
+                var n = v.Nodos[Mathf.Max(0, t.Nodo)]; return new PointMm(n.X, n.Y - atras);
             }
-            var ps = t.Ruta[t.PasoI]; var tram = _red.Via.Tramos[ps.Tramo]; int off = Mathf.Max(0, t.OffMm - atras);
-            var p = _red.Via.Posicion(ps.Tramo, ps.Directo ? off : tram.LongMm - off, out rumbo); if (!ps.Directo) rumbo = (rumbo + IMath.Turn / 2) & 0xFFFF;
+            var ps = t.Ruta[t.PasoI]; var tram = v.Tramos[ps.Tramo]; int off = Mathf.Max(0, t.OffMm - atras);
+            var p = v.Posicion(ps.Tramo, ps.Directo ? off : tram.LongMm - off, out rumbo); if (!ps.Directo) rumbo = (rumbo + IMath.Turn / 2) & 0xFFFF;
             return p;
         }
 
@@ -215,6 +306,21 @@ namespace TBD.Mundo
         {
             f = Mathf.Clamp01(f);
             for (int i = 0; i < 3; i++) { _vagones[i].position = Vector3.Lerp(_posAnt[i], _posAct[i], f); _vagones[i].rotation = Quaternion.Slerp(_rotAnt[i], _rotAct[i], f); }
+        }
+
+        // QA: -redcapturas 20,60,120 = capturas a esos segundos reales (Captures/red_<s>s.png)
+        readonly HashSet<float> _capHechas = new HashSet<float>();
+        void Capturas()
+        {
+            var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-redcapturas"); if (i < 0 || i + 1 >= a.Length) return;
+            foreach (var t in a[i + 1].Split(','))
+                if (float.TryParse(t, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var s) && Time.realtimeSinceStartup >= s && _capHechas.Add(s))
+                {
+                    var dir = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(dir);
+                    var f = System.IO.Path.Combine(dir, $"red_{s:0}s.png"); ScreenCapture.CaptureScreenshot(f);
+                    var tr = R.Trenes.Count > _tren ? R.Trenes[_tren] : null;
+                    Debug.Log($"[RED] captura {f}: tren {(tr != null ? tr.Estado.ToString() : "-")}, A {R.Almacen[0][Red.Municion]} cajas, B {R.Almacen[1][Red.Municion]} cajas, {(_linea >= 0 ? R.TextoLinea(_linea) : "sin línea")}");
+                }
         }
     }
 }
