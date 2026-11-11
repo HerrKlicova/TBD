@@ -89,7 +89,8 @@ namespace TBD.View
                 Debug.Log($"[NOCHE] {g.Name}: vida {g.Max:0} y {g.HeightMm / 1000f:0.0} m (como sus vecinos)");
             }
             Push(CmdType.ClearFort);
-            foreach (var s in _segs) Push(CmdType.BuildSeg, s.Id * 10000 + s.HeightMm, new Unity.Mathematics.float2(s.A.x, s.A.y), new Unity.Mathematics.float2(s.B.x, s.B.y));
+            bool alturaReal = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-tramos-altura-real") >= 0;      // I-Noche173: con la altura real (sacos 1,2 m) la pila trepa y la noche 2 de Nules se pierde (4/4); por defecto, 2,5 m como antes, hasta que decidan Nacho y Lucía
+            foreach (var s in _segs) Push(CmdType.BuildSeg, s.Id * 10000 + (alturaReal ? s.HeightMm : 2500), new Unity.Mathematics.float2(s.A.x, s.A.y), new Unity.Mathematics.float2(s.B.x, s.B.y));
             foreach (var s in _segs) if (s.IsVehGate && !NocheEnMarcha) { s.Open = true; s.DeDia = true; Push(CmdType.SetSegment, s.Id * 10 + 1); }      // de día las puertas abiertas (D-N202)
             int no = 0, ne = 0, ns = 0, nn = 0; foreach (var s in _segs) { var l = Lado(s.A); if (l == "oeste") no++; else if (l == "este") ne++; else if (l == "sur") ns++; else nn++; }
             Debug.Log($"[NOCHE] tramos: {_segs.Count} tramos en el perímetro (oeste {no}, este {ne}, sur {ns}, norte {nn}; vida total {SegTotal(false):0})");
