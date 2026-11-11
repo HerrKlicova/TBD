@@ -35,7 +35,7 @@ namespace TBD.View
             var sh = Shader.Find("Sprites/Default");
             var mat = new Material(sh) { mainTexture = tex, renderQueue = 2990 };
             var root = new GameObject("Bruma del borde (D-N182)").transform; root.SetParent(transform, false);
-            _brumaRoot = root.gameObject; _brumaRoot.SetActive(_nightOn);
+            _brumaRoot = root.gameObject; _brumaRoot.SetActive(BrumaDeNoche());
             float W = SimConst.WorldW, H = SimConst.WorldH, extra = 60f;
             // oeste, este, sur y norte: el lado opaco del degradado queda siempre en el borde de la zona (y un poco más allá, para tapar el horizonte)
             Franja(root, mat, new Vector3(BrumaAnchoM * 0.5f - extra * 0.5f, BrumaAltoM, H * 0.5f), new Vector2(BrumaAnchoM + extra, H + 2f * extra), 0f, extra / (BrumaAnchoM + extra));
@@ -47,7 +47,9 @@ namespace TBD.View
 
         /// <summary>Cada fotograma: la franja se enciende con la noche y se apaga de día (de día era un quad oscuro al 80 % a 4 m que se leía como bandas negras
         /// a los lados de la zona, cortando el paso elevado y el terraplén por la mitad).</summary>
-        void UpdateBrumaBorde() { if (_brumaRoot != null && _brumaRoot.activeSelf != _nightOn) _brumaRoot.SetActive(_nightOn); }
+        void UpdateBrumaBorde() { bool on = BrumaDeNoche(); if (_brumaRoot != null && _brumaRoot.activeSelf != on) _brumaRoot.SetActive(on); }
+        /// <summary>Iker: _nightOn vale todo el día con el reloj único (la zona tiene su noche montada desde que entras); de noche es de 21:00 a 06:00 de la red. Con reloj propio (tutorial, -zona), siempre.</summary>
+        bool BrumaDeNoche() { if (!_nightOn || _ng == null) return false; if (!_ng.P.NetClock || NetSession.A == null) return true; long h = NetSession.A.Tick % TBD.Net.NetConst.DayTicks; return h >= TBD.Net.NetConst.Hours(21) || h < TBD.Net.NetConst.Hours(6); }
 
         /// <summary>Quad horizontal a «alto» m. El degradado va a lo largo de su eje local X: u = 0 (opaco) en el borde exterior. «opacoHasta» = parte del quad que queda opaca del todo (lo que sobresale de la zona).</summary>
         static void Franja(Transform root, Material baseMat, Vector3 centro, Vector2 tam, float yaw, float opacoHasta)
