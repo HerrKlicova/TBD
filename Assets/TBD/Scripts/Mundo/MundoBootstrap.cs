@@ -326,7 +326,7 @@ namespace TBD.Mundo
                 float x0 = F(c[3]) / 1000f, z0 = F(c[4]) / 1000f, x1 = F(c[5]) / 1000f, z1 = F(c[6]) / 1000f, alto = F(c[8]) / 1000f, gr = Mathf.Max(0.4f, F(c[7]) / 1000f * 2f);
                 var centro = EnSuelo(new Vector3((x0 + x1) * 0.5f, 0f, (z0 + z1) * 0.5f)); string tipo = c[1], nota = c[c.Length - 1];
                 if (tipo == "edificio") { Caja("Edificio " + c[0] + " " + nota, centro + Vector3.up * alto * 0.5f, new Vector3(Mathf.Max(1f, Mathf.Abs(x1 - x0)), alto, Mathf.Max(1f, Mathf.Abs(z1 - z0))), mEd, rc); ned++; }
-                else if (c[2] == "segmento")
+                else if (c[2] == "segmento" || c[2] == "seg")
                 {
                     var d = new Vector3(x1 - x0, 0f, z1 - z0); if (d.sqrMagnitude < 0.01f) continue;
                     var t = Caja("Tapia " + c[0], centro + Vector3.up * alto * 0.5f, new Vector3(gr, alto, d.magnitude), mTapia, rc); t.transform.rotation = Quaternion.LookRotation(d.normalized); ntap++;
