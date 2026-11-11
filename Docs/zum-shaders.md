@@ -2,7 +2,11 @@
 
 Lo que hace falta para que la escena Mundo (rama `marcos/mundo-zum`) se vea como las láminas de la «Estética del zum» (https://claude.ai/artifact/NeREWjA1C6kJpy9Ug6ysuh; generador en `claude/zum-estetica`, `Art/Codigo/zum/build_zum.py`). Rama: `bruno/zum-shaders`, sacada de `marcos/mundo-zum` (ac8757ea). No toca `MundoBootstrap.cs`: los cambios para enchufarlo están abajo, para que los haga Marcos.
 
-**SIN COMPILAR.** Está escrito en la nube, sin Unity. Al abrir el proyecto, mira la consola. Si un shader no compila, `ZumEstetica` avisa una vez con `[ZUM] no carga el shader …` y deja lo de antes (URP/Lit y `GUI.DrawTexture`), así que la escena no se rompe.
+**Compila en la build Mundo6 de Marcos (11-11).** En esa build todo salía muy oscuro: era gamma. Lo que se dibuja desde OnGUI con `Graphics.DrawTexture` llega a la pantalla sin pasar a sRGB, así que cada color salía con su valor lineal (303424 se veía 080904). Corregido en ZumPantalla y ZumIcono con `_Codificar` (lo pone `ZumEstetica.CodificarGamma`, true en proyecto lineal). La paleta de ZumSuelo estaba bien.
+
+**Cómo comprobarlo** con la captura del mapa a 1800 m (`shaders_mapa_1800.png`): el MAPA no lleva luz ni calima, así que los píxeles tienen que ser exactamente de la paleta. Los más frecuentes deben ser 303424 (banda baja), 181c30 (mar), 48403c (banda media), 50541c (trama de naranjal) y 404460 (marjal). En Mundo6 eran 080904, 020308, 110d0c, 141703 y 0d0f1e, que pasados de lineal a sRGB dan justo esos colores. Si después de la corrección salen más claros que la paleta (por ejemplo, 303424 como 5f6350), es sRGB dos veces: poner `ZumEstetica.CodificarGamma = false`.
+
+Antes de esa build: Al abrir el proyecto, mira la consola. Si un shader no compila, `ZumEstetica` avisa una vez con `[ZUM] no carga el shader …` y deja lo de antes (URP/Lit y `GUI.DrawTexture`), así que la escena no se rompe.
 
 ## Archivos
 
