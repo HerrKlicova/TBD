@@ -137,6 +137,17 @@ namespace TBD.Mundo
             return p;
         }
 
+        /// <summary>Hash por sistema para el registro de desincronización (-hashlog de Sara/Nacho): «red.via», «red.trenes», «red.almacen», «red.cargas». Mundo los junta con los suyos.</summary>
+        public void HashPorSistema(List<KeyValuePair<string, ulong>> salida)
+        {
+            salida.Add(new KeyValuePair<string, ulong>("red.via", Via.Hash()));
+            ulong ht = 0x51UL; foreach (var t in Trenes) { ht = IMath.Mix(ht ^ (ulong)t.Id ^ ((ulong)(uint)t.Nodo << 8) ^ ((ulong)t.PasoI << 24) ^ ((ulong)(uint)t.OffMm << 32)); ht = IMath.Mix(ht ^ (ulong)(uint)t.VelMmT ^ ((ulong)t.Estado << 20) ^ ((ulong)(uint)(t.Linea + 1) << 24) ^ ((ulong)(uint)t.Parada << 40) ^ ((ulong)(uint)t.EsperaT << 48)); foreach (var ps in t.Ruta) ht = IMath.Mix(ht ^ (ulong)ps.Tramo ^ (ps.Directo ? 1UL << 40 : 0UL)); }
+            salida.Add(new KeyValuePair<string, ulong>("red.trenes", ht));
+            ulong ha = 0x52UL; foreach (var a in Almacen) foreach (var c in a) ha = IMath.Mix(ha ^ (ulong)(uint)c); salida.Add(new KeyValuePair<string, ulong>("red.almacen", ha));
+            ulong hc = 0x53UL; foreach (var t in Trenes) foreach (var c in t.Carga) hc = IMath.Mix(hc ^ (ulong)(uint)c); foreach (var kv in _hechoC) foreach (var c in kv.Value) hc = IMath.Mix(hc ^ (ulong)kv.Key ^ (ulong)(uint)c << 16); foreach (var kv in _hechoD) foreach (var c in kv.Value) hc = IMath.Mix(hc ^ (ulong)kv.Key ^ (ulong)(uint)c << 24);
+            salida.Add(new KeyValuePair<string, ulong>("red.cargas", hc));
+        }
+
         public ulong Hash()
         {
             ulong h = Via.Hash() ^ ((ulong)(uint)Tick << 7);

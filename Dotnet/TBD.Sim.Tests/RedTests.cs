@@ -66,6 +66,9 @@ namespace TBD.Sim.Tests
                 for (int tick = 6001; tick <= 12000; tick++) { r1.Step(tick); r3.Step(tick); }
                 check(r3.Hash() == r1.Hash() && r1.Almacen[1][0] == r3.Almacen[1][0], $"y sigue igual 6000 ticks después (Caserío: {r1.Almacen[1][0]} u en los dos)");
                 check(r1.Trenes[0].Carga[0] <= r1.Trenes[0].Capacidad, "el tren no pasa de su capacidad (40 u)");
+                var hs1 = new List<KeyValuePair<string, ulong>>(); r1.HashPorSistema(hs1); r1.Almacen[1][0]++; var hs2 = new List<KeyValuePair<string, ulong>>(); r1.HashPorSistema(hs2); r1.Almacen[1][0]--;
+                var dif = new List<string>(); for (int i = 0; i < hs1.Count; i++) if (hs1[i].Value != hs2[i].Value) dif.Add(hs1[i].Key);
+                check(hs1.Count == 4 && dif.Count == 1 && dif[0] == "red.almacen", $"el hash por sistema señala solo el sistema que cambia ({string.Join(", ", dif)})");
             }
             // sin vía: el tren con línea espera y no se mueve
             {
