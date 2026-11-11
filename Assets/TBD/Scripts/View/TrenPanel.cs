@@ -723,6 +723,8 @@ namespace TBD.View
                 case 6: if (t > 5f) { Debug.Log("[SOCORRO] fin de la corrida"); Application.Quit(0); _socPaso++; } break;
             }
         }
+        /// <summary>Hugo (11-nov): -dia2-municion N = las u del segundo tren a Nules; por defecto {m} (NetWorld.ObjAmmoNeedU), antes 25 fijas.</summary>
+        int Dia2Municion() { var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-dia2-municion"); if (i >= 0 && i + 1 < a.Length && int.TryParse(a[i + 1], out var n) && n > 0) return n; return W != null && W.ObjAmmoNeedU > 0 ? W.ObjAmmoNeedU : 25; }
         void AutoDia2()
         {
             float t = AutoT(); int sag = Casa, nul = Nodo("Nules"); long dia2 = NetConst.DayTicks; bool escolta = !Arg("-dia2-auto-sinescolta");
@@ -736,7 +738,7 @@ namespace TBD.View
                         else if (t > 60f) { Debug.LogWarning("[DIA2] el primer tren no ha llegado a Nules"); _autoT0 = Time.unscaledTime; _autoPaso++; } break;
                 case 4: if (t > 4f && TrenPreparar.TrenEn(W, sag) >= 0 && (_sv1 < 0 || TrenPreparar.TrenEn(W, sag) == _sv1) && !Embarque.Ocupado)      // Nacho (115): espera al primer tren; con otro en el andén el pelotón subía a ese y el segundo viaje salía sin él
                     {
-                        AbrirPreparar(sag); Cargar((int)Res.Municion, 25); int sv = TrenPreparar.TrenEn(W, sag); var ses = (W != null ? PrototypeBootstrap.SesionDe(W.Embarque.HomeNode) : null) ?? NightRun.Session;   // 25: la emboscada rechazada gasta ~1 u de la carga y el objetivo pide 20 en el almacén
+                        AbrirPreparar(sag); Cargar((int)Res.Municion, Dia2Municion()); int sv = TrenPreparar.TrenEn(W, sag); var ses = (W != null ? PrototypeBootstrap.SesionDe(W.Embarque.HomeNode) : null) ?? NightRun.Session;   // 25: la emboscada rechazada gasta ~1 u de la carga y el objetivo pide 20 en el almacén
                         if (!escolta) Debug.Log("[DIA2] sin escolta (-dia2-auto-sinescolta)");
                         else if (ses != null && ses.Uw != null && ses.Uw.Platoons.Count > 0) { Embarque.Subir(sv, PasajeroTipo.Peloton, ses.Uw.Platoons[0].Id, sag); Debug.Log("[DIA2] sube el pelotón " + ses.Uw.Platoons[0].Kind); }
                         else Debug.LogWarning("[DIA2] sin pelotón que subir (no hay sesión de zona)");

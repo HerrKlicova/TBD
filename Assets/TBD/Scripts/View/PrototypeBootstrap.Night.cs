@@ -566,18 +566,24 @@ namespace TBD.View
         {
             var sbp = new System.Text.StringBuilder(); int enPila = 0;
             foreach (var sg in _segs) if (sg.Pile > 0) { enPila += sg.Pile; sbp.Append($" {sg.Name}×{sg.Pile} ({sg.Hp:0}/{sg.Max:0})"); }
-            int dentro = 0, fuera = 0; var celdas = new Dictionary<int, int>();
+            int dentro = 0, fuera = 0, dentroMuro = 0; var celdas = new Dictionary<int, int>(); var celdasD = new Dictionary<int, int>();
             foreach (var zp in _zomPos)
             {
                 bool inFort = zp.x > Level.FortX0 && zp.x < Level.FortX1 && zp.y > Level.FortY0 && zp.y < Level.FortY1;
-                if (inFort) { dentro++; continue; }
+                if (inFort)
+                {
+                    dentro++; float dm = Mathf.Min(Mathf.Min(zp.x - Level.FortX0, Level.FortX1 - zp.x), Mathf.Min(zp.y - Level.FortY0, Level.FortY1 - zp.y)); if (dm < 1f) dentroMuro++;
+                    int kd = Mathf.FloorToInt(zp.x / 10f) * 1000 + Mathf.FloorToInt(zp.y / 10f); celdasD[kd] = celdasD.TryGetValue(kd, out var cd0) ? cd0 + 1 : 1; continue;
+                }
                 float dx = Mathf.Max(Level.FortX0 - zp.x, 0f, zp.x - Level.FortX1), dy = Mathf.Max(Level.FortY0 - zp.y, 0f, zp.y - Level.FortY1);
                 if (dx * dx + dy * dy <= 25f) continue;
                 fuera++; int k = Mathf.FloorToInt(zp.x / 10f) * 1000 + Mathf.FloorToInt(zp.y / 10f); celdas[k] = celdas.TryGetValue(k, out var c0) ? c0 + 1 : 1;
             }
             var orden = new List<KeyValuePair<int, int>>(celdas); orden.Sort((p1, p2) => p2.Value != p1.Value ? p2.Value.CompareTo(p1.Value) : p1.Key.CompareTo(p2.Key));
             var sbc = new System.Text.StringBuilder(); for (int oi = 0; oi < orden.Count && oi < 5; oi++) sbc.Append($" ({orden[oi].Key / 1000 * 10}–{orden[oi].Key / 1000 * 10 + 10}; {orden[oi].Key % 1000 * 10}–{orden[oi].Key % 1000 * 10 + 10})×{orden[oi].Value}");
-            Debug.Log($"[REZAGADOS] tick {_ng.Tick}: {_zomPos.Count} vivos | en pila {enPila}:{(sbp.Length > 0 ? sbp.ToString() : " ninguno")} | dentro del recinto {dentro} | fuera a más de 5 m {fuera}:{(sbc.Length > 0 ? sbc.ToString() : " ninguno")}");
+            var ordD = new List<KeyValuePair<int, int>>(celdasD); ordD.Sort((p1, p2) => p2.Value != p1.Value ? p2.Value.CompareTo(p1.Value) : p1.Key.CompareTo(p2.Key));
+            var sbd = new System.Text.StringBuilder(); for (int oi = 0; oi < ordD.Count && oi < 5; oi++) sbd.Append($" ({ordD[oi].Key / 1000 * 10}–{ordD[oi].Key / 1000 * 10 + 10}; {ordD[oi].Key % 1000 * 10}–{ordD[oi].Key % 1000 * 10 + 10})×{ordD[oi].Value}");
+            Debug.Log($"[REZAGADOS] tick {_ng.Tick}: {_zomPos.Count} vivos | en pila {enPila}:{(sbp.Length > 0 ? sbp.ToString() : " ninguno")} | dentro del recinto {dentro} (a menos de 1 m del muro {dentroMuro}){sbd} | fuera a más de 5 m {fuera}:{(sbc.Length > 0 ? sbc.ToString() : " ninguno")}");
         }
         bool _endDismissed, _reportClosed; bool _seguirTrasNoche; bool _retiradaPedida;
         bool _esperandoNoche; Vector2Int? _puestoEnviado;
