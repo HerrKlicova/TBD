@@ -15,8 +15,8 @@ namespace TBD.Mundo
     public sealed class MundoBootstrap : MonoBehaviour
     {
         public const float Lado = 2048f;                    // metros (terreno de Álvaro, alvaro/hito1-terreno)
-        const float AlturaMin = 12f, AlturaMax = 2800f;
-        const float AlturaIconos = 260f;                    // por encima, las unidades se ven como símbolos (como en el mapa)
+        const float AlturaMin = 6f, AlturaMax = 4000f;      // Bruno (zum v1, aprobado por Lucía): SOLDADO 6–40, PUEBLO 40–250, COMARCA 250–900, MAPA 900–4000
+        const float AlturaIconos = 250f;                    // por encima, las unidades se ven como símbolos (como en el mapa)
 
         Camera _cam, _pantalla; RenderTexture _rt;
         Vector3 _foco = new Vector3(1180f, 0f, 1040f); float _altura = 1800f, _alturaObj = 1800f, _yaw = 0f;
@@ -34,7 +34,7 @@ namespace TBD.Mundo
             Application.targetFrameRate = 120;
             _blanco = Texture2D.whiteTexture;
             MontarCamaras();
-            Terrain ter = MontarTerrenoAlvaro();
+            var ter = MontarTerrenoAlvaro();
             if (ter == null) { MontarTerreno(); MontarEstacion("Sagunto", new Vector3(700f, 0f, 1000f)); MontarEstacion("Nules", new Vector3(1450f, 0f, 760f)); MontarCaserio(new Vector3(1150f, 0f, 1350f)); MontarPeloton(new Vector3(760f, 0f, 980f)); }
             else MontarDesdeCsv(ter);
             var sol = new GameObject("Sol").AddComponent<Light>(); sol.type = LightType.Directional; sol.transform.rotation = Quaternion.Euler(50f, 30f, 0f); sol.intensity = 1.2f; sol.shadows = LightShadows.Soft;
@@ -107,7 +107,7 @@ namespace TBD.Mundo
         {
             var v = new Vector3(pantalla.x / Screen.width, pantalla.y / Screen.height, 0f);
             var ray = _cam.ViewportPointToRay(v); var plano = new Plane(Vector3.up, new Vector3(0f, _foco.y, 0f));
-            if (_ter != null && _ter.GetComponent<TerrainCollider>() is TerrainCollider tc && tc.Raycast(ray, out var hit, 20000f)) { p = hit.point; return true; }
+            if (_alt != null) { for (float d = 0f; d < 15000f; d += Mathf.Max(0.5f, d * 0.004f)) { var q = ray.GetPoint(d); if (q.y <= Alt(q.x, q.z)) { p = q; return true; } } }
             if (plano.Raycast(ray, out float e)) { p = ray.GetPoint(e); return true; }
             p = Vector3.zero; return false;
         }
@@ -252,16 +252,21 @@ namespace TBD.Mundo
         }
 
         // ------------------------------------------------------------------ terreno y posiciones de Álvaro (StreamingAssets/Hito1)
-        Terrain _ter;
-        Vector3 EnSuelo(Vector3 p) { if (_ter != null) p.y = _ter.SampleHeight(p) + _ter.transform.position.y; return p; }
+        float[,] _alt;      // alturas en metros, [z, x], 1 m por muestra (Álvaro)
+        float Alt(float x, float z)
+        {
+            if (_alt == null) return 0f; x = Mathf.Clamp(x, 0f, 2047.999f); z = Mathf.Clamp(z, 0f, 2047.999f); int ix = (int)x, iz = (int)z; float fx = x - ix, fz = z - iz;
+            return Mathf.Lerp(Mathf.Lerp(_alt[iz, ix], _alt[iz, ix + 1], fx), Mathf.Lerp(_alt[iz + 1, ix], _alt[iz + 1, ix + 1], fx), fz);
+        }
+        Vector3 EnSuelo(Vector3 p) { if (_alt != null) p.y = Alt(p.x, p.z); return p; }
 
-        Terrain MontarTerrenoAlvaro()
+        Transform MontarTerrenoAlvaro()
         {
             string dir = System.IO.Path.Combine(Application.streamingAssetsPath, "Hito1"), raw = System.IO.Path.Combine(dir, "alturas_2049_u16le.raw");
             if (!System.IO.File.Exists(raw)) { Debug.LogWarning("[MUNDO] falta " + raw + ": terreno de relleno"); return null; }
             const int n = 2049; var bytes = System.IO.File.ReadAllBytes(raw); var h = new float[n, n];
             for (int z = 0; z < n; z++) for (int x = 0; x < n; x++) { int i = (z * n + x) * 2; h[z, x] = (bytes[i] | (bytes[i + 1] << 8)) / 65535f; }   // fila 0 = Z 0 (sur); TerrainData es [z, x]
-            var td = new TerrainData { heightmapResolution = n }; td.size = new Vector3(2048f, 128f, 2048f); td.SetHeights(0, 0, h);
+            _alt = new float[n, n]; for (int z = 0; z < n; z++) for (int x = 0; x < n; x++) _alt[z, x] = -10f + h[z, x] * 128f;
             var usosPng = System.IO.Path.Combine(dir, "usos_2049.png"); Texture2D usos = null;
             if (System.IO.File.Exists(usosPng)) { var u = new Texture2D(2, 2); if (u.LoadImage(System.IO.File.ReadAllBytes(usosPng))) usos = u; }
             Color32[] paleta = { new Color32(0x2e, 0x44, 0x5c, 255), new Color32(0xc8, 0xb4, 0x8c, 255), new Color32(0x5c, 0x64, 0x48, 255), new Color32(0x6c, 0x74, 0x40, 255), new Color32(0x96, 0x88, 0x5c, 255),
@@ -277,17 +282,23 @@ namespace TBD.Mundo
                 px[z * 2048 + x] = new Color32((byte)Mathf.Min(255f, c.r * k), (byte)Mathf.Min(255f, c.g * k), (byte)Mathf.Min(255f, c.b * k), 255);
             }
             col.SetPixels32(px); col.Apply();
-            var capa = new TerrainLayer { diffuseTexture = col, tileSize = new Vector2(2048f, 2048f) }; td.terrainLayers = new[] { capa };
-            var go = Terrain.CreateTerrainGameObject(td); go.name = "Terreno Hito 1 (Álvaro)"; go.transform.position = new Vector3(0f, -10f, 0f);
-            _ter = go.GetComponent<Terrain>(); _ter.heightmapPixelError = 4f; _ter.basemapDistance = 20000f;
-            var sh = Shader.Find("Universal Render Pipeline/Terrain/Lit"); if (sh != null) _ter.materialTemplate = new Material(sh);
+            var mat = Plano(Color.white); mat.SetTexture("_BaseMap", col);
+            const int trozo = 128, paso = 2; var raizT = new GameObject("Terreno Hito 1 (Álvaro, mallas)").transform;
+            for (int cz = 0; cz < 2048; cz += trozo) for (int cx = 0; cx < 2048; cx += trozo)
+            {
+                int m = trozo / paso + 1; var v = new Vector3[m * m]; var uv = new Vector2[m * m]; var tri = new int[(m - 1) * (m - 1) * 6]; int t = 0;
+                for (int a = 0; a < m; a++) for (int b = 0; b < m; b++) { int x = cx + b * paso, z = cz + a * paso; v[a * m + b] = new Vector3(x, _alt[z, x], z); uv[a * m + b] = new Vector2(x / 2048f, z / 2048f); }
+                for (int a = 0; a < m - 1; a++) for (int b = 0; b < m - 1; b++) { int i0 = a * m + b; tri[t++] = i0; tri[t++] = i0 + m; tri[t++] = i0 + 1; tri[t++] = i0 + 1; tri[t++] = i0 + m; tri[t++] = i0 + m + 1; }
+                var mesh = new Mesh { name = $"trozo {cx},{cz}" }; mesh.vertices = v; mesh.uv = uv; mesh.triangles = tri; mesh.RecalculateNormals(); mesh.RecalculateBounds();
+                var go = new GameObject(mesh.name); go.transform.SetParent(raizT, false); go.AddComponent<MeshFilter>().sharedMesh = mesh; var mr = go.AddComponent<MeshRenderer>(); mr.sharedMaterial = mat; mr.shadowCastingMode = ShadowCastingMode.On;
+            }
             var mar = GameObject.CreatePrimitive(PrimitiveType.Plane); mar.name = "Mar"; Destroy(mar.GetComponent<Collider>()); mar.transform.position = new Vector3(1024f, 0f, 1024f); mar.transform.localScale = new Vector3(600f, 1f, 600f);
             mar.GetComponent<MeshRenderer>().sharedMaterial = Plano(new Color32(0x2e, 0x44, 0x5c, 255));
             Debug.Log("[MUNDO] terreno de Álvaro: 2049² muestras, 2048 × 128 × 2048 m en Y = −10" + (usos != null ? ", con usos del suelo" : ", sin usos"));
-            return _ter;
+            return raizT;
         }
 
-        void MontarDesdeCsv(Terrain ter)
+        void MontarDesdeCsv(Transform ter)
         {
             string dir = System.IO.Path.Combine(Application.streamingAssetsPath, "Hito1");
             var pos = System.IO.Path.Combine(dir, "posiciones_hito1.csv"); var obs = System.IO.Path.Combine(dir, "obstaculos_hito1.csv");
