@@ -20,7 +20,7 @@ namespace TBD.Mundo
 
         Camera _cam, _pantalla; RenderTexture _rt;
         Vector3 _foco = new Vector3(1180f, 0f, 1040f); float _altura = 1800f, _alturaObj = 1800f, _yaw = 0f;
-        Texture2D _blanco;
+        Texture2D _blanco; bool _fpsLog; int _fpsN; float _fpsT, _fps;
 
         readonly List<Transform> _soldados = new List<Transform>();
         readonly List<(Transform t, Vector3 vel, bool vivo)> _zombis = new List<(Transform, Vector3, bool)>();
@@ -31,7 +31,8 @@ namespace TBD.Mundo
 
         void Start()
         {
-            Application.targetFrameRate = 120;
+            Application.targetFrameRate = 120; if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-fpslog") >= 0) { _fpsLog = true; QualitySettings.vSyncCount = 0; Application.targetFrameRate = -1; }
+            { var ca = System.Environment.GetCommandLineArgs(); for (int i = 0; i + 1 < ca.Length; i++) if (ca[i] == "-altura" && float.TryParse(ca[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var hh)) { _altura = _alturaObj = hh; } }
             _blanco = Texture2D.whiteTexture;
             MontarCamaras();
             var ter = MontarTerrenoAlvaro();
@@ -101,6 +102,7 @@ namespace TBD.Mundo
             foreach (var sd in _soldados) sd.gameObject.SetActive(!iconos);
             for (int i = 0; i < _zombis.Count; i++) if (_zombis[i].vivo) _zombis[i].t.gameObject.SetActive(!iconos);
             MoverRelleno(Time.deltaTime);
+            _fpsN++; _fpsT += Time.unscaledDeltaTime; if (_fpsT >= 2f) { _fps = _fpsN / _fpsT; if (_fpsLog) Debug.Log($"[MUNDO-FPS] altura {_altura:0} m · {_fps:0} fps"); _fpsN = 0; _fpsT = 0f; }
         }
 
         bool Suelo(Vector2 pantalla, out Vector3 p)
@@ -378,7 +380,7 @@ namespace TBD.Mundo
             foreach (var t in _trazadoras) { var a = APantalla(t.a); var b = APantalla(t.b); if (a.z > 0f && b.z > 0f) Linea(a, b); }
             GUI.color = Color.white;
             int vivos = 0; foreach (var z in _zombis) if (z.vivo) vivos++;
-            GUI.Label(new Rect(16f, 12f, 900f, 26f), $"Mundo (prototipo de zum) · altura {_altura:0} m · {(_altura > AlturaIconos ? "mapa" : "detalle")} · zombis {vivos}/100 · rueda: zum · WASD: mover · clic dcho: mandar el pelotón", st);
+            GUI.Label(new Rect(16f, 12f, 900f, 26f), $"Mundo (prototipo de zum) · {_fps:0} fps · altura {_altura:0} m · {(_altura > AlturaIconos ? "mapa" : "detalle")} · zombis {vivos}/100 · rueda: zum · WASD: mover · clic dcho: mandar el pelotón", st);
         }
 
         Vector3 APantalla(Vector3 w) { var v = _cam.WorldToViewportPoint(w); return new Vector3(v.x * Screen.width, (1f - v.y) * Screen.height, v.z); }
