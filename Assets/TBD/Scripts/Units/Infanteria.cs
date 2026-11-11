@@ -81,7 +81,7 @@ namespace TBD.Units
         public int EyeMm = UnitsWorld.EyeInfantryMm;   // D-N174: altura de la boca (atalaya 5,6 m; azotea 12,6 m)
         public int C90Left, C90Cap;           // D-N137: tiros de C90 que quedan y dotación (se reponen del almacén en Resupply, a arma_c90_coste_disparos cada uno)
         public bool C90Order; public int C90X, C90Y;   // orden de disparar el C90 a ese punto: se cumple en el siguiente Step
-        internal List<PointMm> Route; internal int RouteI, RouteTX = int.MinValue, RouteTY, StuckTick, StuckX, StuckY;   // camino por la rejilla (S1 de Eugenio, I-Noche110): no se guarda; se rehace igual en los dos mundos
+        internal List<PointMm> Route; internal int RouteI, RouteTX = int.MinValue, RouteTY, StuckTick, StuckX, StuckY, RouteX0, RouteY0;   // camino por la rejilla (S1 de Eugenio, I-Noche110): no se guarda; se rehace igual en los dos mundos
         public int Aboard;                   // 0 = a pie; si no, id del transporte (vehículo = su Id, helicóptero = 1000 + su Id): ni se mueve, ni dispara, ni lo tocan los zombis
         public int AliveCount() { int n = 0; for (int i = 0; i < Men.Count; i++) if (Men[i].Alive) n++; return n; }
     }
@@ -520,7 +520,7 @@ namespace TBD.Units
             }
             if (nueva)
             {
-                p.RouteTX = p.TX; p.RouteTY = p.TY; p.RouteI = 0; p.StuckTick = Tick; p.StuckX = p.AX; p.StuckY = p.AY;
+                p.RouteTX = p.TX; p.RouteTY = p.TY; p.RouteI = 0; p.RouteX0 = p.AX; p.RouteY0 = p.AY; p.StuckTick = Tick; p.StuckX = p.AX; p.StuckY = p.AY;
                 if (p.Route == null) p.Route = new List<PointMm>(); p.Route.Clear();
                 if (!SegmentBlocked(p.AX, p.AY, p.TX, p.TY) || !NavFor(p.AX, p.AY, p.TX, p.TY).FindPath(p.AX, p.AY, p.TX, p.TY, p.Route) || p.Route.Count == 0)
                 { p.Route.Clear(); p.Route.Add(new PointMm(p.TX, p.TY)); }
@@ -553,19 +553,34 @@ namespace TBD.Units
             return _nav;
         }
 
+        /// <summary>Punto de paso para un soldado que no ve su puesto en la formación (muro por medio): el punto del camino del pelotón más avanzado que ve,
+        /// o el ancla, o el arranque del camino. Determinista (orden fijo).</summary>
+        void ManWaypoint(Platoon p, Infantryman m, ref int gx, ref int gy)
+        {
+            if (!SegmentBlocked(m.X, m.Y, p.AX, p.AY)) { gx = p.AX; gy = p.AY; return; }
+            if (p.Route != null) for (int k = Math.Min(p.RouteI, p.Route.Count - 1); k >= 0; k--) { var q = p.Route[k]; if (!SegmentBlocked(m.X, m.Y, q.X, q.Y)) { gx = q.X; gy = q.Y; return; } }
+            if (p.Route != null && !SegmentBlocked(m.X, m.Y, p.RouteX0, p.RouteY0)) { gx = p.RouteX0; gy = p.RouteY0; return; }
+            // sin nada a la vista: camino propio por la rejilla hasta el ancla
+            var tmp = _manPath; tmp.Clear();
+            if (NavFor(m.X, m.Y, p.AX, p.AY).FindPath(m.X, m.Y, p.AX, p.AY, tmp) && tmp.Count > 0) { gx = tmp[0].X; gy = tmp[0].Y; }
+        }
+        readonly List<PointMm> _manPath = new List<PointMm>();
+
         void MoveMen(Platoon p)
         {
             for (int i = 0; i < p.Men.Count; i++)
             {
                 var m = p.Men[i]; m.Moving = false; m.Firing = false;
                 if (!m.Alive) continue;
-                int dx = m.SlotX - m.X, dy = m.SlotY - m.Y, dist = IMath.Dist(dx, dy);
+                int gx = m.SlotX, gy = m.SlotY;
+                if (Obstacles.Count > 0 && IMath.Dist(gx - m.X, gy - m.Y) > 1500 && SegmentBlocked(m.X, m.Y, gx, gy)) ManWaypoint(p, m, ref gx, ref gy);   // I-Noche153: el soldado no se pega al muro: sigue el camino del pelotón
+                int dx = gx - m.X, dy = gy - m.Y, dist = IMath.Dist(dx, dy);
                 int maxStep = p.SpeedMmS * 5 / 4 / IMath.TickRate;
                 if (dist > 0)
                 {
                     m.Moving = dist > 80;
                     int nx, ny;
-                    if (dist <= maxStep) { nx = m.SlotX; ny = m.SlotY; }
+                    if (dist <= maxStep) { nx = gx; ny = gy; }
                     else { nx = m.X + IMath.DivR((long)dx * maxStep, dist); ny = m.Y + IMath.DivR((long)dy * maxStep, dist); }
                     Slide(m.X, m.Y, ref nx, ref ny); m.X = nx; m.Y = ny;
                     if (dist > 250) { int d = IMath.Diff(IMath.Atan2(dy, dx), m.Heading); m.Heading = (m.Heading + IMath.Clamp(d, -TurnPerTick, TurnPerTick)) & 0xFFFF; }
