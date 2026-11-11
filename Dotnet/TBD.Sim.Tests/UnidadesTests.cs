@@ -1159,6 +1159,14 @@ namespace TBD.Sim.Tests
                     var w0 = new UnitsWorld(6); var p0 = w0.AddPlatoon(PlatoonKind.Tiradores, 0, 0, 0); var w1 = new UnitsWorld(6); var p1x = w1.AddPlatoon(PlatoonKind.Tiradores, 0, 0, 0);
                     w0.Move(p0.Id, 30000, 0); w1.Move(p1x.Id, 30000, 0); for (int t = 0; t < 300; t++) { w0.Step(new List<Target>(), new StepResult()); w1.Step(new List<Target>(), new StepResult()); }
                     check(w0.Hash() == w1.Hash(), "D-N139: sin obstáculos todo sigue igual (mismo hash)");
+                    // Eugenio (I-Noche178): orden a 1 m de un muro en línea: la formación no se parte; ningún soldado acaba al otro lado ni dentro del muro
+                    {
+                        var wl = new UnitsWorld(17); var pl2 = wl.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0, Formation.Linea); wl.Obstacles.Add(new RectMm(10000, -30000, 10600, 30000));
+                        wl.Move(pl2.Id, 9000, 0, 16384);      // rumbo norte: la línea se abre a lo largo de X, cruzando el muro
+                        for (int t = 0; t < 1800; t++) wl.Step(new List<Target>(), new StepResult());
+                        int otroLado = 0, dentro = 0; foreach (var m in pl2.Men) { if (!m.Alive) continue; if (m.X > 10600) otroLado++; if (m.X > 10000 - 300 && m.X < 10600 + 300) dentro++; }
+                        check(otroLado == 0 && dentro == 0, $"I-Noche178: la línea junto al muro no se parte (al otro lado {otroLado}, pegados al muro {dentro})");
+                    }
                     // Eugenio (I-Noche153): pelotón dentro del recinto de Sagunto junto al muro oeste, mandado fuera; solo sale por E4 (sur, 95-103 m)
                     {
                         var wf = new UnitsWorld(13); var pf2 = wf.AddPlatoon(PlatoonKind.Fusileros, 76000, 70000, 0);
