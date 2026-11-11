@@ -1,0 +1,67 @@
+id;tipo;forma;x0_mm;z0_mm;x1_mm;z1_mm;medio_grosor_mm;altura_mm;tapa_vision;tapa_paso;fuente;nota
+caserio_00;edificio;caja;1035000;1545000;1049000;1555000;0;6500;si;si;terreno_hito1.py;alqueria
+caserio_01;edificio;caja;1063000;1564000;1073000;1572000;0;5500;si;si;terreno_hito1.py;casa_ruina
+caserio_02;edificio;caja;1089000;1570000;1099000;1578000;0;5500;si;si;terreno_hito1.py;casa_ruina
+caserio_03;edificio;caja;1114000;1561500;1126000;1570500;0;6000;si;si;terreno_hito1.py;casa_ruina
+caserio_04;edificio;caja;1046000;1511000;1054000;1521000;0;5500;si;si;terreno_hito1.py;casa_ruina
+caserio_05;edificio;caja;1072000;1520000;1080000;1528000;0;5000;si;si;terreno_hito1.py;casa_ruina
+caserio_06;edificio;caja;1094000;1524000;1110000;1536000;0;9000;si;si;terreno_hito1.py;iglesia
+caserio_07;edificio;caja;1126000;1531000;1134000;1541000;0;5500;si;si;terreno_hito1.py;casa_ruina
+caserio_08;edificio;caja;1055000;1480000;1065000;1488000;0;5500;si;si;terreno_hito1.py;casa_ruina
+caserio_09;edificio;caja;1081000;1486000;1091000;1494000;0;5500;si;si;terreno_hito1.py;casa_ruina
+caserio_10;edificio;caja;1103000;1489000;1125000;1503000;0;7000;si;si;terreno_hito1.py;almacen_material
+caserio_11;edificio;caja;1140000;1500000;1148000;1508000;0;5000;si;si;terreno_hito1.py;casa_ruina
+caserio_12;edificio;caja;1149000;1557000;1155000;1563000;0;4000;si;si;terreno_hito1.py;caseta_pozo
+tapia_0;tapia;seg;1020000;1466000;1160000;1466000;250;1600;si;si;terreno_hito1.py;tapia de huerta de 1,6 m
+tapia_1;tapia;seg;1160000;1466000;1160000;1588000;250;1600;si;si;terreno_hito1.py;tapia de huerta de 1,6 m
+tapia_2;tapia;seg;1020000;1588000;1080000;1588000;250;1600;si;si;terreno_hito1.py;tapia de huerta de 1,6 m
+tapia_3;tapia;seg;1100000;1588000;1160000;1588000;250;1600;si;si;terreno_hito1.py;tapia de huerta de 1,6 m
+tapia_4;tapia;seg;1020000;1466000;1020000;1520000;250;1600;si;si;terreno_hito1.py;tapia de huerta de 1,6 m
+tapia_5;tapia;seg;1020000;1540000;1020000;1588000;250;1600;si;si;terreno_hito1.py;tapia de huerta de 1,6 m
+naranjal_00;arbolado;caja;893000;1273000;947000;1307000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_01;arbolado;caja;953000;1273000;1007000;1307000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_02;arbolado;caja;1013000;1273000;1067000;1307000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_03;arbolado;caja;1073000;1273000;1127000;1307000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_04;arbolado;caja;1133000;1273000;1187000;1307000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_05;arbolado;caja;1193000;1273000;1247000;1307000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_06;arbolado;caja;1253000;1273000;1307000;1307000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_07;arbolado;caja;1013000;1313000;1067000;1347000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_08;arbolado;caja;1073000;1313000;1127000;1347000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_09;arbolado;caja;1133000;1313000;1187000;1347000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_10;arbolado;caja;1253000;1313000;1307000;1347000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_11;arbolado;caja;1013000;1353000;1067000;1387000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_12;arbolado;caja;1073000;1353000;1127000;1387000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_13;arbolado;caja;1133000;1353000;1187000;1387000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_14;arbolado;caja;1253000;1353000;1307000;1387000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_15;arbolado;caja;953000;1393000;1007000;1427000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_16;arbolado;caja;1073000;1393000;1127000;1427000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_17;arbolado;caja;1253000;1393000;1307000;1427000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_18;arbolado;caja;1373000;1393000;1427000;1427000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_19;arbolado;caja;833000;1433000;887000;1467000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_20;arbolado;caja;893000;1433000;947000;1467000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_21;arbolado;caja;953000;1433000;1007000;1467000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_22;arbolado;caja;1193000;1433000;1247000;1467000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_23;arbolado;caja;1313000;1433000;1367000;1467000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_24;arbolado;caja;833000;1473000;887000;1507000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_25;arbolado;caja;893000;1473000;947000;1507000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_26;arbolado;caja;953000;1473000;1007000;1507000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_27;arbolado;caja;1193000;1473000;1247000;1507000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_28;arbolado;caja;1313000;1473000;1367000;1507000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_29;arbolado;caja;953000;1513000;1007000;1547000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_30;arbolado;caja;1253000;1513000;1307000;1547000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_31;arbolado;caja;1313000;1513000;1367000;1547000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_32;arbolado;caja;893000;1553000;947000;1587000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_33;arbolado;caja;953000;1553000;1007000;1587000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_34;arbolado;caja;1193000;1553000;1247000;1587000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_35;arbolado;caja;1253000;1553000;1307000;1587000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_36;arbolado;caja;1313000;1553000;1367000;1587000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_37;arbolado;caja;893000;1593000;947000;1627000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_38;arbolado;caja;1193000;1593000;1247000;1627000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_39;arbolado;caja;1013000;1633000;1067000;1667000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_40;arbolado;caja;1073000;1633000;1127000;1667000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_41;arbolado;caja;1373000;1633000;1427000;1667000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_42;arbolado;caja;1013000;1673000;1067000;1707000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_43;arbolado;caja;1073000;1673000;1127000;1707000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+naranjal_44;arbolado;caja;1373000;1673000;1427000;1707000;0;3500;si;no;terreno_hito1.py;parcela de naranjos en hileras (se pasa entre las hileras)
+estribo_n_puente;relieve;caja;1177000;1753607;1193000;1761607;0;2000;si;si;terreno_hito1.py;estribo del puente
+estribo_s_puente;relieve;caja;1177000;1693607;1193000;1701607;0;2000;si;si;terreno_hito1.py;estribo del puente
