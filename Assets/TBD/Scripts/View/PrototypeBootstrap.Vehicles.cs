@@ -22,6 +22,7 @@ namespace TBD.View
             public Transform[] WheelsFront, WheelsAll; public Quaternion[] WheelInit; public Transform Turret, Gun, RotorMain, RotorTail, Disc; public Quaternion TurretInit, GunInit, RotorMainInit, RotorTailInit;
             public float FireAt; public int FireTick; public float Ammo = 1f; public GameObject Shadow; public int State;                  // helicóptero: 0 en tierra, 1 despegando, 2 en vuelo, 3 aterrizando
             public float StateT; public float SpinMainDeg, SpinTailDeg; public VehicleNav Nav = new VehicleNav(); public bool Parked, ReturnToRearm; public bool Fire = true; public int ResupT = -1; public float ResupU;
+            public bool Reversing;      // maniobra: el punto de paso queda dentro del círculo de giro mínimo y hay que dar marcha atrás (I-Noche164, vueltas junto a la E4)
             public float HalfW = 1.1f, HalfL = 2.5f;      // silueta en planta (m, medio ancho y medio largo, rumbo 0 = +Z); la mide MakeVeh con los renderers del modelo
         }
         readonly List<Veh> _vehs = new List<Veh>(); Veh _selVeh; readonly List<TargetHit> _vehHits = new List<TargetHit>(); readonly List<Vector2> _zomPos = new List<Vector2>(); readonly List<uint> _zomId = new List<uint>();
@@ -207,6 +208,19 @@ namespace TBD.View
                 var d = v.Target - v.Pos; float dist = d.magnitude; float want = Mathf.Atan2(d.x, d.y) * Mathf.Rad2Deg; float diff = Mathf.DeltaAngle(v.Heading, want);
                 steerCmd = Mathf.Clamp(diff / 30f, -1f, 1f);
                 desired = dist < 1.5f ? 0f : Mathf.Min(maxSpeed, Mathf.Sqrt(2f * 3f * dist)) * (Mathf.Abs(diff) > 100f ? 0.35f : 1f);
+                // Nacho (I-Noche164): con 4,5 m de batalla y 35° de giro, el radio mínimo es de 6,4 m. Si el punto de paso cae dentro del círculo de giro de ese lado,
+                // hacia delante no se llega nunca y el vehículo da vueltas a su alrededor (el VAMTAC entre (91;50) y (104;52)). Entonces marcha atrás con el volante al revés
+                // hasta que el punto quede fuera del círculo (con un 15 % de margen para no ir y venir), y sigue hacia delante. Probado en Python con el mismo modelo: 8 puntos que antes daban vueltas sin fin se alcanzan en 3,6–4,3 s, y los que ya se alcanzaban tardan lo mismo.
+                if (dist >= 1.5f && Mathf.Abs(diff) > 20f)
+                {
+                    float rMin = wheelbase / Mathf.Tan(maxSteer * Mathf.Deg2Rad), side = Mathf.Sign(diff), hr0 = v.Heading * Mathf.Deg2Rad;
+                    var right = new Vector2(Mathf.Cos(hr0), -Mathf.Sin(hr0)); var c = v.Pos + right * (side * rMin);      // centro del giro a ese lado (rumbo en grados, + = a la derecha)
+                    float dc = (v.Target - c).magnitude;
+                    if (!v.Reversing && dc < rMin - 1.5f) v.Reversing = true;      // 1,5 m: el radio de llegada (más cerca ya cuenta como alcanzado)
+                    else if (v.Reversing && dc > rMin * 1.15f) v.Reversing = false;
+                }
+                else v.Reversing = false;
+                if (v.Reversing) { desired = -2.5f; steerCmd = -Mathf.Sign(diff); }
                 if (dist < 1.5f) v.HasTarget = false;
             }
             v.Speed = Mathf.MoveTowards(v.Speed, desired, (desired > v.Speed ? accel : 6f) * dt);
