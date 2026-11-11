@@ -283,8 +283,10 @@ namespace TBD.Units
         }
 
         /// <summary>Comparación con la zona (8-nov): la zona solo da a los pelotones los zombis a menos de 60 m del ancla de algún pelotón (PrototypeBootstrap.Night.cs, «_tgt»).
-        /// 0 (por defecto) = todos, como hasta ahora. No entra en el hash.</summary>
-        public int TargetRadiusMm;
+        /// Lucía (11-nov, D-N186: el resultado no depende de la cámara): la regla buena es la de la zona, con el mismo radio en los dos mundos (ZoneTargetRadiusMm; la zona lo
+        /// lee de aquí). 0 = todos (solo pruebas y medidas antiguas). No entra en el hash.</summary>
+        public const int ZoneTargetRadiusMm = 60_000;
+        public int TargetRadiusMm = ZoneTargetRadiusMm;
         /// <summary>D-N174: el edificio de viajeros (8 m, SUPUESTO), el tren parado (4,2 m) y, con tramos, cada tramo del muro con su altura (HeightMm; 0 = 2,1 m) como muro propio
         /// (rect de 1 m de grueso sobre la línea del muro). false = sin regla. Las alturas de los tirones: infantería 1,6 m; VAMTAC 2,3 m; Dragón 2,7 m (SUPUESTOS); el NH90 en vuelo, por encima de todo.</summary>
         public void EnableLineOfSight(bool on = true, IList<UnitsWorld.LosBlocker> scene = null)
