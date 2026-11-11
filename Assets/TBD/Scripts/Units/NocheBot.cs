@@ -24,6 +24,9 @@ namespace TBD.Units
 
         // ---- contadores (para el informe de Sara)
         public int Orders, Resupplies, Decisions, Reassignments;
+        /// <summary>Remate de dentro (I-Noche174, Nules N2): con el muro tranquilo (amenaza de fuera &lt; 8), el pelotón de línea libre más cercano va a por los zombis que han quedado
+        /// dentro del recinto (p. ej. pegados a una fachada del edificio, donde nadie los ve). 0 = apagado. Distancia a la que se planta del grupo.</summary>
+        public int InsideStandOffMm = 6_000; public int InsideSweeps; int _insidePl = -1;
 
         const int Sides = 4;                            // 0 = X− (oeste), 1 = X+ (este), 2 = Y−, 3 = Y+
         static readonly int[] OutwardHeading = { 32768, 0, 49152, 16384 };   // bam16: 0 = +X, crece hacia +Y
@@ -97,13 +100,33 @@ namespace TBD.Units
                     }
                 foreach (var p in line) { int s = -1; if (assigned.TryGetValue(p.Id, out s)) { int slot = Slot(p.Id); if (_side[slot] != s) { _side[slot] = s; Reassignments++; } } }
             }
+            // 3b) remate de dentro: zombis dentro del recinto, lejos del muro (SideOf = −1 y dentro del rectángulo), con el muro tranquilo
+            int sweeper = -1;
+            if (InsideStandOffMm > 0 && zombies != null && total < 8)
+            {
+                long sx = 0, sy = 0; int n = 0;
+                for (int i = 0; i < zombies.Count; i++) { var z = zombies[i]; if (z.X <= X0 || z.X >= X1 || z.Y <= Y0 || z.Y >= Y1) continue; int al; if (SideOf(z.X, z.Y, out al) >= 0) continue; sx += z.X; sy += z.Y; n++; }
+                if (n > 0)
+                {
+                    int cx = (int)(sx / n), cy = (int)(sy / n); Platoon best = null; long bd = long.MaxValue;
+                    foreach (var p in line) { if (Busy.Contains(p.Id)) continue; if (p.Id == _insidePl) { best = p; break; } long d = IMath.Dist(p.AX - cx, p.AY - cy); if (d < bd) { bd = d; best = p; } }
+                    if (best != null)
+                    {
+                        int dx = cx - StationX, dy = cy - StationY; if (dx == 0 && dy == 0) { dx = best.AX - cx; dy = best.AY - cy; } int dd = Math.Max(1, IMath.Dist(dx, dy)); int so = InsideStandOffMm;      // del lado de fuera del grupo, mirando al edificio: nunca dentro de él y con la fachada a la vista
+                        int tx = IMath.Clamp(cx + (int)((long)dx * so / dd), X0 + 2_000, X1 - 2_000), ty = IMath.Clamp(cy + (int)((long)dy * so / dd), Y0 + 2_000, Y1 - 2_000);
+                        if (_insidePl != best.Id) { _insidePl = best.Id; InsideSweeps++; }
+                        MoveIfNeeded(w, best, tx, ty, -1, -1, true); sweeper = best.Id;
+                    }
+                }
+            }
+            if (sweeper < 0) _insidePl = -1;
             // 4) las órdenes: cada pelotón a su sitio a lo largo de su lado (separados entre sí), con la distancia al muro que pide su arma
             for (int s = 0; s < Sides; s++)
             {
                 var here = new List<Platoon>(); foreach (var p in line) if (_side[Slot(p.Id)] == s) here.Add(p);
                 for (int k = 0; k < here.Count; k++)
                 {
-                    var p = here[k]; int tx, ty; Target(s, _along[s], k, here.Count, out tx, out ty, p.Kind);
+                    var p = here[k]; if (p.Id == sweeper) continue; int tx, ty; Target(s, _along[s], k, here.Count, out tx, out ty, p.Kind);
                     MoveIfNeeded(w, p, tx, ty, OutwardHeading[s], p.Kind == PlatoonKind.Ametralladores && DeployMachineGuns ? s : -1, true);
                 }
             }
