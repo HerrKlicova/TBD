@@ -336,55 +336,42 @@ namespace TBD.Mundo
             return raizT;
         }
 
+        /// <summary>Monta la VISTA a partir del estado del Mundo de Nacho (Mundo.Caserio lee los CSV; aquí no se lee ninguno): estaciones en Mundo.Puntos,
+        /// edificios, tapias y naranjales en Mundo.Casas, zombis en Mundo.Zombis y el pelotón en Mundo.Unidades. Con -relleno, el relleno local de antes.</summary>
         void MontarDesdeCsv(Transform ter)
         {
-            string dir = System.IO.Path.Combine(Application.streamingAssetsPath, "Hito1");
-            var pos = System.IO.Path.Combine(dir, "posiciones_hito1.csv"); var obs = System.IO.Path.Combine(dir, "obstaculos_hito1.csv");
-            float F(string v) { return float.Parse(v, System.Globalization.CultureInfo.InvariantCulture); }
-            var rz = new GameObject("Zombis").transform; int nz = 0; Vector3 pel = new Vector3(1290f, 0f, 1610f); var zsim = new List<(int, int)>(); var casas = new List<Casa>();
-            if (System.IO.File.Exists(pos)) foreach (var l in System.IO.File.ReadAllLines(pos))
-            {
-                var c = l.Split(';'); if (c.Length < 8 || c[0] == "id") continue;
-                var p = EnSuelo(new Vector3(F(c[2]), 0f, F(c[4])));
-                if (c[1] == "estacion") MontarEstacionCsv(c[0] == "A" ? "Estación A" : "Estación B", p, F(c[6]), F(c[7]));
-                else if (c[1] == "peloton") pel = EnSuelo(p + new Vector3(0f, 0f, -10f));   // 10 m al sur: el punto de Álvaro cae sobre el muro sur de B
-                else if (c[1] == "zombi")
-                {
-                    var z = Modelo("Zombi/camisa_283440", "SM_zombi_cercano_LOD1", rz) ?? Caja("Zombi", Vector3.zero, new Vector3(0.6f, 1.8f, 0.6f), Plano(new Color32(0x1c, 0x18, 0x12, 255)), rz);
-                    z.transform.position = p; z.transform.rotation = Quaternion.Euler(0f, F(c[5]), 0f); _zombis.Add((z.transform, Vector3.zero, true)); nz++; zsim.Add(((int)(p.x * 1000f), (int)(p.z * 1000f)));
-                }
-            }
-            int ned = 0, nnar = 0, ntap = 0; var rc = new GameObject("Caserío y naranjales (obstáculos de Álvaro)").transform; var naranjo = Resources.Load<GameObject>("Models/Sagunto/naranjo/SM_naranjo_LOD1");
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-relleno") >= 0) { MontarCaserio(new Vector3(1440f, 0f, 1480f)); MontarPeloton(new Vector3(1290f, 0f, 1600f)); return; }
+            try { _sim = new MundoVista(20261111u); }
+            catch (System.Exception e) { Debug.LogWarning("[MUNDO] no se pudo crear el Mundo de Nacho (" + e.Message + "): relleno local"); MontarCaserio(new Vector3(1440f, 0f, 1480f)); MontarPeloton(new Vector3(1290f, 0f, 1600f)); return; }
+            var M = _sim.M; Vector3 Pm(int x, int y) { return EnSuelo(new Vector3(x / 1000f, 0f, y / 1000f)); }
+            if (M.Puntos.TryGetValue("A", out var pa)) MontarEstacionCsv("Estación A", Pm(pa.X, pa.Y), 41f, 86f);      // medidas del recinto: Álvaro, terreno-hito1.md (solo vista)
+            if (M.Puntos.TryGetValue("B", out var pbb)) MontarEstacionCsv("Estación B", Pm(pbb.X, pbb.Y), 30f, 60f);
+            int ned = 0, ntap = 0, nnar = 0; var rc = new GameObject("Caserío y naranjales (Mundo.Casas)").transform; var naranjo = Resources.Load<GameObject>("Models/Sagunto/naranjo/SM_naranjo_LOD1");
             var mEd = Plano(new Color32(0xb8, 0x98, 0x78, 255)); var mTapia = Plano(new Color32(0x9c, 0x8c, 0x70, 255)); var mNar = Plano(new Color32(0x44, 0x5c, 0x2c, 255));
-            if (System.IO.File.Exists(obs)) foreach (var l in System.IO.File.ReadAllLines(obs))
+            foreach (var c in M.Casas)
             {
-                var c = l.Split(';'); if (c.Length < 9 || c[0] == "id") continue;
-                float x0 = F(c[3]) / 1000f, z0 = F(c[4]) / 1000f, x1 = F(c[5]) / 1000f, z1 = F(c[6]) / 1000f, alto = F(c[8]) / 1000f, gr = Mathf.Max(0.4f, F(c[7]) / 1000f * 2f);
-                var centro = EnSuelo(new Vector3((x0 + x1) * 0.5f, 0f, (z0 + z1) * 0.5f)); string tipo = c[1], nota = c[c.Length - 1];
-                if (tipo == "edificio") { casas.Add(new Casa { R = new TBD.Net.RectMm((int)(Mathf.Min(x0, x1) * 1000f), (int)(Mathf.Min(z0, z1) * 1000f), (int)(Mathf.Max(x0, x1) * 1000f), (int)(Mathf.Max(z0, z1) * 1000f)), AlturaMm = (int)(alto * 1000f) }); Caja("Edificio " + c[0] + " " + nota, centro + Vector3.up * alto * 0.5f, new Vector3(Mathf.Max(1f, Mathf.Abs(x1 - x0)), alto, Mathf.Max(1f, Mathf.Abs(z1 - z0))), mEd, rc); ned++; }
-                else if (c[2] == "segmento" || c[2] == "seg")
+                float x0 = c.R.X0 / 1000f, z0 = c.R.Y0 / 1000f, x1 = c.R.X1 / 1000f, z1 = c.R.Y1 / 1000f, alto = c.AlturaMm / 1000f; var centro = EnSuelo(new Vector3((x0 + x1) * 0.5f, 0f, (z0 + z1) * 0.5f));
+                string id = c.Id ?? "";
+                if (!c.TapaPaso)       // naranjales: tapan la vista, no el paso
                 {
-                    var d = new Vector3(x1 - x0, 0f, z1 - z0); if (d.sqrMagnitude < 0.01f) continue;
-                    var t = Caja("Tapia " + c[0], centro + Vector3.up * alto * 0.5f, new Vector3(gr, alto, d.magnitude), mTapia, rc); t.transform.rotation = Quaternion.LookRotation(d.normalized); ntap++;
+                    for (float x = x0 + 3f; x < x1; x += 7f) for (float z = z0 + 3f; z < z1; z += 7f)
+                    { var p = EnSuelo(new Vector3(x, 0f, z)); if (naranjo != null) { var g = Instantiate(naranjo, rc); g.transform.position = p; } else Caja("Naranjo", p + Vector3.up * 1.6f, new Vector3(3f, 3.2f, 3f), mNar, rc); nnar++; }
                 }
-                else if (tipo == "arbolado" || tipo.Contains("naranj") || nota.Contains("naranj"))
-                {
-                    for (float x = Mathf.Min(x0, x1) + 3f; x < Mathf.Max(x0, x1); x += 7f) for (float z = Mathf.Min(z0, z1) + 3f; z < Mathf.Max(z0, z1); z += 7f)
-                    {
-                        var p = EnSuelo(new Vector3(x, 0f, z));
-                        if (naranjo != null) { var g = Instantiate(naranjo, rc); g.transform.position = p; } else Caja("Naranjo", p + Vector3.up * 1.6f, new Vector3(3f, 3.2f, 3f), mNar, rc);
-                        nnar++;
-                    }
-                }
+                else if (id.StartsWith("tapia") || Mathf.Min(x1 - x0, z1 - z0) < 1.2f) { Caja("Tapia " + id, centro + Vector3.up * alto * 0.5f, new Vector3(x1 - x0, alto, z1 - z0), mTapia, rc); ntap++; }
+                else { Caja("Edificio " + id, centro + Vector3.up * alto * 0.5f, new Vector3(x1 - x0, alto, z1 - z0), mEd, rc); ned++; }
             }
-            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-relleno") < 0)
+            var rz = new GameObject("Zombis (Mundo.Zombis)").transform;
+            foreach (var z in M.Zombis.Lista)
             {
-                _sim = new MundoVista(20261111u, casas, zsim, (int)(pel.x * 1000f), (int)(pel.z * 1000f), 32768);     // rumbo 32768 = sur (hacia el caserío desde B)
-                int nm = _sim.M.Unidades.Platoons[0].Men.Count; MontarPeloton(pel); while (_soldados.Count > nm) { Destroy(_soldados[_soldados.Count - 1].gameObject); _soldados.RemoveAt(_soldados.Count - 1); }
+                var go = Modelo("Zombi/camisa_283440", "SM_zombi_cercano_LOD1", rz) ?? Caja("Zombi", Vector3.zero, new Vector3(0.6f, 1.8f, 0.6f), Plano(new Color32(0x1c, 0x18, 0x12, 255)), rz);
+                go.transform.position = Pm(z.X, z.Y); _zombis.Add((go.transform, Vector3.zero, true));
             }
-            else MontarPeloton(pel);
+            var pel = M.Unidades.Platoons.Count > 0 ? Pm(M.Unidades.Platoons[0].AX, M.Unidades.Platoons[0].AY) : new Vector3(1290f, 0f, 1600f);
+            int nm = M.Unidades.Platoons.Count > 0 ? M.Unidades.Platoons[0].Men.Count : 8; MontarPeloton(pel);
+            while (_soldados.Count > nm) { Destroy(_soldados[_soldados.Count - 1].gameObject); _soldados.RemoveAt(_soldados.Count - 1); }
+            for (int i = 0; i < _soldados.Count; i++) { var m = M.Unidades.Platoons[0].Men[i]; _soldados[i].position = Pm(m.X, m.Y); }
             _foco = EnSuelo(new Vector3(1180f, 0f, 1040f));
-            Debug.Log($"[MUNDO] posiciones de Álvaro: {nz} zombis, {ned} edificios, {ntap} tapias, {nnar} naranjos, pelotón en ({pel.x:0}; {pel.z:0})");
+            Debug.Log($"[MUNDO] vista desde el Mundo: {M.Zombis.Lista.Count} zombis, {ned} edificios, {ntap} tapias, {nnar} naranjos, pelotón en ({pel.x:0}; {pel.z:0})");
         }
 
         void MontarEstacionCsv(string nombre, Vector3 pos, float ancho, float fondo)

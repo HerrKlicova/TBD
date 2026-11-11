@@ -19,11 +19,13 @@ namespace TBD.Mundo
         readonly bool _grabar; readonly string _dirCap; bool _sinRef;
         public int Peloton => M.Unidades.Platoons.Count > 0 ? M.Unidades.Platoons[0].Id : -1;
 
-        public MundoVista(uint semilla, IList<Casa> casas, IList<(int x, int y)> zombis, int pelX, int pelY, int pelRumbo)
+        /// <summary>Crea el Mundo del Hito 1 con Mundo.Caserio (el único lector de los CSV de Álvaro: una sola verdad para los dos jugadores).</summary>
+        public MundoVista(uint semilla)
         {
-            M = new Mundo(semilla, 2048000, 2048000); M.PonerCasas(casas);
-            foreach (var z in zombis) M.Zombis.Anadir(z.x, z.y, z.x, z.y);
-            M.Unidades.AddPlatoon(PlatoonKind.Fusileros, pelX, pelY, pelRumbo);
+            string dir = Path.Combine(Application.streamingAssetsPath, "Hito1");
+            Mundo.Lector = f => { var p = Path.Combine(dir, f); return File.Exists(p) ? File.ReadAllText(p) : null; };
+            M = Mundo.Caserio(semilla);
+            var casas = M.Casas;
             var ca = System.Environment.GetCommandLineArgs(); _dirCap = Path.Combine(Path.GetDirectoryName(Application.dataPath) ?? ".", "Captures"); Directory.CreateDirectory(_dirCap);
             int ih = System.Array.IndexOf(ca, "-hashlog");
             if (ih >= 0)      // Sara: ruta opcional (dos instancias en la misma carpeta no deben escribir el mismo fichero)
