@@ -38,6 +38,7 @@ namespace TBD.Mundo
             var ter = MontarTerrenoAlvaro();
             if (ter == null) { MontarTerreno(); MontarEstacion("Sagunto", new Vector3(700f, 0f, 1000f)); MontarEstacion("Nules", new Vector3(1450f, 0f, 760f)); MontarCaserio(new Vector3(1150f, 0f, 1350f)); MontarPeloton(new Vector3(760f, 0f, 980f)); }
             else MontarDesdeCsv(ter);
+            gameObject.AddComponent<RedVista>();      // Iker: la red del Hito 1 (vía por piezas, tren y línea), leyendo Mundo.Red
             var sol = new GameObject("Sol").AddComponent<Light>(); sol.type = LightType.Directional; sol.transform.rotation = Quaternion.Euler(50f, 30f, 0f); sol.intensity = 1.2f; sol.shadows = LightShadows.Soft;
             RenderSettings.ambientMode = AmbientMode.Flat; RenderSettings.ambientLight = new Color(0.45f, 0.43f, 0.40f);
             Debug.Log($"[MUNDO] prototipo de zum: {Lado:0} × {Lado:0} m, altura {AlturaMin}–{AlturaMax} m, iconos por encima de {AlturaIconos} m");
@@ -91,12 +92,13 @@ namespace TBD.Mundo
                     float notches = Mathf.Clamp(s / (Mathf.Abs(s) >= 10f ? 120f : 1f), -3f, 3f);
                     float antes = _alturaObj; _alturaObj = Mathf.Clamp(_alturaObj * Mathf.Pow(0.8f, notches), AlturaMin, AlturaMax);
                 }
-                if (ms.leftButton.wasPressedThisFrame && Suelo(ms.position.ReadValue(), out var q)) _seleccionado = Vector3.Distance(q, Centro()) < Mathf.Max(15f, _altura * 0.05f);
-                if (ms.rightButton.wasPressedThisFrame && _seleccionado && Suelo(ms.position.ReadValue(), out var d)) { _destino = d; _sim?.Mover((int)(d.x * 1000f), (int)(d.z * 1000f)); }
+                if (!TrazandoVia && ms.leftButton.wasPressedThisFrame && Suelo(ms.position.ReadValue(), out var q)) _seleccionado = Vector3.Distance(q, Centro()) < Mathf.Max(15f, _altura * 0.05f);
+                if (!TrazandoVia && ms.rightButton.wasPressedThisFrame && _seleccionado && Suelo(ms.position.ReadValue(), out var d)) { _destino = d; _sim?.Mover((int)(d.x * 1000f), (int)(d.z * 1000f)); }
             }
             _foco.x = Mathf.Clamp(_foco.x, 0f, Lado); _foco.z = Mathf.Clamp(_foco.z, 0f, Lado); _foco = EnSuelo(_foco);
             _altura = Mathf.Lerp(_altura, _alturaObj, 1f - Mathf.Exp(-10f * dt));
-            if (_altura > 900f) _yaw = Mathf.MoveTowardsAngle(_yaw, 0f, 90f * dt);      // Bruno (zum v1): al subir a comarca, el norte vuelve arriba
+            ZumEstetica.Actualizar(_altura);
+            if (!ZumEstetica.PuedeGirar(_altura)) _yaw = Mathf.MoveTowardsAngle(_yaw, 0f, 225f * dt);      // Bruno: por encima de 250 m (COMARCA) el norte vuelve arriba
             ColocarCamara();
             bool iconos = _altura > AlturaIconos;
             foreach (var sd in _soldados) sd.gameObject.SetActive(!iconos);
@@ -297,6 +299,16 @@ namespace TBD.Mundo
             return Mathf.Lerp(Mathf.Lerp(_alt[iz, ix], _alt[iz, ix + 1], fx), Mathf.Lerp(_alt[iz + 1, ix], _alt[iz + 1, ix + 1], fx), fz);
         }
         Vector3 EnSuelo(Vector3 p) { if (_alt != null) p.y = Alt(p.x, p.z); return p; }
+        // Iker (red del Hito 1): lo que necesita RedVista de esta escena, sin tocar lo demás
+        public Camera CamaraMundo { get { return _cam; } }
+        public float AlturaSuelo(float x, float z) { return Alt(x, z); }
+        public bool PuntoSuelo(Vector2 pantalla, out Vector3 p) { return Suelo(pantalla, out p); }
+        public float AlturaCamara { get { return _altura; } }
+        /// <summary>RedVista se queda con el clic izquierdo mientras se traza una vía.</summary>
+        public static bool TrazandoVia;
+        /// <summary>El Mundo común (el de MundoVista): RedVista usa su Red en lugar de una propia.</summary>
+        public Mundo MundoComun { get { return _sim != null ? _sim.M : null; } }
+        public float AlphaSim { get { return _sim != null ? _sim.Alpha : 0f; } }
 
         Transform MontarTerrenoAlvaro()
         {
@@ -321,6 +333,7 @@ namespace TBD.Mundo
             }
             col.SetPixels32(px); col.Apply();
             var mat = Plano(Color.white); mat.SetTexture("_BaseMap", col);
+            Material zum = up != null ? ZumEstetica.MaterialSuelo(ZumEstetica.TexturaUsos(up, uw, uh), naranjos3D: true) : null;      // Bruno (zum-shaders)
             const int trozo = 128, paso = 2; var raizT = new GameObject("Terreno Hito 1 (Álvaro, mallas)").transform;
             for (int cz = 0; cz < 2048; cz += trozo) for (int cx = 0; cx < 2048; cx += trozo)
             {
@@ -328,10 +341,11 @@ namespace TBD.Mundo
                 for (int a = 0; a < m; a++) for (int b = 0; b < m; b++) { int x = cx + b * paso, z = cz + a * paso; v[a * m + b] = new Vector3(x, _alt[z, x], z); uv[a * m + b] = new Vector2(x / 2048f, z / 2048f); }
                 for (int a = 0; a < m - 1; a++) for (int b = 0; b < m - 1; b++) { int i0 = a * m + b; tri[t++] = i0; tri[t++] = i0 + m; tri[t++] = i0 + 1; tri[t++] = i0 + 1; tri[t++] = i0 + m; tri[t++] = i0 + m + 1; }
                 var mesh = new Mesh { name = $"trozo {cx},{cz}" }; mesh.vertices = v; mesh.uv = uv; mesh.triangles = tri; mesh.RecalculateNormals(); mesh.RecalculateBounds();
-                var go = new GameObject(mesh.name); go.transform.SetParent(raizT, false); go.AddComponent<MeshFilter>().sharedMesh = mesh; var mr = go.AddComponent<MeshRenderer>(); mr.sharedMaterial = mat; mr.shadowCastingMode = ShadowCastingMode.On;
+                var go = new GameObject(mesh.name); go.transform.SetParent(raizT, false); go.AddComponent<MeshFilter>().sharedMesh = mesh; var mr = go.AddComponent<MeshRenderer>(); mr.sharedMaterial = zum != null ? zum : mat; mr.shadowCastingMode = ShadowCastingMode.On;
             }
             var mar = GameObject.CreatePrimitive(PrimitiveType.Plane); mar.name = "Mar"; Destroy(mar.GetComponent<Collider>()); mar.transform.position = new Vector3(1024f, 0f, 1024f); mar.transform.localScale = new Vector3(600f, 1f, 600f);
             mar.GetComponent<MeshRenderer>().sharedMaterial = Plano(new Color32(0x2e, 0x44, 0x5c, 255));
+            var mm = zum != null ? ZumEstetica.MaterialMar(zum.GetTexture("_Usos") as Texture2D) : null; if (mm != null) mar.GetComponent<MeshRenderer>().sharedMaterial = mm;
             Debug.Log("[MUNDO] terreno de Álvaro: 2049² muestras, 2048 × 128 × 2048 m en Y = −10" + (usos != null ? ", con usos del suelo" : ", sin usos"));
             return raizT;
         }
@@ -389,17 +403,17 @@ namespace TBD.Mundo
         void OnGUI()
         {
             if (Event.current.type != EventType.Repaint || _rt == null) return;
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _rt, ScaleMode.StretchToFill, false);
+            ZumEstetica.DibujarPantalla(new Rect(0, 0, Screen.width, Screen.height), _rt, _altura);
             var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(15f * Screen.height / 1080f), alignment = TextAnchor.MiddleLeft }; st.normal.textColor = new Color32(0xf0, 0xdc, 0x9c, 255);
             foreach (var e in _estaciones)
             {
                 var sp = APantalla(e.pos); if (sp.z < 0f) continue; float r = _altura > AlturaIconos ? 14f : 8f;
-                GUI.color = new Color32(0xd4, 0xd0, 0xcc, 255); GUI.DrawTexture(new Rect(sp.x - r, sp.y - r, 2f * r, 2f * r), _blanco); GUI.color = Color.white;
+                ZumEstetica.DibujarIcono(new Vector2(sp.x, sp.y), "estacion", ZumEstetica.IconoPxPantalla(_altura), ZumEstetica.Hueso);      // Bruno: icono de estación
                 GUI.Label(new Rect(sp.x + r + 4f, sp.y - 12f, 220f, 24f), e.nombre, st);
             }
             if (_altura > AlturaIconos)
             {
-                var c = APantalla(Centro()); if (c.z > 0f) { GUI.color = _seleccionado ? new Color32(0x80, 0xa8, 0xe0, 255) : new Color32(0x50, 0x6c, 0x9c, 255); GUI.DrawTexture(new Rect(c.x - 7f, c.y - 7f, 14f, 14f), _blanco); }
+                var c = APantalla(Centro()); if (c.z > 0f) { GUI.color = _seleccionado ? new Color32(0x80, 0xa8, 0xe0, 255) : new Color32(0x50, 0x6c, 0x9c, 255); GUI.color = Color.white; ZumEstetica.DibujarIcono(new Vector2(c.x, c.y), "soldado", ZumEstetica.IconoPxPantalla(_altura), _seleccionado ? ZumEstetica.Hueso : new Color32(0x94, 0x94, 0x8c, 255)); }
                 GUI.color = new Color32(0xc0, 0x30, 0x28, 255);
                 foreach (var z in _zombis) { if (!z.vivo) continue; var p = APantalla(z.t.position); if (p.z > 0f) GUI.DrawTexture(new Rect(p.x - 1.5f, p.y - 1.5f, 3f, 3f), _blanco); }
                 GUI.color = Color.white;

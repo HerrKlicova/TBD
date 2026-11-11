@@ -81,7 +81,7 @@ namespace TBD.Sim.Tests
 
             // --- la red de Iker entra por los parciales: sin ella, su hash es 0 y sus órdenes no rompen nada
             var n = TBD.Mundo.Mundo.Caserio(3); int ns0 = n.HashPorSistema().Count; n.Encolar(new Orden { Tick = 0, Jugador = 1, Tipo = TipoOrden.RedPrimera }); n.Step();
-            check(ns0 == 3 && n.Grabacion.Count == 1, "las órdenes de la red (tipo ≥ 100) se aceptan y se graban aunque la red aún no esté");
+            check(ns0 >= 3 && n.Grabacion.Count == 1, "las órdenes de la red (tipo ≥ 100) se aceptan y se graban (con la red ya dentro: " + ns0 + " sistemas en el hash)");
         }
 
         /// <summary>TBD_K_REPORT=1 (Hugo, cifras del Hito 1): el pelotón de B contra los 100 del caserío, N semillas (TBD_K_N, 200), con munición sin límite
