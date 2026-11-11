@@ -784,6 +784,18 @@ namespace TBD.View
         bool Propia(int n) { return !_a.NodeLost[n] && (_a.Stations.Founded[n] || n == _a.Embarque.HomeNode); }
         int PelotonesEn(RailNode nd) { int c = Plantel.De(nd.Name).Pelotones.Length + (nd.Name == "Sagunto" ? 2 : 0); return c + _a.Embarque.AtStation(nd.Id, PasajeroTipo.Peloton).Count; }
         bool Atacada(int n) { if (_a.Besieged(n)) return true; foreach (var p in _a.Director.Active) if (p.Kind == HiveDirector.PlanKind.Asedio && p.Started && p.Node == n) return true; return false; }
+        /// <summary>Los trenes parados en la estación (en el andén o a sus puertas), por su nombre: «1 Costa, 2 Montaña (a las puertas)».</summary>
+        string TrenesEnEstacion(int node)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (var sv in _a.Services)
+            {
+                if (sv.Destroyed || !sv.AtStop || sv.Stops.Count == 0) continue;
+                bool puertas = sv.GateNode == node; if (!puertas && sv.Stops[sv.StopIndex].Node != node) continue;
+                if (sb.Length > 0) sb.Append(", "); sb.Append(sv.Train.Name); if (puertas) sb.Append(" (a las puertas)");
+            }
+            return sb.ToString();
+        }
         void MarcaEstacion(RailNode nd, Vector3 sp, bool todosNombres = false, int trenes = 0)
         {
             if (_disco == null) { _disco = Circulo(true); _anillo = Circulo(false); }
@@ -799,6 +811,7 @@ namespace TBD.View
             var mp = Event.current.mousePosition; bool encima = (mp - c).magnitude < Mathf.Max(px, 14f);
             string nombre = cerco ? nd.Name + " · cercada" : propia ? nd.Name + " · " + PelotonesEn(nd) : nd.Name;
             if (trenes > 0) nombre += trenes == 1 ? " · 1 tren" : " · " + trenes + " trenes";      // D-N185: lejos, los trenes parados van en el rótulo
+            if (encima) { string tn = TrenesEnEstacion(n); if (tn.Length > 0) nombre += " · " + tn; }      // Lucía (11-11): con el ratón encima, los trenes de la estación por su nombre
             if (Ui3.Activa) _rotulos.Add(R(px));      // D-N185: los rótulos tampoco pisan el disco de la estación
             if (importante || encima || (Ui3.Activa && (cerco || todosNombres)))      // D-N185 (-ui3): la cercada siempre con nombre y, de cerca, todas
             {

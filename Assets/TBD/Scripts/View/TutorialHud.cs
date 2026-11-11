@@ -184,6 +184,22 @@ namespace TBD.View
             foreach (var s in _zona.Mirar(HordaEnEspera, zombisVivos, vehiculosFuera, tramosPm)) { _zonaEstado.Add(s); Senal(s); }
         }
         static float _zonaT = -1f;
+        /// <summary>D-N204 (Lucía): al cumplir un objetivo que acaba esperando a la noche, cartel con «Acelerar hasta la noche (×4)» y «Seguir». No es un salto de tiempo:
+        /// la velocidad vuelve sola a ×1 con el aviso del atardecer y con el primer contacto (lo hace la red).</summary>
+        static string _listaNoche;
+        void CartelListaNoche(NetWorld w, float u)
+        {
+            if (w == null || w.Tick >= ObjetivoDefensa.Hasta) { _listaNoche = null; return; }
+            float cw = Mathf.Min(Screen.width - 32f, u * 34f), ch = u * 9f; var r = new Rect((Screen.width - cw) * 0.5f, Screen.height * 0.30f, cw, ch);
+            GUI.DrawTexture(r, _panel); Frame(r, 0.8f);
+            var st = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, richText = true, wordWrap = true, fontSize = Mathf.RoundToInt(u * 0.95f) };
+            var st2 = new GUIStyle(st) { fontSize = Mathf.RoundToInt(u * 0.7f) };
+            GUI.Label(new Rect(r.x + u, r.y + u * 0.6f, r.width - 2 * u, u * 2.6f), $"<color=#d4d0cc>{_listaNoche} está lista para la noche. La horda llega a las 22:00.</color>", st);
+            GUI.Label(new Rect(r.x + u, r.y + u * 3.2f, r.width - 2 * u, u * 1.6f), "<color=#8c8a86>Mientras tanto puedes reforzar el muro o volver a Sagunto.</color>", st2);
+            float bw = u * 13f, bh = u * 2.2f, gap = u, bx = r.center.x - bw - gap * 0.5f, by = r.yMax - bh - u * 0.8f;
+            if (GUI.Button(new Rect(bx, by, bw, bh), "Acelerar hasta la noche (×4)")) { NetSession.Push(NetCmdType.SetSpeed, 4, 0); Debug.Log("[OBJETIVO] D-N204: acelerar hasta la noche (×4)"); _listaNoche = null; }
+            if (GUI.Button(new Rect(bx + bw + gap, by, bw, bh), "Seguir") || (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Return)) { Debug.Log("[OBJETIVO] D-N204: seguir"); _listaNoche = null; }
+        }
 
         /// <summary>Recorrido del capítulo 3 (la zona lo llama cada segundo): pelotón fuera del muro con un zombi a 25 m o menos, en el flanco sur, en R2.</summary>
         public static void Recorrido(bool hordaCerca, bool enFlanco, bool enR2)
@@ -455,7 +471,8 @@ namespace TBD.View
                 {
                     int mun = wn.Stock[nul, (int)Res.Municion]; bool tropa = wn.ObjTroops; var antes = Defensa.Estado;   // tropa: Nacho (e136e545), un pelotón bajado en Nules por el embarque; la guarnición de la D-N183 no cuenta
                     Defensa.Actualizar(wn.Tick, mun, tropa, wn.NodeLost[nul]);
-                    if (antes != Defensa.Estado) { Debug.Log("[TUTORIAL] objetivo " + ObjetivoDefensa.Titulo + ": " + Defensa.Estado); if (Defensa.Estado != EstadoDefensa.Activo) _defensaHasta = Time.unscaledTime + 6f; }
+                    if (antes != Defensa.Estado) { Debug.Log("[TUTORIAL] objetivo " + ObjetivoDefensa.Titulo + ": " + Defensa.Estado); if (Defensa.Estado != EstadoDefensa.Activo) _defensaHasta = Time.unscaledTime + 6f; if (Defensa.Estado == EstadoDefensa.Cumplido && wn.Tick < ObjetivoDefensa.Hasta) { _listaNoche = "Nules"; Debug.Log("[OBJETIVO] D-N204: cartel «Nules está lista para la noche»"); } }
+                    if (_listaNoche != null) CartelListaNoche(wn, u);
                     // Objetivo del día 2, v2 (Lucía 13365b8, informe-textos.md): tarjeta al amanecer (≥ 6 s, se cierra con clic) y recuadro fijo a la derecha
                     bool dia2 = wn.Tick >= ObjetivoDefensa.Desde && wn.Tick < ObjetivoDefensa.Hasta && !wn.NodeLost[nul];
                     if (!dia2 && NightRun.NocheGanada && wn.Tick < ObjetivoDefensa.Desde && !IntroVista.Mostrando)      // Lucía (b4c2fe5): mientras llega el amanecer, la franja superior anuncia el objetivo
