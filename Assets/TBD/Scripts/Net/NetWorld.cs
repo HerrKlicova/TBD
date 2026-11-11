@@ -51,6 +51,8 @@ namespace TBD.Net
         void EntregaMunicion(int u);
         /// <summary>true solo en el tick del primer contacto de la horda con la estación en esta noche.</summary>
         bool PrimerContacto { get; }
+        /// <summary>D-N203 (Lucía): true solo en el tick en que esta noche se pierde (la estación cae). La red aplica la caída en ese mismo tick (CaeFueraDePantalla).</summary>
+        bool Caida { get; }
     }
 
     public enum NetCmdType : byte { SetSpeed = 0, Pause = 1, Resume = 2, TrainGo = 3, TrainHold = 4, Materialize = 5, Dematerialize = 6, ConsumeAmmo = 7, ResolveAmbush = 8, PlaceWork = 9, AssignWorkers = 10, CancelWork = 11, FoundStation = 12, HaltAtSite = 13, RepairEdge = 14, SetGate = 15, OrderTrain = 16, CancelTrainOrder = 17, SetChispas = 18, SetSchedule = 19, TrainLoad = 20, TrainUnload = 21, SpendMaterials = 22, TrainCargo = 23, LoseNode = 24, TrainLost = 25, AirSupply = 26 /* sin uso desde F1 (la carga la deja AirWing al llegar); el número queda reservado */, AirSend = 27, AirReturn = 28, AirDrop = 29, AirPickup = 30, AirAmmo = 31, CercoBajas = 32 }
@@ -1199,13 +1201,27 @@ namespace TBD.Net
                     if (HasNight(kv.Key, day))
                         kv.Value.ComienzaNoche(NightNumber(kv.Key, day), Tick);
             }
+            List<int> caen = null;
             foreach (var kv in NochesZona)
             {
                 kv.Value.PasoNoche();
+                if (kv.Value.Caida) (caen ?? (caen = new List<int>())).Add(kv.Key);
                 if (!kv.Value.PrimerContacto) continue;
                 ContactNode = kv.Key; ContactAtTick = Tick;                       // el aviso «Ataque en {estación}: velocidad ×1.» lo pinta la vista (Iker)
                 if (AutoSlowOnContact && Speed > 1) Speed = 1;
             }
+            if (caen != null) foreach (int n in caen) CaeFueraDePantalla(n);
+        }
+
+        /// <summary>D-N203 (Lucía): la última estación que ha caído con su noche en la red (fuera de pantalla) y el tick; −1 si ninguna. La vista pinta «{Estación} ha caído»
+        /// donde esté el jugador. No va en el hash (sale de NodeLost, que sí va).</summary>
+        public int UltimaCaidaNodo = -1; public long UltimaCaidaTick = -1;
+        /// <summary>D-N203: la noche de la estación se ha perdido fuera de pantalla. Se aplica dentro de Step, en el mismo tick (A y B iguales): LoseNode (almacén, guarnición,
+        /// muro, la tropa bajada allí y los trenes de su andén).</summary>
+        void CaeFueraDePantalla(int node)
+        {
+            if (!LoseNode(node)) return;
+            UltimaCaidaNodo = node; UltimaCaidaTick = Tick;
         }
 
         // ---------------------------------------------------------------- un tick
@@ -1614,6 +1630,7 @@ namespace TBD.Net
             for (int r = 0; r < NetConst.ResCount; r++) Stock[node, r] = 0;
             ZoneWallE4[node] = 0; var left = Works.Snapshot(node); for (int i = left.Count - 1; i >= 0; i--) if (left[i].Built && (left[i].IsWall || left[i].IsGate)) Works.Damage(node, i, 1000);
             for (int i = Embarque.Lista.Count - 1; i >= 0; i--) if (Embarque.Lista[i].Estado == PasajeroEstado.EnEstacion && Embarque.Lista[i].Node == node) Embarque.Lista.RemoveAt(i);
+            for (int si = 0; si < Services.Count; si++) { var s = Services[si]; if (!s.Destroyed && s.AtStop && s.StopIndex >= 0 && s.StopIndex < s.Stops.Count && s.Stops[s.StopIndex].Node == node) LoseAmbushedTrain(si); }      // D-N203: los trenes de su andén se pierden con su carga
             return true;
         }
         public static NetCommand CmdLoseNode(long tick, int node) { return new NetCommand { Tick = tick, Type = NetCmdType.LoseNode, Arg = node }; }

@@ -15,6 +15,7 @@ namespace TBD.Units
         public readonly int StationX, StationY;        // edificio: la reserva (zapadores) espera allí
         public int DecideEveryTicks = 60;              // cada cuánto decide (2 s)
         public int ResupplyBelowPct = 30;              // reabastece a un pelotón al bajar de este % de su dotación
+        public int WallFaceMm = 1_000;                 // tolerancia: un zombi a menos de esto por dentro de la línea del muro cuenta como pila de ese lado (no como de dentro)
         public int ThreatBandMm = 40_000;              // los zombis fuera del muro a menos de esto cuentan como amenaza de ese lado
         public bool DeployMachineGuns = true;          // las ametralladoras se emplazan mirando al muro al llegar
         public bool Enabled = true;
@@ -45,7 +46,7 @@ namespace TBD.Units
         {
             int ex0 = X0 - x, ex1 = x - X1, ey0 = Y0 - y, ey1 = y - Y1; along = 0;
             int best = Math.Max(Math.Max(ex0, ex1), Math.Max(ey0, ey1));
-            if (best <= 0 || best > ThreatBandMm) return -1;
+            if (best <= -WallFaceMm || best > ThreatBandMm) return -1;      // Nacho (I-Noche168, Nules): la pila apretada contra el muro puede quedar hasta 1 m dentro de su línea; también es amenaza de ese lado
             if (best == ex0) { along = y; return 0; }
             if (best == ex1) { along = y; return 1; }
             if (best == ey0) { along = x; return 2; }

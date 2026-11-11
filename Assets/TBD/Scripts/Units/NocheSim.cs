@@ -369,7 +369,9 @@ namespace TBD.Units
             if (Night.State == NightState.Victoria && Night.BeginNextNight(NextNightParams ?? Night.P, startNetTick)) ContactTick = -1;
         }
         /// <summary>INocheZona: un paso por tick de red, solo con la noche empezada por la red.</summary>
-        public void PasoNoche() { if (Night.StartNetTick >= 0) Step(); }
+        public void PasoNoche() { var st0 = Night.State; if (Night.StartNetTick >= 0) Step(); Caida = st0 == NightState.Jugando && Night.State == NightState.Derrota; }
+        /// <summary>INocheZona (D-N203): true solo en el tick de red en que esta noche se pierde. No se guarda ni va en el hash (sale del estado de la noche).</summary>
+        public bool Caida { get; private set; }
         /// <summary>Tick de la noche del primer contacto de la horda con la estación (pila en el muro o un zombi dentro del recinto); −1 si aún no. Se pone a −1 al empezar cada noche.
         /// Sale del estado de la simulación (determinista). No se guarda: tras cargar a mitad de noche puede volver a avisar una vez.</summary>
         public int ContactTick = -1;
