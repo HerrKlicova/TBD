@@ -50,6 +50,7 @@ namespace TBD.Mundo
                 _propia.NuevoTren("Tren 1", a);
             }
             MontarTren();
+            { var ca = System.Environment.GetCommandLineArgs(); int fi = System.Array.IndexOf(ca, "-redfoco"); if (fi >= 0 && fi + 1 < ca.Length) { var f = ca[fi + 1].Split(','); if (f.Length == 2 && float.TryParse(f[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var fx) && float.TryParse(f[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var fz)) _mb.Enfocar(fx, fz); } }      // QA: -redfoco x,z
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-redauto") >= 0) { _trazo.Clear(); _trazo.Add(Pos("A")); _trazo.Add(Pos("B")); MandarTrazo(); _trazo.Clear(); Debug.Log("[RED] -redauto: vía A–B pedida"); }
             Debug.Log("[RED] vista de la red lista: T para trazar vía (arrastrar con el botón izquierdo), Esc cancela");
         }

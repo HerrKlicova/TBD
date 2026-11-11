@@ -304,6 +304,7 @@ namespace TBD.Mundo
         public float AlturaSuelo(float x, float z) { return Alt(x, z); }
         public bool PuntoSuelo(Vector2 pantalla, out Vector3 p) { return Suelo(pantalla, out p); }
         public float AlturaCamara { get { return _altura; } }
+        public void Enfocar(float x, float z) { _foco = new Vector3(x, 0f, z); }
         /// <summary>RedVista se queda con el clic izquierdo mientras se traza una vía.</summary>
         public static bool TrazandoVia;
         /// <summary>El Mundo común (el de MundoVista): RedVista usa su Red en lugar de una propia.</summary>
