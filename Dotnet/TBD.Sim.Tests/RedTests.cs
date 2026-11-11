@@ -31,9 +31,12 @@ namespace TBD.Sim.Tests
                 check(t.LongMm > 1_400_000 && t.LongMm < 1_700_000, $"longitud razonable: {t.LongMm / 1000} m (recta: {IMath.Dist(1_400_000, 300_000) / 1000} m)");
                 var p0 = r.Via.Posicion(0, 0, out _); var p1 = r.Via.Posicion(0, t.LongMm, out _);
                 check(p0.X == 200_000 && p0.Y == 1_000_000 && p1.X == 1_600_000 && p1.Y == 1_300_000, "la vía empieza y acaba en el centro de las estaciones");
-                var cerrada = r.TrazarVia(new List<PointMm> { new PointMm(0, 0), new PointMm(40_000, 0), new PointMm(40_000, 40_000) });
+                var cerrada = r.TrazarVia(new List<PointMm> { new PointMm(1_600_000, 1_300_000), new PointMm(1_640_000, 1_300_000), new PointMm(1_640_000, 1_340_000), new PointMm(1_600_000, 1_340_000) });      // horquilla de 40 m desde el caserío
                 check(!cerrada.Ok && cerrada.Por.Contains("curva") && r.Via.Tramos.Count == 1, $"una curva de menos de 60 m se rechaza sin tocar nada ({cerrada.Por})");
                 check(!r.TrazarVia(new List<PointMm> { new PointMm(200_000, 1_000_000), new PointMm(203_000, 1_002_000) }).Ok, "no se puede trazar de una estación a sí misma");
+                bool soloKit = t.Piezas != null && t.Piezas.Length > 0; int curvas = 0; foreach (var pz in t.Piezas) { if (Via.RadioMm(pz) > 0) { curvas++; if (Via.RadioMm(pz) < 60_000) soloKit = false; } }
+                check(soloKit && curvas > 0, $"D-N209: la vía son {t.Piezas.Length} piezas del kit de Teo ({curvas} curvas, ninguna de menos de R 60)");
+                check(!r.TrazarVia(new List<PointMm> { new PointMm(900_000, 500_000), new PointMm(1_000_000, 500_000) }).Ok, "una vía que no empieza en una estación ni en otra vía se rechaza");
                 check(r.Via.Ruta(r.Via.Estaciones[a].Nodo, r.Via.Estaciones[b].Nodo).Count == 1 && r.Via.Ruta(r.Via.Estaciones[b].Nodo, r.Via.Estaciones[a].Nodo)[0].Directo == false, "la ruta va y vuelve por el mismo tramo");
             }
             // tren solo: acelera, llega y para en el andén

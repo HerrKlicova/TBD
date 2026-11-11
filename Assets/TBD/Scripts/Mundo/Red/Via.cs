@@ -13,7 +13,129 @@ namespace TBD.Mundo
     public sealed class Via
     {
         public sealed class Nodo { public int Id, X, Y, Estacion = -1; }
-        public sealed class Tramo { public int Id, A, B, LongMm; public PointMm[] Puntos; public int[] Acum; }
+        public sealed class Tramo { public int Id, A, B, LongMm; public PointMm[] Puntos; public int[] Acum; public int RumboIni; public Pieza[] Piezas; }
+
+        /// <summary>D-N209 (Lucía): la vía se compone de piezas del kit de Teo (entregas/teo-modelado/hito1-red). Rectas de 10 y 2,5 m; curvas de arco 15,71 m
+        /// con R 60, 120 y 240 (15°, 7,5° y 3,75°), a izquierda o derecha. Izquierda = giro antihorario en el plano X-Y del mundo.</summary>
+        public enum Pieza : byte { Recta10, Recta2_5, Izq60, Der60, Izq120, Der120, Izq240, Der240 }
+        public const int ArcoMm = 15_710;
+        public static int LargoMm(Pieza p) { return p == Pieza.Recta10 ? 10_000 : p == Pieza.Recta2_5 ? 2_500 : ArcoMm; }
+        public static int RadioMm(Pieza p) { switch (p) { case Pieza.Izq60: case Pieza.Der60: return 60_000; case Pieza.Izq120: case Pieza.Der120: return 120_000; case Pieza.Izq240: case Pieza.Der240: return 240_000; default: return 0; } }
+        /// <summary>Giro de la pieza en bam16 (+ izquierda): arco/radio en radianes × 65536/2π.</summary>
+        public static int GiroBam(Pieza p) { int r = RadioMm(p); if (r == 0) return 0; int g = (int)((long)ArcoMm * IMath.Turn * 1000 / (6283L * r)); return (p == Pieza.Izq60 || p == Pieza.Izq120 || p == Pieza.Izq240) ? g : -g; }
+
+        /// <summary>Puntos de una pieza desde la pose (x, y, rumbo): la recta, su extremo; la curva, 8 puntos del arco. Deja la pose final.</summary>
+        static void PuntosPieza(Pieza p, ref long x, ref long y, ref int rumbo, List<PointMm> salida)
+        {
+            int g = GiroBam(p);
+            if (g == 0) { int l = LargoMm(p); x += (long)IMath.Cos(rumbo) * l / IMath.One; y += (long)IMath.Sin(rumbo) * l / IMath.One; if (salida != null) salida.Add(new PointMm((int)x, (int)y)); return; }
+            const int sub = 8; int r = RadioMm(p);
+            for (int k = 1; k <= sub; k++)
+            {
+                int step = g * k / sub - g * (k - 1) / sub;
+                int cuerda = (int)(2L * r * Math.Abs(IMath.Sin(Math.Abs(step) / 2)) / IMath.One);      // 2R·sen(paso/2)
+                int dir = (rumbo + step / 2) & 0xFFFF;
+                x += (long)IMath.Cos(dir) * cuerda / IMath.One; y += (long)IMath.Sin(dir) * cuerda / IMath.One;
+                rumbo = (rumbo + step) & 0xFFFF;
+                if (salida != null) salida.Add(new PointMm((int)x, (int)y));
+            }
+        }
+
+        /// <summary>D-N209: ajusta en vivo una cadena de piezas al trazo libre del jugador (nunca elige piezas). Avance voraz: en cada paso, la pieza cuyo extremo queda
+        /// más cerca del punto del trazo que toca (un arco por delante), con un pequeño premio a la recta. Para al llegar al final del trazo. Determinista.</summary>
+        public static List<Pieza> AjustarTrazo(IList<PointMm> trazo, int x0, int y0, int rumboIni, out int restoMm)
+        {
+            var r = new List<Pieza>(); restoMm = int.MaxValue;
+            if (trazo == null || trazo.Count < 2) return r;
+            var acum = new long[trazo.Count]; for (int i = 1; i < trazo.Count; i++) acum[i] = acum[i - 1] + IMath.Dist(trazo[i].X - trazo[i - 1].X, trazo[i].Y - trazo[i - 1].Y);
+            long total = acum[acum.Length - 1]; long x = x0, y = y0; int rumbo = rumboIni & 0xFFFF; long s = 0; var fin = trazo[trazo.Count - 1]; int atasco = 0;
+            for (int it = 0; it < 600; it++)
+            {
+                long df = IMath.Dist((int)(fin.X - x), (int)(fin.Y - y));
+                if (df <= 6_000) break;
+                // persecución pura: rumbo deseado hacia un punto del trazo 40 m por delante; la pieza que más corrige sin pasarse (la recta si el error es pequeño)
+                long objetivo = Math.Min(total, s + 40_000); var tp = PuntoEn(trazo, acum, objetivo);
+                int deseado = IMath.Atan2((int)(tp.Y - y), (int)(tp.X - x)); int err = IMath.Diff(deseado, rumbo);
+                Pieza mejor = df <= 12_000 && Math.Abs(err) < GiroBam(Pieza.Izq240) / 2 ? Pieza.Recta2_5 : Pieza.Recta10;
+                if (Math.Abs(err) >= GiroBam(Pieza.Izq240) / 2)
+                {
+                    bool izq = err > 0; int a = Math.Abs(err);
+                    if (a >= GiroBam(Pieza.Izq60)) mejor = izq ? Pieza.Izq60 : Pieza.Der60;
+                    else if (a >= GiroBam(Pieza.Izq120)) mejor = izq ? Pieza.Izq120 : Pieza.Der120;
+                    else mejor = izq ? Pieza.Izq240 : Pieza.Der240;
+                }
+                long mx = x, my = y; int mr = rumbo; PuntosPieza(mejor, ref mx, ref my, ref mr, null);
+                r.Add(mejor); x = mx; y = my; rumbo = mr;
+                long s0 = s; s = Proyectar(trazo, acum, x, y, s);
+                if (s == s0 && ++atasco > 8) break; else if (s != s0) atasco = 0;      // no avanza por el trazo (curva imposible): se deja de buscar
+            }
+            restoMm = IMath.Dist((int)(fin.X - x), (int)(fin.Y - y));
+            return r;
+        }
+
+        static PointMm PuntoEn(IList<PointMm> t, long[] acum, long s)
+        {
+            for (int i = 1; i < t.Count; i++) if (acum[i] >= s) { long seg = acum[i] - acum[i - 1]; if (seg <= 0) return t[i]; long f = s - acum[i - 1]; return new PointMm((int)(t[i - 1].X + (t[i].X - t[i - 1].X) * f / seg), (int)(t[i - 1].Y + (t[i].Y - t[i - 1].Y) * f / seg)); }
+            return t[t.Count - 1];
+        }
+
+        /// <summary>Avance a lo largo del trazo del punto más cercano a (x, y), sin retroceder de «desde».</summary>
+        static long Proyectar(IList<PointMm> t, long[] acum, long x, long y, long desde)
+        {
+            long best = desde, bd = long.MaxValue;
+            for (int i = 1; i < t.Count; i++)
+            {
+                long ax = t[i - 1].X, ay = t[i - 1].Y, bx = t[i].X, by = t[i].Y, dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+                long f = l2 == 0 ? 0 : Math.Max(0, Math.Min(l2, (x - ax) * dx + (y - ay) * dy));
+                long qx = l2 == 0 ? ax : ax + dx * f / l2, qy = l2 == 0 ? ay : ay + dy * f / l2;
+                long d = (qx - x) * (qx - x) + (qy - y) * (qy - y);
+                long sq = acum[i - 1] + (l2 == 0 ? 0 : (long)IMath.Dist((int)(qx - ax), (int)(qy - ay)));
+                if (sq >= desde && d < bd) { bd = d; best = sq; }
+            }
+            return best;
+        }
+
+        /// <summary>Construye el tramo de una cadena de piezas desde el nodo «desde» con rumbo inicial. El extremo se encaja en un nodo a menos de EncajeMm o crea uno.</summary>
+        public Resultado TrazarPiezas(int desde, int rumboIni, IList<Pieza> piezas)
+        {
+            if (desde < 0 || desde >= Nodos.Count || piezas == null || piezas.Count == 0) return new Resultado { Por = "vía vacía" };
+            var pts = new List<PointMm> { new PointMm(Nodos[desde].X, Nodos[desde].Y) }; long x = Nodos[desde].X, y = Nodos[desde].Y; int ru = rumboIni & 0xFFFF;
+            foreach (var pz in piezas) PuntosPieza(pz, ref x, ref y, ref ru, pts);
+            int nb = NodoCerca((int)x, (int)y);
+            if (nb == desde) return new Resultado { Por = "la vía empieza y acaba en el mismo sitio" };
+            if (nb >= 0) pts[pts.Count - 1] = new PointMm(Nodos[nb].X, Nodos[nb].Y);      // el último palmo encaja en el nodo (menos de EncajeMm)
+            var acum = new int[pts.Count]; for (int i = 1; i < pts.Count; i++) acum[i] = acum[i - 1] + IMath.Dist(pts[i].X - pts[i - 1].X, pts[i].Y - pts[i - 1].Y);
+            if (acum[acum.Length - 1] < LongMinMm) return new Resultado { Por = "vía demasiado corta" };
+            if (nb < 0) { nb = Nodos.Count; Nodos.Add(new Nodo { Id = nb, X = (int)x, Y = (int)y }); }
+            var t = new Tramo { Id = Tramos.Count, A = desde, B = nb, Puntos = pts.ToArray(), Acum = acum, LongMm = acum[acum.Length - 1], RumboIni = rumboIni & 0xFFFF, Piezas = new List<Pieza>(piezas).ToArray() };
+            Tramos.Add(t);
+            int rmin = int.MaxValue; foreach (var pz in piezas) { int rr = RadioMm(pz); if (rr > 0 && rr < rmin) rmin = rr; }
+            return new Resultado { Ok = true, Tramo = t.Id, RadioMinMm = rmin };
+        }
+
+        /// <summary>D-N209: el trazo libre del jugador → cadena de piezas → tramo. Empieza en el nodo más cercano al primer punto (a menos de EncajeMm), con el rumbo
+        /// hacia el trazo (o el de la vía que ya llega a ese nodo, para seguirla sin quiebro). Se rechaza si la cadena no llega a 12 m del final del trazo.</summary>
+        public Resultado TrazarLibre(IList<PointMm> trazo)
+        {
+            if (trazo == null || trazo.Count < 2) return new Resultado { Por = "hacen falta al menos dos puntos" };
+            int na = NodoCerca(trazo[0].X, trazo[0].Y); if (na < 0) return new Resultado { Por = "la vía tiene que empezar en una estación o en otra vía" };
+            int ru = RumboSalida(na, trazo);
+            var piezas = AjustarTrazo(trazo, Nodos[na].X, Nodos[na].Y, ru, out int resto);
+            if (resto > EncajeMm) return new Resultado { Por = $"curva demasiado cerrada: el radio mínimo es {RadioMinMm / 1000} m" };
+            return TrazarPiezas(na, ru, piezas);
+        }
+
+        int RumboSalida(int nodo, IList<PointMm> trazo)
+        {
+            foreach (var t in Tramos)      // seguir sin quiebro la vía que ya acaba en este nodo
+            {
+                if (t.B == nodo && t.Puntos.Length >= 2) { var a = t.Puntos[t.Puntos.Length - 2]; var b = t.Puntos[t.Puntos.Length - 1]; return IMath.Atan2(b.Y - a.Y, b.X - a.X); }
+                if (t.A == nodo && t.Puntos.Length >= 2) { var a = t.Puntos[1]; var b = t.Puntos[0]; return IMath.Atan2(b.Y - a.Y, b.X - a.X); }
+            }
+            var n = Nodos[nodo]; PointMm q = trazo[trazo.Count - 1];
+            for (int i = 1; i < trazo.Count; i++) if (IMath.Dist(trazo[i].X - n.X, trazo[i].Y - n.Y) >= 20_000) { q = trazo[i]; break; }
+            return IMath.Atan2(q.Y - n.Y, q.X - n.X);
+        }
         public sealed class Estacion { public int Id, Nodo; public string Nombre; }
 
         /// <summary>Muestreo de la curva (mm). Radio mínimo de curva (mm): por debajo, el trazado se rechaza. Encaje (mm): un extremo a menos de esto se une al nodo existente.</summary>
@@ -139,7 +261,7 @@ namespace TBD.Mundo
         {
             ulong h = 0x9E37UL;
             foreach (var n in Nodos) h = IMath.Mix(h ^ (ulong)(uint)n.X ^ ((ulong)(uint)n.Y << 32) ^ (ulong)(n.Estacion + 1) * 31UL);
-            foreach (var t in Tramos) { h = IMath.Mix(h ^ (ulong)t.A ^ ((ulong)t.B << 20) ^ ((ulong)(uint)t.LongMm << 32)); foreach (var p in t.Puntos) h = IMath.Mix(h ^ (ulong)(uint)p.X ^ ((ulong)(uint)p.Y << 32)); }
+            foreach (var t in Tramos) { h = IMath.Mix(h ^ (ulong)t.A ^ ((ulong)t.B << 20) ^ ((ulong)(uint)t.LongMm << 32)); h = IMath.Mix(h ^ (ulong)(uint)t.RumboIni); if (t.Piezas != null) foreach (var pz in t.Piezas) h = IMath.Mix(h ^ (ulong)pz); foreach (var p in t.Puntos) h = IMath.Mix(h ^ (ulong)(uint)p.X ^ ((ulong)(uint)p.Y << 32)); }
             return h;
         }
 
@@ -147,7 +269,7 @@ namespace TBD.Mundo
         {
             w.Int(Nodos.Count); foreach (var n in Nodos) { w.Int(n.X); w.Int(n.Y); w.Int(n.Estacion); }
             w.Int(Estaciones.Count); foreach (var e in Estaciones) { w.Int(e.Nodo); w.Str(e.Nombre); }
-            w.Int(Tramos.Count); foreach (var t in Tramos) { w.Int(t.A); w.Int(t.B); w.Int(t.Puntos.Length); foreach (var p in t.Puntos) { w.Int(p.X); w.Int(p.Y); } }
+            w.Int(Tramos.Count); foreach (var t in Tramos) { w.Int(t.A); w.Int(t.B); w.Int(t.RumboIni); w.Int(t.Piezas != null ? t.Piezas.Length : 0); if (t.Piezas != null) foreach (var pz in t.Piezas) w.Byte((byte)pz); w.Int(t.Puntos.Length); foreach (var p in t.Puntos) { w.Int(p.X); w.Int(p.Y); } }
         }
 
         public void Load(SaveReader r)
@@ -158,7 +280,7 @@ namespace TBD.Mundo
             int nt = r.Int();
             for (int i = 0; i < nt; i++)
             {
-                var t = new Tramo { Id = i, A = r.Int(), B = r.Int() }; int np = r.Int(); t.Puntos = new PointMm[np]; t.Acum = new int[np];
+                var t = new Tramo { Id = i, A = r.Int(), B = r.Int(), RumboIni = r.Int() }; int npz = r.Int(); t.Piezas = new Pieza[npz]; for (int k = 0; k < npz; k++) t.Piezas[k] = (Pieza)r.Byte(); int np = r.Int(); t.Puntos = new PointMm[np]; t.Acum = new int[np];
                 for (int k = 0; k < np; k++) { t.Puntos[k] = new PointMm(r.Int(), r.Int()); if (k > 0) t.Acum[k] = t.Acum[k - 1] + IMath.Dist(t.Puntos[k].X - t.Puntos[k - 1].X, t.Puntos[k].Y - t.Puntos[k - 1].Y); }
                 t.LongMm = np > 0 ? t.Acum[np - 1] : 0; Tramos.Add(t);
             }

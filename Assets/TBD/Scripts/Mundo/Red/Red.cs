@@ -49,7 +49,8 @@ namespace TBD.Mundo
         public int AddEstacion(string nombre, int x, int y) { int e = Via.AddEstacion(nombre, x, y); Almacen.Add(new int[Recursos]); return e; }
         public int NuevoTren(string nombre, int estacion) { var t = new Tren { Id = Trenes.Count, Nombre = nombre, Nodo = Via.Estaciones[estacion].Nodo, Estado = EstadoTren.Parado }; Trenes.Add(t); return t.Id; }
 
-        public Via.Resultado TrazarVia(IList<PointMm> puntos) { var r = Via.Trazar(puntos); if (!r.Ok) UltimoRechazo = r.Por; return r; }
+        /// <summary>D-N209: trazo libre del jugador → piezas del kit. (Via.Trazar, la curva libre, queda para pruebas.)</summary>
+        public Via.Resultado TrazarVia(IList<PointMm> puntos) { var r = Via.TrazarLibre(puntos); if (!r.Ok) UltimoRechazo = r.Por; return r; }
 
         public int CrearLinea(string nombre, IList<ParadaLinea> paradas)
         {
