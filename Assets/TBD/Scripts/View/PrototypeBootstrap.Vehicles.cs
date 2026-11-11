@@ -246,6 +246,7 @@ namespace TBD.View
         }
 
         // ---------------------------------------------------------------- fuego automático del vehículo
+        static bool dragon0(Veh v) { return v.Name.StartsWith("Drag"); }
         void VehicleFire(Veh v, NativeSnapshot z, float dt)
         {
             // los vehiculos disparan por defecto, tambien con -nightbot (decision de Mak/Eugenio, 7-nov); G = alto el fuego, A = fuego libre
@@ -253,7 +254,15 @@ namespace TBD.View
             if (_zomPos.Count == 0) return; if (v.Heli && v.State != 2) return;
             if (v.Ammo <= 0f) return;                                                        // sin municion no dispara (reserva por vehiculo)
             float range = v.Heli ? 70f : (v.Name.StartsWith("Dragón") ? 55f : 40f); int best = -1; float bd = range * range;
-            for (int i = 0; i < _zomPos.Count; i++) { float d = (_zomPos[i] - v.Pos).sqrMagnitude; if (d < bd) { bd = d; best = i; } }
+            bool los = !v.Heli && _uw != null && _uw.LosBlockers.Count > 0; int eye = dragon0(v) ? 2600 : 2200; float dMin = -1f;
+            for (int pase = 0; pase < (los ? 12 : 1); pase++)      // Eugenio (I-Noche153): el Dragón disparaba a través del edificio. El más cercano que se vea (hasta 12 pruebas de línea de visión)
+            {
+                best = -1; bd = range * range;
+                for (int i = 0; i < _zomPos.Count; i++) { float d = (_zomPos[i] - v.Pos).sqrMagnitude; if (d < bd && d > dMin) { bd = d; best = i; } }
+                if (best < 0 || !los) break;
+                if (_uw.LineOfSight((int)(v.Pos.x * 1000f), (int)(v.Pos.y * 1000f), (int)(_zomPos[best].x * 1000f), (int)(_zomPos[best].y * 1000f), eye)) break;
+                dMin = bd; best = -1;
+            }
             if (best < 0) return;
             v.TurretYaw = Mathf.MoveTowardsAngle(v.TurretYaw, Mathf.Atan2(_zomPos[best].x - v.Pos.x, _zomPos[best].y - v.Pos.y) * Mathf.Rad2Deg - (v.Heli ? 0f : v.Heading), 120f * dt);
             if (_ng != null && _ng.Tick < v.FireTick) return;                              // cadencia por ticks de la simulacion (no por tiempo de pantalla)
