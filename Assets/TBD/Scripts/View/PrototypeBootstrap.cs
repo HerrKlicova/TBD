@@ -501,6 +501,7 @@ namespace TBD.View
             UpdateHordePresentation();
             UpdateGroundStreaming();
             UpdateVegLod();
+            UpdateBrumaBorde();
             HandleInput();
             UpdateBetera(); UpdateSeleccionTren();
             if (_betera != null) AerodromoZona.CubiertaPorCamara(_betera, _orthoSize);
