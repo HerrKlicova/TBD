@@ -15,7 +15,7 @@ namespace TBD.View
     /// </summary>
     public partial class PrototypeBootstrap
     {
-        sealed class Seg { public int Id; public Vector2 A, B; public float Hp, Max; public bool Open; public string Name; public int Pile; public bool Queued; public int RebuildTick = -1; public bool IsGate; public bool IsVehGate, DeDia; public int Pieza = -1; }
+        sealed class Seg { public int Id; public Vector2 A, B; public float Hp, Max; public bool Open; public string Name; public int Pile; public bool Queued; public int RebuildTick = -1; public bool IsGate; public bool IsVehGate, DeDia; public int Pieza = -1; public int HeightMm = 2500; }
         /// <summary>D-N202 (adenda de Lucía): tramos en los cuatro lados del perímetro; -sintramos los quita.</summary>
         bool TramosActivos { get { return _tramos && NightRun.Active; } }
         static bool EnPerimetro(Vector2 a, Vector2 b)
@@ -51,8 +51,9 @@ namespace TBD.View
             _losSeg0 = _uw.LosBlockers.Count;
             foreach (var s in _segs)
             {
-                int x0 = Mathf.RoundToInt(Mathf.Min(s.A.x, s.B.x) * 1000f) - 500, x1 = Mathf.RoundToInt(Mathf.Max(s.A.x, s.B.x) * 1000f) + 500, y0 = Mathf.RoundToInt(Mathf.Min(s.A.y, s.B.y) * 1000f), y1 = Mathf.RoundToInt(Mathf.Max(s.A.y, s.B.y) * 1000f);
-                _uw.LosBlockers.Add(new UnitsWorld.LosBlocker { R = new RectMm(x0, y0, x1, y1), HeightMm = s.IsGate ? 2500 : 2100, OwnWall = true, Off = s.Open });
+                bool vertical = Mathf.Abs(s.A.x - s.B.x) < Mathf.Abs(s.A.y - s.B.y); int ex = vertical ? 500 : 0, ey = vertical ? 0 : 500;      // D-N202: 1 m de grueso perpendicular al tramo (antes solo en X: bien en el oeste, sin grueso en el sur y el norte)
+                int x0 = Mathf.RoundToInt(Mathf.Min(s.A.x, s.B.x) * 1000f) - ex, x1 = Mathf.RoundToInt(Mathf.Max(s.A.x, s.B.x) * 1000f) + ex, y0 = Mathf.RoundToInt(Mathf.Min(s.A.y, s.B.y) * 1000f) - ey, y1 = Mathf.RoundToInt(Mathf.Max(s.A.y, s.B.y) * 1000f) + ey;
+                _uw.LosBlockers.Add(new UnitsWorld.LosBlocker { R = new RectMm(x0, y0, x1, y1), HeightMm = s.HeightMm > 0 ? s.HeightMm : 2100, OwnWall = true, Off = s.Open });      // Nacho: la altura del tramo, no 2500 fijos
             }
         }
 
@@ -76,12 +77,19 @@ namespace TBD.View
                 float lifeMax = w.CostE4 * 1.1924f;                                                           // 11.924 de vida por u (Hugo, 1.200.000 en total) en vez de 10.000
                 string lado = Lado(a); int nl = 1; foreach (var q in _segs) if (!q.IsGate && Lado(q.A) == lado) nl++;
                 bool oesteVia = w.Kind == PieceKind.PuertaVia && lado == "oeste";
-                _segs.Add(new Seg { Id = id++, A = a, B = b, Hp = lifeMax, Max = lifeMax, IsGate = oesteVia, IsVehGate = w.IsGate && !oesteVia, Pieza = pi,
+                _segs.Add(new Seg { Id = id++, A = a, B = b, Hp = lifeMax, Max = lifeMax, IsGate = oesteVia, IsVehGate = w.IsGate && !oesteVia, Pieza = pi, HeightMm = w.IsGate ? 0 : Obras.HeightMm(w.Kind),
                     Name = w.Kind == PieceKind.PuertaVia ? "Puerta de la vía (" + lado + ")" : w.Kind == PieceKind.PuertaVeh ? "Puerta de vehículos (" + lado + ")" : "Tramo " + lado + " " + nl });
             }
             if (_segs.Count == 0) { Debug.Log("[NOCHE] tramos: no hay piezas de muro en el perímetro"); return; }
+            foreach (var g in _segs)      // Nacho (GateAsWall): cada puerta con la vida por metro y la altura de sus tramos vecinos del mismo lado
+            {
+                if (g.HeightMm != 0) continue; string lg = Lado(g.A); float perM = 0f; int hmm = 0, nv = 0;
+                foreach (var q in _segs) if (q.HeightMm != 0 && Lado(q.A) == lg) { float len = Mathf.Max(0.5f, Vector2.Distance(q.A, q.B)); perM += q.Max / len; hmm += q.HeightMm; nv++; }
+                if (nv > 0) { g.Max = g.Hp = perM / nv * Mathf.Max(0.5f, Vector2.Distance(g.A, g.B)); g.HeightMm = hmm / nv; } else g.HeightMm = 2100;
+                Debug.Log($"[NOCHE] {g.Name}: vida {g.Max:0} y {g.HeightMm / 1000f:0.0} m (como sus vecinos)");
+            }
             Push(CmdType.ClearFort);
-            foreach (var s in _segs) Push(CmdType.BuildSeg, s.Id * 10000 + 2500, new Unity.Mathematics.float2(s.A.x, s.A.y), new Unity.Mathematics.float2(s.B.x, s.B.y));
+            foreach (var s in _segs) Push(CmdType.BuildSeg, s.Id * 10000 + s.HeightMm, new Unity.Mathematics.float2(s.A.x, s.A.y), new Unity.Mathematics.float2(s.B.x, s.B.y));
             foreach (var s in _segs) if (s.IsVehGate && !NocheEnMarcha) { s.Open = true; s.DeDia = true; Push(CmdType.SetSegment, s.Id * 10 + 1); }      // de día las puertas abiertas (D-N202)
             int no = 0, ne = 0, ns = 0, nn = 0; foreach (var s in _segs) { var l = Lado(s.A); if (l == "oeste") no++; else if (l == "este") ne++; else if (l == "sur") ns++; else nn++; }
             Debug.Log($"[NOCHE] tramos: {_segs.Count} tramos en el perímetro (oeste {no}, este {ne}, sur {ns}, norte {nn}; vida total {SegTotal(false):0})");

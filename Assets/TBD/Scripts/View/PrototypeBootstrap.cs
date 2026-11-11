@@ -3186,7 +3186,7 @@ namespace TBD.View
                             float half = w.Kind == PieceKind.Puerta ? 1.2f : 0.8f;
                             Push(CmdType.BuildWall, Obras.HeightMm(w.Kind), new Unity.Mathematics.float2(c.x - half, c.z), new Unity.Mathematics.float2(c.x + half, c.z));
                         }
-                        else if (w.Kind == PieceKind.PuertaVia && NightRun.Active)   // noche (Nacho): la puerta de via es un muro de 2,1 m que cierra el hueco de 3,2 m; sin el, la horda entra en fila por la via
+                        else if (w.Kind == PieceKind.PuertaVia && NightRun.Active && !TramosActivos)   // con tramos la cierra su tramo (D-N202; Nacho: el BuildWall sin vida era el tapón); noche (Nacho): la puerta de via es un muro de 2,1 m que cierra el hueco de 3,2 m; sin el, la horda entra en fila por la via
                             Push(CmdType.BuildWall, 2500, new Unity.Mathematics.float2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f), new Unity.Mathematics.float2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f));
                         else if (w.Kind == PieceKind.PuertaVeh && NightRun.Active && !TramosActivos)   // con tramos la cierra su tramo al empezar la noche (D-N202); noche (Nacho): la puerta de vehiculos (8 m en el muro sur) tambien cierra el recinto; WallBlocks deja pasar a los vehiculos
                             Push(CmdType.BuildWall, 2500, new Unity.Mathematics.float2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f), new Unity.Mathematics.float2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f));

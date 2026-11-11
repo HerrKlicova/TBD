@@ -210,7 +210,7 @@ namespace TBD.View
                 if (gp != null) for (int gi = 0; gi < gp.Count; gi++)
                 {
                     var w = gp[gi]; if (!w.IsGate || !w.Built || _gateWalled.Contains(gi)) continue;
-                    if (TramosActivos && !(w.Kind == PieceKind.PuertaVia && Mathf.Abs(WorkOrigin.x + w.X0 / 1000f - Level.FortX0) < 0.6f)) continue;      // D-N202: con tramos, cada puerta del perímetro la abre y cierra su tramo (salvo la de vía del oeste, como siempre)
+                    if (TramosActivos) continue;      // D-N202: con tramos, cada puerta del perímetro la abre y cierra su tramo (salvo la de vía del oeste, como siempre)
                     _gateWalled.Add(gi);
                     // (I-Noche161: la E4 abierta de día la hace ahora su tramo, D-N202)
                     Push(CmdType.BuildWall, 2500, new Unity.Mathematics.float2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f), new Unity.Mathematics.float2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f));
