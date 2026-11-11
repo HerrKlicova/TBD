@@ -125,6 +125,7 @@ namespace TBD.View
                 for (int az = 0; az < 2; az++) { var pa = _uw.AddPlatoon(PlatoonKind.Tiradores, 84500, 74300 + 4000 * az, west, Formation.Cuna); pa.EyeMm = 6350; _pname[pa.Id] = "Tiradores " + (az == 0 ? "azotea 1" : "azotea 2"); }
             bool cercoAqui = NetSession.A != null && NetSession.A.Cercada(_zoneNode);      // D-N188: en la estación cercada los zombis iniciales SON el cerco (se quedan; sus abatidos van a CercoBajas)
             if (cercoAqui) Debug.Log($"[CERCO] {_estacionZona} cercada: {NetSession.A.CercoZombies} zombis del cerco en la zona");
+            if (cercoAqui) CercoAnillo();      // Nacho (Eugenio 11-11, Castellón 14:18): el cerco en anillo y quieto, no un bloque contra el muro oeste que se va a la estación
             if (!cercoAqui) foreach (var wld in new[] { _worldA, _worldB })                          // sin los zombis iniciales de la zona: solo las oleadas
             {
                 if (wld == null || !wld.IsCreated) continue;
@@ -389,6 +390,48 @@ namespace TBD.View
             _ng.DamageTrain(floor - _ng.LastDmgTrain);
         }
 
+        /// <summary>D-N184 y D-N188 (Nacho, Eugenio 11-11: «me meto en Castellón y hay miles de zombis» amontonados en la estación a las 14:18). Los zombis iniciales de la estación
+        /// cercada salían con el reparto de asedio de SpawnInitialHorde (un bloque de 14 m contra el muro oeste) y, sin muro en Castellón, el campo de flujo los llevaba todos a la
+        /// fachada del edificio. El cerco es de vista y no ataca (D-N184): aquí se reparte en un anillo de 15 a 35 m alrededor del recinto, por los cuatro lados, y cada zombi
+        /// guarda su sitio. Se mueve solo para perseguir a la tropa que se le acerque (D-N175: 25 m, tope del 30 %) y, si la pierde, vuelve a su sitio. Igual en los dos mundos
+        /// (por SimId, con un hash: determinista).</summary>
+        readonly Dictionary<uint, Vector2> _cercoHold = new Dictionary<uint, Vector2>();
+        void CercoAnillo()
+        {
+            _cercoHold.Clear();
+            float x0 = Level.FortX0, x1 = Level.FortX1, y0 = Level.FortY0, y1 = Level.FortY1, w = x1 - x0, h = y1 - y0, per = 2f * (w + h);
+            foreach (var wld in new[] { _worldA, _worldB })
+            {
+                if (wld == null || !wld.IsCreated) continue;
+                using (var q = wld.EntityManager.CreateEntityQuery(typeof(Zombie)))
+                {
+                    var zs = q.ToComponentDataArray<Zombie>(Allocator.Temp);
+                    for (int i = 0; i < zs.Length; i++)
+                    {
+                        var z = zs[i];
+                        if (!_cercoHold.TryGetValue(z.SimId, out var p))
+                        {
+                            uint k = z.SimId * 2654435761u ^ 0x9E3779B9u;
+                            for (int intento = 0; ; intento++)
+                            {
+                                k ^= k << 13; k ^= k >> 17; k ^= k << 5; float u = (k % 100000u) / 100000f * per;
+                                k ^= k << 13; k ^= k >> 17; k ^= k << 5; float d = 15f + (k % 20000u) / 1000f;
+                                if (u < w) p = new Vector2(x0 + u, y0 - d); else if (u < w + h) p = new Vector2(x1 + d, y0 + (u - w)); else if (u < 2f * w + h) p = new Vector2(x1 - (u - w - h), y1 + d); else p = new Vector2(x0 - d, y1 - (u - 2f * w - h));
+                                p.y = Mathf.Max(4f, p.y);
+                                bool enTejado = p.x > Level.RoofX0 - 1.5f && p.x < Level.RoofX1 + 1.5f && p.y > Level.RoofY0 - 1.5f && p.y < Level.RoofY1 + 1.5f;
+                                if (!enTejado || intento >= 8) break;
+                            }
+                            _cercoHold[z.SimId] = p;
+                        }
+                        z.Pos = new float3(p.x, 0f, p.y); z.PrevPos = z.Pos; z.Vel = float3.zero; z.Goal = new float2(p.x, p.y); z.HasGoal = 1; zs[i] = z;
+                    }
+                    q.CopyFromComponentDataArray(zs);
+                    zs.Dispose();
+                }
+            }
+            Debug.Log($"[CERCO] anillo: {_cercoHold.Count} zombis repartidos a 15–35 m del recinto por los cuatro lados; quietos hasta que la tropa se acerque a 25 m");
+        }
+
         readonly HashSet<int> _aimStation = new HashSet<int>();   // D-N181: los de dentro que tienen la estación de objetivo (D-N180); solo ellos cuentan para el edificio
         const float VehSkin = 0.5f;   // los zombis se quedan a medio metro de la chapa
         /// <summary>Eugenio (I-Noche153): si (tx; ty) es el centro de un vehículo de _cgVeh, el objetivo pasa a ser el punto de su silueta (ensanchada VehSkin) más cercano al zombi;
@@ -480,10 +523,12 @@ namespace TBD.View
                         if (!inside)
                         {
                             if (_aggroGoal.TryGetValue((int)z.SimId, out var ag)) { var ga = VehGoal(ag.x, ag.y, new Vector2(x, y)); z.Goal = new float2(ga.x, ga.y); z.HasGoal = 1; zs[i] = z; dirty = true; }
+                            else if (_cercoHold.TryGetValue(z.SimId, out var hp)) { z.Goal = new float2(hp.x, hp.y); z.HasGoal = 1; zs[i] = z; dirty = true; }      // el cerco vuelve a su sitio del anillo
                             else if (z.HasGoal != 0) { z.HasGoal = 0; zs[i] = z; dirty = true; }
                             continue;
                         }
                         int tx, ty; int cg = ClimberTargets.Pick((int)(x * 1000f), (int)(y * 1000f), _cgMen, _cgVeh, _cgWork, NightSim.ClimberSeekMm, tr, out tx, out ty);
+                        if (cg == 4 && _cercoHold.TryGetValue(z.SimId, out var hpi)) { z.Goal = new float2(hpi.x, hpi.y); z.HasGoal = 1; zs[i] = z; dirty = true; continue; }      // D-N184: el cerco no ataca la estación; sin nadie vivo cerca, vuelve al anillo
                         if (cg == 4 && !TrainReachableZona()) { if (wld == _worldA) _aimStation.Add((int)z.SimId); var sr = _ng.P.StationRect; tx = System.Math.Max(sr.X0, System.Math.Min(sr.X1, (int)(x * 1000f))); ty = System.Math.Max(sr.Y0, System.Math.Min(sr.Y1, (int)(y * 1000f))); }   // D-N180 (2), como NightSim.RetargetClimber
                         ClimberTargets.Rodeo((int)(x * 1000f), (int)(y * 1000f), _ng.P.StationRect, _ng.P.AttackReachMm + 500, ref tx, ref ty);   // rodeo del edificio (Nacho, 9-nov): por la franja de detrás, 1 mm fuera
                         var gc = cg == 2 ? VehGoal(tx, ty, new Vector2(x, y)) : new Vector2(tx / 1000f, ty / 1000f);   // vehículo: al borde de su silueta, no a su centro
