@@ -40,7 +40,7 @@ namespace TBD.View
     {
         // ---------------------------------------------------------------- estado
         bool _nightOn, _nightInit; NightGame _ng; UnitsWorld _uw; readonly List<SpawnPoint> _spawns = new List<SpawnPoint>(); StepResult _res = new StepResult();
-        readonly List<Target> _tgt = new List<Target>(); readonly HashSet<uint> _killSet = new HashSet<uint>();
+        readonly List<Target> _tgt = new List<Target>(), _tgtTodos = new List<Target>(); readonly HashSet<uint> _killSet = new HashSet<uint>();
         int _nightKills, _nightLost, _nightShotsSpent; int _lastWave = -1; float _bannerUntil; string _bannerText = "";
         /// <summary>QA (Sara): las trazas no se sobrescriben entre corridas: «_normal_s3» con la dificultad y la semilla de -semilla (vacío sin -semilla).</summary>
         static string TrazaSufijo { get { var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-semilla"), d = System.Array.IndexOf(a, "-dificultad"); if (i < 0 || i + 1 >= a.Length) return ""; return "_" + (d >= 0 && d + 1 < a.Length ? a[d + 1] : "normal") + "_s" + a[i + 1]; } }
@@ -243,7 +243,7 @@ namespace TBD.View
             if (_spawns.Count > 0) SpawnZombies(_spawns);
 
             // soldados: objetivos = zombis a menos de 60 m de algún soldado
-            _tgt.Clear();
+            _tgt.Clear(); _tgtTodos.Clear();
             var emA = _worldA.EntityManager;
             using (var q = emA.CreateEntityQuery(typeof(Zombie)))
             {
@@ -261,7 +261,9 @@ namespace TBD.View
                         var pl = _uw.Platoons[pi]; float dx = z.Pos.x * 1000f - pl.AX, dy = z.Pos.z * 1000f - pl.AY;
                         if (dx * dx + dy * dy < 60000f * 60000f) near = true;
                     }
-                    if (near) _tgt.Add(new Target { Id = (int)z.SimId, X = (int)(z.Pos.x * 1000f), Y = (int)(z.Pos.z * 1000f) });
+                    var tz = new Target { Id = (int)z.SimId, X = (int)(z.Pos.x * 1000f), Y = (int)(z.Pos.z * 1000f) };
+                    if (near) _tgt.Add(tz);
+                    _tgtTodos.Add(tz);      // Nacho (I-Noche180): el bot ve a todos los vivos; el radio de 60 m es solo para disparar (UnitsWorld.Step)
                 }
                 zs.Dispose();
                 _zomCounted = true;
@@ -309,7 +311,7 @@ namespace TBD.View
                 if (_wallMax <= 0f) _wallMax = _wallHp = Mathf.Max(1200000, NightSimParams.Default().WallHp);
                 _wallHp = Mathf.Max(0f, _wallHp - wallPile * (NightSimParams.Default().WallDmgPerZombieS / 30f)); _ng.WallPermil = Mathf.RoundToInt(1000f * _wallHp / _wallMax);
             }
-            if (_bot != null) { NaResupAntes(); _bot.Step(_uw, _tgt, _ng.Tick); NaResupDespues(); }                          // -nightbot: el bot de Nacho decide como el jugador (ordenes, recarga al 30 %)
+            if (_bot != null) { NaResupAntes(); _bot.Step(_uw, _tgtTodos, _ng.Tick); NaResupDespues(); }                          // -nightbot: el bot de Nacho decide como el jugador (ordenes, recarga al 30 %)
             _res.Clear(); _uw.Step(_tgt, _res);
             _nightShotsSpent += _res.AmmoSpent;
             _contact.Clear(); _nightLost += _uw.ZombieContact(_tgt, 900, 2, _contact);
