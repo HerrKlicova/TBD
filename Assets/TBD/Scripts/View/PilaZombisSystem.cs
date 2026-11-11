@@ -227,7 +227,14 @@ namespace TBD.View
             float yaw = math.atan2(-tr.U.y, tr.U.x);
             go.transform.rotation = Quaternion.Euler(0f, math.degrees(yaw), 0f);
             go.transform.localScale = new Vector3(1f, EscalaAlto, EscalaAlto);   // a lo largo siempre 0,5 m (la celda); -pilaalto 1.3 la iguala a los sueltos a x1,3
-            if (col != null && col[h, 0] != null) { var mc = go.AddComponent<MeshCollider>(); mc.sharedMesh = col[h, 0]; mc.convex = true; }
+            if (col != null && col[h, 0] != null)
+            {
+                // Bruno 11-11 (pulido, log de la pila): las mallas UCX/COL de Teo vienen sin Read/Write y el MeshCollider convexo avisaba en cada pieza
+                // (~25.000 líneas por corrida). La colisión solo sirve para clics y rayos de la vista: si la malla no es legible, una caja con sus bounds.
+                var cm = col[h, 0];
+                if (cm.isReadable) { var mc = go.AddComponent<MeshCollider>(); mc.sharedMesh = cm; mc.convex = true; }
+                else { var bc = go.AddComponent<BoxCollider>(); bc.center = cm.bounds.center; bc.size = cm.bounds.size; }
+            }
 
             // dibujo: entidad instanciada (ver el resumen de la clase)
             var em = EntityManager;
