@@ -19,7 +19,7 @@ namespace TBD.View
     {
         static readonly string[] PuertaVehVar = { "TuboChapa", "ChapaOndulada", "Tablones", "MallaEspino", "Blindada" };
         class PuertaVehVista
-        {
+        { public float Meta = -1f;
             public GameObject Go; public Transform HojaO, HojaE; public Quaternion RotO, RotE; public float SignoO = 1f, SignoE = -1f;
             public int Estado = -1; public Vector3 A, B; public float Apertura = -1f;    // 0 cerrada, 1 abierta
         }
@@ -97,6 +97,8 @@ namespace TBD.View
                 }
                 if (v.Go == null) continue;
                 float meta = cerrada ? 0f : 1f;
+                if (v.Meta >= 0f && meta != v.Meta) Sfx.PlayAt(meta > 0.5f ? "puerta_e4_abrir" : "puerta_e4_cerrar", (v.A + v.B) * 0.5f, 1f, 2f);      // Nuria (D-N198, avisos-pulido.md): al cambiar de estado
+                v.Meta = meta;
                 v.Apertura = Mathf.MoveTowards(v.Apertura, meta, Time.deltaTime / PuertaVehSegundos);
                 float ang = 90f * Mathf.SmoothStep(0f, 1f, v.Apertura);
                 if (v.HojaO != null) v.HojaO.localRotation = v.RotO * Quaternion.Euler(0f, v.SignoO * ang, 0f);
