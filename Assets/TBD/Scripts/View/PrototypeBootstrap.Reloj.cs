@@ -65,6 +65,18 @@ namespace TBD.View
             RegistrarNochesIniciales();
         }
 
+        /// <summary>El tutorial (u otra noche con reloj propio) arranca después de registrar las noches: se quitan de la red (A y B) y de las sesiones, y no se vuelven a registrar en este mundo.
+        /// La zona monta entonces su noche nueva con reloj propio, como antes del reloj único (Eugenio, I-Noche150: con el tutorial no venían zombis y a las 05:43 era de día).</summary>
+        public static void AnularRelojUnico(string porQue)
+        {
+            var a = NetSession.A; if (a == null) return;
+            int n = a.NochesZona.Count;
+            ClearNightSession(true);
+            foreach (var w in new[] { NetSession.A, NetSession.B }) if (w != null) w.NochesZona.Clear();
+            _registradoEn = a;
+            Debug.Log($"[RELOJ] {porQue}: fuera las {n} noche(s) registradas; la zona va con reloj propio");
+        }
+
         // ---------------------------------------------------------------- la zona en pantalla
         long _tickRedZona = -1; bool _pausaRedPuesta;
         /// <summary>¿Va la zona al ritmo de la red? (noche con reloj de la red y red presente).</summary>

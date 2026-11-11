@@ -228,6 +228,7 @@ namespace TBD.View
                     _m = TutorialGuion.Nuevo(new Prefs()); _logVisto = 0; _m.EstadoActual = EstadoJuego; _m.TextoListo = TextoListo; _m.DesdeEscrito = DesdeEscrito; _m.Relleno = t => t.Replace("{eta}", TrenPanel.EtaTexto()); _principal = _m;
                     bool ok = _m.Arrancar(NightRun.Difficulty, forzar: Arg("-tutorial") || Arg("-tutorial-auto"));
                     Debug.Log(ok ? $"[TUTORIAL] arranca (dificultad {NightRun.Difficulty})" : $"[TUTORIAL] no arranca (dificultad {NightRun.Difficulty})");
+                    if (ok) PrototypeBootstrap.AnularRelojUnico("arranca el tutorial");      // el tutorial va con su reloj propio (su noche empieza al momento): fuera las noches registradas en la red
                     if (!ok) _m = null;
                     else if (NetSession.A != null)
                     {   // D-N172: con el tutorial, Nules tiene su tren en el andén (el destacamento lo registra la zona con RegistrarDestacamento)
