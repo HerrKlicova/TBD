@@ -43,15 +43,19 @@ namespace TBD.Mundo
                 Debug.Log($"[MUNDO] reproduzco {_reproducir.Count} órdenes de {ca[i + 1]}" + (_refHash != null ? $" y comparo con {_refHash.Length} líneas de hash" : ""));
             }
             Debug.Log($"[MUNDO] simulación de Nacho: {M.Zombis.Lista.Count} zombis, {casas.Count} casas, pelotón {Peloton}");
+            for (int i = 0; i < ca.Length; i++) { if (ca[i] == "-guion" && _reproducir == null) _guion = Guion(); if (ca[i] == "-turbo" && i + 1 < ca.Length) int.TryParse(ca[i + 1], out _turbo); if (ca[i] == "-salir-en" && i + 1 < ca.Length) int.TryParse(ca[i + 1], out _salirEn); }
+            if (_guion != null) Debug.Log($"[MUNDO] -guion: {_guion.Count} órdenes por guion (prueba exigente de Sara)");
             LineaInicial();      // tick 0
         }
 
         /// <summary>Avanza la simulación a 30 ticks por segundo real (como mucho 8 por fotograma).</summary>
         public void Avanzar(float dt)
         {
-            _acc += dt; int n = 0;
-            while (_acc >= Dt && n < 8)
+            _acc += dt * System.Math.Max(1, _turbo); int n = 0;
+            while (_acc >= Dt && n < 8 * System.Math.Max(1, _turbo))
             {
+                if (_guion != null) while (_gi < _guion.Count && _guion[_gi].Tick <= M.Tick) M.Encolar(_guion[_gi++]);
+                if (_salirEn > 0 && M.Tick >= _salirEn) { Cerrar(); _salirEn = 0; Application.Quit(); return; }
                 if (_reproducir != null) while (_ri < _reproducir.Count && _reproducir[_ri].Tick <= M.Tick) M.Encolar(_reproducir[_ri++]);
                 M.Step(); _acc -= Dt; n++;
                 if (_hash != null || _refHash != null)
@@ -60,9 +64,30 @@ namespace TBD.Mundo
                     Comparar(l);
                 }
             }
-            if (n == 8) _acc = 0f;
+            if (n >= 8 * System.Math.Max(1, _turbo)) _acc = 0f;
         }
 
+
+
+        List<Orden> _guion; int _gi, _turbo = 1, _salirEn; bool _cerrado;
+        /// <summary>Guion de la prueba exigente (bateria-hash.md, H1): vía A–B con curva y un trazado inválido, línea A→B con el tren, el pelotón en varias órdenes
+        /// hasta el caserío (rodeando casas), combate, retirada a B, rearme y vuelta, segundo tren, formación y alto el fuego. Ticks y mm fijos: los dos jugadores iguales.</summary>
+        List<Orden> Guion()
+        {
+            var g = new List<Orden>(); int pel = Peloton;
+            void O(int t, TipoOrden tipo, int a = 0, int b = 0, int c = 0, int d = 0) { g.Add(new Orden { Tick = t, Jugador = 0, Tipo = tipo, A = a, B = b, C = c, D = d }); }
+            O(30, OrdenesRed.PuntoVia, 1060000, 470000); O(31, OrdenesRed.PuntoVia, 1150000, 900000); O(32, OrdenesRed.PuntoVia, 1240000, 1300000); O(33, OrdenesRed.PuntoVia, 1300000, 1600000); O(34, OrdenesRed.TrazarVia);
+            O(60, OrdenesRed.PuntoVia, 1950000, 400000); O(61, OrdenesRed.PuntoVia, 1980000, 1500000); O(62, OrdenesRed.TrazarVia);          // por el mar: tiene que rechazarse
+            O(90, OrdenesRed.NuevaLinea, 0, 1); O(95, OrdenesRed.AsignarTren, 0, 0);
+            O(600, TipoOrden.Mover, pel, 1330000, 1560000, -1); O(1500, TipoOrden.Mover, pel, 1380000, 1520000, -1); O(2400, TipoOrden.Mover, pel, 1500000, 1470000, -1);   // la última, al otro lado del caserío: rodea casas
+            O(3300, TipoOrden.AtacarMoviendo, pel, 1440000, 1480000, -1);
+            O(7500, TipoOrden.Mover, pel, 1295000, 1595000, -1);              // retirada a B (rearme en el almacén de B)
+            O(10500, TipoOrden.AtacarMoviendo, pel, 1440000, 1480000, -1);    // vuelta a limpiar
+            O(12000, TipoOrden.Formacion, pel, (int)Formation.Linea); O(12600, TipoOrden.FuegoLibre, pel, 0); O(13200, TipoOrden.FuegoLibre, pel, 1);
+            O(13500, OrdenesRed.NuevoTren, 0); O(13600, OrdenesRed.AsignarTren, 0, 1);
+            O(15000, TipoOrden.Mover, pel, 1420000, 1440000, -1); O(16500, TipoOrden.Parar, pel);
+            return g;
+        }
 
         readonly Dictionary<int, string> _refPorTick = new Dictionary<int, string>();
         /// <summary>Compara la línea de este tick con la de la referencia del mismo tick (por el número de tick de la línea, no por posición).</summary>
@@ -82,6 +107,7 @@ namespace TBD.Mundo
 
         public void Cerrar()
         {
+            if (_cerrado) return; _cerrado = true;
             _hash?.Flush(); _hash?.Dispose();
             if (_grabar) { File.WriteAllText(Path.Combine(_dirCap, "mundo_grabacion.txt"), M.GrabacionTexto(Mundo.EscenarioCaserio)); Debug.Log("[MUNDO] grabación guardada: " + Path.Combine(_dirCap, "mundo_grabacion.txt")); }
             Debug.Log($"[MUNDO] fin: tick {M.Tick}, abatidos {M.Abatidos}, bajas {M.BajasPropias}, hash {M.Hash():x16}" + (Desync != null ? " · " + Desync + $" · {_comparados} ticks comparados" : _refHash != null ? (_comparados > 0 ? $" · desync=False · {_comparados} ticks comparados" : " · desync=SIN_COMPARAR · 0 ticks comparados") : _sinRef ? " · desync=SIN_REFERENCIA" : ""));
