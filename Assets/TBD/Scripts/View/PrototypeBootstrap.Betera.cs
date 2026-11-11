@@ -127,7 +127,7 @@ namespace TBD.View
             int sv = TrenPreparar.TrenEn(NetSession.A, _zoneNode); if (sv < 0) return;
             var kb = Keyboard.current; bool quitar = kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed) && SeleccionGlobal.Tren == sv;
             SeleccionGlobal.NH90.Clear();
-            if (quitar) { SeleccionGlobal.Tren = -1; SeleccionGlobal.TrenNodo = -1; } else { SeleccionGlobal.Tren = sv; SeleccionGlobal.TrenNodo = _zoneNode; }
+            if (quitar) { SeleccionGlobal.Tren = -1; SeleccionGlobal.TrenNodo = -1; } else { SeleccionGlobal.Tren = sv; SeleccionGlobal.TrenNodo = _zoneNode; _selTrenT = Time.unscaledTime; }
             Debug.Log("[SELECCION] " + (quitar ? "tren deseleccionado" : SeleccionGlobal.Texto() + " en " + NetSession.A.Graph.Nodes[_zoneNode].Name));
         }
 
@@ -152,9 +152,10 @@ namespace TBD.View
             else { yield return NetSession.CaptureTransition(); SceneManager.LoadScene("Union"); }      // Marcos (qa52, 117): sin zona, LeaveToMap no hace nada
         }
 
+        float _selTrenT = -100f;
         void GuiBetera()
         {
-            if (!_enBetera && SeleccionGlobal.Tren >= 0 && SeleccionGlobal.TrenNodo == _zoneNode)
+            if (!_enBetera && SeleccionGlobal.Tren >= 0 && SeleccionGlobal.TrenNodo == _zoneNode && Time.unscaledTime - _selTrenT < 6f)      // Eugenio (I-Noche178): el aviso se quedaba fijo encima de la barra de ayuda; ahora solo 6 s tras seleccionar (la selección sigue para el mapa)
             {
                 var s2 = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(18f * Screen.height / 1080f), alignment = TextAnchor.MiddleCenter }; s2.normal.textColor = new Color32(0xf0, 0xdc, 0x9c, 0xff);
                 GUI.Label(new Rect(0f, Screen.height * 0.82f, Screen.width, 30f * Screen.height / 1080f), SeleccionGlobal.Texto() + " · aleja con la rueda y haz clic derecho en la estación de destino", s2);
