@@ -60,6 +60,7 @@ namespace TBD.View
             var rs = go.GetComponentsInChildren<Renderer>(); if (rs.Length == 0) return;
             var b = rs[0].bounds; for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds);
             if (b.extents.x > 0.5f && b.extents.x < 4f && b.extents.z > 1f && b.extents.z < 8f) { v.HalfW = b.extents.x; v.HalfL = b.extents.z; }
+            Debug.Log($"[VEH] silueta de {v.Name}: {v.HalfW * 2f:0.0} × {v.HalfL * 2f:0.0} m ({(rs.Length > 0 ? "medida con " + rs.Length + " renderers, caja " + (b.extents.x * 2f).ToString("0.0") + " × " + (b.extents.z * 2f).ToString("0.0") : "a mano")})");
         }
 
         /// <summary>Punto de la silueta del vehículo (ensanchada «skin» m) más cercano a p. Devuelve true si p estaba dentro (y q es el borde más cercano por donde sacarlo).</summary>
