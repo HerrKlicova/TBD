@@ -710,7 +710,8 @@ namespace TBD.View
                 case 3:
                     {
                         int abordo = W.Embarque.CountAboard(_sv1, PasajeroTipo.Peloton);
-                        if (t <= 2f || Embarque.Ocupado || (abordo < _socN && t < 20f)) break;      // la orden de subir se aplica en el tick siguiente de la red: se espera a verla
+                        if (t > 60f && (Embarque.Ocupado || abordo < _socN)) Debug.LogWarning($"[SOCORRO] a los 60 s la tropa no ha terminado de subir (cola de embarque {(Embarque.Ocupado ? "ocupada" : "vacía")}, a bordo {abordo} de {_socN}): sale con lo que hay");
+                        else if (t <= 2f || Embarque.Ocupado || (abordo < _socN && t < 20f)) { if (t > 10f && ((int)t % 10) == 0 && Time.frameCount % 60 == 0) Debug.Log($"[SOCORRO] espero a la tropa: cola {(Embarque.Ocupado ? "ocupada" : "vacía")}, a bordo {abordo} de {_socN} ({t:0} s)"); break; }      // la orden de subir se aplica en el tick siguiente de la red: se espera a verla
                         for (int k = 0; k < W.Graph.Nodes.Count; k++) if (k != cas && k != sag && W.Besieged(k) && (W.Graph.Nodes[k].Name == "Nules" || W.Graph.Nodes[k].Name == "Almenara"))
                             Debug.LogWarning($"[SOCORRO] {W.Graph.Nodes[k].Name} está sitiada en la ruta: el tren se parará a sus puertas. Para el socorro, correr con -dia2-auto -nightbot -socorro-auto (Nules tiene que aguantar la noche 2)");
                         string no = PorQueNoLlega(_sv1, cas); PonerDestino(cas); Enviar(_sv1); Debug.Log($"[SOCORRO] tren a Castellón con {abordo} pelotón(es) a bordo: {(no ?? "sale")}"); _socT0 = Time.unscaledTime; _socPaso++;
