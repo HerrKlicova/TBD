@@ -21,6 +21,7 @@ namespace TBD.View
 
         void Start()
         {
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-mundo") >= 0) { UnityEngine.SceneManagement.SceneManager.LoadScene("Mundo"); return; }   // núcleo v2, Hito 1: prototipo de zum (Marcos)
             Application.targetFrameRate = 60;
             _volume = PlayerPrefs.GetFloat("tbd.vol", 0.8f); AudioListener.volume = _volume;
             _music = MusicVolume = PlayerPrefs.GetFloat("tbd.mus", 0.8f); _sfx = SfxVolume = PlayerPrefs.GetFloat("tbd.sfx", 0.8f);
