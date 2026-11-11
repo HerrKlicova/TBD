@@ -19,6 +19,9 @@
     <Compile Include="RelojUnicoTests.cs" />
     <Compile Include="AireTests.cs" />
     <Compile Include="IdaVueltaTests.cs" />
+    <Compile Include="RedTests.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Mundo\Red\Via.cs" Link="Mundo\Red\Via.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Mundo\Red\Red.cs" Link="Mundo\Red\Red.cs" />
     <Compile Include="RailTests.cs" />
     <Compile Include="NetWorldTests.cs" />
     <Compile Include="BalanceTests.cs" />
