@@ -76,8 +76,8 @@ namespace TBD.Mundo
         {
             var g = new List<Orden>(); int pel = Peloton;
             void O(int t, TipoOrden tipo, int a = 0, int b = 0, int c = 0, int d = 0) { g.Add(new Orden { Tick = t, Jugador = 0, Tipo = tipo, A = a, B = b, C = c, D = d }); }
-            O(30, OrdenesRed.PuntoVia, 1060000, 470000); O(31, OrdenesRed.PuntoVia, 1150000, 900000); O(32, OrdenesRed.PuntoVia, 1240000, 1300000); O(33, OrdenesRed.PuntoVia, 1300000, 1600000); O(34, OrdenesRed.TrazarVia);
-            O(60, OrdenesRed.PuntoVia, 1950000, 400000); O(61, OrdenesRed.PuntoVia, 1980000, 1500000); O(62, OrdenesRed.TrazarVia);          // por el mar: tiene que rechazarse
+            O(30, OrdenesRed.PuntoVia, 1060000, 430000); O(31, OrdenesRed.PuntoVia, 1150000, 900000); O(32, OrdenesRed.PuntoVia, 1240000, 1300000); O(33, OrdenesRed.PuntoVia, 1300000, 1640000); O(34, OrdenesRed.TrazarVia);
+            O(60, OrdenesRed.PuntoVia, 1060000, 430000); O(61, OrdenesRed.PuntoVia, 1950000, 900000); O(62, OrdenesRed.TrazarVia);          // por el mar: tiene que rechazarse
             O(90, OrdenesRed.NuevaLinea, 0, 1); O(95, OrdenesRed.AsignarTren, 0, 0);
             O(600, TipoOrden.Mover, pel, 1330000, 1560000, -1); O(1500, TipoOrden.Mover, pel, 1380000, 1520000, -1); O(2400, TipoOrden.Mover, pel, 1500000, 1470000, -1);   // la última, al otro lado del caserío: rodea casas
             O(3300, TipoOrden.AtacarMoviendo, pel, 1440000, 1480000, -1);
