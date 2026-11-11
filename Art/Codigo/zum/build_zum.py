@@ -483,7 +483,7 @@ def lamina_mapa(out):
         placa(dr, px + 20, py - 12, nom, F_P)
     tx, ty = P(1450, 1180)
     pega(im, icono("tren", 32, relleno=LINEAS[0], girar=1), tx, ty)
-    placa(dr, tx + 20, ty - 10, "L1 · 4 cajas por viaje · un viaje cada 6,7 min", F_P, tinta="cream")
+    placa(dr, tx + 20, ty - 10, "L1 · 4 cajas por viaje · un viaje cada 7,2 min", F_P, tinta="cream")
     px, py = P(*PELOTON)
     pega(im, icono("soldado", 32), px, py)
     placa(dr, px + 18, py + 6, "1.º pelotón · 52 %", F_P)
@@ -497,7 +497,7 @@ def lamina_mapa(out):
         "• El plano táctico oscuro de siempre (D-N113): bandas de altura, curvas cada 20 m y maestras cada 100, mar navy, costa en 94948c, lindes de la huerta.",
         "• La red: vía tendida en hueso de 2 px; cada línea, en guiones de su color por fuera de la vía (L1 crema). Nunca rojo ni ámbar en una línea.",
         "• Iconos de 32 px de tamaño fijo en pantalla: estación (disco), tren de la línea teñido de su color y girado con el rumbo, pelotón, cuadrilla y depósito.",
-        "• Placas: almacén en cajas, la línea como «4 cajas por viaje · un viaje cada 6,7 min» y la munición del pelotón. Nunca «por hora»: el reloj va a ×30 y el movimiento a 1:1 (D-N208). Las raciones, por día de juego.",
+        "• Placas: almacén en cajas, la línea como «4 cajas por viaje · un viaje cada 7,2 min» y la munición del pelotón. Nunca «por hora»: el reloj va a ×30 y el movimiento a 1:1 (D-N208). Las raciones, por día de juego.",
         "• Horda: mancha roja 982420 tramada, como ahora.",
         "Qué NO se ve: modelos 3D, suelo de día, soldados sueltos, zombis sueltos, calima.",
     ], "mapa")
@@ -741,7 +741,7 @@ def lamina_regla(out):
         "Fundidos: cada cambio se funde a lo largo de ±25 % del umbral con tramado Bayer 4×4 (alfa binaria, nada semitransparente). Mapa↔comarca es el único cambio de dibujo entero (plano táctico ↔ suelo de día); el resto son capas que entran o salen.",
         "Lo que decide un icono no es el nivel sino el tamaño en pantalla: una unidad pasa a icono cuando su modelo mide menos de 10 px de alto, y el icono sale tramándose en 0,3 s. Los iconos son de 32 px en MAPA y COMARCA, de 16 px en PUEBLO, y no hay en SOLDADO.",
         "Zombis: individuos con cuerpo hasta PUEBLO; desde COMARCA, mancha roja tramada (982420). El cambio es por densidad visible, sin pasar por negro.",
-        "Textos de la red (D-N208, Hugo y Lucía): nunca «por hora». Línea: «4 cajas por viaje · un viaje cada 6,7 min». Almacén: en cajas. Raciones: por día de juego.",
+        "Textos de la red (D-N208, Hugo y Lucía): nunca «por hora». Línea: «4 cajas por viaje · un viaje cada 7,2 min» (el número lo calcula el juego con la vuelta medida, aceleración y frenada incluidas). Almacén: en cajas. Raciones: por día de juego.",
         "Calima de día (D-N197 adaptada): a27e5a al 0 % en SOLDADO, 10 % en PUEBLO y 22 % en COMARCA; en MAPA no hay. De noche, la bruma oscura deja de ser franja y pasa a ser la oscuridad fuera del alcance de focos y unidades.",
         "Rotación: solo en SOLDADO y PUEBLO (Q/E); al subir a COMARCA la cámara vuelve al norte arriba en 0,4 s, para que el mapa y el trazado no salgan girados.",
     ]
