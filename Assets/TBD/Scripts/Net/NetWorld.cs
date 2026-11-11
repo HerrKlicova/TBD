@@ -2105,7 +2105,7 @@ namespace TBD.Net
             Point(PieceKind.Nido, -X + 3_500, 7_000); Point(PieceKind.Nido, -X + 3_500, -7_000);          // dos nidos junto a la puerta de vía, por dentro
             Point(PieceKind.Foco, -X + 2_500, 15_000); Point(PieceKind.Foco, -X + 2_500, -15_000); Point(PieceKind.Foco, 0, Y - 2_000);
             var l = w.Works.At(sag);
-            for (int i = 0; i < l.Count; i++) if (l[i].IsGate && l[i].X0 > 0) { var g = l[i]; g.GateMode = 2; l[i] = g; }     // la puerta del este, bloqueada cerrada
+            // D-N202 (adenda de Lucía): ninguna puerta empieza bloqueada; todas se cierran con el asedio (antes la del este, GateMode = 2)
         }
 
         /// <summary>Da por terminadas las piezas de un plan recién añadido (trabajo hecho = trabajo necesario).</summary>
@@ -2144,7 +2144,7 @@ namespace TBD.Net
             { int cas = Id("Castellón"); w.Stations.Founded[cas] = true; w.GarrisonMil[cas] = 26_000; w.ZoneWallE4[cas] = 3_086_900; Stock("Castellón", 0, 30, 0, 26, 0); w.FoodExemptNode = cas; w.Field.ClearStaticAt(58, 63); w.Director.CerradaNodo = cas; w.Director.ColSeedHistory(w); }
             w.CercoNodo = Id("Castellón"); w.CercoZombies = w.CercoTope;      // D-N184: suya pero cercada; D-N188: cerco de 4400, se rompe por debajo de 500, socorro desde el día 3
             // Reloj único (D-N186): plan de noches de las zonas. Sagunto, todas las noches; Nules, la del día 2 (Defiende Nules), la única que tiene definida el escenario.
-            w.NightPlan.Add(new NetWorld.NightPlanEntry { Node = Id("Sagunto"), FromDay = 1, ToDay = -1 }); w.NightPlan.Add(new NetWorld.NightPlanEntry { Node = Id("Nules"), FromDay = 2, ToDay = 2 });
+            w.NightPlan.Add(new NetWorld.NightPlanEntry { Node = Id("Sagunto"), FromDay = 1, ToDay = 1 }); w.NightPlan.Add(new NetWorld.NightPlanEntry { Node = Id("Sagunto"), FromDay = 3, ToDay = -1 }); /* D-N203 (adenda) y D-N136: una sola zona asediada por noche; la 2 es la de Nules y Sagunto la pasa tranquila */ w.NightPlan.Add(new NetWorld.NightPlanEntry { Node = Id("Nules"), FromDay = 2, ToDay = 2 });
             w.Air = AirWing.Betera(w.Graph);                                     // F1 (Nacho): los NH90 de Bétera viven en la red
             w.ObjNode = Id("Nules"); w.AmbushNode = Id("Nules");      // partida de 30 min (Lucía, 9-nov 08:00): objetivo del día 2 y emboscada de unos 300 al llegar el tren
             w.Director.SinAsedioNodo = Id("Nules"); w.Director.SinAsedioHasta = NetConst.DayTicks + NetConst.Hours(8);     // D-N156: Nules sin asedio la 1.ª noche (hasta las 08:00 del día siguiente)

@@ -15,7 +15,18 @@ namespace TBD.View
     /// </summary>
     public partial class PrototypeBootstrap
     {
-        sealed class Seg { public int Id; public Vector2 A, B; public float Hp, Max; public bool Open; public string Name; public int Pile; public bool Queued; public int RebuildTick = -1; public bool IsGate; }
+        sealed class Seg { public int Id; public Vector2 A, B; public float Hp, Max; public bool Open; public string Name; public int Pile; public bool Queued; public int RebuildTick = -1; public bool IsGate; public bool IsVehGate, DeDia; public int Pieza = -1; }
+        /// <summary>D-N202 (adenda de Lucía): tramos en los cuatro lados del perímetro; -sintramos los quita.</summary>
+        bool TramosActivos { get { return _tramos && NightRun.Active; } }
+        static bool EnPerimetro(Vector2 a, Vector2 b)
+        {
+            const float e = 0.6f;
+            return (Mathf.Abs(a.x - Level.FortX0) < e && Mathf.Abs(b.x - Level.FortX0) < e) || (Mathf.Abs(a.x - Level.FortX1) < e && Mathf.Abs(b.x - Level.FortX1) < e)
+                || (Mathf.Abs(a.y - Level.FortY0) < e && Mathf.Abs(b.y - Level.FortY0) < e) || (Mathf.Abs(a.y - Level.FortY1) < e && Mathf.Abs(b.y - Level.FortY1) < e);
+        }
+        static string Lado(Vector2 a) { return Mathf.Abs(a.x - Level.FortX0) < 0.6f ? "oeste" : Mathf.Abs(a.x - Level.FortX1) < 0.6f ? "este" : Mathf.Abs(a.y - Level.FortY0) < 0.6f ? "sur" : "norte"; }
+        /// <summary>De noche (la noche en marcha, no de día esperando las 22:00) las puertas se cierran con el asedio (D-N202); de día, abiertas.</summary>
+        bool NocheEnMarcha { get { return _ng != null && _ng.State == NightState.Jugando && !DiaZonaRed && !DiaEnLaRed() && !TutorialHud.HordaEnEspera; } }
         readonly List<Seg> _segs = new List<Seg>(); readonly bool _tramos = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sintramos") < 0; bool _segsInit, _obras, _tt1, _tt2; float _mats = 40f; Seg _segSel; float _segMsgUntil; string _segMsg = ""; float _repairAcc;
         static readonly Color SgAmbar = new Color32(0xe0, 0x8c, 0x30, 255), SgRojo = new Color32(0x98, 0x24, 0x20, 255);
 
@@ -55,19 +66,25 @@ namespace TBD.View
         {
             if (!_tramos || _segsInit) return;
             var pieces = NetSession.A != null && _zoneNode >= 0 ? NetSession.A.Works.At(_zoneNode) : null; if (pieces == null || pieces.Count == 0) return;
-            _segsInit = true; int id = 16;
+            _segsInit = true; int id = 16; int pi = -1;
             foreach (var w in pieces)
             {
-                if (!w.Built || !(w.IsWall || w.Kind == PieceKind.PuertaVia)) continue;
+                pi++;
+                if (!w.Built || !(w.IsWall || w.IsGate)) continue;
                 var a = new Vector2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f); var b = new Vector2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f);
-                if (Mathf.Abs(a.x - 70f) > 0.6f || Mathf.Abs(b.x - 70f) > 0.6f) continue;                       // solo el muro oeste
+                if (!EnPerimetro(a, b)) continue;                                                             // D-N202: los cuatro lados (antes, solo X = 70)
                 float lifeMax = w.CostE4 * 1.1924f;                                                           // 11.924 de vida por u (Hugo, 1.200.000 en total) en vez de 10.000
-                _segs.Add(new Seg { Id = id++, A = a, B = b, Hp = lifeMax, Max = lifeMax, IsGate = w.Kind == PieceKind.PuertaVia, Name = (w.Kind == PieceKind.PuertaVia ? "Puerta de la vía" : "Tramo oeste " + (_segs.Count + 1)) });
+                string lado = Lado(a); int nl = 1; foreach (var q in _segs) if (!q.IsGate && Lado(q.A) == lado) nl++;
+                bool oesteVia = w.Kind == PieceKind.PuertaVia && lado == "oeste";
+                _segs.Add(new Seg { Id = id++, A = a, B = b, Hp = lifeMax, Max = lifeMax, IsGate = oesteVia, IsVehGate = w.IsGate && !oesteVia, Pieza = pi,
+                    Name = w.Kind == PieceKind.PuertaVia ? "Puerta de la vía (" + lado + ")" : w.Kind == PieceKind.PuertaVeh ? "Puerta de vehículos (" + lado + ")" : "Tramo " + lado + " " + nl });
             }
-            if (_segs.Count == 0) { Debug.Log("[NOCHE] tramos: no hay piezas de muro en el oeste"); return; }
-            Push(CmdType.ClearWest);
+            if (_segs.Count == 0) { Debug.Log("[NOCHE] tramos: no hay piezas de muro en el perímetro"); return; }
+            Push(CmdType.ClearFort);
             foreach (var s in _segs) Push(CmdType.BuildSeg, s.Id * 10000 + 2500, new Unity.Mathematics.float2(s.A.x, s.A.y), new Unity.Mathematics.float2(s.B.x, s.B.y));
-            Debug.Log($"[NOCHE] tramos: {_segs.Count} tramos en el muro oeste (vida total {SegTotal(false):0})");
+            foreach (var s in _segs) if (s.IsVehGate && !NocheEnMarcha) { s.Open = true; s.DeDia = true; Push(CmdType.SetSegment, s.Id * 10 + 1); }      // de día las puertas abiertas (D-N202)
+            int no = 0, ne = 0, ns = 0, nn = 0; foreach (var s in _segs) { var l = Lado(s.A); if (l == "oeste") no++; else if (l == "este") ne++; else if (l == "sur") ns++; else nn++; }
+            Debug.Log($"[NOCHE] tramos: {_segs.Count} tramos en el perímetro (oeste {no}, este {ne}, sur {ns}, norte {nn}; vida total {SegTotal(false):0})");
             LosSegmentos();
         }
 
@@ -91,8 +108,12 @@ namespace TBD.View
                 if (best != null) best.Pile++;
             }
             float dmg = NightSimParams.Default().WallDmgPerZombieS / 30f;
+            bool noche = NocheEnMarcha;
             foreach (var s in _segs)
             {
+                if (s.IsVehGate && s.DeDia && noche) { s.Open = false; s.DeDia = false; Push(CmdType.SetSegment, s.Id * 10 + 0); Debug.Log($"[NOCHE] {s.Name} se cierra con el asedio (D-N202)"); }
+                else if (s.IsVehGate && !s.Open && !noche && s.Hp > 0f) { s.Open = true; s.DeDia = true; Push(CmdType.SetSegment, s.Id * 10 + 1); Debug.Log($"[NOCHE] {s.Name} se abre de día (D-N202)"); }
+                if (s.DeDia) continue;
                 if (s.Open) { if (s.RebuildTick >= 0 && _ng.Tick >= s.RebuildTick) { s.Open = false; s.Hp = s.Max * 0.3f; s.RebuildTick = -1; Push(CmdType.SetSegment, s.Id * 10 + 0); if (s.IsGate) Push(CmdType.ToggleGate); Debug.Log("[NOCHE] " + s.Name + " reconstruido al 30 %"); } continue; }
                 if (s.Pile > 0) s.Hp = Mathf.Max(0f, s.Hp - s.Pile * dmg);                                          // 1 punto por zombi de la pila y por segundo, sin factor (NightSim, Nacho)
                 if (s.Hp <= 0f && !s.Open) { s.Open = true; Push(CmdType.SetSegment, s.Id * 10 + 1); if (s.IsGate) Push(CmdType.ToggleGate); Debug.Log("[NOCHE] BRECHA en " + s.Name); }

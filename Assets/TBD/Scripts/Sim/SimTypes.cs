@@ -296,6 +296,7 @@ namespace TBD.Sim
         BuildSeg = 9,                                    // D-N163: muro por tramos. Arg = id * 10000 + altura en mm (id 16..255), P0/P1 = extremos. El tramo es un solido con Id propio
         SetSegment = 10,                                 // D-N163: Arg = id * 10 + (1 = brecha abierta, 0 = cerrado). Pone Solid.Open del tramo y rehace la rejilla, como ToggleGate
         ClearWest = 11,                                  // D-N163 (solo zona de noche con tramos): abre los solidos del muro oeste del Level (Id 0 en X = 71) para sustituirlos por tramos BuildSeg; no afecta a ninguna partida que no la emita
+        ClearFort = 13,                                  // D-N202 (Lucía, adenda): abre los cuatro lados del fuerte del Level (Kind 0, Id 0; la puerta de vía no) para sustituirlos por tramos BuildSeg
         BuildBox = 12,                                   // D-N181 (Lucía): caja sólida (Kind 1) de P0 (esquina mínima) a P1 (máxima), Arg = altura en mm; cierra una huella entera (edificio de viajeros)
     }
 

@@ -194,6 +194,20 @@ namespace TBD.Sim
                     em.SetComponentData(root, info);
                     break;
                 }
+                case CmdType.ClearFort:
+                {
+                    var solids = em.GetBuffer<Solid>(root); var ground = em.GetBuffer<CellGround>(root);
+                    for (int i = 0; i < solids.Length; i++)
+                    {
+                        var s = solids[i];
+                        if (s.Kind != 0 || s.Id != 0 || s.Open != 0 || math.abs(s.HalfThick - Level.WallHalf) > 0.001f) continue;      // solo los lados del fuerte del Level (los muros libres de BuildWall son la mitad de gruesos)
+                        s.Open = 1; solids[i] = s; Level.RasterSolid(solids, ground, s);
+                    }
+                    var info = em.GetComponentData<ZoneInfo>(root);
+                    info.ForceFlow = true;
+                    em.SetComponentData(root, info);
+                    break;
+                }
                 case CmdType.ClearWest:
                 {
                     var solids = em.GetBuffer<Solid>(root);

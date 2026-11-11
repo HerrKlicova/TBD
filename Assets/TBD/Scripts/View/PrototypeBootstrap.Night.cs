@@ -210,9 +210,9 @@ namespace TBD.View
                 if (gp != null) for (int gi = 0; gi < gp.Count; gi++)
                 {
                     var w = gp[gi]; if (!w.IsGate || !w.Built || _gateWalled.Contains(gi)) continue;
+                    if (TramosActivos && !(w.Kind == PieceKind.PuertaVia && Mathf.Abs(WorkOrigin.x + w.X0 / 1000f - Level.FortX0) < 0.6f)) continue;      // D-N202: con tramos, cada puerta del perímetro la abre y cierra su tramo (salvo la de vía del oeste, como siempre)
                     _gateWalled.Add(gi);
-                    // Eugenio (11-nov, 19:25): la puerta de vehículos (E4) empieza ABIERTA, para que los vehículos puedan salir del recinto; -e4cerrada = como antes
-                    if (w.IsVehGate && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-e4cerrada") < 0) { Debug.Log($"[NOCHE] puerta {w.Kind} abierta al empezar (los vehículos salen por ella): ({WorkOrigin.x + w.X0 / 1000f:0.0};{WorkOrigin.y + w.Y0 / 1000f:0.0}) -> ({WorkOrigin.x + w.X1 / 1000f:0.0};{WorkOrigin.y + w.Y1 / 1000f:0.0})"); continue; }
+                    // (I-Noche161: la E4 abierta de día la hace ahora su tramo, D-N202)
                     Push(CmdType.BuildWall, 2500, new Unity.Mathematics.float2(WorkOrigin.x + w.X0 / 1000f, WorkOrigin.y + w.Y0 / 1000f), new Unity.Mathematics.float2(WorkOrigin.x + w.X1 / 1000f, WorkOrigin.y + w.Y1 / 1000f));
                     Debug.Log($"[NOCHE] puerta {w.Kind} cerrada con muro: ({WorkOrigin.x + w.X0 / 1000f:0.0};{WorkOrigin.y + w.Y0 / 1000f:0.0}) -> ({WorkOrigin.x + w.X1 / 1000f:0.0};{WorkOrigin.y + w.Y1 / 1000f:0.0})");
                 }

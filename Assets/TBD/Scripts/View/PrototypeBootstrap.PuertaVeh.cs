@@ -27,7 +27,7 @@ namespace TBD.View
         Material _puertaVehMat;
         const float PuertaVehSegundos = 2.5f;                                         // lo que tarda en abrir o cerrar (vista)
 
-        bool PuertaVehCerrada(int pieza) { return _gateWalled.Contains(pieza); }
+        bool PuertaVehCerrada(int pieza) { foreach (var s in _segs) if (s.Pieza == pieza) return !s.Open; return _gateWalled.Contains(pieza); }      // D-N202: con tramos manda su tramo (abierta de día, cerrada con el asedio)
 
         GameObject ModeloPuertaVeh(Vector3 a, Vector3 b, int estado)
         {
