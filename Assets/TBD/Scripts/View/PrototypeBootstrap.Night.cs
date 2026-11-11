@@ -261,6 +261,7 @@ namespace TBD.View
                 zs.Dispose();
                 _zomCounted = true;
                 if ((_ng.Tick % NightSim.ClimberRetargetTicks) == 0) ClimberGoals();   // D-N148 (Nacho)   // D-N136 (Nacho): _zomPos ya es la cuenta de vivos de ECS; NightGame gana al llegar a 0 con toda la horda dentro
+                VehPushOut();   // Eugenio (I-Noche153): ningún zombi dentro de la silueta de un vehículo
                 { for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; bool inside = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; uint zid = _zomId[ci]; if (inside) { if (_insideIds.Add(zid)) { _climbSec++; _entTot++; float dW = zp.x - Level.FortX0, dE = Level.FortX1 - zp.x, dS = zp.y - Level.FortY0, dN = Level.FortY1 - zp.y; float mn = Mathf.Min(Mathf.Min(dW, dE), Mathf.Min(dS, dN)); _entSide[mn == dW ? 0 : mn == dS ? 1 : mn == dE ? 2 : 3]++; } } else _insideIds.Remove(zid); }
                   { var tr = _ng.P.TrainRect; float r = _ng.P.AttackReachMm / 1000f; float tx0 = tr.X0 / 1000f - r, tx1 = tr.X1 / 1000f + r, ty0 = tr.Y0 / 1000f - r, ty1 = tr.Y1 / 1000f + r; int tin = 0, tout = 0; for (int ci = 0; ci < _zomPos.Count; ci++) { var zp = _zomPos[ci]; if (zp.x < tx0 || zp.x > tx1 || zp.y < ty0 || zp.y > ty1) continue; bool insideF = zp.x > Level.FortX0 + 1f && zp.x < Level.FortX1 - 1f && zp.y > Level.FortY0 + 1f && zp.y < Level.FortY1 - 1f; if (insideF) tin++; else tout++; } _trainIn = tin; _trainOut = tout; } }
                 _allT.Clear(); for (int i = 0; i < _zomPos.Count; i++) _allT.Add(new Target { Id = (int)_zomId[i], X = (int)(_zomPos[i].x * 1000f), Y = (int)(_zomPos[i].y * 1000f) });
@@ -384,11 +385,57 @@ namespace TBD.View
         }
 
         readonly HashSet<int> _aimStation = new HashSet<int>();   // D-N181: los de dentro que tienen la estación de objetivo (D-N180); solo ellos cuentan para el edificio
+        const float VehSkin = 0.5f;   // los zombis se quedan a medio metro de la chapa
+        /// <summary>Eugenio (I-Noche153): si (tx; ty) es el centro de un vehículo de _cgVeh, el objetivo pasa a ser el punto de su silueta (ensanchada VehSkin) más cercano al zombi;
+        /// así lo rodean por fuera en vez de ir todos a su centro. Si no es un vehículo, el mismo punto en metros.</summary>
+        Vector2 VehGoal(int tx, int ty, Vector2 zp)
+        {
+            for (int k = 0; k < _cgVeh.Count; k++)
+            {
+                var t = _cgVeh[k]; if (t.X != tx || t.Y != ty || t.Id < 0 || t.Id >= _vehs.Count) continue;
+                VehEdge(_vehs[t.Id], zp, VehSkin, out var q); return q;
+            }
+            return new Vector2(tx / 1000f, ty / 1000f);
+        }
+
+        /// <summary>Eugenio (I-Noche153): los vehículos tienen cuerpo para la horda. Cada tick, el zombi que ha quedado dentro de la silueta de un vehículo en tierra (porque el vehículo
+        /// se le ha echado encima o porque la separación lo ha empujado) sale por el borde más cercano. Igual en los dos mundos (por SimId), así que A y B siguen iguales.</summary>
+        readonly Dictionary<uint, Vector2> _pushOut = new Dictionary<uint, Vector2>();
+        void VehPushOut()
+        {
+            _pushOut.Clear();
+            for (int vi = 0; vi < _vehs.Count; vi++)
+            {
+                var v = _vehs[vi]; if (v.Heli && (v.State != 0 || v.Alt > 0.5f)) continue;
+                float rr = (v.HalfL + VehSkin) * (v.HalfL + VehSkin) + (v.HalfW + VehSkin) * (v.HalfW + VehSkin);
+                for (int i = 0; i < _zomPos.Count; i++)
+                {
+                    var p = _pushOut.TryGetValue(_zomId[i], out var moved) ? moved : _zomPos[i];
+                    if ((p - v.Pos).sqrMagnitude > rr) continue;
+                    if (VehEdge(v, p, 0.05f, out var q)) _pushOut[_zomId[i]] = q;
+                }
+            }
+            if (_pushOut.Count == 0) return;
+            for (int i = 0; i < _zomPos.Count; i++) if (_pushOut.TryGetValue(_zomId[i], out var q)) _zomPos[i] = q;
+            foreach (var wld in new[] { _worldA, _worldB })
+            {
+                if (wld == null || !wld.IsCreated) continue;
+                using (var q = wld.EntityManager.CreateEntityQuery(typeof(Zombie)))
+                {
+                    var zs = q.ToComponentDataArray<Zombie>(Allocator.Temp); bool dirty = false;
+                    for (int i = 0; i < zs.Length; i++) { var z = zs[i]; if (!_pushOut.TryGetValue(z.SimId, out var np)) continue; z.Pos.x = np.x; z.Pos.z = np.y; zs[i] = z; dirty = true; }
+                    if (dirty) q.CopyFromComponentDataArray(zs);
+                    zs.Dispose();
+                }
+            }
+        }
+
         void ClimberGoals()
         {
             _cgMen.Clear(); _cgVeh.Clear(); _aimStation.Clear();
             foreach (var p in _uw.Platoons) { if (p.Aboard != 0) continue; foreach (var m in p.Men) if (m.Alive) _cgMen.Add(new Target { Id = m.Id, X = m.X, Y = m.Y }); }
-            for (int i = 0; i < _vehs.Count; i++) { var v = _vehs[i]; if (v.Heli ? v.State != 0 : v.Speed > 0.1f) continue; _cgVeh.Add(new Target { Id = i, X = (int)(v.Pos.x * 1000f), Y = (int)(v.Pos.y * 1000f) }); }
+            for (int i = 0; i < _vehs.Count; i++) { var v = _vehs[i]; if (v.Heli && v.State != 0) continue;   // Eugenio (I-Noche153): también los que se mueven (los persiguen), como NightSim; el NH90 solo en tierra
+                _cgVeh.Add(new Target { Id = i, X = (int)(v.Pos.x * 1000f), Y = (int)(v.Pos.y * 1000f) }); }
             var tr = _ng.P.TrainRect;
             // D-N175 (Lucia, Nacho): un zombi de FUERA con tropa a 25 m o menos deja la puerta y va a por ella, con tope del 30 % de la horda; la pila y los del muro no cambian.
             // Se decide una sola vez con el mundo A (sombra de NightSim) y se aplica igual a los dos mundos por SimId.
@@ -427,14 +474,15 @@ namespace TBD.View
                         bool inside = x > Level.FortX0 && x < Level.FortX1 && y > Level.FortY0 && y < Level.FortY1;
                         if (!inside)
                         {
-                            if (_aggroGoal.TryGetValue((int)z.SimId, out var ag)) { z.Goal = new float2(ag.x / 1000f, ag.y / 1000f); z.HasGoal = 1; zs[i] = z; dirty = true; }
+                            if (_aggroGoal.TryGetValue((int)z.SimId, out var ag)) { var ga = VehGoal(ag.x, ag.y, new Vector2(x, y)); z.Goal = new float2(ga.x, ga.y); z.HasGoal = 1; zs[i] = z; dirty = true; }
                             else if (z.HasGoal != 0) { z.HasGoal = 0; zs[i] = z; dirty = true; }
                             continue;
                         }
                         int tx, ty; int cg = ClimberTargets.Pick((int)(x * 1000f), (int)(y * 1000f), _cgMen, _cgVeh, _cgWork, NightSim.ClimberSeekMm, tr, out tx, out ty);
                         if (cg == 4 && !TrainReachableZona()) { if (wld == _worldA) _aimStation.Add((int)z.SimId); var sr = _ng.P.StationRect; tx = System.Math.Max(sr.X0, System.Math.Min(sr.X1, (int)(x * 1000f))); ty = System.Math.Max(sr.Y0, System.Math.Min(sr.Y1, (int)(y * 1000f))); }   // D-N180 (2), como NightSim.RetargetClimber
                         ClimberTargets.Rodeo((int)(x * 1000f), (int)(y * 1000f), _ng.P.StationRect, _ng.P.AttackReachMm + 500, ref tx, ref ty);   // rodeo del edificio (Nacho, 9-nov): por la franja de detrás, 1 mm fuera
-                        z.Goal = new float2(tx / 1000f, ty / 1000f); z.HasGoal = 1; zs[i] = z; dirty = true;
+                        var gc = cg == 2 ? VehGoal(tx, ty, new Vector2(x, y)) : new Vector2(tx / 1000f, ty / 1000f);   // vehículo: al borde de su silueta, no a su centro
+                        z.Goal = new float2(gc.x, gc.y); z.HasGoal = 1; zs[i] = z; dirty = true;
                     }
                     if (dirty) q.CopyFromComponentDataArray(zs);
                     zs.Dispose();
