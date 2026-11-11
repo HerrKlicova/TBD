@@ -23,7 +23,7 @@
  "cotas_explanada_m": {
   "A": 9.66,
   "B": 6.87,
-  "caserio": 8.92
+  "caserio": 5.62
  },
  "generador": "docs/niveles/herramientas/terreno_hito1.py",
  "semilla": 20261111
