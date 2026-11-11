@@ -218,6 +218,10 @@ namespace TBD.Units
         /// <summary>Reparto de objetivos (Lucía, 9-nov, decisiones-noche): un lanzagranadas no dispara a un punto que ya tiene una granada en vuelo a menos de su radio; ese tirador usa el fusil.
         /// Medido en NightSim: los granaderos pasan de 347 a 437 abatidos por u en normal y Sagunto difícil sube a ~6470. Es regla, no estado: fuera del hash.</summary>
         public bool GrenadeDeconflict = true;
+        /// <summary>Calibración de NightSim contra la zona (Lucía, 11-nov, D-N186): ‰ que se aplica a la puntería de fuego directo (fusil y ametralladoras) y a la letalidad
+        /// de las explosiones. En la zona los zombis tienen cuerpo y se reparten; en NightSim son puntos y se apiñan, y cada disparo rinde más. 1000 = sin cambio (la zona).
+        /// Es parámetro, no estado: entra en el hash solo si no vale 1000.</summary>
+        public int HitScalePm = 1000, BlastScalePm = 1000;
         bool GrenadeInbound(int x, int y, int r) { long r2 = (long)r * r; foreach (var q in _pending) { long dx = q.X - x, dy = q.Y - y; if (dx * dx + dy * dy < r2) return true; } return false; }
         public long DxResupShots, DxResupN;      // medida: lo que sale del almacén en recargas de pelotón (fuera del hash)
         public Platoon Find(int id) { for (int i = 0; i < Platoons.Count; i++) if (Platoons[i].Id == id) return Platoons[i]; return null; }
@@ -689,6 +693,7 @@ namespace TBD.Units
                 int pm = w.HitBlankPm - w.HitSlopePmPerM * (dist / 1000);
                 if (pm < w.HitMinPm) pm = w.HitMinPm;
                 if (pm > w.HitBlankPm) pm = w.HitBlankPm;
+                if (HitScalePm != 1000) pm = pm * HitScalePm / 1000;
                 directHit = Rng.Below(1000) < pm;
                 ev.Hit = directHit;
                 if (directHit)
@@ -748,7 +753,7 @@ namespace TBD.Units
             });
             int kills = exclude >= 0 ? 1 : 0;
             for (int k = 0; k < _scratch.Count && kills < w.CapKills; k++)
-                if (Rng.Below(1000) < w.LethalityPm) { res.Hits.Add(new TargetHit { TargetId = targets[_scratch[k]].Id, Damage = KillDamage, Platoon = platoon, Weapon = wid }); kills++; }
+                if (Rng.Below(1000) < (BlastScalePm == 1000 ? w.LethalityPm : w.LethalityPm * BlastScalePm / 1000)) { res.Hits.Add(new TargetHit { TargetId = targets[_scratch[k]].Id, Damage = KillDamage, Platoon = platoon, Weapon = wid }); kills++; }
             { var bb = res.Blasts[bi0]; bb.InRadius = _scratch.Count + (exclude >= 0 ? 1 : 0); bb.Hits = kills; res.Blasts[bi0] = bb; }
         }
 
@@ -768,6 +773,7 @@ namespace TBD.Units
         public ulong Hash()
         {
             ulong h = IMath.Mix(0x1AF0 ^ (ulong)Tick) + IMath.Mix(0x1AF1 ^ Rng.S) + WeaponCatalog.Hash() + PlatoonCatalog.Hash() + IMath.Mix(0x1AF2 ^ (ulong)(uint)StockShots);
+            if (HitScalePm != 1000 || BlastScalePm != 1000) h += IMath.Mix(0x1AF3 ^ (ulong)(uint)HitScalePm ^ ((ulong)(uint)BlastScalePm << 20));
             for (int i = 0; i < _pending.Count; i++)
                 h += IMath.Mix((ulong)(uint)_pending[i].DueTick + ((ulong)(uint)_pending[i].X << 20) + ((ulong)(uint)_pending[i].Y << 40) + ((ulong)_pending[i].Weapon << 60) ^ (ulong)(i + 1));
             for (int i = 0; i < Platoons.Count; i++)
