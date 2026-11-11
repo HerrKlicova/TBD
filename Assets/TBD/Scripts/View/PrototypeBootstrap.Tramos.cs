@@ -26,9 +26,12 @@ namespace TBD.View
         {
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinlos") >= 0 || _uw == null) return;
             _uw.LosBlockers.Clear(); _losSeg0 = -1;
-            try { _uw.LosBlockers.AddRange(NightSim.LosSceneFromCsv(BalanceSource.Read("sagunto_obstaculos_v1.csv"))); }
-            catch (System.Exception e) { Debug.LogWarning("[NOCHE] linea de vision: no se pudo leer sagunto_obstaculos_v1.csv (" + e.Message + ")"); return; }
-            Debug.Log("[NOCHE] linea de vision: " + _uw.LosBlockers.Count + " solidos del inventario");
+            // Álvaro (pulido 11-nov): cada zona con su inventario. Nules (opción A) = el de Sagunto sin el pueblo (22 casas y el bloque de pisos), que en Nules no se monta.
+            // El resto de estaciones sigue con el de Sagunto, como antes, hasta que tengan el suyo.
+            string losCsv = _estacionZona == "Nules" ? "nules_obstaculos_v1.csv" : "sagunto_obstaculos_v1.csv";
+            try { _uw.LosBlockers.AddRange(NightSim.LosSceneFromCsv(BalanceSource.Read(losCsv))); }
+            catch (System.Exception e) { Debug.LogWarning("[NOCHE] linea de vision: no se pudo leer " + losCsv + " (" + e.Message + ")"); return; }
+            Debug.Log("[NOCHE] línea de visión de " + _estacionZona + ": " + _uw.LosBlockers.Count + " sólidos (" + losCsv + ")");
         }
 
         void LosSegmentos()

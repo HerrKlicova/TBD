@@ -1,0 +1,29 @@
+id;tipo;forma;x0_mm;z0_mm;x1_mm;z1_mm;medio_grosor_mm;altura_mm;tapa_vision;tapa_paso;fuente;nota
+muro_oeste_s;muro_hesco;seg;70000;44000;70000;62900;500;2100;si;si;Net/NetWorld.cs:1430-1440;"HESCO; frente oeste, tramo sur"
+muro_oeste_n;muro_hesco;seg;70000;66100;70000;85000;500;2100;si;si;Net/NetWorld.cs:1430-1440;"HESCO; frente oeste, tramo norte"
+puerta_via_oeste;puerta;seg;70000;62900;70000;66100;500;2500;si;si;View/PrototypeBootstrap.cs:2628 y .Night.cs:163;"de noche, cerrada: muro de 2,5 m (la pieza visible mide 2,1); pasa a 5 m en el Bloque 2 (Z 62-67)"
+ala_norte;muro_hesco;seg;70000;85000;84500;85000;500;2100;si;si;Net/NetWorld.cs:1430-1440;
+ala_sur;muro_hesco;seg;70000;44000;84500;44000;500;2100;si;si;Net/NetWorld.cs:1430-1440;
+muro_norte;muro_sacos;seg;84500;85000;156000;85000;500;1200;si;si;Net/NetWorld.cs:1430-1440;
+muro_este_s;muro_sacos;seg;156000;44000;156000;62900;500;1200;si;si;Net/NetWorld.cs:1430-1440;hueco de la puerta este SIN VERIFICAR: supongo el mismo que el oeste
+puerta_via_este;puerta;seg;156000;62900;156000;66100;500;2500;si;si;NetWorld.cs:1442 (GateMode 2) y .Night.cs:163;"bloqueada cerrada; Z SIN VERIFICAR"
+muro_este_n;muro_sacos;seg;156000;66100;156000;85000;500;1200;si;si;Net/NetWorld.cs:1430-1440;
+muro_sur_o;muro_sacos;seg;84500;44000;95000;44000;500;1200;si;si;Net/NetWorld.cs:1430-1440;
+puerta_vehiculos_sur;puerta;seg;95000;44000;103000;44000;500;2500;si;si;View/PrototypeBootstrap.cs:2630;de noche, cerrada
+muro_sur_e;muro_sacos;seg;103000;44000;156000;44000;500;1200;si;si;Net/NetWorld.cs:1430-1440;
+nido_n;nido;seg;72700;71500;74300;71500;500;1500;si;si;NetWorld.cs:1439 y View/PrototypeBootstrap.cs:2625;a 3,5 m del eje del muro oeste (2,5 m de su cara interior)
+nido_s;nido;seg;72700;57500;74300;57500;500;1500;si;si;NetWorld.cs:1439;ídem
+tren_noche;tren;seg;81000;64500;145000;64500;1000;2200;si;si;Sim/SimTypes.cs:372-381 (TrainNightX 142,5);"tren de Sagunto parado de noche; Id 2"
+edificio_viajeros;edificio;caja;96500;75000;115500;83800;0;11000;si;si;View/PrototypeBootstrap.cs:1389-1390;5 segmentos de 11 m (Z 75,5..83,3, ±0,5)
+almacen_muelle;edificio;caja;127500;50300;142500;57300;0;5000;si;si;View/PrototypeBootstrap.cs:1391-1392;
+almacen_naranjas;edificio;caja;40000;30000;51000;51000;0;4000;si;si;Sim/SimTypes.cs:367,397 (Roof);"el sólido mide 4 m; el modelo de Teo, 5,5 m de alero y 7,5 m de cumbrera: para la vista, usar 7,5"
+paso_superior_tablero;relieve;caja;-28200;47600;-11800;81400;0;8300;si;no;View/PrototypeBootstrap.cs:1411-1419;"SIN SÓLIDO. Tablero de 7,8 a 8,3 m: por debajo se ve y se pasa; tapa solo a quien dispare desde más de 7,8 m (NH90)"
+terraplen_norte;relieve;caja;-28200;81400;-11800;150600;0;8300;si;no;ídem;SIN SÓLIDO. Rampa de 8,3 m (junto al tablero) a 0 m (Z 150,6), al 12 %
+terraplen_sur_alto;relieve;caja;-28200;28000;-11800;47600;0;8300;si;no;ídem;"SIN SÓLIDO. Rampa de 8,3 a 5,95 m; losa de la carretera a 5,05-5,75 m sobre Z 18-28"
+terraplen_sur_bajo;relieve;caja;-28200;-21600;-11800;18000;0;4750;si;no;ídem;SIN SÓLIDO. Rampa de 4,75 a 0 m
+tolvas_volcadas;vagon;caja;-2000;57500;42000;61500;0;3000;si;no;View/PrototypeBootstrap.cs:1478-1486;"SIN SÓLIDO. 3 tolvas de 14 m en X 5, 20 y 35; altura SIN VERIFICAR (≈3 m de pie, ≈2 m volcadas)"
+autobus_cruzado;vehiculo;caja;53500;89000;64500;95000;0;3000;si;no;View/PrototypeBootstrap.cs:1494;SIN SÓLIDO. 11 × 2,6 m girado 74°: caja envolvente
+barricada;mueble;caja;52000;87500;64000;91000;0;1400;no;no;View/PrototypeBootstrap.cs:1495;"SIN SÓLIDO; más baja que un fusil de pie"
+atasco_coches;vehiculo;caja;83000;16000;250000;27000;0;1500;no;no;View/PrototypeBootstrap.cs:1455-1466;"SIN SÓLIDO. 18 coches; 1,5 m: no tapan a quien dispara de pie (propuesta)"
+camion_cabeza;vehiculo;caja;253000;19000;263000;27000;0;3100;si;no;View/PrototypeBootstrap.cs:1428,1510;SIN SÓLIDO
+cauce_palancia;relieve;caja;265600;-200000;340800;480000;0;-4500;si;no;View/PrototypeBootstrap.cs:1421-1426;"SIN SÓLIDO. Lecho a −4,5 m con orillas de 5,4 m; quien está en el lecho no se ve desde lejos (solo afecta a O4, fuera del MVP)"
