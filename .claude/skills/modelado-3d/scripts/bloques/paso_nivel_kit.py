@@ -16,7 +16,9 @@ Jerarquía (mira a +Z en Unity), la de paso_nivel.py:
   └─ Luces_A, Luces_B        focos para la emisión (transformación identidad)
 Colores: los de la vía y los de paso_nivel.py, salvo la placa de la cruz, que pasa de d4d0cc (reservado a la selección) a b8b8b8;
 calzada 6c7874 con la raya b8b8b8 y el tablero del cruce 605c48. MEDIDAS SIN VERIFICAR.
-TBD_VARIANTE = 5 · ángulo + aspecto. Ángulos: 0 → 90°, 1 → 60°, 2 → 45°, 3 → 30°. Aspectos (los de paso_nivel.py): 0 caseta de
+TBD_VARIANTE = 20 · espejo + 5 · ángulo + aspecto. ESPEJO (12-11, captura i2_cruce2 de Iker): la misma pieza simétrica respecto al
+eje de la vía, con la carretera hacia el otro lado; un giro no la convierte en la otra. Sin espejo, yendo de A a B, el extremo
+D de la carretera queda delante y a la DERECHA; con espejo, delante y a la izquierda. Ángulos: 0 → 90°, 1 → 60°, 2 → 45°, 3 → 30°. Aspectos (los de paso_nivel.py): 0 caseta de
 teja; 1 focos dobles y cubierta plana; 2 abandonado (una barrera partida, una señal inclinada y maleza en la vía); 3 puesto
 militar (sacos y bloques); 4 catenaria y farola, caseta metálica.
 """
@@ -27,8 +29,9 @@ import via_trazado as vt
 import paso_nivel as pn
 from montaje import Montaje, separar as _separar
 
-VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0) % 20
-IA, A = VAR // 5, VAR % 5
+VAR = int(os.environ.get("TBD_VARIANTE", "0") or 0) % 40
+ESPEJO = VAR >= 20                                         # la carretera hacia el otro lado (12-11)
+IA, A = (VAR % 20) // 5, VAR % 5
 ANGULOS = (90, 60, 45, 30)
 ANG = math.radians(ANGULOS[IA])
 NOMBRES_V = ["Teja", "FocosDobles", "Abandonado", "Militar", "Catenaria"]
@@ -52,13 +55,14 @@ MEDIA = SEP + 4.0                                          # media carretera (de
 PARTES = pn.PARTES
 # del marco de la carretera (carretera a lo largo de X', vía a ANG de X', cruce en el origen) al de la pieza (vía en +X)
 M = Matrix.Translation((CX, 0, 0)) @ Matrix.Rotation(-ANG, 4, "Z")
-PIV1 = tuple(M @ Vector((SEP, 3.85, 1.0)))
-PIV2 = tuple(M @ Vector((-SEP, -3.85, 1.0)))
+SY = -1.0 if ESPEJO else 1.0
+PIV1 = tuple(Vector((1, SY, 1)) * (M @ Vector((SEP, 3.85, 1.0))))
+PIV2 = tuple(Vector((1, SY, 1)) * (M @ Vector((-SEP, -3.85, 1.0))))
 PIV = {"Barrera_1": PIV1, "Barrera_2": PIV2, "Luces_A": (0, 0, 0), "Luces_B": (0, 0, 0)}
-DIR_C = (math.cos(ANG), -math.sin(ANG))                  # sentido de la carretera en la pieza
+DIR_C = (math.cos(ANG), -math.sin(ANG))                  # sentido de la carretera en la pieza (sin espejo)
 CONECTORES = {"A": (0.0, 0.0, 0.0), "B": (L, 0.0, 0.0),
-              "C": (round(CX - MEDIA * DIR_C[0], 3), round(-MEDIA * DIR_C[1], 3), round(-ANGULOS[IA], 1)),
-              "D": (round(CX + MEDIA * DIR_C[0], 3), round(MEDIA * DIR_C[1], 3), round(-ANGULOS[IA], 1))}
+              "C": (round(CX - MEDIA * DIR_C[0], 3), round(-SY * MEDIA * DIR_C[1], 3), round(-SY * ANGULOS[IA], 1)),
+              "D": (round(CX + MEDIA * DIR_C[0], 3), round(SY * MEDIA * DIR_C[1], 3), round(-SY * ANGULOS[IA], 1))}
 
 
 def _mover(m, antes):
@@ -166,6 +170,10 @@ def construir(nombre="SM_PasoNivelKit", lod=0):
             if l == lado:
                 m.cilindro((x, y, z), 0.13 if fino else 0.17, 0.06, "X", 10, "foco")
         _mover(m, antes)
+    if ESPEJO:                                                                  # simetría respecto al eje de la vía
+        for v in m.bm.verts:
+            v.co.y = -v.co.y
+        bmesh.ops.reverse_faces(m.bm, faces=list(m.bm.faces))
     return m.objeto(nombre)
 
 
@@ -176,8 +184,11 @@ def separar(o, lod):
     for n in objs[1:]:
         n.location = n.location + base
     for n in objs[1:]:                                                          # la rotación del ángulo va en el objeto
-        if n.name in ("Barrera_1", "Barrera_2"):
-            extra = math.pi if n.name == "Barrera_2" else 0.0
-            n.data.transform(Matrix.Rotation(ANG + extra, 4, "Z"))
-            n.rotation_euler.z = -ANG + extra
+        if n.name in ("Barrera_1", "Barrera_2"):                               # r: giro que deja el brazo hacia su −Y local
+            if ESPEJO:
+                r = (math.pi + ANG) if n.name == "Barrera_1" else ANG
+            else:
+                r = -ANG if n.name == "Barrera_1" else (math.pi - ANG)
+            n.data.transform(Matrix.Rotation(-r, 4, "Z"))
+            n.rotation_euler.z = r
     return objs
