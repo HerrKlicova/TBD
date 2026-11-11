@@ -223,7 +223,7 @@ namespace TBD.View
             if (_ng.P.NetClock) { if (_ng.StartNetTick < 0 || _ng.State == NightState.Victoria) ArranqueRedZona(); diaRed = _ng.StartNetTick < 0; if (diaRed) AlmacenDeDia(); else _reservaVista = -1; }   // reloj único: la zona arranca su noche a las 22:00 de la red (Begin) y no avanza antes
             else { diaRed = DiaEnLaRed(); if (!diaRed && _esperandoNoche) IniciaNocheZona(); }      // S1 qa52 (Marcos): noche con reloj propio, parche de día
             if (!TutorialHud.HordaEnEspera && !diaRed) { var st0 = _ng.State; _ng.Attack(_pileNearStation, _nearTrain); SurroundedTrainZona(_nearTrain); _ng.ZombiesAlive = _zomCounted ? _zomPos.Count : -1; _ng.Step(_spawns); if (st0 == NightState.Jugando && _ng.State != NightState.Jugando) NightEnded(); if (_ng.State == NightState.Derrota) return; }   // D-N136: NightGame gana al acabar con la horda (WinOnClear, misma regla que NightSim)
-            if (_ng.Retirada && !_retiradaPedida) { _retiradaPedida = true; Push(CmdType.Retirada); string est = string.IsNullOrEmpty(_estacionZona) ? "Sagunto" : _estacionZona; string av = NightGame.AvisoRetirada(est); HintMsg(av, false); _bannerText = av; _bannerUntil = Time.unscaledTime + 4f; Debug.Log($"[NOCHE] D-N202: {av} (tick {_ng.Tick}, {_zomPos.Count} zombis, horda {_ng.HordaTotal})"); }
+            if (_ng.Retirada && !_retiradaPedida) { _retiradaPedida = true; Push(CmdType.Retirada); string est = string.IsNullOrEmpty(_estacionZona) ? "Sagunto" : _estacionZona; string av = NightGame.AvisoRetirada(est); HintMsg(av, false); _bannerText = av; _bannerUntil = Time.unscaledTime + 4f; Debug.Log($"[NOCHE] D-N202: {av} (tick {_ng.Tick}, {_zomPos.Count} zombis, horda {_ng.HordaTotal})"); LogRezagados(); }
             if (!_ng.Retirada) _retiradaPedida = false;
             playing = _ng.State == NightState.Jugando;
 
@@ -560,6 +560,24 @@ namespace TBD.View
               if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-seguir-auto") >= 0) Invoke(nameof(SeguirAuto), 2f);   // QA: pulsa «Seguir» sola
               if (!win && _enPie.Count > 0) _endReason = $"<color=#982420>{est} ha caído.</color>\n{Lista(_enPie)} {(_enPie.Count > 1 ? "siguen" : "sigue")} en pie.";   // S2 de la qa50 (Lucía, 7705049): no acaba la partida
               if (est == "Nules") _endReason += "\nFin de la partida de prueba. Puedes seguir en el mundo."; }   // D-N136/D-N146
+        }
+        /// <summary>Nacho (I-Noche176): dónde están los zombis cuando salta la retirada: pila por tramo (con su vida), dentro del recinto y fuera a más de 5 m del muro (5 celdas de 10 m).</summary>
+        void LogRezagados()
+        {
+            var sbp = new System.Text.StringBuilder(); int enPila = 0;
+            foreach (var sg in _segs) if (sg.Pile > 0) { enPila += sg.Pile; sbp.Append($" {sg.Name}×{sg.Pile} ({sg.Hp:0}/{sg.Max:0})"); }
+            int dentro = 0, fuera = 0; var celdas = new Dictionary<int, int>();
+            foreach (var zp in _zomPos)
+            {
+                bool inFort = zp.x > Level.FortX0 && zp.x < Level.FortX1 && zp.y > Level.FortY0 && zp.y < Level.FortY1;
+                if (inFort) { dentro++; continue; }
+                float dx = Mathf.Max(Level.FortX0 - zp.x, 0f, zp.x - Level.FortX1), dy = Mathf.Max(Level.FortY0 - zp.y, 0f, zp.y - Level.FortY1);
+                if (dx * dx + dy * dy <= 25f) continue;
+                fuera++; int k = Mathf.FloorToInt(zp.x / 10f) * 1000 + Mathf.FloorToInt(zp.y / 10f); celdas[k] = celdas.TryGetValue(k, out var c0) ? c0 + 1 : 1;
+            }
+            var orden = new List<KeyValuePair<int, int>>(celdas); orden.Sort((p1, p2) => p2.Value != p1.Value ? p2.Value.CompareTo(p1.Value) : p1.Key.CompareTo(p2.Key));
+            var sbc = new System.Text.StringBuilder(); for (int oi = 0; oi < orden.Count && oi < 5; oi++) sbc.Append($" ({orden[oi].Key / 1000 * 10}–{orden[oi].Key / 1000 * 10 + 10}; {orden[oi].Key % 1000 * 10}–{orden[oi].Key % 1000 * 10 + 10})×{orden[oi].Value}");
+            Debug.Log($"[REZAGADOS] tick {_ng.Tick}: {_zomPos.Count} vivos | en pila {enPila}:{(sbp.Length > 0 ? sbp.ToString() : " ninguno")} | dentro del recinto {dentro} | fuera a más de 5 m {fuera}:{(sbc.Length > 0 ? sbc.ToString() : " ninguno")}");
         }
         bool _endDismissed, _reportClosed; bool _seguirTrasNoche; bool _retiradaPedida;
         bool _esperandoNoche; Vector2Int? _puestoEnviado;
