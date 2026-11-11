@@ -184,6 +184,32 @@ namespace TBD.Mundo
         public readonly List<Estacion> Estaciones = new List<Estacion>();
         /// <summary>Carreteras del terreno (Álvaro), como polilíneas en mm. La vía que las cruza lleva un paso a nivel (pieza de Teo, SM_PasoNivel_90/60/45/30).</summary>
         public readonly List<PointMm[]> Carreteras = new List<PointMm[]>();
+        /// <summary>Carga carreteras_hito1.csv de Álvaro (carretera;orden;x_mm;z_mm;y_mm;ancho_mm;puente). Los tramos con puente=si no cortan la vía (pasa por debajo),
+        /// así que cada carretera se parte en trozos sin puente. Z del terreno = Y de la red. Devuelve cuántas polilíneas añade.</summary>
+        public int CargarCarreterasCsv(string csv)
+        {
+            var porNombre = new SortedDictionary<string, SortedDictionary<int, (int x, int y, bool puente)>>(System.StringComparer.Ordinal);
+            foreach (var linea in csv.Split('\n'))
+            {
+                var c = linea.Trim().Split(';'); if (c.Length < 7 || c[0] == "carretera") continue;
+                if (!int.TryParse(c[1], out int ord) || !int.TryParse(c[2], out int x) || !int.TryParse(c[3], out int z)) continue;
+                if (!porNombre.TryGetValue(c[0], out var d)) porNombre[c[0]] = d = new SortedDictionary<int, (int, int, bool)>();
+                d[ord] = (x, z, c[6].Trim() == "si");
+            }
+            int n = 0;
+            foreach (var kv in porNombre)
+            {
+                var trozo = new List<PointMm>();
+                foreach (var q in kv.Value.Values)
+                {
+                    if (q.puente) { if (trozo.Count >= 2) { Carreteras.Add(trozo.ToArray()); n++; } trozo.Clear(); continue; }
+                    trozo.Add(new PointMm(q.x, q.y));
+                }
+                if (trozo.Count >= 2) { Carreteras.Add(trozo.ToArray()); n++; }
+            }
+            return n;
+        }
+
         public struct PasoNivel { public int Tramo, OffMm, AnguloGrados, Carretera; public PointMm P; }
         public readonly List<PasoNivel> PasosNivel = new List<PasoNivel>();
         public const int CruceMinGrados = 30;      // Lucía (D-N209): menos de 30° es «Cruce demasiado sesgado»

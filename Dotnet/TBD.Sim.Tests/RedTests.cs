@@ -52,6 +52,19 @@ namespace TBD.Sim.Tests
                 var w = new SaveWriter(); r.Save(w); var rc = new Red(); rc.Load(new SaveReader(w.ToArray()));
                 check(rc.Hash() == r.Hash() && rc.Via.PasosNivel.Count == 1, "el paso a nivel y la carretera se guardan y se cargan");
             }
+            // terreno v2 de Álvaro: la carretera vieja en S corta la recta A–B una vez, a 58°, en (1174; 1006); el puente no cuenta
+            {
+                string csv = null; foreach (var cand in new[] { "../../Assets/StreamingAssets/Hito1/carreteras_hito1.csv", "../../../../../Assets/StreamingAssets/Hito1/carreteras_hito1.csv" }) if (System.IO.File.Exists(cand)) { csv = System.IO.File.ReadAllText(cand); break; }
+                if (csv == null) check(true, "(sin carreteras_hito1.csv en esta rama: prueba del terreno v2 omitida)");
+                else
+                {
+                    var r = new Red(); int a = r.AddEstacion("A", 1_060_000, 430_000), b = r.AddEstacion("B", 1_300_000, 1_640_000);
+                    int nc = r.Via.CargarCarreterasCsv(csv);
+                    var res = r.TrazarVia(new List<PointMm> { new PointMm(1_060_000, 430_000), new PointMm(1_300_000, 1_640_000) });
+                    var pn = r.Via.PasosNivel.Count > 0 ? r.Via.PasosNivel[0] : default;
+                    check(nc >= 2 && res.Ok && r.Via.PasosNivel.Count == 1 && pn.AnguloGrados == 60 && IMath.Dist(pn.P.X - 1_174_000, pn.P.Y - 1_006_000) < 15_000, $"A–B corta la carretera vieja una vez: paso a nivel de {pn.AnguloGrados}° en ({pn.P.X / 1000}; {pn.P.Y / 1000}) ({nc} trozos de carretera sin el puente; vía de {(res.Ok ? r.Via.Tramos[0].LongMm / 1000 : 0)} m)");
+                }
+            }
             // tren solo: acelera, llega y para en el andén
             {
                 var r = Hito1(out int a, out int b); r.TrazarVia(Curva());
