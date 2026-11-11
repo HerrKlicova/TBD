@@ -15,6 +15,7 @@ namespace TBD.View
         public const float BrumaAnchoM = 28f, BrumaAltoM = 4f, OrthoNoche = 35f;
         static readonly bool BrumaOn = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinbruma") < 0;
         float OrthoMax => _nightOn && BrumaOn ? OrthoNoche : 70f;
+        GameObject _brumaRoot;     // Bruno 11-11 (Eugenio, I-Noche151: «bandas negras» de día en Nules): la franja solo se ve de noche, que es cuando nace la horda tapada
 
         void BuildBrumaBorde()
         {
@@ -34,6 +35,7 @@ namespace TBD.View
             var sh = Shader.Find("Sprites/Default");
             var mat = new Material(sh) { mainTexture = tex, renderQueue = 2990 };
             var root = new GameObject("Bruma del borde (D-N182)").transform; root.SetParent(transform, false);
+            _brumaRoot = root.gameObject; _brumaRoot.SetActive(_nightOn);
             float W = SimConst.WorldW, H = SimConst.WorldH, extra = 60f;
             // oeste, este, sur y norte: el lado opaco del degradado queda siempre en el borde de la zona (y un poco más allá, para tapar el horizonte)
             Franja(root, mat, new Vector3(BrumaAnchoM * 0.5f - extra * 0.5f, BrumaAltoM, H * 0.5f), new Vector2(BrumaAnchoM + extra, H + 2f * extra), 0f, extra / (BrumaAnchoM + extra));
@@ -42,6 +44,10 @@ namespace TBD.View
             Franja(root, mat, new Vector3(W * 0.5f, BrumaAltoM, H - BrumaAnchoM * 0.5f + extra * 0.5f), new Vector2(BrumaAnchoM + extra, W + 2f * extra), 270f, extra / (BrumaAnchoM + extra));
             Debug.Log($"[BRUMA] D-N182: franja de {BrumaAnchoM} m en los bordes de la zona y zoom de noche hasta {OrthoNoche}");
         }
+
+        /// <summary>Cada fotograma: la franja se enciende con la noche y se apaga de día (de día era un quad oscuro al 80 % a 4 m que se leía como bandas negras
+        /// a los lados de la zona, cortando el paso elevado y el terraplén por la mitad).</summary>
+        void UpdateBrumaBorde() { if (_brumaRoot != null && _brumaRoot.activeSelf != _nightOn) _brumaRoot.SetActive(_nightOn); }
 
         /// <summary>Quad horizontal a «alto» m. El degradado va a lo largo de su eje local X: u = 0 (opaco) en el borde exterior. «opacoHasta» = parte del quad que queda opaca del todo (lo que sobresale de la zona).</summary>
         static void Franja(Transform root, Material baseMat, Vector3 centro, Vector2 tam, float yaw, float opacoHasta)
