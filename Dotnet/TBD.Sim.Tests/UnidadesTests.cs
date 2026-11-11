@@ -203,10 +203,11 @@ namespace TBD.Sim.Tests
                 int x0 = p.X0 + 113000, x1 = p.X1 + 113000, y0 = p.Y0 + 64500, y1 = p.Y1 + 64500; int side, a0, a1;
                 if (x0 == x1) { side = x0 < 113000 ? 0 : 1; a0 = Math.Min(y0, y1); a1 = Math.Max(y0, y1); } else { side = y0 < 64500 ? 2 : 3; a0 = Math.Min(x0, x1); a1 = Math.Max(x0, x1); }
                 long hp = (long)p.CostE4 * vidaPorU / 10000;
-                list.Add(new NightSim.WallSegment { Side = side, A0 = a0, A1 = a1, HpMax = (int)hp, Hp = -1, PriceU = (p.CostE4 + 9999) / 10000, HeightMm = TBD.Net.Obras.HeightMm(p.Kind) });
+                list.Add(new NightSim.WallSegment { Side = side, A0 = a0, A1 = a1, HpMax = (int)hp, Hp = -1, PriceU = (p.CostE4 + 9999) / 10000, HeightMm = TBD.Net.Obras.HeightMm(p.Kind), IsGate = p.IsGate });
                 if (dump != null) dump.AppendLine($"{p.Kind};{side};{a0};{a1};{a1 - a0};{p.CostE4 / 10000.0:0.####};{hp}");
             }
             list.Sort((a, b) => a.Side != b.Side ? a.Side.CompareTo(b.Side) : a.A0.CompareTo(b.A0));
+            NightSim.GateAsWall(list);   // Lucía (11-nov): la puerta cerrada, tramo como el muro vecino
             return list;
         }
 
