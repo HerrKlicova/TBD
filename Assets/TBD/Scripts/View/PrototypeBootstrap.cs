@@ -1940,6 +1940,7 @@ namespace TBD.View
                 uint hh = Unity.Mathematics.math.hash(new Unity.Mathematics.int2(i, 77));
                 float gap = Mathf.Lerp(13f, 5.2f, i / 17f) + (hh & 3u) * 0.6f;
                 ax += gap; if (ax > 250f) break;
+                if (ax > 91f && ax < 107f) continue;      // Álvaro (sagunto-nivel §10.25): ningún coche del atasco delante de la salida E4
                 float lane = ((hh >> 4) & 7u) == 0 ? 25.2f : ((hh >> 4) & 7u) == 1 ? 17.8f : 23f + (((hh >> 8) & 255u) / 255f - 0.5f) * 3.6f;     // algunos fuera del asfalto
                 float yaw = (((hh >> 12) & 255u) / 255f - 0.5f) * 50f + (((hh >> 20) & 7u) == 0 ? 180f : 0f);                                             // algunos al revés
                 bool burned = i == 7, amb = i == 11;

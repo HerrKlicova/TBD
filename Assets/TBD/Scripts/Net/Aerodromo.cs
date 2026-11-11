@@ -271,7 +271,7 @@ namespace TBD.Net
         };
         static readonly Dictionary<string, Coche[]> PuestosVeh = new Dictionary<string, Coche[]>
         {
-            { "Sagunto", new[] { new Coche { Tipo = "dragon", X = 99f, Z = 51f, Yaw = 180f }, new Coche { Tipo = "vamtac", X = 91.5f, Z = 51f, Yaw = 180f }, new Coche { Tipo = "vamtac", X = 106.5f, Z = 51f, Yaw = 180f } } },   // dentro de la puerta sur
+            { "Sagunto", new[] { new Coche { Tipo = "dragon", X = 114f, Z = 50f, Yaw = 180f }, new Coche { Tipo = "vamtac", X = 91.5f, Z = 50f, Yaw = 180f }, new Coche { Tipo = "vamtac", X = 106.5f, Z = 50f, Yaw = 180f } } },   // dentro de la puerta sur      // Álvaro §10.25: Z 51 → 50 (el Dragón pisaba el acopio); Iker (I-Noche164): el Dragón de X 99 a 114, porque aparcado delante de E4 tapaba la única salida y ningún vehículo encontraba camino
             { "Castellón", new[] { new Coche { Tipo = "vamtac", X = 70f, Z = 29f, Yaw = 270f } } },     // dentro de la puerta de vehículos (64; 29)
         };
         static string Clave(string estacion) { return estacion == "betera" ? "Bétera" : estacion ?? ""; }
