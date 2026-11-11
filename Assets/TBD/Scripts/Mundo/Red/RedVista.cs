@@ -52,6 +52,21 @@ namespace TBD.Mundo
             if (_linea < 0) LineaSiUnidas();
             DibujarTramos();
             InterpolarTren(_acc * 30f);
+            Capturas();
+        }
+
+        // QA: -redcapturas 20,60,120 = capturas a esos segundos reales (Captures/red_<s>s.png); -redfoco x,z,altura = coloca la cámara (lo hace MundoBootstrap con -altura)
+        readonly HashSet<float> _capHechas = new HashSet<float>();
+        void Capturas()
+        {
+            var a = System.Environment.GetCommandLineArgs(); int i = System.Array.IndexOf(a, "-redcapturas"); if (i < 0 || i + 1 >= a.Length) return;
+            foreach (var t in a[i + 1].Split(','))
+                if (float.TryParse(t, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var s) && Time.realtimeSinceStartup >= s && _capHechas.Add(s))
+                {
+                    var dir = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Captures")); System.IO.Directory.CreateDirectory(dir);
+                    var f = System.IO.Path.Combine(dir, $"red_{s:0}s.png"); ScreenCapture.CaptureScreenshot(f);
+                    var tr = _red.Trenes[_tren]; Debug.Log($"[RED] captura {f}: tren {tr.Estado}, parada {tr.Parada}, A {_red.Almacen[_a][0]} cajas, B {_red.Almacen[_b][0]} cajas, {_red.TextoLinea(_linea)}");
+                }
         }
 
         // ---------------------------------------------------------------- trazado (D-N209: trazo libre, piezas en vivo)
