@@ -1158,6 +1158,14 @@ namespace TBD.Sim.Tests
                     var w0 = new UnitsWorld(6); var p0 = w0.AddPlatoon(PlatoonKind.Tiradores, 0, 0, 0); var w1 = new UnitsWorld(6); var p1x = w1.AddPlatoon(PlatoonKind.Tiradores, 0, 0, 0);
                     w0.Move(p0.Id, 30000, 0); w1.Move(p1x.Id, 30000, 0); for (int t = 0; t < 300; t++) { w0.Step(new List<Target>(), new StepResult()); w1.Step(new List<Target>(), new StepResult()); }
                     check(w0.Hash() == w1.Hash(), "D-N139: sin obstáculos todo sigue igual (mismo hash)");
+                    // Eugenio (I-Noche153): pelotón dentro del recinto de Sagunto junto al muro oeste, mandado fuera; solo sale por E4 (sur, 95-103 m)
+                    {
+                        var wf = new UnitsWorld(13); var pf2 = wf.AddPlatoon(PlatoonKind.Fusileros, 76000, 70000, 0);
+                        NavGrid.FortWalls(wf.Obstacles, 70000, 44000, 156000, 85000, 95000, 103000); wf.Obstacles.Add(new RectMm(96500, 75200, 115500, 83600)); wf.Obstacles.Add(new RectMm(81000, 62900, 145000, 66100));
+                        wf.Move(pf2.Id, 60000, 64000); int tf = -1;
+                        for (int t = 0; t < 9000 && tf < 0; t++) { wf.Step(new List<Target>(), new StepResult()); if (!pf2.Moving) tf = t; } for (int t = 0; t < 900; t++) wf.Step(new List<Target>(), new StepResult()); int lejos = 0; foreach (var m in pf2.Men) if (m.Alive && IMath.Dist(m.X - 60000, m.Y - 64000) > 15000) lejos++;
+                        check(tf > 0 && IMath.Dist(pf2.AX - 60000, pf2.AY - 64000) < 1500 && lejos == 0, $"I-Noche153: el pelotón de dentro (76; 70) sale (soldados a más de 15 m del destino: {lejos}) del recinto por E4 y llega a (60; 64) fuera del muro oeste (ancla en {pf2.AX / 1000}; {pf2.AY / 1000}, {(tf > 0 ? tf / 30 + " s" : "sin llegar")})");
+                    }
                     // S1 de Eugenio (I-Noche110): muro largo entre el pelotón y el destino, con la abertura a la izquierda: tiene que rodear por ella y llegar, en A y en B igual
                     UnitsWorld Muro(out Platoon pm) { var wm = new UnitsWorld(11); pm = wm.AddPlatoon(PlatoonKind.Fusileros, 0, 0, 0); wm.Obstacles.Add(new RectMm(8000, -40000, 8600, 30000)); wm.Obstacles.Add(new RectMm(8000, 34000, 8600, 60000)); wm.Move(pm.Id, 20000, 0); return wm; }
                     var wa = Muro(out var pa); var wb = Muro(out var pb); bool cruza = false; int tl = -1;
