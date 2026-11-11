@@ -42,7 +42,10 @@ CALIMA = rgb("a27e5a")          # D-N197: el suelo de día tal como sale en pant
 BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]], dtype=np.float32) / 16.0 + 1 / 32
 
 # Colores de las líneas de tren (uno por línea; nunca rojo, que es peligro, ni ámbar, que es aviso)
-LINEAS = ["cream", "olive_light", "concrete_light", "tan"]
+# Lucía (11-11): los de antes (tan, oliva claro, gris) se perdían en el suelo, la huerta y la vía. Son colores de interfaz, fuera de la
+# paleta de 32 (que no tiene celeste, verde agua ni lila): L* 78–88, ΔL* ≥ 10 sobre el suelo de día más claro (b4a080, L* 67) y ≥ 39 sobre el
+# plano del mapa (605c48, L* 39); con contorno 0f120c de 1 px. Tono distinto de todo el terreno.
+LINEAS = ["f0dc9c", "8cc8e8", "7cd4a8", "d0b4f0"]
 
 # --- Niveles del zum (cámara ortográfica: medio alto visible en metros) -------------------------------------------------
 NIVELES = [
@@ -383,6 +386,22 @@ def desplaza(pts, off):
     return r
 
 
+def invalido(L, pts):
+    """Trazado inválido (Lucía, 11-11: el ámbar fino no se leía sobre la huerta): banda ámbar llena de 6 m con borde 0f120c de 1 px y eje oscuro."""
+    ancho = max(6.0, 3 * L.mpp)
+    L.linea(pts, CONTORNO, ancho + 2 * L.mpp)
+    L.linea(pts, "amber", ancho)
+    L.linea(pts, CONTORNO, L.mpp, guiones_m=6)
+
+
+def aspa(dr, a, b, r=8):
+    """Aspa ámbar con borde 0f120c en el punto que invalida."""
+    for t in range(-r, r + 1):
+        for w in (-2, -1, 0, 1, 2):
+            c = rgb("amber") if abs(w) <= 1 else CONTORNO
+            dr.point([(a + t, b + t + w), (a + t, b - t + w)], fill=tuple(int(v) for v in c))
+
+
 def calima(L, alfa):
     """D-N197 adaptada al zum: ya no es una franja en el borde de la zona (el mundo es continuo), sino perspectiva aérea
     que sube con la altura de la cámara: 0 % a pie de soldado, 10 % en el pueblo, 22 % en la comarca. En el mapa no hay
@@ -498,8 +517,7 @@ def lamina_comarca(out):
     # vista previa de la vía hasta B (válida) y una alternativa inválida
     L.linea(VIA_PREVIA, "bone", 4.2, alfa=0.55, tramado=True)
     L.linea(VIA_PREVIA, "bone", 1.0, guiones_m=6)
-    L.linea(VIA_MALA, "amber", 4.2, alfa=0.5, tramado=True)
-    L.linea(VIA_MALA, "amber", 1.0, guiones_m=6)
+    invalido(L, VIA_MALA)
     im = L.imagen(ESC).convert("RGBA")
     dr = ImageDraw.Draw(im)
     def P(x, y):
@@ -510,12 +528,10 @@ def lamina_comarca(out):
     placa(dr, bx + 22, by - 12, "B · 18 cajas", F_P)
     # aspa ámbar en el punto que invalida (radio < 150 m y casas)
     ax, ay = P(1040, 735)
-    for k in range(-7, 8):
-        for w in (-1, 0, 1):
-            dr.point([(ax + k, ay + k + w), (ax + k, ay - k + w)], fill=tuple(int(v) for v in rgb("amber")))
-    placa(dr, ax - 150, ay + 12, "Curva de 90 m (mín. 150) · casas", F_P, tinta="amber")
+    aspa(dr, ax, ay)
+    placa(dr, ax - 120, ay + 14, "Curva demasiado cerrada", F_P, tinta="amber", borde="amber")
     mx, my = P(1185, 690)
-    placa(dr, mx + 14, my - 4, "330 m · 33 de material", F_P, tinta="bone")
+    placa(dr, mx + 14, my - 4, "330 m · 4 palés", F_P, tinta="bone")
     px, py = P(*PELOTON)
     pega(im, icono("soldado", 32), px + 20, py - 20)
     cx, cy = P(*VIA_HECHA[-1])
@@ -530,7 +546,7 @@ def lamina_comarca(out):
         "• Horda: la mancha roja, más fina.",
         "Trazado (este es el nivel donde se traza):",
         "• Válido: banda hueso tramada al 55 % del ancho del balasto y eje en guiones; placa con metros y material.",
-        "• Inválido: lo mismo en ámbar e08c30, con el aspa ámbar donde falla y la causa en la placa. Ámbar = aviso; el rojo se queda para el peligro.",
+        "• Inválido: banda ámbar e08c30 de 6 m con borde 0f120c, el aspa ámbar con borde donde falla y la causa en la placa. Ámbar = aviso; el rojo se queda para el peligro.",
     ], "comarca")
     lam.save(out / "zum_2_comarca.png")
 
@@ -645,8 +661,7 @@ def lamina_trazado(out):
             L.linea(VIA_PREVIA, "bone", 4.2, alfa=0.55, tramado=True)
             L.linea(VIA_PREVIA, "bone", 1.0, guiones_m=6)
         if k == 3:
-            L.linea(VIA_MALA, "amber", 4.2, alfa=0.5, tramado=True)
-            L.linea(VIA_MALA, "amber", 1.0, guiones_m=6)
+            invalido(L, VIA_MALA)
         if k == 4:
             via_dia(L, [(1250, 820), (1215, 750)])
             L.linea([(1215, 750), (1185, 690), (1120, 520)], "bone", 4.2, alfa=0.3, tramado=True)
@@ -655,12 +670,21 @@ def lamina_trazado(out):
         if k == 3:
             a, b = L.a_px(1040, 735)
             a, b = a * 2, b * 2
-            for t in range(-7, 8):
-                for w in (-1, 0, 1):
-                    dr.point([(a + t, b + t + w), (a + t, b - t + w)], fill=tuple(int(v) for v in rgb("amber")))
+            aspa(dr, a, b)
+            placa(dr, a - 60, b + 14, "Pendiente excesiva", F_P, tinta="amber", borde="amber")
+        if k == 0:
+            a, b = L.a_px(1215, 740)
+            placa(dr, a * 2 + 12, b * 2 - 10, "90 m · 1 palé", F_P)
+        if k == 1:
+            a, b = L.a_px(*EST_B)
+            placa(dr, a * 2 + 22, b * 2 + 4, "1250 m · 13 palés", F_P)
+        if k == 2:
+            a, b = L.a_px(1185, 690)
+            placa(dr, a * 2 + 12, b * 2 - 10, "1250 m · 13 palés", F_P)
         if k == 4:
             a, b = L.a_px(1215, 750)
             pega(im, icono("cuadrilla", 32), a * 2 + 18, b * 2)
+            placa(dr, a * 2 - 190, b * 2 + 18, "Tendiendo · 480 de 1250 m", F_P)
         cajas.append(im.convert("RGB"))
     W_ = sum(c.width for c in cajas) + 20 * 6
     out_im = Image.new("RGB", (W_, cajas[0].height + 200), tuple(int(v) for v in rgb("navy")))
@@ -670,8 +694,8 @@ def lamina_trazado(out):
     notas = [
         "Desde la punta de la vía sale el eje en guiones hueso hasta el ratón; un anillo de 3 px marca el punto.",
         "Cerca de una estación (o de otra vía) el eje se engancha: anillo hueso de 2 px alrededor del destino.",
-        "Tramo válido: banda hueso tramada al 55 % con el ancho del balasto. Placa: metros y material.",
-        "Inválido: la misma banda en ámbar, aspa ámbar en el fallo (radio, pendiente, casa, agua sin puente) y causa en la placa.",
+        "Tramo válido: banda hueso tramada al 55 % con el ancho del balasto. Placa: metros y palés de material.",
+        "Inválido: banda ámbar llena de 6 m con borde 0f120c, aspa ámbar con borde en el fallo (radio, pendiente, casa, agua sin puente) y la causa en la placa con borde ámbar.",
         "Al confirmar: el tramo queda tramado al 30 % y la cuadrilla lo va convirtiendo en vía de verdad (con escolta).",
     ]
     for c, t, n in zip(cajas, titulos, notas):
@@ -687,7 +711,7 @@ def lamina_trazado(out):
 
 def lamina_regla(out):
     """Paleta del zum, umbrales y fundidos (tramado Bayer, alfa binaria)."""
-    im = Image.new("RGB", (1700, 1080), tuple(int(v) for v in rgb("navy")))
+    im = Image.new("RGB", (1700, 1150), tuple(int(v) for v in rgb("navy")))
     d = ImageDraw.Draw(im)
     d.text((20, 14), "0 · REGLA DEL ZUM: niveles, fundidos y paleta", font=F_T, fill=tuple(int(v) for v in rgb("bone")))
     # tira de fundido mapa → comarca → pueblo → soldado: 9 cuadros de la misma vista con la cámara bajando
@@ -734,7 +758,7 @@ def lamina_regla(out):
         ("Día: casas", ["rose", "tan", "brown_dark", "grey_brown", "concrete_light"]),
         ("Vía", ["olive_grey", "concrete", "grey_light"]),
         ("Iconos y placas", ["bone", "olive_shadow", "0f120c"]),
-        ("Líneas (una por línea)", LINEAS),
+        ("Líneas (fuera de la paleta de 32)", LINEAS),
         ("Trazado", ["bone", "amber"]),
         ("Horda", ["red_bright", "olive_black", "grey_brown"]),
         ("Calima", ["a27e5a"]),
@@ -752,6 +776,22 @@ def lamina_regla(out):
             x += 70
         pal[nombre] = ["%02x%02x%02x" % tuple(int(t) for t in rgb(c)) for c in cols]
         y += 56
+    # prueba de los colores de línea sobre los dos fondos (Lucía, 11-11): suelo de día y plano del mapa
+    for k, (fondo, cx, cy, mpp) in enumerate((("dia", 1040, 690, 1.0), ("mapa", 1080, 1000, 3.9))):
+        Lc = Lienzo(300, 150, cx, cy, mpp)
+        (terreno_dia if fondo == "dia" else terreno_mapa)(*((Lc, 1) if fondo == "dia" else (Lc,)))
+        if fondo == "dia":
+            calima(Lc, 0.22)
+        for i, c in enumerate(LINEAS):
+            y0 = Lc.y0 + (25 + i * 32) * mpp
+            Lc.linea([(Lc.x0 + 20 * mpp, y0), (Lc.x0 + 200 * mpp, y0)], CONTORNO, 3 * mpp, guiones_m=8 * mpp)
+            Lc.linea([(Lc.x0 + 20 * mpp, y0), (Lc.x0 + 200 * mpp, y0)], c, 1.5 * mpp, guiones_m=8 * mpp)
+        ci = Lc.imagen(2).convert("RGBA")
+        for i, c in enumerate(LINEAS):
+            pega(ci, icono("tren", 32, relleno=c), 470, 50 + i * 64)
+        xx = 1020 + k * 0
+        im.paste(ci.convert("RGB"), (1060, 520 + k * 310) if False else (1080, 540 + k * 300))
+        d.text((1080, 522 + k * 300), "Líneas sobre el suelo de día (calima 22 %)" if fondo == "dia" else "Líneas sobre el plano del mapa", font=F_P, fill=tuple(int(v) for v in rgb("cream")))
     im.save(out / "zum_0_regla.png")
     (out / "zum_paleta.json").write_text(json.dumps({
         "niveles": [{"nombre": n, "medio_alto_m": [a, b]} for n, a, b in NIVELES],
