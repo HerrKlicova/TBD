@@ -210,6 +210,25 @@ namespace TBD.Mundo
         public readonly Dictionary<string, PointMm> Puntos = new Dictionary<string, PointMm>();
         public static int CaserioX = 1090000, CaserioY = 1530000;
 
+        /// <summary>Si (x, y) no está libre, lo lleva al centro de la celda libre más cercana (anillos de hasta 10 m, orden fijo).</summary>
+        public bool LibreCercano(ref int x, ref int y)
+        {
+            if (Rejilla.Libre(x, y)) return false;
+            int cx = Rejilla.CeldaX(x), cy = Rejilla.CeldaY(y);
+            for (int r = 1; r <= 10; r++)
+            {
+                int mejor = -1, mx = 0, my = 0;
+                for (int dy = -r; dy <= r; dy++) for (int dx = -r; dx <= r; dx++)
+                {
+                    if (Math.Abs(dx) != r && Math.Abs(dy) != r) continue; if (!Rejilla.LibreCelda(cx + dx, cy + dy)) continue;
+                    int px = Rejilla.CentroX(cx + dx), py = Rejilla.CentroY(cy + dy), d = IMath.Dist(px - x, py - y); if (mejor < 0 || d < mejor) { mejor = d; mx = px; my = py; }
+                }
+                if (mejor >= 0) { x = mx; y = my; Recolocados++; return true; }
+            }
+            return false;
+        }
+        public int Recolocados;
+
         static int Mm(string s) { return (int)Math.Round(double.Parse(s, System.Globalization.CultureInfo.InvariantCulture) * 1000.0); }
         static string[] Campos(string linea) { var l = new List<string>(); var sb = new StringBuilder(); bool q = false; foreach (char c in linea) { if (c == '"') q = !q; else if (c == ';' && !q) { l.Add(sb.ToString()); sb.Clear(); } else sb.Append(c); } l.Add(sb.ToString()); return l.ToArray(); }
 
@@ -242,7 +261,7 @@ namespace TBD.Mundo
             {
                 var t = lineas[k].Trim(); if (t.Length == 0) continue; var f = Campos(t); if (f.Length < 6) continue;
                 int x = Mm(f[2]), y = Mm(f[4]);
-                if (f[1] == "zombi") m.Zombis.Anadir(x, y, x, y);
+                if (f[1] == "zombi") { m.LibreCercano(ref x, ref y); m.Zombis.Anadir(x, y, x, y); }      // un zombi puesto encima de una tapia o una casa sale a la celda libre más cercana
                 else { m.Puntos[f[0]] = new PointMm(x, y); if (f[1] == "peloton") { hayPeloton = true; yawPeloton = (int)Math.Round(double.Parse(f[5], System.Globalization.CultureInfo.InvariantCulture)); } }
             }
             if (m.Puntos.TryGetValue("caserio", out var cs)) { CaserioX = cs.X; CaserioY = cs.Y; }

@@ -109,11 +109,13 @@ namespace TBD.Sim.Tests
                         if (muni < 0) p.AmmoShots = p.AmmoCap;
                         m.Step(); foreach (var ev in m.UltimoFuego.Shots) disparos += WeaponCatalog.Table[(int)ev.Weapon].CostShots;
                         if (m.SeRetira(p.Id)) seRetiro = true;
+                        if (Environment.GetEnvironmentVariable("TBD_K_Z") is string zs && zs.Length > 0 && m.Tick > 20000 && m.Tick % 15 == 0 && m.Tick < 21000) { int zi = int.Parse(zs); var zz = m.Zombis.Lista[zi]; Console.WriteLine($"  t {m.Tick} z{zi} ({zz.X};{zz.Y}) {zz.Estado} meta ({zz.MetaX};{zz.MetaY}) {m.Zombis.Traza(zi)} and {zz.Andando}"); }
                     }
                     bool limpio = m.Zombis.Vivos == 0; if (limpio) limpios++; if (p.AliveCount() == 0) aniquilados++; if (seRetiro) retiradas++;
                     if (m.Abatidos > 0) ks.Add((double)disparos / m.Abatidos);
                     bajas.Add(m.BajasPropias); tiempos.Add(m.Tick); disT += disparos; abT += m.Abatidos; vivosT += m.Zombis.Vivos; dist.AddRange(m.DistAbatidoMm);
                     foreach (int tb in m.TickBaja) minBaja[Math.Min(15, tb / 1800)]++;
+                    if (Environment.GetEnvironmentVariable("TBD_K_DBG") == "1") { Console.WriteLine($"  pelotón ({p.AX};{p.AY}) mov {p.Moving} atk {p.AttackMove} T ({p.TX};{p.TY}) vivos {p.AliveCount()} muni {p.AmmoShots}"); foreach (var z in m.Zombis.Lista) if (z.Vivo) Console.WriteLine($"   z{z.Id} ({z.X};{z.Y}) {z.Estado} meta ({z.MetaX};{z.MetaY}) d {IMath.Dist(z.X - p.AX, z.Y - p.AY) / 1000} m camino {m.Rejilla.BuscarCamino(z.X, z.Y, z.MetaX, z.MetaY, new List<PointMm>(), 200000)} libre {m.Rejilla.Libre(z.X, z.Y)} exp {m.Rejilla.UltimosExpandidos}"); }
                     if (detalle) Console.WriteLine($"{hit};{s};{m.Abatidos};{disparos};{(m.Abatidos > 0 ? (double)disparos / m.Abatidos : 0):0.00};{m.BajasPropias};{(limpio ? 1 : 0)};{(seRetiro ? 1 : 0)};{m.Tick}");
                 }
                 ks.Sort(); bajas.Sort(); tiempos.Sort(); dist.Sort();
