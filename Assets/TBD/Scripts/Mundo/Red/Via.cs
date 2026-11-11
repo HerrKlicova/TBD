@@ -106,11 +106,49 @@ namespace TBD.Mundo
             if (nb >= 0) pts[pts.Count - 1] = new PointMm(Nodos[nb].X, Nodos[nb].Y);      // el último palmo encaja en el nodo (menos de EncajeMm)
             var acum = new int[pts.Count]; for (int i = 1; i < pts.Count; i++) acum[i] = acum[i - 1] + IMath.Dist(pts[i].X - pts[i - 1].X, pts[i].Y - pts[i - 1].Y);
             if (acum[acum.Length - 1] < LongMinMm) return new Resultado { Por = "vía demasiado corta" };
+            var cruces = Cruces(pts, acum, out string sesgo); if (sesgo != null) return new Resultado { Por = sesgo };
             if (nb < 0) { nb = Nodos.Count; Nodos.Add(new Nodo { Id = nb, X = (int)x, Y = (int)y }); }
+            foreach (var c in cruces) { var cc = c; cc.Tramo = Tramos.Count; PasosNivel.Add(cc); }
             var t = new Tramo { Id = Tramos.Count, A = desde, B = nb, Puntos = pts.ToArray(), Acum = acum, LongMm = acum[acum.Length - 1], RumboIni = rumboIni & 0xFFFF, Piezas = new List<Pieza>(piezas).ToArray() };
             Tramos.Add(t);
             int rmin = int.MaxValue; foreach (var pz in piezas) { int rr = RadioMm(pz); if (rr > 0 && rr < rmin) rmin = rr; }
             return new Resultado { Ok = true, Tramo = t.Id, RadioMinMm = rmin };
+        }
+
+        /// <summary>Cruces de la polilínea de vía con las carreteras: punto, distancia a lo largo de la vía y ángulo (0–90°, encajado a 90/60/45/30 para la pieza).
+        /// Si alguno baja de CruceMinGrados, «sesgo» lleva la causa.</summary>
+        List<PasoNivel> Cruces(List<PointMm> pts, int[] acum, out string sesgo)
+        {
+            sesgo = null; var r = new List<PasoNivel>();
+            for (int c = 0; c < Carreteras.Count; c++)
+            {
+                var rd = Carreteras[c];
+                for (int i = 1; i < pts.Count; i++) for (int k = 1; k < rd.Length; k++)
+                {
+                    if (!Corta(pts[i - 1], pts[i], rd[k - 1], rd[k], out long fNum, out long fDen)) continue;
+                    int av = IMath.Atan2(pts[i].Y - pts[i - 1].Y, pts[i].X - pts[i - 1].X), ac = IMath.Atan2(rd[k].Y - rd[k - 1].Y, rd[k].X - rd[k - 1].X);
+                    int d = Math.Abs(IMath.Diff(av, ac)); if (d > IMath.Turn / 4) d = IMath.Turn / 2 - d;      // 0..90° en bam16
+                    int grados = (int)((long)d * 360 / IMath.Turn);
+                    if (grados < CruceMinGrados) { sesgo = $"Cruce demasiado sesgado ({grados}°; mínimo {CruceMinGrados}°)"; return r; }
+                    int pieza = grados >= 75 ? 90 : grados >= 52 ? 60 : grados >= 37 ? 45 : 30;
+                    int seg = acum[i] - acum[i - 1]; int off = acum[i - 1] + (int)(seg * fNum / Math.Max(1, fDen));
+                    var p = new PointMm(pts[i - 1].X + (int)((pts[i].X - pts[i - 1].X) * fNum / Math.Max(1, fDen)), pts[i - 1].Y + (int)((pts[i].Y - pts[i - 1].Y) * fNum / Math.Max(1, fDen)));
+                    r.Add(new PasoNivel { OffMm = off, AnguloGrados = pieza, Carretera = c, P = p });
+                }
+            }
+            return r;
+        }
+
+        /// <summary>¿Se cortan los segmentos p1p2 y q1q2? Devuelve la fracción a lo largo de p1p2 como fNum/fDen (enteros).</summary>
+        static bool Corta(PointMm p1, PointMm p2, PointMm q1, PointMm q2, out long fNum, out long fDen)
+        {
+            long rx = p2.X - p1.X, ry = p2.Y - p1.Y, sx = q2.X - q1.X, sy = q2.Y - q1.Y;
+            long den = rx * sy - ry * sx; fNum = 0; fDen = 1; if (den == 0) return false;
+            long qpx = q1.X - p1.X, qpy = q1.Y - p1.Y;
+            long t = qpx * sy - qpy * sx, u = qpx * ry - qpy * rx;
+            if (den < 0) { den = -den; t = -t; u = -u; }
+            if (t < 0 || t > den || u < 0 || u > den) return false;
+            fNum = t; fDen = den; return true;
         }
 
         /// <summary>D-N209: el trazo libre del jugador → cadena de piezas → tramo. Empieza en el nodo más cercano al primer punto (a menos de EncajeMm), con el rumbo
@@ -144,6 +182,11 @@ namespace TBD.Mundo
         public readonly List<Nodo> Nodos = new List<Nodo>();
         public readonly List<Tramo> Tramos = new List<Tramo>();
         public readonly List<Estacion> Estaciones = new List<Estacion>();
+        /// <summary>Carreteras del terreno (Álvaro), como polilíneas en mm. La vía que las cruza lleva un paso a nivel (pieza de Teo, SM_PasoNivel_90/60/45/30).</summary>
+        public readonly List<PointMm[]> Carreteras = new List<PointMm[]>();
+        public struct PasoNivel { public int Tramo, OffMm, AnguloGrados, Carretera; public PointMm P; }
+        public readonly List<PasoNivel> PasosNivel = new List<PasoNivel>();
+        public const int CruceMinGrados = 30;      // Lucía (D-N209): menos de 30° es «Cruce demasiado sesgado»
 
         public int AddEstacion(string nombre, int x, int y)
         {
@@ -262,6 +305,7 @@ namespace TBD.Mundo
             ulong h = 0x9E37UL;
             foreach (var n in Nodos) h = IMath.Mix(h ^ (ulong)(uint)n.X ^ ((ulong)(uint)n.Y << 32) ^ (ulong)(n.Estacion + 1) * 31UL);
             foreach (var t in Tramos) { h = IMath.Mix(h ^ (ulong)t.A ^ ((ulong)t.B << 20) ^ ((ulong)(uint)t.LongMm << 32)); h = IMath.Mix(h ^ (ulong)(uint)t.RumboIni); if (t.Piezas != null) foreach (var pz in t.Piezas) h = IMath.Mix(h ^ (ulong)pz); foreach (var p in t.Puntos) h = IMath.Mix(h ^ (ulong)(uint)p.X ^ ((ulong)(uint)p.Y << 32)); }
+            foreach (var pn in PasosNivel) h = IMath.Mix(h ^ (ulong)pn.Tramo ^ ((ulong)(uint)pn.OffMm << 16) ^ ((ulong)pn.AnguloGrados << 48));
             return h;
         }
 
@@ -269,14 +313,18 @@ namespace TBD.Mundo
         {
             w.Int(Nodos.Count); foreach (var n in Nodos) { w.Int(n.X); w.Int(n.Y); w.Int(n.Estacion); }
             w.Int(Estaciones.Count); foreach (var e in Estaciones) { w.Int(e.Nodo); w.Str(e.Nombre); }
+            w.Int(Carreteras.Count); foreach (var rd in Carreteras) { w.Int(rd.Length); foreach (var q in rd) { w.Int(q.X); w.Int(q.Y); } }
+            w.Int(PasosNivel.Count); foreach (var pn in PasosNivel) { w.Int(pn.Tramo); w.Int(pn.OffMm); w.Int(pn.AnguloGrados); w.Int(pn.Carretera); w.Int(pn.P.X); w.Int(pn.P.Y); }
             w.Int(Tramos.Count); foreach (var t in Tramos) { w.Int(t.A); w.Int(t.B); w.Int(t.RumboIni); w.Int(t.Piezas != null ? t.Piezas.Length : 0); if (t.Piezas != null) foreach (var pz in t.Piezas) w.Byte((byte)pz); w.Int(t.Puntos.Length); foreach (var p in t.Puntos) { w.Int(p.X); w.Int(p.Y); } }
         }
 
         public void Load(SaveReader r)
         {
-            Nodos.Clear(); Estaciones.Clear(); Tramos.Clear();
+            Nodos.Clear(); Estaciones.Clear(); Tramos.Clear(); Carreteras.Clear(); PasosNivel.Clear();
             int nn = r.Int(); for (int i = 0; i < nn; i++) Nodos.Add(new Nodo { Id = i, X = r.Int(), Y = r.Int(), Estacion = r.Int() });
             int ne = r.Int(); for (int i = 0; i < ne; i++) Estaciones.Add(new Estacion { Id = i, Nodo = r.Int(), Nombre = r.Str() });
+            Carreteras.Clear(); int nc = r.Int(); for (int i = 0; i < nc; i++) { int nq = r.Int(); var rd = new PointMm[nq]; for (int k = 0; k < nq; k++) rd[k] = new PointMm(r.Int(), r.Int()); Carreteras.Add(rd); }
+            PasosNivel.Clear(); int npn = r.Int(); for (int i = 0; i < npn; i++) PasosNivel.Add(new PasoNivel { Tramo = r.Int(), OffMm = r.Int(), AnguloGrados = r.Int(), Carretera = r.Int(), P = new PointMm(r.Int(), r.Int()) });
             int nt = r.Int();
             for (int i = 0; i < nt; i++)
             {

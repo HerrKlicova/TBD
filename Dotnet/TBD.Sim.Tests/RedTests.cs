@@ -39,6 +39,19 @@ namespace TBD.Sim.Tests
                 check(!r.TrazarVia(new List<PointMm> { new PointMm(900_000, 500_000), new PointMm(1_000_000, 500_000) }).Ok, "una vía que no empieza en una estación ni en otra vía se rechaza");
                 check(r.Via.Ruta(r.Via.Estaciones[a].Nodo, r.Via.Estaciones[b].Nodo).Count == 1 && r.Via.Ruta(r.Via.Estaciones[b].Nodo, r.Via.Estaciones[a].Nodo)[0].Directo == false, "la ruta va y vuelve por el mismo tramo");
             }
+            // paso a nivel (Teo y Lucía): la vía que cruza una carretera lleva su paso a nivel; por debajo de 30° se rechaza
+            {
+                var r = Hito1(out int a, out int b);
+                r.Via.Carreteras.Add(new[] { new PointMm(900_000, 600_000), new PointMm(920_000, 1_600_000) });      // casi norte-sur: la vía la cruza casi en perpendicular
+                var res = r.TrazarVia(Curva());
+                check(res.Ok && r.Via.PasosNivel.Count == 1 && r.Via.PasosNivel[0].AnguloGrados >= 60, $"la vía cruza la carretera con un paso a nivel de {(r.Via.PasosNivel.Count > 0 ? r.Via.PasosNivel[0].AnguloGrados : 0)}° (pieza SM_PasoNivel)");
+                var r2 = Hito1(out int a2, out int b2);
+                r2.Via.Carreteras.Add(new[] { new PointMm(150_000, 960_000), new PointMm(1_650_000, 1_345_000) });      // casi paralela a la vía, la corta con poco ángulo
+                var res2 = r2.TrazarVia(Curva());
+                check(!res2.Ok && res2.Por.StartsWith("Cruce demasiado sesgado") && r2.Via.Tramos.Count == 0, $"un cruce de menos de 30° se rechaza: «{res2.Por}»");
+                var w = new SaveWriter(); r.Save(w); var rc = new Red(); rc.Load(new SaveReader(w.ToArray()));
+                check(rc.Hash() == r.Hash() && rc.Via.PasosNivel.Count == 1, "el paso a nivel y la carretera se guardan y se cargan");
+            }
             // tren solo: acelera, llega y para en el andén
             {
                 var r = Hito1(out int a, out int b); r.TrazarVia(Curva());
