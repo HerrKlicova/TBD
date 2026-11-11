@@ -38,6 +38,10 @@
     <Compile Include="GuardadoTests.cs" />
     <Compile Include="UnidadesTests.cs" />
     <Compile Include="LosTests.cs" />
+    <Compile Include="MundoTests.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Mundo\RejillaTrozos.cs" Link="Mundo\RejillaTrozos.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Mundo\Zombis.cs" Link="Mundo\Zombis.cs" />
+    <Compile Include="..\..\Assets\TBD\Scripts\Mundo\Mundo.cs" Link="Mundo\Mundo.cs" />
     <Compile Include="TutorialTests.cs" />
     <Compile Include="EmbarqueTests.cs" />
     <Compile Include="TramosZonaTests.cs" />
