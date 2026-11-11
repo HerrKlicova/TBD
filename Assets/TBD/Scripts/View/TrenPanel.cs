@@ -212,7 +212,7 @@ namespace TBD.View
             int meta = _descargando ? Origen : Destino;
             if (_cercoBajadoSv == Viaje && sv.GateNode != meta) _cercoBajadoSv = -1;
             if (!_descargando && meta >= 0 && sv.GateNode == meta && W.Cercada(meta) && _cercoBajadoSv != Viaje && W.Embarque.CountAboard(Viaje, PasajeroTipo.Peloton) > 0)      // D-N196 (Lucía 20c3245): ante el cerco del destino, la tropa baja sola y ataca
-            { _cercoBajadoSv = Viaje; Embarque.BajarTodo(Viaje, meta); _aviso = $"El {sv.Train.Name} ha llegado al cerco de {W.Graph.Nodes[meta].Name}. La tropa baja y ataca."; _avisoHasta = Time.unscaledTime + 6f; _avisoAmbar = true; Debug.Log("[TREN] " + _aviso); }
+            { _cercoBajadoSv = Viaje; Embarque.BajarTodo(Viaje, meta); Sfx.Play("tren_bocina", Vector3.zero, UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Union" ? 0.3f : 0.5f, 10f);   /* Nuria (avisos-pulido.md): llega el socorro */ _aviso = $"El {sv.Train.Name} ha llegado al cerco de {W.Graph.Nodes[meta].Name}. La tropa baja y ataca."; _avisoHasta = Time.unscaledTime + 6f; _avisoAmbar = true; Debug.Log("[TREN] " + _aviso); }
             if (_llegado && !_descargando && meta != Casa && sv.AtStop && sv.CargoTotal() > 0 && sv.GateNode != meta && W.TrainAtNode(sv, meta) && Time.unscaledTime > _reintentoT) { _reintentoT = Time.unscaledTime + 1f; Debug.Log("[TREN] entra al andén de " + W.Graph.Nodes[meta].Name + " y descarga lo que llevaba"); DescargarSinPanel(); }   // a las puertas la red no deja bajar la carga (D-N152): se baja al entrar
             if (sv.AtStop && sv.Stops.Count > 1 && sv.Stops[sv.StopIndex].Node == meta && sv.DepartedDay.Count > 0 && Time.unscaledTime > _aparcadoT + 1f)
             {
