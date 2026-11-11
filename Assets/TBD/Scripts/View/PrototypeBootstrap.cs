@@ -553,7 +553,7 @@ namespace TBD.View
             _hashLog.WriteLine(h.Tick + ";" + h.Value.ToString("X16") + ";" + (_ng != null ? _ng.Hash().ToString("X16") : "0") + ";" + (_uw != null ? _uw.Hash().ToString("X16") : "0")); if ((h.Tick & 255) == 0) _hashLog.Flush();
         }
 
-        int _zonaTk;
+        int _zonaTk, _murosMontados;
         void StepSimulation()
         {
             ZonaPausada = _paused || TutorialHud.PidePausa;      // de día y de noche (Nuria, 9-nov)
@@ -3207,6 +3207,7 @@ namespace TBD.View
                     var a = new Vector3(WorkOrigin.x + w.X0 / 1000f, 0f, WorkOrigin.y + w.Y0 / 1000f);
                     var b = new Vector3(WorkOrigin.x + w.X1 / 1000f, 0f, WorkOrigin.y + w.Y1 / 1000f);
                     Push(CmdType.BuildWall, Obras.HeightMm(w.Kind), new Unity.Mathematics.float2(a.x, a.z), new Unity.Mathematics.float2(b.x, b.z));
+_murosMontados++; if (_murosMontados == 1 || _murosMontados % 10 == 0) Debug.Log($"[OBRAS] muros montados en la zona: {_murosMontados} (tick de zona {_zonaTk})");
                     _workVisuals[i] = MuroConModelo(a, b, w.Kind) ?? WallVisual(a, b, Level.WallHalf * 0.5f, Obras.HeightMm(w.Kind) / 1000f, w.Kind == PieceKind.Sacos ? _mWall : _mRoof);   // Eugenio: los modelos de Teo, no la caja
                     _workBuilt[i] = true;
                 }
