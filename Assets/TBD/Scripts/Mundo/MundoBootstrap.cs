@@ -38,6 +38,7 @@ namespace TBD.Mundo
             var ter = MontarTerrenoAlvaro();
             if (ter == null) { MontarTerreno(); MontarEstacion("Sagunto", new Vector3(700f, 0f, 1000f)); MontarEstacion("Nules", new Vector3(1450f, 0f, 760f)); MontarCaserio(new Vector3(1150f, 0f, 1350f)); MontarPeloton(new Vector3(760f, 0f, 980f)); }
             else MontarDesdeCsv(ter);
+            gameObject.AddComponent<RedVista>();      // Iker: la red del Hito 1 (vía por piezas, tren y línea), leyendo Mundo.Red
             var sol = new GameObject("Sol").AddComponent<Light>(); sol.type = LightType.Directional; sol.transform.rotation = Quaternion.Euler(50f, 30f, 0f); sol.intensity = 1.2f; sol.shadows = LightShadows.Soft;
             RenderSettings.ambientMode = AmbientMode.Flat; RenderSettings.ambientLight = new Color(0.45f, 0.43f, 0.40f);
             Debug.Log($"[MUNDO] prototipo de zum: {Lado:0} × {Lado:0} m, altura {AlturaMin}–{AlturaMax} m, iconos por encima de {AlturaIconos} m");
@@ -91,7 +92,7 @@ namespace TBD.Mundo
                     float notches = Mathf.Clamp(s / (Mathf.Abs(s) >= 10f ? 120f : 1f), -3f, 3f);
                     float antes = _alturaObj; _alturaObj = Mathf.Clamp(_alturaObj * Mathf.Pow(0.8f, notches), AlturaMin, AlturaMax);
                 }
-                if (ms.leftButton.wasPressedThisFrame && Suelo(ms.position.ReadValue(), out var q)) _seleccionado = Vector3.Distance(q, Centro()) < Mathf.Max(15f, _altura * 0.05f);
+                if (!TrazandoVia && ms.leftButton.wasPressedThisFrame && Suelo(ms.position.ReadValue(), out var q)) _seleccionado = Vector3.Distance(q, Centro()) < Mathf.Max(15f, _altura * 0.05f);
                 if (ms.rightButton.wasPressedThisFrame && _seleccionado && Suelo(ms.position.ReadValue(), out var d)) _destino = d;
             }
             _foco.x = Mathf.Clamp(_foco.x, 0f, Lado); _foco.z = Mathf.Clamp(_foco.z, 0f, Lado); _foco = EnSuelo(_foco);
@@ -261,6 +262,13 @@ namespace TBD.Mundo
             return Mathf.Lerp(Mathf.Lerp(_alt[iz, ix], _alt[iz, ix + 1], fx), Mathf.Lerp(_alt[iz + 1, ix], _alt[iz + 1, ix + 1], fx), fz);
         }
         Vector3 EnSuelo(Vector3 p) { if (_alt != null) p.y = Alt(p.x, p.z); return p; }
+        // Iker (red del Hito 1): lo que necesita RedVista de esta escena, sin tocar lo demás
+        public Camera CamaraMundo { get { return _cam; } }
+        public float AlturaSuelo(float x, float z) { return Alt(x, z); }
+        public bool PuntoSuelo(Vector2 pantalla, out Vector3 p) { return Suelo(pantalla, out p); }
+        public float AlturaCamara { get { return _altura; } }
+        /// <summary>RedVista se queda con el clic izquierdo mientras se traza una vía.</summary>
+        public static bool TrazandoVia;
 
         Transform MontarTerrenoAlvaro()
         {
