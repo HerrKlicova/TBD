@@ -242,10 +242,25 @@ namespace TBD.Mundo
         void MontarPasoNivel(Transform padre, Via.Tramo t, Via.PasoNivel pn)
         {
             string var = VariantePaso[(int)(IMath.Mix((ulong)(pn.Tramo * 77 + pn.OffMm) ^ 0xCAFEUL) % (ulong)VariantePaso.Length)];
-            var pre = Resources.Load<GameObject>($"Models/Red/SM_PasoNivel_{pn.AnguloGrados}_{var}_LOD1"); if (pre == null) { Debug.Log($"[RED] falta SM_PasoNivel_{pn.AnguloGrados}_{var} en Resources/Models/Red"); return; }
             int largo = pn.AnguloGrados >= 60 ? 20_000 : 30_000;
             var a = R.Via.Posicion(t.Id, Mathf.Max(0, pn.OffMm - largo / 2), out int rumbo);
+            // Teo (hito1-red LEEME §1b): en XZ, t = vía de A a B, r = carretera con t·r > 0; t.x·r.z − t.z·r.x < 0 → pieza normal, > 0 → la simétrica «E».
+            string lado = LadoPaso(pn, rumbo);
+            var pre = Resources.Load<GameObject>($"Models/Red/SM_PasoNivel_{pn.AnguloGrados}{lado}_{var}_LOD1"); if (pre == null) { Debug.Log($"[RED] falta SM_PasoNivel_{pn.AnguloGrados}{lado}_{var} en Resources/Models/Red"); return; }
+            Debug.Log($"[RED] paso a nivel: SM_PasoNivel_{pn.AnguloGrados}{lado}_{var} en ({pn.P.X / 1000}; {pn.P.Y / 1000}) m");
             var go = Instantiate(pre, padre); go.transform.position = AMundo(a); go.transform.rotation = GiroTeo(rumbo); Pintar(go);
+        }
+
+        /// <summary>«E» si la carretera queda del lado que pide la pieza simétrica de Teo; "" si va la normal. Sim X→x, Y→z de Unity (AMundo).</summary>
+        string LadoPaso(Via.PasoNivel pn, int rumbo)
+        {
+            if (pn.Carretera < 0 || pn.Carretera >= R.Via.Carreteras.Count) return "";
+            var c = R.Via.Carreteras[pn.Carretera]; if (c.Length < 2) return "";
+            int k = 1; long best = long.MaxValue;      // tramo de carretera más cercano al cruce
+            for (int i = 1; i < c.Length; i++) { long mx = (c[i - 1].X + (long)c[i].X) / 2 - pn.P.X, my = (c[i - 1].Y + (long)c[i].Y) / 2 - pn.P.Y; long d = mx * mx + my * my; if (d < best) { best = d; k = i; } }
+            double tx = IMath.Cos(rumbo), tz = IMath.Sin(rumbo), rx = c[k].X - c[k - 1].X, rz = c[k].Y - c[k - 1].Y;
+            if (tx * rx + tz * rz < 0) { rx = -rx; rz = -rz; }
+            return tx * rz - tz * rx > 0 ? "E" : "";
         }
 
         void Pintar(GameObject go) { foreach (var r in go.GetComponentsInChildren<Renderer>()) { var ms = r.sharedMaterials; for (int k = 0; k < ms.Length; k++) ms[k] = _mPaleta; r.sharedMaterials = ms; } }
