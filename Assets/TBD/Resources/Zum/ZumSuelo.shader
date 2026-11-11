@@ -8,7 +8,7 @@
 //   (MAPA, sin luz); por debajo de 900·(1−F), el SUELO DE DÍA (con luz y sombras); en medio, tramado Bayer 4×4 en píxeles de la RT
 //   (alfa binaria, nada semitransparente). F = _Fundido = 0,25.
 // - La calima NO va aquí: es un tinte de toda la imagen (ZumPantalla), para que caiga igual sobre suelo, casas y unidades.
-// SIN COMPILAR: escrito en la nube, sin Unity. Lo tiene que abrir Marcos y mirar la consola.
+// Compila en la build Mundo6 (Marcos, 11-11). El color de salida es LINEAL y correcto: el oscuro de Mundo6 venía de ZumPantalla (ver allí).
 Shader "TBD/ZumSuelo"
 {
     Properties
@@ -214,7 +214,8 @@ Shader "TBD/ZumSuelo"
                 }
                 else if (uso == U_EXPLANADA)
                 {
-                    c = mota > 0.6 ? CONCRETE : GREY_BROWN;
+                    float motaG = Ruido(p, max(mpp * 2.0, 1.2), 33u);           // grava en manchas de metro (Mundo6: a 0,2 m salía sal y pimienta)
+                    c = motaG > 0.68 ? CONCRETE : GREY_BROWN;
                 }
                 else if (uso == U_PLAYA)
                 {

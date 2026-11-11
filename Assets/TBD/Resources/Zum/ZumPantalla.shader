@@ -4,7 +4,11 @@
 // El porcentaje lo calcula ZumEstetica.CalimaDe(altura) y lo pone ZumEstetica.DibujarPantalla, que sustituye a GUI.DrawTexture(_rt) en OnGUI.
 // Se tiñe la imagen entera (suelo, casas y unidades por igual); los iconos y las placas se dibujan después, sin calima.
 // CGPROGRAM a propósito: Graphics.DrawTexture desde OnGUI es dibujo inmediato, como la UI de siempre (UI/Default es CG y va en URP).
-// SIN COMPILAR: escrito en la nube, sin Unity.
+// GAMMA (corregido el 11-11 tras la build Mundo6 de Marcos): la RT se lee en LINEAL y lo que se escribe desde OnGUI con Graphics.DrawTexture
+// llega a la pantalla TAL CUAL, sin pasar a sRGB (salía todo oscuro: 303424 se veía 080904, que es su valor lineal). Con _Codificar = 1
+// (ZumEstetica lo pone si el proyecto va en espacio lineal) el shader pasa a sRGB él mismo, y la calima se mezcla ya en sRGB, como en las láminas.
+// Si algún día saliera todo lavado (sRGB dos veces), ZumEstetica.CodificarGamma = false.
+// Compila en la build Mundo6 (Marcos, 11-11).
 Shader "TBD/ZumPantalla"
 {
     Properties
@@ -12,6 +16,7 @@ Shader "TBD/ZumPantalla"
         _MainTex ("RT del mundo", 2D) = "black" {}
         _CalimaColor ("Calima", Color) = (0.635, 0.494, 0.353, 1)   // a27e5a
         _Calima ("Calima (0–1)", Range(0, 1)) = 0
+        _Codificar ("Pasar a sRGB al escribir (1 en proyecto lineal)", Float) = 1
     }
     SubShader
     {
@@ -25,18 +30,21 @@ Shader "TBD/ZumPantalla"
             #include "UnityCG.cginc"
 
             sampler2D _MainTex;
-            fixed4 _CalimaColor;
+            float4 _CalimaColor;
             float _Calima;
+            float _Codificar;
 
             struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; };
             struct v2f { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };
 
             v2f vert(appdata v) { v2f o; o.pos = UnityObjectToClipPos(v.vertex); o.uv = v.uv; return o; }
 
-            fixed4 frag(v2f i) : SV_Target
+            float4 frag(v2f i) : SV_Target
             {
-                fixed4 c = tex2D(_MainTex, i.uv);
-                c.rgb = lerp(c.rgb, _CalimaColor.rgb, _Calima);
+                float4 c = tex2D(_MainTex, i.uv);
+                float3 cal = _CalimaColor.rgb;
+                if (_Codificar > 0.5) { c.rgb = LinearToGammaSpace(c.rgb); cal = LinearToGammaSpace(cal); }
+                c.rgb = lerp(c.rgb, cal, _Calima);
                 c.a = 1;
                 return c;
             }
