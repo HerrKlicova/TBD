@@ -933,7 +933,7 @@ namespace TBD.View
             if (em.Tick >= 0 && em.Node >= 0 && em.Node < _a.Graph.Nodes.Count && _emSonado != em.Tick)
             {
                 _emSonado = em.Tick; string tren = em.Service >= 0 && em.Service < _a.Services.Count ? _a.Services[em.Service].Train.Name : "tren";
-                Sfx.Play("aviso_horda", Vector3.zero, 0.7f, 0.05f); Sfx.Duck(1.5f);   // Nuria (mvp-em1-caida-repetir.md)
+                Sfx.Play("aviso_horda", Vector3.zero, 0.45f, 0.05f); Sfx.Duck(1.5f);   // Nuria (avisos-pulido.md): el archivo da −14,9 LUFS; a 0,45 queda 2,6 dB por debajo de la alarma
                 Debug.Log($"[MAPA] EM-1 Emboscada en {_a.Graph.Nodes[em.Node].Name}: unos {em.Zombies} zombis atacan el {tren} fuera de la puerta este.");
             }
             if (RecordatorioNules(out int nulR)) { if (_recordatorioLog != _a.Tick / NetConst.DayTicks) { _recordatorioLog = _a.Tick / NetConst.DayTicks; Debug.Log("[MAPA] Nules sigue sin munición. Si no mandas el tren, caerá esta noche."); } }
