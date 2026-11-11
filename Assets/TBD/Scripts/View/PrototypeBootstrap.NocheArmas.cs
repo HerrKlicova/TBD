@@ -17,7 +17,7 @@ namespace TBD.View
     /// </summary>
     public partial class PrototypeBootstrap
     {
-        sealed class NaPel { public int Kills, KillsPila, Resup; public long Spent0, ResupShots; public readonly Dictionary<WeaponId, int> PorArma = new Dictionary<WeaponId, int>(); public readonly Dictionary<WeaponId, int> Explosiones = new Dictionary<WeaponId, int>(); }
+        sealed class NaPel { public int Kills, KillsPila, Resup; public long Spent0, ResupShots; public readonly Dictionary<WeaponId, int> PorArma = new Dictionary<WeaponId, int>(); public readonly Dictionary<WeaponId, long> Disparos = new Dictionary<WeaponId, long>(), Coste = new Dictionary<WeaponId, long>(); public readonly Dictionary<WeaponId, int> Explosiones = new Dictionary<WeaponId, int>(); }
         sealed class NaVeh { public int Disparos, Kills, KillsPila, Atropellos, Resup; public float ResupU; }
 
         readonly Dictionary<int, NaPel> _naPel = new Dictionary<int, NaPel>();
@@ -69,6 +69,11 @@ namespace TBD.View
         void NaExplosiones(List<FireEvent> shots)
         {
             if (!_naOn) return;
+            foreach (var f in shots)      // Nacho (I-Noche177): disparos y coste por pelotón y arma, como NightSim
+            {
+                var nd = NaP(f.Platoon); nd.Disparos.TryGetValue(f.Weapon, out var d0); nd.Disparos[f.Weapon] = d0 + 1;
+                nd.Coste.TryGetValue(f.Weapon, out var c0); nd.Coste[f.Weapon] = c0 + System.Math.Max(1, WeaponCatalog.Table[(int)f.Weapon].CostShots);
+            }
             foreach (var f in shots) if (f.Splash && (f.Weapon == WeaponId.Lanzagranadas || f.Weapon == WeaponId.C90)) { var n = NaP(f.Platoon); n.Explosiones.TryGetValue(f.Weapon, out var k); n.Explosiones[f.Weapon] = k + 1; }
         }
 
@@ -110,6 +115,7 @@ namespace TBD.View
                 var n = NaP(p.Id); float u = (p.AmmoSpent - n.Spent0) / spu; pelU += u; pelKills += n.Kills; pelResup += n.ResupShots;
                 sb.Append($" [{p.Id} {p.Kind} u={u:0.00} abatidos={n.Kills} pila={n.KillsPila} abatidos_u={(u > 0f ? n.Kills / u : 0f):0}");
                 foreach (var kv in n.PorArma) sb.Append($" {kv.Key}={kv.Value}");
+                foreach (var kv in n.Disparos) { n.Coste.TryGetValue(kv.Key, out var cs); n.PorArma.TryGetValue(kv.Key, out var ka2); sb.Append($" {kv.Key}:disparos={kv.Value},u={cs / spu:0.00},abatidos={ka2}"); }
                 foreach (var kv in n.Explosiones) { n.PorArma.TryGetValue(kv.Key, out var ka); sb.Append($" explosiones_{kv.Key}={kv.Value} abatidos_por_explosion_{kv.Key}={(kv.Value > 0 ? ka / (float)kv.Value : 0f):0.00}"); }
                 sb.Append($" recargas={n.Resup} recargado_u={n.ResupShots / spu:0.00}]");
             }
