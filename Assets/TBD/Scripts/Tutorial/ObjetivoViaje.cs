@@ -56,8 +56,11 @@ namespace TBD.Tutorial
             else if (Paso == PasoViaje.Volver && estacion == "Sagunto") Paso = PasoViaje.Cumplido;
         }
 
-        /// <summary>La munición baja en Nules (CmdCargo). Con Nules sitiada no se llama: la carga se queda a bordo (D-N166).</summary>
-        public void Descargado(int tren, string estacion) { if (Paso == PasoViaje.Descargar && tren == _tren && estacion == "Nules") Paso = PasoViaje.Volver; }
+        /// <summary>La munición baja en Nules (CmdCargo). Con Nules sitiada no se llama: la carga se queda a bordo (D-N166).
+        /// Hugo (pulido 19): el paso 5 se cumple con ≥ {m} u en el almacén de Nules (almacenNules = lo que habrá tras la descarga; sin dato, se da por bueno).</summary>
+        public void Descargado(int tren, string estacion, int almacenNules = int.MaxValue) { if (Paso == PasoViaje.Descargar && tren == _tren && estacion == "Nules" && almacenNules >= ObjetivoDefensa.MunicionMin) Paso = PasoViaje.Volver; }
+        /// <summary>Hugo (pulido 19): si con la primera descarga no llegaba a {m}, el paso 5 se cumple en cuanto el almacén de Nules llega (otro viaje).</summary>
+        public void AlmacenNules(int u) { if (Paso == PasoViaje.Descargar && u >= ObjetivoDefensa.MunicionMin) Paso = PasoViaje.Volver; }
     }
 
     public enum EstadoDefensa : byte { Inactivo, Activo, Cumplido, Caducado, Fallido }
@@ -70,7 +73,8 @@ namespace TBD.Tutorial
     public sealed class ObjetivoDefensa
     {
         public const string Titulo = "Defiende Nules antes de la noche";
-        public const int MunicionMin = 20;
+        /// <summary>Hugo (pulido 19): {m} del objetivo; lo pone la vista con NetWorld.ObjAmmoNeedU (fácil 9, normal 10, difícil 11).</summary>
+        public static int MunicionMin = 20;
         public EstadoDefensa Estado { get; private set; }
         public static long Desde { get { return TBD.Net.NetConst.DayTicks + TBD.Net.NetConst.Hours(6); } }     // amanecer del día 2
         public static long Hasta { get { return TBD.Net.NetConst.DayTicks + TBD.Net.NetConst.Hours(22); } }    // empieza el asedio de la 2.ª noche

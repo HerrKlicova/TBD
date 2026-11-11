@@ -96,7 +96,7 @@ namespace TBD.View
             _objLbl = L("OBJETIVO · DÍA 2", "lbl", "lbl-amb"); _objBloque.Add(_objLbl);
             _objTitulo = L("Defiende Nules", "titulo"); _objBloque.Add(_objTitulo);
             _chkTropa = Casilla("Un pelotón en Nules", out _txtTropa); _objBloque.Add(_chkTropa);
-            _chkMun = Casilla("Munición en Nules: 0/20 u", out _txtMun); _objBloque.Add(_chkMun);
+            _chkMun = Casilla($"Munición en Nules: 0/{ObjetivoDefensa.MunicionMin} u", out _txtMun); _objBloque.Add(_chkMun);
 
             var dcha = E("blk", "blk-dcha"); _franja.Add(dcha);
             dcha.Add(L("Tab", "tecla")); dcha.Add(L("INFORME", "lbl"));

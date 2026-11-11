@@ -1370,12 +1370,17 @@ namespace TBD.Net
         /// <summary>D-N179: nodo del objetivo del día 2 («Defiende Nules antes de la noche: manda tropa y munición (≥ 20 u)»). −1 = sin objetivo. Lo pone NetScenario.Inicio; no se guarda.</summary>
         public int ObjNode = -1;
         public const int ObjAmmoU = 20;
+        /// <summary>Hugo (pulido 19, aprobado por Lucía): el objetivo pide {m} = la munición mínima del Informe para la noche de Nules (techo(horda ÷ 300) + 2):
+        /// fácil 9, normal 10, difícil 11. Lo pone la vista al registrar la noche de Nules (PrototypeBootstrap.RegistrarNochesIniciales); ObjAmmoU si no hay noche. No se guarda.</summary>
+        public int ObjAmmoNeedU = ObjAmmoU;
+        /// <summary>Munición mínima ante un asedio (regla de Hugo, 09-11): redondear hacia arriba (horda ÷ eficacia) + 2 u. Eficacia: Sagunto 400, el resto 300. La usa el Informe y el objetivo del día 2.</summary>
+        public static int MunicionMinima(int horda, string estacion) { int ef = estacion == "Sagunto" ? 400 : 300; return horda <= 0 ? 2 : (horda + ef - 1) / ef + 2; }
         /// <summary>El objetivo se ve desde el amanecer del día 2 (06:00 tras la 1.ª noche) hasta que empieza la noche de ese día (22:00), si el nodo no se ha perdido.</summary>
         public bool ObjActive { get { return ObjNode >= 0 && Tick >= NetConst.DayTicks + NetConst.Hours(6) && Tick < NetConst.DayTicks + NetConst.Hours(22) && !NodeLost[ObjNode]; } }
         /// <summary>Tropa: al menos un pelotón bajado en el nodo (embarque, D-N166). La guarnición de partida no cuenta: el objetivo es mandar tropa.</summary>
         public bool ObjTroops { get { return ObjNode >= 0 && Embarque.AtStation(ObjNode, PasajeroTipo.Peloton).Count > 0; } }
         /// <summary>Munición: al menos ObjAmmoU u en el almacén del nodo.</summary>
-        public bool ObjAmmo { get { return ObjNode >= 0 && Stock[ObjNode, (int)Res.Municion] >= ObjAmmoU; } }
+        public bool ObjAmmo { get { return ObjNode >= 0 && Stock[ObjNode, (int)Res.Municion] >= ObjAmmoNeedU; } }
         public bool ObjMet { get { return ObjTroops && ObjAmmo; } }
 
         /// <summary>Emboscada del segundo tren (plan de 30 min; Lucía, 9-nov 08:10 y e5f2f1c): cuando llega a AmbushNode el SEGUNDO tren de la partida (cuenta desde el principio)

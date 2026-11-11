@@ -445,8 +445,7 @@ namespace TBD.View
         /// Normal: Nules 2.400 → 10 u; Sagunto 5.250 → 16 u. Los 20 u de Nules de la D-N179 son el objetivo del día 2, no esta regla.</summary>
         public static int MunicionMinima(int horda, string estacion)
         {
-            int ef = Eficacia(estacion);
-            return horda <= 0 ? 2 : (horda + ef - 1) / ef + 2;
+            return NetWorld.MunicionMinima(horda, estacion);      // una sola regla (Hugo): la misma que el objetivo del día 2
         }
         /// <summary>Estaciones donde el tren sin escolta que espera fuera de la puerta se salva (Hugo, tren-a-las-puertas.md 9-nov 01:45): Nules puerta oeste 88 %,
         /// Sagunto puerta este 100 %. Dentro (apartado) o en estaciones sin medir, se pierde.</summary>

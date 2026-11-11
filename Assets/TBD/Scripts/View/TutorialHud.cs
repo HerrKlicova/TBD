@@ -466,7 +466,7 @@ namespace TBD.View
                         float tw = Mathf.Min(u * 36f, Screen.width - 32f), th = u * 10.5f; var tr = new Rect((Screen.width - tw) * 0.5f, Screen.height * 0.22f, tw, th);
                         GUI.DrawTexture(tr, _panel); Frame(tr, 0.8f);
                         var lineas = new[] { "<color=#d4d0cc>Objetivo · Día 2</color>", "<color=#e08c30>Nules no tiene munición.</color>", "<color=#d4d0cc>Esta noche la atacarán y, sin ayuda, caerá.</color>",
-                            "<color=#d4d0cc>Manda desde Sagunto un tren con un pelotón y 20 u de munición antes de la noche.</color>", "<color=#d4d0cc>Ve con escolta: la vía no es segura.</color>" };
+                            "<color=#d4d0cc>Manda desde Sagunto un tren con un pelotón y " + ObjetivoDefensa.MunicionMin + " u de munición antes de la noche.</color>", "<color=#d4d0cc>Ve con escolta: la vía no es segura.</color>" };
                         float ly = tr.y + u * 0.7f;
                         for (int i = 0; i < lineas.Length; i++) { var st = i == 0 ? _head : _txt; float lh = st.CalcHeight(new GUIContent(lineas[i]), tw - u * 1.6f); GUI.Label(new Rect(tr.x + u * 0.8f, ly, tw - u * 1.6f, lh), lineas[i], st); ly += lh + u * 0.15f; }
                         bool puede = Time.unscaledTime - _tarjetaObjT >= 6f;

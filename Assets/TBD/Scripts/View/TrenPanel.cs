@@ -246,9 +246,26 @@ namespace TBD.View
         static readonly Color Bone = new Color32(0xd4, 0xd0, 0xcc, 255), Ink = new Color32(0x1c, 0x20, 0x0c, 255);
         static readonly string[] ResNombre = { "Munición", "Combustible", "Materiales", "Personas", "Víveres" };   // D-N176: los víveres son el 5.º recurso de la red (Res.Viveres = 4, nacho/sombra-reloj)
 
+        static int _salidaSv = -1, _salidaOrigen, _salidaDestino; static float _salidaLibreT = -1f; static readonly int[] _salidaCarga = new int[NetConst.ResCount];
+        /// <summary>D-N200: salida pendiente; cuando la cola de embarque queda vacía (y medio segundo más, para que la red aplique el último CmdLoad), sale.</summary>
+        void SalidaPendiente()
+        {
+            if (_salidaSv < 0 || W == null) return;
+            if (Embarque.Ocupado) { _salidaLibreT = -1f; return; }
+            if (_salidaLibreT < 0f) { _salidaLibreT = Time.unscaledTime; return; }
+            if (Time.unscaledTime - _salidaLibreT < 0.5f) return;
+            int sv = _salidaSv; _salidaSv = -1;
+            if (sv >= W.Services.Count || TrenPreparar.TrenEn(W, _salidaOrigen) != sv) { Debug.Log("[TREN] la salida pendiente se cancela: el tren ya no está en el andén"); return; }
+            _origenP = _salidaOrigen; _destinoP = _salidaDestino; Array.Copy(_salidaCarga, _carga, _carga.Length);
+            Debug.Log($"[TREN] toda la tropa a bordo ({W.Embarque.CountAboard(sv, PasajeroTipo.Peloton)} pelotón): sale");
+            Enviar(sv);
+        }
+
         void Update()
         {
             _yo = this;
+            SalidaPendiente();
+            if (W != null && W.ObjNode >= 0) { ObjetivoDefensa.MunicionMin = W.ObjAmmoNeedU; TutorialHud.Viaje.AlmacenNules(W.Stock[W.ObjNode, (int)Res.Municion]); }      // Hugo (pulido 19): {m} sale del mundo
             Vigilar();
             Seguir();
             if (Arg("-trenpanel-auto")) AutoIdaVuelta();
@@ -329,7 +346,13 @@ namespace TBD.View
         void Enviar(int svElegido = -1)
         {
             if (W != null && _destinoP >= 0 && _destinoP == Nodo("Nules") && W.Tick / NetConst.DayTicks == 1) TrenHaciaNulesDia2 = true;
-            int sv = svElegido >= 0 ? svElegido : TrenPreparar.TrenEn(W, _origenP); if (sv < 0 || _destinoP < 0 || Embarque.Ocupado) return;
+            int sv = svElegido >= 0 ? svElegido : TrenPreparar.TrenEn(W, _origenP); if (sv < 0 || _destinoP < 0) return;
+            if (Embarque.Ocupado)      // D-N200 (Lucía), adelantado: por defecto el tren sale cuando todo está a bordo; antes la orden se perdía en silencio y salía sin escolta
+            {
+                _salidaSv = sv; _salidaOrigen = _origenP; _salidaDestino = _destinoP; Array.Copy(_carga, _salidaCarga, _carga.Length); _salidaLibreT = -1f;
+                _aviso = "Sale en cuanto suba toda la tropa."; _avisoHasta = Time.unscaledTime + 4f; _avisoAmbar = false; _vista = Vista.Nada;
+                Debug.Log($"[TREN] {W.Services[sv].Train.Name} espera a que suba toda la tropa para salir hacia {W.Graph.Nodes[_destinoP].Name}"); return;
+            }
             var p = TrenPreparar.Envio(W, sv, _destinoP, _carga); if (p == null) return;
             NetSession.PushPayload(NetCmdType.SetSchedule, sv, p);
             Empezar(sv, _origenP, _destinoP, _carga[(int)Res.Municion]);
@@ -361,7 +384,7 @@ namespace TBD.View
             Embarque.BajarTodo(Viaje, Destino); _descargadoAqui = true;
             Debug.Log("[TREN] descarga en " + W.Graph.Nodes[Destino].Name + " (el tren se queda)");
             TutorialHud.Senal(TutorialGuion.Senales.Descargado);
-            if (hay) TutorialHud.Viaje.Descargado(Viaje, W.Graph.Nodes[Destino].Name);      // con asedio la carga no baja (D-N166): el objetivo espera
+            if (hay) TutorialHud.Viaje.Descargado(Viaje, W.Graph.Nodes[Destino].Name, System.Math.Min(47, W.Stock[Destino, (int)Res.Municion] + sv.Cargo[(int)Res.Municion]));      // con asedio la carga no baja (D-N166): el objetivo espera
         }
 
         static readonly string[] IconoDe = { "municion", "combustible", "materiales", "poblacion", "viveres" };

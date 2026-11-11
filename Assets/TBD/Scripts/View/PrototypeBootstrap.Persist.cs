@@ -122,7 +122,9 @@ namespace TBD.View
             if (s.Clock != null) Destroy(s.Clock.gameObject);
             s.Clock = null; s.Away = false; s.Sim = null;
             Debug.Log($"[NOCHE] vuelvo a la zona (tick {_ng.Tick}): {pts.Count} zombis recreados, hora {_ng.Hour:00}:{_ng.Minute:00}, muro {_ng.WallPermil}‰, estado {_ng.State}");
-            bool reportado = s.Reported; if (_ng.State != NightState.Jugando && !reportado) NightEnded(); else if (_ng.State == NightState.Victoria) _reportClosed = true;   // D-N170: el parte sale una sola vez
+            bool reportado = s.Reported;
+            if (_ng.State == NightState.Victoria && !reportado) { s.Reported = true; _reportClosed = true; _endDismissed = true; NightRun.NocheGanada = true; Debug.Log("[NOCHE] D-N199: la noche ya se ganó fuera de pantalla; al volver no se repite el resultado (está en el registro)"); }
+            else if (_ng.State != NightState.Jugando && !reportado) NightEnded(); else if (_ng.State == NightState.Victoria) _reportClosed = true;   // D-N170: el parte sale una sola vez
         }
 
         /// <summary>La noche acaba o se reinicia: se borra la sesion y el reloj de fondo.</summary>

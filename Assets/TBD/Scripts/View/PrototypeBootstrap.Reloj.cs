@@ -305,6 +305,7 @@ namespace TBD.View
                 }
                 if (bot) { origen.Bot = NightBot.FromParams(sp); foreach (var kv in s.PName) if (kv.Value.StartsWith("Tiradores azotea")) origen.Bot.Busy.Add(kv.Key); }
                 s.WallMax = Mathf.Max(1200000, NightSimParams.Default().WallHp); s.WallHp = s.WallMax;      // la vida del muro de la zona (NightTick); fuera, la de NightSim
+                if (est == "Nules") { int horda = 0; for (int wv = 0; wv < ng.P.Waves.Length; wv++) horda += ng.WaveTotal(wv); a.ObjAmmoNeedU = NetWorld.MunicionMinima(horda, est); if (NetSession.B != null && NetSession.B != a) NetSession.B.ObjAmmoNeedU = a.ObjAmmoNeedU; Debug.Log($"[RELOJ] objetivo del día 2 (Hugo): {a.ObjAmmoNeedU} u en Nules (horda {horda}, {key})"); }      // pulido 19
                 RegistrarNoche(nodo, origen, s); s.Bot = s.Sim.Bot;
                 NightRun.Aparcadas[nodo] = s;
                 Debug.Log($"[RELOJ] noche de {est} registrada en la red (A y B): {uw.Platoons.Count} pelotones, {origen.Vehicles.Count} vehículos, {uw.StockShots / WeaponCatalog.ShotsPerU} u, {fich} ({key}); noches del plan: día 1 {(a.HasNight(nodo, 1) ? "sí" : "no")}, día 2 {(a.HasNight(nodo, 2) ? "sí" : "no")}");
