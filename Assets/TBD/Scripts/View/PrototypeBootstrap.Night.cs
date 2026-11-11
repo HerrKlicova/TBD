@@ -828,7 +828,7 @@ namespace TBD.View
             if (System.Array.IndexOf(ca, "-vehdemo") >= 0)
             {
                 if (tt > 8f && _demoStep == 0) { _demoStep = 1; foreach (var v in _vehs) { if (v.Name == "VAMTAC 1") VehicleOrder(v, new Vector3(55f, 0f, 53f)); if (v.Name == "NH90") VehicleOrder(v, new Vector3(120f, 0f, 44f)); } Debug.Log("[NOCHE] prueba: VAMTAC 1 hacia el muro oeste, NH90 despega"); }
-                if (Time.frameCount % 60 == 0) foreach (var v in _vehs) if (v.Name == "VAMTAC 1" || v.Name == "NH90") Debug.Log($"[NOCHE] veh {v.Name} pos=({v.Pos.x:0.0};{v.Pos.y:0.0}) alt={v.Alt:0.0} vel={v.Speed:0.0}");
+                if (Time.frameCount % 60 == 0) foreach (var v in _vehs) if (v.Name == "VAMTAC 1" || v.Name == "NH90") { int cerca = 0, tras = 0; for (int zi = 0; zi < _zomPos.Count; zi++) { float dz = (_zomPos[zi] - v.Pos).magnitude; if (dz < 15f) cerca++; if (dz < 40f) tras++; } Debug.Log($"[NOCHE] veh {v.Name} pos=({v.Pos.x:0.0};{v.Pos.y:0.0}) alt={v.Alt:0.0} vel={v.Speed:0.0} zombis<15m={cerca} zombis<40m={tras}"); }      // I-Noche165: persecución, por log (con la pantalla apagada las capturas salen negras)
                 foreach (var t in new[] { 12f, 20f, 30f }) if (tt > t && _shotsDemo < (t == 12f ? 1 : t == 20f ? 2 : 3)) { _shotsDemo++; SaveScreenshot(); }
             }
         }
