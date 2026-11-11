@@ -159,7 +159,7 @@ namespace TBD.Mundo
             var r = new Rect(Mathf.Round(centro.x - px / 2f), Mathf.Round(centro.y - px / 2f), px, px);
             var m = Mat(ref _matIcono, "ZumIcono");
             if (m == null) { GUI.DrawTexture(r, tex); return; }
-            m.SetColor(IdRelleno, relleno); m.SetColor(IdContorno, Contorno); m.SetFloat(IdVisible, visible);
+            m.SetColor(IdRelleno, relleno); m.SetColor(IdContorno, Contorno); m.SetFloat(IdVisible, visible); m.SetFloat(IdCodificar, CodificarGamma ? 1f : 0f);
             Graphics.DrawTexture(r, tex, m);
         }
 
@@ -170,6 +170,12 @@ namespace TBD.Mundo
         static readonly int IdColor = Shader.PropertyToID("_Color"), IdTramado = Shader.PropertyToID("_Tramado"), IdGuion = Shader.PropertyToID("_Guion");
         static readonly int IdRelieve = Shader.PropertyToID("_Relieve"), IdNaranjos = Shader.PropertyToID("_NaranjosPintados");
         static Material _matPantalla, _matIcono;
+        static readonly int IdCodificar = Shader.PropertyToID("_Codificar");
+
+        /// <summary>Lo que se dibuja desde OnGUI con Graphics.DrawTexture llega a la pantalla sin pasar a sRGB. En un proyecto lineal (el nuestro)
+        /// ZumPantalla y ZumIcono lo hacen ellos. Build Mundo6 (11-11): sin esto todo salía con su valor lineal (303424 → 080904).
+        /// Si en alguna plataforma saliera lavado (dos veces sRGB), poner false.</summary>
+        public static bool CodificarGamma = QualitySettings.activeColorSpace == ColorSpace.Linear;
         static readonly HashSet<string> _avisados = new HashSet<string>();
 
         /// <summary>Carga un shader de Resources/Zum (o por nombre, «TBD/…»). Null si no está (y avisa una vez).</summary>
@@ -242,7 +248,7 @@ namespace TBD.Mundo
             if (rt == null || Event.current == null || Event.current.type != EventType.Repaint) return;
             var m = Mat(ref _matPantalla, "ZumPantalla");
             if (m == null) { GUI.DrawTexture(r, rt, ScaleMode.StretchToFill, false); return; }
-            m.SetColor(IdCalimaColor, CalimaColor); m.SetFloat(IdCalima, CalimaDe(altura));
+            m.SetColor(IdCalimaColor, CalimaColor); m.SetFloat(IdCalima, CalimaDe(altura)); m.SetFloat(IdCodificar, CodificarGamma ? 1f : 0f);
             Graphics.DrawTexture(r, rt, m);
         }
     }
