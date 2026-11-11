@@ -121,13 +121,16 @@ namespace TBD.Units
         /// No entra en el hash ni en el guardado: al cargar se vuelve a contar desde ese tick.</summary>
         public bool Retirada; public int RetiradaTick = -1;
         int _lastDmgTick, _lastStHp = int.MaxValue, _lastTrHp = int.MaxValue, _lastWall = int.MaxValue;
+        /// <summary>Vida absoluta del muro (suma de los tramos) para ver el daño de los rezagados: 26 zombis contra una puerta quitan ~26 por segundo, que en ‰ de 944.381 no se ve
+        /// (I-Noche176, Nacho). −1 = no la da nadie (se usa WallPermil). Entrada del tick, como WallPermil; no va en el hash ni en el guardado.</summary>
+        public long WallHpAbs = -1; long _lastWallAbs = long.MaxValue;
         public const int RetiradaPct = 5;
         public int RetiradaSinDanoTicks { get { return P.NetClock ? NetHourTicks / 3 : (int)((long)20 * 60 * IMath.TickRate / Math.Max(1, P.ClockX)); } }
         public int HordaTotal { get { int t = 0; for (int w = 0; w < P.Waves.Length; w++) t += WaveTotal(w); return t; } }
         void MirarRetirada()
         {
-            if (StationHp < _lastStHp || TrainHp < _lastTrHp || WallPermil < _lastWall) _lastDmgTick = Tick;
-            _lastStHp = StationHp; _lastTrHp = TrainHp; _lastWall = WallPermil;
+            if (StationHp < _lastStHp || TrainHp < _lastTrHp || (WallHpAbs >= 0 ? WallHpAbs < _lastWallAbs : WallPermil < _lastWall)) _lastDmgTick = Tick;
+            _lastStHp = StationHp; _lastTrHp = TrainHp; _lastWall = WallPermil; _lastWallAbs = WallHpAbs >= 0 ? WallHpAbs : long.MaxValue;
             if (Retirada || State != NightState.Jugando || !AllSpawned || ZombiesAlive <= 0) return;
             if ((long)ZombiesAlive * 100 >= (long)HordaTotal * RetiradaPct) return;
             if (Tick - Math.Max(_lastDmgTick, _lastSpawnTick) < RetiradaSinDanoTicks) return;
@@ -305,7 +308,7 @@ namespace TBD.Units
         {
             if (State != NightState.Victoria) return false;
             P = next; Tick = 0; State = NightState.Jugando; NightIndex++; DefeatTick = -1; EndedByStation = EndedByTrain = false; WonByClear = false; _lastSpawnTick = -1;
-            Retirada = false; RetiradaTick = -1; _lastDmgTick = 0; _lastStHp = _lastTrHp = _lastWall = int.MaxValue;
+            Retirada = false; RetiradaTick = -1; _lastDmgTick = 0; _lastStHp = _lastTrHp = _lastWall = int.MaxValue; _lastWallAbs = long.MaxValue;
             if (Spawned.Length != next.Waves.Length) throw new ArgumentException("otro número de oleadas: crea un NightGame nuevo");
             for (int w = 0; w < Spawned.Length; w++) { Spawned[w] = 0; for (int e = 0; e < SpawnedEntry[w].Length; e++) SpawnedEntry[w][e] = 0; }
             return true;
@@ -358,7 +361,7 @@ namespace TBD.Units
             int n = r.Int(); if (n != Spawned.Length) throw new SaveException(SaveError.Corrupt, "otro número de oleadas");
             for (int i = 0; i < n; i++) { Spawned[i] = r.Int(); for (int e = 0; e < SpawnedEntry[i].Length; e++) SpawnedEntry[i][e] = r.Int(); }
             StartNetTick = r.Long();
-            Retirada = false; RetiradaTick = -1; _lastDmgTick = Tick; _lastStHp = _lastTrHp = _lastWall = int.MaxValue;      // D-N202: no se guarda; se vuelve a contar
+            Retirada = false; RetiradaTick = -1; _lastDmgTick = Tick; _lastStHp = _lastTrHp = _lastWall = int.MaxValue; _lastWallAbs = long.MaxValue;      // D-N202: no se guarda; se vuelve a contar
         }
     }
 }
