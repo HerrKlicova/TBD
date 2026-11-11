@@ -274,6 +274,7 @@ namespace TBD.Mundo
                 var pi = m.Puntos["peloton_inicio"]; int rumbo = (int)((long)(90 - yawPeloton) * 65536 / 360) & 0xFFFF;     // Unity: yaw 0 = +Z (norte), 90 = +X; aquí rumbo 0 = +X
                 m.Unidades.AddPlatoon(PlatoonKind.Fusileros, pi.X, pi.Y, rumbo);
             }
+            m.MontarRedHito1();      // Iker (MundoRed.cs): estaciones A y B desde Puntos, carreteras (carreteras_hito1.csv), «Tren 1» y 20 cajas en A
             return m;
         }
     }
