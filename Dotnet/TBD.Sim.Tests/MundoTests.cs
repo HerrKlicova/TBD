@@ -48,6 +48,7 @@ namespace TBD.Sim.Tests
             bool fuera2 = true; int maxPersiguen = 0, tickLimpio = -1;
             for (int t = 0; t < 30 * 600 && tickLimpio < 0; t++)
             {
+                m2.Unidades.Platoons[0].AmmoShots = m2.Unidades.Platoons[0].AmmoCap;      // munición sin límite: aquí se mira el combate, no la munición
                 m2.Step(); if (!NadieEnCasa(m2)) fuera2 = false;
                 int pe = 0; foreach (var z in m2.Zombis.Lista) if (z.Vivo && (z.Estado == EstadoZombi.Persigue || z.Estado == EstadoZombi.Ruido)) pe++; if (pe > maxPersiguen) maxPersiguen = pe;
                 if (m2.Zombis.Vivos == 0) tickLimpio = m2.Tick;
@@ -56,7 +57,13 @@ namespace TBD.Sim.Tests
             Console.WriteLine($"       caserío con el pelotón: abatidos {m2.Abatidos}, vivos {m2.Zombis.Vivos}, bajas {m2.BajasPropias}, munición gastada {pl.AmmoSpent} disparos, limpio en el tick {tickLimpio}, máx. persiguiendo {maxPersiguen}");
             check(maxPersiguen >= 10, $"los zombis reaccionan al pelotón (máximo a la vez persiguiendo u oyendo: {maxPersiguen})");
             check(fuera2, "con combate: ningún zombi dentro de una casa");
-            check(m2.Abatidos > 50, $"el pelotón abate a la mayoría ({m2.Abatidos} de 100 en 10 min)");
+            check(tickLimpio > 0 && m2.BajasPropias <= 2, $"con munición sin límite y la puntería del Hito 1 limpia el caserío en {tickLimpio / 30} s con {m2.BajasPropias} bajas");
+            // sin línea (35 cartuchos por soldado y nada en B): se queda seco a mitad, se retira solo a B y no muere entero (objetivo de Lucía y Hugo)
+            var m3 = TBD.Mundo.Mundo.Caserio(7); var p3 = m3.Unidades.Platoons[0]; m3.Unidades.StockShots = 0; bool seRetira = false;
+            m3.Encolar(new Orden { Tick = 0, Jugador = 1, Tipo = TipoOrden.AtacarMoviendo, A = p3.Id, B = TBD.Mundo.Mundo.CaserioX, C = TBD.Mundo.Mundo.CaserioY, D = -1 });
+            for (int t = 0; t < 30 * 900; t++) { m3.Step(); if (m3.SeRetira(p3.Id)) seRetira = true; }
+            var bpt = m3.Puntos["B"]; int dB = IMath.Dist(p3.AX - bpt.X, p3.AY - bpt.Y);
+            check(p3.AmmoCap == 35 * p3.Men.Count && seRetira && p3.AliveCount() >= 6 && m3.Abatidos >= 30 && m3.Abatidos <= 85 && dB <= 30000, $"sin línea: 35 por soldado, abate {m3.Abatidos}, se queda seco, se retira y acaba en B (a {dB / 1000} m) con {p3.AliveCount()} de {p3.Men.Count} vivos");
 
             // --- determinismo: dos instancias con las mismas órdenes dan el mismo hash cada tick durante 10 min
             var a = TBD.Mundo.Mundo.Caserio(11); var b = TBD.Mundo.Mundo.Caserio(11); int pa = a.Unidades.Platoons[0].Id;
@@ -95,9 +102,9 @@ namespace TBD.Sim.Tests
             bool detalle = Environment.GetEnvironmentVariable("TBD_K_DET") == "1", linea = Environment.GetEnvironmentVariable("TBD_K_LINEA") == "1";
             int cajasB = int.TryParse(Environment.GetEnvironmentVariable("TBD_K_CAJAS"), out var cj) ? cj : 1;
             int cargCaja = int.TryParse(Environment.GetEnvironmentVariable("TBD_K_CARG_CAJA"), out var cc) ? cc : 3;      // Hugo 23:23: la caja es de 3 cargadores
-            foreach (var hs in (Environment.GetEnvironmentVariable("TBD_K_HIT") ?? "1000").Split(','))
+            foreach (var hs in (Environment.GetEnvironmentVariable("TBD_K_HIT") ?? "def").Split(','))
             {
-                int hit = int.Parse(hs);
+                int hit = hs == "def" ? TBD.Mundo.Mundo.PunteriaHito1Pm : int.Parse(hs);
                 var ks = new List<double>(); var bajas = new List<int>(); var tiempos = new List<int>(); var dist = new List<int>(); var minBaja = new int[16];
                 int limpios = 0, aniquilados = 0, retiradas = 0; long disT = 0, abT = 0, vivosT = 0;
                 for (int s = 1; s <= n; s++)
@@ -117,7 +124,7 @@ namespace TBD.Sim.Tests
                             int bz = -1; long bd = long.MaxValue; for (int zi = 0; zi < m.Zombis.Lista.Count; zi++) { var zz = m.Zombis.Lista[zi]; if (!zz.Vivo) continue; long dx = zz.X - p.AX, dy = zz.Y - p.AY, d2 = dx * dx + dy * dy; if (d2 < bd) { bd = d2; bz = zi; } }
                             if (bz >= 0 && bd > 40000L * 40000) m.Encolar(new Orden { Tick = m.Tick, Jugador = 1, Tipo = TipoOrden.AtacarMoviendo, A = p.Id, B = m.Zombis.Lista[bz].X, C = m.Zombis.Lista[bz].Y, D = -1 });
                         }
-                        if (retirado && !m.SeRetira(p.Id) && p.AmmoShots * 10 >= p.AmmoCap * 9) { retirado = false; m.Encolar(new Orden { Tick = m.Tick, Jugador = 1, Tipo = TipoOrden.AtacarMoviendo, A = p.Id, B = TBD.Mundo.Mundo.CaserioX, C = TBD.Mundo.Mundo.CaserioY, D = -1 }); }      // recargado: vuelve al caserío
+                        if (retirado && !m.SeRetira(p.Id) && (p.AmmoShots * 10 >= p.AmmoCap * 9 || (m.Unidades.StockShots == 0 && p.AmmoShots > 0))) { retirado = false; m.Encolar(new Orden { Tick = m.Tick, Jugador = 1, Tipo = TipoOrden.AtacarMoviendo, A = p.Id, B = TBD.Mundo.Mundo.CaserioX, C = TBD.Mundo.Mundo.CaserioY, D = -1 }); }      // recargado: vuelve al caserío
                         if (Environment.GetEnvironmentVariable("TBD_K_Z") is string zs && zs.Length > 0 && m.Tick > 20000 && m.Tick % 15 == 0 && m.Tick < 21000) { int zi = int.Parse(zs); var zz = m.Zombis.Lista[zi]; Console.WriteLine($"  t {m.Tick} z{zi} ({zz.X};{zz.Y}) {zz.Estado} meta ({zz.MetaX};{zz.MetaY}) {m.Zombis.Traza(zi)} and {zz.Andando}"); }
                     }
                     bool limpio = m.Zombis.Vivos == 0; if (limpio) limpios++; if (p.AliveCount() == 0) aniquilados++; if (seRetiro) retiradas++;

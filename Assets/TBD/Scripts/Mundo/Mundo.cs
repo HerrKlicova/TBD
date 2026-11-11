@@ -35,6 +35,9 @@ namespace TBD.Mundo
         public readonly ZombisMundo Zombis;
         public readonly RejillaTrozos Rejilla;
         public readonly List<Casa> Casas = new List<Casa>();
+        /// <summary>Combate del Hito 1 (Hugo y Lucía, 11-11; medido con 40 semillas en el caserío): puntería ×6 sobre la tabla de la noche (k ≈ 5,4 disparos por zombi)
+        /// y 35 cartuchos por soldado (100 × k ÷ 16, redondeado a 5). Va en Mundo, no en balance_unidades.csv, para no mover la noche vieja.</summary>
+        public const int PunteriaHito1Pm = 6000, CartuchosPorSoldado = 35;
         public int AlcanceFuegoMm = 60000;                  // como la zona y NightSim (D-N186): blancos a 60 m de un pelotón
         public int ContactoMm = 900, ContactoDanioTick = 2;  // NightParams de la noche (noche_contacto_mm, noche_contacto_danio_tick)
         public int Abatidos, BajasPropias;
@@ -54,7 +57,7 @@ namespace TBD.Mundo
         public Mundo(uint semilla, int anchoMm, int altoMm)
         {
             Semilla = semilla; AnchoMm = anchoMm; AltoMm = altoMm;
-            Unidades = new UnitsWorld(semilla ^ 0x5A17u);
+            Unidades = new UnitsWorld(semilla ^ 0x5A17u) { HitScalePm = PunteriaHito1Pm };
             Zombis = new ZombisMundo(semilla);
             Rejilla = new RejillaTrozos(anchoMm, altoMm, UnitsWorld.ManRadiusMm + 50);
         }
@@ -272,7 +275,7 @@ namespace TBD.Mundo
             if (hayPeloton)
             {
                 var pi = m.Puntos["peloton_inicio"]; int rumbo = (int)((long)(90 - yawPeloton) * 65536 / 360) & 0xFFFF;     // Unity: yaw 0 = +Z (norte), 90 = +X; aquí rumbo 0 = +X
-                m.Unidades.AddPlatoon(PlatoonKind.Fusileros, pi.X, pi.Y, rumbo);
+                var pl = m.Unidades.AddPlatoon(PlatoonKind.Fusileros, pi.X, pi.Y, rumbo); pl.AmmoCap = pl.AmmoShots = CartuchosPorSoldado * pl.Men.Count;
             }
             m.MontarRedHito1();      // Iker (MundoRed.cs): estaciones A y B desde Puntos, carreteras (carreteras_hito1.csv), «Tren 1» y 20 cajas en A
             return m;
