@@ -18,8 +18,9 @@ namespace TBD.View
     {
         public static readonly string[] EstacionesConNoche = { "Sagunto", "Nules" };
 
-        /// <summary>¿Van las noches con el reloj de la red? En partida (NightRun.Active con red), no en el tutorial (su noche empieza al momento) ni con -reloj-propio (pruebas viejas).</summary>
-        public static bool RelojUnicoActivo { get { return NightRun.Active && NetSession.A != null && !TutorialHud.Activo && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-reloj-propio") < 0 && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-zona") < 0; } }      // Marcos (qa52): las corridas de QA con -zona van con su reloj propio (la noche empieza al entrar)
+        /// <summary>¿Van las noches con el reloj de la red? En partida (NightRun.Active con red), también en el tutorial (Lucía, pulido-hasta-19: la hora de la zona es la de la red;
+        /// el tutorial salta la red a las 22:00, ver RelojTutorial), no con -reloj-propio (pruebas viejas).</summary>
+        public static bool RelojUnicoActivo { get { return NightRun.Active && NetSession.A != null && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-reloj-propio") < 0 && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-zona") < 0; } }      // Marcos (qa52): las corridas de QA con -zona van con su reloj propio (la noche empieza al entrar)
         static NetWorld _registradoEn;
         static readonly Dictionary<int, NightParams> _base = new Dictionary<int, NightParams>(); static string _dif = "normal"; static int _diaAjustado = -1;
         /// <summary>D-N190: un NH90 deja «u» de munición en «nodo»: a la reserva de la red (orden AirSupply, A y B en el mismo tick) y, si su noche está en marcha,
@@ -77,6 +78,22 @@ namespace TBD.View
             Debug.Log($"[RELOJ] {porQue}: fuera las {n} noche(s) registradas; la zona va con reloj propio");
         }
 
+        /// <summary>Lucía (pulido-hasta-19, qa53 de la 158: zona 02:41 frente a red 19:24): el tutorial va con el reloj de la red, como la partida. Al arrancar, la red (A y B,
+        /// los mismos pasos) avanza hasta la última marca antes de las 22:00 de hoy, así que la noche del tutorial empieza casi al momento y con la hora de la red. Las noches se
+        /// vuelven a registrar con el plantel del tutorial. Desde ahí, la zona da un paso por tick de red, y la pausa del tutorial (PidePausa) frena también la red.</summary>
+        public static void RelojTutorial()
+        {
+            var a = NetSession.A; if (a == null || !RelojUnicoActivo) { AnularRelojUnico("arranca el tutorial sin reloj de la red"); return; }
+            long antes = a.Tick, meta = NetWorld.NightStartTick(NetWorld.DayOf(a.Tick)) - 1;
+            var b = NetSession.B != null && NetSession.B != a ? NetSession.B : null;
+            while (a.Tick < meta) { long t0 = a.Tick; a.Step(); if (b != null) b.Step(); if (a.Tick == t0) { Debug.LogWarning($"[RELOJ] tutorial: la red no avanza (¿en pausa?) en {NetConst.Clock(a.Tick)}; sin salto"); break; } }
+            if (b != null && a.Hash() != b.Hash()) Debug.LogError($"[RELOJ] tutorial: A y B distintos tras el salto (tick {a.Tick})");
+            ClearNightSession(true);
+            foreach (var w in new[] { a, b }) if (w != null) w.NochesZona.Clear();
+            RegistrarNochesIniciales(); _registradoEn = a;
+            Debug.Log($"[RELOJ] arranca el tutorial: la red salta de {NetConst.Clock(antes)} a {NetConst.Clock(a.Tick)} (día {NetWorld.DayOf(a.Tick)}); noches registradas con el plantel del tutorial; la zona va con el reloj de la red");
+        }
+
         // ---------------------------------------------------------------- la zona en pantalla
         long _tickRedZona = -1; bool _pausaRedPuesta;
         /// <summary>¿Va la zona al ritmo de la red? (noche con reloj de la red y red presente).</summary>
@@ -90,6 +107,7 @@ namespace TBD.View
             int tope = 8 * System.Math.Max(1, TurboN) * System.Math.Max(1, NetSession.Turbo);
             int n = 0;
             while (_tickRedZona < w.Tick && n < tope) { _tickRedZona++; StepSimulation(); n++; }
+            if (n > 0 && _tickRedZona / NetConst.HourTicks != (_tickRedZona - n) / NetConst.HourTicks) Debug.Log($"[RELOJ] hora: zona {TimeStr()} · red {NetConst.Clock(w.Tick)}{(TutorialHud.Activo ? " (tutorial)" : "")}");      // prueba del pulido (Lucía): las dos tienen que coincidir toda la partida
             bool frena = w.Tick - _tickRedZona > tope;      // Nacho: sin saltar ticks; si la zona no da abasto, la red espera
             if (frena != NetSession.Frenada) { NetSession.Frenada = frena; if (frena) Debug.Log($"[RELOJ] la red espera a la zona ({w.Tick - _tickRedZona} ticks de retraso)"); }
             return n;
@@ -284,12 +302,12 @@ namespace TBD.View
                 int reservaU = a.Stock[nodo, (int)Res.Municion];
                 var uw = new UnitsWorld(1234u + SemillaQA) { StockShots = System.Math.Min(47, System.Math.Max(0, reservaU)) * WeaponCatalog.ShotsPerU };   // Hugo: min(tope 47, reserva); a las 22:00 se vuelve a mirar
                 var s = new NightSession { Node = nodo };
-                foreach (var pp in Plantel.Pelotones(est, false)) { var pl = uw.AddPlatoon(pp.Tipo, pp.X, pp.Y, pp.Rumbo, pp.Formacion); if (pp.CotaMm > 0) pl.EyeMm = UnitsWorld.EyeInfantryMm + pp.CotaMm; if (pp.Hombres > 0) while (pl.Men.Count > pp.Hombres) pl.Men.RemoveAt(pl.Men.Count - 1); s.PName[pl.Id] = pp.Nombre; }
+                foreach (var pp in Plantel.Pelotones(est, TutorialHud.Activo)) { var pl = uw.AddPlatoon(pp.Tipo, pp.X, pp.Y, pp.Rumbo, pp.Formacion); if (pp.CotaMm > 0) pl.EyeMm = UnitsWorld.EyeInfantryMm + pp.CotaMm; if (pp.Hombres > 0) while (pl.Men.Count > pp.Hombres) pl.Men.RemoveAt(pl.Men.Count - 1); s.PName[pl.Id] = pp.Nombre; }
                 if (est == "Sagunto" && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sinazotea") < 0)
                     for (int az = 0; az < 2; az++) { var pa = uw.AddPlatoon(PlatoonKind.Tiradores, 84500, 74300 + 4000 * az, 32768, Formation.Cuna); pa.EyeMm = 6350; s.PName[pa.Id] = "Tiradores " + (az == 0 ? "azotea 1" : "azotea 2"); }
                 var sp = sj.SP;
                 var origen = new NightSim(ng, uw, sp, sp.WallHp) { VehicleParamsJson = vjson };      // modo enganchado, como al salir de la zona
-                foreach (var c in Plantel.Vehiculos(est, false))
+                foreach (var c in Plantel.Vehiculos(est, TutorialHud.Activo))
                 {
                     var nv = NightVehicle.Make(c.Nombre, c.Tipo == "dragon" ? NightVehKind.Dragon : NightVehKind.Vamtac, (int)(c.X * 1000f), (int)(c.Z * 1000f));
                     try { NightVehicle.ApplyParams(nv, vjson); } catch (System.Exception) { }

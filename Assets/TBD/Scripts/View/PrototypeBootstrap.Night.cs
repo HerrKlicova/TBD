@@ -497,7 +497,7 @@ namespace TBD.View
         }
 
         string ZombisSueltos() { if (_zomPos.Count == 0 || _zomPos.Count > 8) return ""; var sb = new System.Text.StringBuilder(" en"); foreach (var q in _zomPos) sb.Append($" ({q.x:0.0};{q.y:0.0})"); return sb.ToString(); }
-        string TimeStr() { if (DiaZonaRed) return NetConst.Clock(NetSession.A.Tick); return $"{_ng.Hour:00}:{_ng.Minute:00}"; }      // reloj único: de día, la hora de la red
+        string TimeStr() { if (DiaZonaRed || (_ng != null && _ng.P.NetClock && NetSession.A != null)) return NetConst.Clock(_tickRedZona >= 0 ? _tickRedZona : NetSession.A.Tick); return $"{_ng.Hour:00}:{_ng.Minute:00}"; }      // reloj único: de día, la hora de la red
 
         void SpawnZombies(List<SpawnPoint> pts)
         {
