@@ -18,6 +18,7 @@ namespace TBD.Mundo
         public int VelMmT, VmaxMmT = 370, AccMmT2 = 1;      // Hugo (cifras-hito1): 40 km/h = 370 mm/tick; 1 mm/tick² ≈ 0,9 m/s²
         public EstadoTren Estado;
         public int Linea = -1, Parada, EsperaT;
+        public int InicioVueltaT = -1, UltimaVueltaT = -1;      // Hugo: el texto de la línea saca el tiempo de la vuelta medida, no de un número fijo
         public readonly int[] Carga = new int[Red.Recursos]; public int Capacidad = 6;      // Hugo: 6 huecos (2 vagones de 3); 1 hueco = 1 caja de munición (120 cartuchos) o 1 palé de material (100 m de vía)
         /// <summary>Distancia que queda hasta el final de la ruta (mm).</summary>
         public int Restante(Via v) { if (Ruta.Count == 0) return 0; long r = v.Tramos[Ruta[PasoI].Tramo].LongMm - OffMm; for (int i = PasoI + 1; i < Ruta.Count; i++) r += v.Tramos[Ruta[i].Tramo].LongMm; return (int)Math.Min(r, int.MaxValue); }
@@ -117,7 +118,11 @@ namespace TBD.Mundo
                 if (descargar) { t.Carga[r]--; alm[r]++; Marcar(t, r, false); } else { alm[r]--; t.Carga[r]++; Marcar(t, r, true); }
                 r = SiguienteTrabajo(t, p, alm, out descargar);
             }
-            if (r < 0 && t.EsperaT >= EsperaMinT) { LimpiarHechos(t); t.Parada = (t.Parada + 1) % l.Paradas.Count; IrAParada(t); }
+            if (r < 0 && t.EsperaT >= EsperaMinT)
+            {
+                if (t.Parada == 0) { if (t.InicioVueltaT >= 0) t.UltimaVueltaT = Tick - t.InicioVueltaT; t.InicioVueltaT = Tick; }      // la vuelta se mide de salida a salida de la primera parada
+                LimpiarHechos(t); t.Parada = (t.Parada + 1) % l.Paradas.Count; IrAParada(t);
+            }
         }
 
         /// <summary>El recurso que toca mover ahora en esta parada (−1 si nada): descargar lo pedido que lleve, y luego cargar lo pedido que haya y quepa.</summary>
@@ -138,6 +143,18 @@ namespace TBD.Mundo
         static bool Pide(int[] a, int r) { return a != null && r < a.Length && a[r] != 0; }
         static int CargaTotal(Tren t) { int s = 0; foreach (var c in t.Carga) s += c; return s; }
 
+        /// <summary>Texto de la línea para la interfaz (Hugo): «4 cajas por viaje · un viaje cada 7,2 min», con la vuelta medida del primer tren de la línea; «midiendo» hasta la primera vuelta.</summary>
+        public string TextoLinea(int linea)
+        {
+            if (linea < 0 || linea >= Lineas.Count) return "";
+            var p0 = Lineas[linea].Paradas[0]; int cajas = p0.Cargar != null && p0.Cargar.Length > Municion ? p0.Cargar[Municion] : 0;
+            int vuelta = -1; foreach (var t in Trenes) if (t.Linea == linea && t.UltimaVueltaT > 0) { vuelta = t.UltimaVueltaT; break; }
+            string c = cajas < 0 ? "lo que quepa" : cajas + (cajas == 1 ? " caja" : " cajas");
+            if (vuelta < 0) return c + " por viaje · midiendo la vuelta…";
+            int decimas = (vuelta * 10 + IMath.TickRate * 30) / (IMath.TickRate * 60);      // minutos con un decimal, redondeado
+            return $"{c} por viaje · un viaje cada {decimas / 10},{decimas % 10} min";
+        }
+
         /// <summary>Posición del tren (mm) y rumbo (bam16) para la vista. Parado: la del nodo.</summary>
         public PointMm Posicion(Tren t, out int rumbo)
         {
@@ -152,7 +169,7 @@ namespace TBD.Mundo
         public void HashPorSistema(List<KeyValuePair<string, ulong>> salida)
         {
             salida.Add(new KeyValuePair<string, ulong>("red.via", Via.Hash()));
-            ulong ht = 0x51UL; foreach (var t in Trenes) { ht = IMath.Mix(ht ^ (ulong)t.Id ^ ((ulong)(uint)t.Nodo << 8) ^ ((ulong)t.PasoI << 24) ^ ((ulong)(uint)t.OffMm << 32)); ht = IMath.Mix(ht ^ (ulong)(uint)t.VelMmT ^ ((ulong)t.Estado << 20) ^ ((ulong)(uint)(t.Linea + 1) << 24) ^ ((ulong)(uint)t.Parada << 40) ^ ((ulong)(uint)t.EsperaT << 48)); foreach (var ps in t.Ruta) ht = IMath.Mix(ht ^ (ulong)ps.Tramo ^ (ps.Directo ? 1UL << 40 : 0UL)); }
+            ulong ht = 0x51UL; foreach (var t in Trenes) { ht = IMath.Mix(ht ^ (ulong)t.Id ^ ((ulong)(uint)t.Nodo << 8) ^ ((ulong)t.PasoI << 24) ^ ((ulong)(uint)t.OffMm << 32)); ht = IMath.Mix(ht ^ (ulong)(uint)t.VelMmT ^ ((ulong)t.Estado << 20) ^ ((ulong)(uint)(t.Linea + 1) << 24) ^ ((ulong)(uint)t.Parada << 40) ^ ((ulong)(uint)t.EsperaT << 48)); ht = IMath.Mix(ht ^ (ulong)(uint)(t.InicioVueltaT + 1) ^ ((ulong)(uint)(t.UltimaVueltaT + 1) << 32)); foreach (var ps in t.Ruta) ht = IMath.Mix(ht ^ (ulong)ps.Tramo ^ (ps.Directo ? 1UL << 40 : 0UL)); }
             salida.Add(new KeyValuePair<string, ulong>("red.trenes", ht));
             ulong ha = 0x52UL; foreach (var a in Almacen) foreach (var c in a) ha = IMath.Mix(ha ^ (ulong)(uint)c); salida.Add(new KeyValuePair<string, ulong>("red.almacen", ha));
             ulong hc = 0x53UL; foreach (var t in Trenes) foreach (var c in t.Carga) hc = IMath.Mix(hc ^ (ulong)(uint)c); foreach (var kv in _hechoC) foreach (var c in kv.Value) hc = IMath.Mix(hc ^ (ulong)kv.Key ^ (ulong)(uint)c << 16); foreach (var kv in _hechoD) foreach (var c in kv.Value) hc = IMath.Mix(hc ^ (ulong)kv.Key ^ (ulong)(uint)c << 24);
@@ -165,7 +182,7 @@ namespace TBD.Mundo
             foreach (var t in Trenes)
             {
                 h = IMath.Mix(h ^ (ulong)t.Id ^ ((ulong)(uint)t.Nodo << 8) ^ ((ulong)t.PasoI << 24) ^ ((ulong)(uint)t.OffMm << 32));
-                h = IMath.Mix(h ^ (ulong)(uint)t.VelMmT ^ ((ulong)t.Estado << 20) ^ ((ulong)(uint)(t.Linea + 1) << 24) ^ ((ulong)(uint)t.Parada << 40) ^ ((ulong)(uint)t.EsperaT << 48));
+                h = IMath.Mix(h ^ (ulong)(uint)t.VelMmT ^ ((ulong)t.Estado << 20) ^ ((ulong)(uint)(t.Linea + 1) << 24) ^ ((ulong)(uint)t.Parada << 40) ^ ((ulong)(uint)t.EsperaT << 48)); h = IMath.Mix(h ^ (ulong)(uint)(t.InicioVueltaT + 1) ^ ((ulong)(uint)(t.UltimaVueltaT + 1) << 32));
                 foreach (var c in t.Carga) h = IMath.Mix(h ^ (ulong)(uint)c);
                 foreach (var ps in t.Ruta) h = IMath.Mix(h ^ (ulong)ps.Tramo ^ (ps.Directo ? 1UL << 40 : 0UL));
             }
@@ -184,7 +201,7 @@ namespace TBD.Mundo
             foreach (var t in Trenes)
             {
                 w.Str(t.Nombre); w.Int(t.Nodo); w.Int(t.PasoI); w.Int(t.OffMm); w.Int(t.VelMmT); w.Int(t.VmaxMmT); w.Int(t.AccMmT2); w.Byte((byte)t.Estado);
-                w.Int(t.Linea); w.Int(t.Parada); w.Int(t.EsperaT); w.Ints(t.Carga); w.Int(t.Capacidad);
+                w.Int(t.Linea); w.Int(t.Parada); w.Int(t.EsperaT); w.Int(t.InicioVueltaT); w.Int(t.UltimaVueltaT); w.Ints(t.Carga); w.Int(t.Capacidad);
                 w.Int(t.Ruta.Count); foreach (var ps in t.Ruta) { w.Int(ps.Tramo); w.Bool(ps.Directo); }
                 w.Ints(_hechoC.TryGetValue(t.Id, out var hc) ? hc : null); w.Ints(_hechoD.TryGetValue(t.Id, out var hd) ? hd : null);
             }
@@ -199,7 +216,7 @@ namespace TBD.Mundo
             Trenes.Clear(); _hechoC.Clear(); _hechoD.Clear(); int nt = r.Int();
             for (int i = 0; i < nt; i++)
             {
-                var t = new Tren { Id = i, Nombre = r.Str(), Nodo = r.Int(), PasoI = r.Int(), OffMm = r.Int(), VelMmT = r.Int(), VmaxMmT = r.Int(), AccMmT2 = r.Int(), Estado = (EstadoTren)r.Byte(), Linea = r.Int(), Parada = r.Int(), EsperaT = r.Int() };
+                var t = new Tren { Id = i, Nombre = r.Str(), Nodo = r.Int(), PasoI = r.Int(), OffMm = r.Int(), VelMmT = r.Int(), VmaxMmT = r.Int(), AccMmT2 = r.Int(), Estado = (EstadoTren)r.Byte(), Linea = r.Int(), Parada = r.Int(), EsperaT = r.Int(), InicioVueltaT = r.Int(), UltimaVueltaT = r.Int() };
                 var c = r.Ints(); Array.Copy(c, t.Carga, Math.Min(c.Length, Recursos)); t.Capacidad = r.Int();
                 int nr = r.Int(); for (int k = 0; k < nr; k++) t.Ruta.Add(new Via.Paso { Tramo = r.Int(), Directo = r.Bool() });
                 var hc = r.Ints(); if (hc != null) _hechoC[i] = hc; var hd = r.Ints(); if (hd != null) _hechoD[i] = hd;

@@ -54,6 +54,7 @@ namespace TBD.Sim.Tests
                 check(vmax == r.Trenes[tr].VmaxMmT, $"el tren llega a su velocidad máxima ({vmax} mm/tick)");
                 check(tLlegada > 0 && tLlegada < 30 * 300, $"llega a la segunda parada en {tLlegada / 30} s (40 km/h, 60 s de carga en A)");
                 check(vueltas == 3, $"la línea se repite sola: {vueltas} vueltas completas");
+                check(r.TextoLinea(l).StartsWith("4 cajas por viaje · un viaje cada ") && r.TextoLinea(l).EndsWith(" min"), "texto de la línea con la vuelta medida: «" + r.TextoLinea(l) + "»");
                 int vuelta = tV2 - tV1; check(vuelta > 30 * 360 && vuelta < 30 * 480, $"una vuelta tarda {vuelta / 30} s (Hugo: ~405 s con 1250 m; esta vía mide 1502 m)");
                 check(r.Almacen[a][Red.Municion] == 0 && r.Almacen[b][Red.Municion] == 12 && r.Almacen[a][Red.Material] + r.Trenes[tr].Carga[Red.Material] == 6 && r.Almacen[b][Red.Material] == 0, $"lleva 4 cajas por viaje y vuelve con el material: cajas A {r.Almacen[a][0]} / B {r.Almacen[b][0]}, palés A {r.Almacen[a][2]} + {r.Trenes[tr].Carga[2]} a bordo (llega y aún no ha descargado) / B {r.Almacen[b][2]}");
             }
