@@ -13,7 +13,7 @@ puerta_vehiculos_sur;puerta;seg;95000;44000;103000;44000;500;2500;si;si;View/Pro
 muro_sur_e;muro_sacos;seg;103000;44000;156000;44000;500;1200;si;si;Net/NetWorld.cs:1430-1440;
 nido_n;nido;seg;72700;71500;74300;71500;500;1500;si;si;NetWorld.cs:1439 y View/PrototypeBootstrap.cs:2625;a 3,5 m del eje del muro oeste (2,5 m de su cara interior)
 nido_s;nido;seg;72700;57500;74300;57500;500;1500;si;si;NetWorld.cs:1439;ídem
-tren_noche;tren;seg;81000;64500;145000;64500;1000;2200;si;si;Sim/SimTypes.cs:372-381 (TrainNightX 142,5);"tren de Sagunto parado de noche; Id 2"
+tren_noche;tren;seg;160000;64500;224000;64500;1600;2200;si;si;nules.json geometria_nightsim.tren_mm;"Nules A: el tren espera fuera de la puerta este (160000–224000 × 62900–66100); dentro del recinto no hay tren"
 edificio_viajeros;edificio;caja;96500;75000;115500;83800;0;11000;si;si;View/PrototypeBootstrap.cs:1389-1390;5 segmentos de 11 m (Z 75,5..83,3, ±0,5)
 almacen_muelle;edificio;caja;127500;50300;142500;57300;0;5000;si;si;View/PrototypeBootstrap.cs:1391-1392;
 almacen_naranjas;edificio;caja;40000;30000;51000;51000;0;4000;si;si;Sim/SimTypes.cs:367,397 (Roof);"el sólido mide 4 m; el modelo de Teo, 5,5 m de alero y 7,5 m de cumbrera: para la vista, usar 7,5"
