@@ -103,6 +103,7 @@ namespace TBD.View
                 s.Sim = sim; s.Away = true; s.Node = _zoneNode;
                 if (s.Clock == null) { var go = new GameObject("NightClock"); DontDestroyOnLoad(go); s.Clock = go.AddComponent<NightClock>(); } s.Clock.S = s;      // noche con reloj propio (sin red: pruebas)
             }
+            { var sb = new System.Text.StringBuilder(); foreach (var p in _uw.Platoons) sb.Append($" | {(_pname.TryGetValue(p.Id, out var nn) ? nn : "#" + p.Id)} {p.AliveCount()}/{p.Men.Count} ({p.AX / 1000};{p.AY / 1000}){(p.Aboard != 0 ? " a bordo " + p.Aboard : "")}{(_bot != null && _bot.Busy.Contains(p.Id) ? " busy" : "")}"); Debug.Log($"[RELOJ-DIAG] salida de {_estacionZona}: pelotones{sb}; muro {_wallHp:0}/{_wallMax:0}; munición {_uw.StockShots / WeaponCatalog.ShotsPerU} u"); }      // Nacho (I-Noche164)
             Debug.Log($"[NOCHE] salgo al mapa con la noche {(s.Clock == null ? "en la red" : "con reloj propio")}: {sim.ZombiesAlive} zombis pasan a NightSim, hora {_ng.Hour:00}:{_ng.Minute:00}, empezada {(_ng.StartNetTick >= 0 ? "en el tick " + _ng.StartNetTick : "no (espera a las 22:00)")}");
             if (_zomPos.Count > 0 && _zomPos.Count <= 400)      // Nacho (I-Noche167): dónde se quedan los zombis que no mueren (celdas de 10 m, las 12 más llenas)
             {

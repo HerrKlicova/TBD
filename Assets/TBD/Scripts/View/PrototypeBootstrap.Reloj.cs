@@ -43,8 +43,23 @@ namespace TBD.View
             return p;
         }
         /// <summary>Una vez por día de red, antes de las 22:00: la noche siguiente de cada noche registrada (A y B, fuera de Step) y la de la zona abierta.</summary>
+        static long _diagHora = -1;
+        /// <summary>Diagnóstico (Nacho, I-Noche164: la noche 1 de Sagunto fuera de pantalla deja a 0 vivos a casi todos y no da resultado): cada hora de red, el estado de cada
+        /// noche registrada en marcha, con los vivos y la posición de cada pelotón. Solo log.</summary>
+        static void DiagNochesRed(NetWorld a)
+        {
+            long h = a.Tick / NetConst.HourTicks; if (h == _diagHora) return; _diagHora = h;
+            foreach (var kv in a.NochesZona)
+            {
+                if (!(kv.Value is NightSim ns) || ns.Night.StartNetTick < 0) continue;
+                var ses = SesionDe(kv.Key); var sb = new System.Text.StringBuilder();
+                foreach (var p in ns.Units.Platoons) { string n = ses != null && ses.PName.TryGetValue(p.Id, out var nn) ? nn : "#" + p.Id; sb.Append($" | {n} {p.AliveCount()}/{p.Men.Count} ({p.AX / 1000};{p.AY / 1000}){(p.Aboard != 0 ? " a bordo " + p.Aboard : "")}{(ns.Bot != null && ns.Bot.Busy.Contains(p.Id) ? " busy" : "")}"); }
+                Debug.Log($"[RELOJ-DIAG] {NetConst.Clock(a.Tick)} noche de {a.Graph.Nodes[kv.Key].Name}: {ns.Night.State}, tick {ns.Night.Tick}, {ns.ZombiesAlive} zombis vivos ({ns.Spawned} nacidos, {ns.Climbed} dentro), muro {ns.WallHp}/{ns.SP.WallHp}, {ns.SoldierDeaths} soldados caídos, munición {ns.Units.StockShots / WeaponCatalog.ShotsPerU} u{sb}");
+            }
+        }
         public static void AjustarNochesSiguientes()
         {
+            if (NetSession.A != null) DiagNochesRed(NetSession.A);
             var a = NetSession.A; if (a == null || a.NochesZona.Count == 0 && NightRun.Session == null) return;
             int dia = NetWorld.DayOf(a.Tick); if (dia == _diaAjustado) return; _diaAjustado = dia;
             foreach (var w in new[] { a, NetSession.B })
