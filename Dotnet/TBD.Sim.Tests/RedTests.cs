@@ -179,6 +179,27 @@ namespace TBD.Sim.Tests
                     check(rc.Hash() == r.Hash() && rc.Via.EnMar(new PointMm(1_950_000, 900_000)), "la copia de la vista previa (guardar y cargar) también sabe dónde está el mar");
                 }
             }
+            // D-N210 (Lucía): textos del panel de la línea y de la placa del almacén
+            {
+                var r = Hito1(out int a, out int b); r.TrazarVia(Curva()); int tr = r.NuevoTren("Tren 1", a);
+                r.Almacen[a][Red.Municion] = 40; r.Almacen[b][Red.Material] = 20;
+                int l = r.CrearLineaPorDefecto(a, b); r.AsignarTren(l, tr);
+                check(r.TituloLinea(l) == "Línea 1 · Sagunto ⇄ Caserío" && r.CargaLinea(l) == "Lleva 4 cajas de munición por viaje · trae material de vuelta" && r.FrecuenciaLinea(l) == "Midiendo el primer viaje…",
+                    $"panel: «{r.TituloLinea(l)}» · «{r.CargaLinea(l)}» · «{r.FrecuenciaLinea(l)}»");
+                var vistos = new HashSet<string>(); int tick = 0;
+                for (; tick < 30 * 60 * 30; tick++) { r.Step(tick + 1); var e = r.EstadoTrenTexto(tr, out _); vistos.Add(e.StartsWith("Hacia") ? "Hacia" : e); if (tick % 900 == 0 && r.Almacen[b][Red.Municion] > 0) r.Sacar(b, Red.Municion, 1); }      // B gasta 1 caja cada 30 s
+                check(vistos.Contains("Cargando en Sagunto") && vistos.Contains("Hacia") && vistos.Contains("Descargando en Caserío") && vistos.Contains("Cargando en Caserío"), "estado en vivo: " + string.Join(" / ", vistos));
+                var hacia = ""; for (int k = 0; k < 30 * 60 * 6 && !hacia.StartsWith("Hacia"); k++) { r.Step(++tick + 1); hacia = r.EstadoTrenTexto(tr, out _); }
+                check(System.Text.RegularExpressions.Regex.IsMatch(hacia, @"^Hacia (Sagunto|Caserío) · llega en \d+:\d\d$"), $"«{hacia}»");
+                string fr = r.FrecuenciaLinea(l); check(System.Text.RegularExpressions.Regex.IsMatch(fr, @"^Un viaje cada \d+,\d min$") && r.Trenes[tr].PenultimaVueltaT > 0, $"«{fr}» (media de las 2 últimas vueltas: {r.Trenes[tr].UltimaVueltaT / 30} s y {r.Trenes[tr].PenultimaVueltaT / 30} s)");
+                string ex = r.ExistenciasAlmacen(b, 105); check(ex.StartsWith(r.Almacen[b][Red.Municion] + " ") && ex.Contains(" · " + r.Almacen[b][Red.Municion] * 105 + " cartuchos"), $"placa de B: «{ex}»");
+                string tb = r.TendenciaAlmacen(b, out bool amb); check(tb == "Sube" || tb == "Se mantiene" || tb.StartsWith("Se agota en ~"), $"B (recibe 4 por viaje, gasta 1 cada 30 s): «{tb}»{(amb ? " (ámbar)" : "")}");
+                string ta = r.TendenciaAlmacen(a, out _); check(ta.StartsWith("Se agota en ~"), $"A (solo salen cajas): «{ta}»");
+                var w = new SaveWriter(); r.Save(w); var rc = new Red(); rc.Load(new SaveReader(w.ToArray()));
+                check(rc.Hash() == r.Hash() && rc.TendenciaAlmacen(b, out _) == tb && rc.FrecuenciaLinea(l) == fr, "guardar y cargar conserva contadores, fotos y vueltas");
+                var r2 = Hito1(out a, out b); int t2 = r2.NuevoTren("Tren 2", a); int l2 = r2.CrearLineaPorDefecto(a, b); r2.AsignarTren(l2, t2); for (int k = 1; k <= 200; k++) r2.Step(k);
+                check(r2.EstadoTrenTexto(t2, out bool av) == "Parado: no hay vía hasta Caserío" && av, $"sin vía: «{r2.EstadoTrenTexto(t2, out _)}» (ámbar)");
+            }
             // Marcos (Mundo21): soltar a ~20 m de B ya no deja la vía suelta
             {
                 var r = Hito1(out int a, out int b);
