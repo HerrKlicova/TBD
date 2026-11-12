@@ -227,16 +227,16 @@ namespace TBD.Mundo
             var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(13, Screen.height / 60), richText = true };
             float y = Screen.height - 70f;
             PanelLinea(st, y - 8f);
-            GUI.Label(new Rect(16f, y, 900f, 28f), _modo ? "<color=#d4d0cc>Trazar vía: arrastra desde una estación o una vía con el botón izquierdo · Esc cancela" + (R.CuestaMaterial && R.Almacen.Count > 0 ? $" · material en A: {Red.Pales(R.MaterialM(0))} (1 palé = 100 m; las curvas cuentan ×1,5; paso a nivel, 200 m)" : "") + "</color>" : "<color=#8c8a86>T: trazar vía</color>", st);
+            GUI.Label(new Rect(16f, y, Screen.width - 32f, 28f), _modo ? "<color=#d4d0cc>Trazar vía: arrastra desde una estación o una vía con el botón izquierdo · Esc cancela" + (R.CuestaMaterial && R.Almacen.Count > 0 ? $" · material en A: {Red.Pales(R.MaterialM(0))} (1 palé = 100 m; las curvas cuentan ×1,5; paso a nivel, 200 m)" : "") + "</color>" : "<color=#8c8a86>T: trazar vía</color>", st);
             if (_modo && _causa == null && _costePrevia != null && _mb.CamaraMundo != null)
             {
                 var sp = _mb.CamaraMundo.WorldToViewportPoint(_finPrevia);
-                if (sp.z > 0f) GUI.Label(new Rect(Mathf.Min(sp.x * Screen.width + 14f, Screen.width - 820f), (1f - sp.y) * Screen.height + 12f, 800f, 28f), "<color=#d4d0cc>" + _costePrevia + "</color>", st);      // Sara: que no se corte por la derecha
+                if (sp.z > 0f) GUI.Label(new Rect(16f, y - 78f, Screen.width - 32f, 28f), "<color=#d4d0cc>Vista previa: " + _costePrevia + "</color>", st);      // Sara: en la franja de abajo, nunca encima de estaciones o placas      // Sara: que no se corte por la derecha
             }
             if (_modo && _causa != null && _mb.CamaraMundo != null)
             {
                 var sp = _mb.CamaraMundo.WorldToViewportPoint(_finPrevia);
-                if (sp.z > 0f) { float sx = sp.x * Screen.width, sy = (1f - sp.y) * Screen.height; GUI.Label(new Rect(sx - 10f, sy - 14f, 30f, 28f), "<color=#e08c30><b>✕</b></color>", st); GUI.Label(new Rect(Mathf.Min(sx + 18f, Screen.width - 720f), sy + 14f, 700f, 28f), "<color=#e08c30>" + _causa + "</color>", st); }
+                if (sp.z > 0f) { float sx = sp.x * Screen.width, sy = (1f - sp.y) * Screen.height; GUI.Label(new Rect(sx - 10f, sy - 14f, 30f, 28f), "<color=#e08c30><b>✕</b></color>", st); GUI.Label(new Rect(16f, y - 78f, Screen.width - 32f, 28f), "<color=#e08c30>" + _causa + "</color>", st); }
             }
         }
 

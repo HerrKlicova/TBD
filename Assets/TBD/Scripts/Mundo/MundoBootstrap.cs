@@ -313,7 +313,7 @@ namespace TBD.Mundo
         {
             var M = _sim != null ? _sim.M : null; if (M == null || e < 0 || e >= M.Red.Almacen.Count || e > 1) return null;
             var R = M.Red; string ritmo = R.TendenciaAlmacen(e, out bool ambar);
-            return "<color=#d4d0cc>" + R.ExistenciasAlmacen(e, Mundo.CartuchosPorCaja) + "</color>\n" + (ambar ? "<color=#e0b050>" + ritmo + "</color>" : "<color=#a8a49c>" + ritmo + "</color>");
+            return "<color=#d4d0cc>" + R.ExistenciasAlmacen(e, Mundo.CartuchosPorCaja) + "</color>\n" + (ambar ? "<color=#e0b050>" + ritmo + "</color>" : "<color=#c8c4bc>" + ritmo + "</color>");
         }
         /// <summary>Aviso de los palés (Nacho, [MATERIAL]): lo lleva el pelotón o están en el suelo.</summary>
         public string AvisoMaterial { get { var M = _sim != null ? _sim.M : null; if (M == null) return null; if (M.Portador >= 0) return "El pelotón lleva 4 palés a B: va más lento y no dispara"; if (M.MaterialEnSuelo) return "Palés en el suelo: que otro pelotón pase a recogerlos"; return null; } }
@@ -454,7 +454,13 @@ namespace TBD.Mundo
             {
                 var e = _estaciones[ei];
                 var sp = APantalla(e.pos); if (sp.z < 0f) continue; float r = _altura > AlturaIconos ? 14f : 8f;
-                var placa = PlacaAlmacen(ei); if (placa != null) GUI.Label(new Rect(sp.x + r + 4f, sp.y + 10f, 520f, 48f), placa, st);      // D-N210 (Lucía): placa del almacén, siempre visible
+                var placa = PlacaAlmacen(ei);      // D-N210 (Lucía): placa del almacén, siempre visible, con fondo oscuro para leerse sobre el mapa
+                if (placa != null)
+                {
+                    var tam = st.CalcSize(new GUIContent(placa)); float px = Mathf.Min(sp.x + r + 4f, Screen.width - tam.x - 24f), py = sp.y + 12f; if (py + tam.y > Screen.height - 160f) py = sp.y - 18f - tam.y;
+                    GUI.color = new Color(0.06f, 0.07f, 0.05f, 0.82f); GUI.DrawTexture(new Rect(px - 6f, py - 2f, tam.x + 12f, tam.y + 4f), _blanco); GUI.color = Color.white;
+                    GUI.Label(new Rect(px, py, tam.x + 4f, tam.y), placa, st);
+                }
                 ZumEstetica.DibujarIcono(new Vector2(sp.x, sp.y), "estacion", ZumEstetica.IconoPxPantalla(_altura), ZumEstetica.Hueso);      // Bruno: icono de estación
                 GUI.Label(new Rect(sp.x + r + 4f, sp.y - 12f, 220f, 24f), e.nombre, st);
             }
