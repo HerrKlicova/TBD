@@ -84,24 +84,21 @@ namespace TBD.Mundo
             O(30, OrdenesRed.PuntoVia, 1060000, 430000); O(31, OrdenesRed.PuntoVia, 1110000, 700000); O(32, OrdenesRed.PuntoVia, 1150000, 900000); O(33, OrdenesRed.TrazarVia);
             O(40, OrdenesRed.PuntoVia, 1150000, 900000); O(41, OrdenesRed.PuntoVia, 1390000, 1300000); O(42, OrdenesRed.PuntoVia, 1300000, 1640000); O(43, OrdenesRed.TrazarVia);
             O(60, OrdenesRed.PuntoVia, 1060000, 430000); O(61, OrdenesRed.PuntoVia, 1950000, 900000); O(62, OrdenesRed.TrazarVia);          // por el mar: tiene que rechazarse
-            O(90, OrdenesRed.NuevaLinea, 0, 1); O(95, OrdenesRed.AsignarTren, 0, 0);
-            // borrados (106) y parada-depósito (107): con el tren encima se rechaza; por delante se acepta y el tren para en el nodo y busca otra ruta
-            int[] rt = { 2300, 2410, 2500, 3700 };      // -red-ticks a,b,c,d: borrar tramo 0, borrar tramo 1, parada-depósito, re-trazar P→B (para cuadrarlos con el tren; la grabación guarda los ticks)
+            // la línea por defecto la crea la simulación (Red.LineaAuto, tick 60)
+            // borrados (106) y parada-depósito (107), DESPUÉS de la primera entrega (Nacho: no retrasarla), en la vuelta B → P → A:
+            // 106 sobre el tramo 1 con el tren encima → se rechaza; 106 sobre el tramo 0 (por delante) → se acepta, el tren para en P y busca ruta; 107; re-trazado A → P
+            int[] rt = { 6000, 6100, 6200, 7800 };      // -red-ticks a,b,c,d (se cuadran con -trenlog; la grabación guarda los ticks)
             var ca = System.Environment.GetCommandLineArgs(); int ir = System.Array.IndexOf(ca, "-red-ticks");
             if (ir >= 0 && ir + 1 < ca.Length) { var ps = ca[ir + 1].Split(','); for (int k = 0; k < 4 && k < ps.Length; k++) int.TryParse(ps[k], out rt[k]); }
-            O(rt[0], (TipoOrden)106, 0); O(rt[1], (TipoOrden)106, 1); O(rt[2], (TipoOrden)107, 0, 1, -1, 0);
-            O(rt[3], OrdenesRed.PuntoVia, 1150000, 900000); O(rt[3] + 1, OrdenesRed.PuntoVia, 1390000, 1300000); O(rt[3] + 2, OrdenesRed.PuntoVia, 1300000, 1640000); O(rt[3] + 3, OrdenesRed.TrazarVia);
-            O(600, TipoOrden.Mover, pel, 1330000, 1560000, -1); O(1500, TipoOrden.Mover, pel, 1380000, 1520000, -1); O(2400, TipoOrden.Mover, pel, 1500000, 1470000, -1);   // la última, al otro lado del caserío: rodea casas
-            O(3300, TipoOrden.AtacarMoviendo, pel, 1440000, 1480000, -1);
-            O(7500, TipoOrden.Mover, pel, 1295000, 1595000, -1);              // retirada a B (rearme en el almacén de B)
-            O(10500, TipoOrden.AtacarMoviendo, pel, 1440000, 1480000, -1);    // vuelta a limpiar
-            O(12000, TipoOrden.Formacion, pel, (int)Formation.Linea); O(12600, TipoOrden.FuegoLibre, pel, 0); O(13200, TipoOrden.FuegoLibre, pel, 1);
-            O(13500, OrdenesRed.NuevoTren, 0); O(13600, OrdenesRed.AsignarTren, 0, 1);
-            // segundo rearme en B y barrido casa por casa hasta limpiar el caserío (Nacho: limpio → el pelotón coge los 4 palés; los lleva a B y la línea los sube a A)
-            O(12300, TipoOrden.Mover, pel, 1295000, 1595000, -1);
-            int[] barrido = { 1460000, 1440000, 1505000, 1478000, 1462000, 1406000, 1425000, 1400000, 1412000, 1478000, 1465000, 1545000, 1440000, 1460000 };
-            for (int k = 0; k < barrido.Length / 2; k++) O(14000 + 800 * k, TipoOrden.AtacarMoviendo, pel, barrido[2 * k], barrido[2 * k + 1], -1);
-            O(19700, TipoOrden.Mover, pel, 1295000, 1595000, -1);       // con los palés, a B (a 25 m los deja en el almacén)
+            O(rt[0], OrdenesRed.BorrarVia, 1); O(rt[1], OrdenesRed.BorrarVia, 0); O(rt[2], OrdenesRed.AnadirParada, 0, 1, -1, 0);
+            O(rt[3], OrdenesRed.PuntoVia, 1060000, 430000); O(rt[3] + 1, OrdenesRed.PuntoVia, 1110000, 700000); O(rt[3] + 2, OrdenesRed.PuntoVia, 1150000, 900000); O(rt[3] + 3, OrdenesRed.TrazarVia);
+            // pelotón: guion de Nacho (guion_peloton_A.txt) — limpia el caserío con las entregas del tren; limpio → coge los palés y los lleva a B
+            O(600, TipoOrden.Mover, pel, 1330000, 1560000, -1); O(1500, TipoOrden.Mover, pel, 1380000, 1520000, -1); O(2400, TipoOrden.Mover, pel, 1500000, 1470000, -1);
+            O(5800, TipoOrden.AtacarMoviendo, pel, 1440000, 1480000, -1); O(8000, TipoOrden.AtacarMoviendo, pel, 1480000, 1440000, -1);
+            O(9500, TipoOrden.Formacion, pel, 0); O(10000, TipoOrden.FuegoLibre, pel, 0); O(10600, TipoOrden.FuegoLibre, pel, 1);
+            O(12500, TipoOrden.AtacarMoviendo, pel, 1440000, 1480000, -1); O(14000, TipoOrden.AtacarMoviendo, pel, 1480000, 1440000, -1);
+            O(15000, TipoOrden.AtacarMoviendo, pel, 1505000, 1475000, -1); O(16000, TipoOrden.AtacarMoviendo, pel, 1465000, 1395000, -1);
+            O(18500, TipoOrden.AtacarMoviendo, pel, 1420000, 1395000, -1);
             g.Sort((x, y) => x.Tick.CompareTo(y.Tick));      // ticks todos distintos: orden fijo
             return g;
         }
