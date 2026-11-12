@@ -20,7 +20,7 @@ namespace TBD.Mundo
 
         Camera _cam, _pantalla; RenderTexture _rt;
         Vector3 _foco = new Vector3(1180f, 0f, 1040f); float _altura = 1800f, _alturaObj = 1800f, _yaw = 0f;
-        Texture2D _blanco; bool _fpsLog; int _fpsN; float _fpsT, _fps;
+        Texture2D _blanco; bool _camGuion; float _camT0; bool _fpsLog; int _fpsN; float _fpsT, _fps;
 
         readonly List<Transform> _soldados = new List<Transform>();
         readonly List<(Transform t, Vector3 vel, bool vivo)> _zombis = new List<(Transform, Vector3, bool)>();
@@ -33,7 +33,7 @@ namespace TBD.Mundo
         {
             Application.targetFrameRate = 120; if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-fpslog") >= 0) { _fpsLog = true; QualitySettings.vSyncCount = 0; Application.targetFrameRate = -1; }
             { var ca = System.Environment.GetCommandLineArgs(); for (int i = 0; i + 1 < ca.Length; i++) if (ca[i] == "-altura" && float.TryParse(ca[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var hh)) { _altura = _alturaObj = hh; } }
-            _blanco = Texture2D.whiteTexture;
+            _blanco = Texture2D.whiteTexture; _camGuion = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-camguion") >= 0; _camT0 = Time.unscaledTime; if (_camGuion) Debug.Log("[MUNDO] -camguion: recorrido de cámara de 90 s en bucle");
             MontarCamaras();
             var ter = MontarTerrenoAlvaro();
             if (ter == null) { MontarTerreno(); MontarEstacion("Sagunto", new Vector3(700f, 0f, 1000f)); MontarEstacion("Nules", new Vector3(1450f, 0f, 760f)); MontarCaserio(new Vector3(1150f, 0f, 1350f)); MontarPeloton(new Vector3(760f, 0f, 980f)); }
@@ -94,6 +94,14 @@ namespace TBD.Mundo
                 }
                 if (!TrazandoVia && ms.leftButton.wasPressedThisFrame && Suelo(ms.position.ReadValue(), out var q)) _seleccionado = Vector3.Distance(q, Centro()) < Mathf.Max(15f, _altura * 0.05f);
                 if (!TrazandoVia && ms.rightButton.wasPressedThisFrame && _seleccionado && Suelo(ms.position.ReadValue(), out var d)) { _destino = d; _sim?.Mover((int)(d.x * 1000f), (int)(d.z * 1000f)); }
+            }
+            if (_camGuion)      // Sara (H3): recorrido de cámara por guion — mapa, baja a soldado sobre el pelotón en el combate y vuelve al mapa; solo vista
+            {
+                float tc = Time.unscaledTime - _camT0, ciclo = tc % 90f;
+                if (ciclo < 15f) { _alturaObj = 2500f; _foco = Vector3.Lerp(_foco, new Vector3(1300f, 0f, 1200f), dt); }
+                else if (ciclo < 45f) { _alturaObj = 8f; _foco = Vector3.Lerp(_foco, Centro(), 3f * dt); _yaw += 20f * dt; }
+                else if (ciclo < 70f) { _alturaObj = 120f; _foco = Vector3.Lerp(_foco, new Vector3(1440f, 0f, 1480f), dt); }
+                else { _alturaObj = 3800f; }
             }
             _foco.x = Mathf.Clamp(_foco.x, 0f, Lado); _foco.z = Mathf.Clamp(_foco.z, 0f, Lado); _foco = EnSuelo(_foco);
             _altura = Mathf.Lerp(_altura, _alturaObj, 1f - Mathf.Exp(-10f * dt));
