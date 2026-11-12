@@ -287,6 +287,18 @@ namespace TBD.Mundo
             return new Resultado { Ok = true, Tramo = t.Id, RadioMinMm = rmin };
         }
 
+        /// <summary>Sara (Mundo25): una vía que acaba suelta (su extremo B no es estación ni lo toca otro tramo) a menos de AvisoSueltaMm de una estación:
+        /// «acaba suelta: no llega a la estación B (a 53 m)». No la rechaza (un extremo libre es válido); la vista previa lo avisa. null si no hay nada que avisar.</summary>
+        public const int AvisoSueltaMm = 100_000;
+        public string AvisoFinal(int tramo)
+        {
+            if (tramo < 0 || tramo >= Tramos.Count) return null; var t = Tramos[tramo]; int n = t.B;
+            foreach (var e in Estaciones) if (e.Nodo == n) return null;
+            foreach (var o in Tramos) if (o.Id != tramo && !o.Borrado && (o.A == n || o.B == n)) return null;
+            string mejor = null; long bd = (long)AvisoSueltaMm * AvisoSueltaMm; int dm = 0;
+            foreach (var e in Estaciones) { var q = Nodos[e.Nodo]; long dx = q.X - Nodos[n].X, dy = q.Y - Nodos[n].Y, d = dx * dx + dy * dy; if (d < bd) { bd = d; mejor = e.Nombre; dm = IMath.Dist((int)dx, (int)dy); } }
+            return mejor == null ? null : $"acaba suelta: no llega a la estación {mejor} (a {dm / 1000} m)";
+        }
         public const int AyudaEncajeMm = 40_000;      // a menos de esto del final, el trazo se lleva hasta la estación o vía
         string NombreNodo(int n) { foreach (var e in Estaciones) if (e.Nodo == n) return "la estación " + e.Nombre; return "la vía"; }
         public int NodoCerca(int x, int y) { return NodoCerca(x, y, EncajeMm); }

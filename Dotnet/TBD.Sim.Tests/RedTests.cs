@@ -215,6 +215,17 @@ namespace TBD.Sim.Tests
                 check(no.Ok ? r2.Via.Tramos[no.Tramo].B == r2.Via.Estaciones[b].Nodo && r2.Via.Nodos.Count == 2 : (no.Por.Contains("no llega a la estación") || no.Por.Contains("curva")) && r2.Via.Tramos.Count == 0,
                     $"llegando de lado a B: o encaja en B o se rechaza diciendo por qué; nunca queda un extremo suelto junto a la estación ({(no.Ok ? "encaja" : no.Por)})");
             }
+            // Sara (Mundo25): la vía que acaba suelta a 40–100 m de una estación se acepta, pero se avisa
+            {
+                var r = Hito1(out int a, out int b);
+                var res = r.TrazarVia(new List<PointMm> { new PointMm(200_000, 1_000_000), new PointMm(900_000, 1_150_000), new PointMm(1_550_000, 1_290_000) });      // acaba a ~51 m de B
+                string av = res.Ok ? r.Via.AvisoFinal(res.Tramo) : null;
+                check(res.Ok && av != null && av.StartsWith("acaba suelta: no llega a la estación Caserío (a "), $"se acepta y avisa: «{av}»");
+                var r2 = Hito1(out a, out b); var ok = r2.TrazarVia(Curva());
+                check(ok.Ok && r2.Via.AvisoFinal(ok.Tramo) == null, "la que encaja en B no avisa");
+                var r3 = Hito1(out a, out b); var lejos = r3.TrazarVia(new List<PointMm> { new PointMm(200_000, 1_000_000), new PointMm(700_000, 1_000_000) });
+                check(lejos.Ok && r3.Via.AvisoFinal(lejos.Tramo) == null, "la que acaba lejos de toda estación (como A → P) no avisa");
+            }
             // coste de material (Hugo, cifras-hito1): en metros enteros (1 palé = 100 m), curvas ×1,5, paso a nivel 200 m; borrar devuelve el 100 %
             {
                 check(Via.CosteMetros(new[] { Via.Pieza.Recta10 }, 0) == 10 && Via.CosteMetros(new[] { Via.Pieza.Izq60 }, 0) == 24 && Via.CosteMetros(new[] { Via.Pieza.Recta2_5 }, 1) == 203, "coste: recta de 10 m = 10 m; curva de 15,71 m = 24 m (×1,5); recta de 2,5 m + paso a nivel = 203 m");

@@ -171,6 +171,8 @@ namespace TBD.Mundo
                 int extraCurvas = (int)(curvasMm / 1000), base_ = tn.Coste - extraCurvas - 200 * pasos;
                 // Sara (S2): desglose corto para que cuadre a simple vista
                 _costePrevia = $"{base_} m de vía + {extraCurvas} m por curvas{(pasos > 0 ? $" + {200 * pasos} m por {pasos} paso{(pasos > 1 ? "s" : "")} a nivel" : "")} · cuesta {Red.Pales(tn.Coste)} · a {copia.Via.Estaciones[tn.Pago].Nombre} le quedan {Red.Pales(copia.MaterialM(tn.Pago))}"; }
+            string suelta = r.Ok ? copia.Via.AvisoFinal(r.Tramo) : null;      // Sara (Mundo25): avisar de la vía suelta junto a una estación
+            if (suelta != null) _costePrevia = (_costePrevia != null ? _costePrevia + " · " : "") + "<color=#e0b050>" + suelta + "</color>";
             var pts = r.Ok ? copia.Via.Tramos[r.Tramo].Puntos : _trazo.ToArray();
             BorrarPrevia(); _previa = new GameObject("Vía · vista previa");
             if (_valida)
