@@ -60,6 +60,7 @@ namespace TBD.Mundo
                 if (_salirEn > 0 && M.Tick >= _salirEn) { Cerrar(); _salirEn = 0; Application.Quit(); return; }
                 if (_reproducir != null) while (_ri < _reproducir.Count && _reproducir[_ri].Tick <= M.Tick) M.Encolar(_reproducir[_ri++]);
                 M.Step(); _acc -= Dt; n++;
+                if (_trenlog && M.Tick % 30 == 0) foreach (var t in M.Red.Trenes) Debug.Log($"[TREN] tick {M.Tick} {t.Nombre} {t.Estado} línea {t.Linea} paso {t.PasoI}/{t.Ruta.Count} tramo {(t.Ruta.Count > t.PasoI ? t.Ruta[t.PasoI].Tramo : -1)} off {t.OffMm / 1000} m");      // QA: solo lee
                 if (_hash != null || _refHash != null)
                 {
                     var l = M.LineaHash(); _hash?.WriteLine(l);
@@ -71,7 +72,7 @@ namespace TBD.Mundo
 
 
 
-        List<Orden> _guion; int _gi, _turbo = 1, _salirEn; bool _cerrado;
+        List<Orden> _guion; int _gi, _turbo = 1, _salirEn; bool _cerrado; readonly bool _trenlog = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-trenlog") >= 0;
         /// <summary>Guion de la prueba exigente (bateria-hash.md, H1): vía A–B con curva y un trazado inválido, línea A→B con el tren, el pelotón en varias órdenes
         /// hasta el caserío (rodeando casas), combate, retirada a B, rearme y vuelta, segundo tren, formación y alto el fuego. Ticks y mm fijos: los dos jugadores iguales.</summary>
         List<Orden> Guion()
@@ -84,8 +85,11 @@ namespace TBD.Mundo
             O(60, OrdenesRed.PuntoVia, 1060000, 430000); O(61, OrdenesRed.PuntoVia, 1950000, 900000); O(62, OrdenesRed.TrazarVia);          // por el mar: tiene que rechazarse
             O(90, OrdenesRed.NuevaLinea, 0, 1); O(95, OrdenesRed.AsignarTren, 0, 0);
             // borrados (106) y parada-depósito (107): con el tren encima se rechaza; por delante se acepta y el tren para en el nodo y busca otra ruta
-            O(2300, (TipoOrden)106, 0); O(2410, (TipoOrden)106, 1); O(2500, (TipoOrden)107, 0, 1, -1, 0);
-            O(2700, OrdenesRed.PuntoVia, 1150000, 900000); O(2701, OrdenesRed.PuntoVia, 1390000, 1300000); O(2702, OrdenesRed.PuntoVia, 1300000, 1640000); O(2703, OrdenesRed.TrazarVia);
+            int[] rt = { 2300, 2410, 2500, 3700 };      // -red-ticks a,b,c,d: borrar tramo 0, borrar tramo 1, parada-depósito, re-trazar P→B (para cuadrarlos con el tren; la grabación guarda los ticks)
+            var ca = System.Environment.GetCommandLineArgs(); int ir = System.Array.IndexOf(ca, "-red-ticks");
+            if (ir >= 0 && ir + 1 < ca.Length) { var ps = ca[ir + 1].Split(','); for (int k = 0; k < 4 && k < ps.Length; k++) int.TryParse(ps[k], out rt[k]); }
+            O(rt[0], (TipoOrden)106, 0); O(rt[1], (TipoOrden)106, 1); O(rt[2], (TipoOrden)107, 0, 1, -1, 0);
+            O(rt[3], OrdenesRed.PuntoVia, 1150000, 900000); O(rt[3] + 1, OrdenesRed.PuntoVia, 1390000, 1300000); O(rt[3] + 2, OrdenesRed.PuntoVia, 1300000, 1640000); O(rt[3] + 3, OrdenesRed.TrazarVia);
             O(600, TipoOrden.Mover, pel, 1330000, 1560000, -1); O(1500, TipoOrden.Mover, pel, 1380000, 1520000, -1); O(2400, TipoOrden.Mover, pel, 1500000, 1470000, -1);   // la última, al otro lado del caserío: rodea casas
             O(3300, TipoOrden.AtacarMoviendo, pel, 1440000, 1480000, -1);
             O(7500, TipoOrden.Mover, pel, 1295000, 1595000, -1);              // retirada a B (rearme en el almacén de B)
