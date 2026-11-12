@@ -46,6 +46,7 @@ namespace TBD.Mundo
             }
             Debug.Log($"[MUNDO] simulación de Nacho: {M.Zombis.Lista.Count} zombis, {casas.Count} casas, pelotón {Peloton}");
             for (int i = 0; i < ca.Length; i++) { if (ca[i] == "-guion" && _reproducir == null) _guion = Guion(); if (ca[i] == "-turbo" && i + 1 < ca.Length) int.TryParse(ca[i + 1], out _turbo); if (ca[i] == "-salir-en" && i + 1 < ca.Length) int.TryParse(ca[i + 1], out _salirEn); }
+            if (_refHash != null && _salirEn <= 0 && _refPorTick.Count > 0) { foreach (var k in _refPorTick.Keys) if (k > _salirEn) _salirEn = k; Debug.Log($"[MUNDO] reproducción: salgo en el tick {_salirEn} (el último de la referencia)"); }      // H2: sin esto la B seguía sola sin fin
             if (_guion != null) Debug.Log($"[MUNDO] -guion: {_guion.Count} órdenes por guion (prueba exigente de Sara)");
             LineaInicial();      // tick 0
         }
@@ -57,7 +58,7 @@ namespace TBD.Mundo
             while (_acc >= Dt && n < 8 * System.Math.Max(1, _turbo))
             {
                 if (_guion != null) while (_gi < _guion.Count && _guion[_gi].Tick <= M.Tick) M.Encolar(_guion[_gi++]);
-                if (_salirEn > 0 && M.Tick >= _salirEn) { Cerrar(); _salirEn = 0; Application.Quit(); return; }
+                if (_salirEn > 0 && M.Tick >= _salirEn) { if (_trenlog) foreach (var z in M.Zombis.Lista) if (z.Vivo) Debug.Log($"[ZOMBI] vivo en ({z.X / 1000}; {z.Y / 1000}) m"); Cerrar(); _salirEn = 0; Application.Quit(); return; }
                 if (_reproducir != null) while (_ri < _reproducir.Count && _reproducir[_ri].Tick <= M.Tick) M.Encolar(_reproducir[_ri++]);
                 M.Step(); _acc -= Dt; n++;
                 if (_trenlog && M.Tick % 30 == 0) foreach (var t in M.Red.Trenes) Debug.Log($"[TREN] tick {M.Tick} {t.Nombre} {t.Estado} línea {t.Linea} paso {t.PasoI}/{t.Ruta.Count} tramo {(t.Ruta.Count > t.PasoI ? t.Ruta[t.PasoI].Tramo : -1)} off {t.OffMm / 1000} m · carga {t.Carga[Red.Municion]} cajas {t.Carga[Red.Material]} palés · A {M.Red.Almacen[0][Red.Municion]} cajas {M.Red.Almacen[0][Red.Material]} palés · B {M.Red.Almacen[1][Red.Municion]} cajas {M.Red.Almacen[1][Red.Material]} palés");      // QA: solo lee
