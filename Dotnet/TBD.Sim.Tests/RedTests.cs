@@ -203,7 +203,7 @@ namespace TBD.Sim.Tests
                 var w = new SaveWriter(); r.Save(w); var rc = new Red(); rc.Load(new SaveReader(w.ToArray()));
                 check(rc.Hash() == r.Hash() && rc.TendenciaAlmacen(b, out _) == tb && rc.FrecuenciaLinea(l) == fr, "guardar y cargar conserva contadores, fotos y vueltas");
                 var r2 = Hito1(out a, out b); int t2 = r2.NuevoTren("Tren 2", a); int l2 = r2.CrearLineaPorDefecto(a, b); r2.AsignarTren(l2, t2); for (int k = 1; k <= 200; k++) r2.Step(k);
-                check(r2.EstadoTrenTexto(t2, out bool av) == "Parado: no hay vía hasta Caserío" && av, $"sin vía: «{r2.EstadoTrenTexto(t2, out _)}» (ámbar)");
+                check(r2.EstadoTrenTexto(t2, out bool av) == "Sin vía entre Sagunto y Caserío" && av, $"sin vía: «{r2.EstadoTrenTexto(t2, out _)}» (ámbar)");
             }
             // Marcos (Mundo21): soltar a ~20 m de B ya no deja la vía suelta
             {
@@ -215,12 +215,31 @@ namespace TBD.Sim.Tests
                 check(no.Ok ? r2.Via.Tramos[no.Tramo].B == r2.Via.Estaciones[b].Nodo && r2.Via.Nodos.Count == 2 : (no.Por.Contains("no llega a la estación") || no.Por.Contains("curva")) && r2.Via.Tramos.Count == 0,
                     $"llegando de lado a B: o encaja en B o se rechaza diciendo por qué; nunca queda un extremo suelto junto a la estación ({(no.Ok ? "encaja" : no.Por)})");
             }
+            // D-N211 c: «B llena»: el tren descarga lo que cabe y vuelve con el resto; la placa dice «Lleno» en ámbar
+            {
+                var m = new TBD.Mundo.Mundo(7u, 2_000_000, 2_000_000);
+                m.Red.AddEstacion("A", 200_000, 1_000_000); m.Red.AddEstacion("B", 1_600_000, 1_300_000); m.Red.Almacen[0][0] = 12;
+                foreach (var p in Curva()) m.Encolar(new Orden { Tick = 2, Jugador = 1, Tipo = OrdenesRed.PuntoVia, A = p.X, B = p.Y });
+                m.Encolar(new Orden { Tick = 3, Jugador = 1, Tipo = OrdenesRed.TrazarVia });
+                m.Encolar(new Orden { Tick = 4, Jugador = 1, Tipo = OrdenesRed.PruebaAlmacen, A = 1, B = 8, C = 6 });      // B casi llena: 6 de 8
+                m.Encolar(new Orden { Tick = 5, Jugador = 1, Tipo = OrdenesRed.NuevoTren, A = 0 });
+                m.Encolar(new Orden { Tick = 6, Jugador = 1, Tipo = OrdenesRed.NuevaLinea, A = 0, B = 1 });
+                m.Encolar(new Orden { Tick = 7, Jugador = 1, Tipo = OrdenesRed.AsignarTren, A = 0, B = 0 });
+                var R = m.Red; string visto = null; bool ambarB = false; string placa = null;
+                for (int k = 0; k < 30 * 60 * 8 && visto == null; k++) { m.Step(); var e = R.EstadoTrenTexto(0, out bool av); if (e.Contains("llena")) { visto = e; placa = R.TendenciaAlmacen(1, out ambarB); } }
+                check(visto != null && visto.StartsWith("B llena: vuelven 2 cajas · Hacia A"), $"panel: «{visto}»");
+                check(R.Almacen[1][Red.Municion] == 8 && R.Trenes[0].Carga[Red.Municion] == 2 && placa == "Lleno" && ambarB, $"B se queda en 8 (lleno), el tren lleva 2 de vuelta y la placa dice «{placa}» en ámbar");
+                int cargaA = -1; for (int k = 0; k < 30 * 60 * 6; k++) { m.Step(); if (R.Trenes[0].Estado == EstadoTren.EnMarcha && R.Trenes[0].Parada == 1) { cargaA = R.Trenes[0].Carga[Red.Municion]; break; } }
+                check(cargaA > 0 && cargaA <= 6, $"en A no pasa de sus 6 huecos y vuelve hacia B con {cargaA} cajas");
+                var w = new SaveWriter(); R.Save(w); var rc = new Red(); rc.Load(new SaveReader(w.ToArray()));
+                check(rc.Hash() == R.Hash() && rc.CapacidadCajas[1] == 8, "guardar y cargar conserva la capacidad y lo que vuelve");
+            }
             // Sara (Mundo25): la vía que acaba suelta a 40–100 m de una estación se acepta, pero se avisa
             {
                 var r = Hito1(out int a, out int b);
                 var res = r.TrazarVia(new List<PointMm> { new PointMm(200_000, 1_000_000), new PointMm(900_000, 1_150_000), new PointMm(1_550_000, 1_290_000) });      // acaba a ~51 m de B
                 string av = res.Ok ? r.Via.AvisoFinal(res.Tramo) : null;
-                check(res.Ok && av != null && av.StartsWith("acaba suelta: no llega a la estación Caserío (a "), $"se acepta y avisa: «{av}»");
+                check(res.Ok && av != null && av.StartsWith("Acaba suelta: no llega a Caserío (a "), $"se acepta y avisa: «{av}»");
                 var r2 = Hito1(out a, out b); var ok = r2.TrazarVia(Curva());
                 check(ok.Ok && r2.Via.AvisoFinal(ok.Tramo) == null, "la que encaja en B no avisa");
                 var r3 = Hito1(out a, out b); var lejos = r3.TrazarVia(new List<PointMm> { new PointMm(200_000, 1_000_000), new PointMm(700_000, 1_000_000) });

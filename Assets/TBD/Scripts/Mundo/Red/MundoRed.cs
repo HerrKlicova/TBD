@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using TBD.Units;
 
@@ -14,6 +15,7 @@ namespace TBD.Mundo
         public const TipoOrden AsignarTren = (TipoOrden)104;    // A = línea, B = tren
         public const TipoOrden NuevoTren = (TipoOrden)105;      // A = estación
         public const TipoOrden BorrarVia = (TipoOrden)106;      // A = tramo. Con un tren encima se rechaza; los que lo iban a cruzar paran en el nodo siguiente y se reencaminan
+        public const TipoOrden PruebaAlmacen = (TipoOrden)108;  // solo pruebas (D-N211 c, «B llena»): A = estación, B = capacidad en cajas (0 = sin límite), C = cajas que tiene ahora
         public const TipoOrden AnadirParada = (TipoOrden)107;   // A = línea, B = estación, C = posición (−1 = al final), D = cajas de munición a cargar (0 = depósito: descarga toda la munición)
     }
 
@@ -38,6 +40,7 @@ namespace TBD.Mundo
                     }
                 case OrdenesRed.AsignarTren: Red.AsignarTren(o.A, o.B); break;
                 case OrdenesRed.BorrarVia: Red.BorrarVia(o.A); break;
+                case OrdenesRed.PruebaAlmacen: if (o.A >= 0 && o.A < Red.Almacen.Count) { Red.CapacidadCajas[o.A] = Math.Max(0, o.B); Red.Almacen[o.A][Red.Municion] = Math.Max(0, o.C); } break;
                 case OrdenesRed.AnadirParada:
                     {
                         var c = new int[Red.Recursos]; var d = new int[Red.Recursos];

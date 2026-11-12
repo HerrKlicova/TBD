@@ -297,7 +297,7 @@ namespace TBD.Mundo
             foreach (var o in Tramos) if (o.Id != tramo && !o.Borrado && (o.A == n || o.B == n)) return null;
             string mejor = null; long bd = (long)AvisoSueltaMm * AvisoSueltaMm; int dm = 0;
             foreach (var e in Estaciones) { var q = Nodos[e.Nodo]; long dx = q.X - Nodos[n].X, dy = q.Y - Nodos[n].Y, d = dx * dx + dy * dy; if (d < bd) { bd = d; mejor = e.Nombre; dm = IMath.Dist((int)dx, (int)dy); } }
-            return mejor == null ? null : $"acaba suelta: no llega a la estación {mejor} (a {dm / 1000} m)";
+            return mejor == null ? null : $"Acaba suelta: no llega a {mejor} (a {dm / 1000} m)";      // D-N211 b
         }
         public const int AyudaEncajeMm = 40_000;      // a menos de esto del final, el trazo se lleva hasta la estación o vía
         string NombreNodo(int n) { foreach (var e in Estaciones) if (e.Nodo == n) return "la estación " + e.Nombre; return "la vía"; }
