@@ -19,7 +19,7 @@ namespace TBD.Mundo
         public EstadoTren Estado;
         public int Linea = -1, Parada, EsperaT;
         public int InicioVueltaT = -1, UltimaVueltaT = -1;      // Hugo: el texto de la línea saca el tiempo de la vuelta medida, no de un número fijo
-        public readonly int[] Carga = new int[Red.Recursos]; public int Capacidad = 6;      // Hugo: 6 huecos (2 vagones de 3); 1 hueco = 1 caja de munición (120 cartuchos) o 1 palé de material (100 m de vía)
+        public readonly int[] Carga = new int[Red.Recursos]; public int Capacidad = 6;      // Hugo: 6 huecos (2 vagones de 3); 1 hueco = 1 caja de munición (105 cartuchos = 3 cargadores de 35, Mundo.CartuchosPorCaja) o 1 palé de material (100 m de vía)
         /// <summary>Distancia que queda hasta el final de la ruta (mm).</summary>
         public int Restante(Via v) { if (Ruta.Count == 0) return 0; long r = v.Tramos[Ruta[PasoI].Tramo].LongMm - OffMm; for (int i = PasoI + 1; i < Ruta.Count; i++) r += v.Tramos[Ruta[i].Tramo].LongMm; return (int)Math.Min(r, int.MaxValue); }
     }
@@ -34,7 +34,7 @@ namespace TBD.Mundo
     /// </summary>
     public sealed class Red
     {
-        public const int Recursos = 4;                     // 0 munición (cajas de 120 cartuchos), 1 combustible, 2 material de vía (palés de 100 m), 3 víveres; Hito 1: munición y material
+        public const int Recursos = 4;                     // 0 munición (cajas de 105 cartuchos, Mundo.CartuchosPorCaja), 1 combustible, 2 material de vía (palés de 100 m), 3 víveres; Hito 1: munición y material
         public const int Municion = 0, Material = 2;
         public const int TicksPorU = 450;                  // Hugo: 15 s por hueco cargado o descargado
         public const int EsperaMinT = 90;                  // al menos 3 s parado en cada parada (además de la carga)
