@@ -296,7 +296,17 @@ namespace TBD.Mundo
                 _trazadoras.Add((a + Vector3.up * 1.4f, b, Time.time + 0.08f));
             }
             _trazadoras.RemoveAll(x => x.hasta < Time.time);
+            // Nacho: palés del caserío en el suelo (cayó su portador). Solo se dibuja: el estado es de la simulación.
+            if (M.MaterialEnSuelo)
+            {
+                if (_montonPales == null) _montonPales = Caja("Palés en el suelo", Vector3.zero, new Vector3(2.4f, 1.2f, 2.4f), Plano(new Color32(0x8c, 0x6c, 0x40, 255)), transform).transform;
+                _montonPales.gameObject.SetActive(true); _montonPales.position = EnSuelo(new Vector3(M.SueloX / 1000f, 0f, M.SueloY / 1000f)) + Vector3.up * 0.6f;
+            }
+            else if (_montonPales != null) _montonPales.gameObject.SetActive(false);
         }
+        Transform _montonPales;
+        /// <summary>Aviso de los palés (Nacho, [MATERIAL]): lo lleva el pelotón o están en el suelo.</summary>
+        public string AvisoMaterial { get { var M = _sim != null ? _sim.M : null; if (M == null) return null; if (M.Portador >= 0) return "El pelotón lleva 4 palés a B: va más lento y no dispara"; if (M.MaterialEnSuelo) return "Palés en el suelo: que otro pelotón pase a recogerlos"; return null; } }
         void OnApplicationQuit() { _sim?.Cerrar(); }
 
         // ------------------------------------------------------------------ terreno y posiciones de Álvaro (StreamingAssets/Hito1)
@@ -430,6 +440,7 @@ namespace TBD.Mundo
             GUI.color = new Color32(0xf0, 0xdc, 0x9c, 255);
             foreach (var t in _trazadoras) { var a = APantalla(t.a); var b = APantalla(t.b); if (a.z > 0f && b.z > 0f) Linea(a, b); }
             GUI.color = Color.white;
+            var aviso = AvisoMaterial; if (aviso != null) GUI.Label(new Rect(16f, 40f, 900f, 26f), "<color=#e0b050>" + aviso + "</color>", st);
             int vivos = 0; foreach (var z in _zombis) if (z.vivo) vivos++;
             GUI.Label(new Rect(16f, 12f, 900f, 26f), $"Mundo (prototipo de zum) · {_fps:0} fps · altura {_altura:0} m · {(_altura > AlturaIconos ? "mapa" : "detalle")} · zombis {vivos}/100 · rueda: zum · WASD: mover · clic dcho: mandar el pelotón", st);
         }
