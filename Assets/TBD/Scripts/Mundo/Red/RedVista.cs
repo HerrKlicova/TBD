@@ -195,15 +195,38 @@ namespace TBD.Mundo
 
         void BorrarPrevia() { if (_previa != null) Destroy(_previa); _previa = null; }
 
+        // ---------------------------------------------------------------- D-N210 (Lucía): panel de la línea (Iker) · las placas de almacén en el mundo las dibuja Marcos
+        static readonly string[] ColorLinea = { "#d9b45a", "#6fa8c8", "#c8746f", "#8fbf7a" };      // por índice de línea
+        void PanelLinea(GUIStyle st, float base_)
+        {
+            float h = st.fontSize + 9f, y = base_;
+            var filas = new List<string>();
+            for (int l = R.Lineas.Count - 1; l >= 0; l--)
+            {
+                int tren = -1; for (int k = 0; k < R.Trenes.Count; k++) if (R.Trenes[k].Linea == l) { tren = k; break; }
+                string estado = tren >= 0 ? R.EstadoTrenTexto(tren, out bool aviso) : "Sin tren"; bool av = tren >= 0 && R.Trenes[tren].Estado == EstadoTren.Parado;
+                filas.Add((av ? "<color=#e0b050>" : "<color=#d4d0cc>") + estado + "</color>");
+                filas.Add("<color=#a8a49e>" + R.CargaLinea(l) + " · " + R.FrecuenciaLinea(l) + "</color>");
+                filas.Add($"<color={ColorLinea[l % ColorLinea.Length]}><b>■ {R.TituloLinea(l)}</b></color>");
+            }
+            if (R.Almacen.Count >= 2 && !PlacasEnMundo)      // hasta que Marcos dibuje las placas en las estaciones: una fila por almacén
+                for (int e = Mathf.Min(R.Almacen.Count, 2) - 1; e >= 0; e--)
+                {
+                    string t = R.TendenciaAlmacen(e, out bool amb);
+                    filas.Insert(0, $"<color=#d4d0cc>{R.Via.Estaciones[e].Nombre}: {R.ExistenciasAlmacen(e, Mundo.CartuchosPorCaja)} · </color>" + (amb ? "<color=#e0b050>" : "<color=#a8a49e>") + t + "</color>");
+                }
+            foreach (var f in filas) { y -= h; GUI.Label(new Rect(16f, y, Screen.width - 32f, h + 2f), f, st); }
+        }
+        /// <summary>Marcos: ponlo a true cuando las placas de A y B se dibujen en el mundo (ExistenciasAlmacen / TendenciaAlmacen de la Red), y el panel deja de repetirlas.</summary>
+        public static bool PlacasEnMundo = true;      // Marcos ya las dibuja (96cf29c4, MundoBootstrap.PlacaAlmacen)
+
         void OnGUI()
         {
             GUI.depth = -10;      // encima de la pantalla del zum (MundoBootstrap dibuja la RT a pantalla completa)
             if (R == null) return;
             var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(13, Screen.height / 60), richText = true };
             float y = Screen.height - 70f;
-            if (_linea >= 0 && _linea < R.Lineas.Count) GUI.Label(new Rect(16f, y - 26f, Screen.width - 32f, 28f), "<color=#d4d0cc>Línea A–B · " + R.TextoLinea(_linea) + $" · A {R.Almacen[0][Red.Municion]} cajas · B {R.Almacen[1][Red.Municion]} cajas · material: A {Red.Pales(R.MaterialM(0))}, B {Red.Pales(R.MaterialM(1))}</color>", st);
-            foreach (var tr in R.Trenes) if (tr.Estado == EstadoTren.Parado && tr.Linea >= 0 && tr.Linea < R.Lineas.Count && tr.Parada < R.Lineas[tr.Linea].Paradas.Count)
-            { GUI.Label(new Rect(16f, y - 52f, 1100f, 28f), $"<color=#e0b050>{tr.Nombre} parado: no hay vía hasta {R.Via.Estaciones[R.Lineas[tr.Linea].Paradas[tr.Parada].Estacion].Nombre}</color>", st); }
+            PanelLinea(st, y - 8f);
             GUI.Label(new Rect(16f, y, 900f, 28f), _modo ? "<color=#d4d0cc>Trazar vía: arrastra desde una estación o una vía con el botón izquierdo · Esc cancela" + (R.CuestaMaterial && R.Almacen.Count > 0 ? $" · material en A: {Red.Pales(R.MaterialM(0))} (1 palé = 100 m; las curvas cuentan ×1,5; paso a nivel, 200 m)" : "") + "</color>" : "<color=#8c8a86>T: trazar vía</color>", st);
             if (_modo && _causa == null && _costePrevia != null && _mb.CamaraMundo != null)
             {
