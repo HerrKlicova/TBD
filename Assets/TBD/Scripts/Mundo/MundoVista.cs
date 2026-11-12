@@ -97,8 +97,7 @@ namespace TBD.Mundo
             O(5800, TipoOrden.AtacarMoviendo, pel, 1440000, 1480000, -1); O(8000, TipoOrden.AtacarMoviendo, pel, 1480000, 1440000, -1);
             O(9500, TipoOrden.Formacion, pel, 0); O(10000, TipoOrden.FuegoLibre, pel, 0); O(10600, TipoOrden.FuegoLibre, pel, 1);
             O(12500, TipoOrden.AtacarMoviendo, pel, 1440000, 1480000, -1); O(14000, TipoOrden.AtacarMoviendo, pel, 1480000, 1440000, -1);
-            O(15000, TipoOrden.AtacarMoviendo, pel, 1505000, 1475000, -1); O(16000, TipoOrden.AtacarMoviendo, pel, 1465000, 1395000, -1);
-            O(18500, TipoOrden.AtacarMoviendo, pel, 1420000, 1395000, -1);
+            O(15000, TipoOrden.Mover, pel, 1300000, 1640000, -1);      // con el caserío limpio (≈14 528) el pelotón lleva los palés a B
             g.Sort((x, y) => x.Tick.CompareTo(y.Tick));      // ticks todos distintos: orden fijo
             return g;
         }
