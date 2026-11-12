@@ -60,7 +60,7 @@ namespace TBD.Mundo
                 if (_salirEn > 0 && M.Tick >= _salirEn) { Cerrar(); _salirEn = 0; Application.Quit(); return; }
                 if (_reproducir != null) while (_ri < _reproducir.Count && _reproducir[_ri].Tick <= M.Tick) M.Encolar(_reproducir[_ri++]);
                 M.Step(); _acc -= Dt; n++;
-                if (_trenlog && M.Tick % 30 == 0) foreach (var t in M.Red.Trenes) Debug.Log($"[TREN] tick {M.Tick} {t.Nombre} {t.Estado} línea {t.Linea} paso {t.PasoI}/{t.Ruta.Count} tramo {(t.Ruta.Count > t.PasoI ? t.Ruta[t.PasoI].Tramo : -1)} off {t.OffMm / 1000} m");      // QA: solo lee
+                if (_trenlog && M.Tick % 30 == 0) foreach (var t in M.Red.Trenes) Debug.Log($"[TREN] tick {M.Tick} {t.Nombre} {t.Estado} línea {t.Linea} paso {t.PasoI}/{t.Ruta.Count} tramo {(t.Ruta.Count > t.PasoI ? t.Ruta[t.PasoI].Tramo : -1)} off {t.OffMm / 1000} m · carga {t.Carga[Red.Municion]} cajas {t.Carga[Red.Material]} palés · A {M.Red.Almacen[0][Red.Municion]} cajas {M.Red.Almacen[0][Red.Material]} palés · B {M.Red.Almacen[1][Red.Municion]} cajas {M.Red.Almacen[1][Red.Material]} palés");      // QA: solo lee
                 if (_hash != null || _refHash != null)
                 {
                     var l = M.LineaHash(); _hash?.WriteLine(l);
