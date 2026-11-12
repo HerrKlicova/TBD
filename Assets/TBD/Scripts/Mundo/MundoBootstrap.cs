@@ -474,7 +474,7 @@ namespace TBD.Mundo
             }
             var aviso = AvisoMaterial; if (aviso != null) GUI.Label(new Rect(16f, 40f, 900f, 26f), "<color=#e0b050>" + aviso + "</color>", st);
             int vivos = 0; foreach (var z in _zombis) if (z.vivo) vivos++;
-            GUI.Label(new Rect(16f, 12f, 900f, 26f), $"Mundo (prototipo de zum) · {_fps:0} fps · altura {_altura:0} m · {(_altura > AlturaIconos ? "mapa" : "detalle")} · zombis {vivos}/100 · rueda: zum · WASD: mover · clic dcho: mandar el pelotón", st);
+            GUI.Label(new Rect(16f, 14f, Screen.width - 32f, 30f), $"Zombis {vivos}/100 · rueda o Z/X: zum · WASD: mover · clic izq.: elegir pelotón · clic dcho.: mandarlo · T: trazar vía · L: línea · Supr: borrar vía · P: pausa", st);      // Sara: sin texto de prototipo (fps, altura) y en una línea
         }
 
         Vector3 APantalla(Vector3 w) { var v = _cam.WorldToViewportPoint(w); return new Vector3(v.x * Screen.width, (1f - v.y) * Screen.height, v.z); }
