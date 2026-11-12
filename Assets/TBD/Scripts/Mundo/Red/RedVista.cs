@@ -19,7 +19,7 @@ namespace TBD.Mundo
         Red R { get { return _m != null ? _m.Red : _propia; } }
         int _tren = 0, _linea = -1, _tick; float _acc; bool _lineaPedida;
         readonly List<PointMm> _trazo = new List<PointMm>(); bool _modo, _arrastrando; string _causa; bool _valida; Vector3 _finPrevia;
-        GameObject _previa; int _tramosDibujados; string _rechazoVisto;
+        GameObject _previa; int _tramosDibujados; string _rechazoVisto, _costePrevia;
         readonly List<GameObject> _detalle = new List<GameObject>(), _simbolo = new List<GameObject>(); float _anchoSimbolo = -1f;
         readonly List<Transform> _vagones = new List<Transform>(); Vector3[] _posAnt, _posAct; Quaternion[] _rotAnt, _rotAct;
         Material _mBalasto, _mCarril, _mTren, _mPaleta;
@@ -152,6 +152,8 @@ namespace TBD.Mundo
             var copia = new Red(); var w = new TBD.Net.SaveWriter(); R.Save(w); copia.Load(new TBD.Net.SaveReader(w.ToArray()));
             var r = copia.Via.TrazarLibre(_trazo);
             _valida = r.Ok; _causa = r.Ok ? null : r.Por;
+            _costePrevia = null;      // Sara: con el margen justo, la vista previa enseña el coste y lo que le queda a la estación que paga
+            if (r.Ok && copia.Via.Tramos[r.Tramo].Coste > 0) { var tn = copia.Via.Tramos[r.Tramo]; _costePrevia = $"{tn.LongMm / 1000} m · {Red.Pales(tn.Coste)} palés · a {copia.Via.Estaciones[tn.Pago].Nombre} le quedan {Red.Pales(copia.MaterialM(tn.Pago))}"; }
             var pts = r.Ok ? copia.Via.Tramos[r.Tramo].Puntos : _trazo.ToArray();
             BorrarPrevia(); _previa = new GameObject("Vía · vista previa");
             if (_valida)
@@ -182,7 +184,12 @@ namespace TBD.Mundo
             var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(13, Screen.height / 60), richText = true };
             float y = Screen.height - 70f;
             if (_linea >= 0 && _linea < R.Lineas.Count) GUI.Label(new Rect(16f, y - 26f, 1100f, 28f), "<color=#d4d0cc>Línea A–B · " + R.TextoLinea(_linea) + $" · A {R.Almacen[0][Red.Municion]} cajas · B {R.Almacen[1][Red.Municion]} cajas</color>", st);
-            GUI.Label(new Rect(16f, y, 900f, 28f), _modo ? "<color=#d4d0cc>Trazar vía: arrastra desde una estación o una vía con el botón izquierdo · Esc cancela</color>" : "<color=#8c8a86>T: trazar vía</color>", st);
+            GUI.Label(new Rect(16f, y, 900f, 28f), _modo ? "<color=#d4d0cc>Trazar vía: arrastra desde una estación o una vía con el botón izquierdo · Esc cancela" + (R.CuestaMaterial && R.Almacen.Count > 0 ? $" · A {Red.Pales(R.MaterialM(0))} palés (1 = 100 m; curva ×1,5; paso a nivel 2)" : "") + "</color>" : "<color=#8c8a86>T: trazar vía</color>", st);
+            if (_modo && _causa == null && _costePrevia != null && _mb.CamaraMundo != null)
+            {
+                var sp = _mb.CamaraMundo.WorldToViewportPoint(_finPrevia);
+                if (sp.z > 0f) GUI.Label(new Rect(sp.x * Screen.width + 14f, (1f - sp.y) * Screen.height - 14f, 700f, 28f), "<color=#d4d0cc>" + _costePrevia + "</color>", st);
+            }
             if (_modo && _causa != null && _mb.CamaraMundo != null)
             {
                 var sp = _mb.CamaraMundo.WorldToViewportPoint(_finPrevia);

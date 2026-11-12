@@ -13,7 +13,7 @@ namespace TBD.Mundo
     public sealed class Via
     {
         public sealed class Nodo { public int Id, X, Y, Estacion = -1; }
-        public sealed class Tramo { public int Id, A, B, LongMm; public PointMm[] Puntos; public int[] Acum; public int RumboIni; public Pieza[] Piezas; public bool Borrado; }      // Borrado: se queda en la lista (los ids no cambian) pero ya no cuenta
+        public sealed class Tramo { public int Id, A, B, LongMm; public PointMm[] Puntos; public int[] Acum; public int RumboIni; public Pieza[] Piezas; public bool Borrado; public int Coste, Pago = -1; }      // Coste: metros de material pagados al construirlo; Pago: estación que los puso (se le devuelven al borrar)      // Borrado: se queda en la lista (los ids no cambian) pero ya no cuenta
 
         /// <summary>D-N209 (Lucía): la vía se compone de piezas del kit de Teo (entregas/teo-modelado/hito1-red). Rectas de 10 y 2,5 m; curvas de arco 15,71 m
         /// con R 60, 120 y 240 (15°, 7,5° y 3,75°), a izquierda o derecha. Izquierda = giro antihorario en el plano X-Y del mundo.</summary>
@@ -116,9 +116,11 @@ namespace TBD.Mundo
             if (acum[acum.Length - 1] < LongMinMm) return new Resultado { Por = "vía demasiado corta" };
             foreach (var q in pts) if (EnMar(q)) return new Resultado { Por = $"la vía no puede ir por el mar ({q.X / 1000}; {q.Y / 1000})" };
             var cruces = Cruces(pts, acum, out string sesgo); if (sesgo != null) return new Resultado { Por = sesgo };
+            int coste = 0, pago = -1;
+            if (Pagar != null) { coste = CosteMetros(piezas, cruces.Count); string no = Pagar(desde, coste, out pago); if (no != null) return new Resultado { Por = no }; if (pago < 0) coste = 0; }      // lo último antes de construir: si paga, se construye
             if (nb < 0) { nb = Nodos.Count; Nodos.Add(new Nodo { Id = nb, X = (int)x, Y = (int)y }); }
             foreach (var c in cruces) { var cc = c; cc.Tramo = Tramos.Count; PasosNivel.Add(cc); }
-            var t = new Tramo { Id = Tramos.Count, A = desde, B = nb, Puntos = pts.ToArray(), Acum = acum, LongMm = acum[acum.Length - 1], RumboIni = rumboIni & 0xFFFF, Piezas = new List<Pieza>(piezas).ToArray() };
+            var t = new Tramo { Id = Tramos.Count, A = desde, B = nb, Puntos = pts.ToArray(), Acum = acum, LongMm = acum[acum.Length - 1], RumboIni = rumboIni & 0xFFFF, Piezas = new List<Pieza>(piezas).ToArray(), Coste = coste, Pago = pago };
             Tramos.Add(t);
             int rmin = int.MaxValue; foreach (var pz in piezas) { int rr = RadioMm(pz); if (rr > 0 && rr < rmin) rmin = rr; }
             return new Resultado { Ok = true, Tramo = t.Id, RadioMinMm = rmin };
@@ -198,6 +200,15 @@ namespace TBD.Mundo
         /// así que cada carretera se parte en trozos sin puente. Z del terreno = Y de la red. Devuelve cuántas polilíneas añade.</summary>
         /// <summary>Mar (Hito 1): por cada metro de Z, la X en mm desde la que hacia el este es mar (agua_hito1.csv, de usos_2049.png de Álvaro). Vacío = sin mar.</summary>
         public int[] MarDesdeMm = new int[0];
+        /// <summary>Hugo (cifras-hito1): coste de una vía en METROS de material (enteros; 1 palé = 100 m): la recta, su largo; la curva, 1,5 veces su arco; cada paso a nivel, 200 m.</summary>
+        public static int CosteMetros(IList<Pieza> piezas, int pasos)
+        {
+            long mm = 0; foreach (var p in piezas) mm += RadioMm(p) > 0 ? (long)LargoMm(p) * 3 / 2 : LargoMm(p);
+            return (int)((mm + 999) / 1000) + 200 * pasos;
+        }
+        /// <summary>Cobro del material (lo pone la Red): (nodo de salida, coste en metros) → null si paga (y quién paga), o el motivo del rechazo.</summary>
+        public delegate string Cobro(int desde, int costeM, out int estacion);
+        public Cobro Pagar;
         public bool EnMar(PointMm p) { if (MarDesdeMm == null || MarDesdeMm.Length == 0) return false; int z = p.Y / 1000; if (z < 0) z = 0; if (z >= MarDesdeMm.Length) z = MarDesdeMm.Length - 1; return p.X >= MarDesdeMm[z]; }
         public void CargarMarCsv(string csv)
         {
@@ -354,7 +365,7 @@ namespace TBD.Mundo
         {
             ulong h = 0x9E37UL;
             foreach (var n in Nodos) h = IMath.Mix(h ^ (ulong)(uint)n.X ^ ((ulong)(uint)n.Y << 32) ^ (ulong)(n.Estacion + 1) * 31UL);
-            foreach (var t in Tramos) { h = IMath.Mix(h ^ (ulong)t.A ^ ((ulong)t.B << 20) ^ ((ulong)(uint)t.LongMm << 32)); h = IMath.Mix(h ^ (ulong)(uint)t.RumboIni); if (t.Piezas != null) foreach (var pz in t.Piezas) h = IMath.Mix(h ^ (ulong)pz); foreach (var p in t.Puntos) h = IMath.Mix(h ^ (ulong)(uint)p.X ^ ((ulong)(uint)p.Y << 32)); if (t.Borrado) h = IMath.Mix(h ^ 0xB0B0UL); }
+            foreach (var t in Tramos) { h = IMath.Mix(h ^ (ulong)t.A ^ ((ulong)t.B << 20) ^ ((ulong)(uint)t.LongMm << 32)); h = IMath.Mix(h ^ (ulong)(uint)t.RumboIni); if (t.Piezas != null) foreach (var pz in t.Piezas) h = IMath.Mix(h ^ (ulong)pz); foreach (var p in t.Puntos) h = IMath.Mix(h ^ (ulong)(uint)p.X ^ ((ulong)(uint)p.Y << 32)); if (t.Borrado) h = IMath.Mix(h ^ 0xB0B0UL); if (t.Coste > 0) h = IMath.Mix(h ^ (ulong)(uint)t.Coste ^ ((ulong)(uint)(t.Pago + 1) << 32)); }
             foreach (var pn in PasosNivel) h = IMath.Mix(h ^ (ulong)pn.Tramo ^ ((ulong)(uint)pn.OffMm << 16) ^ ((ulong)pn.AnguloGrados << 48));
             return h;
         }
@@ -368,6 +379,7 @@ namespace TBD.Mundo
             w.Int(PasosNivel.Count); foreach (var pn in PasosNivel) { w.Int(pn.Tramo); w.Int(pn.OffMm); w.Int(pn.AnguloGrados); w.Int(pn.Carretera); w.Int(pn.P.X); w.Int(pn.P.Y); }
             w.Int(Tramos.Count); foreach (var t in Tramos) { w.Int(t.A); w.Int(t.B); w.Int(t.RumboIni); w.Int(t.Piezas != null ? t.Piezas.Length : 0); if (t.Piezas != null) foreach (var pz in t.Piezas) w.Byte((byte)pz); w.Int(t.Puntos.Length); foreach (var p in t.Puntos) { w.Int(p.X); w.Int(p.Y); } }
             int nb = 0; foreach (var t in Tramos) if (t.Borrado) nb++; w.Int(nb); foreach (var t in Tramos) if (t.Borrado) w.Int(t.Id);
+            foreach (var t in Tramos) { w.Int(t.Coste); w.Int(t.Pago); }
         }
 
         public void Load(SaveReader r)
@@ -386,6 +398,7 @@ namespace TBD.Mundo
                 t.LongMm = np > 0 ? t.Acum[np - 1] : 0; Tramos.Add(t);
             }
             int nb = r.Int(); for (int i = 0; i < nb; i++) Tramos[r.Int()].Borrado = true;
+            foreach (var t in Tramos) { t.Coste = r.Int(); t.Pago = r.Int(); }
         }
     }
 }

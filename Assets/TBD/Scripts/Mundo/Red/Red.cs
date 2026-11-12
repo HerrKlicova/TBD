@@ -39,6 +39,30 @@ namespace TBD.Mundo
         public const int TicksPorU = 450;                  // Hugo: 15 s por hueco cargado o descargado
         public const int EsperaMinT = 90;                  // al menos 3 s parado en cada parada (además de la carga)
         public readonly Via Via = new Via();
+        /// <summary>Hugo (cifras-hito1): el material de vía se cobra en METROS enteros (1 palé = 100 m; curvas ×1,5; paso a nivel 200 m; Via.CosteMetros), sin redondear por tramo.
+        /// La estación guarda palés enteros (lo que lleva el tren) y los metros sueltos de un palé abierto. Paga la primera estación (por orden) unida por vía con el punto
+        /// de salida que tenga bastante; al borrar el tramo se le devuelve el 100 %. Lo activa MontarRedHito1; sin él, la vía es gratis.</summary>
+        public bool CuestaMaterial;
+        public const int MPorPale = 100;
+        public readonly List<int> MetrosSueltos = new List<int>();     // por estación: metros de un palé ya abierto (0–99)
+        public Red() { Via.Pagar = Cobrar; }
+        public int MaterialM(int e) { return e < 0 || e >= Almacen.Count ? 0 : Almacen[e][Material] * MPorPale + (e < MetrosSueltos.Count ? MetrosSueltos[e] : 0); }
+        /// <summary>Metros de material como palés con un decimal, a la española («12,4»).</summary>
+        public static string Pales(int metros) { int d = (metros + 5) / 10; return $"{d / 10},{d % 10}"; }
+        string Cobrar(int desde, int costeM, out int estacion)
+        {
+            estacion = -1; if (!CuestaMaterial) return null;
+            int mas = 0;
+            for (int i = 0; i < Via.Estaciones.Count; i++)
+            {
+                int n = Via.Estaciones[i].Nodo; if (n != desde && Via.Ruta(n, desde) == null) continue;
+                int hay = MaterialM(i);
+                if (hay >= costeM) { int queda = hay - costeM; Almacen[i][Material] = queda / MPorPale; MetrosSueltos[i] = queda % MPorPale; estacion = i; return null; }
+                if (hay > mas) mas = hay;
+            }
+            return $"faltan palés de material: esta vía cuesta {Pales(costeM)} y la estación unida que más tiene guarda {Pales(mas)}";
+        }
+        void Devolver(int e, int metros) { if (e < 0 || e >= Almacen.Count || metros <= 0) return; int t = MaterialM(e) + metros; Almacen[e][Material] = t / MPorPale; MetrosSueltos[e] = t % MPorPale; }
         public readonly List<Tren> Trenes = new List<Tren>();
         public readonly List<Linea> Lineas = new List<Linea>();
         public readonly List<int[]> Almacen = new List<int[]>();     // por estación
@@ -46,7 +70,7 @@ namespace TBD.Mundo
         /// <summary>Último rechazo de una orden (para la vista); no entra en el hash.</summary>
         public string UltimoRechazo;
 
-        public int AddEstacion(string nombre, int x, int y) { int e = Via.AddEstacion(nombre, x, y); Almacen.Add(new int[Recursos]); return e; }
+        public int AddEstacion(string nombre, int x, int y) { int e = Via.AddEstacion(nombre, x, y); Almacen.Add(new int[Recursos]); MetrosSueltos.Add(0); return e; }
         /// <summary>Índice de la estación con ese nombre («A», «B»…), o −1.</summary>
         public int EstacionPorNombre(string nombre) { for (int i = 0; i < Via.Estaciones.Count; i++) if (Via.Estaciones[i].Nombre == nombre) return i; return -1; }
         /// <summary>Unidades del recurso (Municion, Material…) en el almacén de la estación; 0 si no existe.</summary>
@@ -68,6 +92,7 @@ namespace TBD.Mundo
         {
             if (tramo < 0 || tramo >= Via.Tramos.Count || Via.Tramos[tramo].Borrado) { UltimoRechazo = "ese tramo no existe"; return false; }
             foreach (var t in Trenes) if (t.Estado == EstadoTren.EnMarcha && t.Ruta.Count > t.PasoI && t.Ruta[t.PasoI].Tramo == tramo) { UltimoRechazo = $"hay un tren en ese tramo ({t.Nombre})"; return false; }
+            var tb = Via.Tramos[tramo]; Devolver(tb.Pago, tb.Coste);      // Hugo: borrar devuelve el 100 % en el Hito 1
             Via.BorrarTramo(tramo);
             foreach (var t in Trenes)
             {
@@ -228,16 +253,16 @@ namespace TBD.Mundo
         {
             salida.Add(new KeyValuePair<string, ulong>("red.via", Via.Hash()));
             ulong ht = 0x51UL; foreach (var t in Trenes) { ht = IMath.Mix(ht ^ (ulong)t.Id ^ ((ulong)(uint)t.Nodo << 8) ^ ((ulong)t.PasoI << 24) ^ ((ulong)(uint)t.OffMm << 32)); ht = IMath.Mix(ht ^ (ulong)(uint)t.VelMmT ^ ((ulong)t.Estado << 20) ^ ((ulong)(uint)(t.Linea + 1) << 24) ^ ((ulong)(uint)t.Parada << 40) ^ ((ulong)(uint)t.EsperaT << 48)); ht = IMath.Mix(ht ^ (ulong)(uint)(t.InicioVueltaT + 1) ^ ((ulong)(uint)(t.UltimaVueltaT + 1) << 32)); foreach (var ps in t.Ruta) ht = IMath.Mix(ht ^ (ulong)ps.Tramo ^ (ps.Directo ? 1UL << 40 : 0UL)); }
-            if (LineaAuto) ht = IMath.Mix(ht ^ 0xA070UL);
+            if (LineaAuto) ht = IMath.Mix(ht ^ 0xA070UL); if (CuestaMaterial) ht = IMath.Mix(ht ^ 0xC057UL);
             salida.Add(new KeyValuePair<string, ulong>("red.trenes", ht));
-            ulong ha = 0x52UL; foreach (var a in Almacen) foreach (var c in a) ha = IMath.Mix(ha ^ (ulong)(uint)c); salida.Add(new KeyValuePair<string, ulong>("red.almacen", ha));
+            ulong ha = 0x52UL; foreach (var a in Almacen) foreach (var c in a) ha = IMath.Mix(ha ^ (ulong)(uint)c); foreach (var m in MetrosSueltos) if (m != 0) ha = IMath.Mix(ha ^ 0x5E00UL ^ (ulong)(uint)m); salida.Add(new KeyValuePair<string, ulong>("red.almacen", ha));
             ulong hc = 0x53UL; foreach (var t in Trenes) foreach (var c in t.Carga) hc = IMath.Mix(hc ^ (ulong)(uint)c); foreach (var kv in _hechoC) foreach (var c in kv.Value) hc = IMath.Mix(hc ^ (ulong)kv.Key ^ (ulong)(uint)c << 16); foreach (var kv in _hechoD) foreach (var c in kv.Value) hc = IMath.Mix(hc ^ (ulong)kv.Key ^ (ulong)(uint)c << 24);
             salida.Add(new KeyValuePair<string, ulong>("red.cargas", hc));
         }
 
         public ulong Hash()
         {
-            ulong h = Via.Hash() ^ ((ulong)(uint)Tick << 7); if (LineaAuto) h = IMath.Mix(h ^ 0xA070UL);
+            ulong h = Via.Hash() ^ ((ulong)(uint)Tick << 7); if (LineaAuto) h = IMath.Mix(h ^ 0xA070UL); if (CuestaMaterial) h = IMath.Mix(h ^ 0xC057UL);
             foreach (var t in Trenes)
             {
                 h = IMath.Mix(h ^ (ulong)t.Id ^ ((ulong)(uint)t.Nodo << 8) ^ ((ulong)t.PasoI << 24) ^ ((ulong)(uint)t.OffMm << 32));
@@ -246,6 +271,7 @@ namespace TBD.Mundo
                 foreach (var ps in t.Ruta) h = IMath.Mix(h ^ (ulong)ps.Tramo ^ (ps.Directo ? 1UL << 40 : 0UL));
             }
             foreach (var a in Almacen) foreach (var c in a) h = IMath.Mix(h ^ (ulong)(uint)c);
+            foreach (var m in MetrosSueltos) if (m != 0) h = IMath.Mix(h ^ 0x5E00UL ^ (ulong)(uint)m);
             foreach (var kv in _hechoC) foreach (var c in kv.Value) h = IMath.Mix(h ^ (ulong)kv.Key ^ (ulong)(uint)c << 16);
             foreach (var kv in _hechoD) foreach (var c in kv.Value) h = IMath.Mix(h ^ (ulong)kv.Key ^ (ulong)(uint)c << 24);
             return h;
@@ -253,8 +279,8 @@ namespace TBD.Mundo
 
         public void Save(SaveWriter w)
         {
-            Via.Save(w); w.Int(Tick); w.Int(LineaAuto ? 1 : 0);
-            w.Int(Almacen.Count); foreach (var a in Almacen) w.Ints(a);
+            Via.Save(w); w.Int(Tick); w.Int(LineaAuto ? 1 : 0); w.Int(CuestaMaterial ? 1 : 0);
+            w.Int(Almacen.Count); foreach (var a in Almacen) w.Ints(a); w.Ints(MetrosSueltos.ToArray());
             w.Int(Lineas.Count); foreach (var l in Lineas) { w.Str(l.Nombre); w.Int(l.Paradas.Count); foreach (var p in l.Paradas) { w.Int(p.Estacion); w.Ints(p.Cargar); w.Ints(p.Descargar); } }
             w.Int(Trenes.Count);
             foreach (var t in Trenes)
@@ -268,8 +294,8 @@ namespace TBD.Mundo
 
         public void Load(SaveReader r)
         {
-            Via.Load(r); Tick = r.Int(); LineaAuto = r.Int() != 0;
-            Almacen.Clear(); int na = r.Int(); for (int i = 0; i < na; i++) Almacen.Add(r.Ints());
+            Via.Load(r); Tick = r.Int(); LineaAuto = r.Int() != 0; CuestaMaterial = r.Int() != 0;
+            Almacen.Clear(); int na = r.Int(); for (int i = 0; i < na; i++) Almacen.Add(r.Ints()); MetrosSueltos.Clear(); MetrosSueltos.AddRange(r.Ints() ?? new int[0]); while (MetrosSueltos.Count < Almacen.Count) MetrosSueltos.Add(0);
             Lineas.Clear(); int nl = r.Int();
             for (int i = 0; i < nl; i++) { var l = new Linea { Id = i, Nombre = r.Str() }; int np = r.Int(); for (int k = 0; k < np; k++) l.Paradas.Add(new ParadaLinea { Estacion = r.Int(), Cargar = r.Ints(), Descargar = r.Ints() }); Lineas.Add(l); }
             Trenes.Clear(); _hechoC.Clear(); _hechoD.Clear(); int nt = r.Int();

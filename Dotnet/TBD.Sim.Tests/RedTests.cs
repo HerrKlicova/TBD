@@ -92,6 +92,8 @@ namespace TBD.Sim.Tests
                     for (int t = 0; t < 40; t++) m.Step();
                     check(m.Red.Lineas.Count == 1 && m.Red.Trenes[0].Linea == 0 && m.Red.LineaAutoCreadaTick % 30 == 0 && !m.Red.LineaAuto, $"A y B unidas: la simulación crea la línea por defecto y asigna el Tren 1 (tick {m.Red.LineaAutoCreadaTick}), sin depender de la vista");
                     check(m.Red.Via.MarDesdeMm.Length == 2049, "MontarRedHito1 carga el mar (agua_hito1.csv)");
+                    Console.WriteLine($"MEDIDA A–B recta: {Red.Pales(m.Red.Via.Tramos[0].Coste)} palés ({m.Red.Via.Tramos[0].Coste} m)");
+                    check(m.Red.CuestaMaterial && m.Red.Via.Tramos[0].Coste > 0 && m.Red.MaterialM(0) >= 200, $"en el caserío la vía A–B recta cuesta {Red.Pales(m.Red.Via.Tramos[0].Coste)} palés y a A le quedan {Red.Pales(m.Red.MaterialM(0))} (Hugo: al menos 2 de margen; A empieza con 20)");
                     TBD.Mundo.Mundo.Lector = lectorAntes;
                 }
             }
@@ -168,6 +170,7 @@ namespace TBD.Sim.Tests
                     var r1 = r.TrazarVia(new List<PointMm> { new PointMm(1_060_000, 430_000), new PointMm(1_110_000, 700_000), new PointMm(1_150_000, 900_000) });
                     check(r1.Ok, $"A → P(1150; 900) con final libre se traza ({(r1.Ok ? r.Via.Tramos[r1.Tramo].Piezas.Length + " piezas" : r1.Por)})");
                     var r2 = r.TrazarVia(new List<PointMm> { new PointMm(1_150_000, 900_000), new PointMm(1_390_000, 1_300_000), new PointMm(1_300_000, 1_640_000) });
+                    if (r1.Ok && r2.Ok) { r.Via.Tramos[r1.Tramo].Coste = 0; int cm = Via.CosteMetros(r.Via.Tramos[r1.Tramo].Piezas, 0) + Via.CosteMetros(r.Via.Tramos[r2.Tramo].Piezas, r.Via.PasosNivel.Count); Console.WriteLine($"MEDIDA A–P–B (guion de Marcos): {Red.Pales(cm)} palés ({cm} m)"); }
                     check(r2.Ok && r.Via.Ruta(r.Via.Estaciones[0].Nodo, r.Via.Estaciones[1].Nodo)?.Count == 2, $"P → B por el punto guía de Marcos (1390; 1300) sigue desde el final de la anterior y une A con B ({(r2.Ok ? "ok, " + r.Via.PasosNivel.Count + " paso a nivel" : r2.Por)})");
                     check(r.Via.MarDesdeMm.Length == 2049 && r.Via.EnMar(new PointMm(1_950_000, 900_000)) && !r.Via.EnMar(new PointMm(1_300_000, 1_640_000)), "el mar de usos_2049 está al este (1950; 900 es mar; B no)");
                     var r3 = r.TrazarVia(new List<PointMm> { new PointMm(1_060_000, 430_000), new PointMm(1_950_000, 900_000) });
@@ -175,6 +178,24 @@ namespace TBD.Sim.Tests
                     var w = new SaveWriter(); r.Save(w); var rc = new Red(); rc.Load(new SaveReader(w.ToArray()));
                     check(rc.Hash() == r.Hash() && rc.Via.EnMar(new PointMm(1_950_000, 900_000)), "la copia de la vista previa (guardar y cargar) también sabe dónde está el mar");
                 }
+            }
+            // coste de material (Hugo, cifras-hito1): en metros enteros (1 palé = 100 m), curvas ×1,5, paso a nivel 200 m; borrar devuelve el 100 %
+            {
+                check(Via.CosteMetros(new[] { Via.Pieza.Recta10 }, 0) == 10 && Via.CosteMetros(new[] { Via.Pieza.Izq60 }, 0) == 24 && Via.CosteMetros(new[] { Via.Pieza.Recta2_5 }, 1) == 203, "coste: recta de 10 m = 10 m; curva de 15,71 m = 24 m (×1,5); recta de 2,5 m + paso a nivel = 203 m");
+                check(Red.Pales(1240) == "12,4" && Red.Pales(1600) == "16,0" && Red.Pales(1236) == "12,4", "en pantalla, palés con un decimal (1240 m = «12,4»)");
+                var r = Hito1(out int a, out int b); int m = r.AddEstacion("Medio", 900_000, 1_150_000); r.CuestaMaterial = true; r.Almacen[a][Red.Material] = 16;
+                var t0 = r.TrazarVia(new List<PointMm> { new PointMm(200_000, 1_000_000), new PointMm(900_000, 1_150_000) });
+                int c0 = t0.Ok ? r.Via.Tramos[t0.Tramo].Coste : -1;
+                check(t0.Ok && c0 == Via.CosteMetros(r.Via.Tramos[0].Piezas, 0) && r.MaterialM(a) == 1600 - c0, $"A–Medio ({r.Via.Tramos[0].LongMm / 1000} m) cuesta {Red.Pales(c0)} palés, sin redondear; a A le quedan {Red.Pales(r.MaterialM(a))} ({r.Almacen[a][Red.Material]} palés y {r.MetrosSueltos[a]} m sueltos)");
+                var t1 = r.TrazarVia(new List<PointMm> { new PointMm(900_000, 1_150_000), new PointMm(1_600_000, 1_300_000) });
+                check(t1.Ok && r.Via.Tramos[t1.Tramo].Pago == a, $"Medio–B sale de Medio (sin material) y lo paga A, unida por vía (quedan {Red.Pales(r.MaterialM(a))})");
+                int quedan = r.MaterialM(a);
+                var t2 = r.TrazarVia(new List<PointMm> { new PointMm(1_600_000, 1_300_000), new PointMm(1_700_000, 1_700_000) });
+                check(!t2.Ok && t2.Por.Contains("faltan palés") && r.MaterialM(a) == quedan && r.Via.Tramos.Count == 2, $"sin material suficiente se rechaza entera y no gasta nada ({t2.Por})");
+                check(r.BorrarVia(1) && r.MaterialM(a) == quedan + r.Via.Tramos[1].Coste, $"al borrar Medio–B, A recupera el 100 % ({Red.Pales(r.Via.Tramos[1].Coste)} palés)");
+                var w = new SaveWriter(); r.Save(w); var rc = new Red(); rc.Load(new SaveReader(w.ToArray()));
+                check(rc.Hash() == r.Hash() && rc.CuestaMaterial && rc.Via.Tramos[0].Coste == c0 && rc.MaterialM(a) == r.MaterialM(a), "guardar y cargar conserva el coste, quién pagó y los metros sueltos");
+                var rg = Hito1(out a, out b); check(rg.TrazarVia(Curva()).Ok && rg.Via.Tramos[0].Coste == 0, "sin CuestaMaterial (pruebas y goldens viejos) la vía sigue siendo gratis");
             }
             // borrar vía construida con el tren en marcha (orden 106) y añadir una parada a una línea existente (107)
             {
