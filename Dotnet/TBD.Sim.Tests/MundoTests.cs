@@ -58,6 +58,10 @@ namespace TBD.Sim.Tests
             check(maxPersiguen >= 10, $"los zombis reaccionan al pelotón (máximo a la vez persiguiendo u oyendo: {maxPersiguen})");
             check(fuera2, "con combate: ningún zombi dentro de una casa");
             check(tickLimpio > 0 && m2.BajasPropias <= 2, $"con munición sin límite y la puntería del Hito 1 limpia el caserío en {tickLimpio / 30} s con {m2.BajasPropias} bajas");
+            {
+                string ol = m2.Eventos.Find(e => e.StartsWith("[CASERIO]")) ?? "-";
+                check(ol.StartsWith("[CASERIO] quedan 15 zombis: oleada final") && m2.ZombisQuedan == 0 && !m2.OleadaFinal, $"D-N207 ampliada: con 15 o menos, oleada final («{ol}»); la placa lee ZombisQuedan = {m2.ZombisQuedan}");
+            }
             // el premio de limpiar (Hugo y Lucía): el pelotón coge los 4 palés, va más despacio y sin disparar, y al llegar a 25 m de B los deja en el almacén
             {
                 int bm = m2.Red.EstacionPorNombre("B"); var pbm = m2.Puntos["B"]; var pp = m2.Unidades.Platoons[0]; int antes = m2.Red.Existencias(bm, Red.Material);
