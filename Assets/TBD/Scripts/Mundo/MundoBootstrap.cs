@@ -93,6 +93,8 @@ namespace TBD.Mundo
                 {
                     float notches = Mathf.Clamp(s / (Mathf.Abs(s) >= 10f ? 120f : 1f), -3f, 3f);
                     float antes = _alturaObj; _alturaObj = Mathf.Clamp(_alturaObj * Mathf.Pow(0.8f, notches), AlturaMin, AlturaMax);
+                    if (!_camGuion && Suelo(ms.position.ReadValue(), out var bajo))      // D-N211 (d): el zum va al cursor (el punto bajo el cursor se acerca en la misma proporción que la altura)
+                    { float k = 1f - _alturaObj / Mathf.Max(1f, antes); var nf = _foco + (bajo - _foco) * Mathf.Clamp(k, -1f, 0.9f); nf.x = Mathf.Clamp(nf.x, 0f, 2048f); nf.z = Mathf.Clamp(nf.z, 0f, 2048f); _foco = new Vector3(nf.x, _foco.y, nf.z); }
                 }
                 if (!TrazandoVia && ms.leftButton.wasPressedThisFrame && Suelo(ms.position.ReadValue(), out var q)) _seleccionado = Vector3.Distance(q, Centro()) < Mathf.Max(15f, _altura * 0.05f);
                 if (!TrazandoVia && ms.rightButton.wasPressedThisFrame && _seleccionado && Suelo(ms.position.ReadValue(), out var d)) { _destino = d; _sim?.Mover((int)(d.x * 1000f), (int)(d.z * 1000f)); }
@@ -114,7 +116,8 @@ namespace TBD.Mundo
             foreach (var sd in _soldados) sd.gameObject.SetActive(!iconos);
             for (int i = 0; i < _zombis.Count; i++) if (_zombis[i].vivo) _zombis[i].t.gameObject.SetActive(!iconos);
             if (_sim != null) DibujarSim(Time.unscaledDeltaTime); else MoverRelleno(Time.deltaTime);
-            _fpsN++; _fpsT += Time.unscaledDeltaTime; if (_fpsT >= 2f) { _fps = _fpsN / _fpsT; if (_fpsLog) Debug.Log($"[MUNDO-FPS] altura {_altura:0} m · {_fps:0} fps"); _fpsN = 0; _fpsT = 0f; }
+            _fpsN++; _fpsT += Time.unscaledDeltaTime; if (Time.frameCount > 120) { _peorDt = Mathf.Max(_peorDt, Time.unscaledDeltaTime); _peorDtTotal = Mathf.Max(_peorDtTotal, Time.unscaledDeltaTime); }
+            if (_fpsT >= 2f) { _fps = _fpsN / _fpsT; if (Time.frameCount > 120) _minFps = Mathf.Min(_minFps, _fps); if (_fpsLog) Debug.Log($"[MUNDO-FPS] altura {_altura:0} m · {_fps:0} fps de media · peor fotograma {_peorDt * 1000f:0.0} ms"); _fpsN = 0; _fpsT = 0f; _peorDt = 0f; }
         }
 
         bool Suelo(Vector2 pantalla, out Vector3 p)
@@ -307,6 +310,14 @@ namespace TBD.Mundo
             else if (_montonPales != null) _montonPales.gameObject.SetActive(false);
         }
         Transform _montonPales;
+        /// <summary>Texto del HUD con fondo oscuro del tamaño del texto (Sara: legible sobre cualquier suelo).</summary>
+        public static void Rotulo(Rect r, string t, GUIStyle st)
+        {
+            var tam = st.CalcSize(new GUIContent(t)); float w = Mathf.Min(tam.x + 12f, r.width + 12f);
+            var c = GUI.color; GUI.color = new Color(0.06f, 0.07f, 0.05f, 0.72f); GUI.DrawTexture(new Rect(r.x - 6f, r.y + (r.height - tam.y) * 0.5f - 2f, w, tam.y + 4f), Texture2D.whiteTexture); GUI.color = c;
+            GUI.Label(r, t, st);
+        }
+        float _peorDt, _peorDtTotal; float _minFps = 9999f;
         // D-N210: placa del almacén. Lo que hay y para cuánto le llega. Iker: el saldo sale de los contadores exactos de la simulación (Red.Entradas/Salidas y la foto
         // de cada vuelta), no de muestrear la vista; y el salto de línea iba literal dentro de la cadena (no compilaba).
         string PlacaAlmacen(int e)
@@ -317,7 +328,7 @@ namespace TBD.Mundo
         }
         /// <summary>Aviso de los palés (Nacho, [MATERIAL]): lo lleva el pelotón o están en el suelo.</summary>
         public string AvisoMaterial { get { var M = _sim != null ? _sim.M : null; if (M == null) return null; if (M.Portador >= 0) return "El pelotón lleva 4 palés a B: va más lento y no dispara"; if (M.MaterialEnSuelo) return "Palés en el suelo: que otro pelotón pase a recogerlos"; return null; } }
-        void OnApplicationQuit() { _sim?.Cerrar(); }
+        void OnApplicationQuit() { if (_fpsLog) Debug.Log($"[MUNDO-FPS] resumen: peor media de 2 s {_minFps:0} fps · peor fotograma {_peorDtTotal * 1000f:0.0} ms (sin los 120 primeros fotogramas)"); _sim?.Cerrar(); }
 
         // ------------------------------------------------------------------ terreno y posiciones de Álvaro (StreamingAssets/Hito1)
         float[,] _alt;      // alturas en metros, [z, x], 1 m por muestra (Álvaro)
@@ -485,12 +496,22 @@ namespace TBD.Mundo
             {
                 var pl = _sim.M.Unidades.Platoons[0]; int vivosP = pl.AliveCount();
                 string txt = $"Pelotón · {vivosP} soldados · munición {pl.AmmoShots}/{pl.AmmoCap}" + (vivosP > 0 ? $" (≈{pl.AmmoShots / vivosP} por soldado)" : "");
-                GUI.Label(new Rect(16f, 64f, 900f, 26f), txt, st);
-                if (pl.AmmoShots == 0 && vivosP > 0) GUI.Label(new Rect(16f, 88f, 900f, 26f), "<color=#e04030><b>¡Pelotón seco! Retíralo a B para rearmar</b></color>", st);
+                Rotulo(new Rect(16f, 64f, 900f, 26f), txt, st);
+                if (pl.AmmoShots == 0 && vivosP > 0) Rotulo(new Rect(16f, 88f, 900f, 26f), "<color=#e04030><b>¡Pelotón seco! Retíralo a B para rearmar</b></color>", st);
             }
-            var aviso = AvisoMaterial; if (aviso != null) GUI.Label(new Rect(16f, 40f, 900f, 26f), "<color=#e0b050>" + aviso + "</color>", st);
+            if (_sim != null)      // marcador del destino real del pelotón y aviso de punto inalcanzable (D-N211 a; Nacho: AvisoOrden*)
+            {
+                var Mo = _sim.M;
+                if (Mo.Unidades.Platoons.Count > 0 && Mo.Unidades.Platoons[0].Moving) { var pl = Mo.Unidades.Platoons[0]; var md = APantalla(EnSuelo(new Vector3(pl.TX / 1000f, 0f, pl.TY / 1000f))); if (md.z > 0f) GUI.Label(new Rect(md.x - 9f, md.y - 14f, 30f, 28f), "<color=#80a8e0><b>◎</b></color>", st); }
+                if (Mo.AvisoOrdenTick >= 0 && Mo.Tick - Mo.AvisoOrdenTick < 150)
+                {
+                    Rotulo(new Rect(16f, 112f, 900f, 26f), "<color=#e0b050><b>" + Mundo.TextoInalcanzable + "</b></color>", st);
+                    var ma = APantalla(EnSuelo(new Vector3(Mo.AvisoOrdenX / 1000f, 0f, Mo.AvisoOrdenY / 1000f))); if (ma.z > 0f) GUI.Label(new Rect(ma.x - 9f, ma.y - 14f, 30f, 28f), "<color=#e0b050><b>◎</b></color>", st);
+                }
+            }
+            var aviso = AvisoMaterial; if (aviso != null) Rotulo(new Rect(16f, 40f, 900f, 26f), "<color=#e0b050>" + aviso + "</color>", st);
             int vivos = 0; foreach (var z in _zombis) if (z.vivo) vivos++;
-            GUI.Label(new Rect(16f, 14f, Screen.width - 32f, 30f), $"Zombis {vivos}/100 · rueda o Z/X: zum · WASD: mover · clic izq.: elegir pelotón · clic dcho.: mandarlo · T: trazar vía · L: línea · Supr: borrar vía · P: pausa", st);      // Sara: sin texto de prototipo (fps, altura) y en una línea
+            Rotulo(new Rect(16f, 14f, Screen.width - 32f, 30f), $"Zombis {vivos}/100 · rueda o Z/X: zum · WASD: mover · clic izq.: elegir pelotón · clic dcho.: mandarlo · T: trazar vía · L: línea · Supr: borrar vía · P: pausa", st);      // Sara: sin texto de prototipo (fps, altura) y en una línea
         }
 
         Vector3 APantalla(Vector3 w) { var v = _cam.WorldToViewportPoint(w); return new Vector3(v.x * Screen.width, (1f - v.y) * Screen.height, v.z); }

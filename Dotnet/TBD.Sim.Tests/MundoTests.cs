@@ -118,6 +118,23 @@ namespace TBD.Sim.Tests
                 }
                 check(vuelto, $"seco y mandado al caserío: va (hasta {Math.Sqrt(lejosW) / 1000:0} m de B), se para y vuelve solo a B ({pw.AliveCount()} de 8 vivos, tick {w.Tick}); el log dice «{(w.Eventos.Count > 0 ? w.Eventos[w.Eventos.Count - 1] : "-")}»");
             }
+            // --- Mundo25 (Sara): una orden al mar no se acepta tal cual: el pelotón va a la orilla (5 m al oeste del mar en esa Z) y el log y AvisoOrden lo dicen
+            {
+                var w = TBD.Mundo.Mundo.Caserio(5); var pw = w.Unidades.Platoons[0]; var mar = w.Red.Via.MarDesdeMm;
+                int zy = pw.AY; int zIdx = Math.Min(mar.Length - 1, zy / 1000); int orilla = mar.Length > 0 ? mar[zIdx] - w.OrillaMm : -1;
+                w.Encolar(new Orden { Tick = 1, Jugador = 1, Tipo = TipoOrden.Mover, A = pw.Id, B = 1950000, C = zy, D = -1 });
+                w.Encolar(new Orden { Tick = 2, Jugador = 1, Tipo = TipoOrden.AtacarMoviendo, A = pw.Id, B = 1950000, C = zy, D = -1 });
+                for (int t = 0; t < 5; t++) w.Step();
+                var avisos = w.Eventos.FindAll(e => e.StartsWith("[ORDEN] punto en el mar"));
+                check(mar.Length > 0 && pw.TX == orilla && pw.TY == zy && avisos.Count == 2 && w.AvisoOrdenTick == 2 && w.AvisoOrden == TBD.Mundo.Mundo.TextoInalcanzable && w.AvisoOrdenX == pw.TX && w.AvisoOrdenY == pw.TY && w.AvisoOrdenPeloton == pw.Id && !w.Red.Via.EnMar(new PointMm(pw.TX, pw.TY)),
+                    $"orden al mar: va a la orilla ({pw.TX / 1000}; {pw.TY / 1000}), no a (1950; {zy / 1000}); {avisos.Count} avisos, «{(avisos.Count > 0 ? avisos[0] : "-")}»");
+                var w2 = TBD.Mundo.Mundo.Caserio(5); var p2 = w2.Unidades.Platoons[0];
+                w2.Encolar(new Orden { Tick = 1, Jugador = 1, Tipo = TipoOrden.Mover, A = p2.Id, B = -50000, C = 9000000, D = -1 }); w2.Step(); w2.Step();
+                check(p2.TX == 0 && p2.TY == w2.AltoMm - 1 && w2.Eventos.Exists(e => e.StartsWith("[ORDEN] punto fuera del mapa")), $"orden fuera del mapa: al borde ({p2.TX}; {p2.TY})");
+                var w3 = TBD.Mundo.Mundo.Caserio(5); var p3o = w3.Unidades.Platoons[0];
+                w3.Encolar(new Orden { Tick = 1, Jugador = 1, Tipo = TipoOrden.Mover, A = p3o.Id, B = 1400000, C = 1500000, D = -1 }); w3.Step(); w3.Step();
+                check(p3o.TX == 1400000 && w3.AvisoOrdenTick < 0, "orden a tierra: sin cambios ni aviso");
+            }
             // --- determinismo: dos instancias con las mismas órdenes dan el mismo hash cada tick durante 10 min
             var a = TBD.Mundo.Mundo.Caserio(11); var b = TBD.Mundo.Mundo.Caserio(11); int pa = a.Unidades.Platoons[0].Id;
             var ords = new[] {

@@ -83,12 +83,34 @@ namespace TBD.Mundo
         }
         public IReadOnlyList<Orden> Grabacion { get { return _aplicadas; } }
 
+        /// <summary>Destino inalcanzable (Sara/Marcos, Mundo25: orden al mar). D-N211 (a) de Lucía: el pelotón va al punto alcanzable más cercano y se avisa. Hito 1: fuera del mapa se
+        /// recorta al borde y en el mar (Red.Via.EnMar, agua_hito1.csv) se lleva a OrillaMm al oeste de la línea del mar en esa Z. La grabación guarda la orden original.</summary>
+        public int OrillaMm = 5000;
+        /// <summary>Último aviso de orden para la vista (Marcos): texto, tick, pelotón y destino real; también va al log como «[ORDEN] …».
+        /// D-N211 (a) de Lucía: el marcador va a (AvisoOrdenX, AvisoOrdenY), donde va de verdad, con el texto TextoInalcanzable. Nunca se rechaza en silencio.</summary>
+        public const string TextoInalcanzable = "Punto inalcanzable: va al más cercano";
+        public string AvisoOrden = ""; public int AvisoOrdenTick = -1, AvisoOrdenPeloton = -1, AvisoOrdenX, AvisoOrdenY;
+        void Alcanzable(int peloton, ref int x, ref int y)
+        {
+            int x0 = x, y0 = y; string motivo = null;
+            int maxX = AnchoMm > 0 ? AnchoMm - 1 : x, maxY = AltoMm > 0 ? AltoMm - 1 : y;
+            if (x < 0 || y < 0 || x > maxX || y > maxY) { x = Math.Max(0, Math.Min(maxX, x)); y = Math.Max(0, Math.Min(maxY, y)); motivo = "fuera del mapa"; }
+            var mar = Red != null ? Red.Via.MarDesdeMm : null;
+            if (mar != null && mar.Length > 0 && Red.Via.EnMar(new PointMm(x, y)))
+            {
+                int z = Math.Max(0, Math.Min(mar.Length - 1, y / 1000));
+                x = Math.Max(0, mar[z] - OrillaMm); motivo = "en el mar";
+            }
+            if (motivo == null) return;
+            AvisoOrden = TextoInalcanzable; AvisoOrdenTick = Tick; AvisoOrdenPeloton = peloton; AvisoOrdenX = x; AvisoOrdenY = y;
+            Evento("[ORDEN] punto " + motivo + ": el pelotón " + peloton + " va al punto alcanzable más cercano (" + x / 1000 + "; " + y / 1000 + ") en vez de (" + x0 / 1000 + "; " + y0 / 1000 + ") (tick " + Tick + ")");
+        }
         void Aplicar(Orden o)
         {
             switch (o.Tipo)
             {
-                case TipoOrden.Mover: Unidades.Move(o.A, o.B, o.C, o.D); break;
-                case TipoOrden.AtacarMoviendo: Unidades.AttackMove(o.A, o.B, o.C, o.D); break;
+                case TipoOrden.Mover: { int x = o.B, y = o.C; Alcanzable(o.A, ref x, ref y); Unidades.Move(o.A, x, y, o.D); break; }
+                case TipoOrden.AtacarMoviendo: { int x = o.B, y = o.C; Alcanzable(o.A, ref x, ref y); Unidades.AttackMove(o.A, x, y, o.D); break; }
                 case TipoOrden.Parar: Unidades.Stop(o.A); break;
                 case TipoOrden.Formacion: Unidades.SetFormation(o.A, (Formation)o.B); break;
                 case TipoOrden.FuegoLibre: Unidades.SetHoldFire(o.A, o.B == 0); break;
