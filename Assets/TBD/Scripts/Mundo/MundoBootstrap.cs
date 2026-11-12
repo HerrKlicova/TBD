@@ -313,7 +313,7 @@ namespace TBD.Mundo
         {
             var M = _sim != null ? _sim.M : null; if (M == null || e < 0 || e >= M.Red.Almacen.Count || e > 1) return null;
             var R = M.Red; string ritmo = R.TendenciaAlmacen(e, out bool ambar);
-            return "<color=#d4d0cc>" + R.ExistenciasAlmacen(e, Mundo.CartuchosPorCaja) + "</color>\n" + (ambar ? "<color=#e0b050>" + ritmo + "</color>" : "<color=#c8c4bc>" + ritmo + "</color>");
+            return "<color=#d4d0cc>" + R.ExistenciasAlmacen(e, Mundo.CartuchosPorCaja, e == 1 ? M.SueltosB : 0) + "</color>\n" + (ambar ? "<color=#e0b050>" + ritmo + "</color>" : "<color=#c8c4bc>" + ritmo + "</color>");
         }
         /// <summary>Aviso de los palés (Nacho, [MATERIAL]): lo lleva el pelotón o están en el suelo.</summary>
         public string AvisoMaterial { get { var M = _sim != null ? _sim.M : null; if (M == null) return null; if (M.Portador >= 0) return "El pelotón lleva 4 palés a B: va más lento y no dispara"; if (M.MaterialEnSuelo) return "Palés en el suelo: que otro pelotón pase a recogerlos"; return null; } }

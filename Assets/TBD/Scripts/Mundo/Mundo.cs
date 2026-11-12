@@ -244,6 +244,8 @@ namespace TBD.Mundo
         void Evento(string linea) { if (Eventos.Count < EventosMax) Eventos.Add(linea); Log?.Invoke(linea); }
         int _sueltosB; public int CajasAbiertas;
         public int SueltosEnB { get { return _sueltosB; } }
+        /// <summary>Cartuchos sueltos en B (de cajas ya abiertas), para la placa del almacén: cajas × CartuchosPorCaja + SueltosB. Mismo valor que SueltosEnB.</summary>
+        public int SueltosB => _sueltosB;
 
         ulong HashRetiradas() { ulong h = (RetiradaSinMunicion ? 0x5E7UL : 0) + IMath.Mix(0x5E71UL ^ (ulong)(uint)_sueltosB ^ ((ulong)(uint)CajasAbiertas << 32)) + (CaserioLimpio ? 0x11A7UL : 0) + (MaterialEnB ? 0x11A70UL : 0) + IMath.Mix(0x11A71UL ^ (ulong)(uint)(Portador + 1) ^ ((ulong)(uint)_velPortador << 32)) + (MaterialEnSuelo ? IMath.Mix(0x11A72UL ^ (ulong)(uint)SueloX ^ ((ulong)(uint)SueloY << 32)) : 0); foreach (int id in _retirandose) h += IMath.Mix(0x5E70UL ^ (ulong)(uint)id); return h; }
         public bool SeRetira(int peloton) { return _retirandose.Contains(peloton); }
