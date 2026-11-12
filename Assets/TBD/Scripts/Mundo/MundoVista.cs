@@ -80,12 +80,12 @@ namespace TBD.Mundo
             void O(int t, TipoOrden tipo, int a = 0, int b = 0, int c = 0, int d = 0) { g.Add(new Orden { Tick = t, Jugador = 0, Tipo = tipo, A = a, B = b, C = c, D = d }); }
             // vía en dos tramos (Iker): A → P (tramo 0) y P → B (tramo 1)
             O(30, OrdenesRed.PuntoVia, 1060000, 430000); O(31, OrdenesRed.PuntoVia, 1110000, 700000); O(32, OrdenesRed.PuntoVia, 1150000, 900000); O(33, OrdenesRed.TrazarVia);
-            O(40, OrdenesRed.PuntoVia, 1150000, 900000); O(41, OrdenesRed.PuntoVia, 1240000, 1300000); O(42, OrdenesRed.PuntoVia, 1300000, 1640000); O(43, OrdenesRed.TrazarVia);
+            O(40, OrdenesRed.PuntoVia, 1150000, 900000); O(41, OrdenesRed.PuntoVia, 1390000, 1300000); O(42, OrdenesRed.PuntoVia, 1300000, 1640000); O(43, OrdenesRed.TrazarVia);
             O(60, OrdenesRed.PuntoVia, 1060000, 430000); O(61, OrdenesRed.PuntoVia, 1950000, 900000); O(62, OrdenesRed.TrazarVia);          // por el mar: tiene que rechazarse
             O(90, OrdenesRed.NuevaLinea, 0, 1); O(95, OrdenesRed.AsignarTren, 0, 0);
             // borrados (106) y parada-depósito (107): con el tren encima se rechaza; por delante se acepta y el tren para en el nodo y busca otra ruta
             O(2300, (TipoOrden)106, 0); O(2410, (TipoOrden)106, 1); O(2500, (TipoOrden)107, 0, 1, -1, 0);
-            O(2700, OrdenesRed.PuntoVia, 1150000, 900000); O(2701, OrdenesRed.PuntoVia, 1240000, 1300000); O(2702, OrdenesRed.PuntoVia, 1300000, 1640000); O(2703, OrdenesRed.TrazarVia);
+            O(2700, OrdenesRed.PuntoVia, 1150000, 900000); O(2701, OrdenesRed.PuntoVia, 1390000, 1300000); O(2702, OrdenesRed.PuntoVia, 1300000, 1640000); O(2703, OrdenesRed.TrazarVia);
             O(600, TipoOrden.Mover, pel, 1330000, 1560000, -1); O(1500, TipoOrden.Mover, pel, 1380000, 1520000, -1); O(2400, TipoOrden.Mover, pel, 1500000, 1470000, -1);   // la última, al otro lado del caserío: rodea casas
             O(3300, TipoOrden.AtacarMoviendo, pel, 1440000, 1480000, -1);
             O(7500, TipoOrden.Mover, pel, 1295000, 1595000, -1);              // retirada a B (rearme en el almacén de B)
