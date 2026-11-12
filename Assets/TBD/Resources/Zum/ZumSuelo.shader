@@ -210,7 +210,11 @@ Shader "TBD/ZumSuelo"
                 }
                 else if (uso == U_CARRETERA)
                 {
-                    c = mota > 0.7 ? CONCRETE_LIGHT : CONCRETE;
+                    // La franja de usos de la carretera mide unos 11 m; el asfalto de Álvaro, 7 m. Los 2 m de cada borde son arcén de tierra
+                    // (para que case con la losa de 7 m del paso a nivel de Teo, en 6c7874). Motas 94948c en manchas de metro.
+                    float motaG = Ruido(p, max(mpp * 2.0, 1.0), 37u);
+                    c = motaG > 0.7 ? CONCRETE_LIGHT : CONCRETE;
+                    if (cuneta) c = GREY_BROWN;
                 }
                 else if (uso == U_EXPLANADA)
                 {
@@ -225,7 +229,6 @@ Shader "TBD/ZumSuelo"
                 {
                     c = mota > 0.75 ? CONCRETE : SLATE;
                 }
-                if (cuneta) c = GREY_BROWN;
                 // SOLDADO: grietas de las texturas de cerca
                 if (_ZumAltura < 40.0 && uso != U_HUERTA && uso != U_NARANJAL && abs(Ruido(p, 3.0, 21u) - 0.5) < 0.0025) c = BROWN;
                 if (uso < 0) c = OLIVE_BLACK;                                    // fuera del mundo
@@ -284,7 +287,8 @@ Shader "TBD/ZumSuelo"
                     q += 1.2 * (float2(Ruido(p, 2.5, 31u), Ruido(p, 2.5, 32u)) - 0.5) * 2.0;
                 int usoD = UsoEn(q);
                 bool bordeCauce = usoD == U_CAUCE && (UsoEn(q + float2(0, 2)) != U_CAUCE || UsoEn(q - float2(0, 2)) != U_CAUCE);
-                bool cuneta = usoD != U_CARRETERA && usoD >= 0 && (UsoEn(q + float2(2, 0)) == U_CARRETERA || UsoEn(q - float2(2, 0)) == U_CARRETERA);
+                // arcén: los 2 m de cada borde de la franja de la carretera (la franja va casi de norte a sur: se mira en X)
+                bool cuneta = usoD == U_CARRETERA && (UsoEn(q + float2(2, 0)) != U_CARRETERA || UsoEn(q - float2(2, 0)) != U_CARRETERA);
                 half3 albedo = Dia(usoD, p, mpp, bayer, bordeCauce, cuneta);
 
                 float3 n = normalize(i.normalWS);

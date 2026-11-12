@@ -194,7 +194,7 @@ namespace TBD.Mundo
         void LineaSiUnidas()
         {
             if (_linea < 0 && R.Lineas.Count > 0) { _linea = 0; Debug.Log("[RED] línea A–B en marcha"); }
-            if (_lineaPedida || R.Via.Estaciones.Count < 2) return;
+            if (_lineaPedida || R.Via.Estaciones.Count < 2 || MundoVista.Reproduciendo) return;      // Marcos (H2): al reproducir, las órdenes ya vienen en la grabación; si no, se meten otra vez en un tick que depende de los fotogramas
             if (R.Via.Ruta(R.Via.Estaciones[0].Nodo, R.Via.Estaciones[1].Nodo) == null) return;
             _lineaPedida = true;
             Mandar(OrdenesRed.NuevaLinea, 0, 1); Mandar(OrdenesRed.AsignarTren, R.Lineas.Count, _tren);

@@ -17,6 +17,8 @@ namespace TBD.Mundo
         public readonly Mundo M; readonly float _escala = 0.001f; float _acc; public const float Dt = 1f / 30f;
         readonly StreamWriter _hash; readonly List<Orden> _reproducir; readonly string[] _refHash; int _ri, _comparados; public string Desync;
         readonly bool _grabar; readonly string _dirCap; bool _sinRef;
+        /// <summary>Hay una grabación en reproducción: la vista no debe meter órdenes propias (RedVista, clic derecho).</summary>
+        public static bool Reproduciendo;
         public int Peloton => M.Unidades.Platoons.Count > 0 ? M.Unidades.Platoons[0].Id : -1;
 
         /// <summary>Crea el Mundo del Hito 1 con Mundo.Caserio (el único lector de los CSV de Álvaro: una sola verdad para los dos jugadores).</summary>
@@ -37,7 +39,7 @@ namespace TBD.Mundo
             _grabar = System.Array.IndexOf(ca, "-grabar") >= 0;
             for (int i = 0; i + 1 < ca.Length; i++) if (ca[i] == "-reproducir" && File.Exists(ca[i + 1]))
             {
-                _reproducir = Mundo.OrdenesDe(File.ReadAllText(ca[i + 1]), out _, out _);
+                _reproducir = Mundo.OrdenesDe(File.ReadAllText(ca[i + 1]), out _, out _); Reproduciendo = true;
                 var refp = Path.Combine(Path.GetDirectoryName(ca[i + 1]) ?? ".", "mundo_hash_ref.txt"); if (File.Exists(refp)) _refHash = File.ReadAllLines(refp); else { _sinRef = true; Debug.Log("[MUNDO] desync=SIN_REFERENCIA: no hay " + refp); }
                 if (_refHash != null) foreach (var r in _refHash) { var t = r.Split(';')[0]; if (int.TryParse(t, out var tk)) _refPorTick[tk] = r; }
                 Debug.Log($"[MUNDO] reproduzco {_reproducir.Count} órdenes de {ca[i + 1]}" + (_refHash != null ? $" y comparo con {_refHash.Length} líneas de hash" : ""));
