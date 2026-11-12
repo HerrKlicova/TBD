@@ -83,6 +83,8 @@ namespace TBD.Mundo
                 if (kb.qKey.isPressed) _yaw -= 60f * dt; if (kb.eKey.isPressed) _yaw += 60f * dt;
                 if (kb.zKey.isPressed) _alturaObj = Mathf.Max(AlturaMin, _alturaObj * (1f - 1.5f * dt)); if (kb.xKey.isPressed) _alturaObj = Mathf.Min(AlturaMax, _alturaObj * (1f + 1.5f * dt));
                 if (kb.fKey.wasPressedThisFrame) _foco = Centro();      // F: ir al pelotón
+                if (kb.pKey.wasPressedThisFrame) { Pausa = !Pausa; Debug.Log("[MUNDO] pausa " + (Pausa ? "sí" : "no") + " (tick " + (_sim != null ? _sim.M.Tick : 0) + ")"); }      // P: pausa (la vista deja de avanzar el Mundo; las órdenes llevan su tick)
+                if (kb.kKey.wasPressedThisFrame) QaPantalla();      // K (QA): escribe en Captures/qa_pantalla.txt dónde caen en pantalla los puntos de Captures/qa_puntos.txt
             }
             if (ms != null)
             {
@@ -268,7 +270,7 @@ namespace TBD.Mundo
         MundoVista _sim;
         void DibujarSim(float dt)
         {
-            _sim.Avanzar(dt); var M = _sim.M; float k = 1f - Mathf.Exp(-25f * dt);
+            _sim.Avanzar(Pausa ? 0f : dt); var M = _sim.M; float k = 1f - Mathf.Exp(-25f * dt);
             if (M.Unidades.Platoons.Count > 0)
             {
                 var men = M.Unidades.Platoons[0].Men;
@@ -321,6 +323,21 @@ namespace TBD.Mundo
         public Camera CamaraMundo { get { return _cam; } }
         public float AlturaSuelo(float x, float z) { return Alt(x, z); }
         public bool PuntoSuelo(Vector2 pantalla, out Vector3 p) { return Suelo(pantalla, out p); }
+        public static bool Pausa;
+        /// <summary>QA (partida a mano con clics sintéticos): para cada «nombre;x;y» (m) de Captures/qa_puntos.txt escribe «nombre;px;py» (píxeles del área cliente). Solo lee.</summary>
+        void QaPantalla()
+        {
+            var dir = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Application.dataPath) ?? ".", "Captures"); var fin = System.IO.Path.Combine(dir, "qa_puntos.txt");
+            if (!System.IO.File.Exists(fin)) { Debug.Log("[QA] no hay " + fin); return; }
+            var sb = new System.Text.StringBuilder(); sb.AppendLine($"altura;{_altura:0};pantalla;{Screen.width};{Screen.height}");
+            foreach (var l in System.IO.File.ReadAllLines(fin))
+            {
+                var c = l.Split(';'); if (c.Length < 3 || !float.TryParse(c[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var x) || !float.TryParse(c[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var z)) continue;
+                var sp = APantalla(EnSuelo(new Vector3(x, 0f, z))); sb.AppendLine($"{c[0]};{sp.x:0};{sp.y:0};{(sp.z > 0f ? 1 : 0)}");
+            }
+            if (_sim != null && _sim.M.Unidades.Platoons.Count > 0) { var pl = _sim.M.Unidades.Platoons[0]; var sp = APantalla(EnSuelo(new Vector3(pl.AX / 1000f, 0f, pl.AY / 1000f))); sb.AppendLine($"peloton;{sp.x:0};{sp.y:0};1"); }
+            System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "qa_pantalla.txt"), sb.ToString()); Debug.Log("[QA] qa_pantalla.txt escrito");
+        }
         public float AlturaCamara { get { return _altura; } }
         public void Enfocar(float x, float z) { _foco = new Vector3(x, 0f, z); }
         /// <summary>RedVista se queda con el clic izquierdo mientras se traza una vía.</summary>
@@ -445,6 +462,14 @@ namespace TBD.Mundo
                 int quedan = 0; foreach (var z in _sim.M.Zombis.Lista) if (z.Vivo) quedan++;
                 var sc = APantalla(EnSuelo(new Vector3(pcas.X / 1000f, 0f, pcas.Y / 1000f)) + Vector3.up * 12f);
                 if (sc.z > 0f) GUI.Label(new Rect(sc.x - 90f, sc.y - 14f, 260f, 28f), quedan > 0 ? $"<b>Caserío · quedan {quedan}</b>" : "<b>Caserío · limpio</b>", st);
+            }
+            if (Pausa) GUI.Label(new Rect(Screen.width * 0.5f - 60f, 40f, 300f, 30f), "<b>PAUSA (P)</b>", st);
+            if (_sim != null && _sim.M.Unidades.Platoons.Count > 0)      // munición por soldado y aviso de seco (solo lectura)
+            {
+                var pl = _sim.M.Unidades.Platoons[0]; int vivosP = pl.AliveCount();
+                string txt = $"Pelotón · {vivosP} soldados · munición {pl.AmmoShots}/{pl.AmmoCap}" + (vivosP > 0 ? $" (≈{pl.AmmoShots / vivosP} por soldado)" : "");
+                GUI.Label(new Rect(16f, 64f, 900f, 26f), txt, st);
+                if (pl.AmmoShots == 0 && vivosP > 0) GUI.Label(new Rect(16f, 88f, 900f, 26f), "<color=#e04030><b>¡Pelotón seco! Retíralo a B para rearmar</b></color>", st);
             }
             var aviso = AvisoMaterial; if (aviso != null) GUI.Label(new Rect(16f, 40f, 900f, 26f), "<color=#e0b050>" + aviso + "</color>", st);
             int vivos = 0; foreach (var z in _zombis) if (z.vivo) vivos++;

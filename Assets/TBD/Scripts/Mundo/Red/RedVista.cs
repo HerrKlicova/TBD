@@ -127,6 +127,13 @@ namespace TBD.Mundo
             var kb = Keyboard.current; var ms = Mouse.current; if (kb == null || ms == null) return;
             if (kb.tKey.wasPressedThisFrame) { _modo = !_modo; _trazo.Clear(); BorrarPrevia(); _causa = null; Debug.Log("[RED] modo trazar " + (_modo ? "activado" : "desactivado")); }
             if (kb.escapeKey.wasPressedThisFrame && _modo) { _modo = false; _arrastrando = false; _trazo.Clear(); BorrarPrevia(); }
+            if (kb.lKey.wasPressedThisFrame && R.Via.Estaciones.Count >= 2) { Mandar(OrdenesRed.NuevaLinea, 0, 1, 4, 2); Mandar(OrdenesRed.AsignarTren, R.Lineas.Count, _tren); Debug.Log("[RED] L: línea A–B pedida desde la interfaz"); }
+            if (kb.deleteKey.wasPressedThisFrame && _mb.PuntoSuelo(ms.position.ReadValue(), out var pb))      // Supr: borra el tramo de vía bajo el cursor (orden 106)
+            {
+                var q = Mm(pb); int mejor = -1; long md = 25_000L * 25_000L;
+                foreach (var t in R.Via.Tramos) { if (t.Borrado) continue; foreach (var pt in t.Puntos) { long dx = pt.X - q.X, dy = pt.Y - q.Y, d2 = dx * dx + dy * dy; if (d2 < md) { md = d2; mejor = t.Id; } } }
+                if (mejor >= 0) { Mandar(OrdenesRed.BorrarVia, mejor); Debug.Log($"[RED] Supr: borrar tramo {mejor} pedido"); } else Debug.Log("[RED] Supr: no hay vía bajo el cursor");
+            }
             MundoBootstrap.TrazandoVia = _modo;
             if (!_modo) return;
             var pos = ms.position.ReadValue();
