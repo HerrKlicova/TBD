@@ -113,9 +113,28 @@ namespace TBD.Mundo
             t.Ruta = ruta; t.PasoI = 0; t.OffMm = 0; t.Nodo = -1; t.Estado = EstadoTren.EnMarcha;
         }
 
+        /// <summary>Línea por defecto decidida por la SIMULACIÓN (no por la vista): en cuanto la estación 0 y la 1 quedan unidas por vía, se crea la línea de Hugo
+        /// (4 cajas de 0 a 1, 2 palés de vuelta) y se le asigna el tren 0. Una sola vez. La activa MontarRedHito1; igual en todos los jugadores.</summary>
+        public bool LineaAuto;
+        public int CrearLineaPorDefecto(int a, int b, int cajas = 4, int pales = 2)
+        {
+            var cA = new int[Recursos]; cA[Municion] = cajas; var dA = new int[Recursos]; dA[Material] = -1;
+            var cB = new int[Recursos]; cB[Material] = pales; var dB = new int[Recursos]; dB[Municion] = -1;
+            return CrearLinea("Línea " + (Lineas.Count + 1), new List<ParadaLinea> { new ParadaLinea { Estacion = a, Cargar = cA, Descargar = dA }, new ParadaLinea { Estacion = b, Cargar = cB, Descargar = dB } });
+        }
+        void LineaAutoSiUnidas()
+        {
+            if (!LineaAuto || (Tick % IMath.TickRate) != 0) return;
+            if (Lineas.Count > 0) { LineaAuto = false; return; }      // alguien ya hizo una línea a mano
+            if (Via.Estaciones.Count < 2 || Trenes.Count == 0 || Via.Ruta(Via.Estaciones[0].Nodo, Via.Estaciones[1].Nodo) == null) return;
+            int l = CrearLineaPorDefecto(0, 1); AsignarTren(l, 0); LineaAuto = false; LineaAutoCreadaTick = Tick;
+        }
+        public int LineaAutoCreadaTick = -1;
+
         public void Step(int tick)
         {
             Tick = tick;
+            LineaAutoSiUnidas();
             foreach (var t in Trenes)
             {
                 if (t.Estado == EstadoTren.EnMarcha) Mover(t);
@@ -209,6 +228,7 @@ namespace TBD.Mundo
         {
             salida.Add(new KeyValuePair<string, ulong>("red.via", Via.Hash()));
             ulong ht = 0x51UL; foreach (var t in Trenes) { ht = IMath.Mix(ht ^ (ulong)t.Id ^ ((ulong)(uint)t.Nodo << 8) ^ ((ulong)t.PasoI << 24) ^ ((ulong)(uint)t.OffMm << 32)); ht = IMath.Mix(ht ^ (ulong)(uint)t.VelMmT ^ ((ulong)t.Estado << 20) ^ ((ulong)(uint)(t.Linea + 1) << 24) ^ ((ulong)(uint)t.Parada << 40) ^ ((ulong)(uint)t.EsperaT << 48)); ht = IMath.Mix(ht ^ (ulong)(uint)(t.InicioVueltaT + 1) ^ ((ulong)(uint)(t.UltimaVueltaT + 1) << 32)); foreach (var ps in t.Ruta) ht = IMath.Mix(ht ^ (ulong)ps.Tramo ^ (ps.Directo ? 1UL << 40 : 0UL)); }
+            if (LineaAuto) ht = IMath.Mix(ht ^ 0xA070UL);
             salida.Add(new KeyValuePair<string, ulong>("red.trenes", ht));
             ulong ha = 0x52UL; foreach (var a in Almacen) foreach (var c in a) ha = IMath.Mix(ha ^ (ulong)(uint)c); salida.Add(new KeyValuePair<string, ulong>("red.almacen", ha));
             ulong hc = 0x53UL; foreach (var t in Trenes) foreach (var c in t.Carga) hc = IMath.Mix(hc ^ (ulong)(uint)c); foreach (var kv in _hechoC) foreach (var c in kv.Value) hc = IMath.Mix(hc ^ (ulong)kv.Key ^ (ulong)(uint)c << 16); foreach (var kv in _hechoD) foreach (var c in kv.Value) hc = IMath.Mix(hc ^ (ulong)kv.Key ^ (ulong)(uint)c << 24);
@@ -217,7 +237,7 @@ namespace TBD.Mundo
 
         public ulong Hash()
         {
-            ulong h = Via.Hash() ^ ((ulong)(uint)Tick << 7);
+            ulong h = Via.Hash() ^ ((ulong)(uint)Tick << 7); if (LineaAuto) h = IMath.Mix(h ^ 0xA070UL);
             foreach (var t in Trenes)
             {
                 h = IMath.Mix(h ^ (ulong)t.Id ^ ((ulong)(uint)t.Nodo << 8) ^ ((ulong)t.PasoI << 24) ^ ((ulong)(uint)t.OffMm << 32));
@@ -233,7 +253,7 @@ namespace TBD.Mundo
 
         public void Save(SaveWriter w)
         {
-            Via.Save(w); w.Int(Tick);
+            Via.Save(w); w.Int(Tick); w.Int(LineaAuto ? 1 : 0);
             w.Int(Almacen.Count); foreach (var a in Almacen) w.Ints(a);
             w.Int(Lineas.Count); foreach (var l in Lineas) { w.Str(l.Nombre); w.Int(l.Paradas.Count); foreach (var p in l.Paradas) { w.Int(p.Estacion); w.Ints(p.Cargar); w.Ints(p.Descargar); } }
             w.Int(Trenes.Count);
@@ -248,7 +268,7 @@ namespace TBD.Mundo
 
         public void Load(SaveReader r)
         {
-            Via.Load(r); Tick = r.Int();
+            Via.Load(r); Tick = r.Int(); LineaAuto = r.Int() != 0;
             Almacen.Clear(); int na = r.Int(); for (int i = 0; i < na; i++) Almacen.Add(r.Ints());
             Lineas.Clear(); int nl = r.Int();
             for (int i = 0; i < nl; i++) { var l = new Linea { Id = i, Nombre = r.Str() }; int np = r.Int(); for (int k = 0; k < np; k++) l.Paradas.Add(new ParadaLinea { Estacion = r.Int(), Cargar = r.Ints(), Descargar = r.Ints() }); Lineas.Add(l); }

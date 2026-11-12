@@ -33,10 +33,7 @@ namespace TBD.Mundo
                 case OrdenesRed.NuevaLinea:
                     {
                         if (o.A < 0 || o.A >= Red.Via.Estaciones.Count || o.B < 0 || o.B >= Red.Via.Estaciones.Count || o.A == o.B) { Red.UltimoRechazo = "línea no válida"; break; }
-                        int cajas = o.C > 0 ? o.C : 4, pales = o.D > 0 ? o.D : 2;      // Hugo (cifras-hito1): 4 cajas a B y vuelve con el material que haya (2 huecos)
-                        var cA = new int[Red.Recursos]; cA[Red.Municion] = cajas; var dA = new int[Red.Recursos]; dA[Red.Material] = -1;
-                        var cB = new int[Red.Recursos]; cB[Red.Material] = pales; var dB = new int[Red.Recursos]; dB[Red.Municion] = -1;
-                        Red.CrearLinea("Línea " + (Red.Lineas.Count + 1), new List<ParadaLinea> { new ParadaLinea { Estacion = o.A, Cargar = cA, Descargar = dA }, new ParadaLinea { Estacion = o.B, Cargar = cB, Descargar = dB } });
+                        Red.CrearLineaPorDefecto(o.A, o.B, o.C > 0 ? o.C : 4, o.D > 0 ? o.D : 2);      // Hugo (cifras-hito1): 4 cajas a B y vuelve con el material que haya (2 huecos)
                         break;
                     }
                 case OrdenesRed.AsignarTren: Red.AsignarTren(o.A, o.B); break;
@@ -59,7 +56,9 @@ namespace TBD.Mundo
             if (Red.Via.Estaciones.Count > 0 || !Puntos.TryGetValue("A", out var a) || !Puntos.TryGetValue("B", out var b)) return;
             int ea = Red.AddEstacion("A", a.X, a.Y); Red.AddEstacion("B", b.X, b.Y);
             var csv = Lector != null ? Lector("carreteras_hito1.csv") : null; if (csv != null) Red.Via.CargarCarreterasCsv(csv);
+            var mar = Lector != null ? Lector("agua_hito1.csv") : null; if (mar != null) Red.Via.CargarMarCsv(mar);
             Red.NuevoTren("Tren 1", ea); Red.Almacen[ea][Red.Municion] = 20;
+            Red.LineaAuto = true;      // la línea A–B por defecto la crea la simulación al unirse A y B (antes la pedía la vista, en un tick que dependía de los fotogramas)
         }
 
         partial void StepRed() { Red.Step(Tick); }

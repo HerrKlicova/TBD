@@ -88,6 +88,10 @@ namespace TBD.Sim.Tests
                     m.Encolar(new Orden { Tick = 1, Jugador = 1, Tipo = OrdenesRed.PuntoVia, A = a0.X, B = a0.Y }); m.Encolar(new Orden { Tick = 1, Jugador = 1, Tipo = OrdenesRed.PuntoVia, A = b0.X, B = b0.Y }); m.Encolar(new Orden { Tick = 2, Jugador = 1, Tipo = OrdenesRed.TrazarVia });
                     for (int t = 0; t < 10; t++) m.Step();
                     check(m.Red.Via.Tramos.Count == 1 && m.Red.Via.PasosNivel.Count == 1 && m.Red.Via.PasosNivel[0].AnguloGrados == 60, $"en el caserío, la vía A–B se traza por órdenes y cruza la carretera con el paso a nivel de 60° ({m.Red.Via.Tramos.Count} tramo, {m.Red.Via.PasosNivel.Count} paso)");
+                    check(m.Red.Lineas.Count == 0 && m.Red.LineaAuto, "aún sin línea: la crea la simulación en el siguiente segundo entero");
+                    for (int t = 0; t < 40; t++) m.Step();
+                    check(m.Red.Lineas.Count == 1 && m.Red.Trenes[0].Linea == 0 && m.Red.LineaAutoCreadaTick % 30 == 0 && !m.Red.LineaAuto, $"A y B unidas: la simulación crea la línea por defecto y asigna el Tren 1 (tick {m.Red.LineaAutoCreadaTick}), sin depender de la vista");
+                    check(m.Red.Via.MarDesdeMm.Length == 2049, "MontarRedHito1 carga el mar (agua_hito1.csv)");
                     TBD.Mundo.Mundo.Lector = lectorAntes;
                 }
             }
@@ -152,6 +156,25 @@ namespace TBD.Sim.Tests
                 check(m1.Red.Almacen[1][0] == 12 && m1.Red.Almacen[0][2] == 6, $"la línea por defecto lleva las 12 cajas a B y trae los 6 palés a A en 25 minutos (cajas B {m1.Red.Almacen[1][0]}, palés A {m1.Red.Almacen[0][2]})");
                 var hs = m1.HashPorSistema(); var nombres = new List<string>(); foreach (var kv in hs) nombres.Add(kv.Key);
                 check(nombres.Contains("red.via") && nombres.Contains("red.trenes") && nombres.Contains("red.trazos") && nombres.Contains("unidades"), "el hash por sistema de Mundo incluye la red (" + string.Join(", ", nombres) + ")");
+            }
+            // Marcos (Mundo11): A → P(1150; 900) → B en el terreno real, y A → mar rechazado
+            {
+                string Leer(string f) { foreach (var cand in new[] { "../../Assets/StreamingAssets/Hito1/" + f, "../../../../../Assets/StreamingAssets/Hito1/" + f }) if (System.IO.File.Exists(cand)) return System.IO.File.ReadAllText(cand); return null; }
+                string csv = Leer("carreteras_hito1.csv"), mar = Leer("agua_hito1.csv");
+                if (csv == null || mar == null) check(true, "(sin carreteras o mar del Hito 1 en esta rama: prueba omitida)");
+                else
+                {
+                    var r = new Red(); r.AddEstacion("A", 1_060_000, 430_000); r.AddEstacion("B", 1_300_000, 1_640_000); r.Via.CargarCarreterasCsv(csv); r.Via.CargarMarCsv(mar);
+                    var r1 = r.TrazarVia(new List<PointMm> { new PointMm(1_060_000, 430_000), new PointMm(1_110_000, 700_000), new PointMm(1_150_000, 900_000) });
+                    check(r1.Ok, $"A → P(1150; 900) con final libre se traza ({(r1.Ok ? r.Via.Tramos[r1.Tramo].Piezas.Length + " piezas" : r1.Por)})");
+                    var r2 = r.TrazarVia(new List<PointMm> { new PointMm(1_150_000, 900_000), new PointMm(1_240_000, 1_300_000), new PointMm(1_300_000, 1_640_000) });
+                    check(r2.Ok && r.Via.Ruta(r.Via.Estaciones[0].Nodo, r.Via.Estaciones[1].Nodo)?.Count == 2, $"P → B sigue desde el final de la anterior y une A con B ({(r2.Ok ? "ok, " + r.Via.PasosNivel.Count + " paso a nivel" : r2.Por)})");
+                    check(r.Via.MarDesdeMm.Length == 2049 && r.Via.EnMar(new PointMm(1_950_000, 900_000)) && !r.Via.EnMar(new PointMm(1_300_000, 1_640_000)), "el mar de usos_2049 está al este (1950; 900 es mar; B no)");
+                    var r3 = r.TrazarVia(new List<PointMm> { new PointMm(1_060_000, 430_000), new PointMm(1_950_000, 900_000) });
+                    check(!r3.Ok && r3.Por.Contains("mar") && r.Via.Tramos.Count == 2, $"A → mar (1950; 900) se rechaza ({r3.Por})");
+                    var w = new SaveWriter(); r.Save(w); var rc = new Red(); rc.Load(new SaveReader(w.ToArray()));
+                    check(rc.Hash() == r.Hash() && rc.Via.EnMar(new PointMm(1_950_000, 900_000)), "la copia de la vista previa (guardar y cargar) también sabe dónde está el mar");
+                }
             }
             // borrar vía construida con el tren en marcha (orden 106) y añadir una parada a una línea existente (107)
             {

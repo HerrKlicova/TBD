@@ -52,10 +52,13 @@ namespace TBD.Mundo
             if (trazo == null || trazo.Count < 2) return r;
             var acum = new long[trazo.Count]; for (int i = 1; i < trazo.Count; i++) acum[i] = acum[i - 1] + IMath.Dist(trazo[i].X - trazo[i - 1].X, trazo[i].Y - trazo[i - 1].Y);
             long total = acum[acum.Length - 1]; long x = x0, y = y0; int rumbo = rumboIni & 0xFFFF; long s = 0; var fin = trazo[trazo.Count - 1]; int atasco = 0;
+            int mejorN = 0; long mejorDf = IMath.Dist((int)(fin.X - x), (int)(fin.Y - y));      // el prefijo que más se acerca al final (un final libre no debe «pasarse y dar vueltas»)
             for (int it = 0; it < 600; it++)
             {
                 long df = IMath.Dist((int)(fin.X - x), (int)(fin.Y - y));
+                if (df < mejorDf) { mejorDf = df; mejorN = r.Count; }
                 if (df <= 6_000) break;
+                if (mejorDf <= EncajeMm && df > mejorDf) break;      // ya estuvo a tiro del final y se aleja: se queda con el mejor
                 // persecución pura: rumbo deseado hacia un punto del trazo 40 m por delante; la pieza que más corrige sin pasarse (la recta si el error es pequeño)
                 long objetivo = Math.Min(total, s + 40_000); var tp = PuntoEn(trazo, acum, objetivo);
                 int deseado = IMath.Atan2((int)(tp.Y - y), (int)(tp.X - x)); int err = IMath.Diff(deseado, rumbo);
@@ -72,7 +75,9 @@ namespace TBD.Mundo
                 long s0 = s; s = Proyectar(trazo, acum, x, y, s);
                 if (s == s0 && ++atasco > 8) break; else if (s != s0) atasco = 0;      // no avanza por el trazo (curva imposible): se deja de buscar
             }
-            restoMm = IMath.Dist((int)(fin.X - x), (int)(fin.Y - y));
+            long dfin = IMath.Dist((int)(fin.X - x), (int)(fin.Y - y)); if (dfin < mejorDf) { mejorDf = dfin; mejorN = r.Count; }
+            if (mejorN < r.Count) r.RemoveRange(mejorN, r.Count - mejorN);
+            restoMm = (int)mejorDf;
             return r;
         }
 
@@ -109,6 +114,7 @@ namespace TBD.Mundo
             if (nb >= 0) pts[pts.Count - 1] = new PointMm(Nodos[nb].X, Nodos[nb].Y);      // el último palmo encaja en el nodo (menos de EncajeMm)
             var acum = new int[pts.Count]; for (int i = 1; i < pts.Count; i++) acum[i] = acum[i - 1] + IMath.Dist(pts[i].X - pts[i - 1].X, pts[i].Y - pts[i - 1].Y);
             if (acum[acum.Length - 1] < LongMinMm) return new Resultado { Por = "vía demasiado corta" };
+            foreach (var q in pts) if (EnMar(q)) return new Resultado { Por = $"la vía no puede ir por el mar ({q.X / 1000}; {q.Y / 1000})" };
             var cruces = Cruces(pts, acum, out string sesgo); if (sesgo != null) return new Resultado { Por = sesgo };
             if (nb < 0) { nb = Nodos.Count; Nodos.Add(new Nodo { Id = nb, X = (int)x, Y = (int)y }); }
             foreach (var c in cruces) { var cc = c; cc.Tramo = Tramos.Count; PasosNivel.Add(cc); }
@@ -190,6 +196,16 @@ namespace TBD.Mundo
         public readonly List<PointMm[]> Carreteras = new List<PointMm[]>();
         /// <summary>Carga carreteras_hito1.csv de Álvaro (carretera;orden;x_mm;z_mm;y_mm;ancho_mm;puente). Los tramos con puente=si no cortan la vía (pasa por debajo),
         /// así que cada carretera se parte en trozos sin puente. Z del terreno = Y de la red. Devuelve cuántas polilíneas añade.</summary>
+        /// <summary>Mar (Hito 1): por cada metro de Z, la X en mm desde la que hacia el este es mar (agua_hito1.csv, de usos_2049.png de Álvaro). Vacío = sin mar.</summary>
+        public int[] MarDesdeMm = new int[0];
+        public bool EnMar(PointMm p) { if (MarDesdeMm == null || MarDesdeMm.Length == 0) return false; int z = p.Y / 1000; if (z < 0) z = 0; if (z >= MarDesdeMm.Length) z = MarDesdeMm.Length - 1; return p.X >= MarDesdeMm[z]; }
+        public void CargarMarCsv(string csv)
+        {
+            var l = new List<int>();
+            foreach (var raw in csv.Split('\n')) { var s = raw.Trim(); if (s.Length == 0 || s[0] == '#' || s.StartsWith("z_m")) continue; var c = s.Split(';'); if (c.Length >= 2 && int.TryParse(c[1], out int v)) l.Add(v); }
+            MarDesdeMm = l.ToArray();
+        }
+
         public int CargarCarreterasCsv(string csv)
         {
             var porNombre = new SortedDictionary<string, SortedDictionary<int, (int x, int y, bool puente)>>(System.StringComparer.Ordinal);
@@ -348,6 +364,7 @@ namespace TBD.Mundo
             w.Int(Nodos.Count); foreach (var n in Nodos) { w.Int(n.X); w.Int(n.Y); w.Int(n.Estacion); }
             w.Int(Estaciones.Count); foreach (var e in Estaciones) { w.Int(e.Nodo); w.Str(e.Nombre); }
             w.Int(Carreteras.Count); foreach (var rd in Carreteras) { w.Int(rd.Length); foreach (var q in rd) { w.Int(q.X); w.Int(q.Y); } }
+            w.Ints(MarDesdeMm);
             w.Int(PasosNivel.Count); foreach (var pn in PasosNivel) { w.Int(pn.Tramo); w.Int(pn.OffMm); w.Int(pn.AnguloGrados); w.Int(pn.Carretera); w.Int(pn.P.X); w.Int(pn.P.Y); }
             w.Int(Tramos.Count); foreach (var t in Tramos) { w.Int(t.A); w.Int(t.B); w.Int(t.RumboIni); w.Int(t.Piezas != null ? t.Piezas.Length : 0); if (t.Piezas != null) foreach (var pz in t.Piezas) w.Byte((byte)pz); w.Int(t.Puntos.Length); foreach (var p in t.Puntos) { w.Int(p.X); w.Int(p.Y); } }
             int nb = 0; foreach (var t in Tramos) if (t.Borrado) nb++; w.Int(nb); foreach (var t in Tramos) if (t.Borrado) w.Int(t.Id);
@@ -359,6 +376,7 @@ namespace TBD.Mundo
             int nn = r.Int(); for (int i = 0; i < nn; i++) Nodos.Add(new Nodo { Id = i, X = r.Int(), Y = r.Int(), Estacion = r.Int() });
             int ne = r.Int(); for (int i = 0; i < ne; i++) Estaciones.Add(new Estacion { Id = i, Nodo = r.Int(), Nombre = r.Str() });
             Carreteras.Clear(); int nc = r.Int(); for (int i = 0; i < nc; i++) { int nq = r.Int(); var rd = new PointMm[nq]; for (int k = 0; k < nq; k++) rd[k] = new PointMm(r.Int(), r.Int()); Carreteras.Add(rd); }
+            MarDesdeMm = r.Ints() ?? new int[0];
             PasosNivel.Clear(); int npn = r.Int(); for (int i = 0; i < npn; i++) PasosNivel.Add(new PasoNivel { Tramo = r.Int(), OffMm = r.Int(), AnguloGrados = r.Int(), Carretera = r.Int(), P = new PointMm(r.Int(), r.Int()) });
             int nt = r.Int();
             for (int i = 0; i < nt; i++)
