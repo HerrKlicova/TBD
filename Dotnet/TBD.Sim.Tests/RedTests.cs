@@ -179,6 +179,16 @@ namespace TBD.Sim.Tests
                     check(rc.Hash() == r.Hash() && rc.Via.EnMar(new PointMm(1_950_000, 900_000)), "la copia de la vista previa (guardar y cargar) también sabe dónde está el mar");
                 }
             }
+            // Marcos (Mundo21): soltar a ~20 m de B ya no deja la vía suelta
+            {
+                var r = Hito1(out int a, out int b);
+                var res = r.TrazarVia(new List<PointMm> { new PointMm(200_000, 1_000_000), new PointMm(900_000, 1_150_000), new PointMm(1_580_000, 1_292_000) });      // acaba a ~22 m de B
+                check(res.Ok && r.Via.Tramos[res.Tramo].B == r.Via.Estaciones[b].Nodo && r.Via.Nodos.Count == 2, $"un trazo que acaba a 22 m de B se lleva hasta B y encaja ({(res.Ok ? "ok" : res.Por)}; nodos {r.Via.Nodos.Count})");
+                var r2 = Hito1(out a, out b);
+                var no = r2.TrazarVia(new List<PointMm> { new PointMm(200_000, 1_000_000), new PointMm(1_000_000, 1_000_000), new PointMm(1_570_000, 1_000_000), new PointMm(1_600_000, 1_270_000) });      // llega de lado, sin sitio para girar
+                check(no.Ok ? r2.Via.Tramos[no.Tramo].B == r2.Via.Estaciones[b].Nodo && r2.Via.Nodos.Count == 2 : (no.Por.Contains("no encaja con la estación") || no.Por.Contains("curva")) && r2.Via.Tramos.Count == 0,
+                    $"llegando de lado a B: o encaja en B o se rechaza diciendo por qué; nunca queda un extremo suelto junto a la estación ({(no.Ok ? "encaja" : no.Por)})");
+            }
             // coste de material (Hugo, cifras-hito1): en metros enteros (1 palé = 100 m), curvas ×1,5, paso a nivel 200 m; borrar devuelve el 100 %
             {
                 check(Via.CosteMetros(new[] { Via.Pieza.Recta10 }, 0) == 10 && Via.CosteMetros(new[] { Via.Pieza.Izq60 }, 0) == 24 && Via.CosteMetros(new[] { Via.Pieza.Recta2_5 }, 1) == 203, "coste: recta de 10 m = 10 m; curva de 15,71 m = 24 m (×1,5); recta de 2,5 m + paso a nivel = 203 m");

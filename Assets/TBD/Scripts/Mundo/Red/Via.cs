@@ -168,8 +168,18 @@ namespace TBD.Mundo
         {
             if (trazo == null || trazo.Count < 2) return new Resultado { Por = "hacen falta al menos dos puntos" };
             int na = NodoCerca(trazo[0].X, trazo[0].Y); if (na < 0) return new Resultado { Por = "la vía tiene que empezar en una estación o en otra vía" };
+            // Marcos (Mundo21): soltar a ~20 m de B dejaba la vía suelta. Si el final cae a menos de 40 m de una estación o vía (y no a 12), se apunta a ella;
+            // y si aun así la cadena no encaja, se rechaza diciendo a cuánto se queda, en vez de crear un extremo suelto junto a la estación.
+            var fin = trazo[trazo.Count - 1]; int objetivo = NodoCerca(fin.X, fin.Y);
+            if (objetivo < 0) { int nc = NodoCerca(fin.X, fin.Y, AyudaEncajeMm); if (nc >= 0 && nc != na) { objetivo = nc; var t2 = new List<PointMm>(trazo); t2.Add(new PointMm(Nodos[nc].X, Nodos[nc].Y)); trazo = t2; } }
             int ru = RumboSalida(na, trazo);
             var piezas = AjustarTrazo(trazo, Nodos[na].X, Nodos[na].Y, ru, out int resto);
+            if (objetivo >= 0 && objetivo != na)
+            {
+                long x = Nodos[na].X, y = Nodos[na].Y; int r = ru; foreach (var pz in piezas) Avanzar(pz, ref x, ref y, ref r);
+                int d = IMath.Dist((int)(Nodos[objetivo].X - x), (int)(Nodos[objetivo].Y - y));
+                if (d > EncajeMm) return new Resultado { Por = $"no encaja con {NombreNodo(objetivo)}: se queda a {d / 1000} m (tiene que acabar a menos de {EncajeMm / 1000} m)" };
+            }
             if (resto > EncajeMm) return new Resultado { Por = $"curva demasiado cerrada: el radio mínimo es {RadioMinMm / 1000} m" };
             return TrazarPiezas(na, ru, piezas);
         }
@@ -277,9 +287,12 @@ namespace TBD.Mundo
             return new Resultado { Ok = true, Tramo = t.Id, RadioMinMm = rmin };
         }
 
-        public int NodoCerca(int x, int y)
+        public const int AyudaEncajeMm = 40_000;      // a menos de esto del final, el trazo se lleva hasta la estación o vía
+        string NombreNodo(int n) { foreach (var e in Estaciones) if (e.Nodo == n) return "la estación " + e.Nombre; return "la vía"; }
+        public int NodoCerca(int x, int y) { return NodoCerca(x, y, EncajeMm); }
+        public int NodoCerca(int x, int y, int radioMm)
         {
-            int best = -1; long bd = (long)EncajeMm * EncajeMm;
+            int best = -1; long bd = (long)radioMm * radioMm;
             for (int i = 0; i < Nodos.Count; i++) { long dx = Nodos[i].X - x, dy = Nodos[i].Y - y, d = dx * dx + dy * dy; if (d <= bd) { bd = d; best = i; } }
             return best;
         }
