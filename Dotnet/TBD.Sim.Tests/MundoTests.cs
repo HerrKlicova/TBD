@@ -156,7 +156,8 @@ namespace TBD.Sim.Tests
             int fin = int.TryParse(Environment.GetEnvironmentVariable("TBD_REPLAY_FIN"), out var ff) ? ff : 18300;
             var m = TBD.Mundo.Mundo.Caserio(sem); foreach (var o in ords) m.Encolar(o); m.Log = l => Console.WriteLine("  " + l);
             int bajas = 0, abat = 0; string ultOrden = "-";
-            var ent = (Environment.GetEnvironmentVariable("TBD_REPLAY_ENTREGAS") ?? "0:1").Split(':'); int ent0 = int.Parse(ent[0]), entCada = int.Parse(ent[1]);      // tren simulado: primera entrega y cada cuánto (sin red en la grabación)
+            string entS = Environment.GetEnvironmentVariable("TBD_REPLAY_ENTREGAS") ?? "0:1"; int[] entLista = entS.Contains(",") ? Array.ConvertAll(entS.Split(','), int.Parse) : null;      // «t0:cada» o lista «t1,t2,t3»
+            var ent = (entLista != null ? "0:1" : entS).Split(':'); int ent0 = int.Parse(ent[0]), entCada = int.Parse(ent[1]);      // tren simulado: primera entrega y cada cuánto (sin red en la grabación)
             if (uint.TryParse(Environment.GetEnvironmentVariable("TBD_REPLAY_SEMILLA"), out var sem2)) { m = TBD.Mundo.Mundo.Caserio(sem2); foreach (var o in ords) m.Encolar(o); m.Log = l => Console.WriteLine("  " + l); }
             var b = m.Puntos["B"];
             while (m.Tick <= fin)
@@ -164,7 +165,7 @@ namespace TBD.Sim.Tests
                 foreach (var o in ords) if (o.Tick == m.Tick && (int)o.Tipo < 100) { ultOrden = o.Tipo + "@" + o.Tick; Console.WriteLine($"t {m.Tick} ({m.Tick / 30} s) orden {o}"); }
                 if (m.Tick == fin) break;
                 m.Step();
-                if (ent0 > 0 && m.Tick >= ent0 && (m.Tick - ent0) % entCada == 0) { m.Red.Meter(m.Red.EstacionPorNombre("B"), Red.Municion, 4); Console.WriteLine($"t {m.Tick} ({m.Tick / 30} s) el tren deja 4 cajas en B"); }
+                if (entLista != null ? Array.IndexOf(entLista, m.Tick) >= 0 : (ent0 > 0 && m.Tick >= ent0 && (m.Tick - ent0) % entCada == 0)) { m.Red.Meter(m.Red.EstacionPorNombre("B"), Red.Municion, 4); Console.WriteLine($"t {m.Tick} ({m.Tick / 30} s) el tren deja 4 cajas en B"); }
                 var p = m.Unidades.Platoons[0];
                 if (Environment.GetEnvironmentVariable("TBD_REPLAY_POS") == "1" && m.Tick % 600 == 0) Console.WriteLine($"t {m.Tick} pelotón en ({p.AX / 1000}; {p.AY / 1000}) mov {p.Moving} meta ({p.TX / 1000}; {p.TY / 1000}) munición {p.AmmoShots} se retira {m.SeRetira(p.Id)}");
                 if (m.Abatidos / 10 != abat / 10 || (m.Abatidos >= 90 && m.Abatidos != abat)) Console.WriteLine($"t {m.Tick} ({m.Tick / 30} s) abatidos {m.Abatidos}, munición {p.AmmoShots}/{p.AmmoCap}");
