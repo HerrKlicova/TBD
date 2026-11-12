@@ -307,6 +307,25 @@ namespace TBD.Mundo
             else if (_montonPales != null) _montonPales.gameObject.SetActive(false);
         }
         Transform _montonPales;
+        // D-N210: placa del almacén. Lo que hay y para cuánto le llega, con el saldo de las cajas de munición en los últimos 2 viajes (solo lectura del Mundo).
+        readonly List<(int tick, int cajas, bool gasto)>[] _histAlm = { new List<(int, int, bool)>(), new List<(int, int, bool)>() };
+        string PlacaAlmacen(int e)
+        {
+            var M = _sim != null ? _sim.M : null; if (M == null || e < 0 || e >= M.Red.Almacen.Count || e > 1) return null;
+            var R = M.Red; int cajas = R.Almacen[e][Red.Municion]; var h = _histAlm[e];
+            if (h.Count == 0 || M.Tick - h[h.Count - 1].tick >= 30) h.Add((M.Tick, cajas, h.Count > 0 && cajas < h[h.Count - 1].cajas));
+            int vuelta = 0; foreach (var t in R.Trenes) if (t.UltimaVueltaT > 0) { vuelta = t.UltimaVueltaT; break; }
+            int ventana = vuelta > 0 ? 2 * vuelta : 9000; while (h.Count > 2 && M.Tick - h[0].tick > ventana) h.RemoveAt(0);
+            string hay = $"{cajas} {(cajas == 1 ? "caja" : "cajas")} · {cajas * Mundo.CartuchosPorCaja} cartuchos · {Red.Pales(R.MaterialM(e))}";
+            bool gasto = false; foreach (var x in h) gasto |= x.gasto; int dt = M.Tick - h[0].tick, neto = cajas - h[0].cajas;
+            string ritmo; bool ambar = false;
+            if (!gasto) ritmo = "Sin consumo";
+            else if (neto > 0) ritmo = "Sube";
+            else if (neto == 0 || dt < 300) ritmo = "Se mantiene";
+            else { float ticks = cajas * (float)dt / -neto; ritmo = $"Se agota en ~{Mathf.Max(1, Mathf.RoundToInt(ticks / 1800f))} min"; ambar = vuelta > 0 && ticks < vuelta; }
+            return "<color=#d4d0cc>" + hay + "</color>
+" + (ambar ? "<color=#e0b050>" + ritmo + "</color>" : "<color=#a8a49c>" + ritmo + "</color>");
+        }
         /// <summary>Aviso de los palés (Nacho, [MATERIAL]): lo lleva el pelotón o están en el suelo.</summary>
         public string AvisoMaterial { get { var M = _sim != null ? _sim.M : null; if (M == null) return null; if (M.Portador >= 0) return "El pelotón lleva 4 palés a B: va más lento y no dispara"; if (M.MaterialEnSuelo) return "Palés en el suelo: que otro pelotón pase a recogerlos"; return null; } }
         void OnApplicationQuit() { _sim?.Cerrar(); }
@@ -442,9 +461,11 @@ namespace TBD.Mundo
             if (Event.current.type != EventType.Repaint || _rt == null) return;
             ZumEstetica.DibujarPantalla(new Rect(0, 0, Screen.width, Screen.height), _rt, _altura);
             var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(15f * Screen.height / 1080f), alignment = TextAnchor.MiddleLeft }; st.normal.textColor = new Color32(0xf0, 0xdc, 0x9c, 255);
-            foreach (var e in _estaciones)
+            for (int ei = 0; ei < _estaciones.Count; ei++)
             {
+                var e = _estaciones[ei];
                 var sp = APantalla(e.pos); if (sp.z < 0f) continue; float r = _altura > AlturaIconos ? 14f : 8f;
+                var placa = PlacaAlmacen(ei); if (placa != null) GUI.Label(new Rect(sp.x + r + 4f, sp.y + 10f, 520f, 48f), placa, st);      // D-N210 (Lucía): placa del almacén, siempre visible
                 ZumEstetica.DibujarIcono(new Vector2(sp.x, sp.y), "estacion", ZumEstetica.IconoPxPantalla(_altura), ZumEstetica.Hueso);      // Bruno: icono de estación
                 GUI.Label(new Rect(sp.x + r + 4f, sp.y - 12f, 220f, 24f), e.nombre, st);
             }
@@ -474,7 +495,7 @@ namespace TBD.Mundo
             }
             var aviso = AvisoMaterial; if (aviso != null) GUI.Label(new Rect(16f, 40f, 900f, 26f), "<color=#e0b050>" + aviso + "</color>", st);
             int vivos = 0; foreach (var z in _zombis) if (z.vivo) vivos++;
-            GUI.Label(new Rect(16f, 12f, 900f, 26f), $"Mundo (prototipo de zum) · {_fps:0} fps · altura {_altura:0} m · {(_altura > AlturaIconos ? "mapa" : "detalle")} · zombis {vivos}/100 · rueda: zum · WASD: mover · clic dcho: mandar el pelotón", st);
+            GUI.Label(new Rect(16f, 14f, Screen.width - 32f, 30f), $"Zombis {vivos}/100 · rueda o Z/X: zum · WASD: mover · clic izq.: elegir pelotón · clic dcho.: mandarlo · T: trazar vía · L: línea · Supr: borrar vía · P: pausa", st);      // Sara: sin texto de prototipo (fps, altura) y en una línea
         }
 
         Vector3 APantalla(Vector3 w) { var v = _cam.WorldToViewportPoint(w); return new Vector3(v.x * Screen.width, (1f - v.y) * Screen.height, v.z); }
