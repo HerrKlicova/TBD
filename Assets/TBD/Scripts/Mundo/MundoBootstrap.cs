@@ -310,6 +310,7 @@ namespace TBD.Mundo
             else if (_montonPales != null) _montonPales.gameObject.SetActive(false);
         }
         Transform _montonPales;
+        readonly List<(int ei, Vector3 sp, float r)> _placasPend = new List<(int, Vector3, float)>();
         /// <summary>Texto del HUD con fondo oscuro del tamaño del texto (Sara: legible sobre cualquier suelo).</summary>
         public static void Rotulo(Rect r, string t, GUIStyle st)
         {
@@ -465,13 +466,7 @@ namespace TBD.Mundo
             {
                 var e = _estaciones[ei];
                 var sp = APantalla(e.pos); if (sp.z < 0f) continue; float r = _altura > AlturaIconos ? 14f : 8f;
-                var placa = PlacaAlmacen(ei);      // D-N210 (Lucía): placa del almacén, siempre visible, con fondo oscuro para leerse sobre el mapa
-                if (placa != null)
-                {
-                    var tam = st.CalcSize(new GUIContent(placa)); float px = Mathf.Min(sp.x + r + 4f, Screen.width - tam.x - 24f), py = sp.y + 12f; if (py + tam.y > Screen.height - 160f) py = sp.y - 18f - tam.y;
-                    GUI.color = new Color(0.06f, 0.07f, 0.05f, 0.82f); GUI.DrawTexture(new Rect(px - 6f, py - 2f, tam.x + 12f, tam.y + 4f), _blanco); GUI.color = Color.white;
-                    GUI.Label(new Rect(px, py, tam.x + 4f, tam.y), placa, st);
-                }
+                _placasPend.Add((ei, sp, r));      // Sara (Mundo28): la placa se dibuja al final, encima de los iconos
                 ZumEstetica.DibujarIcono(new Vector2(sp.x, sp.y), "estacion", ZumEstetica.IconoPxPantalla(_altura), ZumEstetica.Hueso);      // Bruno: icono de estación
                 GUI.Label(new Rect(sp.x + r + 4f, sp.y - 12f, 220f, 24f), e.nombre, st);
             }
@@ -499,6 +494,17 @@ namespace TBD.Mundo
                 Rotulo(new Rect(16f, 64f, 900f, 26f), txt, st);
                 if (pl.AmmoShots == 0 && vivosP > 0) Rotulo(new Rect(16f, 88f, 900f, 26f), "<color=#e04030><b>¡Pelotón seco! Retíralo a B para rearmar</b></color>", st);
             }
+            foreach (var pe in _placasPend)
+            {
+                var placa = PlacaAlmacen(pe.ei); var sp = pe.sp; float r = pe.r;      // D-N210 (Lucía): placa del almacén, siempre visible, con fondo oscuro para leerse sobre el mapa
+                if (placa != null)
+                {
+                    var tam = st.CalcSize(new GUIContent(placa)); float px = Mathf.Min(sp.x + r + 4f, Screen.width - tam.x - 24f), py = sp.y + 12f; if (py + tam.y > Screen.height - 160f) py = sp.y - 18f - tam.y;
+                    GUI.color = new Color(0.06f, 0.07f, 0.05f, 0.82f); GUI.DrawTexture(new Rect(px - 6f, py - 2f, tam.x + 12f, tam.y + 4f), _blanco); GUI.color = Color.white;
+                    GUI.Label(new Rect(px, py, tam.x + 4f, tam.y), placa, st);
+                }
+            }
+            _placasPend.Clear();
             if (_sim != null)      // marcador del destino real del pelotón y aviso de punto inalcanzable (D-N211 a; Nacho: AvisoOrden*)
             {
                 var Mo = _sim.M;
