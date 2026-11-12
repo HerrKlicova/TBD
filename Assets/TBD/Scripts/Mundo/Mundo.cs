@@ -149,7 +149,9 @@ namespace TBD.Mundo
             {
                 if (p.Aboard != 0 || p.AliveCount() == 0) continue;
                 long dbx = p.AX - b.X, dby = p.AY - b.Y;
-                if (dbx * dbx + dby * dby <= (long)RecargaRadioMm * RecargaRadioMm && p.AmmoShots < p.AmmoCap && Tick % IMath.TickRate == 0) RecargarEnB(p);      // en B se recarga de las cajas del almacén de la red
+                bool enB = dbx * dbx + dby * dby <= (long)RecargaRadioMm * RecargaRadioMm;
+                if (!enB) _avisadoSinCajas.Remove(p.Id);
+                else if (p.AmmoShots < p.AmmoCap && Tick % IMath.TickRate == 0) RecargarEnB(p);      // en B se recarga de las cajas del almacén de la red      // en B se recarga de las cajas del almacén de la red
                 bool seco = p.AmmoShots < CosteMinimo(p);
                 if (seco && !_retirandose.Contains(p.Id)) { _retirandose.Add(p.Id); Unidades.Move(p.Id, b.X, b.Y); }
                 else if (!seco && _retirandose.Contains(p.Id)) _retirandose.Remove(p.Id);
@@ -161,10 +163,25 @@ namespace TBD.Mundo
         {
             int b = Red.EstacionPorNombre(PuntoRetirada); if (b < 0) return;
             int falta = p.AmmoCap - p.AmmoShots;
-            while (_sueltosB < falta && Red.Sacar(b, Red.Municion, 1) == 1) { _sueltosB += CartuchosPorCaja; CajasAbiertas++; }
-            int dar = Math.Min(falta, _sueltosB); if (dar <= 0) return;
-            _sueltosB -= dar; p.AmmoShots += dar;
+            int abiertas = 0;
+            while (_sueltosB < falta && Red.Sacar(b, Red.Municion, 1) == 1) { _sueltosB += CartuchosPorCaja; CajasAbiertas++; abiertas++; }
+            int dar = Math.Min(falta, _sueltosB);
+            if (dar <= 0)
+            {
+                // Una vez por llegada a B (se rearma al salir del radio o al recargar), no cada segundo.
+                if (_avisadoSinCajas.Add(p.Id)) Evento("[RECARGA] sin cajas en B (pelotón " + p.Id + ", tick " + Tick + ", munición " + p.AmmoShots + "/" + p.AmmoCap + ")");
+                return;
+            }
+            _sueltosB -= dar; p.AmmoShots += dar; _avisadoSinCajas.Remove(p.Id);
+            Evento("[RECARGA] " + abiertas + " cajas → " + dar + " cartuchos (pelotón " + p.Id + ", tick " + Tick + ", munición " + p.AmmoShots + "/" + p.AmmoCap + ", sueltos en B " + _sueltosB + ", cajas en B " + Red.Existencias(b, Red.Municion) + ")");
         }
+        readonly HashSet<int> _avisadoSinCajas = new HashSet<int>();
+        /// <summary>Registro de sucesos de la simulación (deterministas: mismo texto en las dos instancias). No entra en el hash; se deriva del estado.
+        /// Unity lo engancha a su log con <c>mundo.Log = Debug.Log</c>; las pruebas leen <see cref="Eventos"/>.</summary>
+        public Action<string> Log;
+        public readonly List<string> Eventos = new List<string>();
+        public int EventosMax = 2000;
+        void Evento(string linea) { if (Eventos.Count < EventosMax) Eventos.Add(linea); Log?.Invoke(linea); }
         int _sueltosB; public int CajasAbiertas;
         public int SueltosEnB { get { return _sueltosB; } }
 

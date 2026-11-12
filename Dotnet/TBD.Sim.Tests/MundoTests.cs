@@ -75,6 +75,9 @@ namespace TBD.Sim.Tests
             check(q0.AmmoShots == 10 && r0.CajasAbiertas == 0, $"sin cajas en B (sin tren) no hay recarga ({q0.AmmoShots} de {q0.AmmoCap})");
             check(q1.AmmoShots == q1.AmmoCap && r1.CajasAbiertas == 3 && r1.Red.Existencias(b0, Red.Municion) == 1 && r1.SueltosEnB == 3 * TBD.Mundo.Mundo.CartuchosPorCaja - (q1.AmmoCap - 10),
                 $"con las 4 cajas del tren se llena ({q1.AmmoShots} de {q1.AmmoCap}): abre {r1.CajasAbiertas}, queda {r1.Red.Existencias(b0, Red.Municion)} caja y {r1.SueltosEnB} cartuchos sueltos");
+            int sinCajas0 = r0.Eventos.FindAll(e => e.StartsWith("[RECARGA] sin cajas en B")).Count;
+            check(sinCajas0 == 1 && r0.Eventos.Count == 1 && r1.Eventos.Count == 1 && r1.Eventos[0].StartsWith("[RECARGA] 3 cajas → " + (q1.AmmoCap - 10) + " cartuchos"),
+                $"log de recarga: sin tren «{(r0.Eventos.Count > 0 ? r0.Eventos[0] : "-")}» una sola vez en 3 s ({r0.Eventos.Count}); con tren «{(r1.Eventos.Count > 0 ? r1.Eventos[0] : "-")}»");
             // --- determinismo: dos instancias con las mismas órdenes dan el mismo hash cada tick durante 10 min
             var a = TBD.Mundo.Mundo.Caserio(11); var b = TBD.Mundo.Mundo.Caserio(11); int pa = a.Unidades.Platoons[0].Id;
             var ords = new[] {
