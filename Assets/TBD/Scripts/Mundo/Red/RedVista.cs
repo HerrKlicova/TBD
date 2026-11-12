@@ -153,7 +153,11 @@ namespace TBD.Mundo
             var r = copia.Via.TrazarLibre(_trazo);
             _valida = r.Ok; _causa = r.Ok ? null : r.Por;
             _costePrevia = null;      // Sara: con el margen justo, la vista previa enseña el coste y lo que le queda a la estación que paga
-            if (r.Ok && copia.Via.Tramos[r.Tramo].Coste > 0) { var tn = copia.Via.Tramos[r.Tramo]; _costePrevia = $"{tn.LongMm / 1000} m · {Red.Pales(tn.Coste)} palés · a {copia.Via.Estaciones[tn.Pago].Nombre} le quedan {Red.Pales(copia.MaterialM(tn.Pago))}"; }
+            if (r.Ok && copia.Via.Tramos[r.Tramo].Coste > 0) { var tn = copia.Via.Tramos[r.Tramo]; int pasos = 0; foreach (var pn in copia.Via.PasosNivel) if (pn.Tramo == tn.Id) pasos++;
+                long curvasMm = 0; foreach (var pz in tn.Piezas) if (Via.RadioMm(pz) > 0) curvasMm += Via.LargoMm(pz) / 2;      // lo que añaden las curvas (×1,5)
+                int extraCurvas = (int)(curvasMm / 1000), base_ = tn.Coste - extraCurvas - 200 * pasos;
+                // Sara (S2): desglose corto para que cuadre a simple vista
+                _costePrevia = $"{base_} m de vía + {extraCurvas} m por curvas{(pasos > 0 ? $" + {200 * pasos} m por {pasos} paso{(pasos > 1 ? "s" : "")} a nivel" : "")} = {Red.Pales(tn.Coste)} palés · a {copia.Via.Estaciones[tn.Pago].Nombre} le quedan {Red.Pales(copia.MaterialM(tn.Pago))}"; }
             var pts = r.Ok ? copia.Via.Tramos[r.Tramo].Puntos : _trazo.ToArray();
             BorrarPrevia(); _previa = new GameObject("Vía · vista previa");
             if (_valida)
