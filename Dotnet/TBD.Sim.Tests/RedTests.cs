@@ -173,6 +173,11 @@ namespace TBD.Sim.Tests
                     if (r1.Ok && r2.Ok) { r.Via.Tramos[r1.Tramo].Coste = 0; int cm = Via.CosteMetros(r.Via.Tramos[r1.Tramo].Piezas, 0) + Via.CosteMetros(r.Via.Tramos[r2.Tramo].Piezas, r.Via.PasosNivel.Count); Console.WriteLine($"MEDIDA A–P–B (guion de Marcos): {Red.Pales(cm)} ({cm} m)"); }
                     check(r2.Ok && r.Via.Ruta(r.Via.Estaciones[0].Nodo, r.Via.Estaciones[1].Nodo)?.Count == 2, $"P → B por el punto guía de Marcos (1390; 1300) sigue desde el final de la anterior y une A con B ({(r2.Ok ? "ok, " + r.Via.PasosNivel.Count + " paso a nivel" : r2.Por)})");
                     check(r.Via.MarDesdeMm.Length == 2049 && r.Via.EnMar(new PointMm(1_950_000, 900_000)) && !r.Via.EnMar(new PointMm(1_300_000, 1_640_000)), "el mar de usos_2049 está al este (1950; 900 es mar; B no)");
+                    {   // para la captura de Marcos: P → (1330; 1600) → (1338; 1640) llega a B de lado y cerrado: se rechaza «no llega a la estación B»
+                        var w0 = new SaveWriter(); r.Save(w0); var rr = new Red(); rr.Load(new SaveReader(w0.ToArray())); rr.BorrarVia(r2.Tramo);
+                        var q = rr.TrazarVia(new List<PointMm> { new PointMm(1_150_000, 900_000), new PointMm(1_330_000, 1_600_000), new PointMm(1_338_000, 1_640_000) });
+                        check(!q.Ok && q.Por.StartsWith("no llega a la estación B"), $"P → (1330; 1600) → (1338; 1640): «{q.Por}»");
+                    }
                     var r3 = r.TrazarVia(new List<PointMm> { new PointMm(1_060_000, 430_000), new PointMm(1_950_000, 900_000) });
                     check(!r3.Ok && r3.Por.Contains("mar") && r.Via.Tramos.Count == 2, $"A → mar (1950; 900) se rechaza ({r3.Por})");
                     var w = new SaveWriter(); r.Save(w); var rc = new Red(); rc.Load(new SaveReader(w.ToArray()));
