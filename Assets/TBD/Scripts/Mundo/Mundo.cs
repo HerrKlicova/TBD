@@ -83,11 +83,13 @@ namespace TBD.Mundo
         }
         public IReadOnlyList<Orden> Grabacion { get { return _aplicadas; } }
 
-        /// <summary>Destino inalcanzable (Sara/Marcos, Mundo25: orden al mar). Lucía: el pelotón va al punto alcanzable más cercano y se avisa. Hito 1: fuera del mapa se
+        /// <summary>Destino inalcanzable (Sara/Marcos, Mundo25: orden al mar). D-N211 (a) de Lucía: el pelotón va al punto alcanzable más cercano y se avisa. Hito 1: fuera del mapa se
         /// recorta al borde y en el mar (Red.Via.EnMar, agua_hito1.csv) se lleva a OrillaMm al oeste de la línea del mar en esa Z. La grabación guarda la orden original.</summary>
         public int OrillaMm = 5000;
-        /// <summary>Último aviso de orden para la vista (Marcos): texto y tick; también va al log como «[ORDEN] …».</summary>
-        public string AvisoOrden = ""; public int AvisoOrdenTick = -1;
+        /// <summary>Último aviso de orden para la vista (Marcos): texto, tick, pelotón y destino real; también va al log como «[ORDEN] …».
+        /// D-N211 (a) de Lucía: el marcador va a (AvisoOrdenX, AvisoOrdenY), donde va de verdad, con el texto TextoInalcanzable. Nunca se rechaza en silencio.</summary>
+        public const string TextoInalcanzable = "Punto inalcanzable: va al más cercano";
+        public string AvisoOrden = ""; public int AvisoOrdenTick = -1, AvisoOrdenPeloton = -1, AvisoOrdenX, AvisoOrdenY;
         void Alcanzable(int peloton, ref int x, ref int y)
         {
             int x0 = x, y0 = y; string motivo = null;
@@ -100,8 +102,8 @@ namespace TBD.Mundo
                 x = Math.Max(0, mar[z] - OrillaMm); motivo = "en el mar";
             }
             if (motivo == null) return;
-            AvisoOrden = "punto " + motivo + ": el pelotón " + peloton + " va al punto alcanzable más cercano (" + x / 1000 + "; " + y / 1000 + ")"; AvisoOrdenTick = Tick;
-            Evento("[ORDEN] " + AvisoOrden + " en vez de (" + x0 / 1000 + "; " + y0 / 1000 + ") (tick " + Tick + ")");
+            AvisoOrden = TextoInalcanzable; AvisoOrdenTick = Tick; AvisoOrdenPeloton = peloton; AvisoOrdenX = x; AvisoOrdenY = y;
+            Evento("[ORDEN] punto " + motivo + ": el pelotón " + peloton + " va al punto alcanzable más cercano (" + x / 1000 + "; " + y / 1000 + ") en vez de (" + x0 / 1000 + "; " + y0 / 1000 + ") (tick " + Tick + ")");
         }
         void Aplicar(Orden o)
         {

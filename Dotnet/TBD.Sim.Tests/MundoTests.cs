@@ -126,7 +126,7 @@ namespace TBD.Sim.Tests
                 w.Encolar(new Orden { Tick = 2, Jugador = 1, Tipo = TipoOrden.AtacarMoviendo, A = pw.Id, B = 1950000, C = zy, D = -1 });
                 for (int t = 0; t < 5; t++) w.Step();
                 var avisos = w.Eventos.FindAll(e => e.StartsWith("[ORDEN] punto en el mar"));
-                check(mar.Length > 0 && pw.TX == orilla && pw.TY == zy && avisos.Count == 2 && w.AvisoOrdenTick == 2 && !w.Red.Via.EnMar(new PointMm(pw.TX, pw.TY)),
+                check(mar.Length > 0 && pw.TX == orilla && pw.TY == zy && avisos.Count == 2 && w.AvisoOrdenTick == 2 && w.AvisoOrden == TBD.Mundo.Mundo.TextoInalcanzable && w.AvisoOrdenX == pw.TX && w.AvisoOrdenY == pw.TY && w.AvisoOrdenPeloton == pw.Id && !w.Red.Via.EnMar(new PointMm(pw.TX, pw.TY)),
                     $"orden al mar: va a la orilla ({pw.TX / 1000}; {pw.TY / 1000}), no a (1950; {zy / 1000}); {avisos.Count} avisos, «{(avisos.Count > 0 ? avisos[0] : "-")}»");
                 var w2 = TBD.Mundo.Mundo.Caserio(5); var p2 = w2.Unidades.Platoons[0];
                 w2.Encolar(new Orden { Tick = 1, Jugador = 1, Tipo = TipoOrden.Mover, A = p2.Id, B = -50000, C = 9000000, D = -1 }); w2.Step(); w2.Step();
