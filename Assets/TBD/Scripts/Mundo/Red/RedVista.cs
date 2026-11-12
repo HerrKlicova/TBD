@@ -33,6 +33,14 @@ namespace TBD.Mundo
             _m = m; _propia = null;
             m.MontarRedHito1();      // idempotente: si el escenario ya la montó, no hace nada (I-Mundo6: sin esto no había estaciones y el trazo se rechazaba en silencio)
             Debug.Log($"[RED] usando el Mundo común (Mundo.Red): {m.Red.Via.Estaciones.Count} estaciones, {m.Red.Trenes.Count} tren, {m.Red.Via.Carreteras.Count} trozos de carretera");
+            // D-N211 c (prueba «B llena»): -bllena [capacidad,cajas] → orden 108 (entra en la grabación; al reproducir ya viene en ella). Por defecto 8 de capacidad con 6 dentro:
+            // la línea trae 4, caben 2 y vuelven 2.
+            var args = System.Environment.GetCommandLineArgs(); int ib = System.Array.IndexOf(args, "-bllena");
+            if (ib >= 0 && !MundoVista.Reproduciendo)
+            {
+                int cap = 8, ini = 6; if (ib + 1 < args.Length) { var pz = args[ib + 1].Split(','); if (pz.Length == 2 && int.TryParse(pz[0], out int c1) && int.TryParse(pz[1], out int c2)) { cap = c1; ini = c2; } }
+                int eb = m.Red.EstacionPorNombre("B"); if (eb >= 0) { Mandar(OrdenesRed.PruebaAlmacen, eb, cap, ini); Debug.Log($"[RED] -bllena: B con capacidad {cap} cajas y {ini} dentro"); }
+            }
         }
 
         void Start()
@@ -207,7 +215,7 @@ namespace TBD.Mundo
             for (int l = R.Lineas.Count - 1; l >= 0; l--)
             {
                 int tren = -1; for (int k = 0; k < R.Trenes.Count; k++) if (R.Trenes[k].Linea == l) { tren = k; break; }
-                string estado = tren >= 0 ? R.EstadoTrenTexto(tren, out bool aviso) : "Sin tren"; bool av = tren >= 0 && R.Trenes[tren].Estado == EstadoTren.Parado;
+                bool av = false; string estado = tren >= 0 ? R.EstadoTrenTexto(tren, out av) : "Sin tren";      // ámbar: parado o «B llena: vuelven N cajas»
                 filas.Add((av ? "<color=#e0b050>" : "<color=#f0ece4>") + estado + "</color>");
                 filas.Add("<color=#c8c4bc>" + R.CargaLinea(l) + " · " + R.FrecuenciaLinea(l) + "</color>");
                 filas.Add($"<color={ColorLinea[l % ColorLinea.Length]}><b>■ {R.TituloLinea(l)}</b></color>");
