@@ -26,7 +26,7 @@ namespace TBD.Mundo
         {
             string dir = Path.Combine(Application.streamingAssetsPath, "Hito1");
             Mundo.Lector = f => { var p = Path.Combine(dir, f); return File.Exists(p) ? File.ReadAllText(p) : null; };
-            M = Mundo.Caserio(semilla);
+            M = Mundo.Caserio(semilla); M.Log = Debug.Log;      // Nacho: [RECARGA] y demás, fuera del hash
             var casas = M.Casas;
             var ca = System.Environment.GetCommandLineArgs(); _dirCap = Path.Combine(Path.GetDirectoryName(Application.dataPath) ?? ".", "Captures"); Directory.CreateDirectory(_dirCap);
             int ih = System.Array.IndexOf(ca, "-hashlog");
