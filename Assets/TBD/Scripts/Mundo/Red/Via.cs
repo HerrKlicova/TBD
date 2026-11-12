@@ -178,7 +178,7 @@ namespace TBD.Mundo
             {
                 long x = Nodos[na].X, y = Nodos[na].Y; int r = ru; foreach (var pz in piezas) Avanzar(pz, ref x, ref y, ref r);
                 int d = IMath.Dist((int)(Nodos[objetivo].X - x), (int)(Nodos[objetivo].Y - y));
-                if (d > EncajeMm) return new Resultado { Por = $"no encaja con {NombreNodo(objetivo)}: se queda a {d / 1000} m (tiene que acabar a menos de {EncajeMm / 1000} m)" };
+                if (d > EncajeMm) return new Resultado { Por = $"no llega a {NombreNodo(objetivo)}: se queda a {d / 1000} m (tiene que acabar a menos de {EncajeMm / 1000} m)" };
             }
             if (resto > EncajeMm) return new Resultado { Por = $"curva demasiado cerrada: el radio mínimo es {RadioMinMm / 1000} m" };
             return TrazarPiezas(na, ru, piezas);

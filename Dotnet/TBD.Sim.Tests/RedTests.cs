@@ -207,7 +207,7 @@ namespace TBD.Sim.Tests
                 check(res.Ok && r.Via.Tramos[res.Tramo].B == r.Via.Estaciones[b].Nodo && r.Via.Nodos.Count == 2, $"un trazo que acaba a 22 m de B se lleva hasta B y encaja ({(res.Ok ? "ok" : res.Por)}; nodos {r.Via.Nodos.Count})");
                 var r2 = Hito1(out a, out b);
                 var no = r2.TrazarVia(new List<PointMm> { new PointMm(200_000, 1_000_000), new PointMm(1_000_000, 1_000_000), new PointMm(1_570_000, 1_000_000), new PointMm(1_600_000, 1_270_000) });      // llega de lado, sin sitio para girar
-                check(no.Ok ? r2.Via.Tramos[no.Tramo].B == r2.Via.Estaciones[b].Nodo && r2.Via.Nodos.Count == 2 : (no.Por.Contains("no encaja con la estación") || no.Por.Contains("curva")) && r2.Via.Tramos.Count == 0,
+                check(no.Ok ? r2.Via.Tramos[no.Tramo].B == r2.Via.Estaciones[b].Nodo && r2.Via.Nodos.Count == 2 : (no.Por.Contains("no llega a la estación") || no.Por.Contains("curva")) && r2.Via.Tramos.Count == 0,
                     $"llegando de lado a B: o encaja en B o se rechaza diciendo por qué; nunca queda un extremo suelto junto a la estación ({(no.Ok ? "encaja" : no.Por)})");
             }
             // coste de material (Hugo, cifras-hito1): en metros enteros (1 palé = 100 m), curvas ×1,5, paso a nivel 200 m; borrar devuelve el 100 %
