@@ -58,6 +58,18 @@ namespace TBD.Sim.Tests
             check(maxPersiguen >= 10, $"los zombis reaccionan al pelotón (máximo a la vez persiguiendo u oyendo: {maxPersiguen})");
             check(fuera2, "con combate: ningún zombi dentro de una casa");
             check(tickLimpio > 0 && m2.BajasPropias <= 2, $"con munición sin límite y la puntería del Hito 1 limpia el caserío en {tickLimpio / 30} s con {m2.BajasPropias} bajas");
+            // el premio de limpiar (Hugo y Lucía): el pelotón coge los 4 palés, va más despacio y sin disparar, y al llegar a 25 m de B los deja en el almacén
+            {
+                int bm = m2.Red.EstacionPorNombre("B"); var pbm = m2.Puntos["B"]; var pp = m2.Unidades.Platoons[0]; int antes = m2.Red.Existencias(bm, Red.Material);
+                bool lleva = m2.LlevaMaterial(pid) && pp.HoldFire; int velLleva = pp.SpeedMmS;
+                m2.Encolar(new Orden { Tick = m2.Tick, Jugador = 1, Tipo = TipoOrden.FuegoLibre, A = pid, B = 1 });      // el jugador intenta que dispare: no vale
+                m2.Encolar(new Orden { Tick = m2.Tick, Jugador = 1, Tipo = TipoOrden.Mover, A = pid, B = pbm.X, C = pbm.Y, D = -1 });
+                bool siempreAlto = true;
+                for (int t = 0; t < 30 * 600 && !m2.MaterialEnB; t++) { m2.Step(); if (!m2.MaterialEnB && !pp.HoldFire) siempreAlto = false; }
+                int despues = m2.Red.Existencias(bm, Red.Material);
+                check(m2.CaserioLimpio && antes == 0 && lleva && siempreAlto && m2.MaterialEnB && despues == TBD.Mundo.Mundo.MaterialCaserioPales && !pp.HoldFire && pp.SpeedMmS > velLleva && m2.Portador < 0,
+                    $"material del caserío: lo coge el pelotón ({velLleva} mm/s cargado, {pp.SpeedMmS} después; sin disparar: {siempreAlto}); {antes} palés en B al limpiar y {despues} al volver (tick {m2.Tick}); log «{string.Join(" | ", m2.Eventos.FindAll(e => e.StartsWith("[MATERIAL]")))}»");
+            }
             // sin línea (35 cartuchos por soldado y nada en B): se queda seco a mitad, se retira solo a B y no muere entero (objetivo de Lucía y Hugo)
             var m3 = TBD.Mundo.Mundo.Caserio(7); var p3 = m3.Unidades.Platoons[0]; m3.Red.Sacar(m3.Red.EstacionPorNombre("B"), Red.Municion, 1000); bool seRetira = false;
             m3.Encolar(new Orden { Tick = 0, Jugador = 1, Tipo = TipoOrden.AtacarMoviendo, A = p3.Id, B = TBD.Mundo.Mundo.CaserioX, C = TBD.Mundo.Mundo.CaserioY, D = -1 });

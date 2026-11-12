@@ -127,6 +127,8 @@ namespace TBD.Mundo
             // zombis: vista, oído, deambular y andar
             Zombis.Step(Unidades, Rejilla, _res.Shots, Tick);
             if (Prof) { long t1 = System.Diagnostics.Stopwatch.GetTimestamp(); ProfZombis += t1 - t0; t0 = t1; }
+            if (!CaserioLimpio && zs.Count > 0 && Zombis.Vivos == 0) { CaserioLimpio = true; CogerMaterial(); }
+            if (Portador >= 0) LlevarMaterial();
             // contacto con los soldados
             _blancos.Clear();
             for (int i = 0; i < zs.Count; i++) if (zs[i].Vivo && CercaDePeloton(zs[i].X, zs[i].Y)) _blancos.Add(new Target { Id = i, X = zs[i].X, Y = zs[i].Y });
@@ -178,6 +180,38 @@ namespace TBD.Mundo
             _sueltosB -= dar; p.AmmoShots += dar; _avisadoSinCajas.Remove(p.Id);
             Evento("[RECARGA] " + abiertas + " cajas → " + dar + " cartuchos (pelotón " + p.Id + ", tick " + Tick + ", munición " + p.AmmoShots + "/" + p.AmmoCap + ", sueltos en B " + _sueltosB + ", cajas en B " + Red.Existencias(b, Red.Municion) + ")");
         }
+        /// <summary>El material es el premio de limpiar (Hugo; Lucía, 12-11 01:01). Con el caserío limpio, el pelotón vivo más cercano al depósito coge los palés
+        /// (cifras-hito1: 4) y, mientras los lleva, va a PortadorVelPm ‰ de su velocidad y no dispara. Al llegar a MaterialRadioMm de B los deja en el almacén de B
+        /// (Red.Meter, una sola vez) y la línea por defecto de Iker se los lleva a A (2 por viaje). Nadie más produce material. Sin animación de carga en el Hito 1.</summary>
+        public static int MaterialCaserioPales = 4;
+        public int MaterialRadioMm = 25000, PortadorVelPm = 600;
+        public bool CaserioLimpio, MaterialEnB;
+        public int Portador = -1; int _velPortador;
+        public bool LlevaMaterial(int peloton) { return Portador == peloton; }
+        void CogerMaterial()
+        {
+            Puntos.TryGetValue("deposito_material", out var d); if (d.X == 0 && d.Y == 0 && Puntos.TryGetValue("caserio", out var c)) d = c;
+            Platoon mejor = null; long mejorD = long.MaxValue;
+            foreach (var p in Unidades.Platoons)
+            {
+                if (p.Aboard != 0 || p.AliveCount() == 0) continue;
+                long dx = p.AX - d.X, dy = p.AY - d.Y, d2 = dx * dx + dy * dy; if (d2 < mejorD) { mejorD = d2; mejor = p; }
+            }
+            if (mejor == null) { Evento("[MATERIAL] caserío limpio (tick " + Tick + "), pero no queda ningún pelotón que coja los palés"); return; }
+            Portador = mejor.Id; _velPortador = mejor.SpeedMmS; mejor.SpeedMmS = _velPortador * PortadorVelPm / 1000; mejor.HoldFire = true;
+            Evento("[MATERIAL] caserío limpio (tick " + Tick + "): el pelotón " + mejor.Id + " coge " + MaterialCaserioPales + " palés; va más despacio y sin disparar hasta B");
+        }
+        void LlevarMaterial()
+        {
+            var p = Unidades.Find(Portador);
+            if (p == null || p.AliveCount() == 0) { Evento("[MATERIAL] el pelotón " + Portador + " cae con los palés (tick " + Tick + ")"); Portador = -1; CogerMaterial(); return; }
+            p.HoldFire = true;      // la orden de fuego libre no vale mientras lleva los palés
+            if (p.Aboard != 0 || !Puntos.TryGetValue(PuntoRetirada, out var pb)) return;
+            long dx = p.AX - pb.X, dy = p.AY - pb.Y; if (dx * dx + dy * dy > (long)MaterialRadioMm * MaterialRadioMm) return;
+            int b = Red.EstacionPorNombre(PuntoRetirada);
+            Red.Meter(b, Red.Material, MaterialCaserioPales); MaterialEnB = true; Portador = -1; p.SpeedMmS = _velPortador; p.HoldFire = false;
+            Evento("[MATERIAL] " + MaterialCaserioPales + " palés del caserío en B (pelotón " + p.Id + ", tick " + Tick + ", palés en B " + Red.Existencias(b, Red.Material) + ")");
+        }
         readonly HashSet<int> _avisadoSinCajas = new HashSet<int>();
         /// <summary>Registro de sucesos de la simulación (deterministas: mismo texto en las dos instancias). No entra en el hash; se deriva del estado.
         /// Unity lo engancha a su log con <c>mundo.Log = Debug.Log</c>; las pruebas leen <see cref="Eventos"/>.</summary>
@@ -188,7 +222,7 @@ namespace TBD.Mundo
         int _sueltosB; public int CajasAbiertas;
         public int SueltosEnB { get { return _sueltosB; } }
 
-        ulong HashRetiradas() { ulong h = (RetiradaSinMunicion ? 0x5E7UL : 0) + IMath.Mix(0x5E71UL ^ (ulong)(uint)_sueltosB ^ ((ulong)(uint)CajasAbiertas << 32)); foreach (int id in _retirandose) h += IMath.Mix(0x5E70UL ^ (ulong)(uint)id); return h; }
+        ulong HashRetiradas() { ulong h = (RetiradaSinMunicion ? 0x5E7UL : 0) + IMath.Mix(0x5E71UL ^ (ulong)(uint)_sueltosB ^ ((ulong)(uint)CajasAbiertas << 32)) + (CaserioLimpio ? 0x11A7UL : 0) + (MaterialEnB ? 0x11A70UL : 0) + IMath.Mix(0x11A71UL ^ (ulong)(uint)(Portador + 1) ^ ((ulong)(uint)_velPortador << 32)); foreach (int id in _retirandose) h += IMath.Mix(0x5E70UL ^ (ulong)(uint)id); return h; }
         public bool SeRetira(int peloton) { return _retirandose.Contains(peloton); }
 
         /// <summary>Medida de coste (fuera del hash): ticks de Stopwatch en el fuego de UnitsWorld y en los zombis.</summary>
