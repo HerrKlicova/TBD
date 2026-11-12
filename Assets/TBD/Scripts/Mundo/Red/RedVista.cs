@@ -157,7 +157,7 @@ namespace TBD.Mundo
                 long curvasMm = 0; foreach (var pz in tn.Piezas) if (Via.RadioMm(pz) > 0) curvasMm += Via.LargoMm(pz) / 2;      // lo que añaden las curvas (×1,5)
                 int extraCurvas = (int)(curvasMm / 1000), base_ = tn.Coste - extraCurvas - 200 * pasos;
                 // Sara (S2): desglose corto para que cuadre a simple vista
-                _costePrevia = $"{base_} m de vía + {extraCurvas} m por curvas{(pasos > 0 ? $" + {200 * pasos} m por {pasos} paso{(pasos > 1 ? "s" : "")} a nivel" : "")} = {Red.Pales(tn.Coste)} palés · a {copia.Via.Estaciones[tn.Pago].Nombre} le quedan {Red.Pales(copia.MaterialM(tn.Pago))}"; }
+                _costePrevia = $"{base_} m de vía + {extraCurvas} m por curvas{(pasos > 0 ? $" + {200 * pasos} m por {pasos} paso{(pasos > 1 ? "s" : "")} a nivel" : "")} · cuesta {Red.Pales(tn.Coste)} · a {copia.Via.Estaciones[tn.Pago].Nombre} le quedan {Red.Pales(copia.MaterialM(tn.Pago))}"; }
             var pts = r.Ok ? copia.Via.Tramos[r.Tramo].Puntos : _trazo.ToArray();
             BorrarPrevia(); _previa = new GameObject("Vía · vista previa");
             if (_valida)
@@ -188,7 +188,7 @@ namespace TBD.Mundo
             var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(13, Screen.height / 60), richText = true };
             float y = Screen.height - 70f;
             if (_linea >= 0 && _linea < R.Lineas.Count) GUI.Label(new Rect(16f, y - 26f, 1100f, 28f), "<color=#d4d0cc>Línea A–B · " + R.TextoLinea(_linea) + $" · A {R.Almacen[0][Red.Municion]} cajas · B {R.Almacen[1][Red.Municion]} cajas</color>", st);
-            GUI.Label(new Rect(16f, y, 900f, 28f), _modo ? "<color=#d4d0cc>Trazar vía: arrastra desde una estación o una vía con el botón izquierdo · Esc cancela" + (R.CuestaMaterial && R.Almacen.Count > 0 ? $" · A {Red.Pales(R.MaterialM(0))} palés (1 = 100 m; curva ×1,5; paso a nivel 2)" : "") + "</color>" : "<color=#8c8a86>T: trazar vía</color>", st);
+            GUI.Label(new Rect(16f, y, 900f, 28f), _modo ? "<color=#d4d0cc>Trazar vía: arrastra desde una estación o una vía con el botón izquierdo · Esc cancela" + (R.CuestaMaterial && R.Almacen.Count > 0 ? $" · material en A: {Red.Pales(R.MaterialM(0))} (1 palé = 100 m; las curvas cuentan ×1,5; paso a nivel, 200 m)" : "") + "</color>" : "<color=#8c8a86>T: trazar vía</color>", st);
             if (_modo && _causa == null && _costePrevia != null && _mb.CamaraMundo != null)
             {
                 var sp = _mb.CamaraMundo.WorldToViewportPoint(_finPrevia);

@@ -47,8 +47,13 @@ namespace TBD.Mundo
         public readonly List<int> MetrosSueltos = new List<int>();     // por estación: metros de un palé ya abierto (0–99)
         public Red() { Via.Pagar = Cobrar; }
         public int MaterialM(int e) { return e < 0 || e >= Almacen.Count ? 0 : Almacen[e][Material] * MPorPale + (e < MetrosSueltos.Count ? MetrosSueltos[e] : 0); }
-        /// <summary>Metros de material como palés con un decimal, a la española («12,4»).</summary>
-        public static string Pales(int metros) { int d = (metros + 5) / 10; return $"{d / 10},{d % 10}"; }
+        /// <summary>Lucía (12-nov): material como «N palés y M m», sin decimales ni redondeo («14 palés y 90 m»; los metros se omiten si son 0; «90 m» si no llega a un palé).</summary>
+        public static string Pales(int metros)
+        {
+            if (metros < 0) metros = 0; int p = metros / MPorPale, m = metros % MPorPale;
+            string sp = p == 1 ? "1 palé" : $"{p} palés";
+            return p == 0 ? $"{m} m" : m == 0 ? sp : $"{sp} y {m} m";
+        }
         string Cobrar(int desde, int costeM, out int estacion)
         {
             estacion = -1; if (!CuestaMaterial) return null;
@@ -60,7 +65,7 @@ namespace TBD.Mundo
                 if (hay >= costeM) { int queda = hay - costeM; Almacen[i][Material] = queda / MPorPale; MetrosSueltos[i] = queda % MPorPale; estacion = i; return null; }
                 if (hay > mas) mas = hay;
             }
-            return $"faltan palés de material: esta vía cuesta {Pales(costeM)} y la estación unida que más tiene guarda {Pales(mas)}";
+            return $"falta material: esta vía cuesta {Pales(costeM)} y faltan {Pales(costeM - mas)}";
         }
         void Devolver(int e, int metros) { if (e < 0 || e >= Almacen.Count || metros <= 0) return; int t = MaterialM(e) + metros; Almacen[e][Material] = t / MPorPale; MetrosSueltos[e] = t % MPorPale; }
         public readonly List<Tren> Trenes = new List<Tren>();
