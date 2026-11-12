@@ -93,6 +93,8 @@ namespace TBD.Mundo
                 {
                     float notches = Mathf.Clamp(s / (Mathf.Abs(s) >= 10f ? 120f : 1f), -3f, 3f);
                     float antes = _alturaObj; _alturaObj = Mathf.Clamp(_alturaObj * Mathf.Pow(0.8f, notches), AlturaMin, AlturaMax);
+                    if (!_camGuion && Suelo(ms.position.ReadValue(), out var bajo))      // D-N211 (d): el zum va al cursor (el punto bajo el cursor se acerca en la misma proporción que la altura)
+                    { float k = 1f - _alturaObj / Mathf.Max(1f, antes); var nf = _foco + (bajo - _foco) * Mathf.Clamp(k, -1f, 0.9f); nf.x = Mathf.Clamp(nf.x, 0f, 2048f); nf.z = Mathf.Clamp(nf.z, 0f, 2048f); _foco = new Vector3(nf.x, _foco.y, nf.z); }
                 }
                 if (!TrazandoVia && ms.leftButton.wasPressedThisFrame && Suelo(ms.position.ReadValue(), out var q)) _seleccionado = Vector3.Distance(q, Centro()) < Mathf.Max(15f, _altura * 0.05f);
                 if (!TrazandoVia && ms.rightButton.wasPressedThisFrame && _seleccionado && Suelo(ms.position.ReadValue(), out var d)) { _destino = d; _sim?.Mover((int)(d.x * 1000f), (int)(d.z * 1000f)); }
@@ -487,6 +489,16 @@ namespace TBD.Mundo
                 string txt = $"Pelotón · {vivosP} soldados · munición {pl.AmmoShots}/{pl.AmmoCap}" + (vivosP > 0 ? $" (≈{pl.AmmoShots / vivosP} por soldado)" : "");
                 GUI.Label(new Rect(16f, 64f, 900f, 26f), txt, st);
                 if (pl.AmmoShots == 0 && vivosP > 0) GUI.Label(new Rect(16f, 88f, 900f, 26f), "<color=#e04030><b>¡Pelotón seco! Retíralo a B para rearmar</b></color>", st);
+            }
+            if (_sim != null)      // marcador del destino real del pelotón y aviso de punto inalcanzable (D-N211 a; Nacho: AvisoOrden*)
+            {
+                var Mo = _sim.M;
+                if (Mo.Unidades.Platoons.Count > 0 && Mo.Unidades.Platoons[0].Moving) { var pl = Mo.Unidades.Platoons[0]; var md = APantalla(EnSuelo(new Vector3(pl.TX / 1000f, 0f, pl.TY / 1000f))); if (md.z > 0f) GUI.Label(new Rect(md.x - 9f, md.y - 14f, 30f, 28f), "<color=#80a8e0><b>◎</b></color>", st); }
+                if (Mo.AvisoOrdenTick >= 0 && Mo.Tick - Mo.AvisoOrdenTick < 150)
+                {
+                    GUI.Label(new Rect(16f, 112f, 900f, 26f), "<color=#e0b050><b>" + Mundo.TextoInalcanzable + "</b></color>", st);
+                    var ma = APantalla(EnSuelo(new Vector3(Mo.AvisoOrdenX / 1000f, 0f, Mo.AvisoOrdenY / 1000f))); if (ma.z > 0f) GUI.Label(new Rect(ma.x - 9f, ma.y - 14f, 30f, 28f), "<color=#e0b050><b>◎</b></color>", st);
+                }
             }
             var aviso = AvisoMaterial; if (aviso != null) GUI.Label(new Rect(16f, 40f, 900f, 26f), "<color=#e0b050>" + aviso + "</color>", st);
             int vivos = 0; foreach (var z in _zombis) if (z.vivo) vivos++;
