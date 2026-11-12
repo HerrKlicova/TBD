@@ -18,7 +18,7 @@ namespace TBD.Mundo
         public int VelMmT, VmaxMmT = 370, AccMmT2 = 1;      // Hugo (cifras-hito1): 40 km/h = 370 mm/tick; 1 mm/tick² ≈ 0,9 m/s²
         public EstadoTren Estado;
         public int Linea = -1, Parada, EsperaT;
-        public int InicioVueltaT = -1, UltimaVueltaT = -1;      // Hugo: el texto de la línea saca el tiempo de la vuelta medida, no de un número fijo
+        public int InicioVueltaT = -1, UltimaVueltaT = -1, PenultimaVueltaT = -1;      // Hugo: el texto de la línea saca el tiempo de la vuelta medida, no de un número fijo
         public readonly int[] Carga = new int[Red.Recursos]; public int Capacidad = 6;      // Hugo: 6 huecos (2 vagones de 3); 1 hueco = 1 caja de munición (105 cartuchos = 3 cargadores de 35, Mundo.CartuchosPorCaja) o 1 palé de material (100 m de vía)
         /// <summary>Distancia que queda hasta el final de la ruta (mm).</summary>
         public int Restante(Via v) { if (Ruta.Count == 0) return 0; long r = v.Tramos[Ruta[PasoI].Tramo].LongMm - OffMm; for (int i = PasoI + 1; i < Ruta.Count; i++) r += v.Tramos[Ruta[i].Tramo].LongMm; return (int)Math.Min(r, int.MaxValue); }
@@ -52,7 +52,7 @@ namespace TBD.Mundo
         {
             if (metros < 0) metros = 0; int p = metros / MPorPale, m = metros % MPorPale;
             string sp = p == 1 ? "1 palé" : $"{p} palés";
-            return p == 0 ? $"{m} m" : m == 0 ? sp : $"{sp} y {m} m";
+            return metros == 0 ? "0 palés" : p == 0 ? $"{m} m" : m == 0 ? sp : $"{sp} y {m} m";
         }
         string Cobrar(int desde, int costeM, out int estacion)
         {
@@ -75,15 +75,15 @@ namespace TBD.Mundo
         /// <summary>Último rechazo de una orden (para la vista); no entra en el hash.</summary>
         public string UltimoRechazo;
 
-        public int AddEstacion(string nombre, int x, int y) { int e = Via.AddEstacion(nombre, x, y); Almacen.Add(new int[Recursos]); MetrosSueltos.Add(0); return e; }
+        public int AddEstacion(string nombre, int x, int y) { int e = Via.AddEstacion(nombre, x, y); Almacen.Add(new int[Recursos]); MetrosSueltos.Add(0); Entradas.Add(new int[Recursos]); Salidas.Add(new int[Recursos]); return e; }
         /// <summary>Índice de la estación con ese nombre («A», «B»…), o −1.</summary>
         public int EstacionPorNombre(string nombre) { for (int i = 0; i < Via.Estaciones.Count; i++) if (Via.Estaciones[i].Nombre == nombre) return i; return -1; }
         /// <summary>Unidades del recurso (Municion, Material…) en el almacén de la estación; 0 si no existe.</summary>
         public int Existencias(int estacion, int recurso) { return estacion < 0 || estacion >= Almacen.Count || recurso < 0 || recurso >= Recursos ? 0 : Almacen[estacion][recurso]; }
         /// <summary>Saca hasta «n» unidades del almacén y devuelve las que ha sacado de verdad (0 si no hay). Determinista: llamarla solo desde el paso de la simulación.</summary>
-        public int Sacar(int estacion, int recurso, int n) { int hay = Existencias(estacion, recurso); int k = n <= 0 ? 0 : (n < hay ? n : hay); if (k > 0) Almacen[estacion][recurso] -= k; return k; }
+        public int Sacar(int estacion, int recurso, int n) { int hay = Existencias(estacion, recurso); int k = n <= 0 ? 0 : (n < hay ? n : hay); if (k > 0) { Almacen[estacion][recurso] -= k; Sale(estacion, recurso, k); } return k; }
         /// <summary>Mete unidades en el almacén (por ejemplo, el material que produce el frente).</summary>
-        public void Meter(int estacion, int recurso, int n) { if (n > 0 && estacion >= 0 && estacion < Almacen.Count && recurso >= 0 && recurso < Recursos) Almacen[estacion][recurso] += n; }
+        public void Meter(int estacion, int recurso, int n) { if (n > 0 && estacion >= 0 && estacion < Almacen.Count && recurso >= 0 && recurso < Recursos) { Almacen[estacion][recurso] += n; Entra(estacion, recurso, n); } }
         public int NuevoTren(string nombre, int estacion) { var t = new Tren { Id = Trenes.Count, Nombre = nombre, Nodo = Via.Estaciones[estacion].Nodo, Estado = EstadoTren.Parado }; Trenes.Add(t); return t.Id; }
 
         /// <summary>D-N209: trazo libre del jugador → piezas del kit. (Via.Trazar, la curva libre, queda para pruebas.)</summary>
@@ -203,12 +203,12 @@ namespace TBD.Mundo
             int r = SiguienteTrabajo(t, p, alm, out bool descargar);
             if (r >= 0 && (t.EsperaT % TicksPorU) == 0)      // cada hueco tarda TicksPorU (Hugo: 5 s): primero se descarga, luego se carga
             {
-                if (descargar) { t.Carga[r]--; alm[r]++; Marcar(t, r, false); } else { alm[r]--; t.Carga[r]++; Marcar(t, r, true); }
+                if (descargar) { t.Carga[r]--; alm[r]++; Marcar(t, r, false); Entra(p.Estacion, r, 1); } else { alm[r]--; t.Carga[r]++; Marcar(t, r, true); Sale(p.Estacion, r, 1); }
                 r = SiguienteTrabajo(t, p, alm, out descargar);
             }
             if (r < 0 && t.EsperaT >= EsperaMinT)
             {
-                if (t.Parada == 0) { if (t.InicioVueltaT >= 0) t.UltimaVueltaT = Tick - t.InicioVueltaT; t.InicioVueltaT = Tick; }      // la vuelta se mide de salida a salida de la primera parada
+                if (t.Parada == 0) { if (t.InicioVueltaT >= 0) { t.PenultimaVueltaT = t.UltimaVueltaT; t.UltimaVueltaT = Tick - t.InicioVueltaT; Foto(); } t.InicioVueltaT = Tick; }      // la vuelta se mide de salida a salida de la primera parada
                 LimpiarHechos(t); t.Parada = (t.Parada + 1) % l.Paradas.Count; IrAParada(t);
             }
         }
@@ -232,6 +232,112 @@ namespace TBD.Mundo
         static int CargaTotal(Tren t) { int s = 0; foreach (var c in t.Carga) s += c; return s; }
 
         /// <summary>Texto de la línea para la interfaz (Hugo): «4 cajas por viaje · un viaje cada 7,2 min», con la vuelta medida del primer tren de la línea; «midiendo» hasta la primera vuelta.</summary>
+        // ---------------------------------------------------------------- D-N210: lo que enseñan la línea y el almacén (consultas; el estado que guardan entra en hash y guardado)
+        /// <summary>Entradas y salidas acumuladas por estación y recurso (descargas y Meter / cargas y Sacar), y la foto de esos contadores al cerrar cada vuelta
+        /// (las 3 últimas): con ellas, el saldo de los 2 últimos viajes.</summary>
+        public readonly List<int[]> Entradas = new List<int[]>(), Salidas = new List<int[]>();
+        public sealed class FotoAlmacen { public int Tick; public int[][] Ent, Sal; }
+        public readonly List<FotoAlmacen> Fotos = new List<FotoAlmacen>();
+        void Entra(int e, int r, int n) { if (e >= 0 && e < Entradas.Count) Entradas[e][r] += n; }
+        void Sale(int e, int r, int n) { if (e >= 0 && e < Salidas.Count) Salidas[e][r] += n; }
+        void Foto()
+        {
+            var f = new FotoAlmacen { Tick = Tick, Ent = new int[Entradas.Count][], Sal = new int[Salidas.Count][] };
+            for (int e = 0; e < Entradas.Count; e++) { f.Ent[e] = (int[])Entradas[e].Clone(); f.Sal[e] = (int[])Salidas[e].Clone(); }
+            Fotos.Add(f); if (Fotos.Count > 3) Fotos.RemoveAt(0);
+        }
+        ulong HashContadores(ulong h)
+        {
+            bool alguno = Fotos.Count > 0; foreach (var a in Entradas) foreach (var c in a) if (c != 0) alguno = true; foreach (var a in Salidas) foreach (var c in a) if (c != 0) alguno = true;
+            if (!alguno) return h;      // sin movimientos, el hash no cambia (goldens viejos)
+            foreach (var a in Entradas) foreach (var c in a) h = IMath.Mix(h ^ 0xE7UL ^ (ulong)(uint)c);
+            foreach (var a in Salidas) foreach (var c in a) h = IMath.Mix(h ^ 0x5AUL ^ (ulong)(uint)c);
+            foreach (var f in Fotos) { h = IMath.Mix(h ^ (ulong)(uint)f.Tick); foreach (var a in f.Ent) foreach (var c in a) h = IMath.Mix(h ^ (ulong)(uint)c); foreach (var a in f.Sal) foreach (var c in a) h = IMath.Mix(h ^ ((ulong)(uint)c << 8)); }
+            foreach (var t in Trenes) h = IMath.Mix(h ^ (ulong)(uint)(t.PenultimaVueltaT + 1));
+            return h;
+        }
+        void SaveContadores(SaveWriter w)
+        {
+            w.Int(Entradas.Count); for (int e = 0; e < Entradas.Count; e++) { w.Ints(Entradas[e]); w.Ints(Salidas[e]); }
+            w.Int(Fotos.Count); foreach (var f in Fotos) { w.Int(f.Tick); w.Int(f.Ent.Length); for (int e = 0; e < f.Ent.Length; e++) { w.Ints(f.Ent[e]); w.Ints(f.Sal[e]); } }
+            w.Int(Trenes.Count); foreach (var t in Trenes) w.Int(t.PenultimaVueltaT);
+        }
+        void LoadContadores(SaveReader r)
+        {
+            Entradas.Clear(); Salidas.Clear(); int n = r.Int(); for (int e = 0; e < n; e++) { Entradas.Add(r.Ints()); Salidas.Add(r.Ints()); }
+            while (Entradas.Count < Almacen.Count) { Entradas.Add(new int[Recursos]); Salidas.Add(new int[Recursos]); }
+            Fotos.Clear(); int nf = r.Int(); for (int i = 0; i < nf; i++) { var f = new FotoAlmacen { Tick = r.Int() }; int ne = r.Int(); f.Ent = new int[ne][]; f.Sal = new int[ne][]; for (int e = 0; e < ne; e++) { f.Ent[e] = r.Ints(); f.Sal[e] = r.Ints(); } Fotos.Add(f); }
+            int nt = r.Int(); for (int i = 0; i < nt; i++) { int v = r.Int(); if (i < Trenes.Count) Trenes[i].PenultimaVueltaT = v; }
+        }
+        static string Mmss(int ticks) { int s = Math.Max(0, (ticks + IMath.TickRate - 1) / IMath.TickRate); return $"{s / 60}:{s % 60:00}"; }
+        static string Min1(int ticks) { int d = (ticks * 10 + IMath.TickRate * 30) / (IMath.TickRate * 60); return $"{d / 10},{d % 10}"; }
+
+        /// <summary>«Línea 1 · A ⇄ B».</summary>
+        public string TituloLinea(int linea)
+        {
+            if (linea < 0 || linea >= Lineas.Count) return "";
+            var n = new List<string>(); foreach (var p in Lineas[linea].Paradas) n.Add(Via.Estaciones[p.Estacion].Nombre);
+            return $"Línea {linea + 1} · {string.Join(" ⇄ ", n)}";
+        }
+        /// <summary>«Lleva 4 cajas de munición por viaje · trae material de vuelta».</summary>
+        public string CargaLinea(int linea)
+        {
+            if (linea < 0 || linea >= Lineas.Count) return "";
+            int cajas = 0; bool material = false; foreach (var p in Lineas[linea].Paradas) { if (p.Cargar == null) continue; if (p.Cargar[Municion] > 0) cajas += p.Cargar[Municion]; if (p.Cargar[Material] != 0) material = true; }
+            string c = cajas > 0 ? $"Lleva {cajas} {(cajas == 1 ? "caja" : "cajas")} de munición por viaje" : "No lleva munición";
+            return material ? c + " · trae material de vuelta" : c;
+        }
+        /// <summary>Vuelta media de la línea (media de las dos últimas medidas, o la única), en ticks; −1 si aún no hay ninguna.</summary>
+        public int VueltaMediaT(int linea) { foreach (var t in Trenes) if (t.Linea == linea && t.UltimaVueltaT > 0) return t.PenultimaVueltaT > 0 ? (t.UltimaVueltaT + t.PenultimaVueltaT) / 2 : t.UltimaVueltaT; return -1; }
+        /// <summary>«Un viaje cada 5,3 min» (D-N210; nunca «por hora», D-N208).</summary>
+        public string FrecuenciaLinea(int linea) { int v = VueltaMediaT(linea); return v > 0 ? $"Un viaje cada {Min1(v)} min" : "Midiendo el primer viaje…"; }
+        /// <summary>Estado en vivo del tren: «Cargando en A», «Hacia B · llega en 1:20», «Descargando en B», «Parado: no hay vía hasta B». aviso = parado (ámbar).</summary>
+        public string EstadoTrenTexto(int tren, out bool aviso)
+        {
+            aviso = false; if (tren < 0 || tren >= Trenes.Count) return "";
+            var t = Trenes[tren]; if (t.Linea < 0) return $"{t.Nombre} · sin línea";
+            var l = Lineas[t.Linea]; var p = l.Paradas[t.Parada]; string dest = Via.Estaciones[p.Estacion].Nombre;
+            switch (t.Estado)
+            {
+                case EstadoTren.EnMarcha: { int v = Math.Max(1, t.VmaxMmT); return $"Hacia {dest} · llega en {Mmss(t.Restante(Via) / v + t.VmaxMmT / Math.Max(1, t.AccMmT2))}"; }
+                case EstadoTren.EnParada:
+                    {
+                        int r = SiguienteTrabajo(t, p, Almacen[p.Estacion], out bool descargar);
+                        return r < 0 ? $"Saliendo de {dest}" : (descargar ? "Descargando en " : "Cargando en ") + dest;
+                    }
+                default:
+                    {
+                        int dn = Via.Estaciones[p.Estacion].Nodo; aviso = true;
+                        if (t.Nodo >= 0 && t.Nodo != dn && Via.Ruta(t.Nodo, dn) == null) return $"Parado: no hay vía hasta {dest}";
+                        return $"Parado camino de {dest}";
+                    }
+            }
+        }
+        /// <summary>Placa del almacén: «3 cajas · 315 cartuchos · 4 palés y 20 m» (sueltos: cartuchos ya fuera de caja que guarda la estación, los de Nacho en B).</summary>
+        public string ExistenciasAlmacen(int e, int cartuchosPorCaja, int cartuchosSueltos = 0)
+        {
+            if (e < 0 || e >= Almacen.Count) return "";
+            int c = Almacen[e][Municion]; string s = $"{c} {(c == 1 ? "caja" : "cajas")} · {c * cartuchosPorCaja + cartuchosSueltos} cartuchos";
+            return s + " · " + Pales(MaterialM(e));      // Marcos: también «0 palés»
+        }
+        /// <summary>Para cuánto le llega la munición, con el saldo de entradas y salidas de los 2 últimos viajes: «Se agota en ~4 min», «Se mantiene», «Sube», «Sin consumo».
+        /// ambar: se agota en menos de un viaje. Antes de 2 vueltas medidas: «Midiendo…».</summary>
+        public string TendenciaAlmacen(int e, out bool ambar)
+        {
+            ambar = false; if (e < 0 || e >= Almacen.Count) return "";
+            if (Fotos.Count < 2 || Fotos[0].Ent.Length <= e) return "Midiendo…";
+            var f0 = Fotos[Fotos.Count >= 3 ? Fotos.Count - 3 : 0]; int dt = Tick - f0.Tick; if (dt <= 0) return "Midiendo…";
+            int ent = Entradas[e][Municion] - f0.Ent[e][Municion], sal = Salidas[e][Municion] - f0.Sal[e][Municion];
+            if (sal == 0) return "Sin consumo";
+            int neto = ent - sal; if (neto > 0) return "Sube"; if (neto == 0) return "Se mantiene";
+            int hay = Almacen[e][Municion]; if (hay == 0) { ambar = true; return "Agotado"; }
+            long agota = (long)hay * dt / (-neto);      // ticks hasta vaciarse al ritmo de los 2 últimos viajes
+            int viaje = -1; foreach (var t in Trenes) if (t.Linea >= 0) { viaje = VueltaMediaT(t.Linea); break; }
+            ambar = viaje > 0 && agota < viaje;
+            int min = (int)Math.Max(1, (agota + IMath.TickRate * 30) / (IMath.TickRate * 60));
+            return $"Se agota en ~{min} min";
+        }
+
         public string TextoLinea(int linea)
         {
             if (linea < 0 || linea >= Lineas.Count) return "";
@@ -260,7 +366,7 @@ namespace TBD.Mundo
             ulong ht = 0x51UL; foreach (var t in Trenes) { ht = IMath.Mix(ht ^ (ulong)t.Id ^ ((ulong)(uint)t.Nodo << 8) ^ ((ulong)t.PasoI << 24) ^ ((ulong)(uint)t.OffMm << 32)); ht = IMath.Mix(ht ^ (ulong)(uint)t.VelMmT ^ ((ulong)t.Estado << 20) ^ ((ulong)(uint)(t.Linea + 1) << 24) ^ ((ulong)(uint)t.Parada << 40) ^ ((ulong)(uint)t.EsperaT << 48)); ht = IMath.Mix(ht ^ (ulong)(uint)(t.InicioVueltaT + 1) ^ ((ulong)(uint)(t.UltimaVueltaT + 1) << 32)); foreach (var ps in t.Ruta) ht = IMath.Mix(ht ^ (ulong)ps.Tramo ^ (ps.Directo ? 1UL << 40 : 0UL)); }
             if (LineaAuto) ht = IMath.Mix(ht ^ 0xA070UL); if (CuestaMaterial) ht = IMath.Mix(ht ^ 0xC057UL);
             salida.Add(new KeyValuePair<string, ulong>("red.trenes", ht));
-            ulong ha = 0x52UL; foreach (var a in Almacen) foreach (var c in a) ha = IMath.Mix(ha ^ (ulong)(uint)c); foreach (var m in MetrosSueltos) if (m != 0) ha = IMath.Mix(ha ^ 0x5E00UL ^ (ulong)(uint)m); salida.Add(new KeyValuePair<string, ulong>("red.almacen", ha));
+            ulong ha = 0x52UL; foreach (var a in Almacen) foreach (var c in a) ha = IMath.Mix(ha ^ (ulong)(uint)c); foreach (var m in MetrosSueltos) if (m != 0) ha = IMath.Mix(ha ^ 0x5E00UL ^ (ulong)(uint)m); ha = HashContadores(ha); salida.Add(new KeyValuePair<string, ulong>("red.almacen", ha));
             ulong hc = 0x53UL; foreach (var t in Trenes) foreach (var c in t.Carga) hc = IMath.Mix(hc ^ (ulong)(uint)c); foreach (var kv in _hechoC) foreach (var c in kv.Value) hc = IMath.Mix(hc ^ (ulong)kv.Key ^ (ulong)(uint)c << 16); foreach (var kv in _hechoD) foreach (var c in kv.Value) hc = IMath.Mix(hc ^ (ulong)kv.Key ^ (ulong)(uint)c << 24);
             salida.Add(new KeyValuePair<string, ulong>("red.cargas", hc));
         }
@@ -277,6 +383,7 @@ namespace TBD.Mundo
             }
             foreach (var a in Almacen) foreach (var c in a) h = IMath.Mix(h ^ (ulong)(uint)c);
             foreach (var m in MetrosSueltos) if (m != 0) h = IMath.Mix(h ^ 0x5E00UL ^ (ulong)(uint)m);
+            h = HashContadores(h);
             foreach (var kv in _hechoC) foreach (var c in kv.Value) h = IMath.Mix(h ^ (ulong)kv.Key ^ (ulong)(uint)c << 16);
             foreach (var kv in _hechoD) foreach (var c in kv.Value) h = IMath.Mix(h ^ (ulong)kv.Key ^ (ulong)(uint)c << 24);
             return h;
@@ -295,6 +402,7 @@ namespace TBD.Mundo
                 w.Int(t.Ruta.Count); foreach (var ps in t.Ruta) { w.Int(ps.Tramo); w.Bool(ps.Directo); }
                 w.Ints(_hechoC.TryGetValue(t.Id, out var hc) ? hc : null); w.Ints(_hechoD.TryGetValue(t.Id, out var hd) ? hd : null);
             }
+            SaveContadores(w);
         }
 
         public void Load(SaveReader r)
@@ -312,6 +420,7 @@ namespace TBD.Mundo
                 var hc = r.Ints(); if (hc != null) _hechoC[i] = hc; var hd = r.Ints(); if (hd != null) _hechoD[i] = hd;
                 Trenes.Add(t);
             }
+            LoadContadores(r);
         }
     }
 }
