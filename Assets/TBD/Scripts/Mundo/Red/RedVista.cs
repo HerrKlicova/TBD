@@ -206,8 +206,8 @@ namespace TBD.Mundo
             {
                 int tren = -1; for (int k = 0; k < R.Trenes.Count; k++) if (R.Trenes[k].Linea == l) { tren = k; break; }
                 string estado = tren >= 0 ? R.EstadoTrenTexto(tren, out bool aviso) : "Sin tren"; bool av = tren >= 0 && R.Trenes[tren].Estado == EstadoTren.Parado;
-                filas.Add((av ? "<color=#e0b050>" : "<color=#d4d0cc>") + estado + "</color>");
-                filas.Add("<color=#a8a49e>" + R.CargaLinea(l) + " · " + R.FrecuenciaLinea(l) + "</color>");
+                filas.Add((av ? "<color=#e0b050>" : "<color=#f0ece4>") + estado + "</color>");
+                filas.Add("<color=#c8c4bc>" + R.CargaLinea(l) + " · " + R.FrecuenciaLinea(l) + "</color>");
                 filas.Add($"<color={ColorLinea[l % ColorLinea.Length]}><b>■ {R.TituloLinea(l)}</b></color>");
             }
             if (R.Almacen.Count >= 2 && !PlacasEnMundo)      // hasta que Marcos dibuje las placas en las estaciones: una fila por almacén
@@ -216,6 +216,9 @@ namespace TBD.Mundo
                     string t = R.TendenciaAlmacen(e, out bool amb);
                     filas.Insert(0, $"<color=#d4d0cc>{R.Via.Estaciones[e].Nombre}: {R.ExistenciasAlmacen(e, Mundo.CartuchosPorCaja)} · </color>" + (amb ? "<color=#e0b050>" : "<color=#a8a49e>") + t + "</color>");
                 }
+            if (filas.Count == 0) return;
+            float ancho = 0f; foreach (var f in filas) ancho = Mathf.Max(ancho, st.CalcSize(new GUIContent(f)).x);
+            GUI.color = new Color(0.06f, 0.07f, 0.05f, 0.82f); GUI.DrawTexture(new Rect(10f, y - h * filas.Count - 6f, Mathf.Min(ancho + 14f, Screen.width - 20f), h * filas.Count + 8f), Texture2D.whiteTexture); GUI.color = Color.white;      // mismo fondo que la placa de Marcos
             foreach (var f in filas) { y -= h; GUI.Label(new Rect(16f, y, Screen.width - 32f, h + 2f), f, st); }
         }
         /// <summary>Marcos: ponlo a true cuando las placas de A y B se dibujen en el mundo (ExistenciasAlmacen / TendenciaAlmacen de la Red), y el panel deja de repetirlas.</summary>
