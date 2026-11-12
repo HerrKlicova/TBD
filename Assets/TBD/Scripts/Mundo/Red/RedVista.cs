@@ -81,7 +81,12 @@ namespace TBD.Mundo
             }
             else if (_m.Tick != _tick) { GuardarAnterior(); _tick = _m.Tick; LeerTren(); _acc = 0f; }
             else _acc += Time.deltaTime;
-            if (R.UltimoRechazo != null && R.UltimoRechazo != _rechazoVisto) { _rechazoVisto = R.UltimoRechazo; _causa = R.UltimoRechazo; Debug.Log("[RED] la red rechaza: " + R.UltimoRechazo); }
+            if (R.UltimoRechazo != null && R.UltimoRechazo != _rechazoVisto)
+            {
+                _rechazoVisto = R.UltimoRechazo;
+                if (R.UltimoRechazo.Contains(": no hay vía hasta")) Debug.Log("[RED] estado del tren: " + R.UltimoRechazo);      // Sara: es el estado del tren, no un rechazo de una orden (sale en la línea de abajo)
+                else { _causa = R.UltimoRechazo; Debug.Log("[RED] la red rechaza: " + R.UltimoRechazo); }
+            }
             if (R.Via.Tramos.Count > _tramosDibujados) { var tn = R.Via.Tramos[R.Via.Tramos.Count - 1]; Debug.Log($"[RED] vía trazada: tramo {tn.Id}, {tn.Piezas?.Length ?? 0} piezas, {tn.LongMm / 1000} m, {R.Via.PasosNivel.Count} pasos a nivel");
                 if (tn.Piezas != null) { long qx = R.Via.Nodos[tn.A].X, qy = R.Via.Nodos[tn.A].Y; int qr = tn.RumboIni, nc = 0; string donde = ""; foreach (var pz in tn.Piezas) { if (Via.RadioMm(pz) > 0) { nc++; if (donde == "" ) donde = $" · primera curva ({pz}) en ({qx / 1000}; {qy / 1000}) m"; } Via.Avanzar(pz, ref qx, ref qy, ref qr); } Debug.Log($"[RED] curvas: {nc} de {tn.Piezas.Length}{donde}"); } }
             LineaSiUnidas();
@@ -188,6 +193,8 @@ namespace TBD.Mundo
             var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(13, Screen.height / 60), richText = true };
             float y = Screen.height - 70f;
             if (_linea >= 0 && _linea < R.Lineas.Count) GUI.Label(new Rect(16f, y - 26f, 1100f, 28f), "<color=#d4d0cc>Línea A–B · " + R.TextoLinea(_linea) + $" · A {R.Almacen[0][Red.Municion]} cajas · B {R.Almacen[1][Red.Municion]} cajas</color>", st);
+            foreach (var tr in R.Trenes) if (tr.Estado == EstadoTren.Parado && tr.Linea >= 0 && tr.Linea < R.Lineas.Count && tr.Parada < R.Lineas[tr.Linea].Paradas.Count)
+            { y -= 26f; GUI.Label(new Rect(16f, y - 26f, 1100f, 28f), $"<color=#e0b050>{tr.Nombre} parado: no hay vía hasta {R.Via.Estaciones[R.Lineas[tr.Linea].Paradas[tr.Parada].Estacion].Nombre}</color>", st); }
             GUI.Label(new Rect(16f, y, 900f, 28f), _modo ? "<color=#d4d0cc>Trazar vía: arrastra desde una estación o una vía con el botón izquierdo · Esc cancela" + (R.CuestaMaterial && R.Almacen.Count > 0 ? $" · material en A: {Red.Pales(R.MaterialM(0))} (1 palé = 100 m; las curvas cuentan ×1,5; paso a nivel, 200 m)" : "") + "</color>" : "<color=#8c8a86>T: trazar vía</color>", st);
             if (_modo && _causa == null && _costePrevia != null && _mb.CamaraMundo != null)
             {
