@@ -323,8 +323,7 @@ namespace TBD.Mundo
             else if (neto > 0) ritmo = "Sube";
             else if (neto == 0 || dt < 300) ritmo = "Se mantiene";
             else { float ticks = cajas * (float)dt / -neto; ritmo = $"Se agota en ~{Mathf.Max(1, Mathf.RoundToInt(ticks / 1800f))} min"; ambar = vuelta > 0 && ticks < vuelta; }
-            return "<color=#d4d0cc>" + hay + "</color>
-" + (ambar ? "<color=#e0b050>" + ritmo + "</color>" : "<color=#a8a49c>" + ritmo + "</color>");
+            return "<color=#d4d0cc>" + hay + "</color>\n" + (ambar ? "<color=#e0b050>" + ritmo + "</color>" : "<color=#a8a49c>" + ritmo + "</color>");
         }
         /// <summary>Aviso de los palés (Nacho, [MATERIAL]): lo lleva el pelotón o están en el suelo.</summary>
         public string AvisoMaterial { get { var M = _sim != null ? _sim.M : null; if (M == null) return null; if (M.Portador >= 0) return "El pelotón lleva 4 palés a B: va más lento y no dispara"; if (M.MaterialEnSuelo) return "Palés en el suelo: que otro pelotón pase a recogerlos"; return null; } }
