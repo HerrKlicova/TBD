@@ -438,6 +438,7 @@ namespace TBD.Mundo
         // ------------------------------------------------------------------ pantalla e iconos
         void OnGUI()
         {
+            GUI.depth = 10;      // debajo del HUD de la red (RedVista)
             if (Event.current.type != EventType.Repaint || _rt == null) return;
             ZumEstetica.DibujarPantalla(new Rect(0, 0, Screen.width, Screen.height), _rt, _altura);
             var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(15f * Screen.height / 1080f), alignment = TextAnchor.MiddleLeft }; st.normal.textColor = new Color32(0xf0, 0xdc, 0x9c, 255);

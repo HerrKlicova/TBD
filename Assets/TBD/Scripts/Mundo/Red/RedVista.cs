@@ -137,6 +137,7 @@ namespace TBD.Mundo
             MundoBootstrap.TrazandoVia = _modo;
             if (!_modo) return;
             var pos = ms.position.ReadValue();
+            if (ms.leftButton.wasPressedThisFrame || ms.leftButton.wasReleasedThisFrame) Debug.Log($"[RED] ratón {(ms.leftButton.isPressed ? "abajo" : "arriba")} en ({pos.x:0}; {pos.y:0}) · trazo {_trazo.Count} puntos");      // QA partida a mano
             if (ms.leftButton.wasPressedThisFrame && _mb.PuntoSuelo(pos, out var p0)) { _arrastrando = true; _trazo.Clear(); _trazo.Add(Mm(p0)); }
             if (_arrastrando && ms.leftButton.isPressed && _mb.PuntoSuelo(pos, out var p))
             {
@@ -196,6 +197,7 @@ namespace TBD.Mundo
 
         void OnGUI()
         {
+            GUI.depth = -10;      // encima de la pantalla del zum (MundoBootstrap dibuja la RT a pantalla completa)
             if (R == null) return;
             var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(13, Screen.height / 60), richText = true };
             float y = Screen.height - 70f;
