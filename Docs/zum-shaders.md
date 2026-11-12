@@ -55,7 +55,7 @@ Los shaders están en `Resources/Zum`, así que entran en la build sin tocar «A
 | `_ZumAltura` (global) | — | Altura de la cámara. La pone `ZumEstetica.Actualizar`. |
 
 Qué dibuja:
-- **Día.** Cada uso tiene su dibujo: huerta en parcelas de 34 × 46 m (labradas con surcos, verdes o en barbecho, con lindes), naranjal, secano, monte, marjal con charcos, cauce de grava con borde claro, carretera con cuneta, explanada, caserío, playa y mar.
+- **Día.** Cada uso tiene su dibujo: huerta en parcelas de 34 × 46 m (labradas con surcos, verdes o en barbecho, con lindes), naranjal, secano, monte, marjal con charcos, cauce de grava con borde claro, carretera (la franja de usos mide unos 11 m: 7 m de asfalto 6c7874 con motas 94948c y 2 m de arcén 48403c a cada lado, para que case con la losa de 7 m del paso a nivel de Teo), explanada, caserío, playa y mar.
   - De cerca (menos de 0,5 m por píxel), el borde entre usos se rompe con ruido de ±1,2 m.
   - En SOLDADO (menos de 40 m) salen las grietas.
 - **Mapa.** Bandas de altura (< 15 m, < 45 m, el resto), la ladera al noroeste un escalón más clara, curvas cada 5 m y maestras cada 25, una trama sobre naranjales y marjal, el cauce, la carretera, las explanadas, el mar navy y la costa en 94948c.
