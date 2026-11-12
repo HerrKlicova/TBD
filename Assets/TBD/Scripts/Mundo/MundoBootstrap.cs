@@ -440,6 +440,12 @@ namespace TBD.Mundo
             GUI.color = new Color32(0xf0, 0xdc, 0x9c, 255);
             foreach (var t in _trazadoras) { var a = APantalla(t.a); var b = APantalla(t.b); if (a.z > 0f && b.z > 0f) Linea(a, b); }
             GUI.color = Color.white;
+            if (_sim != null && _sim.M.Puntos.TryGetValue("caserio", out var pcas))      // Lucía: la placa del caserío dice cuántos zombis quedan (solo lectura del Mundo)
+            {
+                int quedan = 0; foreach (var z in _sim.M.Zombis.Lista) if (z.Vivo) quedan++;
+                var sc = APantalla(EnSuelo(new Vector3(pcas.X / 1000f, 0f, pcas.Y / 1000f)) + Vector3.up * 12f);
+                if (sc.z > 0f) GUI.Label(new Rect(sc.x - 90f, sc.y - 14f, 260f, 28f), quedan > 0 ? $"<b>Caserío · quedan {quedan}</b>" : "<b>Caserío · limpio</b>", st);
+            }
             var aviso = AvisoMaterial; if (aviso != null) GUI.Label(new Rect(16f, 40f, 900f, 26f), "<color=#e0b050>" + aviso + "</color>", st);
             int vivos = 0; foreach (var z in _zombis) if (z.vivo) vivos++;
             GUI.Label(new Rect(16f, 12f, 900f, 26f), $"Mundo (prototipo de zum) · {_fps:0} fps · altura {_altura:0} m · {(_altura > AlturaIconos ? "mapa" : "detalle")} · zombis {vivos}/100 · rueda: zum · WASD: mover · clic dcho: mandar el pelotón", st);
