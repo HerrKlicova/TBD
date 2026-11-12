@@ -9,10 +9,12 @@ namespace TBD.Mundo
     {
         public const TipoOrden PuntoVia = (TipoOrden)100;       // A = x, B = y
         public const TipoOrden TrazarVia = (TipoOrden)101;      // cierra los puntos del jugador en un tramo
-        public const TipoOrden CancelarVia = (TipoOrden)102;    // borra los puntos del jugador
+        public const TipoOrden CancelarVia = (TipoOrden)102;    // borra los puntos pendientes del jugador (no toca vía construida: eso es BorrarVia, 106)
         public const TipoOrden NuevaLinea = (TipoOrden)103;     // A = estación de la munición, B = estación del frente; C = cajas de munición por viaje (0 = 4, Hugo), D = palés de material de vuelta (0 = 2)
         public const TipoOrden AsignarTren = (TipoOrden)104;    // A = línea, B = tren
         public const TipoOrden NuevoTren = (TipoOrden)105;      // A = estación
+        public const TipoOrden BorrarVia = (TipoOrden)106;      // A = tramo. Con un tren encima se rechaza; los que lo iban a cruzar paran en el nodo siguiente y se reencaminan
+        public const TipoOrden AnadirParada = (TipoOrden)107;   // A = línea, B = estación, C = posición (−1 = al final), D = cajas de munición a cargar (0 = depósito: descarga toda la munición)
     }
 
     /// <summary>La red dentro de LA simulación (contrato de Nacho): Mundo.Red, con sus órdenes, su paso y su hash por sistema.</summary>
@@ -38,6 +40,14 @@ namespace TBD.Mundo
                         break;
                     }
                 case OrdenesRed.AsignarTren: Red.AsignarTren(o.A, o.B); break;
+                case OrdenesRed.BorrarVia: Red.BorrarVia(o.A); break;
+                case OrdenesRed.AnadirParada:
+                    {
+                        var c = new int[Red.Recursos]; var d = new int[Red.Recursos];
+                        if (o.D > 0) { c[Red.Municion] = o.D; d[Red.Material] = -1; } else d[Red.Municion] = -1;      // carga munición (y deja el material) o depósito del frente
+                        Red.AnadirParada(o.A, o.C, new ParadaLinea { Estacion = o.B, Cargar = c, Descargar = d });
+                        break;
+                    }
                 case OrdenesRed.NuevoTren: if (o.A >= 0 && o.A < Red.Via.Estaciones.Count) Red.NuevoTren("Tren " + (Red.Trenes.Count + 1), o.A); break;
             }
         }

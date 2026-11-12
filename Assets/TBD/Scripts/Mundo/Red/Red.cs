@@ -60,6 +60,35 @@ namespace TBD.Mundo
         /// <summary>D-N209: trazo libre del jugador → piezas del kit. (Via.Trazar, la curva libre, queda para pruebas.)</summary>
         public Via.Resultado TrazarVia(IList<PointMm> puntos) { var r = Via.TrazarLibre(puntos); if (!r.Ok) UltimoRechazo = r.Por; return r; }
 
+        /// <summary>Borra un tramo de vía construida. Determinista, también con trenes en marcha:
+        /// · un tren que está ENCIMA del tramo lo impide (se rechaza: «hay un tren en ese tramo»);
+        /// · un tren cuya ruta pasa por él más adelante acaba el tramo en el que va, para en el nodo siguiente y desde ahí busca otra ruta
+        ///   (si no la hay, queda parado y lo reintenta cada segundo, como sin vía).</summary>
+        public bool BorrarVia(int tramo)
+        {
+            if (tramo < 0 || tramo >= Via.Tramos.Count || Via.Tramos[tramo].Borrado) { UltimoRechazo = "ese tramo no existe"; return false; }
+            foreach (var t in Trenes) if (t.Estado == EstadoTren.EnMarcha && t.Ruta.Count > t.PasoI && t.Ruta[t.PasoI].Tramo == tramo) { UltimoRechazo = $"hay un tren en ese tramo ({t.Nombre})"; return false; }
+            Via.BorrarTramo(tramo);
+            foreach (var t in Trenes)
+            {
+                if (t.Estado != EstadoTren.EnMarcha) continue;
+                for (int i = t.PasoI + 1; i < t.Ruta.Count; i++) if (t.Ruta[i].Tramo == tramo) { t.Ruta.RemoveRange(t.PasoI + 1, t.Ruta.Count - t.PasoI - 1); break; }
+            }
+            return true;
+        }
+
+        /// <summary>Añade una parada (o depósito) a una línea existente en la posición «pos» (fuera de rango = al final). El tren que ya la recorre la respeta:
+        /// si se inserta antes de su parada actual, su índice se corre uno para seguir yendo al mismo sitio.</summary>
+        public bool AnadirParada(int linea, int pos, ParadaLinea p)
+        {
+            if (linea < 0 || linea >= Lineas.Count || p.Estacion < 0 || p.Estacion >= Via.Estaciones.Count) { UltimoRechazo = "parada no válida"; return false; }
+            if (p.Cargar == null) p.Cargar = new int[Recursos]; if (p.Descargar == null) p.Descargar = new int[Recursos];
+            var l = Lineas[linea]; if (pos < 0 || pos > l.Paradas.Count) pos = l.Paradas.Count;
+            l.Paradas.Insert(pos, p);
+            foreach (var t in Trenes) if (t.Linea == linea && t.Parada >= pos) t.Parada++;
+            return true;
+        }
+
         public int CrearLinea(string nombre, IList<ParadaLinea> paradas)
         {
             if (paradas == null || paradas.Count < 2) { UltimoRechazo = "una línea necesita al menos dos paradas"; return -1; }
@@ -113,6 +142,7 @@ namespace TBD.Mundo
                 var ul = t.Ruta[t.Ruta.Count - 1]; var tr = Via.Tramos[ul.Tramo]; t.Nodo = ul.Directo ? tr.B : tr.A;
                 t.VelMmT = 0; t.Ruta.Clear(); t.PasoI = 0; t.OffMm = 0;
                 t.Estado = t.Linea >= 0 ? EstadoTren.EnParada : EstadoTren.Parado; t.EsperaT = 0;
+                if (t.Linea >= 0 && t.Nodo != Via.Estaciones[Lineas[t.Linea].Paradas[t.Parada].Estacion].Nodo) IrAParada(t);      // ruta cortada por una vía borrada: reencamina desde aquí
             }
         }
 

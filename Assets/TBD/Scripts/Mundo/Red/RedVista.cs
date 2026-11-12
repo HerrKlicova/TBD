@@ -204,6 +204,8 @@ namespace TBD.Mundo
         // ---------------------------------------------------------------- vía: FBX de Teo pieza a pieza (o cinta) y, en MAPA, símbolo con grosor
         void DibujarTramos()
         {
+            for (int i = 0; i < _detalle.Count && i < R.Via.Tramos.Count; i++)      // _detalle[i] es el tramo i: los borrados (orden 106) desaparecen
+                if (_detalle[i] != null && R.Via.Tramos[i].Borrado) { Destroy(_detalle[i]); _detalle[i] = null; _anchoSimbolo = -1f; Debug.Log($"[RED] vía borrada: tramo {i}"); }
             while (_tramosDibujados < R.Via.Tramos.Count)
             {
                 var t = R.Via.Tramos[_tramosDibujados++];
@@ -274,7 +276,7 @@ namespace TBD.Mundo
             if (mapa && (_anchoSimbolo < 0f || Mathf.Abs(ancho - _anchoSimbolo) > _anchoSimbolo * 0.25f))
             {
                 foreach (var s in _simbolo) if (s != null) Destroy(s); _simbolo.Clear(); _anchoSimbolo = ancho;
-                foreach (var t in R.Via.Tramos) { var g = new GameObject($"Vía · símbolo {t.Id}"); Cinta(g.transform, t.Puntos, 0f, ancho * 1.25f, 2f, Trazado(ZumEstetica.Contorno, 1f, 0f), "Contorno", true); Cinta(g.transform, t.Puntos, 0f, ancho, 2.2f, Trazado(ZumEstetica.Hueso, 1f, 0f), "Hueso", true); _simbolo.Add(g); }
+                foreach (var t in R.Via.Tramos) { if (t.Borrado) continue; var g = new GameObject($"Vía · símbolo {t.Id}"); Cinta(g.transform, t.Puntos, 0f, ancho * 1.25f, 2f, Trazado(ZumEstetica.Contorno, 1f, 0f), "Contorno", true); Cinta(g.transform, t.Puntos, 0f, ancho, 2.2f, Trazado(ZumEstetica.Hueso, 1f, 0f), "Hueso", true); _simbolo.Add(g); }
             }
             foreach (var s in _simbolo) if (s != null) s.SetActive(mapa);
         }

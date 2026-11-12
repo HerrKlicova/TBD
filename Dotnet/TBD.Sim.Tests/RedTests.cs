@@ -153,6 +153,61 @@ namespace TBD.Sim.Tests
                 var hs = m1.HashPorSistema(); var nombres = new List<string>(); foreach (var kv in hs) nombres.Add(kv.Key);
                 check(nombres.Contains("red.via") && nombres.Contains("red.trenes") && nombres.Contains("red.trazos") && nombres.Contains("unidades"), "el hash por sistema de Mundo incluye la red (" + string.Join(", ", nombres) + ")");
             }
+            // borrar vía construida con el tren en marcha (orden 106) y añadir una parada a una línea existente (107)
+            {
+                Red Montar(out int a, out int b, out int m)
+                {
+                    var r = Hito1(out a, out b); m = r.AddEstacion("Medio", 900_000, 1_150_000); r.Almacen[a][Red.Municion] = 12;
+                    r.TrazarVia(new List<PointMm> { new PointMm(200_000, 1_000_000), new PointMm(900_000, 1_150_000) });       // tramo 0: A–Medio
+                    r.TrazarVia(new List<PointMm> { new PointMm(900_000, 1_150_000), new PointMm(1_600_000, 1_300_000) });     // tramo 1: Medio–B
+                    int tr = r.NuevoTren("Tren 1", a);
+                    var cA = new int[Red.Recursos]; cA[Red.Municion] = 4; var dB = new int[Red.Recursos]; dB[Red.Municion] = -1;
+                    int l = r.CrearLinea("L", new List<ParadaLinea> { new ParadaLinea { Estacion = a, Cargar = cA, Descargar = new int[Red.Recursos] }, new ParadaLinea { Estacion = b, Cargar = new int[Red.Recursos], Descargar = dB } });
+                    r.AsignarTren(l, tr); return r;
+                }
+                var r = Montar(out int a, out int b, out int m); int tick = 0; var t0 = r.Trenes[0];
+                check(r.Via.Tramos.Count == 2 && r.Via.Ruta(r.Via.Estaciones[a].Nodo, r.Via.Estaciones[b].Nodo)?.Count == 2, "red de prueba: A–Medio–B en dos tramos");
+                while (tick < 20_000 && !(t0.Estado == EstadoTren.EnMarcha && t0.PasoI == 0 && t0.OffMm > 100_000)) r.Step(++tick);
+                check(t0.Estado == EstadoTren.EnMarcha && t0.Ruta.Count == 2, $"el tren va de A a B por el tramo 0 (tick {tick})");
+                bool bajo = r.BorrarVia(0);
+                check(!bajo && r.UltimoRechazo.Contains("hay un tren") && !r.Via.Tramos[0].Borrado, $"no se puede borrar el tramo que tiene un tren encima ({r.UltimoRechazo})");
+                check(r.BorrarVia(1) && r.Via.Tramos[1].Borrado && t0.Ruta.Count == 1, "se borra el tramo siguiente con el tren en marcha: su ruta se corta en el nodo Medio");
+                check(!r.BorrarVia(1), "borrar dos veces el mismo tramo se rechaza");
+                while (tick < 40_000 && t0.Estado == EstadoTren.EnMarcha) r.Step(++tick);
+                for (int k = 0; k < 60; k++) r.Step(++tick);
+                check(t0.Estado == EstadoTren.Parado && t0.Nodo == r.Via.Estaciones[m].Nodo && t0.Carga[Red.Municion] == 4, $"el tren para en Medio con su carga y espera vía ({r.UltimoRechazo})");
+                var res = r.TrazarVia(new List<PointMm> { new PointMm(900_000, 1_150_000), new PointMm(1_600_000, 1_300_000) });
+                for (int k = 0; k < 6_000; k++) r.Step(++tick);
+                check(res.Ok && r.Almacen[b][Red.Municion] >= 4, $"con la vía nueva (tramo {res.Tramo}) se reencamina solo y entrega en B: {r.Almacen[b][Red.Municion]} cajas");
+                var w = new SaveWriter(); r.Save(w); var r2 = new Red(); r2.Load(new SaveReader(w.ToArray()));
+                check(r2.Hash() == r.Hash() && r2.Via.Tramos[1].Borrado && r2.Via.Ruta(r2.Via.Estaciones[m].Nodo, r2.Via.Estaciones[b].Nodo)[0].Tramo == res.Tramo, "guardar y cargar conserva el tramo borrado y la ruta nueva");
+                // añadir parada: Medio como depósito entre A y B
+                var q = Montar(out a, out b, out m); var dM = new int[Red.Recursos]; dM[Red.Municion] = -1;
+                check(q.AnadirParada(0, 1, new ParadaLinea { Estacion = m, Cargar = new int[Red.Recursos], Descargar = dM }) && q.Lineas[0].Paradas.Count == 3, "se añade una parada (depósito en Medio) a la línea existente");
+                for (int k = 1; k <= 9_000; k++) q.Step(k);
+                check(q.Almacen[m][Red.Municion] >= 4 && q.Almacen[b][Red.Municion] == 0, $"el tren descarga en el depósito nuevo (Medio {q.Almacen[m][Red.Municion]}, B {q.Almacen[b][Red.Municion]})");
+                check(!q.AnadirParada(5, 0, new ParadaLinea { Estacion = m }) && !q.AnadirParada(0, 0, new ParadaLinea { Estacion = 9 }), "una línea o estación que no existe se rechaza");
+            }
+            // en Mundo: 106 con el tren en marcha, dos instancias, mismo hash
+            {
+                TBD.Mundo.Mundo Mm()
+                {
+                    var mu = new TBD.Mundo.Mundo(7u, 2_000_000, 2_000_000);
+                    mu.Red.AddEstacion("A", 200_000, 1_000_000); mu.Red.AddEstacion("B", 1_600_000, 1_300_000); mu.Red.AddEstacion("M", 900_000, 1_150_000); mu.Red.Almacen[0][0] = 12;
+                    void Via(int tk, int x0, int y0, int x1, int y1) { mu.Encolar(new Orden { Tick = tk, Jugador = 1, Tipo = OrdenesRed.PuntoVia, A = x0, B = y0 }); mu.Encolar(new Orden { Tick = tk, Jugador = 1, Tipo = OrdenesRed.PuntoVia, A = x1, B = y1 }); mu.Encolar(new Orden { Tick = tk, Jugador = 1, Tipo = OrdenesRed.TrazarVia }); }
+                    Via(10, 200_000, 1_000_000, 900_000, 1_150_000); Via(11, 900_000, 1_150_000, 1_600_000, 1_300_000);
+                    mu.Encolar(new Orden { Tick = 12, Jugador = 2, Tipo = OrdenesRed.NuevoTren, A = 0 });
+                    mu.Encolar(new Orden { Tick = 13, Jugador = 2, Tipo = OrdenesRed.NuevaLinea, A = 0, B = 1 });
+                    mu.Encolar(new Orden { Tick = 14, Jugador = 1, Tipo = OrdenesRed.AsignarTren, A = 0, B = 0 });
+                    mu.Encolar(new Orden { Tick = 2_400, Jugador = 2, Tipo = OrdenesRed.BorrarVia, A = 1 });                                  // con el tren en marcha por el tramo 0
+                    mu.Encolar(new Orden { Tick = 2_500, Jugador = 1, Tipo = OrdenesRed.AnadirParada, A = 0, B = 2, C = -1, D = 0 });           // depósito en M, al final
+                    Via(5_000, 900_000, 1_150_000, 1_600_000, 1_300_000);
+                    return mu;
+                }
+                var u1 = Mm(); var u2 = Mm(); bool ig = true; int tb = -1;
+                for (int k = 0; k < 30 * 60 * 10; k++) { u1.Step(); u2.Step(); if (tb < 0 && u1.Red.Via.Tramos.Count > 1 && u1.Red.Via.Tramos[1].Borrado) tb = k; if (u1.Hash() != u2.Hash()) { ig = false; break; } }
+                check(ig && tb > 0 && u1.Red.Lineas[0].Paradas.Count == 3 && u1.Red.Via.Tramos.Count == 3, $"órdenes 106 y 107 en dos Mundos: mismo hash 10 minutos (tramo 1 borrado en el tick {tb}; tren {u1.Red.Trenes[0].Estado})");
+            }
             // sin vía: el tren con línea espera y no se mueve
             {
                 var r = Hito1(out int a, out int b); int tr = r.NuevoTren("2 Montaña", a);

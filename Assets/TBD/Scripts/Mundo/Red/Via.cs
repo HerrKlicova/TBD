@@ -13,7 +13,7 @@ namespace TBD.Mundo
     public sealed class Via
     {
         public sealed class Nodo { public int Id, X, Y, Estacion = -1; }
-        public sealed class Tramo { public int Id, A, B, LongMm; public PointMm[] Puntos; public int[] Acum; public int RumboIni; public Pieza[] Piezas; }
+        public sealed class Tramo { public int Id, A, B, LongMm; public PointMm[] Puntos; public int[] Acum; public int RumboIni; public Pieza[] Piezas; public bool Borrado; }      // Borrado: se queda en la lista (los ids no cambian) pero ya no cuenta
 
         /// <summary>D-N209 (Lucía): la vía se compone de piezas del kit de Teo (entregas/teo-modelado/hito1-red). Rectas de 10 y 2,5 m; curvas de arco 15,71 m
         /// con R 60, 120 y 240 (15°, 7,5° y 3,75°), a izquierda o derecha. Izquierda = giro antihorario en el plano X-Y del mundo.</summary>
@@ -170,6 +170,7 @@ namespace TBD.Mundo
         {
             foreach (var t in Tramos)      // seguir sin quiebro la vía que ya acaba en este nodo
             {
+                if (t.Borrado) continue;
                 if (t.B == nodo && t.Puntos.Length >= 2) { var a = t.Puntos[t.Puntos.Length - 2]; var b = t.Puntos[t.Puntos.Length - 1]; return IMath.Atan2(b.Y - a.Y, b.X - a.X); }
                 if (t.A == nodo && t.Puntos.Length >= 2) { var a = t.Puntos[1]; var b = t.Puntos[0]; return IMath.Atan2(b.Y - a.Y, b.X - a.X); }
             }
@@ -304,6 +305,9 @@ namespace TBD.Mundo
             return new PointMm(a.X + IMath.DivR((long)(b.X - a.X) * (off - t.Acum[lo]), seg), a.Y + IMath.DivR((long)(b.Y - a.Y) * (off - t.Acum[lo]), seg));
         }
 
+        /// <summary>Borra un tramo construido: deja de existir para las rutas y se quitan sus pasos a nivel. El id se conserva (las rutas y los pasos guardan ids).</summary>
+        public bool BorrarTramo(int id) { if (id < 0 || id >= Tramos.Count || Tramos[id].Borrado) return false; Tramos[id].Borrado = true; PasosNivel.RemoveAll(p => p.Tramo == id); return true; }
+
         public struct Paso { public int Tramo; public bool Directo; }      // Directo: se recorre de A a B
 
         /// <summary>Camino más corto (Dijkstra por longitud, desempate por id) entre dos nodos. null si no hay. Lista vacía si son el mismo nodo.</summary>
@@ -319,6 +323,7 @@ namespace TBD.Mundo
                 if (u < 0 || u == hasta) break; hecho[u] = true;
                 foreach (var t in Tramos)
                 {
+                    if (t.Borrado) continue;
                     int v = t.A == u ? t.B : t.B == u ? t.A : -1; if (v < 0 || hecho[v]) continue;
                     long nd = dist[u] + t.LongMm; if (nd < dist[v]) { dist[v] = nd; prevT[v] = t.Id; prevN[v] = u; }
                 }
@@ -333,7 +338,7 @@ namespace TBD.Mundo
         {
             ulong h = 0x9E37UL;
             foreach (var n in Nodos) h = IMath.Mix(h ^ (ulong)(uint)n.X ^ ((ulong)(uint)n.Y << 32) ^ (ulong)(n.Estacion + 1) * 31UL);
-            foreach (var t in Tramos) { h = IMath.Mix(h ^ (ulong)t.A ^ ((ulong)t.B << 20) ^ ((ulong)(uint)t.LongMm << 32)); h = IMath.Mix(h ^ (ulong)(uint)t.RumboIni); if (t.Piezas != null) foreach (var pz in t.Piezas) h = IMath.Mix(h ^ (ulong)pz); foreach (var p in t.Puntos) h = IMath.Mix(h ^ (ulong)(uint)p.X ^ ((ulong)(uint)p.Y << 32)); }
+            foreach (var t in Tramos) { h = IMath.Mix(h ^ (ulong)t.A ^ ((ulong)t.B << 20) ^ ((ulong)(uint)t.LongMm << 32)); h = IMath.Mix(h ^ (ulong)(uint)t.RumboIni); if (t.Piezas != null) foreach (var pz in t.Piezas) h = IMath.Mix(h ^ (ulong)pz); foreach (var p in t.Puntos) h = IMath.Mix(h ^ (ulong)(uint)p.X ^ ((ulong)(uint)p.Y << 32)); if (t.Borrado) h = IMath.Mix(h ^ 0xB0B0UL); }
             foreach (var pn in PasosNivel) h = IMath.Mix(h ^ (ulong)pn.Tramo ^ ((ulong)(uint)pn.OffMm << 16) ^ ((ulong)pn.AnguloGrados << 48));
             return h;
         }
@@ -345,6 +350,7 @@ namespace TBD.Mundo
             w.Int(Carreteras.Count); foreach (var rd in Carreteras) { w.Int(rd.Length); foreach (var q in rd) { w.Int(q.X); w.Int(q.Y); } }
             w.Int(PasosNivel.Count); foreach (var pn in PasosNivel) { w.Int(pn.Tramo); w.Int(pn.OffMm); w.Int(pn.AnguloGrados); w.Int(pn.Carretera); w.Int(pn.P.X); w.Int(pn.P.Y); }
             w.Int(Tramos.Count); foreach (var t in Tramos) { w.Int(t.A); w.Int(t.B); w.Int(t.RumboIni); w.Int(t.Piezas != null ? t.Piezas.Length : 0); if (t.Piezas != null) foreach (var pz in t.Piezas) w.Byte((byte)pz); w.Int(t.Puntos.Length); foreach (var p in t.Puntos) { w.Int(p.X); w.Int(p.Y); } }
+            int nb = 0; foreach (var t in Tramos) if (t.Borrado) nb++; w.Int(nb); foreach (var t in Tramos) if (t.Borrado) w.Int(t.Id);
         }
 
         public void Load(SaveReader r)
@@ -361,6 +367,7 @@ namespace TBD.Mundo
                 for (int k = 0; k < np; k++) { t.Puntos[k] = new PointMm(r.Int(), r.Int()); if (k > 0) t.Acum[k] = t.Acum[k - 1] + IMath.Dist(t.Puntos[k].X - t.Puntos[k - 1].X, t.Puntos[k].Y - t.Puntos[k - 1].Y); }
                 t.LongMm = np > 0 ? t.Acum[np - 1] : 0; Tramos.Add(t);
             }
+            int nb = r.Int(); for (int i = 0; i < nb; i++) Tramos[r.Int()].Borrado = true;
         }
     }
 }
