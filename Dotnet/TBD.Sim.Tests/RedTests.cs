@@ -93,7 +93,7 @@ namespace TBD.Sim.Tests
                     check(m.Red.Lineas.Count == 1 && m.Red.Trenes[0].Linea == 0 && m.Red.LineaAutoCreadaTick % 30 == 0 && !m.Red.LineaAuto, $"A y B unidas: la simulación crea la línea por defecto y asigna el Tren 1 (tick {m.Red.LineaAutoCreadaTick}), sin depender de la vista");
                     check(m.Red.Via.MarDesdeMm.Length == 2049, "MontarRedHito1 carga el mar (agua_hito1.csv)");
                     Console.WriteLine($"MEDIDA A–B recta: {Red.Pales(m.Red.Via.Tramos[0].Coste)} palés ({m.Red.Via.Tramos[0].Coste} m)");
-                    check(m.Red.CuestaMaterial && m.Red.Via.Tramos[0].Coste > 0 && m.Red.MaterialM(0) >= 200, $"en el caserío la vía A–B recta cuesta {Red.Pales(m.Red.Via.Tramos[0].Coste)} palés y a A le quedan {Red.Pales(m.Red.MaterialM(0))} (Hugo: al menos 2 de margen; A empieza con 20)");
+                    check(m.Red.CuestaMaterial && m.Red.Via.Tramos[0].Coste > 0 && m.Red.MaterialM(0) >= 200, $"en el caserío la vía A–B recta cuesta {Red.Pales(m.Red.Via.Tramos[0].Coste)} palés y a A le quedan {Red.Pales(m.Red.MaterialM(0))} (Hugo: al menos 2 de margen; A empieza con 19)");
                     TBD.Mundo.Mundo.Lector = lectorAntes;
                 }
             }

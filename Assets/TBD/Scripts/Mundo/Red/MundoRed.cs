@@ -50,7 +50,7 @@ namespace TBD.Mundo
         }
 
         /// <summary>La red del Hito 1 en el escenario del caserío: estaciones A y B de Mundo.Puntos, carreteras de Álvaro (Lector, carreteras_hito1.csv),
-        /// «Tren 1» en A, 20 cajas de munición y 20 palés de material en A (la vía cuesta material). Determinista: la llama el escenario (Mundo.Caserio) igual en los dos jugadores. Sin A o B, no hace nada.</summary>
+        /// «Tren 1» en A, 20 cajas de munición y 19 palés de material en A (la vía cuesta material). Determinista: la llama el escenario (Mundo.Caserio) igual en los dos jugadores. Sin A o B, no hace nada.</summary>
         public void MontarRedHito1()
         {
             if (Red.Via.Estaciones.Count > 0 || !Puntos.TryGetValue("A", out var a) || !Puntos.TryGetValue("B", out var b)) return;
@@ -59,7 +59,7 @@ namespace TBD.Mundo
             var mar = Lector != null ? Lector("agua_hito1.csv") : null; if (mar != null) Red.Via.CargarMarCsv(mar);
             Red.NuevoTren("Tren 1", ea); Red.Almacen[ea][Red.Municion] = 20;
             Red.LineaAuto = true;
-            Red.Almacen[ea][Red.Material] = 20; Red.CuestaMaterial = true;      // Hugo: A = coste de la A–B + 2 palés, hacia arriba. Medido (RedTests): A–P–B del guion 17,04 → 20 (la recta A–B, 14,85)      // la línea A–B por defecto la crea la simulación al unirse A y B (antes la pedía la vista, en un tick que dependía de los fotogramas)
+            Red.Almacen[ea][Red.Material] = 19; Red.CuestaMaterial = true;      // Hugo (12-nov): A = coste del guion A–P–B (17,04, RedTests) + 2, sin redondear hacia arriba → 19. Si cambia la vía del guion, sigue siendo su coste + 2      // la línea A–B por defecto la crea la simulación al unirse A y B (antes la pedía la vista, en un tick que dependía de los fotogramas)
         }
 
         partial void StepRed() { Red.Step(Tick); }
