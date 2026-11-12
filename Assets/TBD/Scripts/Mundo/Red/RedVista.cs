@@ -233,16 +233,16 @@ namespace TBD.Mundo
             var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(13, Screen.height / 60), richText = true };
             float y = Screen.height - 70f;
             float arriba = PanelLinea(st, y - 8f) - 34f;      // Galería (Mundo25, captura 14): la franja de mensajes va encima del panel de la línea
-            GUI.Label(new Rect(16f, y, Screen.width - 32f, 28f), _modo ? "<color=#d4d0cc>Trazar vía: arrastra desde una estación o una vía con el botón izquierdo · Esc cancela" + (R.CuestaMaterial && R.Almacen.Count > 0 ? $" · material en A: {Red.Pales(R.MaterialM(0))} (1 palé = 100 m; las curvas cuentan ×1,5; paso a nivel, 200 m)" : "") + "</color>" : "<color=#8c8a86>T: trazar vía</color>", st);
+            MundoBootstrap.Rotulo(new Rect(16f, y, Screen.width - 32f, 28f), _modo ? "<color=#d4d0cc>Trazar vía: arrastra desde una estación o una vía con el botón izquierdo · Esc cancela" + (R.CuestaMaterial && R.Almacen.Count > 0 ? $" · material en A: {Red.Pales(R.MaterialM(0))} (1 palé = 100 m; las curvas cuentan ×1,5; paso a nivel, 200 m)" : "") + "</color>" : "<color=#8c8a86>T: trazar vía</color>", st);
             if (_modo && _causa == null && _costePrevia != null && _mb.CamaraMundo != null)
             {
                 var sp = _mb.CamaraMundo.WorldToViewportPoint(_finPrevia);
-                if (sp.z > 0f) GUI.Label(new Rect(16f, arriba, Screen.width - 32f, 28f), "<color=#d4d0cc>Vista previa: " + _costePrevia + "</color>", st);      // Sara: en la franja de abajo, nunca encima de estaciones o placas      // Sara: que no se corte por la derecha
+                if (sp.z > 0f) MundoBootstrap.Rotulo(new Rect(16f, arriba, Screen.width - 32f, 28f), "<color=#d4d0cc>Vista previa: " + _costePrevia + "</color>", st);      // Sara: en la franja de abajo, nunca encima de estaciones o placas      // Sara: que no se corte por la derecha
             }
             if (_modo && _causa != null && _mb.CamaraMundo != null)
             {
                 var sp = _mb.CamaraMundo.WorldToViewportPoint(_finPrevia);
-                if (sp.z > 0f) { float sx = sp.x * Screen.width, sy = (1f - sp.y) * Screen.height; GUI.Label(new Rect(sx - 10f, sy - 14f, 30f, 28f), "<color=#e08c30><b>✕</b></color>", st); GUI.Label(new Rect(16f, arriba, Screen.width - 32f, 28f), "<color=#e08c30>" + _causa + "</color>", st); }
+                if (sp.z > 0f) { float sx = sp.x * Screen.width, sy = (1f - sp.y) * Screen.height; GUI.Label(new Rect(sx - 10f, sy - 14f, 30f, 28f), "<color=#e08c30><b>✕</b></color>", st); MundoBootstrap.Rotulo(new Rect(16f, arriba, Screen.width - 32f, 28f), "<color=#e08c30>" + _causa + "</color>", st); }
             }
         }
 
