@@ -95,7 +95,7 @@ namespace TBD.Mundo
                 if (R.UltimoRechazo.Contains(": no hay vía hasta")) Debug.Log("[RED] estado del tren: " + R.UltimoRechazo);      // Sara: es el estado del tren, no un rechazo de una orden (sale en la línea de abajo)
                 else { _causa = R.UltimoRechazo; Debug.Log("[RED] la red rechaza: " + R.UltimoRechazo); }
             }
-            if (R.Via.Tramos.Count > _tramosDibujados) { var tn = R.Via.Tramos[R.Via.Tramos.Count - 1]; Debug.Log($"[RED] vía trazada: tramo {tn.Id}, {tn.Piezas?.Length ?? 0} piezas, {tn.LongMm / 1000} m, {R.Via.PasosNivel.Count} pasos a nivel");
+            if (R.Via.Tramos.Count > _tramosDibujados) { var tn = R.Via.Tramos[R.Via.Tramos.Count - 1]; Debug.Log($"[RED] vía trazada: tramo {tn.Id}, {tn.Piezas?.Length ?? 0} piezas, {tn.LongMm / 1000} m, {R.Via.PasosNivel.FindAll(x => x.Tramo == tn.Id).Count} pasos a nivel en este tramo ({R.Via.PasosNivel.Count} en toda la red)");      // Sara S3: antes contaba los de toda la red
                 if (tn.Piezas != null) { long qx = R.Via.Nodos[tn.A].X, qy = R.Via.Nodos[tn.A].Y; int qr = tn.RumboIni, nc = 0; string donde = ""; foreach (var pz in tn.Piezas) { if (Via.RadioMm(pz) > 0) { nc++; if (donde == "" ) donde = $" · primera curva ({pz}) en ({qx / 1000}; {qy / 1000}) m"; } Via.Avanzar(pz, ref qx, ref qy, ref qr); } Debug.Log($"[RED] curvas: {nc} de {tn.Piezas.Length}{donde}"); } }
             LineaSiUnidas();
             DibujarTramos(); Simbolo();
@@ -125,7 +125,7 @@ namespace TBD.Mundo
             if (_trazo.Count < 2) return;
             if (_m != null) { foreach (var p in _trazo) Mandar(OrdenesRed.PuntoVia, p.X, p.Y); Mandar(OrdenesRed.TrazarVia); Debug.Log($"[RED] trazo de {_trazo.Count} puntos mandado al Mundo"); return; }
             var r = _propia.TrazarVia(_trazo);
-            Debug.Log(r.Ok ? $"[RED] vía trazada: tramo {r.Tramo}, {_propia.Via.Tramos[r.Tramo].Piezas.Length} piezas, {_propia.Via.Tramos[r.Tramo].LongMm / 1000} m, {_propia.Via.PasosNivel.Count} pasos a nivel" : "[RED] vía rechazada: " + r.Por);
+            Debug.Log(r.Ok ? $"[RED] vía trazada: tramo {r.Tramo}, {_propia.Via.Tramos[r.Tramo].Piezas.Length} piezas, {_propia.Via.Tramos[r.Tramo].LongMm / 1000} m, {_propia.Via.PasosNivel.FindAll(x => x.Tramo == r.Tramo).Count} pasos a nivel en este tramo" : "[RED] vía rechazada: " + r.Por);
             if (!r.Ok) _causa = r.Por;
         }
 
