@@ -52,7 +52,7 @@ namespace TBD.Mundo
         {
             if (metros < 0) metros = 0; int p = metros / MPorPale, m = metros % MPorPale;
             string sp = p == 1 ? "1 palé" : $"{p} palés";
-            return p == 0 ? $"{m} m" : m == 0 ? sp : $"{sp} y {m} m";
+            return metros == 0 ? "0 palés" : p == 0 ? $"{m} m" : m == 0 ? sp : $"{sp} y {m} m";
         }
         string Cobrar(int desde, int costeM, out int estacion)
         {
@@ -318,7 +318,7 @@ namespace TBD.Mundo
         {
             if (e < 0 || e >= Almacen.Count) return "";
             int c = Almacen[e][Municion]; string s = $"{c} {(c == 1 ? "caja" : "cajas")} · {c * cartuchosPorCaja + cartuchosSueltos} cartuchos";
-            int m = MaterialM(e); return m > 0 ? s + " · " + Pales(m) : s;
+            return s + " · " + Pales(MaterialM(e));      // Marcos: también «0 palés»
         }
         /// <summary>Para cuánto le llega la munición, con el saldo de entradas y salidas de los 2 últimos viajes: «Se agota en ~4 min», «Se mantiene», «Sube», «Sin consumo».
         /// ambar: se agota en menos de un viaje. Antes de 2 vueltas medidas: «Midiendo…».</summary>
