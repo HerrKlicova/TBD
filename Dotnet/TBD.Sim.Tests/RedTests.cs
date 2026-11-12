@@ -167,8 +167,8 @@ namespace TBD.Sim.Tests
                     var r = new Red(); r.AddEstacion("A", 1_060_000, 430_000); r.AddEstacion("B", 1_300_000, 1_640_000); r.Via.CargarCarreterasCsv(csv); r.Via.CargarMarCsv(mar);
                     var r1 = r.TrazarVia(new List<PointMm> { new PointMm(1_060_000, 430_000), new PointMm(1_110_000, 700_000), new PointMm(1_150_000, 900_000) });
                     check(r1.Ok, $"A → P(1150; 900) con final libre se traza ({(r1.Ok ? r.Via.Tramos[r1.Tramo].Piezas.Length + " piezas" : r1.Por)})");
-                    var r2 = r.TrazarVia(new List<PointMm> { new PointMm(1_150_000, 900_000), new PointMm(1_240_000, 1_300_000), new PointMm(1_300_000, 1_640_000) });
-                    check(r2.Ok && r.Via.Ruta(r.Via.Estaciones[0].Nodo, r.Via.Estaciones[1].Nodo)?.Count == 2, $"P → B sigue desde el final de la anterior y une A con B ({(r2.Ok ? "ok, " + r.Via.PasosNivel.Count + " paso a nivel" : r2.Por)})");
+                    var r2 = r.TrazarVia(new List<PointMm> { new PointMm(1_150_000, 900_000), new PointMm(1_390_000, 1_300_000), new PointMm(1_300_000, 1_640_000) });
+                    check(r2.Ok && r.Via.Ruta(r.Via.Estaciones[0].Nodo, r.Via.Estaciones[1].Nodo)?.Count == 2, $"P → B por el punto guía de Marcos (1390; 1300) sigue desde el final de la anterior y une A con B ({(r2.Ok ? "ok, " + r.Via.PasosNivel.Count + " paso a nivel" : r2.Por)})");
                     check(r.Via.MarDesdeMm.Length == 2049 && r.Via.EnMar(new PointMm(1_950_000, 900_000)) && !r.Via.EnMar(new PointMm(1_300_000, 1_640_000)), "el mar de usos_2049 está al este (1950; 900 es mar; B no)");
                     var r3 = r.TrazarVia(new List<PointMm> { new PointMm(1_060_000, 430_000), new PointMm(1_950_000, 900_000) });
                     check(!r3.Ok && r3.Por.Contains("mar") && r.Via.Tramos.Count == 2, $"A → mar (1950; 900) se rechaza ({r3.Por})");
