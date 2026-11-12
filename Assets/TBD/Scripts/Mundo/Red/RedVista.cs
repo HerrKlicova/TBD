@@ -277,7 +277,7 @@ namespace TBD.Mundo
             if (mapa && (_anchoSimbolo < 0f || Mathf.Abs(ancho - _anchoSimbolo) > _anchoSimbolo * 0.25f))
             {
                 foreach (var s in _simbolo) if (s != null) Destroy(s); _simbolo.Clear(); _anchoSimbolo = ancho;
-                foreach (var t in R.Via.Tramos) { if (t.Borrado) continue; var g = new GameObject($"Vía · símbolo {t.Id}"); Cinta(g.transform, t.Puntos, 0f, ancho * 1.25f, 2f, Trazado(ZumEstetica.Contorno, 1f, 0f), "Contorno", true); var mh = Trazado(ZumEstetica.Hueso, 1f, 0f); mh.renderQueue = 2461; Cinta(g.transform, t.Puntos, 0f, ancho, 2.2f, mh, "Hueso", true);      // Marcos: ZWrite Off y misma cola, el contorno tapaba el hueso (Sara, H3: línea negra); el hueso va después _simbolo.Add(g); }
+                foreach (var t in R.Via.Tramos) { if (t.Borrado) continue; var g = new GameObject($"Vía · símbolo {t.Id}"); Cinta(g.transform, t.Puntos, 0f, ancho * 1.25f, 2f, Trazado(ZumEstetica.Contorno, 1f, 0f), "Contorno", true); var mh = Trazado(ZumEstetica.Hueso, 1f, 0f); mh.renderQueue = 2461; Cinta(g.transform, t.Puntos, 0f, ancho, 2.2f, mh, "Hueso", true); _simbolo.Add(g); }      // Marcos: ZWrite Off y misma cola, el contorno tapaba el hueso (Sara, H3: línea negra); el hueso va después (cola 2461)
             }
             foreach (var s in _simbolo) if (s != null) s.SetActive(mapa);
         }
