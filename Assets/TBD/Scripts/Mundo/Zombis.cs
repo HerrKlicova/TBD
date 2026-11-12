@@ -23,6 +23,8 @@ namespace TBD.Mundo
     public struct ParamsZombis
     {
         public int CasaRadioMm, VeMm, PierdeMm, OyeMm, PasoDeambularMmS, PasoCorrerMmS, CuerpoMm, ParaMm, EsperaMinTicks, EsperaMaxTicks, PercibeCadaTicks, ReplanCadaTicks;
+        /// <summary>D-N207 ampliada (Lucía, 12-11 01:38): con OleadaFinalVivos o menos vivos, oyen cada disparo a cualquier distancia y van hacia él (oleada final). 0 = apagado.</summary>
+        public int OleadaFinalVivos;
         public static ParamsZombis PorDefecto()
         {
             return new ParamsZombis
@@ -32,13 +34,14 @@ namespace TBD.Mundo
                 CuerpoMm = 300, ParaMm = 700,                              // se para a 0,7 m del soldado; el contacto (UnitsWorld.ZombieContact) llega a 0,9 m
                 EsperaMinTicks = 3 * IMath.TickRate, EsperaMaxTicks = 10 * IMath.TickRate,
                 PercibeCadaTicks = 10, ReplanCadaTicks = 30,
+                OleadaFinalVivos = 15,
             };
         }
         public ulong Hash()
         {
             return IMath.Mix((ulong)(uint)CasaRadioMm ^ ((ulong)(uint)VeMm << 32)) + IMath.Mix((ulong)(uint)PierdeMm ^ ((ulong)(uint)OyeMm << 32))
                 + IMath.Mix((ulong)(uint)PasoDeambularMmS ^ ((ulong)(uint)PasoCorrerMmS << 32)) + IMath.Mix((ulong)(uint)CuerpoMm ^ ((ulong)(uint)ParaMm << 32))
-                + IMath.Mix((ulong)(uint)EsperaMinTicks ^ ((ulong)(uint)EsperaMaxTicks << 32)) + IMath.Mix((ulong)(uint)PercibeCadaTicks ^ ((ulong)(uint)ReplanCadaTicks << 32));
+                + IMath.Mix((ulong)(uint)EsperaMinTicks ^ ((ulong)(uint)EsperaMaxTicks << 32)) + IMath.Mix((ulong)(uint)PercibeCadaTicks ^ ((ulong)(uint)ReplanCadaTicks << 32)) + IMath.Mix(0x01EADAUL ^ (ulong)(uint)OleadaFinalVivos);
         }
     }
 
@@ -58,6 +61,8 @@ namespace TBD.Mundo
         public IRng Rng;
         int _nextId;
         public long SinCamino, Atascos;
+        /// <summary>Quedan OleadaFinalVivos o menos (se deriva de los vivos; no hace falta hashearlo aparte).</summary>
+        public bool OleadaFinal;
         public string Traza(int i) { var c = _caminos[i]; int k = _caminoI[i]; return $"cam {c.Count} k {k} punto {(k < c.Count ? c[k].X + ";" + c[k].Y : "-")} atasco {_atasco[i]} replan {_replanTick[i]}"; }      // búsquedas sin camino (diagnóstico, fuera del hash)
 
         public ZombisMundo(uint seed) { Rng = new IRng(seed ^ 0x2B0A1u); }
@@ -81,6 +86,8 @@ namespace TBD.Mundo
         public void Step(UnitsWorld u, RejillaTrozos rej, IList<FireEvent> disparos, int tick)
         {
             long ve2 = (long)P.VeMm * P.VeMm, pierde2 = (long)P.PierdeMm * P.PierdeMm, oye2 = (long)P.OyeMm * P.OyeMm, para2 = (long)P.ParaMm * P.ParaMm;
+            int vivos = Vivos; OleadaFinal = P.OleadaFinalVivos > 0 && vivos > 0 && vivos <= P.OleadaFinalVivos;
+            if (OleadaFinal) oye2 = long.MaxValue;      // oleada final: oyen los disparos a cualquier distancia
             for (int i = 0; i < Lista.Count; i++)
             {
                 var z = Lista[i]; if (!z.Vivo) continue; z.Andando = false;
@@ -101,6 +108,7 @@ namespace TBD.Mundo
                     }
                     else if (mejor >= 0 && md <= ve2 && (tick + z.Id) % P.PercibeCadaTicks == 0 && u.LineOfSight(z.X, z.Y, mx, my))
                     { z.Estado = EstadoZombi.Persigue; z.Objetivo = mejor; z.MetaX = mx; z.MetaY = my; }
+                    else if (OleadaFinal && z.Estado == EstadoZombi.Ruido && mejor >= 0) { z.MetaX = mx; z.MetaY = my; }      // oleada final: el que ha oído va a por el pelotón, no al sitio del disparo
                 }
 
                 // 2) oído: el disparo más cercano de este tick a OyeMm o menos

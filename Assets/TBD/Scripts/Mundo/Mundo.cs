@@ -127,6 +127,7 @@ namespace TBD.Mundo
             // zombis: vista, oído, deambular y andar
             Zombis.Step(Unidades, Rejilla, _res.Shots, Tick);
             if (Prof) { long t1 = System.Diagnostics.Stopwatch.GetTimestamp(); ProfZombis += t1 - t0; t0 = t1; }
+            if (Zombis.OleadaFinal && !_avisoOleada) { _avisoOleada = true; Evento("[CASERIO] quedan " + Zombis.Vivos + " zombis: oleada final, oyen los disparos desde todo el caserío (tick " + Tick + ")"); }
             if (!CaserioLimpio && zs.Count > 0 && Zombis.Vivos == 0) { CaserioLimpio = true; CogerMaterial(); }
             if (Portador >= 0) LlevarMaterial(); else if (MaterialEnSuelo) RecogerDelSuelo();
             // contacto con los soldados
@@ -185,7 +186,10 @@ namespace TBD.Mundo
         /// (Red.Meter, una sola vez) y la línea por defecto de Iker se los lleva a A (2 por viaje). Nadie más produce material. Sin animación de carga en el Hito 1.</summary>
         public static int MaterialCaserioPales = 4;
         public int MaterialRadioMm = 25000, PortadorVelPm = 600;
-        public bool CaserioLimpio, MaterialEnB;
+        public bool CaserioLimpio, MaterialEnB; bool _avisoOleada;
+        /// <summary>Para la placa del caserío (Marcos): zombis vivos que quedan y si ya va la oleada final.</summary>
+        public int ZombisQuedan { get { return Zombis.Vivos; } }
+        public bool OleadaFinal { get { return Zombis.OleadaFinal; } }
         public int Portador = -1; int _velPortador;
         /// <summary>Palés en el suelo (cayó su portador): Unity dibuja el montón en (SueloX, SueloY) mm; lo recoge el primer pelotón vivo que pase a RecogerRadioMm.</summary>
         public bool MaterialEnSuelo; public int SueloX, SueloY, RecogerRadioMm = 10000;
