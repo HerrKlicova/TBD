@@ -61,7 +61,7 @@ namespace TBD.Mundo
                 if (_salirEn > 0 && M.Tick >= _salirEn) { if (_trenlog) foreach (var z in M.Zombis.Lista) if (z.Vivo) Debug.Log($"[ZOMBI] vivo en ({z.X / 1000}; {z.Y / 1000}) m"); Cerrar(); _salirEn = 0; Application.Quit(); return; }
                 if (_reproducir != null) while (_ri < _reproducir.Count && _reproducir[_ri].Tick <= M.Tick) M.Encolar(_reproducir[_ri++]);
                 M.Step(); _acc -= Dt; n++;
-                if (_trenlog && M.Tick % 30 == 0) foreach (var t in M.Red.Trenes) Debug.Log($"[TREN] tick {M.Tick} {t.Nombre} {t.Estado} línea {t.Linea} paso {t.PasoI}/{t.Ruta.Count} tramo {(t.Ruta.Count > t.PasoI ? t.Ruta[t.PasoI].Tramo : -1)} off {t.OffMm / 1000} m · carga {t.Carga[Red.Municion]} cajas {t.Carga[Red.Material]} palés · A {M.Red.Almacen[0][Red.Municion]} cajas {M.Red.Almacen[0][Red.Material]} palés · B {M.Red.Almacen[1][Red.Municion]} cajas {M.Red.Almacen[1][Red.Material]} palés");      // QA: solo lee
+                if (_trenlog && M.Tick % 30 == 0) foreach (var t in M.Red.Trenes) Debug.Log($"[TREN] tick {M.Tick} {t.Nombre} {t.Estado} línea {t.Linea} paso {t.PasoI}/{t.Ruta.Count} tramo {(t.Ruta.Count > t.PasoI ? t.Ruta[t.PasoI].Tramo : -1)} off {t.OffMm / 1000} m · pelotón {(M.Unidades.Platoons.Count > 0 ? M.Unidades.Platoons[0].AmmoShots : 0)} cartuchos, {M.Abatidos} abatidos · carga {t.Carga[Red.Municion]} cajas {t.Carga[Red.Material]} palés · A {M.Red.Almacen[0][Red.Municion]} cajas {M.Red.Almacen[0][Red.Material]} palés · B {M.Red.Almacen[1][Red.Municion]} cajas {M.Red.Almacen[1][Red.Material]} palés");      // QA: solo lee
                 if (_hash != null || _refHash != null)
                 {
                     var l = M.LineaHash(); _hash?.WriteLine(l);
@@ -97,7 +97,11 @@ namespace TBD.Mundo
             O(10500, TipoOrden.AtacarMoviendo, pel, 1440000, 1480000, -1);    // vuelta a limpiar
             O(12000, TipoOrden.Formacion, pel, (int)Formation.Linea); O(12600, TipoOrden.FuegoLibre, pel, 0); O(13200, TipoOrden.FuegoLibre, pel, 1);
             O(13500, OrdenesRed.NuevoTren, 0); O(13600, OrdenesRed.AsignarTren, 0, 1);
-            O(15000, TipoOrden.Mover, pel, 1420000, 1440000, -1); O(16500, TipoOrden.Parar, pel);
+            // segundo rearme en B y barrido casa por casa hasta limpiar el caserío (Nacho: limpio → el pelotón coge los 4 palés; los lleva a B y la línea los sube a A)
+            O(12300, TipoOrden.Mover, pel, 1295000, 1595000, -1);
+            int[] barrido = { 1460000, 1440000, 1505000, 1478000, 1462000, 1406000, 1425000, 1400000, 1412000, 1478000, 1465000, 1545000, 1440000, 1460000 };
+            for (int k = 0; k < barrido.Length / 2; k++) O(14000 + 800 * k, TipoOrden.AtacarMoviendo, pel, barrido[2 * k], barrido[2 * k + 1], -1);
+            O(19700, TipoOrden.Mover, pel, 1295000, 1595000, -1);       // con los palés, a B (a 25 m los deja en el almacén)
             g.Sort((x, y) => x.Tick.CompareTo(y.Tick));      // ticks todos distintos: orden fijo
             return g;
         }
