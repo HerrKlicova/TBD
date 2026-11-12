@@ -144,6 +144,7 @@ namespace TBD.Sim.Tests
                 Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos");
                 return _fail == 0 ? 0 : 1;
             }
+            if (Environment.GetEnvironmentVariable("TBD_REPLAY") != null) { MundoTests.Replay(); return 0; }
             if (Environment.GetEnvironmentVariable("TBD_K_REPORT") == "1") { MundoTests.KReport(); return 0; }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_MUNDO") == "1") { MundoTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }
             if (Environment.GetEnvironmentVariable("TBD_ONLY_LOS") == "1") { LosTests.Run(Check); Console.WriteLine($"Resumen: {_pass} correctas, {_fail} fallos"); return _fail == 0 ? 0 : 1; }

@@ -154,6 +154,9 @@ namespace TBD.Mundo
                 else if (p.AmmoShots < p.AmmoCap && Tick % IMath.TickRate == 0) RecargarEnB(p);      // en B se recarga de las cajas del almacén de la red      // en B se recarga de las cajas del almacén de la red
                 bool seco = p.AmmoShots < CosteMinimo(p);
                 if (seco && !_retirandose.Contains(p.Id)) { _retirandose.Add(p.Id); Unidades.Move(p.Id, b.X, b.Y); }
+                // Si el jugador lo manda a otra parte estando seco (Mundo8 de Marcos: AtacarMoviendo sin munición), obedece; pero cuando llega y se para fuera de B,
+                // vuelve solo a B en lugar de quedarse quieto entre los zombis sin poder disparar.
+                else if (seco && !p.Moving && !enB) Unidades.Move(p.Id, b.X, b.Y);
                 else if (!seco && _retirandose.Contains(p.Id)) _retirandose.Remove(p.Id);
             }
         }

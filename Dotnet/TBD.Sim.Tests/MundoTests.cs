@@ -78,6 +78,18 @@ namespace TBD.Sim.Tests
             int sinCajas0 = r0.Eventos.FindAll(e => e.StartsWith("[RECARGA] sin cajas en B")).Count;
             check(sinCajas0 == 1 && r0.Eventos.Count == 1 && r1.Eventos.Count == 1 && r1.Eventos[0].StartsWith("[RECARGA] 3 cajas → " + (q1.AmmoCap - 10) + " cartuchos"),
                 $"log de recarga: sin tren «{(r0.Eventos.Count > 0 ? r0.Eventos[0] : "-")}» una sola vez en 3 s ({r0.Eventos.Count}); con tren «{(r1.Eventos.Count > 0 ? r1.Eventos[0] : "-")}»");
+            // --- Mundo8 de Marcos: el jugador manda al caserío un pelotón seco (AtacarMoviendo sin munición). Obedece, pero al pararse fuera de B vuelve solo a B.
+            {
+                var w = TBD.Mundo.Mundo.Caserio(5); var pw = w.Unidades.Platoons[0]; int bw = w.Red.EstacionPorNombre("B"); w.Red.Sacar(bw, Red.Municion, 1000); pw.AmmoShots = 0;
+                w.Encolar(new Orden { Tick = 30, Jugador = 1, Tipo = TipoOrden.AtacarMoviendo, A = pw.Id, B = TBD.Mundo.Mundo.CaserioX, C = TBD.Mundo.Mundo.CaserioY, D = -1 });
+                var pb = w.Puntos["B"]; long lejosW = 0; bool vuelto = false;
+                for (int t = 0; t < 30 * 600 && !vuelto; t++)
+                {
+                    w.Step(); long dx = pw.AX - pb.X, dy = pw.AY - pb.Y, d2 = dx * dx + dy * dy; if (d2 > lejosW) lejosW = d2;
+                    vuelto = lejosW > 100000L * 100000L && d2 <= (long)w.RecargaRadioMm * w.RecargaRadioMm;
+                }
+                check(vuelto, $"seco y mandado al caserío: va (hasta {Math.Sqrt(lejosW) / 1000:0} m de B), se para y vuelve solo a B ({pw.AliveCount()} de 8 vivos, tick {w.Tick}); el log dice «{(w.Eventos.Count > 0 ? w.Eventos[w.Eventos.Count - 1] : "-")}»");
+            }
             // --- determinismo: dos instancias con las mismas órdenes dan el mismo hash cada tick durante 10 min
             var a = TBD.Mundo.Mundo.Caserio(11); var b = TBD.Mundo.Mundo.Caserio(11); int pa = a.Unidades.Platoons[0].Id;
             var ords = new[] {
@@ -107,6 +119,34 @@ namespace TBD.Sim.Tests
         /// <summary>TBD_K_REPORT=1 (Hugo, cifras del Hito 1): el pelotón de B contra los 100 del caserío, N semillas (TBD_K_N, 200), con munición sin límite
         /// (TBD_K_MUNI vacío) o con TBD_K_MUNI disparos por soldado. TBD_K_HIT = lista de ‰ de puntería (UnitsWorld.HitScalePm) a probar, «1000» por defecto.
         /// k = disparos (cartuchos) gastados entre abatidos. Distancia media del abatido a su pelotón y minuto de cada baja.</summary>
+        /// <summary>TBD_REPLAY=grabación (de -grabar): reproduce las órdenes y cuenta cada baja con su contexto (munición, si se retira, orden en curso, zombis a 10 m).
+        /// TBD_REPLAY_FIN = último tick (18300 por defecto). Imprime el hash final para compararlo con el log de Unity.</summary>
+        public static void Replay()
+        {
+            if (TBD.Mundo.Mundo.Lector == null) { string dir = System.IO.Path.Combine(BalanceTests.DataDirPublic(), "..", "..", "StreamingAssets", "Hito1"); TBD.Mundo.Mundo.Lector = f => { var pth = System.IO.Path.Combine(dir, f); return System.IO.File.Exists(pth) ? System.IO.File.ReadAllText(pth) : null; }; }
+            var ords = TBD.Mundo.Mundo.OrdenesDe(System.IO.File.ReadAllText(Environment.GetEnvironmentVariable("TBD_REPLAY")), out uint sem, out string esc);
+            int fin = int.TryParse(Environment.GetEnvironmentVariable("TBD_REPLAY_FIN"), out var ff) ? ff : 18300;
+            var m = TBD.Mundo.Mundo.Caserio(sem); foreach (var o in ords) m.Encolar(o); m.Log = l => Console.WriteLine("  " + l);
+            int bajas = 0, abat = 0; string ultOrden = "-";
+            var b = m.Puntos["B"];
+            while (m.Tick <= fin)
+            {
+                foreach (var o in ords) if (o.Tick == m.Tick && (int)o.Tipo < 100) { ultOrden = o.Tipo + "@" + o.Tick; Console.WriteLine($"t {m.Tick} ({m.Tick / 30} s) orden {o}"); }
+                if (m.Tick == fin) break;
+                m.Step();
+                var p = m.Unidades.Platoons[0];
+                if (m.Abatidos / 10 != abat / 10) Console.WriteLine($"t {m.Tick} ({m.Tick / 30} s) abatidos {m.Abatidos}, munición {p.AmmoShots}/{p.AmmoCap}");
+                abat = m.Abatidos;
+                if (m.BajasPropias != bajas)
+                {
+                    int cerca = 0, persig = 0; foreach (var z in m.Zombis.Lista) { if (!z.Vivo) continue; long dx = z.X - p.AX, dy = z.Y - p.AY; if (dx * dx + dy * dy < 100000L * 100000L) cerca++; if (z.Estado == EstadoZombi.Persigue) persig++; }
+                    long bx = p.AX - b.X, by = p.AY - b.Y;
+                    Console.WriteLine($"t {m.Tick} ({m.Tick / 30} s) BAJA {m.BajasPropias}: munición {p.AmmoShots}/{p.AmmoCap}, vivos {p.AliveCount()}, se retira {m.SeRetira(p.Id)}, moviendo {p.Moving} atacando {p.AttackMove} altoelfuego {p.HoldFire}, orden {ultOrden}, a {Math.Sqrt(bx * bx + by * by) / 1000:0} m de B, zombis a 100 m {cerca}, persiguiendo {persig}, abatidos {m.Abatidos}");
+                    bajas = m.BajasPropias;
+                }
+            }
+            Console.WriteLine($"fin: tick {m.Tick}, abatidos {m.Abatidos}, bajas {m.BajasPropias}, hash {m.Hash():x16}");
+        }
         public static void KReport()
         {
             if (TBD.Mundo.Mundo.Lector == null) { string dir = System.IO.Path.Combine(BalanceTests.DataDirPublic(), "..", "..", "StreamingAssets", "Hito1"); TBD.Mundo.Mundo.Lector = f => { var pth = System.IO.Path.Combine(dir, f); return System.IO.File.Exists(pth) ? System.IO.File.ReadAllText(pth) : null; }; }
