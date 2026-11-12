@@ -184,6 +184,7 @@ namespace TBD.Mundo
                 Cinta(_previa.transform, pts, 0f, 6f, 1.0f, Trazado(ZumEstetica.Ambar, 1f, 0f), "Banda", true);
             }
             _finPrevia = AMundo(pts[pts.Length - 1], 1.5f);
+            if (_causa != null && _causa.StartsWith("la vía tiene que empezar") && pts.Length > 0) _finPrevia = AMundo(pts[0], 1.5f);      // Sara/Iker: la ✕ va donde está el problema (el arranque), no al final del trazo
         }
 
         Material Trazado(Color c, float tramado, float guion)

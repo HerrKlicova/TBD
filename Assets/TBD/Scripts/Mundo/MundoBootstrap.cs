@@ -316,7 +316,7 @@ namespace TBD.Mundo
             if (h.Count == 0 || M.Tick - h[h.Count - 1].tick >= 30) h.Add((M.Tick, cajas, h.Count > 0 && cajas < h[h.Count - 1].cajas));
             int vuelta = 0; foreach (var t in R.Trenes) if (t.UltimaVueltaT > 0) { vuelta = t.UltimaVueltaT; break; }
             int ventana = vuelta > 0 ? 2 * vuelta : 9000; while (h.Count > 2 && M.Tick - h[0].tick > ventana) h.RemoveAt(0);
-            string hay = $"{cajas} {(cajas == 1 ? "caja" : "cajas")} · {cajas * Mundo.CartuchosPorCaja} cartuchos · {Red.Pales(R.MaterialM(e))}";
+            string hay = $"{cajas} {(cajas == 1 ? "caja" : "cajas")} · {cajas * Mundo.CartuchosPorCaja} cartuchos · {(R.MaterialM(e) > 0 ? Red.Pales(R.MaterialM(e)) : "0 palés")}";
             bool gasto = false; foreach (var x in h) gasto |= x.gasto; int dt = M.Tick - h[0].tick, neto = cajas - h[0].cajas;
             string ritmo; bool ambar = false;
             if (!gasto) ritmo = "Sin consumo";
