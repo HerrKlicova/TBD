@@ -36,7 +36,7 @@ namespace TBD.Mundo
     {
         public const int Recursos = 4;                     // 0 munición (cajas de 105 cartuchos, Mundo.CartuchosPorCaja), 1 combustible, 2 material de vía (palés de 100 m), 3 víveres; Hito 1: munición y material
         public const int Municion = 0, Material = 2;
-        public const int TicksPorU = 450;                  // Hugo: 15 s por hueco cargado o descargado
+        public const int TicksPorU = 150;                  // Hugo (12-nov): 5 s por hueco cargado o descargado, en A y en B (antes 15 s)
         public const int EsperaMinT = 90;                  // al menos 3 s parado en cada parada (además de la carga)
         public readonly Via Via = new Via();
         /// <summary>Hugo (cifras-hito1): el material de vía se cobra en METROS enteros (1 palé = 100 m; curvas ×1,5; paso a nivel 200 m; Via.CosteMetros), sin redondear por tramo.
@@ -201,7 +201,7 @@ namespace TBD.Mundo
             t.EsperaT++;
             var l = Lineas[t.Linea]; var p = l.Paradas[t.Parada]; var alm = Almacen[p.Estacion];
             int r = SiguienteTrabajo(t, p, alm, out bool descargar);
-            if (r >= 0 && (t.EsperaT % TicksPorU) == 0)      // cada hueco tarda TicksPorU (Hugo: 15 s): primero se descarga, luego se carga
+            if (r >= 0 && (t.EsperaT % TicksPorU) == 0)      // cada hueco tarda TicksPorU (Hugo: 5 s): primero se descarga, luego se carga
             {
                 if (descargar) { t.Carga[r]--; alm[r]++; Marcar(t, r, false); } else { alm[r]--; t.Carga[r]++; Marcar(t, r, true); }
                 r = SiguienteTrabajo(t, p, alm, out descargar);
