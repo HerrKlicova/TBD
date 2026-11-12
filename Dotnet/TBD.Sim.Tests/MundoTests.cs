@@ -70,6 +70,18 @@ namespace TBD.Sim.Tests
                 check(m2.CaserioLimpio && antes == 0 && lleva && siempreAlto && m2.MaterialEnB && despues == TBD.Mundo.Mundo.MaterialCaserioPales && !pp.HoldFire && pp.SpeedMmS > velLleva && m2.Portador < 0,
                     $"material del caserío: lo coge el pelotón ({velLleva} mm/s cargado, {pp.SpeedMmS} después; sin disparar: {siempreAlto}); {antes} palés en B al limpiar y {despues} al volver (tick {m2.Tick}); log «{string.Join(" | ", m2.Eventos.FindAll(e => e.StartsWith("[MATERIAL]")))}»");
             }
+            // Sara: si cae el portador, los palés no desaparecen: quedan en el suelo y otro pelotón los recoge al pasar
+            {
+                var g = TBD.Mundo.Mundo.Caserio(7); for (int i = 0; i < g.Zombis.Lista.Count; i++) g.Zombis.Abatir(i);
+                var g1 = g.Unidades.Platoons[0]; g.Step();      // limpio: coge los palés g1
+                bool cogio = g.LlevaMaterial(g1.Id);
+                foreach (var man in g1.Men) man.Hp = 0; g.Step();
+                bool enSuelo = g.MaterialEnSuelo && g.Portador < 0 && !g.MaterialEnB;
+                int sx = g.SueloX, sy = g.SueloY; int g2 = g.Unidades.AddPlatoon(PlatoonKind.Fusileros, sx + 50000, sy, 0).Id;
+                g.Encolar(new Orden { Tick = g.Tick, Jugador = 1, Tipo = TipoOrden.Mover, A = g2, B = sx, C = sy, D = -1 });
+                for (int t = 0; t < 30 * 120 && g.MaterialEnSuelo; t++) g.Step();
+                check(cogio && enSuelo && g.LlevaMaterial(g2), $"si cae el portador los palés quedan en el suelo y otro pelotón los recoge; log «{string.Join(" | ", g.Eventos.FindAll(e => e.StartsWith("[MATERIAL]")))}»");
+            }
             // sin línea (35 cartuchos por soldado y nada en B): se queda seco a mitad, se retira solo a B y no muere entero (objetivo de Lucía y Hugo)
             var m3 = TBD.Mundo.Mundo.Caserio(7); var p3 = m3.Unidades.Platoons[0]; m3.Red.Sacar(m3.Red.EstacionPorNombre("B"), Red.Municion, 1000); bool seRetira = false;
             m3.Encolar(new Orden { Tick = 0, Jugador = 1, Tipo = TipoOrden.AtacarMoviendo, A = p3.Id, B = TBD.Mundo.Mundo.CaserioX, C = TBD.Mundo.Mundo.CaserioY, D = -1 });

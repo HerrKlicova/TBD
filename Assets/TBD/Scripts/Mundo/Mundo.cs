@@ -128,7 +128,7 @@ namespace TBD.Mundo
             Zombis.Step(Unidades, Rejilla, _res.Shots, Tick);
             if (Prof) { long t1 = System.Diagnostics.Stopwatch.GetTimestamp(); ProfZombis += t1 - t0; t0 = t1; }
             if (!CaserioLimpio && zs.Count > 0 && Zombis.Vivos == 0) { CaserioLimpio = true; CogerMaterial(); }
-            if (Portador >= 0) LlevarMaterial();
+            if (Portador >= 0) LlevarMaterial(); else if (MaterialEnSuelo) RecogerDelSuelo();
             // contacto con los soldados
             _blancos.Clear();
             for (int i = 0; i < zs.Count; i++) if (zs[i].Vivo && CercaDePeloton(zs[i].X, zs[i].Y)) _blancos.Add(new Target { Id = i, X = zs[i].X, Y = zs[i].Y });
@@ -187,6 +187,19 @@ namespace TBD.Mundo
         public int MaterialRadioMm = 25000, PortadorVelPm = 600;
         public bool CaserioLimpio, MaterialEnB;
         public int Portador = -1; int _velPortador;
+        /// <summary>Palés en el suelo (cayó su portador): Unity dibuja el montón en (SueloX, SueloY) mm; lo recoge el primer pelotón vivo que pase a RecogerRadioMm.</summary>
+        public bool MaterialEnSuelo; public int SueloX, SueloY, RecogerRadioMm = 10000;
+        void RecogerDelSuelo()
+        {
+            foreach (var p in Unidades.Platoons)
+            {
+                if (p.Aboard != 0 || p.AliveCount() == 0) continue;
+                long dx = p.AX - SueloX, dy = p.AY - SueloY; if (dx * dx + dy * dy > (long)RecogerRadioMm * RecogerRadioMm) continue;
+                MaterialEnSuelo = false; Portador = p.Id; _velPortador = p.SpeedMmS; p.SpeedMmS = _velPortador * PortadorVelPm / 1000; p.HoldFire = true;
+                Evento("[MATERIAL] el pelotón " + p.Id + " recoge " + MaterialCaserioPales + " palés del suelo (tick " + Tick + ")");
+                return;
+            }
+        }
         public bool LlevaMaterial(int peloton) { return Portador == peloton; }
         void CogerMaterial()
         {
@@ -197,14 +210,20 @@ namespace TBD.Mundo
                 if (p.Aboard != 0 || p.AliveCount() == 0) continue;
                 long dx = p.AX - d.X, dy = p.AY - d.Y, d2 = dx * dx + dy * dy; if (d2 < mejorD) { mejorD = d2; mejor = p; }
             }
-            if (mejor == null) { Evento("[MATERIAL] caserío limpio (tick " + Tick + "), pero no queda ningún pelotón que coja los palés"); return; }
+            if (mejor == null) { MaterialEnSuelo = true; SueloX = d.X; SueloY = d.Y; Evento("[MATERIAL] caserío limpio (tick " + Tick + "): " + MaterialCaserioPales + " palés en el depósito, sin pelotón que los coja"); return; }
             Portador = mejor.Id; _velPortador = mejor.SpeedMmS; mejor.SpeedMmS = _velPortador * PortadorVelPm / 1000; mejor.HoldFire = true;
             Evento("[MATERIAL] caserío limpio (tick " + Tick + "): el pelotón " + mejor.Id + " coge " + MaterialCaserioPales + " palés; va más despacio y sin disparar hasta B");
         }
         void LlevarMaterial()
         {
             var p = Unidades.Find(Portador);
-            if (p == null || p.AliveCount() == 0) { Evento("[MATERIAL] el pelotón " + Portador + " cae con los palés (tick " + Tick + ")"); Portador = -1; CogerMaterial(); return; }
+            if (p == null || p.AliveCount() == 0)
+            {
+                // Sara: un recurso no desaparece. Los palés se quedan en el suelo donde cayó el portador y otro pelotón los recoge al pasar a RecogerRadioMm.
+                MaterialEnSuelo = true; SueloX = p != null ? p.AX : SueloX; SueloY = p != null ? p.AY : SueloY;
+                Evento("[MATERIAL] el pelotón " + Portador + " cae: " + MaterialCaserioPales + " palés en el suelo en (" + SueloX / 1000 + "; " + SueloY / 1000 + ") (tick " + Tick + ")");
+                Portador = -1; return;
+            }
             p.HoldFire = true;      // la orden de fuego libre no vale mientras lleva los palés
             if (p.Aboard != 0 || !Puntos.TryGetValue(PuntoRetirada, out var pb)) return;
             long dx = p.AX - pb.X, dy = p.AY - pb.Y; if (dx * dx + dy * dy > (long)MaterialRadioMm * MaterialRadioMm) return;
@@ -222,7 +241,7 @@ namespace TBD.Mundo
         int _sueltosB; public int CajasAbiertas;
         public int SueltosEnB { get { return _sueltosB; } }
 
-        ulong HashRetiradas() { ulong h = (RetiradaSinMunicion ? 0x5E7UL : 0) + IMath.Mix(0x5E71UL ^ (ulong)(uint)_sueltosB ^ ((ulong)(uint)CajasAbiertas << 32)) + (CaserioLimpio ? 0x11A7UL : 0) + (MaterialEnB ? 0x11A70UL : 0) + IMath.Mix(0x11A71UL ^ (ulong)(uint)(Portador + 1) ^ ((ulong)(uint)_velPortador << 32)); foreach (int id in _retirandose) h += IMath.Mix(0x5E70UL ^ (ulong)(uint)id); return h; }
+        ulong HashRetiradas() { ulong h = (RetiradaSinMunicion ? 0x5E7UL : 0) + IMath.Mix(0x5E71UL ^ (ulong)(uint)_sueltosB ^ ((ulong)(uint)CajasAbiertas << 32)) + (CaserioLimpio ? 0x11A7UL : 0) + (MaterialEnB ? 0x11A70UL : 0) + IMath.Mix(0x11A71UL ^ (ulong)(uint)(Portador + 1) ^ ((ulong)(uint)_velPortador << 32)) + (MaterialEnSuelo ? IMath.Mix(0x11A72UL ^ (ulong)(uint)SueloX ^ ((ulong)(uint)SueloY << 32)) : 0); foreach (int id in _retirandose) h += IMath.Mix(0x5E70UL ^ (ulong)(uint)id); return h; }
         public bool SeRetira(int peloton) { return _retirandose.Contains(peloton); }
 
         /// <summary>Medida de coste (fuera del hash): ticks de Stopwatch en el fuego de UnitsWorld y en los zombis.</summary>
